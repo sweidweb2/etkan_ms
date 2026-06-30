@@ -1,0 +1,42 @@
+---
+description: Inline spinners for buttons and small pending UI
+globs: components/**/*form*.tsx,components/auth/**/*
+alwaysApply: false
+---
+
+# Inline Loader
+
+Use for **action/button pending** states inside forms, dialogs, and small UI surfaces.
+
+## Component
+
+- `@/components/loaders/inline-spinner` → `InlineSpinner` (Lucide `Loader2`)
+
+## When
+
+- Form submit buttons while `isPending` / `isTransitionPending`.
+- Icon-only loading inside a button next to label text.
+- Small inline areas where a full-page or route loader would be too heavy.
+
+## Pattern
+
+```tsx
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+
+<Button type="submit" disabled={isPending}>
+  {isPending ? (
+    <>
+      <InlineSpinner className="mr-2" />
+      Saving…
+    </>
+  ) : (
+    "Save"
+  )}
+</Button>
+```
+
+## Do not
+
+- Use `react-loader-spinner` for buttons — reserve `PageSpinner` for route/content areas.
+- Block the entire page for a single form action.
+- Omit `disabled={isPending}` on the triggering control.

@@ -1,0 +1,55 @@
+---
+description: Custom error, not-found, and global-error pages
+globs: app/**/error.tsx,app/not-found.tsx,app/global-error.tsx,components/errors/**/*
+alwaysApply: false
+---
+
+# Error Pages
+
+Use the shared `ErrorPage` shell for consistent error UX.
+
+## Component
+
+- `@/components/errors/error-page` → `ErrorPage`
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `app/error.tsx` | Root route error boundary (`reset` + home) |
+| `app/global-error.tsx` | Root layout crash (must include `html`/`body`) |
+| `app/not-found.tsx` | 404 |
+| `app/admin/error.tsx` | Admin panel errors (reset + back to dashboard) |
+
+## When
+
+- Add segment `error.tsx` when a route group needs custom recovery (e.g. admin vs public).
+- Use `reset()` for recoverable runtime errors.
+- Pass `homeHref` / `homeLabel` for panel-specific escape paths.
+
+## Pattern
+
+```tsx
+"use client";
+
+import { ErrorPage } from "@/components/errors/error-page";
+import { ROUTES } from "@/lib/constants/routes";
+
+export default function SegmentError({ error, reset }) {
+  return (
+    <ErrorPage
+      title="Something went wrong"
+      description={error.message || "Please try again."}
+      reset={reset}
+      homeHref={ROUTES.ADMIN_DASHBOARD}
+      homeLabel="Back to dashboard"
+    />
+  );
+}
+```
+
+## Do not
+
+- Build one-off error UIs per page — extend `ErrorPage` props if needed.
+- Toast unhandled errors instead of showing the error page.
+- Use `global-error.tsx` for segment-level errors — use `error.tsx` instead.

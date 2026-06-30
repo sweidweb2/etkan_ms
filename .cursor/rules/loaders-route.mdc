@@ -1,0 +1,42 @@
+---
+description: Route-level loading.tsx and RouteLoading variants
+globs: app/**/loading.tsx,components/loaders/route-loading.tsx
+alwaysApply: false
+---
+
+# Route Loading (`loading.tsx`)
+
+Use Next.js `loading.tsx` + shared loader components for **segment suspense** while server content loads.
+
+## Components
+
+| Component | Path | Use in |
+|-----------|------|--------|
+| `RouteLoading` | `@/components/loaders/route-loading` | `loading.tsx` files |
+| `PanelRouteLoading` | `@/components/loaders/panel-route-loading` | Admin panel segments |
+| `FullPageLoader` | `@/components/loaders/full-page-loader` | Root/auth full viewport |
+
+## Variants
+
+```tsx
+// Root or auth — full viewport
+export default function Loading() {
+  return <RouteLoading variant="full-page" label="Loading…" />;
+}
+
+// Admin panel — centered in content area below header
+export default function AdminLoading() {
+  return <RouteLoading variant="panel" label="Loading page…" />;
+}
+```
+
+## When
+
+- Add `loading.tsx` next to `page.tsx` when the page has async server work and should show a fallback.
+- Use `variant="panel"` under `app/admin/`.
+- Use `variant="full-page"` for public/auth/root segments.
+
+## Do not
+
+- Put business logic in `loading.tsx`.
+- Use route loading for button/action pending states — use `InlineSpinner` instead.

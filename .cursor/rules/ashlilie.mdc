@@ -1,0 +1,112 @@
+---
+description: Core coding and architecture rules for the Ashlilie portfolio Next.js app
+alwaysApply: true
+---
+
+# Overview
+
+Ashlilie is a **personal portfolio** built with **Next.js 16 + TypeScript + Tailwind CSS**, **Supabase**, **Zod**, **TanStack React Query**, **Radix UI / shadcn-style components**, and a clear split between the **public site**, **admin panel**, and **infrastructure** layers.
+
+There are **no customer or student accounts** — only **admin** users manage content. Public visitors browse the portfolio without signing in.
+
+Core goals:
+
+- **Correctness and safety first** (types, validation, RLS).
+- **Separation of concerns** (UI vs services vs infra).
+- **Production-ready** code (secure, maintainable, and performant).
+
+## Code Style and Structure
+
+- Write concise, technical **TypeScript** with clear, production-ready examples.
+- Use **functional and declarative React**; avoid classes.
+- Prefer small, focused modules over duplication and “god” files.
+- Use descriptive names with auxiliary verbs (e.g. `isLoading`, `hasError`, `canEdit`).
+- In components, keep the top-level structure: **props/types → hooks/state → derived values → handlers → JSX**.
+- Favor **named exports**; default exports only when clearly beneficial (e.g. Next.js `page.tsx`).
+
+## Architecture and Responsibilities
+
+The app follows a **layered architecture** with strict separation of concerns.
+
+### Layer Responsibilities
+
+- `app/`
+  - Routing, layouts, server components, and server actions.
+  - Orchestrates requests but contains no business logic.
+
+- `components/`
+  - UI only (presentation).
+  - No business logic.
+  - No direct Supabase or repository calls.
+
+- `services/`
+  - **Business logic layer**.
+  - Orchestrates use cases (e.g. update portfolio section, publish project).
+  - Combines multiple repositories when needed.
+  - Contains authorization checks, validation, and domain rules.
+  - **Never talks directly to Supabase**.
+
+- `repositories/`
+  - **Data access layer**.
+  - Encapsulates all Supabase queries.
+  - One repository per aggregate or table (e.g. `user.repository.ts`).
+  - No business logic — only CRUD and query composition.
+  - Returns typed domain data.
+
+- `lib/`
+  - Infrastructure and shared utilities:
+    - Supabase client
+    - Auth helpers
+    - Zod schemas
+    - Constants
+    - Low-level helpers
+
+- `stores/`
+  - Client-side state only (Zustand), when needed for UI toggles or client-only state.
+
+### Supabase Access Rules
+
+- Supabase **may only be accessed inside `repositories/`**.
+- React components must **never** access Supabase directly.
+- Services must **never** access Supabase directly.
+- Repositories must remain stateless and side-effect free beyond data access.
+
+### Authorization Layers
+
+Always enforce authorization in **three places**:
+
+1. `middleware.ts` → route-level protection (admin routes require admin role)
+2. Supabase **RLS** → data-level protection
+3. Service layer → business-rule protection
+
+## TypeScript, Zod, and Validation
+
+- Use **TypeScript everywhere**; prefer `interface` for object shapes and `type` for unions/utility types.
+- Use **Zod** schemas in `lib/validators` to validate form inputs, query params, and Supabase payloads.
+- Infer types from Zod with `z.infer` instead of duplicating types.
+- Avoid `enum`; use literal unions + mapped objects instead.
+
+## Data Fetching and State
+
+- Use **TanStack React Query** for async data fetching/caching on the client.
+- Use **Zustand** for client-only UI state when needed.
+- Minimize `useEffect`; prefer derived state and memoization where needed.
+
+## UI, Styling, and Components
+
+- Use **Tailwind CSS** (v4) utilities.
+- Use **Radix UI / shadcn-derived components** from `components/ui` as building blocks.
+- Make all public-facing UI responsive and accessible.
+- Keep `components/common` generic and reusable.
+
+## Project Conventions
+
+- Keep **public portfolio** pages and **admin panel** flows conceptually and physically separated.
+- Site branding lives in `lib/config/site.ts` (`SITE.name`, `SITE.description`).
+- Database schema is documented in `docs/database/database_explanation_v1.md`.
+- Use meaningful commit messages that describe _what_ and _why_, not only _how_.
+
+## Documentation
+
+- When adding or changing behavior, update docs under `docs/` if it affects flows or contracts.
+- Code examples should match the architecture rules above and reuse existing utilities.

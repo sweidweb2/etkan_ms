@@ -1,0 +1,37 @@
+---
+description: Full-page and animated page spinners
+globs: components/loaders/**/*
+alwaysApply: false
+---
+
+# Page / Full-Page Loaders
+
+Use animated spinners for **larger loading surfaces** (route fallbacks, suspense boundaries, standalone waits).
+
+## Components
+
+| Component | Path | Use |
+|-----------|------|-----|
+| `PageSpinner` | `@/components/loaders/page-spinner` | Centered animated spinner (`react-loader-spinner` Oval) |
+| `FullPageLoader` | `@/components/loaders/full-page-loader` | Full viewport wrapper around `PageSpinner` |
+| `PanelRouteLoading` | `@/components/loaders/panel-route-loading` | Panel content area (not full viewport) |
+
+## When
+
+- `FullPageLoader` / `PageSpinner`: root `loading.tsx`, auth `loading.tsx`, custom suspense fallbacks.
+- `PanelRouteLoading`: admin `loading.tsx` only.
+
+## Pattern
+
+```tsx
+import { PageSpinner } from "@/components/loaders/page-spinner";
+
+<Suspense fallback={<PageSpinner label="Loading data…" />}>
+  <AsyncSection />
+</Suspense>
+```
+
+## Do not
+
+- Import `react-loader-spinner` directly in feature code — go through `PageSpinner`.
+- Use `FullPageLoader` inside panel content (use `PanelRouteLoading`).

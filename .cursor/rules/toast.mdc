@@ -1,0 +1,71 @@
+---
+description: When and how to show user feedback toasts
+alwaysApply: true
+---
+
+# Toasts
+
+Use Sonner via project helpers. Do not add inline success/error banners for transaction outcomes.
+
+## Components & modules
+
+| Piece | Location |
+|-------|----------|
+| Root mount | `@/components/toast/app-toasts` → `AppToasts` (in `app/layout.tsx`) |
+| Sonner UI | `@/components/ui/sonner` → `Toaster` |
+| URL param toasts | `@/components/toast/search-params-toast` → `SearchParamsToast` |
+| Helpers | `@/lib/toast` → `showSuccessToast`, `showErrorToast`, `showInfoToast`, `showActionResultToast` |
+| Action hook | `@/hooks/use-action-state-toast` → `useActionStateToast` |
+| Message keys | `@/lib/constants/toast-messages` → `TOAST_MESSAGES`, `TOAST_QUERY_KEYS` |
+
+Mount **only** `<AppToasts />` in the root layout. Do not mount duplicate Toasters.
+
+## When
+
+- **Show a toast** after any user-initiated transaction completes: auth (login, signup, logout), admin creates, and future server actions.
+- **Success**: operation succeeded (include server `message` when present).
+- **Error**: operation failed or validation failed at form level (`state.error`).
+- **Info**: redirect-only outcomes (e.g. confirm email) via URL params.
+- **Do not toast** field-level validation errors — keep those inline under inputs.
+
+## How
+
+### Forms with `useActionState`
+
+```tsx
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+
+const [state, formAction, isActionPending] = useActionState(action, initialState);
+const isPending = isActionPending || isTransitionPending;
+
+useActionStateToast(state, isPending);
+```
+
+Action state should expose `success?`, `error?`, and/or `message?`. Return a clear `message` on success from the service/action.
+
+### Manual (client components)
+
+```tsx
+import { showSuccessToast, showErrorToast, showInfoToast } from "@/lib/toast";
+
+showSuccessToast("Course was created.");
+showErrorToast("Unable to save.");
+showInfoToast("Check your email to confirm.");
+```
+
+### After server redirect
+
+1. Append query param with `appendQueryParam` from `@/lib/url/append-query-param`.
+2. Add the key/message to `lib/constants/toast-messages.ts`.
+3. Use keys: `toast` (success), `error`, `message` (info). `SearchParamsToast` in `AppToasts` handles display.
+
+```ts
+redirect(appendQueryParam(ROUTES.ADMIN_DASHBOARD, "toast", "signed_in"));
+// or: redirect(`${ROUTES.LOGIN}?toast=signed_out`);
+```
+
+## Do not
+
+- Call `toast` from Sonner directly — use `@/lib/toast`.
+- Toast on mount without a completed action or URL param.
+- Duplicate toast + inline banner for the same outcome.
