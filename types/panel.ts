@@ -10,7 +10,10 @@ export type PanelNavIconKey =
   | "school"
   | "package"
   | "layers"
-  | "settings";
+  | "settings"
+  | "reports"
+  | "analytics"
+  | "backup";
 
 export type PanelNavItem = {
   title: string;

@@ -5,6 +5,9 @@ import {
   BookOpen,
   Calculator,
   CalendarDays,
+  ChartColumn,
+  DatabaseBackup,
+  FileText,
   Layers,
   LayoutDashboard,
   Library,
@@ -30,4 +33,7 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   package: Package,
   layers: Layers,
   settings: Settings,
+  reports: FileText,
+  analytics: ChartColumn,
+  backup: DatabaseBackup,
 };

@@ -70,6 +70,21 @@ export const MANAGER_PANEL_NAV: PanelNavItem[] = [
     icon: "layers",
   },
   {
+    title: "Reports",
+    href: ROUTES.MANAGER_REPORTS,
+    icon: "reports",
+  },
+  {
+    title: "Analytics",
+    href: ROUTES.MANAGER_ANALYTICS,
+    icon: "analytics",
+  },
+  {
+    title: "Backup",
+    href: ROUTES.MANAGER_BACKUP,
+    icon: "backup",
+  },
+  {
     title: "Settings",
     href: ROUTES.MANAGER_SETTINGS,
     icon: "settings",
