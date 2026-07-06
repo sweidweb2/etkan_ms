@@ -1,10 +1,10 @@
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
-  ADMIN_PANEL_NAV,
-  CEO_PANEL_NAV,
-  MANAGER_PANEL_NAV,
-  STUDENT_PANEL_NAV,
-  TEACHER_PANEL_NAV,
+  ADMIN_PANEL_NAVIGATION,
+  CEO_PANEL_NAVIGATION,
+  MANAGER_PANEL_NAVIGATION,
+  STUDENT_PANEL_NAVIGATION,
+  TEACHER_PANEL_NAVIGATION,
 } from "@/lib/constants/panel-nav";
 import type { PanelConfig, PanelVariant } from "@/types/panel";
 
@@ -12,27 +12,27 @@ const PANEL_CONFIG_BY_ROLE: Record<RoleValue, PanelConfig> = {
   [ROLES.ADMIN]: {
     variant: "admin",
     label: "Admin",
-    navItems: ADMIN_PANEL_NAV,
+    navigation: ADMIN_PANEL_NAVIGATION,
   },
   [ROLES.MANAGER]: {
     variant: "manager",
     label: "Manager",
-    navItems: MANAGER_PANEL_NAV,
+    navigation: MANAGER_PANEL_NAVIGATION,
   },
   [ROLES.CEO]: {
     variant: "ceo",
     label: "CEO",
-    navItems: CEO_PANEL_NAV,
+    navigation: CEO_PANEL_NAVIGATION,
   },
   [ROLES.TEACHER]: {
     variant: "teacher",
     label: "Teacher",
-    navItems: TEACHER_PANEL_NAV,
+    navigation: TEACHER_PANEL_NAVIGATION,
   },
   [ROLES.STUDENT]: {
     variant: "student",
     label: "Student",
-    navItems: STUDENT_PANEL_NAV,
+    navigation: STUDENT_PANEL_NAVIGATION,
   },
 };
 

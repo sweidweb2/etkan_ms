@@ -20,7 +20,7 @@ export async function RolePanelLayout({ role, children }: RolePanelLayoutProps) 
     <PanelShell
       variant={panelConfig.variant}
       label={panelConfig.label}
-      navItems={panelConfig.navItems}
+      navigation={panelConfig.navigation}
       displayName={displayName}
     >
       {children}

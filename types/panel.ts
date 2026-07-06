@@ -21,6 +21,18 @@ export type PanelNavItem = {
   icon: PanelNavIconKey;
 };
 
+export type PanelNavGroup = {
+  id: string;
+  label: string;
+  items: PanelNavItem[];
+  defaultOpen?: boolean;
+};
+
+export type PanelNavigation = {
+  items?: PanelNavItem[];
+  groups?: PanelNavGroup[];
+};
+
 export type PanelVariant =
   | "admin"
   | "manager"
@@ -31,5 +43,5 @@ export type PanelVariant =
 export type PanelConfig = {
   variant: PanelVariant;
   label: string;
-  navItems: PanelNavItem[];
+  navigation: PanelNavigation;
 };

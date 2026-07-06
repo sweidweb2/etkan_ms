@@ -10,12 +10,13 @@ import { AdminPanelSearch } from "@/components/panels/admin-panel-search";
 import { PanelSidebar } from "@/components/panels/panel-sidebar";
 import { PanelUserMenu } from "@/components/panels/panel-user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { PanelNavItem, PanelVariant } from "@/types/panel";
+import { flattenPanelNavItems } from "@/lib/panels/flatten-nav";
+import type { PanelNavigation, PanelVariant } from "@/types/panel";
 
 type PanelShellProps = {
   variant: PanelVariant;
   label: string;
-  navItems: PanelNavItem[];
+  navigation: PanelNavigation;
   displayName: string;
   children: React.ReactNode;
 };
@@ -23,13 +24,15 @@ type PanelShellProps = {
 export function PanelShell({
   variant,
   label,
-  navItems,
+  navigation,
   displayName,
   children,
 }: PanelShellProps) {
+  const navItems = flattenPanelNavItems(navigation);
+
   return (
     <SidebarProvider>
-      <PanelSidebar variant={variant} label={label} navItems={navItems} />
+      <PanelSidebar variant={variant} label={label} navigation={navigation} />
       <SidebarInset className="relative">
         <header className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border px-4">
           <div className="flex items-center gap-2 justify-self-start">

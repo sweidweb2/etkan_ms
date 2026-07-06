@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -9,22 +7,23 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { PANEL_ICONS } from "@/components/panels/panel-icons";
+import {
+  PanelCollapsibleNavGroup,
+  PanelNavMenu,
+} from "@/components/panels/panel-collapsible-nav-group";
 import { SITE } from "@/lib/config/site";
-import type { PanelNavItem, PanelVariant } from "@/types/panel";
+import type { PanelNavigation, PanelVariant } from "@/types/panel";
 
 type PanelSidebarProps = {
   variant: PanelVariant;
   label: string;
-  navItems: PanelNavItem[];
+  navigation: PanelNavigation;
 };
 
-export function PanelSidebar({ variant, label, navItems }: PanelSidebarProps) {
-  const pathname = usePathname();
+export function PanelSidebar({ variant, label, navigation }: PanelSidebarProps) {
+  const topLevelItems = navigation.items ?? [];
+  const groups = navigation.groups ?? [];
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -39,31 +38,23 @@ export function PanelSidebar({ variant, label, navItems }: PanelSidebarProps) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
-                const Icon = PANEL_ICONS[item.icon];
-
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      render={<Link href={item.href} />}
-                    >
-                      <Icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {topLevelItems.length > 0 ? (
+          <SidebarGroup>
+            {groups.length === 0 ? (
+              <SidebarGroupLabel>Menu</SidebarGroupLabel>
+            ) : null}
+            <SidebarGroupContent>
+              <PanelNavMenu items={topLevelItems} />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
+        {groups.map((group) => (
+          <PanelCollapsibleNavGroup
+            key={group.id}
+            group={group}
+            panelVariant={variant}
+          />
+        ))}
       </SidebarContent>
       <p className="px-2 pb-4 text-center text-xs capitalize text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
         {variant} panel
