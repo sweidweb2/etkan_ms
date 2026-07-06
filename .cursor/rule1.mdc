@@ -130,6 +130,59 @@ Always enforce authorization in **three places**:
 - Keep **tables** and complex admin UIs under the expected admin/component folders and back them with TanStack Table when needed.
 - Use meaningful commit messages that describe _what_ and _why_, not only _how_.
 
+## Testing
+
+Every **real flow feature** must ship with tests. This means behavior that changes data, enforces rules, or coordinates auth — **not** UI-only work (layouts, empty pages, styling, nav shells).
+
+### When tests are required
+
+Add tests when a feature includes any of:
+
+- `services/` use cases (create, update, delete, enroll, approve, etc.)
+- `lib/validators` schemas or parsing helpers
+- Authorization or role checks in services or `middleware`-related helpers
+- Server actions that orchestrate validation + service calls
+- Repository query composition (mock Supabase; assert filters, joins, error mapping)
+
+### When tests are not required
+
+Skip tests for:
+
+- Presentational `components/` and static `page.tsx` placeholders
+- CSS, theme, loaders, toasts wiring with no business rules
+- Route/nav config-only changes (`ROUTES`, `panel-nav`, empty dashboard pages)
+
+### What to write
+
+For each flow feature, add **unit and/or feature tests** that cover:
+
+1. **Happy path** — valid input produces the expected outcome
+2. **Validation failures** — bad input is rejected with clear errors (no DB write)
+3. **Authorization / role rules** — forbidden roles or cross-tenant access is blocked
+4. **Edge cases** that affect correctness (duplicate records, not found, skip-if-exists, etc.)
+
+Prefer testing **services and validators** directly. Mock repositories and Supabase clients — do not hit a real database in unit tests.
+
+Feature tests may exercise a full use case through the service layer (service + mocked repositories) or server action + mocked service, depending on complexity.
+
+### Where tests live
+
+Co-locate tests with the feature using `*.test.ts` / `*.spec.ts` next to the module, or mirror structure under `tests/`:
+
+```text
+services/subject.service.ts
+services/subject.service.test.ts
+
+lib/validators/subject.ts
+lib/validators/subject.test.ts
+```
+
+Name files after the unit under test (e.g. `enroll-student.service.test.ts` for `enroll-student.service.ts`).
+
+### Agent workflow
+
+When implementing a flow feature, **include tests in the same change** unless the user explicitly opts out. Do not merge service/validator/auth logic without corresponding tests.
+
 ## Documentation and Output Expectations
 
 - When adding or changing behavior, prefer to **update or add docs** under `docs/` alongside the feature if it affects flows or contracts.

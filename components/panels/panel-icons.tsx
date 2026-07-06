@@ -1,10 +1,17 @@
 "use client";
 
 import {
+  Bell,
   BookOpen,
+  Calculator,
   CalendarDays,
+  Layers,
   LayoutDashboard,
+  Library,
+  Package,
+  School,
   Server,
+  Settings,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -16,4 +23,11 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   "book-open": BookOpen,
   "calendar-days": CalendarDays,
   server: Server,
+  library: Library,
+  calculator: Calculator,
+  bell: Bell,
+  school: School,
+  package: Package,
+  layers: Layers,
+  settings: Settings,
 };

@@ -3,7 +3,14 @@ export type PanelNavIconKey =
   | "users"
   | "book-open"
   | "calendar-days"
-  | "server";
+  | "server"
+  | "library"
+  | "calculator"
+  | "bell"
+  | "school"
+  | "package"
+  | "layers"
+  | "settings";
 
 export type PanelNavItem = {
   title: string;
