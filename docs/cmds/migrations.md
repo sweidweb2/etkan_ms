@@ -32,16 +32,16 @@ Generate TypeScript types from your Supabase database schema:
 
 ```bash
 npx supabase gen types typescript \
-  --project-id zqxpfdcgnotprzyojamu \
+  --project-id diqqcfnrysgzeiqfadic \
   > types/supabase.ts
 ```
 
-**Note:** Replace `zqxpfdcgnotprzyojamu` with your actual Supabase project ID if different (see `supabase/.temp/project-ref`).
+**Note:** Replace `diqqcfnrysgzeiqfadic` with your actual Supabase project ID if different (see `supabase/.temp/project-ref` after linking).
 
 ## Common Workflow
 
 1. Create migration: `npx supabase migration new migration_name`
 2. Edit SQL file in `supabase/migrations/`
 3. Apply migration: `npx supabase db push`
-4. Generate types: `npx supabase gen types typescript --project-id zqxpfdcgnotprzyojamu > types/supabase.ts`
+4. Generate types: `npx supabase gen types typescript --project-id diqqcfnrysgzeiqfadic > types/supabase.ts`
 5. Verify in Supabase dashboard

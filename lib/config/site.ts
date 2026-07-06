@@ -1,9 +1,9 @@
 import { ROUTES } from "@/lib/constants/routes";
 
 export const SITE = {
-  name: "Ashlilie",
-  description: "Personal portfolio",
-  tagline: "Design, development, and creative work.",
+  name: "Etkan MS",
+  description: "School management system",
+  tagline: "Administration and student management.",
 } as const;
 
 function trimTrailingSlash(url: string): string {

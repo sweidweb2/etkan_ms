@@ -1,4 +1,4 @@
-/** Ashlilie is admin-only; `customer` remains in the enum for legacy compatibility. */
+/** Bedrock auth uses `admin` for panel access; `customer` remains for legacy template compatibility. */
 export const ROLES = {
   ADMIN: "admin",
   CUSTOMER: "customer",

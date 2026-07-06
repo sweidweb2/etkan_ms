@@ -1,13 +1,16 @@
 ---
-description: Core coding and architecture rules for the Ashlilie portfolio Next.js app
+description: Core coding and architecture rules for the Etkan MS Next.js app
 alwaysApply: true
 ---
 
 # Overview
 
-Ashlilie is a **personal portfolio** built with **Next.js 16 + TypeScript + Tailwind CSS**, **Supabase**, **Zod**, **TanStack React Query**, **Radix UI / shadcn-style components**, and a clear split between the **public site**, **admin panel**, and **infrastructure** layers.
+Etkan MS is a **school management system** built on a **bedrock scaffold** from a reusable Next.js template: **Next.js 16 + TypeScript + Tailwind CSS**, **Supabase**, **Zod**, **Radix UI / shadcn-style components**, and a clear split between **auth**, **admin panel**, and **infrastructure** layers.
 
-There are **no customer or student accounts** — only **admin** users manage content. Public visitors browse the portfolio without signing in.
+Current bedrock scope (before domain features):
+
+1. **Auth** — login, signup, logout, Supabase callback, middleware protection.
+2. **Admin panel shell** — sidebar layout, dashboard placeholder, panel search, theme toggle.
 
 Core goals:
 
@@ -41,7 +44,7 @@ The app follows a **layered architecture** with strict separation of concerns.
 
 - `services/`
   - **Business logic layer**.
-  - Orchestrates use cases (e.g. update portfolio section, publish project).
+  - Orchestrates use cases (e.g. enroll student, record attendance).
   - Combines multiple repositories when needed.
   - Contains authorization checks, validation, and domain rules.
   - **Never talks directly to Supabase**.
@@ -88,7 +91,7 @@ Always enforce authorization in **three places**:
 
 ## Data Fetching and State
 
-- Use **TanStack React Query** for async data fetching/caching on the client.
+- Use **TanStack React Query** for async data fetching/caching on the client when domain features are added.
 - Use **Zustand** for client-only UI state when needed.
 - Minimize `useEffect`; prefer derived state and memoization where needed.
 
@@ -96,12 +99,12 @@ Always enforce authorization in **three places**:
 
 - Use **Tailwind CSS** (v4) utilities.
 - Use **Radix UI / shadcn-derived components** from `components/ui` as building blocks.
-- Make all public-facing UI responsive and accessible.
-- Keep `components/common` generic and reusable.
+- Make all UI responsive and accessible.
+- Reuse existing loaders, toast helpers, panel shell, and auth form patterns.
 
 ## Project Conventions
 
-- Keep **public portfolio** pages and **admin panel** flows conceptually and physically separated.
+- Keep **public/auth** pages and **admin panel** flows conceptually and physically separated.
 - Site branding lives in `lib/config/site.ts` (`SITE.name`, `SITE.description`).
 - Database schema is documented in `docs/database/database_explanation_v1.md`.
 - Use meaningful commit messages that describe _what_ and _why_, not only _how_.
