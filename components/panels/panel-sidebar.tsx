@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SignOutButton } from "@/components/auth/sign-out-button";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -67,14 +65,9 @@ export function PanelSidebar({ variant, label, navItems }: PanelSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <div className="flex w-full justify-center px-2 pb-2 group-data-[collapsible=icon]:px-0">
-          <SignOutButton />
-        </div>
-        <p className="px-2 pb-2 text-center text-xs capitalize text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
-          {variant} panel
-        </p>
-      </SidebarFooter>
+      <p className="px-2 pb-4 text-center text-xs capitalize text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
+        {variant} panel
+      </p>
     </Sidebar>
   );
 }

@@ -11,41 +11,68 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      users: {
+      profiles: {
         Row: {
-          id: number;
-          username: string;
-          email: string;
-          password_hash: string;
-          auth_id: string | null;
+          id: string;
+          username: string | null;
           role: RoleValue;
-          created_at: string;
+          created_at: string | null;
         };
         Insert: {
-          id?: number;
-          username: string;
-          email: string;
-          password_hash: string;
-          auth_id?: string | null;
+          id: string;
+          username?: string | null;
           role?: RoleValue;
-          created_at?: string;
+          created_at?: string | null;
         };
         Update: {
-          id?: number;
-          username?: string;
-          email?: string;
-          password_hash?: string;
-          auth_id?: string | null;
+          id?: string;
+          username?: string | null;
           role?: RoleValue;
-          created_at?: string;
+          created_at?: string | null;
         };
         Relationships: [];
+      };
+      student_profiles: {
+        Row: {
+          id: string;
+          user_id: string;
+          full_name: string;
+          birth_date: string | null;
+          phone: string | null;
+          status: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          full_name: string;
+          birth_date?: string | null;
+          phone?: string | null;
+          status?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          full_name?: string;
+          birth_date?: string | null;
+          phone?: string | null;
+          status?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "student_profiles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
-    Enums: {
-      user_role: RoleValue;
-    };
+    Enums: Record<string, never>;
   };
 };

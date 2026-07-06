@@ -1,27 +1,27 @@
 ---
-description: Panel top progress bar for admin navigation
-globs: app/admin/**/*,components/panels/**/*
-alwaysApply: false
+description: Global top progress bar for route navigation
+alwaysApply: true
 ---
+# Route Top Loader
 
-# Panel Top Loader
-
-Use the thin top progress bar for **in-panel route transitions** inside the admin shell.
+Use the thin fixed top progress bar for **all route transitions** across the app.
 
 ## Component
 
-- `@/components/loaders/panel-top-loader` → `PanelTopLoader`
+- `@/components/loaders/route-top-loader` → `RouteTopLoader`
 
 ## When
 
-- Already mounted in `PanelShell` — do **not** add another instance per page.
-- Shows automatically when the pathname or search params change within the panel.
+- Mounted **once** in `app/layout.tsx` inside `<Suspense>` — do **not** add per-page or per-panel instances.
+- Activates automatically on pathname or search-param changes (public, auth, and all role panels).
 
 ## Do not
 
-- Use for form submits, mutations, or auth pages.
+- Use for form submits, mutations, or server actions — use `InlineSpinner` on buttons instead.
 - Replace `loading.tsx` with this bar — they serve different purposes (instant feedback vs. segment suspense).
+- Mount a second instance inside `PanelShell` or feature layouts.
 
 ## Related
 
-- Segment loading inside panel content: `@/components/loaders/panel-route-loading` in `app/admin/loading.tsx`.
+- Segment loading fallbacks: `@/components/loaders/route-loading` in `loading.tsx` files.
+- Panel content spinner: `@/components/loaders/panel-route-loading` under role panel routes.

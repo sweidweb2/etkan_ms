@@ -1,5 +1,5 @@
--- Enable UUID generation
-create extension if not exists "uuid-ossp";
+-- UUID generation (pgcrypto is available on Supabase; prefer over uuid-ossp)
+create extension if not exists "pgcrypto";
 
 
 --------------------------------------------------
@@ -20,7 +20,7 @@ create table profiles (
 --------------------------------------------------
 
 create table student_profiles (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     user_id uuid not null unique references profiles(id) on delete cascade,
     full_name text not null,
     birth_date date,
@@ -36,7 +36,7 @@ create table student_profiles (
 --------------------------------------------------
 
 create table relationships (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     student_id uuid not null references student_profiles(id) on delete cascade,
     name text not null,
     phone text,
@@ -54,7 +54,7 @@ create table relationships (
 --------------------------------------------------
 
 create table equipments (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     name text not null,
     description text,
     quantity integer default 0,
@@ -69,7 +69,7 @@ create table equipments (
 --------------------------------------------------
 
 create table accounts (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     user_id uuid not null references profiles(id) on delete cascade,
     opened_at timestamp default now()
 );
@@ -81,7 +81,7 @@ create table accounts (
 --------------------------------------------------
 
 create table subscribed_phases (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     account_id uuid not null references accounts(id) on delete cascade,
     phase_id uuid,
     amount numeric(10,2) not null,
@@ -96,7 +96,7 @@ create table subscribed_phases (
 --------------------------------------------------
 
 create table payments (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     subscribed_phase_id uuid not null references subscribed_phases(id) on delete cascade,
     amount numeric(10,2) not null,
     currency text default 'USD',
@@ -111,7 +111,7 @@ create table payments (
 --------------------------------------------------
 
 create table subjects (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     name text not null,
     syllabus_link text,
     reference_link text,
@@ -126,7 +126,7 @@ create table subjects (
 --------------------------------------------------
 
 create table classes (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     subject_id uuid references subjects(id),
     name text not null,
     status text default 'active',
@@ -140,7 +140,7 @@ create table classes (
 --------------------------------------------------
 
 create table class_teacher (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     teacher_id uuid not null references profiles(id),
     class_id uuid not null references classes(id) on delete cascade,
     assigned_by uuid references profiles(id),
@@ -154,7 +154,7 @@ create table class_teacher (
 --------------------------------------------------
 
 create table student_class (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     user_id uuid not null references profiles(id) on delete cascade,
     class_id uuid not null references classes(id) on delete cascade,
     status text default 'active',
@@ -168,7 +168,7 @@ create table student_class (
 --------------------------------------------------
 
 create table tasks (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     session_id uuid,
     title text not null,
     description text,
@@ -184,7 +184,7 @@ create table tasks (
 --------------------------------------------------
 
 create table student_tasks (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
     task_id uuid not null references tasks(id) on delete cascade,
     student_id uuid not null references profiles(id) on delete cascade,
     status text default 'pending',
@@ -203,7 +203,7 @@ create table student_tasks (
 --------------------------------------------------
 
 create table student_course_grade (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
 
     user_id uuid not null references profiles(id) on delete cascade,
     class_id uuid not null references classes(id) on delete cascade,
@@ -234,7 +234,7 @@ create table student_course_grade (
 --------------------------------------------------
 
 create table borrow_equipment (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
 
     equipment_id uuid not null references equipments(id),
     user_id uuid not null references profiles(id),
@@ -254,7 +254,7 @@ create table borrow_equipment (
 --------------------------------------------------
 
 create table student_takeouts (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
 
     user_id uuid not null references profiles(id) on delete cascade,
 
@@ -271,7 +271,7 @@ create table student_takeouts (
 --------------------------------------------------
 
 create table audit_logs (
-    id uuid primary key default uuid_generate_v4(),
+    id uuid primary key default gen_random_uuid(),
 
     user_id uuid references profiles(id),
 
@@ -311,3 +311,35 @@ on student_tasks(student_id);
 
 create index idx_audit_user
 on audit_logs(user_id);
+
+
+
+--------------------------------------------------
+-- ROW LEVEL SECURITY (profiles)
+--------------------------------------------------
+
+alter table profiles enable row level security;
+
+create policy "profiles_select_own"
+on profiles for select
+to authenticated
+using (auth.uid() = id);
+
+create policy "profiles_update_own"
+on profiles for update
+to authenticated
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+alter table student_profiles enable row level security;
+
+create policy "student_profiles_select_own"
+on student_profiles for select
+to authenticated
+using (auth.uid() = user_id);
+
+create policy "student_profiles_update_own"
+on student_profiles for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);

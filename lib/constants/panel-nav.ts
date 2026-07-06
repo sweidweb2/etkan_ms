@@ -1,11 +1,18 @@
 import { ROUTES } from "@/lib/constants/routes";
 import type { PanelNavItem } from "@/types/panel";
 
-/** Serializable nav config (safe to pass from Server Components). */
-export const ADMIN_PANEL_NAV: PanelNavItem[] = [
-  {
-    title: "Dashboard",
-    href: ROUTES.ADMIN_DASHBOARD,
-    icon: "layout-dashboard",
-  },
-];
+function dashboardNav(href: string): PanelNavItem[] {
+  return [
+    {
+      title: "Dashboard",
+      href,
+      icon: "layout-dashboard",
+    },
+  ];
+}
+
+export const ADMIN_PANEL_NAV = dashboardNav(ROUTES.ADMIN_DASHBOARD);
+export const MANAGER_PANEL_NAV = dashboardNav(ROUTES.MANAGER_DASHBOARD);
+export const CEO_PANEL_NAV = dashboardNav(ROUTES.CEO_DASHBOARD);
+export const TEACHER_PANEL_NAV = dashboardNav(ROUTES.TEACHER_DASHBOARD);
+export const STUDENT_PANEL_NAV = dashboardNav(ROUTES.STUDENT_DASHBOARD);

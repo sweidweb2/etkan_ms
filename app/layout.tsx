@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
+import { RouteTopLoader } from "@/components/loaders/route-top-loader";
 import { AppToasts } from "@/components/toast/app-toasts";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -40,6 +42,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>
+            <Suspense fallback={null}>
+              <RouteTopLoader />
+            </Suspense>
             {children}
             <AppToasts />
           </TooltipProvider>

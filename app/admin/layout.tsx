@@ -1,17 +1,10 @@
-import { PanelShell } from "@/components/panels/panel-shell";
-import { requireAdmin } from "@/lib/auth/require-role";
-import { ADMIN_PANEL_NAV } from "@/lib/constants/panel-nav";
+import { RolePanelLayout } from "@/components/panels/role-panel-layout";
+import { ROLES } from "@/lib/constants/roles";
 
-export default async function AdminPanelLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdmin();
-
-  return (
-    <PanelShell variant="admin" label="Admin" navItems={ADMIN_PANEL_NAV}>
-      {children}
-    </PanelShell>
-  );
+  return <RolePanelLayout role={ROLES.ADMIN}>{children}</RolePanelLayout>;
 }

@@ -34,3 +34,31 @@ export const fullNameField = z
   .max(AUTH_LIMITS.fullName.max, {
     message: `Full name must be at most ${AUTH_LIMITS.fullName.max} characters.`,
   });
+
+export const usernameField = z
+  .string()
+  .trim()
+  .min(AUTH_LIMITS.username.min, {
+    message: `Username must be at least ${AUTH_LIMITS.username.min} characters.`,
+  })
+  .max(AUTH_LIMITS.username.max, {
+    message: `Username must be at most ${AUTH_LIMITS.username.max} characters.`,
+  })
+  .regex(/^[a-zA-Z0-9_]+$/, {
+    message: "Username may only contain letters, numbers, and underscores.",
+  });
+
+export const phoneField = z
+  .string()
+  .trim()
+  .max(AUTH_LIMITS.phone.max, {
+    message: `Phone must be at most ${AUTH_LIMITS.phone.max} characters.`,
+  })
+  .optional()
+  .or(z.literal(""));
+
+export const birthDateField = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""));

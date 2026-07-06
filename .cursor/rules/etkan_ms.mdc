@@ -1,6 +1,6 @@
 ---
 description: Core coding and architecture rules for the Etkan MS Next.js app
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Overview

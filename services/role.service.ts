@@ -1,7 +1,7 @@
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { roleSchema } from "@/lib/validators/role";
 import * as authRepository from "@/repositories/auth.repository";
-import * as userRepository from "@/repositories/user.repository";
+import * as profileRepository from "@/repositories/profile.repository";
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -18,7 +18,7 @@ export async function resolveUserRole(
   client: Supabase,
   authUser: User
 ): Promise<RoleValue> {
-  const { data, error } = await userRepository.findRoleByAuthId(
+  const { data, error } = await profileRepository.findRoleById(
     client,
     authUser.id
   );
@@ -30,7 +30,7 @@ export async function resolveUserRole(
     }
   }
 
-  return roleFromAuthMetadata(authUser) ?? ROLES.CUSTOMER;
+  return roleFromAuthMetadata(authUser) ?? ROLES.STUDENT;
 }
 
 export async function syncAuthUserRole(

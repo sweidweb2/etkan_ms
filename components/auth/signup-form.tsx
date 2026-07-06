@@ -34,26 +34,39 @@ export function SignupForm() {
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
     mode: "onBlur",
+    defaultValues: {
+      birthDate: "",
+      phone: "",
+    },
   });
 
   function onSubmit(values: SignupInput) {
     const formData = new FormData();
-    formData.set("name", values.name);
+    formData.set("username", values.username);
+    formData.set("fullName", values.fullName);
     formData.set("email", values.email);
     formData.set("password", values.password);
     formData.set("confirmPassword", values.confirmPassword);
+    formData.set("birthDate", values.birthDate ?? "");
+    formData.set("phone", values.phone ?? "");
     startTransition(() => {
       formAction(formData);
     });
   }
 
-  const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const usernameError =
+    errors.username?.message ?? state.fieldErrors?.username?.[0];
+  const fullNameError =
+    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
   const passwordError =
     errors.password?.message ?? state.fieldErrors?.password?.[0];
   const confirmPasswordError =
     errors.confirmPassword?.message ??
     state.fieldErrors?.confirmPassword?.[0];
+  const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
+  const birthDateError =
+    errors.birthDate?.message ?? state.fieldErrors?.birthDate?.[0];
 
   return (
     <form
@@ -63,22 +76,43 @@ export function SignupForm() {
     >
       <div className="flex flex-col gap-2">
         <FieldLabel
-          htmlFor="name"
+          htmlFor="username"
+          label="Username"
+          hint={AUTH_FIELD_HINTS.username}
+        />
+        <Input
+          id="username"
+          type="text"
+          autoComplete="username"
+          placeholder="student_username"
+          minLength={AUTH_LIMITS.username.min}
+          maxLength={AUTH_LIMITS.username.max}
+          aria-invalid={!!usernameError}
+          {...register("username")}
+        />
+        {usernameError ? (
+          <p className="text-sm text-destructive">{usernameError}</p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <FieldLabel
+          htmlFor="fullName"
           label="Full name"
           hint={AUTH_FIELD_HINTS.fullName}
         />
         <Input
-          id="name"
+          id="fullName"
           type="text"
           autoComplete="name"
-          placeholder="Your name"
+          placeholder="Your full name"
           minLength={AUTH_LIMITS.fullName.min}
           maxLength={AUTH_LIMITS.fullName.max}
-          aria-invalid={!!nameError}
-          {...register("name")}
+          aria-invalid={!!fullNameError}
+          {...register("fullName")}
         />
-        {nameError ? (
-          <p className="text-sm text-destructive">{nameError}</p>
+        {fullNameError ? (
+          <p className="text-sm text-destructive">{fullNameError}</p>
         ) : null}
       </div>
 
@@ -96,6 +130,45 @@ export function SignupForm() {
         {emailError ? (
           <p className="text-sm text-destructive">{emailError}</p>
         ) : null}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <FieldLabel
+            htmlFor="birthDate"
+            label="Birth date"
+            hint={AUTH_FIELD_HINTS.birthDate}
+          />
+          <Input
+            id="birthDate"
+            type="date"
+            aria-invalid={!!birthDateError}
+            {...register("birthDate")}
+          />
+          {birthDateError ? (
+            <p className="text-sm text-destructive">{birthDateError}</p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <FieldLabel
+            htmlFor="phone"
+            label="Phone"
+            hint={AUTH_FIELD_HINTS.phone}
+          />
+          <Input
+            id="phone"
+            type="tel"
+            autoComplete="tel"
+            placeholder="+961 ..."
+            maxLength={AUTH_LIMITS.phone.max}
+            aria-invalid={!!phoneError}
+            {...register("phone")}
+          />
+          {phoneError ? (
+            <p className="text-sm text-destructive">{phoneError}</p>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

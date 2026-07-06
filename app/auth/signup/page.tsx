@@ -24,7 +24,7 @@ export default async function SignupPage() {
       <CardHeader>
         <CardTitle className="text-xl">Create account</CardTitle>
         <CardDescription>
-          Create an admin account to manage the portfolio.
+          Register as a student with your profile details.
         </CardDescription>
       </CardHeader>
       <CardContent>

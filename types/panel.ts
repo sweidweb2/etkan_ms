@@ -11,4 +11,15 @@ export type PanelNavItem = {
   icon: PanelNavIconKey;
 };
 
-export type PanelVariant = "admin";
+export type PanelVariant =
+  | "admin"
+  | "manager"
+  | "ceo"
+  | "teacher"
+  | "student";
+
+export type PanelConfig = {
+  variant: PanelVariant;
+  label: string;
+  navItems: PanelNavItem[];
+};

@@ -4,9 +4,9 @@ import { ROUTES } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { loginSchema, signupSchema } from "@/lib/validators/auth/auth";
 import * as authRepository from "@/repositories/auth.repository";
-import * as userRepository from "@/repositories/user.repository";
+import * as profileRepository from "@/repositories/profile.repository";
 import { ROLES } from "@/lib/constants/roles";
-import { createUserRecord } from "@/services/user.service";
+import { ensureStudentRegistration } from "@/services/profile.service";
 import { resolveUserRole, syncAuthUserRole } from "@/services/role.service";
 import type { LoginResult, SignupResult } from "@/types/auth";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -34,7 +34,10 @@ function mapAuthError(message: string): string {
 function mapSignupError(message: string): string {
   const normalized = message.toLowerCase();
 
-  if (normalized.includes("already registered") || normalized.includes("already exists")) {
+  if (
+    normalized.includes("already registered") ||
+    normalized.includes("already exists")
+  ) {
     return "An account with this email already exists.";
   }
 
@@ -106,10 +109,13 @@ export async function register(
   authClient: Supabase,
   adminClient: Supabase,
   input: {
-    name: string;
+    username: string;
+    fullName: string;
     email: string;
     password: string;
     confirmPassword: string;
+    birthDate?: string | null;
+    phone?: string | null;
   }
 ): Promise<SignupResult> {
   const parsed = signupSchema.safeParse(input);
@@ -122,28 +128,30 @@ export async function register(
     };
   }
 
-  const { name, email, password } = parsed.data;
+  const { username, fullName, email, password, birthDate, phone } = parsed.data;
 
-  const existingEmail = await userRepository.findUserByEmail(adminClient, email);
+  const existingUsername = await profileRepository.findProfileByUsername(
+    adminClient,
+    username
+  );
 
-  if (existingEmail.data) {
+  if (existingUsername.data) {
     return {
       success: false,
-      error: "An account with this email already exists.",
+      error: "This username is already taken.",
+      fieldErrors: { username: ["This username is already taken."] },
     };
   }
-
-  const username = email.split("@")[0] ?? "user";
 
   const { data: authData, error: signUpError } = await authRepository.signUp(
     authClient,
     {
       email,
       password,
-      fullName: name,
+      fullName,
       username,
       emailRedirectTo: getAuthCallbackUrl(),
-      role: ROLES.ADMIN,
+      role: ROLES.STUDENT,
     }
   );
 
@@ -157,13 +165,16 @@ export async function register(
   const authUserId = authData.user.id;
 
   try {
-    await createUserRecord(adminClient, {
+    await ensureStudentRegistration(adminClient, {
       authId: authUserId,
+      username,
       email,
-      password,
-      role: ROLES.ADMIN,
+      fullName,
+      birthDate,
+      phone,
+      role: ROLES.STUDENT,
     });
-    await syncAuthUserRole(adminClient, authUserId, ROLES.ADMIN);
+    await syncAuthUserRole(adminClient, authUserId, ROLES.STUDENT);
   } catch (err) {
     await authRepository.deleteAuthUser(adminClient, authUserId);
     const message = err instanceof Error ? err.message : "Registration failed.";
@@ -183,15 +194,11 @@ export async function register(
     };
   }
 
-  if (!authData.user) {
-    return { success: false, error: "Registration failed." };
-  }
-
   return {
     success: true,
     requiresEmailConfirmation: false,
     redirectTo: appendQueryParam(
-      getPostLoginRedirect(ROLES.ADMIN),
+      getPostLoginRedirect(ROLES.STUDENT),
       "toast",
       "signed_up"
     ),

@@ -31,10 +31,13 @@ export function parseSignupFormData(formData: FormData):
   | { success: true; data: SignupInput }
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = signupSchema.safeParse({
-    name: formData.get("name"),
+    username: formData.get("username"),
+    fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
+    birthDate: formData.get("birthDate"),
+    phone: formData.get("phone"),
   });
 
   if (!parsed.success) {

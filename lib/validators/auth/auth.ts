@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
-import { emailField, fullNameField, passwordField } from "@/lib/validators/auth/fields";
+import {
+  birthDateField,
+  emailField,
+  fullNameField,
+  passwordField,
+  phoneField,
+  usernameField,
+} from "@/lib/validators/auth/fields";
 
 export const loginSchema = z.object({
   email: emailField,
@@ -9,7 +16,8 @@ export const loginSchema = z.object({
 
 export const signupSchema = z
   .object({
-    name: fullNameField,
+    username: usernameField,
+    fullName: fullNameField,
     email: emailField,
     password: passwordField,
     confirmPassword: z
@@ -18,6 +26,8 @@ export const signupSchema = z
       .max(AUTH_LIMITS.password.max, {
         message: `Password must be at most ${AUTH_LIMITS.password.max} characters.`,
       }),
+    birthDate: birthDateField,
+    phone: phoneField,
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match.",

@@ -31,10 +31,13 @@ export async function signupAction(
   const adminClient = createSupabaseAdminClient();
 
   const result = await register(authClient, adminClient, {
-    name: parsed.data.name,
+    username: parsed.data.username,
+    fullName: parsed.data.fullName,
     email: parsed.data.email,
     password: parsed.data.password,
     confirmPassword: parsed.data.confirmPassword,
+    birthDate: parsed.data.birthDate || null,
+    phone: parsed.data.phone || null,
   });
 
   if (result.success) {

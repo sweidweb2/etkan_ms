@@ -1,13 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { canAccessPath } from "@/lib/auth/path-access";
+import { canAccessPath, isPanelPath } from "@/lib/auth/path-access";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import {
   isGuestOnlyAuthRoute,
   isPublicAuthRoute,
 } from "@/lib/constants/auth";
-import { ROLES } from "@/lib/constants/roles";
 import {
   getDashboardRouteForRole,
+  getPanelRootForRole,
   ROUTES,
 } from "@/lib/constants/routes";
 import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
@@ -32,33 +32,32 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname === ROUTES.HOME) {
-    if (user) {
-      const role = await resolveUserRole(supabase, user);
-      if (role === ROLES.ADMIN) {
-        return NextResponse.redirect(
-          new URL(ROUTES.ADMIN_DASHBOARD, request.url)
-        );
-      }
-    }
     return response;
   }
 
-  if (!user) {
-    const loginUrl = new URL(ROUTES.LOGIN, request.url);
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+  if (isPanelPath(pathname)) {
+    if (!user) {
+      const loginUrl = new URL(ROUTES.LOGIN, request.url);
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
 
-  const role = await resolveUserRole(supabase, user);
+    const role = await resolveUserRole(supabase, user);
+    const panelRoot = getPanelRootForRole(role);
 
-  if (pathname === ROUTES.ADMIN_ROOT) {
-    return NextResponse.redirect(new URL(ROUTES.ADMIN_DASHBOARD, request.url));
-  }
+    if (pathname === panelRoot) {
+      return NextResponse.redirect(
+        new URL(getDashboardRouteForRole(role), request.url)
+      );
+    }
 
-  if (!canAccessPath(pathname, role)) {
-    return NextResponse.redirect(
-      new URL(getDashboardRouteForRole(role), request.url)
-    );
+    if (!canAccessPath(pathname, role)) {
+      return NextResponse.redirect(
+        new URL(getDashboardRouteForRole(role), request.url)
+      );
+    }
+
+    return response;
   }
 
   return response;
