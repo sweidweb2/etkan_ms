@@ -1,5 +1,6 @@
 "use client";
 
+import { SessionIdleMonitor } from "@/components/auth/session-idle-monitor";
 import {
   SidebarInset,
   SidebarProvider,
@@ -32,6 +33,7 @@ export function PanelShell({
 
   return (
     <SidebarProvider>
+      <SessionIdleMonitor />
       <PanelSidebar variant={variant} label={label} navigation={navigation} />
       <SidebarInset className="relative">
         <header className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border px-4">

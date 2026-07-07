@@ -18,5 +18,7 @@ export const TOAST_MESSAGES = {
   info: {
     confirm_email:
       "Account created. Check your email to confirm, then sign in.",
+    session_expired:
+      "Your session expired due to inactivity. Please sign in again.",
   },
 } as const;

@@ -18,6 +18,7 @@ function NavLink({ href, variant = "default", children }: NavLinkProps) {
   return (
     <Link
       href={href}
+      suppressHydrationWarning
       className={cn(buttonVariants({ variant, size: "default" }))}
     >
       {children}
@@ -29,7 +30,11 @@ function NavbarShell({ children }: { children?: React.ReactNode }) {
   return (
     <header className="border-b border-border bg-background">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-        <Link href={ROUTES.HOME} className="text-sm font-semibold">
+        <Link
+          href={ROUTES.HOME}
+          suppressHydrationWarning
+          className="text-sm font-semibold"
+        >
           {SITE.name}
         </Link>
         {children}

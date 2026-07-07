@@ -21,7 +21,7 @@ export async function signupAction(
     };
   }
 
-  const rateLimit = await checkAuthRateLimit("signup", parsed.data.email);
+  const rateLimit = await checkAuthRateLimit("signup");
 
   if (!rateLimit.allowed) {
     return { error: rateLimit.message };

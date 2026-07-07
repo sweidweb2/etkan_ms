@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { hasSupabaseAuthCookies } from "@/lib/auth/session-cookies";
 import { canAccessPath, isPanelPath } from "@/lib/auth/path-access";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import {
@@ -38,7 +39,13 @@ export async function middleware(request: NextRequest) {
   if (isPanelPath(pathname)) {
     if (!user) {
       const loginUrl = new URL(ROUTES.LOGIN, request.url);
-      loginUrl.searchParams.set("next", pathname);
+
+      if (hasSupabaseAuthCookies(request.cookies.getAll())) {
+        loginUrl.searchParams.set("message", "session_expired");
+      } else {
+        loginUrl.searchParams.set("next", pathname);
+      }
+
       return NextResponse.redirect(loginUrl);
     }
 

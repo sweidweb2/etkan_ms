@@ -26,6 +26,11 @@ export function consumeRateLimit(
   return { allowed: true, retryAfterMs: 0 };
 }
 
+/** Clears the in-memory store — for tests only. */
+export function resetRateLimitStoreForTests(): void {
+  store.clear();
+}
+
 export function formatRetryAfter(ms: number): string {
   const minutes = Math.ceil(ms / 60_000);
   if (minutes <= 1) {

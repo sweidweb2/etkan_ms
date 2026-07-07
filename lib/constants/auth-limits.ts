@@ -11,3 +11,6 @@ export const AUTH_RATE_LIMITS = {
   login: { maxAttempts: 5, windowMs: 15 * 60 * 1000 },
   signup: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },
 } as const;
+
+/** Inactivity window before server/client session logout (matches Supabase config). */
+export const SESSION_INACTIVITY_MS = 15 * 60 * 1000;

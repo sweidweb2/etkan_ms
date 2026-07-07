@@ -7,18 +7,12 @@ import { getClientIp } from "@/lib/rate-limit/client-ip";
 
 export type AuthRateLimitKind = "login" | "signup";
 
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
 export async function checkAuthRateLimit(
-  kind: AuthRateLimitKind,
-  email?: string
+  kind: AuthRateLimitKind
 ): Promise<{ allowed: true } | { allowed: false; message: string }> {
   const ip = await getClientIp();
   const config = AUTH_RATE_LIMITS[kind];
-  const emailPart = email ? `:${normalizeEmail(email)}` : "";
-  const key = `auth:${kind}:${ip}${emailPart}`;
+  const key = `auth:${kind}:${ip}`;
 
   const result = consumeRateLimit(
     key,

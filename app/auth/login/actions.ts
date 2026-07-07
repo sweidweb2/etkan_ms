@@ -21,7 +21,7 @@ export async function loginAction(
     };
   }
 
-  const rateLimit = await checkAuthRateLimit("login", parsed.data.email);
+  const rateLimit = await checkAuthRateLimit("login");
 
   if (!rateLimit.allowed) {
     return { error: rateLimit.message };
