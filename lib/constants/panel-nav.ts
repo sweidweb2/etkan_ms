@@ -131,15 +131,125 @@ export const MANAGER_PANEL_NAV: PanelNavItem[] = [
   ...(MANAGER_PANEL_NAVIGATION.groups?.flatMap((group) => group.items) ?? []),
 ];
 
-export const CEO_PANEL_NAV = dashboardNavigation(ROUTES.CEO_DASHBOARD).items!;
-export const TEACHER_PANEL_NAV = dashboardNavigation(ROUTES.TEACHER_DASHBOARD).items!;
-export const STUDENT_PANEL_NAV = dashboardNavigation(ROUTES.STUDENT_DASHBOARD).items!;
+export const CEO_PANEL_NAVIGATION: PanelNavigation = {
+  items: [
+    {
+      title: "Dashboard",
+      href: ROUTES.CEO_DASHBOARD,
+      icon: "layout-dashboard",
+    },
+    {
+      title: "Users analysis",
+      href: ROUTES.CEO_USERS_ANALYSIS,
+      icon: "users",
+    },
+    {
+      title: "Teachers analysis",
+      href: ROUTES.CEO_TEACHERS_ANALYSIS,
+      icon: "book-open",
+    },
+    {
+      title: "Classes analysis",
+      href: ROUTES.CEO_CLASSES_ANALYSIS,
+      icon: "school",
+    },
+    {
+      title: "Subjects analysis",
+      href: ROUTES.CEO_SUBJECTS_ANALYSIS,
+      icon: "library",
+    },
+    {
+      title: "Accounting analysis",
+      href: ROUTES.CEO_ACCOUNTING_ANALYSIS,
+      icon: "calculator",
+    },
+    {
+      title: "Notifications",
+      href: ROUTES.CEO_NOTIFICATIONS,
+      icon: "bell",
+    },
+    {
+      title: "Tasks analysis",
+      href: ROUTES.CEO_TASKS_ANALYSIS,
+      icon: "reports",
+    },
+  ],
+};
 
-export const CEO_PANEL_NAVIGATION = dashboardNavigation(ROUTES.CEO_DASHBOARD);
-export const TEACHER_PANEL_NAVIGATION = dashboardNavigation(
-  ROUTES.TEACHER_DASHBOARD
-);
-export const STUDENT_PANEL_NAVIGATION = dashboardNavigation(
-  ROUTES.STUDENT_DASHBOARD
-);
+/** @deprecated Use `CEO_PANEL_NAVIGATION` — kept for flatten/search helpers. */
+export const CEO_PANEL_NAV: PanelNavItem[] = CEO_PANEL_NAVIGATION.items!;
+export const TEACHER_PANEL_NAVIGATION: PanelNavigation = {
+  items: [
+    {
+      title: "Dashboard",
+      href: ROUTES.TEACHER_DASHBOARD,
+      icon: "layout-dashboard",
+    },
+    {
+      title: "Schedule",
+      href: ROUTES.TEACHER_SCHEDULE,
+      icon: "calendar-days",
+    },
+    {
+      title: "Manage classes",
+      href: ROUTES.TEACHER_CLASSES,
+      icon: "school",
+    },
+    {
+      title: "Subjects",
+      href: ROUTES.TEACHER_SUBJECTS,
+      icon: "library",
+    },
+    {
+      title: "My students",
+      href: ROUTES.TEACHER_STUDENTS,
+      icon: "book-open",
+    },
+    {
+      title: "Notifications",
+      href: ROUTES.TEACHER_NOTIFICATIONS,
+      icon: "bell",
+    },
+    {
+      title: "Analytics",
+      href: ROUTES.TEACHER_ANALYTICS,
+      icon: "analytics",
+    },
+  ],
+};
+
+/** @deprecated Use `TEACHER_PANEL_NAVIGATION` — kept for flatten/search helpers. */
+export const TEACHER_PANEL_NAV: PanelNavItem[] = TEACHER_PANEL_NAVIGATION.items!;
+export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
+  items: [
+    {
+      title: "Dashboard",
+      href: ROUTES.STUDENT_DASHBOARD,
+      icon: "layout-dashboard",
+    },
+    {
+      title: "Classes",
+      href: ROUTES.STUDENT_CLASSES,
+      icon: "school",
+    },
+    {
+      title: "Finance",
+      href: ROUTES.STUDENT_FINANCE,
+      icon: "calculator",
+    },
+    {
+      title: "Analytics",
+      href: ROUTES.STUDENT_ANALYTICS,
+      icon: "analytics",
+    },
+    {
+      title: "Notifications",
+      href: ROUTES.STUDENT_NOTIFICATIONS,
+      icon: "bell",
+    },
+  ],
+};
+
+/** @deprecated Use `STUDENT_PANEL_NAVIGATION` — kept for flatten/search helpers. */
+export const STUDENT_PANEL_NAV: PanelNavItem[] = STUDENT_PANEL_NAVIGATION.items!;
 export const ADMIN_PANEL_NAVIGATION = dashboardNavigation(ROUTES.ADMIN_DASHBOARD);
