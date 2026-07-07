@@ -4,6 +4,8 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
+import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
+import { StudentBorrowedEquipmentSection } from "@/components/manager/students/student-borrowed-equipment-section";
 import { StudentJoinedClassesSection } from "@/components/manager/students/student-joined-classes-section";
 import { StudentDetailStatCard } from "@/components/manager/students/student-detail-stat-card";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
@@ -20,6 +22,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { getManagerStudentPreview } from "@/lib/manager/get-manager-student-preview";
 import { getManagerStudentStatsPreview } from "@/lib/manager/get-manager-student-stats-preview";
 import { ROUTES } from "@/lib/constants/routes";
+import { STUDENT_DETAILS_SECTION_IDS } from "@/lib/constants/student-details-sections";
 import type { ManagerStudentRow } from "@/types/manager-student";
 
 type StudentDetailsPanelProps = {
@@ -77,6 +80,8 @@ export function StudentDetailsPanel({
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
+
+      <StudentDetailsSectionNav />
 
       <EditStudentDialog
         open={isEditOpen}
@@ -144,7 +149,19 @@ export function StudentDetailsPanel({
         />
       </div>
 
-      <StudentJoinedClassesSection studentProfileId={studentProfileId} />
+      <div
+        id={STUDENT_DETAILS_SECTION_IDS.classes}
+        className="scroll-mt-6"
+      >
+        <StudentJoinedClassesSection studentProfileId={studentProfileId} />
+      </div>
+
+      <div
+        id={STUDENT_DETAILS_SECTION_IDS.borrowing}
+        className="scroll-mt-6"
+      >
+        <StudentBorrowedEquipmentSection userId={student.user_id} />
+      </div>
     </div>
   );
 }
