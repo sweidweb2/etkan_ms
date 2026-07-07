@@ -7,5 +7,5 @@ export const AUTH_FIELD_HINTS = {
   password: `${AUTH_LIMITS.password.min}–${AUTH_LIMITS.password.max} characters`,
   confirmPassword: `Must match password (${AUTH_LIMITS.password.min}–${AUTH_LIMITS.password.max} characters)`,
   phone: `Optional, max ${AUTH_LIMITS.phone.max} characters`,
-  birthDate: "Optional",
+  birthDate: "Optional, cannot be in the future",
 } as const;

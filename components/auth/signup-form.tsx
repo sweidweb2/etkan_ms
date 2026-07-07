@@ -11,6 +11,7 @@ import { FieldLabel } from "@/components/auth/field-label";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import { ROUTES } from "@/lib/constants/routes";
+import { getLocalIsoDate } from "@/lib/utils/local-iso-date";
 import { signupSchema, type SignupInput } from "@/lib/validators/auth/auth";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import type { SignupActionState } from "@/types/auth";
@@ -142,6 +143,7 @@ export function SignupForm() {
           <Input
             id="birthDate"
             type="date"
+            max={getLocalIsoDate()}
             aria-invalid={!!birthDateError}
             {...register("birthDate")}
           />

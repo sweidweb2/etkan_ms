@@ -60,4 +60,17 @@ describe("signupSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects future birth dates", () => {
+    const result = signupSchema.safeParse({
+      ...validSignup,
+      birthDate: "2099-01-01",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.birthDate).toContain(
+        "Date of birth cannot be in the future."
+      );
+    }
+  });
 });

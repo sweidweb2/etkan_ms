@@ -178,3 +178,6 @@ export const MANAGER_USERS_MOCK: ManagerUserRow[] = [
     email: "no.username@school.edu",
   },
 ];
+
+/** Shared preview user for dummy detail navigation until backend is wired. */
+export const MANAGER_USER_PREVIEW_ID = MANAGER_USERS_MOCK[0].id;

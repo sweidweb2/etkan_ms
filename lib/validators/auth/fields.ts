@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import { isFutureLocalIsoDate } from "@/lib/utils/local-iso-date";
 
 /** Practical email pattern (RFC 5322–inspired, not exhaustive). */
 export const EMAIL_REGEX =
@@ -61,4 +62,10 @@ export const birthDateField = z
   .string()
   .trim()
   .optional()
-  .or(z.literal(""));
+  .or(z.literal(""))
+  .refine((value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value), {
+    message: "Please enter a valid date.",
+  })
+  .refine((value) => !value || !isFutureLocalIsoDate(value), {
+    message: "Date of birth cannot be in the future.",
+  });

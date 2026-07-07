@@ -35,7 +35,7 @@ export function PanelShell({
     <SidebarProvider>
       <SessionIdleMonitor />
       <PanelSidebar variant={variant} label={label} navigation={navigation} />
-      <SidebarInset className="relative">
+      <SidebarInset className="relative min-w-0 overflow-x-hidden">
         <header className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border px-4">
           <div className="flex items-center gap-2 justify-self-start">
             <SidebarTrigger />
@@ -51,7 +51,9 @@ export function PanelShell({
             <PanelUserMenu displayName={displayName} />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>
+        <div className="flex min-w-0 max-w-full flex-1 flex-col gap-4 overflow-x-hidden p-4 md:p-6">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

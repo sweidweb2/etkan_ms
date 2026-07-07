@@ -1,14 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  EyeIcon,
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
 import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
+import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,8 +29,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MANAGER_USERS_MOCK } from "@/lib/constants/manager-users-mock";
-import { ROLE_VALUES, ROLES, type RoleValue } from "@/lib/constants/roles";
+import { MANAGER_USER_PREVIEW_ID, MANAGER_USERS_MOCK } from "@/lib/constants/manager-users-mock";
+import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
+import { getManagerUserDetailRoute } from "@/lib/constants/routes";
+import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerUserRow } from "@/types/manager-user";
@@ -40,21 +45,7 @@ const COLUMN_LIMITS = {
 
 const ROLE_FILTER_ALL = "all";
 
-const ROLE_LABELS: Record<RoleValue, string> = {
-  [ROLES.ADMIN]: "Admin",
-  [ROLES.MANAGER]: "Manager",
-  [ROLES.CEO]: "CEO",
-  [ROLES.TEACHER]: "Teacher",
-  [ROLES.STUDENT]: "Student",
-};
-
-const ROLE_BADGE_CLASSES: Record<RoleValue, string> = {
-  [ROLES.STUDENT]: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-  [ROLES.TEACHER]: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  [ROLES.MANAGER]: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
-  [ROLES.ADMIN]: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  [ROLES.CEO]: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
-};
+const ROLE_LABELS = MANAGER_USER_ROLE_LABELS;
 
 function TruncatedCell({
   value,
@@ -128,16 +119,17 @@ function matchesSearch(user: ManagerUserRow, query: string) {
   return username.includes(normalizedQuery) || email.includes(normalizedQuery);
 }
 
-function RoleBadge({ role }: { role: RoleValue }) {
+function UserDetailsLink({ user }: { user: ManagerUserRow }) {
+  const label = user.username ?? user.email;
+
   return (
-    <span
-      className={cn(
-        "inline-flex rounded-md px-2 py-0.5 text-xs font-medium capitalize",
-        ROLE_BADGE_CLASSES[role]
-      )}
+    <Link
+      href={getManagerUserDetailRoute(MANAGER_USER_PREVIEW_ID)}
+      aria-label={`View ${label}`}
+      className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
-      {ROLE_LABELS[role]}
-    </span>
+      <EyeIcon className="size-4" />
+    </Link>
   );
 }
 
@@ -296,13 +288,14 @@ export function ManageUsersPanel() {
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Role</th>
                     <th className="px-4 py-3 font-medium">Created</th>
+                    <th className="px-4 py-3 text-center font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedUsers.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         No users match your filters.
@@ -327,10 +320,13 @@ export function ManageUsersPanel() {
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <RoleBadge role={user.role} />
+                          <UserRoleBadge role={user.role} />
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                           {format(new Date(user.created_at), "MMM d, yyyy")}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <UserDetailsLink user={user} />
                         </td>
                       </tr>
                     ))
