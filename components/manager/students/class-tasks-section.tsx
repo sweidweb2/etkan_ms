@@ -2,7 +2,12 @@
 
 import { format } from "date-fns";
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
+import {
+  MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS,
+  MANAGER_STUDENT_TASK_SLOTS_MAX_VISIBLE,
+} from "@/lib/constants/manager-student-class-slots";
 import { MANAGER_STUDENT_TASK_SLOT_CLASSES } from "@/lib/constants/manager-student-task-display";
 import { getManagerStudentClassDetailPreview } from "@/lib/manager/get-manager-student-class-detail-preview";
 import { cn } from "@/lib/utils";
@@ -14,6 +19,7 @@ type ClassTasksSectionProps = {
 
 export function ClassTasksSection({ userId, classId }: ClassTasksSectionProps) {
   const detail = getManagerStudentClassDetailPreview(userId, classId);
+  const taskOverflow = detail.tasks.length > MANAGER_STUDENT_TASK_SLOTS_MAX_VISIBLE;
 
   const gradeChartData = detail.taskGradeTrend.map((point) => ({
     task_label: point.task_label,
@@ -22,20 +28,28 @@ export function ClassTasksSection({ userId, classId }: ClassTasksSectionProps) {
   }));
 
   return (
-    <section className="min-w-0 rounded-xl ring-1 ring-foreground/10">
-      <div className="border-b bg-muted/40 px-4 py-3">
-        <h3 className="text-sm font-semibold">Tasks</h3>
-        <p className="text-xs text-muted-foreground">
-          Task slots from tasks + student_tasks with grade trend per assignment.
-        </p>
-      </div>
-
+    <ClassTabCollapsibleSection
+      title="Tasks"
+      description="Task slots from tasks + student_tasks with grade trend per assignment."
+    >
       <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
-        <div className="flex min-h-[20rem] min-w-0 flex-col space-y-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Task slots
-          </p>
-          <div className="grid min-h-[18rem] flex-1 gap-2.5 overflow-y-auto">
+        <div className="flex min-h-0 min-w-0 flex-col space-y-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Task slots
+            </p>
+            {taskOverflow ? (
+              <p className="text-[11px] text-muted-foreground">
+                {detail.tasks.length} total · scroll
+              </p>
+            ) : null}
+          </div>
+          <div
+            className={cn(
+              "grid min-h-0 flex-1 content-start gap-2.5 overflow-y-auto overscroll-y-contain",
+              MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS
+            )}
+          >
             {detail.tasks.map((task) => (
               <div
                 key={task.student_task_id}
@@ -106,6 +120,6 @@ export function ClassTasksSection({ userId, classId }: ClassTasksSectionProps) {
           </p>
         </div>
       </div>
-    </section>
+    </ClassTabCollapsibleSection>
   );
 }

@@ -21,6 +21,7 @@ import {
   getManagerStudentCourseGradeWeightRules,
   MANAGER_STUDENT_COURSE_GRADE_COMPONENT_ACCENT,
 } from "@/lib/constants/manager-student-course-grade-display";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { getManagerStudentClassDetailPreview } from "@/lib/manager/get-manager-student-class-detail-preview";
 import { cn } from "@/lib/utils";
 
@@ -93,17 +94,14 @@ export function ClassCourseGradeSection({
 
   if (!courseGrade) {
     return (
-      <section className="min-w-0 rounded-xl ring-1 ring-foreground/10">
-        <div className="border-b bg-muted/40 px-4 py-3">
-          <h3 className="text-sm font-semibold">Course grade</h3>
-          <p className="text-xs text-muted-foreground">
-            Weighted grade snapshot from student_course_grade.
-          </p>
-        </div>
+      <ClassTabCollapsibleSection
+        title="Course grade"
+        description="Weighted grade snapshot from student_course_grade."
+      >
         <div className="flex min-h-[12rem] items-center justify-center p-6 text-sm text-muted-foreground">
           No course grade record for this enrollment yet.
         </div>
-      </section>
+      </ClassTabCollapsibleSection>
     );
   }
 
@@ -120,15 +118,10 @@ export function ClassCourseGradeSection({
     }));
 
   return (
-    <section className="min-w-0 rounded-xl ring-1 ring-foreground/10">
-      <div className="border-b bg-muted/40 px-4 py-3">
-        <h3 className="text-sm font-semibold">Course grade</h3>
-        <p className="text-xs text-muted-foreground">
-          Weighted breakdown from student_course_grade (attendee, total tasks,
-          group grade, final exams).
-        </p>
-      </div>
-
+    <ClassTabCollapsibleSection
+      title="Course grade"
+      description="Weighted breakdown from student_course_grade (attendee, total tasks, group grade, final exams)."
+    >
       <div className="space-y-5 p-5">
         <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl bg-muted/25 px-4 py-4 ring-1 ring-foreground/8">
           <div>
@@ -272,6 +265,6 @@ export function ClassCourseGradeSection({
           </div>
         </div>
       </div>
-    </section>
+    </ClassTabCollapsibleSection>
   );
 }

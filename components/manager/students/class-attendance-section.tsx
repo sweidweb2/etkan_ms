@@ -2,10 +2,15 @@
 
 import { format } from "date-fns";
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { StudentAttendanceStatusBadge } from "@/components/manager/students/student-attendance-status-badge";
 import {
   MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES,
 } from "@/lib/constants/manager-student-attendance-display";
+import {
+  MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_HEIGHT_CLASS,
+  MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_VISIBLE,
+} from "@/lib/constants/manager-student-class-slots";
 import { getManagerStudentClassDetailPreview } from "@/lib/manager/get-manager-student-class-detail-preview";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +24,8 @@ export function ClassAttendanceSection({
   classId,
 }: ClassAttendanceSectionProps) {
   const detail = getManagerStudentClassDetailPreview(userId, classId);
+  const attendanceOverflow =
+    detail.attendanceSlots.length > MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_VISIBLE;
   const chartData = detail.attendanceTrend.map((point) => ({
     session_label: point.session_label,
     cumulative_present: point.cumulative_present,
@@ -27,20 +34,28 @@ export function ClassAttendanceSection({
   }));
 
   return (
-    <section className="min-w-0 rounded-xl ring-1 ring-foreground/10">
-      <div className="border-b bg-muted/40 px-4 py-3">
-        <h3 className="text-sm font-semibold">Attendance</h3>
-        <p className="text-xs text-muted-foreground">
-          Session slots (linked via tasks.session_id) and cumulative streak trend.
-        </p>
-      </div>
-
+    <ClassTabCollapsibleSection
+      title="Attendance"
+      description="Session slots (linked via tasks.session_id) and cumulative streak trend."
+    >
       <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
-        <div className="flex min-h-[20rem] min-w-0 flex-col space-y-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Session slots
-          </p>
-          <div className="grid min-h-[18rem] flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto sm:grid-cols-3">
+        <div className="flex min-h-0 min-w-0 flex-col space-y-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Session slots
+            </p>
+            {attendanceOverflow ? (
+              <p className="text-[11px] text-muted-foreground">
+                {detail.attendanceSlots.length} total · scroll
+              </p>
+            ) : null}
+          </div>
+          <div
+            className={cn(
+              "grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3",
+              MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_HEIGHT_CLASS
+            )}
+          >
             {detail.attendanceSlots.map((slot) => (
               <div
                 key={slot.session_id}
@@ -89,6 +104,6 @@ export function ClassAttendanceSection({
           </p>
         </div>
       </div>
-    </section>
+    </ClassTabCollapsibleSection>
   );
 }
