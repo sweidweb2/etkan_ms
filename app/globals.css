@@ -149,3 +149,16 @@
 .route-top-loader-bar-active {
   animation: route-top-loader-progress 0.5s ease-out forwards;
 }
+
+@media print {
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-trigger"],
+  .route-top-loader-bar {
+    display: none !important;
+  }
+
+  [data-slot="sidebar-inset"] > header {
+    display: none !important;
+  }
+}

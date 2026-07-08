@@ -25,6 +25,7 @@ type ClassLineChartProps = {
   className?: string;
   yDomain?: [number, number];
   yLabel?: string;
+  visible?: boolean;
 };
 
 export function ClassLineChart({
@@ -34,7 +35,19 @@ export function ClassLineChart({
   className,
   yDomain,
   yLabel,
+  visible = true,
 }: ClassLineChartProps) {
+  if (!visible) {
+    return (
+      <div
+        className={cn(
+          "min-h-[18rem] w-full rounded-lg bg-muted/20",
+          className
+        )}
+      />
+    );
+  }
+
   if (data.length === 0) {
     return (
       <div

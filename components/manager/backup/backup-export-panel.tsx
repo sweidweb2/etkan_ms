@@ -277,14 +277,14 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(28rem,1fr)_minmax(0,22rem)]">
-        <Card className="h-fit">
-          <CardHeader className="border-b bg-muted/40">
+        <Card className="h-fit py-0">
+          <CardHeader className="border-b bg-muted/40 py-4">
             <CardTitle>Backup History</CardTitle>
             <CardDescription>
               Recent export activity for this backup page.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="py-4">
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                 <div className="flex flex-col gap-2 w-full">
@@ -364,15 +364,17 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                           <td className="px-1 py-2 align-middle text-right">
                             <Button
                               type="button"
-                              variant="default"
-                              size="xs"
+                              variant="ghost"
+                              size="icon-xs"
+                              aria-label="Re-export backup"
                               onClick={() => handleHistoryExport(entry)}
                               disabled={pendingHistoryExportId !== null}
+                              className="text-primary hover:bg-primary/10 hover:text-primary"
                             >
                               {pendingHistoryExportId === entry.id ? (
                                 <InlineSpinner />
                               ) : (
-                                <>Export</>
+                                <Download className="size-4" aria-hidden />
                               )}
                             </Button>
                           </td>
@@ -453,14 +455,14 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
         </Card>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="border-b bg-muted/40">
+          <Card className="py-0">
+            <CardHeader className="border-b bg-muted/40 py-4">
               <CardTitle>Export One Table</CardTitle>
               <CardDescription>
                 Download a JSON backup for a single table from the database.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 py-4">
               <div className="flex flex-col gap-2">
                 <FieldLabel
                   htmlFor="backup-table"
@@ -506,8 +508,8 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
             </CardFooter>
           </Card>
 
-          <Card className="gap-0">
-            <CardHeader className="border-b bg-muted/40">
+          <Card className="gap-0 py-0">
+            <CardHeader className="border-b bg-muted/40 py-4">
               <CardTitle>Export All Tables</CardTitle>
               <CardDescription>
                 Download one JSON file that contains every backup-enabled table.

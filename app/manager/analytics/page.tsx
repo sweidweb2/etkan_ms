@@ -1,7 +1,5 @@
+import { ManagerAnalyticsPanel } from "@/components/manager/analytics/manager-analytics-panel";
+
 export default function ManagerAnalyticsPage() {
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-    </div>
-  );
+  return <ManagerAnalyticsPanel />;
 }

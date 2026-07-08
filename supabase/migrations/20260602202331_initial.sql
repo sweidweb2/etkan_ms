@@ -273,13 +273,19 @@ create table student_takeouts (
 create table audit_logs (
     id uuid primary key default gen_random_uuid(),
 
-    user_id uuid references profiles(id),
+    user_id uuid references profiles(id) on delete set null,
+    user_label text not null default 'System',
 
-    action text not null,
+    action text not null
+        check (action in ('insert', 'update', 'delete', 'login', 'logout', 'export', 'other')),
     table_name text,
     record_id uuid,
 
-    created_at timestamp default now()
+    old_data jsonb,
+    new_data jsonb,
+    metadata jsonb,
+
+    created_at timestamptz not null default now()
 );
 
 
@@ -311,6 +317,15 @@ on student_tasks(student_id);
 
 create index idx_audit_user
 on audit_logs(user_id);
+
+create index idx_audit_logs_created_at
+on audit_logs(created_at desc);
+
+create index idx_audit_logs_action
+on audit_logs(action);
+
+create index idx_audit_logs_table_name
+on audit_logs(table_name);
 
 
 

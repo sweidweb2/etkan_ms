@@ -116,6 +116,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "backup",
         },
         {
+          title: "Logs",
+          href: ROUTES.MANAGER_LOGS,
+          icon: "logs",
+        },
+        {
           title: "Settings",
           href: ROUTES.MANAGER_SETTINGS,
           icon: "settings",

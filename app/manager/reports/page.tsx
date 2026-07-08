@@ -1,7 +1,5 @@
+import { ManagerReportsPanel } from "@/components/manager/reports/manager-reports-panel";
+
 export default function ManagerReportsPage() {
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-    </div>
-  );
+  return <ManagerReportsPanel />;
 }

@@ -13,6 +13,7 @@ import {
   Library,
   Package,
   School,
+  ScrollText,
   Server,
   Settings,
   Users,
@@ -36,4 +37,5 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   reports: FileText,
   analytics: ChartColumn,
   backup: DatabaseBackup,
+  logs: ScrollText,
 };
