@@ -7,6 +7,7 @@ import { loginAction } from "@/app/auth/login/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "@/components/auth/field-label";
+import { PasswordInput } from "@/components/auth/password-input";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import { loginSchema, type LoginInput } from "@/lib/validators/auth/auth";
@@ -82,9 +83,8 @@ export function LoginForm({ next }: LoginFormProps) {
           label="Password"
           hint={AUTH_FIELD_HINTS.password}
         />
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           minLength={AUTH_LIMITS.password.min}
           maxLength={AUTH_LIMITS.password.max}

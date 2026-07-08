@@ -8,6 +8,7 @@ import { signupAction } from "@/app/auth/signup/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "@/components/auth/field-label";
+import { PasswordInput } from "@/components/auth/password-input";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import { ROUTES } from "@/lib/constants/routes";
@@ -179,9 +180,8 @@ export function SignupForm() {
           label="Password"
           hint={AUTH_FIELD_HINTS.password}
         />
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           minLength={AUTH_LIMITS.password.min}
           maxLength={AUTH_LIMITS.password.max}
@@ -199,9 +199,8 @@ export function SignupForm() {
           label="Confirm password"
           hint={AUTH_FIELD_HINTS.confirmPassword}
         />
-        <Input
+        <PasswordInput
           id="confirmPassword"
-          type="password"
           autoComplete="new-password"
           minLength={AUTH_LIMITS.password.min}
           maxLength={AUTH_LIMITS.password.max}
