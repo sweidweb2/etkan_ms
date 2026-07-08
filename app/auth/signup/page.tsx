@@ -29,9 +29,13 @@ export default async function SignupPage() {
       </CardHeader>
       <CardContent>
         <SignupForm />
-        <p className="mt-4 text-center text-sm text-muted-foreground">
+        <p
+          className="mt-4 text-center text-sm text-muted-foreground"
+          suppressHydrationWarning
+        >
           <Link
             href={ROUTES.LOGIN}
+            suppressHydrationWarning
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
             Back to sign in

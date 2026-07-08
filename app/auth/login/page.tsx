@@ -34,10 +34,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <LoginForm next={params.next} />
-        <p className="text-center text-sm text-muted-foreground">
+        <p
+          className="text-center text-sm text-muted-foreground"
+          suppressHydrationWarning
+        >
           Don&apos;t have an account?{" "}
           <Link
             href={ROUTES.SIGNUP}
+            suppressHydrationWarning
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
             Sign up
