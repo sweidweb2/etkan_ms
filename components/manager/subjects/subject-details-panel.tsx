@@ -122,7 +122,7 @@ export function SubjectDetailsPanel({ subjectId }: SubjectDetailsPanelProps) {
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="py-6">
+        <CardContent className="pt-4 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Name" value={subject.name} />
             <DetailLink label="Syllabus" href={subject.syllabus_link} />
