@@ -14,6 +14,7 @@ export const ROUTES = {
   MANAGER_STUDENTS: "/manager/students",
   MANAGER_STUDENT_DETAIL: "/manager/students/[id]",
   MANAGER_SUBJECTS: "/manager/subjects",
+  MANAGER_SUBJECT_DETAIL: "/manager/subjects/[id]",
   MANAGER_ACCOUNTING: "/manager/accounting",
   MANAGER_SCHEDULE: "/manager/schedule",
   MANAGER_NOTIFICATIONS: "/manager/notifications",
@@ -82,6 +83,10 @@ export function getManagerUserDetailRoute(userId: string): string {
 
 export function getManagerStudentDetailRoute(studentProfileId: string): string {
   return `/manager/students/${studentProfileId}`;
+}
+
+export function getManagerSubjectDetailRoute(subjectId: string): string {
+  return `/manager/subjects/${subjectId}`;
 }
 
 export const PANEL_ROOTS = Object.values(ROLE_PANEL_ROOTS);
