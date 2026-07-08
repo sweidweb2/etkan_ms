@@ -13,6 +13,7 @@ import {
 } from "@/lib/constants/routes";
 import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
 import { resolveUserRole } from "@/services/role.service";
+import { getMaintenanceMode } from "@/repositories/app-settings.repository";
 
 export async function middleware(request: NextRequest) {
   const { supabase, response } = createSupabaseMiddlewareClient(request);
@@ -21,6 +22,15 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  const maintenancePathname = "/maintenance";
+  if (
+    (await getMaintenanceMode(supabase)) &&
+    pathname !== maintenancePathname &&
+    pathname !== ROUTES.MANAGER_SETTINGS
+  ) {
+    return NextResponse.redirect(new URL(maintenancePathname, request.url));
+  }
 
   if (isPublicAuthRoute(pathname)) {
     if (user && isGuestOnlyAuthRoute(pathname)) {

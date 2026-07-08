@@ -89,4 +89,8 @@ export function getManagerSubjectDetailRoute(subjectId: string): string {
   return `/manager/subjects/${subjectId}`;
 }
 
+export function getManagerSemesterDetailRoute(semesterId: string): string {
+  return `/manager/phases/${semesterId}`;
+}
+
 export const PANEL_ROOTS = Object.values(ROLE_PANEL_ROOTS);

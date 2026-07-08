@@ -84,3 +84,13 @@ export async function createAuthUser(
     },
   });
 }
+
+export async function updateAuthUserEmailAndPassword(
+  client: Supabase,
+  input: { email?: string; password?: string }
+) {
+  return client.auth.updateUser({
+    ...(input.email ? { email: input.email } : {}),
+    ...(input.password ? { password: input.password } : {}),
+  });
+}

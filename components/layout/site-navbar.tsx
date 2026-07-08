@@ -5,8 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE } from "@/lib/config/site";
-import { ROUTES } from "@/lib/constants/routes";
+import { getDashboardRouteForRole, ROUTES } from "@/lib/constants/routes";
+import { supabase } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import type { RoleValue } from "@/lib/constants/roles";
 
 type NavLinkProps = {
   href: string;
@@ -46,9 +48,53 @@ function NavbarShell({ children }: { children?: React.ReactNode }) {
 export function SiteNavbar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const [dashboardHref, setDashboardHref] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNavbarAuthState() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        if (!cancelled) {
+          setDashboardHref(null);
+        }
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (cancelled) {
+        return;
+      }
+
+      const role = profile?.role as RoleValue | undefined;
+      setDashboardHref(role ? getDashboardRouteForRole(role) : ROUTES.HOME);
+    }
+
+    loadNavbarAuthState();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadNavbarAuthState();
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (!mounted) {
@@ -71,14 +117,20 @@ export function SiteNavbar() {
             Home
           </NavLink>
         ) : null}
-        {!isLoginPage ? (
-          <NavLink href={ROUTES.LOGIN} variant="ghost">
-            Log in
-          </NavLink>
-        ) : null}
-        {!isSignupPage ? (
-          <NavLink href={ROUTES.SIGNUP}>Register</NavLink>
-        ) : null}
+        {dashboardHref ? (
+          <NavLink href={dashboardHref}>Dashboard</NavLink>
+        ) : (
+          <>
+            {!isLoginPage ? (
+              <NavLink href={ROUTES.LOGIN} variant="ghost">
+                Log in
+              </NavLink>
+            ) : null}
+            {!isSignupPage ? (
+              <NavLink href={ROUTES.SIGNUP}>Register</NavLink>
+            ) : null}
+          </>
+        )}
       </nav>
     </NavbarShell>
   );

@@ -1,0 +1,43 @@
+export const BACKUP_TABLES = [
+  "profiles",
+  "student_profiles",
+  "relationships",
+  "equipments",
+  "accounts",
+  "semesters",
+  "subscribed_phases",
+  "payments",
+  "subjects",
+  "classes",
+  "class_teacher",
+  "student_class",
+  "tasks",
+  "student_tasks",
+  "student_course_grade",
+  "borrow_equipment",
+  "student_takeouts",
+  "audit_logs",
+] as const;
+
+export type BackupTableName = (typeof BACKUP_TABLES)[number];
+
+export const BACKUP_TABLE_LABELS: Record<BackupTableName, string> = {
+  profiles: "Profiles",
+  student_profiles: "Student profiles",
+  relationships: "Relationships",
+  equipments: "Equipments",
+  accounts: "Accounts",
+  semesters: "Semesters",
+  subscribed_phases: "Subscribed phases",
+  payments: "Payments",
+  subjects: "Subjects",
+  classes: "Classes",
+  class_teacher: "Class teacher",
+  student_class: "Student class",
+  tasks: "Tasks",
+  student_tasks: "Student tasks",
+  student_course_grade: "Student course grade",
+  borrow_equipment: "Borrow equipment",
+  student_takeouts: "Student takeouts",
+  audit_logs: "Audit logs",
+};

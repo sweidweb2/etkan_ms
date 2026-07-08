@@ -1,7 +1,5 @@
+import { ManagerDashboardPanel } from "@/components/manager/dashboard/manager-dashboard-panel";
+
 export default function ManagerDashboardPage() {
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-    </div>
-  );
+  return <ManagerDashboardPanel />;
 }
