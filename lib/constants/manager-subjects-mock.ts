@@ -8,6 +8,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/math-advanced",
     handout_link: "https://school.edu/handouts/math-advanced",
     created_at: "2025-08-01T09:00:00.000Z",
+    nb_sessions: 10,
     class_count: 4,
   },
   {
@@ -17,6 +18,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: null,
     handout_link: "https://school.edu/handouts/physics",
     created_at: "2025-08-02T10:15:00.000Z",
+    nb_sessions: 10,
     class_count: 3,
   },
   {
@@ -26,6 +28,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/chemistry",
     handout_link: null,
     created_at: "2025-08-03T11:30:00.000Z",
+    nb_sessions: 10,
     class_count: 2,
   },
   {
@@ -35,6 +38,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/biology",
     handout_link: "https://school.edu/handouts/biology",
     created_at: "2025-08-05T08:45:00.000Z",
+    nb_sessions: 10,
     class_count: 5,
   },
   {
@@ -44,6 +48,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/english-lit",
     handout_link: "https://school.edu/handouts/english-lit",
     created_at: "2025-08-06T14:00:00.000Z",
+    nb_sessions: 12,
     class_count: 6,
   },
   {
@@ -53,6 +58,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: null,
     handout_link: null,
     created_at: "2025-08-07T09:20:00.000Z",
+    nb_sessions: 10,
     class_count: 1,
   },
   {
@@ -62,6 +68,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/history",
     handout_link: "https://school.edu/handouts/history",
     created_at: "2025-08-10T16:10:00.000Z",
+    nb_sessions: 10,
     class_count: 0,
   },
   {
@@ -71,6 +78,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/cs",
     handout_link: "https://school.edu/handouts/cs",
     created_at: "2025-08-12T11:00:00.000Z",
+    nb_sessions: 14,
     class_count: 7,
   },
   {
@@ -80,6 +88,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: null,
     handout_link: "https://school.edu/handouts/art",
     created_at: "2025-08-15T13:25:00.000Z",
+    nb_sessions: 8,
     class_count: 2,
   },
   {
@@ -89,6 +98,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: null,
     handout_link: null,
     created_at: "2025-08-18T10:40:00.000Z",
+    nb_sessions: 8,
     class_count: 1,
   },
   {
@@ -98,6 +108,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/economics",
     handout_link: "https://school.edu/handouts/economics",
     created_at: "2025-09-01T08:00:00.000Z",
+    nb_sessions: 10,
     class_count: 3,
   },
   {
@@ -107,6 +118,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/geography",
     handout_link: null,
     created_at: "2025-09-05T15:30:00.000Z",
+    nb_sessions: 10,
     class_count: 2,
   },
   {
@@ -116,6 +128,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/philosophy",
     handout_link: null,
     created_at: "2025-09-10T12:15:00.000Z",
+    nb_sessions: 10,
     class_count: 0,
   },
   {
@@ -125,6 +138,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: null,
     handout_link: "https://school.edu/handouts/pe",
     created_at: "2025-09-12T09:50:00.000Z",
+    nb_sessions: 10,
     class_count: 4,
   },
   {
@@ -134,6 +148,7 @@ export const MANAGER_SUBJECTS_MOCK: ManagerSubjectRow[] = [
     reference_link: "https://school.edu/refs/robotics",
     handout_link: "https://school.edu/handouts/robotics",
     created_at: "2025-09-20T17:00:00.000Z",
+    nb_sessions: 16,
     class_count: 8,
   },
 ];

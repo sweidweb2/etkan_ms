@@ -41,7 +41,7 @@ export function ClassLineChart({
     return (
       <div
         className={cn(
-          "min-h-[18rem] w-full rounded-lg bg-muted/20",
+          "h-[18rem] w-full rounded-lg bg-muted/20",
           className
         )}
       />
@@ -52,7 +52,7 @@ export function ClassLineChart({
     return (
       <div
         className={cn(
-          "flex min-h-[18rem] w-full min-w-0 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground",
+          "flex h-[18rem] w-full min-w-0 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground",
           className
         )}
       >
@@ -62,29 +62,40 @@ export function ClassLineChart({
   }
 
   return (
-    <div className={cn("h-full min-h-[18rem] w-full min-w-0", className)}>
+    <div className={cn("h-[18rem] w-full min-w-0", className)}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
+        <LineChart
+          data={data}
+          margin={{ top: 8, right: 12, left: 4, bottom: 8 }}
+        >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--border)"
+            vertical={false}
+          />
           <XAxis
             dataKey={xKey}
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             tickLine={false}
             axisLine={false}
             domain={yDomain}
+            width={yLabel ? 48 : 36}
             label={
               yLabel
                 ? {
                     value: yLabel,
                     angle: -90,
                     position: "insideLeft",
-                    style: { fontSize: 11 },
+                    style: {
+                      fontSize: 11,
+                      fill: "var(--muted-foreground)",
+                    },
                   }
                 : undefined
             }
@@ -92,9 +103,9 @@ export function ClassLineChart({
           <Tooltip
             contentStyle={{
               borderRadius: "0.5rem",
-              border: "1px solid hsl(var(--border))",
-              background: "hsl(var(--popover))",
-              color: "hsl(var(--popover-foreground))",
+              border: "1px solid var(--border)",
+              background: "var(--popover)",
+              color: "var(--popover-foreground)",
               fontSize: "12px",
             }}
           />
@@ -107,8 +118,9 @@ export function ClassLineChart({
               name={item.label}
               stroke={item.color}
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 3, fill: item.color, strokeWidth: 0 }}
               activeDot={{ r: 5 }}
+              connectNulls
             />
           ))}
         </LineChart>

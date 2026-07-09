@@ -161,4 +161,20 @@
   [data-slot="sidebar-inset"] > header {
     display: none !important;
   }
+
+  body.etkan-print-section * {
+    visibility: hidden;
+  }
+
+  body.etkan-print-section [data-print-root],
+  body.etkan-print-section [data-print-root] * {
+    visibility: visible;
+  }
+
+  body.etkan-print-section [data-print-root] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
 }

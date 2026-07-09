@@ -19,6 +19,8 @@ type HorizontalScrollCarouselProps = {
   contentClassName?: string;
   navButtonClassName?: string;
   ariaLabel?: string;
+  initialScrollPosition?: "start" | "end";
+  resetScrollKey?: string | number;
 };
 
 export function HorizontalScrollCarousel({
@@ -27,6 +29,8 @@ export function HorizontalScrollCarousel({
   contentClassName,
   navButtonClassName,
   ariaLabel = "Horizontally scrollable content",
+  initialScrollPosition = "start",
+  resetScrollKey,
 }: HorizontalScrollCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef({
@@ -75,6 +79,21 @@ export function HorizontalScrollCarousel({
       node.removeEventListener("scroll", updateScrollEdges);
     };
   }, [updateScrollEdges, children]);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) {
+      return;
+    }
+
+    if (initialScrollPosition === "end") {
+      node.scrollLeft = node.scrollWidth;
+    } else {
+      node.scrollLeft = 0;
+    }
+
+    updateScrollEdges();
+  }, [children, initialScrollPosition, resetScrollKey, updateScrollEdges]);
 
   useEffect(() => {
     if (!isDragging) {

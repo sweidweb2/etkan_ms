@@ -67,6 +67,7 @@ export function AddSubjectDialog({
       reference_link: values.reference_link?.trim() || null,
       handout_link: values.handout_link?.trim() || null,
       created_at: new Date().toISOString(),
+      nb_sessions: 0,
       class_count: 0,
     });
 

@@ -19,7 +19,13 @@ export const ROUTES = {
   MANAGER_SCHEDULE: "/manager/schedule",
   MANAGER_NOTIFICATIONS: "/manager/notifications",
   MANAGER_CLASSES: "/manager/classes",
+  MANAGER_CLASS_DETAIL: "/manager/classes/[id]",
+  MANAGER_CLASS_SESSION_DETAIL: "/manager/classes/[id]/sessions/[sessionId]",
+  MANAGER_CLASS_SESSION_TASK_DETAIL:
+    "/manager/classes/[id]/sessions/[sessionId]/tasks/[taskId]",
   MANAGER_EQUIPMENTS: "/manager/equipments",
+  MANAGER_EQUIPMENT_DETAIL: "/manager/equipments/[id]",
+  MANAGER_EQUIPMENT_BORROW: "/manager/equipments/borrow",
   MANAGER_RELATIONSHIPS: "/manager/relationships",
   MANAGER_PHASES: "/manager/phases",
   MANAGER_SETTINGS: "/manager/settings",
@@ -90,8 +96,31 @@ export function getManagerSubjectDetailRoute(subjectId: string): string {
   return `/manager/subjects/${subjectId}`;
 }
 
+export function getManagerEquipmentDetailRoute(equipmentId: string): string {
+  return `/manager/equipments/${equipmentId}`;
+}
+
 export function getManagerSemesterDetailRoute(semesterId: string): string {
   return `/manager/phases/${semesterId}`;
+}
+
+export function getManagerClassDetailRoute(classId: string): string {
+  return `/manager/classes/${classId}`;
+}
+
+export function getManagerClassSessionDetailRoute(
+  classId: string,
+  sessionId: string
+): string {
+  return `/manager/classes/${classId}/sessions/${sessionId}`;
+}
+
+export function getManagerClassSessionTaskDetailRoute(
+  classId: string,
+  sessionId: string,
+  taskId: string
+): string {
+  return `/manager/classes/${classId}/sessions/${sessionId}/tasks/${taskId}`;
 }
 
 export const PANEL_ROOTS = Object.values(ROLE_PANEL_ROOTS);

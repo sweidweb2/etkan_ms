@@ -377,8 +377,17 @@ export function ManageNotificationsPanel() {
                 return (
                   <article
                     key={notification.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetailsNotification(notification)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setDetailsNotification(notification);
+                      }
+                    }}
                     className={cn(
-                      "flex items-start gap-3 px-4 py-4 transition-colors",
+                      "flex cursor-pointer items-start gap-3 px-4 py-4 transition-colors hover:bg-muted/30",
                       !notification.is_read && "bg-primary/5"
                     )}
                   >
@@ -423,7 +432,10 @@ export function ManageNotificationsPanel() {
                             variant="ghost"
                             size="icon-xs"
                             aria-label="View notification details"
-                            onClick={() => setDetailsNotification(notification)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDetailsNotification(notification);
+                            }}
                             className="text-primary hover:bg-primary/10 hover:text-primary"
                           >
                             <MessageSquareTextIcon className="size-4" />
@@ -438,11 +450,7 @@ export function ManageNotificationsPanel() {
                         </div>
                       </div>
 
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {notification.body}
-                      </p>
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
                         {notification.action_href ? (
                           <Button
                             render={
@@ -451,6 +459,7 @@ export function ManageNotificationsPanel() {
                             nativeButton={false}
                             variant="outline"
                             size="xs"
+                            onClick={(event) => event.stopPropagation()}
                           >
                             Open related page
                             <ArrowUpRightIcon data-icon="inline-end" />
@@ -461,7 +470,10 @@ export function ManageNotificationsPanel() {
                             type="button"
                             variant="ghost"
                             size="xs"
-                            onClick={() => handleMarkAsRead(notification.id)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleMarkAsRead(notification.id);
+                            }}
                           >
                             <CheckIcon data-icon="inline-start" />
                             Mark as read

@@ -11,6 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SemesterClassesSection } from "@/components/manager/phases/semester-classes-section";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 import { getManagerSemesterPreview } from "@/lib/manager/get-manager-semester-preview";
 import { ROUTES } from "@/lib/constants/routes";
@@ -42,6 +43,7 @@ export function SemesterDetailsPanel({
   const [semester, setSemester] = useState<ManagerSemesterRow>(() =>
     getManagerSemesterPreview(semesterId)
   );
+  const [exportedAt, setExportedAt] = useState<Date | null>(null);
 
   const createdText = useMemo(
     () => format(new Date(semester.created_at), "MMM d, yyyy 'at' h:mm a"),
@@ -49,8 +51,8 @@ export function SemesterDetailsPanel({
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <Breadcrumb>
+    <div className="flex flex-col gap-6" data-print-root="semester-details">
+      <Breadcrumb className="print:hidden">
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink href={ROUTES.MANAGER_PHASES}>
@@ -64,6 +66,12 @@ export function SemesterDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
+      {exportedAt ? (
+        <p className="hidden text-sm text-muted-foreground print:block">
+          Exported {format(exportedAt, "MMM d, yyyy 'at' h:mm a")}
+        </p>
+      ) : null}
+
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/50 py-4">
           <CardTitle className="text-xl">{semester.name}</CardTitle>
@@ -76,6 +84,18 @@ export function SemesterDetailsPanel({
           </dl>
         </CardContent>
       </Card>
+
+      <SemesterClassesSection
+        semesterId={semester.id}
+        semesterName={semester.name}
+        onExportPdf={() => setExportedAt(new Date())}
+        onClassesCountChange={(count) => {
+          setSemester((current) => ({
+            ...current,
+            nb_courses: count,
+          }));
+        }}
+      />
     </div>
   );
 }
