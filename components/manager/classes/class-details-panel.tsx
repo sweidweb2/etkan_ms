@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { PencilIcon } from "lucide-react";
+import { LineChartIcon, PencilIcon } from "lucide-react";
 import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog";
 import { ClassAnalyticsSection } from "@/components/manager/classes/class-analytics-section";
+import { ClassFinalExamSection } from "@/components/manager/classes/class-final-exam-section";
 import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
 import { ClassStudentsSection } from "@/components/manager/classes/class-students-section";
 import {
@@ -32,12 +33,15 @@ import {
   CLASS_STATUS_LABELS,
 } from "@/lib/constants/manager-subject-display";
 import { getManagerClassPreview } from "@/lib/manager/get-manager-class-preview";
+import { getManagerClassFinalExamPreview } from "@/lib/constants/manager-class-final-exam-mock";
 import {
+  getManagerClassGradesRoute,
   getManagerSemesterDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerClassRow } from "@/types/manager-class-list";
+import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
 
 type ClassDetailsPanelProps = {
   classId: string;
@@ -71,6 +75,13 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
     getManagerClassPreview(classId)
   );
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [finalExam, setFinalExam] = useState<ManagerClassFinalExamRow | null>(
+    () => getManagerClassFinalExamPreview(classId)
+  );
+
+  useEffect(() => {
+    setFinalExam(getManagerClassFinalExamPreview(classId));
+  }, [classId]);
 
   const sessionRate = getClassSessionCompletionRate(classRow);
   const statusLabel =
@@ -110,7 +121,15 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/50 py-4">
           <CardTitle className="text-xl">{classRow.name}</CardTitle>
-          <CardAction className="self-center">
+          <CardAction className="flex items-center gap-2 self-center">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={getManagerClassGradesRoute(classRow.id)} />}
+            >
+              <LineChartIcon data-icon="inline-start" />
+              Grades
+            </Button>
             <Button type="button" onClick={() => setIsEditOpen(true)}>
               <PencilIcon data-icon="inline-start" />
               Edit class
@@ -182,6 +201,13 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
             subject_nb_sessions: count,
           }));
         }}
+      />
+
+      <ClassFinalExamSection
+        classId={classRow.id}
+        className={classRow.name}
+        finalExam={finalExam}
+        onFinalExamChange={setFinalExam}
       />
 
       <ClassAnalyticsSection
