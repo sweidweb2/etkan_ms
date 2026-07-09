@@ -1,8 +1,7 @@
 "use client";
 
 import { useActionState, useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { loginAction } from "@/app/auth/login/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +33,8 @@ export function LoginForm({ next }: LoginFormProps) {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+  } = useZodForm({
+    schema: loginSchema,
     mode: "onBlur",
   });
 

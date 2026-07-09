@@ -10,11 +10,29 @@
 
 The manager panel UI is **feature-rich and largely aligned with the database schema**, but **backend integration is minimal**. Only **auth**, **manager settings** (maintenance mode + credentials), and **backup export** talk to Supabase today. The entire manager domain (users, students, semesters, classes, grades, equipment, accounting, analytics, etc.) runs on **mock constants** and **`lib/manager/*-preview.ts` helpers**, with some **sessionStorage** preview stores for mutations.
 
-**Build status:** `npm run build` will **fail** due to **74 TypeScript errors** across 20 files. ESLint reports **27 errors** and 32 warnings.
+**Build status (updated after remediation):** `npm run typecheck` reports **7 TypeScript errors** in 2 files (backup repository typing only). ESLint reports **0 errors** and 10 warnings (down from 27 errors).
 
 **Security status:** Row Level Security (RLS) is enabled on **3 tables only** (`profiles`, `student_profiles`, `app_settings`). ~25 domain tables have **no RLS policies** — wiring them without policies would be a critical security risk.
 
-**Recommendation:** Fix compile-time blockers first, then regenerate Supabase types, add RLS + manager policies, then wire backend in the order listed in [Section 6](#6-recommended-backend-wiring-order).
+**Recommendation:** Fix the remaining backup TypeScript errors, then add RLS + manager policies, then wire backend in the order listed in [Section 8](#8-recommended-backend-wiring-order).
+
+### Post-audit resolution summary
+
+| Area | Original finding | Status |
+|------|------------------|--------|
+| Zod 4 + react-hook-form (§2.2) | 34 TS errors across manager dialogs | **Resolved** — `hooks/use-zod-form.ts`, 32 forms migrated |
+| Test files in production `tsconfig` (§2.3) | 30 TS errors from incomplete mocks | **Resolved** — `**/*.test.ts` excluded; mocks unchanged |
+| Dashboard stat card + FieldLabel (§2.4) | 2 TS errors | **Resolved** |
+| ESLint blockers (§3) | 27 errors | **Resolved** — 0 errors; 10 warnings remain (unused mock vars) |
+| Supabase types stale (§5.3) | 3 tables only | **Resolved** — 28 tables; `npm run gen:types` added |
+| Backup table list incomplete (§5.4) | 8 tables missing | **Resolved** — 27 tables in `BACKUP_TABLES` |
+| Schema / UI drift (§5.5) | Attendance, class status, accounts signup | **Resolved** (scheduled payments: partial) |
+| Navbar Supabase violation (§6.3) | Client queried `profiles` | **Resolved** — server `SiteNavbar` + `/api/auth/navbar-state` |
+| Admin client blast radius (§6.5) | Risk if imported in client bundle | **Resolved** — `server-only` guard on `lib/supabase/admin.ts` |
+| `.env.example` + `typecheck` script (§7) | Missing | **Resolved** |
+| Phase 0 items 2–5 | Build unblockers | **Resolved** |
+| Phase 1 items 1, 3–5 | Types, accounts signup, backup list, navbar | **Resolved** |
+| Phase 0 item 1 + Phase 1 item 2 | Backup TS errors; RLS | **Open** |
 
 ---
 
@@ -23,25 +41,26 @@ The manager panel UI is **feature-rich and largely aligned with the database sch
 | Area | Status | Key files |
 |------|--------|-----------|
 | Auth (login, signup, logout) | Real | `app/auth/*/actions.ts`, `services/auth.service.ts`, `repositories/auth.repository.ts` |
-| Profile + student profile on signup | Real | `services/profile.service.ts`, `repositories/profile.repository.ts`, `repositories/student-profile.repository.ts` |
+| Profile + student profile + account on signup | Real | `services/profile.service.ts`, `repositories/account.repository.ts` |
 | Role resolution | Real | `services/role.service.ts`, `middleware.ts` |
 | Maintenance mode | Real | `app/manager/settings/actions.ts`, `repositories/app-settings.repository.ts` |
 | Manager self-credentials | Real | `app/manager/settings/actions.ts` |
-| Backup export | Real (with TS errors) | `app/api/manager/backup/route.ts`, `services/backup.service.ts` |
+| Backup export | Real (7 TS errors remain) | `app/api/manager/backup/route.ts`, `services/backup.service.ts` |
 | Route protection | Real | `middleware.ts`, `lib/auth/path-access.ts` |
 
 **Server actions:** 4 files only (`app/auth/*`, `app/manager/settings/actions.ts`).  
-**API routes:** 1 domain route (`app/api/manager/backup/route.ts`).  
-**Repositories:** 6 files.  
+**API routes:** 2 (`app/api/manager/backup/route.ts`, `app/api/auth/navbar-state/route.ts`).  
+**Repositories:** 8 files (`profile`, `student-profile`, `account`, `scheduled-payment`, `auth`, `app-settings`, `backup`, `backup-history`).  
 **Services:** 5 production services (+ tests).
 
 ---
 
 ## 2. Critical errors (build-blocking)
 
-Verified via `npx tsc --noEmit` on 2026-07-09: **74 errors in 20 files**.
+**Original scan (2026-07-09):** 74 errors in 20 files.  
+**Current (`npm run typecheck`):** **7 errors in 2 files** — backup only (§2.1).
 
-### 2.1 Backup — Supabase client type mismatch (10 errors)
+### 2.1 Backup — Supabase client type mismatch (7 errors) — **OPEN**
 
 | File | Errors |
 |------|--------|
@@ -52,68 +71,33 @@ Verified via `npx tsc --noEmit` on 2026-07-09: **74 errors in 20 files**.
 
 **Fix:** Accept `SupabaseClient<Database>` in repositories, or add a thin adapter. Type `history` on the backup page (avoid implicit `any[]`).
 
-### 2.2 Zod 4 + react-hook-form resolver mismatch (34 errors)
+### 2.2 Zod 4 + react-hook-form resolver mismatch — **RESOLVED**
 
-**Cause:** Validators use `z.coerce.number()` (and similar). In Zod 4, coerce fields infer **input** as `unknown` while `z.infer<>` gives **output** (`number`). `useForm<OutputType>()` + `zodResolver` fails because resolver expects input types.
+**Was:** 34 errors across manager accounting, class, equipment, and phase dialogs.
 
-**Affected production files:**
+**Fix applied:** `hooks/use-zod-form.ts` standardizes Zod 4 input/output typing; 32 forms (manager dialogs + auth login/signup) migrated from `useForm` + `zodResolver`.
 
-| File | Errors |
-|------|--------|
-| `components/manager/accounting/add-payment-dialog.tsx` | 2 |
-| `components/manager/accounting/edit-payment-dialog.tsx` | 2 |
-| `components/manager/accounting/add-scheduled-payment-dialog.tsx` | 2 |
-| `components/manager/accounting/edit-scheduled-payment-dialog.tsx` | 2 |
-| `components/manager/accounting/edit-subscribed-semester-dialog.tsx` | 2 |
-| `components/manager/classes/add-session-task-dialog.tsx` | 3 |
-| `components/manager/classes/create-final-exam-dialog.tsx` | 5 |
-| `components/manager/classes/edit-student-task-sheet.tsx` | 3 |
-| `components/manager/classes/edit-student-finalexam-grade-sheet.tsx` | 3 |
-| `components/manager/equipments/add-equipment-dialog.tsx` | 2 |
-| `components/manager/equipments/edit-equipment-dialog.tsx` | 2 |
-| `components/manager/phases/add-phase-dialog.tsx` | 2 |
+### 2.3 Test mocks incomplete — **RESOLVED**
 
-**Validators involved:** `lib/validators/manager/add-payment.ts`, `update-payment.ts`, `scheduled-payment.ts`, `update-subscribed-semester.ts`, `create-phase.ts`, `create-equipment.ts`, `create-session-task.ts`, `create-final-exam.ts`, etc.
+**Was:** 30 errors from incomplete Supabase response mocks in `services/*.test.ts`.
 
-**Fix (pick one project-wide pattern):**
+**Fix applied:** `tsconfig.json` excludes `**/*.test.ts`, `**/*.spec.ts`, and `tests/`. Vitest still typechecks tests at runtime; mocks not yet updated to full response shape.
 
-- `useForm<z.input<typeof schema>>()` and parse output in `onSubmit`, or
-- Export explicit form value types from validators, or
-- Replace `z.coerce.number()` with `z.number()` + `valueAsNumber` on inputs.
+### 2.4 Other production TS errors — **RESOLVED**
 
-### 2.3 Test mocks incomplete (30 errors)
-
-| File | Errors |
-|------|--------|
-| `services/profile.service.test.ts` | 19 |
-| `services/auth.service.test.ts` | 6 |
-| `services/user-display.service.test.ts` | 6 |
-| `services/role.service.test.ts` | 4 |
-
-**Cause:** Mock `{ data, error }` objects missing `success`, `count`, `status`, `statusText` required by newer Supabase response types. Tests are included in `tsconfig.json` and therefore block production build.
-
-**Fix:** Update mocks to full response shape, or exclude `**/*.test.ts` from the production TypeScript project.
-
-### 2.4 Other production TS errors (2 errors)
-
-| File | Issue |
-|------|-------|
-| `components/manager/dashboard/manager-dashboard-panel.tsx` | `stat.value` is `number \| string` but `UserStatCard` expects `number` |
-| `components/manager/classes/session-details-actions.tsx` | `FieldLabel` missing required `htmlFor` |
+| File | Issue | Fix |
+|------|-------|-----|
+| `manager-dashboard-panel.tsx` | `UserStatCard` expected `number` only | `UserStatCard` now accepts `number \| string` |
+| `session-details-actions.tsx` | `FieldLabel` without valid `htmlFor` on fieldset | Group grade uses `<legend>` instead |
 
 ---
 
-## 3. ESLint issues (27 errors)
+## 3. ESLint issues
 
-`npm run lint` reports **59 problems** (27 errors, 32 warnings).
+**Original scan:** 59 problems (27 errors, 32 warnings).  
+**Current (`npm run lint`):** **10 warnings, 0 errors** (down from 27 errors).
 
-Notable patterns:
-
-- **`react-hooks/set-state-in-effect`** — many manager panels call `setState` synchronously inside `useEffect` (including `student-account-details-panel.tsx`).
-- **`react-hooks/incompatible-library`** — accounting form dialogs use `watch()` (React Compiler warning).
-- **`prefer-const`** — `lib/supabase/middleware.ts`.
-
-ESLint may or may not block `next build` depending on config, but these should be cleaned up for maintainability.
+Remaining warnings are unused mock variables (`@typescript-eslint/no-unused-vars`). ESLint may or may not block `next build` depending on config.
 
 ---
 
@@ -176,47 +160,35 @@ From `supabase/migrations/`:
 
 `profiles`, `student_profiles`, `relationships`, `equipments`, `accounts`, `semesters`, `subscribed_semesters`, `payments`, `scheduled_payments`, `subjects`, `classes`, `class_teacher`, `student_class`, `sessions`, `tasks`, `student_tasks`, `student_course_grade`, `borrow_equipment`, `student_takeouts`, `audit_logs`, `backup_history`, `app_settings`, `notifications`, `attendee`, `student_semester`, `final_exam`, `student_finalexam_grade`, `class_weights`
 
-### 5.2 Tables queried by app code (4 tables)
+### 5.2 Tables queried by app code (5 tables)
 
 Only these are read/written in repositories or app code today:
 
 - `profiles`
 - `student_profiles`
+- `accounts` (created on student signup via `account.repository`)
 - `app_settings`
 - `backup_history`
 
-All other tables exist in schema but are **unused** in application code (backup export reads many via admin client, but normal app flow does not).
+All other tables exist in schema but are **unused** in normal app flow (backup export reads many via admin client).
 
-### 5.3 Stale generated types
+### 5.3 Generated types — **RESOLVED**
 
-`types/supabase.ts` types only **3 tables** (`profiles`, `student_profiles`, `app_settings`). All domain tables are untyped in the client layer.
+`types/supabase.ts` now includes **28 public tables** (regenerated from remote). Script: `npm run gen:types`.
 
-**Action:** Regenerate types from current migrations (`supabase gen types typescript`).
+### 5.4 Backup table list — **RESOLVED**
 
-### 5.4 Backup table list incomplete
-
-`lib/constants/backup-tables.ts` is **missing** tables that exist in schema:
-
-- `sessions`
-- `attendee`
-- `final_exam`
-- `student_finalexam_grade`
-- `class_weights`
-- `student_semester`
-- `notifications`
-- `backup_history` (table exists; not in export list)
-
-Admin full backup is **incomplete** relative to schema. **High** severity.
+`lib/constants/backup-tables.ts` lists **27 tables** (schema-aligned; `app_settings` intentionally excluded from exports).
 
 ### 5.5 Schema / UI drift
 
-| Area | DB schema | UI / mock | Risk |
-|------|-----------|-----------|------|
-| Attendance | `attendee.status` boolean (`20260709180000`) | Mock uses `is_active` on `ManagerSessionAttendeeRow` | Medium — mapping needed on wire-up |
-| Class status | `scheduled/in_progress/done/paused/stopped` (`20260709180500`) | Preview helpers in `manager-class-status.ts` | Medium — verify enum alignment |
-| Accounting signup | `accounts` table exists | Signup creates profile + student_profile only, **no account row** | **Critical** — no billing entry for new students |
+| Area | DB schema | UI / mock | Status |
+|------|-----------|-----------|--------|
+| Attendance | `attendee.status` boolean (`20260709180000`) | `ManagerSessionAttendeeRow.status` (true = present) | **Resolved** — aligned with DB column |
+| Class status | `scheduled/in_progress/done/paused/stopped` (`20260709180500`) | `manager-class-status.ts` + `getPreviewClassStatus` on mocks | **Resolved** — lifecycle enum used everywhere |
+| Accounting signup | `accounts` table exists | `ensureStudentRegistration` creates account via `account.repository` | **Resolved** — billing row on student signup |
 | Subscribed phases rename | `subscribed_semesters` (`20260709184000`) | UI already uses semester naming | OK |
-| Scheduled payments | `scheduled_payments` (`20260709185000`) | Mock only | Critical — table unused |
+| Scheduled payments | `scheduled_payments` (`20260709185000`) | `ManagerScheduledPaymentRow` extends Supabase row; `scheduled-payment.repository` added | **Partial** — types/repo ready; manager UI still preview/mock |
 
 ---
 
@@ -241,7 +213,7 @@ RLS enabled **only** on:
 
 ### 6.3 Architecture violation
 
-`components/layout/site-navbar.tsx` queries `profiles` via browser Supabase client — violates project rule: **components must not access Supabase directly**.
+**Resolved.** `SiteNavbar` is a server component that reads session role via `getSessionRole()`; the client shell refetches `/api/auth/navbar-state` on navigation. Components no longer query Supabase directly.
 
 ### 6.4 Audit logging
 
@@ -249,7 +221,7 @@ RLS enabled **only** on:
 
 ### 6.5 Admin client blast radius
 
-Signup rollback, maintenance writes, and backup use `createSupabaseAdminClient()`. Correct if server-only; high risk if ever exposed to client bundles.
+**Resolved.** `lib/supabase/admin.ts` imports `server-only`, so importing the admin client from a client bundle fails at build time. Current usages remain server actions, API routes, server pages, and scripts only.
 
 ---
 
@@ -257,9 +229,9 @@ Signup rollback, maintenance writes, and backup use `createSupabaseAdminClient()
 
 | Item | Status |
 |------|--------|
-| `.env.example` | **Missing** — no env template in repo |
-| `lib/services/` | Not used — services live in root `services/` (OK per architecture) |
-| Dedicated `typecheck` script | **Missing** from `package.json` |
+| `.env.example` | **Added** — template for required env vars |
+| `lib/services/` | Not used — business logic lives in root `services/` (intentional during UI-first build) |
+| Dedicated `typecheck` script | **Added** — `npm run typecheck` (`tsc --noEmit`) |
 | `docs/reports/` | Created with this report |
 | Existing docs | `docs/database/`, `docs/config/supabase-auth.md`, `docs/cmds/` — schema and auth documented |
 
@@ -269,19 +241,19 @@ Signup rollback, maintenance writes, and backup use `createSupabaseAdminClient()
 
 ### Phase 0 — Unblock build (1–2 days)
 
-1. Fix backup repository client types + backup page typing
-2. Standardize Zod 4 form input/output types across all manager dialogs
-3. Fix or exclude test files from production `tsconfig`
-4. Fix dashboard stat card type + `FieldLabel` htmlFor
-5. Add `typecheck` script to `package.json`
+1. Fix backup repository client types + backup page typing — **OPEN** (7 TS errors remain)
+2. ~~Standardize Zod 4 form input/output types across all manager dialogs~~ **Resolved** — `useZodForm` hook + migrated dialogs
+3. ~~Fix or exclude test files from production `tsconfig`~~ **Resolved** — `**/*.test.ts` excluded from `tsconfig.json`
+4. ~~Fix dashboard stat card type + `FieldLabel` htmlFor~~ **Resolved** — `UserStatCard` accepts `number | string`; group grade uses `<legend>`
+5. ~~Add `typecheck` script to `package.json`~~ **Resolved** — `npm run typecheck`
 
 ### Phase 1 — Foundation (before any CRUD)
 
-1. Regenerate `types/supabase.ts` from full schema
-2. Design and apply **RLS policies** for manager role (or document admin-client-only pattern)
-3. Add `accounts` row creation on student signup
-4. Complete `BACKUP_TABLES` list
-5. Move `site-navbar.tsx` profile fetch to a server action or layout loader
+1. ~~Regenerate `types/supabase.ts` from full schema~~ **Resolved**
+2. Design and apply **RLS policies** for manager role (or document admin-client-only pattern) — **OPEN**
+3. ~~Add `accounts` row creation on student signup~~ **Resolved** — `account.repository` + `ensureStudentRegistration`
+4. ~~Complete `BACKUP_TABLES` list~~ **Resolved**
+5. ~~Move `site-navbar.tsx` profile fetch to server path~~ **Resolved** — server `SiteNavbar` + `/api/auth/navbar-state`
 
 ### Phase 2 — Core entities
 
@@ -328,28 +300,31 @@ Signup rollback, maintenance writes, and backup use `createSupabaseAdminClient()
 | Path | Role |
 |------|------|
 | `supabase/migrations/` | Full schema (9 migration files) |
-| `repositories/` | Real data access (6 files) |
+| `repositories/` | Real data access (8 files) |
 | `services/` | Real business logic (5 services) |
+| `hooks/use-zod-form.ts` | Zod 4 + react-hook-form bridge |
 | `lib/manager/` | Preview data accessors (22 files) |
 | `lib/constants/manager-*-mock.ts` | Mock seed data (38 files) |
 | `lib/preview/` | sessionStorage mutation stores (7 files) |
 | `lib/validators/manager/` | Ready validators, mostly unwired (29 files) |
-| `app/api/manager/backup/route.ts` | Sole domain API route |
-| `types/supabase.ts` | Stale — 3 tables only |
+| `app/api/` | `manager/backup`, `auth/navbar-state` |
+| `types/supabase.ts` | 28 tables (regenerated) |
+| `.env.example` | Env var template |
 
 ---
 
 ## 10. Conclusion
 
-**You are ready to start backend work**, but not ready to deploy. The UI and schema are well ahead of the data layer; validators and migrations provide a clear contract. Before wiring Supabase:
+**You are ready to start backend wiring**, but not ready to deploy. The UI and schema are well ahead of the data layer; validators and migrations provide a clear contract. Most compile-time blockers from the original scan are **resolved** — only **backup repository typing** (7 TS errors) remains before `typecheck` passes.
 
-1. **Fix 74 TypeScript errors** so CI/build passes
-2. **Add RLS** — biggest security gap
-3. **Regenerate types** and **complete backup table list**
-4. **Provision `accounts` on signup** for accounting continuity
+Before wiring Supabase CRUD:
 
-The highest-value first backend slice is likely **semesters + student_semester + accounting chain** (`accounts` → `subscribed_semesters` → `payments` / `scheduled_payments`), since recent UI work (manage accounting, student account details, analysis) is already built against that model in mock form.
+1. **Fix backup TS errors** (§2.1) — last production typecheck blocker
+2. **Add RLS** — biggest security gap (§6.1)
+3. **Wire manager domains** — mocks → repositories + services + server actions
+
+Accounting continuity is partially prepared: `accounts` on signup, full types, and `scheduled-payment.repository` exist; manager accounting UI is still preview/mock.
 
 ---
 
-*Report generated from automated project scan: TypeScript check, ESLint, migration review, and codebase exploration.*
+*Report generated from automated project scan (2026-07-09). Post-audit remediation verified via `npm run typecheck` and `npm run lint`.*

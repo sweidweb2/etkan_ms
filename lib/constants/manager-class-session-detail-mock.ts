@@ -103,7 +103,7 @@ export function getManagerClassSessionAttendeesPreview(
       full_name: student.full_name,
       email: student.email,
       note,
-      is_active: seed % 6 !== 0,
+      status: seed % 6 !== 0,
       created_at: createdAt.toISOString(),
     };
   });

@@ -19,8 +19,8 @@ export interface ManagerSessionAttendeeRow {
   full_name: string;
   email: string;
   note: string | null;
-  /** Preview-only toggle until backend supports activation rules. */
-  is_active: boolean;
+  /** Matches `attendee.status` (true = present, false = absent). */
+  status: boolean;
   created_at: string;
 }
 

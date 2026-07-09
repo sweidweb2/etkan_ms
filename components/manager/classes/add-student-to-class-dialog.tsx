@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { FieldLabel } from "@/components/auth/field-label";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,8 +54,8 @@ export function AddStudentToClassDialog({
     watch,
     setError,
     formState: { errors },
-  } = useForm<AddStudentToClassInput>({
-    resolver: zodResolver(addStudentToClassSchema),
+  } = useZodForm({
+    schema: addStudentToClassSchema,
     mode: "onBlur",
     defaultValues: {
       studentProfileId: "",

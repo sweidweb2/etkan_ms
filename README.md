@@ -20,7 +20,13 @@ npm install
 
 ### 2. Environment variables
 
-Create `.env.local`:
+Create `.env.local` from the template:
+
+```bash
+cp .env.example .env.local
+```
+
+Then set your values:
 
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000

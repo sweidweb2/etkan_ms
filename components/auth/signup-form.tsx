@@ -1,8 +1,7 @@
 "use client";
 
 import { useActionState, useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodForm } from "@/hooks/use-zod-form";
 import Link from "next/link";
 import { signupAction } from "@/app/auth/signup/actions";
 import { Button } from "@/components/ui/button";
@@ -33,8 +32,8 @@ export function SignupForm() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<SignupInput>({
-    resolver: zodResolver(signupSchema),
+  } = useZodForm({
+    schema: signupSchema,
     mode: "onBlur",
     defaultValues: {
       birthDate: "",

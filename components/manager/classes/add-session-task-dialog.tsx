@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { FieldLabel } from "@/components/auth/field-label";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,8 +51,8 @@ export function AddSessionTaskDialog({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<CreateSessionTaskInput>({
-    resolver: zodResolver(createSessionTaskSchema),
+  } = useZodForm({
+    schema: createSessionTaskSchema,
     mode: "onBlur",
     defaultValues: {
       title: "",
@@ -78,7 +77,7 @@ export function AddSessionTaskDialog({
       title: "",
       description: "",
       due_date: defaultDueDate ?? toDatetimeLocalValue(new Date()),
-      max_grade: "20",
+      max_grade: 20,
     });
   }, [defaultDueDate, open, reset]);
 

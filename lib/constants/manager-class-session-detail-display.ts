@@ -1,6 +1,7 @@
-export const SESSION_ATTENDEE_TOGGLE_LABELS = {
-  active: "Attendance active",
-  inactive: "Attendance inactive",
+/** Maps to `attendee.status` in the database (true = present, false = absent). */
+export const SESSION_ATTENDEE_STATUS_LABELS = {
+  present: "Present",
+  absent: "Absent",
 } as const;
 
 export const SESSION_TASK_TABLE_LIMITS = {

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { FieldLabel } from "@/components/auth/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,8 +77,8 @@ export function EditStudentTaskSheet({
     setValue,
     watch,
     formState: { errors },
-  } = useForm<EditStudentTaskInput>({
-    resolver: zodResolver(editStudentTaskSchema),
+  } = useZodForm({
+    schema: editStudentTaskSchema,
     mode: "onBlur",
     defaultValues: {
       status: "pending",
@@ -99,7 +98,7 @@ export function EditStudentTaskSheet({
 
     reset({
       status: studentTask.status,
-      grade: studentTask.grade === null ? "" : String(studentTask.grade),
+      grade: studentTask.grade === null ? "" : studentTask.grade,
       notes: studentTask.notes ?? "",
       submitted_at: toDatetimeLocalValue(studentTask.submitted_at),
       graded_at: toDatetimeLocalValue(studentTask.graded_at),

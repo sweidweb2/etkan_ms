@@ -191,11 +191,12 @@ export function SessionDetailsActions({
           </div>
 
           <fieldset className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="session-group-grade-level"
-              label="Level"
-              hint="Choose one"
-            />
+            <legend className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-sm font-medium">
+              <span>Level</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Choose one
+              </span>
+            </legend>
             <div className="flex flex-wrap gap-2">
               {SESSION_GROUP_GRADE_LEVEL_ORDER.map((level) => {
                 const isSelected = selectedGroupGrade === level;
@@ -203,7 +204,11 @@ export function SessionDetailsActions({
                 return (
                   <button
                     key={level}
-                    id={level === SESSION_GROUP_GRADE_LEVEL_ORDER[0] ? "session-group-grade-level" : undefined}
+                    id={
+                      level === SESSION_GROUP_GRADE_LEVEL_ORDER[0]
+                        ? "session-group-grade-level"
+                        : undefined
+                    }
                     type="button"
                     data-state={isSelected ? "on" : "off"}
                     aria-pressed={isSelected}

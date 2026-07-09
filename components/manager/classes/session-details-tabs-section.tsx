@@ -34,7 +34,7 @@ import { appendPreviewSessionTask } from "@/lib/preview/manager-session-tasks-st
 import { getManagerClassSessionTaskDetailRoute } from "@/lib/constants/routes";
 import {
   SESSION_ATTENDEE_TABLE_LIMITS,
-  SESSION_ATTENDEE_TOGGLE_LABELS,
+  SESSION_ATTENDEE_STATUS_LABELS,
   SESSION_TASK_TABLE_LIMITS,
 } from "@/lib/constants/manager-class-session-detail-display";
 import { showSuccessToast } from "@/lib/toast";
@@ -193,20 +193,20 @@ function SessionAttendeesTable({
     getManagerClassSessionAttendeesPreview(classId, sessionId)
   );
 
-  const handleToggleActive = (
+  const handleToggleStatus = (
     attendee: ManagerSessionAttendeeRow,
-    isActive: boolean
+    isPresent: boolean
   ) => {
     setAttendees((current) =>
       current.map((row) =>
-        row.id === attendee.id ? { ...row, is_active: isActive } : row
+        row.id === attendee.id ? { ...row, status: isPresent } : row
       )
     );
 
     showSuccessToast(
-      isActive
-        ? `${attendee.full_name} attendance activated.`
-        : `${attendee.full_name} attendance deactivated.`
+      isPresent
+        ? `${attendee.full_name} marked present.`
+        : `${attendee.full_name} marked absent.`
     );
   };
 
@@ -218,7 +218,7 @@ function SessionAttendeesTable({
             <th className="px-4 py-3 font-medium">Student</th>
             <th className="px-4 py-3 font-medium">Email</th>
             <th className="px-4 py-3 font-medium">Note</th>
-            <th className="px-4 py-3 font-medium text-right">Active</th>
+            <th className="px-4 py-3 font-medium text-right">Present</th>
             <th className="px-4 py-3 font-medium">Created</th>
           </tr>
         </thead>
@@ -238,7 +238,7 @@ function SessionAttendeesTable({
                 key={attendee.id}
                 className={cn(
                   "border-b last:border-b-0 hover:bg-muted/30",
-                  !attendee.is_active && "opacity-60"
+                  !attendee.status && "opacity-60"
                 )}
               >
                 <td className="max-w-[12rem] px-4 py-3">
@@ -263,14 +263,14 @@ function SessionAttendeesTable({
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end">
                     <Switch
-                      checked={attendee.is_active}
+                      checked={attendee.status}
                       onCheckedChange={(checked) =>
-                        handleToggleActive(attendee, checked)
+                        handleToggleStatus(attendee, checked)
                       }
                       aria-label={
-                        attendee.is_active
-                          ? SESSION_ATTENDEE_TOGGLE_LABELS.active
-                          : SESSION_ATTENDEE_TOGGLE_LABELS.inactive
+                        attendee.status
+                          ? SESSION_ATTENDEE_STATUS_LABELS.present
+                          : SESSION_ATTENDEE_STATUS_LABELS.absent
                       }
                     />
                   </div>

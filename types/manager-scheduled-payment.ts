@@ -1,12 +1,19 @@
 import type { ScheduledPaymentStatusValue } from "@/lib/constants/manager-scheduled-payment-status";
+import type { Database } from "@/types/supabase";
 
-export interface ManagerScheduledPaymentRow {
-  id: string;
-  subscribed_semester_id: string;
-  payment_date: string;
-  amount: number | null;
+type ScheduledPaymentRow =
+  Database["public"]["Tables"]["scheduled_payments"]["Row"];
+
+export interface ManagerScheduledPaymentRow
+  extends Pick<
+    ScheduledPaymentRow,
+    | "id"
+    | "subscribed_semester_id"
+    | "payment_date"
+    | "amount"
+    | "note"
+    | "created_at"
+    | "updated_at"
+  > {
   status: ScheduledPaymentStatusValue;
-  note: string | null;
-  created_at: string;
-  updated_at: string;
 }

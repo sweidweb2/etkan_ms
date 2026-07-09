@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { FieldLabel } from "@/components/auth/field-label";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,8 +55,8 @@ export function EditUserDialog({
     watch,
     setError,
     formState: { errors },
-  } = useForm<UpdateManagerUserInput>({
-    resolver: zodResolver(updateManagerUserSchema),
+  } = useZodForm({
+    schema: updateManagerUserSchema,
     mode: "onBlur",
     defaultValues: {
       username: user.username ?? "",
