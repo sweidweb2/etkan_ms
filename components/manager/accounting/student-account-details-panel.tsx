@@ -11,6 +11,7 @@ import {
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { SubscribedSemesterPaymentsSection } from "@/components/manager/accounting/subscribed-semester-payments-section";
 import { ScheduledPaymentsSection } from "@/components/manager/accounting/scheduled-payments-section";
+import { SubscribedSemesterFinancialSection } from "@/components/manager/accounting/subscribed-semester-financial-section";
 import { EditSubscribedSemesterDialog } from "@/components/manager/accounting/edit-subscribed-semester-dialog";
 import { SubscribedSemesterStatusBadge } from "@/components/manager/accounting/subscribed-semester-status-badge";
 import {
@@ -106,6 +107,12 @@ function SubscribedSemesterTabPanel({
         onUpdateSubscription={onUpdateSubscription}
       />
 
+      <SubscribedSemesterFinancialSection
+        subscription={subscription}
+        payments={payments}
+        scheduledPayments={scheduledPayments}
+      />
+
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-4">
           <CardTitle>Subscription details</CardTitle>
@@ -129,14 +136,6 @@ function SubscribedSemesterTabPanel({
         <DetailField label="Status">
           <SubscribedSemesterStatusBadge status={subscription.status} />
         </DetailField>
-        <DetailField
-          label="Paid"
-          value={formatAccountCurrency(subscription.paid_amount)}
-        />
-        <DetailField
-          label="Balance due"
-          value={formatAccountCurrency(balanceDue)}
-        />
         <DetailField
           label="Subscribed"
           value={format(new Date(subscription.created_at), "MMM d, yyyy 'at' h:mm a")}

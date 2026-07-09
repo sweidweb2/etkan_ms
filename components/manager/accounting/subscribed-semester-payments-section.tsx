@@ -5,12 +5,14 @@ import { format } from "date-fns";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  MessageSquareTextIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
 import { AddPaymentDialog } from "@/components/manager/accounting/add-payment-dialog";
 import { EditPaymentDialog } from "@/components/manager/accounting/edit-payment-dialog";
+import { PaymentDetailsDialog } from "@/components/manager/accounting/payment-details-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -138,7 +140,10 @@ export function SubscribedSemesterPaymentsSection({
 }: SubscribedSemesterPaymentsSectionProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingPayment, setEditingPayment] =
+    useState<ManagerStudentPaymentRow | null>(null);
+  const [viewingPayment, setViewingPayment] =
     useState<ManagerStudentPaymentRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [methodFilter, setMethodFilter] = useState<string>(METHOD_FILTER_ALL);
@@ -187,6 +192,17 @@ export function SubscribedSemesterPaymentsSection({
         }}
         payment={editingPayment}
         onUpdatePayment={onUpdatePayment}
+      />
+
+      <PaymentDetailsDialog
+        open={isDetailsOpen}
+        onOpenChange={(open) => {
+          setIsDetailsOpen(open);
+          if (!open) {
+            setViewingPayment(null);
+          }
+        }}
+        payment={viewingPayment}
       />
 
       <Card className="py-0">
@@ -286,7 +302,19 @@ export function SubscribedSemesterPaymentsSection({
                         {format(new Date(payment.paid_at), "MMM d, yyyy 'at' h:mm a")}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`View payment details for ${formatAccountCurrency(payment.amount, payment.currency)}`}
+                            onClick={() => {
+                              setViewingPayment(payment);
+                              setIsDetailsOpen(true);
+                            }}
+                          >
+                            <MessageSquareTextIcon />
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"

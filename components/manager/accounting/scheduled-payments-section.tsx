@@ -6,12 +6,14 @@ import {
   CalendarClockIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  MessageSquareTextIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
 import { AddScheduledPaymentDialog } from "@/components/manager/accounting/add-scheduled-payment-dialog";
 import { EditScheduledPaymentDialog } from "@/components/manager/accounting/edit-scheduled-payment-dialog";
+import { ScheduledPaymentDetailsDialog } from "@/components/manager/accounting/scheduled-payment-details-dialog";
 import { ScheduledPaymentStatusBadge } from "@/components/manager/accounting/scheduled-payment-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -145,7 +147,11 @@ export function ScheduledPaymentsSection({
   const canSchedule = balanceDue > 0;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<ManagerScheduledPaymentRow | null>(
+    null
+  );
+  const [viewingRow, setViewingRow] = useState<ManagerScheduledPaymentRow | null>(
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
@@ -196,6 +202,18 @@ export function ScheduledPaymentsSection({
         }}
         scheduledPayment={editingRow}
         onUpdateScheduledPayment={onUpdateScheduledPayment}
+      />
+
+      <ScheduledPaymentDetailsDialog
+        open={isDetailsOpen}
+        onOpenChange={(open) => {
+          setIsDetailsOpen(open);
+          if (!open) {
+            setViewingRow(null);
+          }
+        }}
+        scheduledPayment={viewingRow}
+        semesterName={semesterName}
       />
 
       <Card className="py-0">
@@ -324,7 +342,19 @@ export function ScheduledPaymentsSection({
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="View scheduled payment details"
+                            onClick={() => {
+                              setViewingRow(row);
+                              setIsDetailsOpen(true);
+                            }}
+                          >
+                            <MessageSquareTextIcon />
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"

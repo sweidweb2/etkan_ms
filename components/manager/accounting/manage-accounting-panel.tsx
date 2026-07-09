@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
+  BarChart3Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
   SearchIcon,
@@ -32,7 +34,7 @@ import {
   getManagerAccountingSemesterOptions,
   getManagerAccountingStudentsPreview,
 } from "@/lib/manager/get-manager-accounting-students-preview";
-import { getManagerStudentAccountDetailRoute } from "@/lib/constants/routes";
+import { getManagerStudentAccountDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerAccountingStudentRow } from "@/types/manager-student-semester";
@@ -188,13 +190,23 @@ export function ManageAccountingPanel() {
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Manage accounting
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Student semester enrollments for billing and access tracking.
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Manage accounting
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Student semester enrollments for billing and access tracking.
+            </p>
+          </div>
+          <Button
+            render={<Link href={ROUTES.MANAGER_ACCOUNTING_ANALYSIS} />}
+            nativeButton={false}
+            variant="outline"
+          >
+            <BarChart3Icon data-icon="inline-start" />
+            Analysis
+          </Button>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
