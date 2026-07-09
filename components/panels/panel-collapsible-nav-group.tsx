@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -70,12 +70,7 @@ export function PanelCollapsibleNavGroup({
   const hasActiveChild = groupContainsPath(group, pathname);
 
   const [isOpen, setIsOpen] = useState(group.defaultOpen ?? true);
-
-  useEffect(() => {
-    if (hasActiveChild) {
-      setIsOpen(true);
-    }
-  }, [hasActiveChild]);
+  const effectiveIsOpen = isOpen || hasActiveChild;
 
   if (isIconCollapsed) {
     return (
@@ -91,7 +86,7 @@ export function PanelCollapsibleNavGroup({
     <SidebarGroup className="py-0">
       <button
         type="button"
-        aria-expanded={isOpen}
+        aria-expanded={effectiveIsOpen}
         aria-controls={contentId}
         onClick={() => setIsOpen((open) => !open)}
         className={cn(
@@ -106,7 +101,7 @@ export function PanelCollapsibleNavGroup({
         <ChevronDown
           className={cn(
             "size-4 shrink-0 text-sidebar-foreground/60 transition-transform duration-200 ease-in-out",
-            isOpen && "rotate-180"
+            effectiveIsOpen && "rotate-180"
           )}
           aria-hidden
         />
@@ -115,7 +110,7 @@ export function PanelCollapsibleNavGroup({
         id={contentId}
         className={cn(
           "grid transition-[grid-template-rows] duration-200 ease-in-out",
-          isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          effectiveIsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         )}
         data-panel-group={group.id}
         data-panel-variant={panelVariant}

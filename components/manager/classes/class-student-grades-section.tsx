@@ -369,7 +369,7 @@ export function ClassStudentGradesSection({
               {selectedRow ? `Compute ${selectedRow.full_name}` : "Compute student"}
             </DialogTitle>
             <DialogDescription>
-              Review this student's current grade totals and the class weights that will be applied.
+              Review this student&apos;s current grade totals and the class weights that will be applied.
             </DialogDescription>
           </DialogHeader>
 
@@ -495,16 +495,16 @@ export function ClassStudentGradesSection({
               <h3 className="text-sm font-medium">Calculation notes</h3>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
                 <li>
-                  `Total group grade` comes from the student's combined group-grade performance across the class sessions.
+                  `Total group grade` comes from the student&apos;s combined group-grade performance across the class sessions.
                 </li>
                 <li>
                   `Final exam grade` comes from the class final exam result once that grading is completed.
                 </li>
                 <li>
-                  `Tasks grade` is based on the student's graded tasks and assignments linked to the class sessions.
+                  `Tasks grade` is based on the student&apos;s graded tasks and assignments linked to the class sessions.
                 </li>
                 <li>
-                  `Attendance grade` is derived from the student's present or absent session records.
+                  `Attendance grade` is derived from the student&apos;s present or absent session records.
                 </li>
               </ul>
             </div>

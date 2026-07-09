@@ -183,6 +183,12 @@ export function StudentAccountDetailsPanel({
   const [activeTab, setActiveTab] = useState<string | null>(
     () => initialAccount.subscriptions[0]?.id ?? null
   );
+  const resolvedActiveTab =
+    subscriptions.length === 0
+      ? null
+      : activeTab && subscriptions.some((row) => row.id === activeTab)
+        ? activeTab
+        : subscriptions[0]!.id;
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
   const { overview } = initialAccount;
@@ -193,7 +199,9 @@ export function StudentAccountDetailsPanel({
   );
 
   const activeSubscription =
-    subscriptions.find((row) => row.id === activeTab) ?? subscriptions[0] ?? null;
+    subscriptions.find((row) => row.id === resolvedActiveTab) ??
+    subscriptions[0] ??
+    null;
 
   const paymentsBySubscription = useMemo(() => {
     const grouped = new Map<string, ManagerStudentPaymentRow[]>();
@@ -241,23 +249,12 @@ export function StudentAccountDetailsPanel({
   }, [scheduledPayments]);
 
   useEffect(() => {
-    if (subscriptions.length === 0) {
-      setActiveTab(null);
-      return;
-    }
-
-    if (!activeTab || !subscriptions.some((row) => row.id === activeTab)) {
-      setActiveTab(subscriptions[0]!.id);
-    }
-  }, [activeTab, subscriptions]);
-
-  useEffect(() => {
     activeTabRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "nearest",
       inline: "nearest",
     });
-  }, [activeTab]);
+  }, [resolvedActiveTab]);
 
   function handleAddPayment(payment: ManagerStudentPaymentRow) {
     setPayments((current) => {
@@ -388,7 +385,7 @@ export function StudentAccountDetailsPanel({
             </div>
           ) : (
             <TabsPrimitive
-              value={activeTab ?? subscriptions[0]!.id}
+              value={resolvedActiveTab ?? subscriptions[0]!.id}
               onValueChange={setActiveTab}
               className="flex min-w-0 max-w-full flex-col gap-0"
             >
@@ -404,7 +401,9 @@ export function StudentAccountDetailsPanel({
                       <TabsTriggerPrimitive
                         key={subscription.id}
                         ref={
-                          activeTab === subscription.id ? activeTabRef : undefined
+                          resolvedActiveTab === subscription.id
+                            ? activeTabRef
+                            : undefined
                         }
                         value={subscription.id}
                         className={cn(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { LineChartIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
 import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
@@ -80,10 +80,12 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
   const [finalExam, setFinalExam] = useState<ManagerClassFinalExamRow | null>(
     () => getManagerClassFinalExamPreview(classId)
   );
+  const [finalExamClassId, setFinalExamClassId] = useState(classId);
 
-  useEffect(() => {
+  if (classId !== finalExamClassId) {
+    setFinalExamClassId(classId);
     setFinalExam(getManagerClassFinalExamPreview(classId));
-  }, [classId]);
+  }
 
   const sessionRate = getClassSessionCompletionRate(classRow);
   const statusLabel =

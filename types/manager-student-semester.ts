@@ -23,4 +23,7 @@ export interface ManagerAccountingStudentRow {
   semester_name: string | null;
   enrollment_status: StudentSemesterStatusValue | null;
   enrolled_at: string | null;
+  total_amount: number | null;
+  total_paid: number | null;
+  balance_due: number | null;
 }

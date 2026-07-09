@@ -67,10 +67,6 @@ export function ManagerReportsPanel() {
   }, [reportId, filters]);
 
   useEffect(() => {
-    setGeneratedAt(new Date());
-  }, [reportId, filters]);
-
-  useEffect(() => {
     const handleAfterPrint = () => setIsPrinting(false);
     window.addEventListener("afterprint", handleAfterPrint);
     return () => window.removeEventListener("afterprint", handleAfterPrint);
@@ -81,16 +77,19 @@ export function ManagerReportsPanel() {
     const nextReportId = getDefaultReportForCategory(nextCategory);
     setReportId(nextReportId);
     setPage(1);
+    setGeneratedAt(new Date());
   };
 
   const handleReportChange = (nextReportId: ReportId) => {
     setReportId(nextReportId);
     setPage(1);
+    setGeneratedAt(new Date());
   };
 
   const handleFiltersChange = (nextFilters: ReportFilters) => {
     setFilters(nextFilters);
     setPage(1);
+    setGeneratedAt(new Date());
   };
 
   const handlePrint = () => {

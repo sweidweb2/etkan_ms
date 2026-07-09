@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 type UserStatCardProps = {
   label: string;
-  value: number;
+  value: number | string;
   accentClassName: string;
 };
 

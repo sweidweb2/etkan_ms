@@ -9,7 +9,7 @@ import type { Database } from "@/types/supabase";
 export function createSupabaseMiddlewareClient(
   request: NextRequest
 ) {
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },

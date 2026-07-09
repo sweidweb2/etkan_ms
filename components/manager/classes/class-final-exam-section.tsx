@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon, PlusIcon } from "lucide-react";
 import { CreateFinalExamDialog } from "@/components/manager/classes/create-final-exam-dialog";
@@ -98,20 +98,21 @@ export function ClassFinalExamSection({
       ? getManagerStudentFinalExamGradesPreview(classId, finalExam)
       : []
   );
+  const gradesSyncKey = `${classId}:${finalExam?.id ?? "none"}`;
+  const [prevGradesSyncKey, setPrevGradesSyncKey] = useState(gradesSyncKey);
+
+  if (gradesSyncKey !== prevGradesSyncKey) {
+    setPrevGradesSyncKey(gradesSyncKey);
+    setStudentGrades(
+      finalExam
+        ? getManagerStudentFinalExamGradesPreview(classId, finalExam)
+        : []
+    );
+  }
+
   const [selectedStudentGrade, setSelectedStudentGrade] =
     useState<ManagerStudentFinalExamGradeRow | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-
-  useEffect(() => {
-    if (!finalExam) {
-      setStudentGrades([]);
-      return;
-    }
-
-    setStudentGrades(
-      getManagerStudentFinalExamGradesPreview(classId, finalExam)
-    );
-  }, [classId, finalExam]);
 
   const sortedStudentGrades = useMemo(
     () =>

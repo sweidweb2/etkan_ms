@@ -23,7 +23,6 @@ export function AdminPanelSearch({ pages, className }: AdminPanelSearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
 
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -32,9 +31,14 @@ export function AdminPanelSearch({ pages, className }: AdminPanelSearchProps) {
     return pages.filter((page) => matchesPage(page, normalizedQuery));
   }, [pages, normalizedQuery]);
 
-  useEffect(() => {
+  const resultsKey = results.map((page) => page.href).join("|");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [prevResultsKey, setPrevResultsKey] = useState(resultsKey);
+
+  if (resultsKey !== prevResultsKey) {
+    setPrevResultsKey(resultsKey);
     setActiveIndex(0);
-  }, [results]);
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

@@ -41,6 +41,9 @@ import type { ManagerAccountingStudentRow } from "@/types/manager-student-semest
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const SEMESTER_FILTER_ALL = "all";
+const BALANCE_FILTER_ALL = "all";
+const BALANCE_FILTER_DUE = "balance_due";
+const BALANCE_FILTER_PAID = "paid_in_full";
 const ACCOUNTING_ROW_HOVER_CLASS =
   "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
@@ -122,6 +125,7 @@ export function ManageAccountingPanel() {
   const [students] = useState(() => getManagerAccountingStudentsPreview());
   const [searchQuery, setSearchQuery] = useState("");
   const [semesterFilter, setSemesterFilter] = useState<string>(SEMESTER_FILTER_ALL);
+  const [balanceFilter, setBalanceFilter] = useState<string>(BALANCE_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -135,6 +139,7 @@ export function ManageAccountingPanel() {
         (row) => row.enrollment_status === STUDENT_SEMESTER_STATUSES.PENDING
       ).length,
       unassigned: students.filter((row) => row.semester_id === null).length,
+      balanceDue: students.filter((row) => (row.balance_due ?? 0) > 0).length,
     }),
     [students]
   );
@@ -146,10 +151,15 @@ export function ManageAccountingPanel() {
         (semesterFilter === "unassigned"
           ? row.semester_id === null
           : row.semester_id === semesterFilter);
+      const matchesBalance =
+        balanceFilter === BALANCE_FILTER_ALL ||
+        (balanceFilter === BALANCE_FILTER_DUE
+          ? (row.balance_due ?? 0) > 0
+          : (row.balance_due ?? 0) <= 0);
 
-      return matchesSemester && matchesSearch(row, searchQuery);
+      return matchesSemester && matchesBalance && matchesSearch(row, searchQuery);
     });
-  }, [searchQuery, semesterFilter, students]);
+  }, [balanceFilter, searchQuery, semesterFilter, students]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -171,6 +181,11 @@ export function ManageAccountingPanel() {
 
   const handleSemesterFilterChange = (value: string | null) => {
     setSemesterFilter(value ?? SEMESTER_FILTER_ALL);
+    setCurrentPage(1);
+  };
+
+  const handleBalanceFilterChange = (value: string | null) => {
+    setBalanceFilter(value ?? BALANCE_FILTER_ALL);
     setCurrentPage(1);
   };
 
@@ -209,7 +224,7 @@ export function ManageAccountingPanel() {
           </Button>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <UserStatCard
             label="Total students"
             value={stats.total}
@@ -226,6 +241,11 @@ export function ManageAccountingPanel() {
             accentClassName="border-l-amber-500"
           />
           <UserStatCard
+            label="Balance due"
+            value={stats.balanceDue}
+            accentClassName="border-l-orange-500"
+          />
+          <UserStatCard
             label="Unassigned"
             value={stats.unassigned}
             accentClassName="border-l-rose-500"
@@ -237,7 +257,7 @@ export function ManageAccountingPanel() {
             <CardTitle>Student enrollments</CardTitle>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-center">
               <div className="relative min-w-0 flex-1">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -248,26 +268,44 @@ export function ManageAccountingPanel() {
                   aria-label="Search students by name or email"
                 />
               </div>
-              <Select
-                value={semesterFilter}
-                onValueChange={handleSemesterFilterChange}
-              >
-                <SelectTrigger
-                  className="w-full sm:w-52"
-                  aria-label="Filter by semester"
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Select
+                  value={balanceFilter}
+                  onValueChange={handleBalanceFilterChange}
                 >
-                  <SelectValue placeholder="All semesters" />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={SEMESTER_FILTER_ALL}>All semesters</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {semesterOptions.map((semester) => (
-                    <SelectItem key={semester.id} value={semester.id}>
-                      {semester.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger
+                    className="w-full sm:w-44"
+                    aria-label="Filter by balance"
+                  >
+                    <SelectValue placeholder="All balances" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value={BALANCE_FILTER_ALL}>All balances</SelectItem>
+                    <SelectItem value={BALANCE_FILTER_DUE}>Balance due</SelectItem>
+                    <SelectItem value={BALANCE_FILTER_PAID}>Paid in full</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={semesterFilter}
+                  onValueChange={handleSemesterFilterChange}
+                >
+                  <SelectTrigger
+                    className="w-full sm:w-52"
+                    aria-label="Filter by semester"
+                  >
+                    <SelectValue placeholder="All semesters" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value={SEMESTER_FILTER_ALL}>All semesters</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {semesterOptions.map((semester) => (
+                      <SelectItem key={semester.id} value={semester.id}>
+                        {semester.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="overflow-x-auto">

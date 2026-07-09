@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { LayersIcon, UsersRoundIcon } from "lucide-react";
 import { FieldLabel } from "@/components/auth/field-label";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,25 @@ type SessionDetailsActionsProps = {
   className?: string;
 };
 
+function getInitialPhaseId(
+  linkedPhase: ManagerSessionPhaseLink | null,
+  defaultPhaseId: string | null | undefined,
+  phaseOptions: ReturnType<typeof getManagerPhaseOptions>
+) {
+  if (linkedPhase?.phase_id) {
+    return linkedPhase.phase_id;
+  }
+
+  if (
+    defaultPhaseId &&
+    phaseOptions.some((phase) => phase.id === defaultPhaseId)
+  ) {
+    return defaultPhaseId;
+  }
+
+  return "";
+}
+
 export function SessionDetailsActions({
   linkedPhase,
   defaultPhaseId,
@@ -47,24 +66,28 @@ export function SessionDetailsActions({
   className,
 }: SessionDetailsActionsProps) {
   const phaseOptions = getManagerPhaseOptions();
-  const [selectedPhaseId, setSelectedPhaseId] = useState("");
+  const initialPhaseId = useMemo(
+    () => getInitialPhaseId(linkedPhase, defaultPhaseId, phaseOptions),
+    [defaultPhaseId, linkedPhase, phaseOptions]
+  );
+  const [selectedPhaseId, setSelectedPhaseId] = useState(initialPhaseId);
   const [selectedGroupGrade, setSelectedGroupGrade] =
     useState<SessionGroupGradeLevelValue | null>(groupGradeLevel);
+  const [phaseSyncKey, setPhaseSyncKey] = useState(initialPhaseId);
+  const [groupGradeSyncKey, setGroupGradeSyncKey] = useState(
+    groupGradeLevel ?? "none"
+  );
 
-  useEffect(() => {
-    const options = getManagerPhaseOptions();
-    const initialPhaseId =
-      linkedPhase?.phase_id ??
-      (defaultPhaseId && options.some((phase) => phase.id === defaultPhaseId)
-        ? defaultPhaseId
-        : "");
-
+  if (initialPhaseId !== phaseSyncKey) {
+    setPhaseSyncKey(initialPhaseId);
     setSelectedPhaseId(initialPhaseId);
-  }, [defaultPhaseId, linkedPhase]);
+  }
 
-  useEffect(() => {
+  const nextGroupGradeSyncKey = groupGradeLevel ?? "none";
+  if (nextGroupGradeSyncKey !== groupGradeSyncKey) {
+    setGroupGradeSyncKey(nextGroupGradeSyncKey);
     setSelectedGroupGrade(groupGradeLevel);
-  }, [groupGradeLevel]);
+  }
 
   function handleSavePhase() {
     const phase = phaseOptions.find((row) => row.id === selectedPhaseId);
@@ -167,8 +190,12 @@ export function SessionDetailsActions({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <FieldLabel label="Level" hint="Choose one" />
+          <fieldset className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="session-group-grade-level"
+              label="Level"
+              hint="Choose one"
+            />
             <div className="flex flex-wrap gap-2">
               {SESSION_GROUP_GRADE_LEVEL_ORDER.map((level) => {
                 const isSelected = selectedGroupGrade === level;
@@ -176,6 +203,7 @@ export function SessionDetailsActions({
                 return (
                   <button
                     key={level}
+                    id={level === SESSION_GROUP_GRADE_LEVEL_ORDER[0] ? "session-group-grade-level" : undefined}
                     type="button"
                     data-state={isSelected ? "on" : "off"}
                     aria-pressed={isSelected}
@@ -199,7 +227,7 @@ export function SessionDetailsActions({
                 );
               })}
             </div>
-          </div>
+          </fieldset>
 
           <Button
             type="button"

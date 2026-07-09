@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE } from "@/lib/config/site";
 import { getDashboardRouteForRole, ROUTES } from "@/lib/constants/routes";
@@ -47,12 +48,8 @@ function NavbarShell({ children }: { children?: React.ReactNode }) {
 
 export function SiteNavbar() {
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [dashboardHref, setDashboardHref] = useState<string | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

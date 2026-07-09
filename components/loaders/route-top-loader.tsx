@@ -4,14 +4,10 @@ import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export function RouteTopLoader() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [isActive, setIsActive] = useState(false);
+function RouteTopLoaderBar() {
+  const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
-    setIsActive(true);
-
     const completeTimer = window.setTimeout(() => {
       setIsActive(false);
     }, 500);
@@ -19,7 +15,7 @@ export function RouteTopLoader() {
     return () => {
       window.clearTimeout(completeTimer);
     };
-  }, [pathname, searchParams]);
+  }, []);
 
   return (
     <div
@@ -37,6 +33,14 @@ export function RouteTopLoader() {
       />
     </div>
   );
+}
+
+export function RouteTopLoader() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const routeKey = `${pathname}?${searchParams.toString()}`;
+
+  return <RouteTopLoaderBar key={routeKey} />;
 }
 
 /** @deprecated Use `RouteTopLoader` — mounted globally in `app/layout.tsx`. */

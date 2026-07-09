@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   Breadcrumb,
@@ -78,9 +78,11 @@ export function SessionTaskDetailsPanel({
 }: SessionTaskDetailsPanelProps) {
   const classRow = getManagerClassPreview(classId);
   const session = getManagerClassSessionPreview(classId, sessionId);
-  const [task, setTask] = useState<ManagerSessionTaskRow | null>(() =>
-    getManagerSessionTaskPreview(classId, sessionId, taskId)
+  const task = useMemo(
+    () => getManagerSessionTaskPreview(classId, sessionId, taskId),
+    [classId, sessionId, taskId]
   );
+  const studentTasksSyncKey = `${classId}:${sessionId}:${taskId}`;
   const [studentTasks, setStudentTasks] = useState<ManagerStudentTaskRow[]>(
     () => {
       const previewTask = getManagerSessionTaskPreview(
@@ -94,16 +96,15 @@ export function SessionTaskDetailsPanel({
         : [];
     }
   );
+  const [prevStudentTasksSyncKey, setPrevStudentTasksSyncKey] =
+    useState(studentTasksSyncKey);
 
-  useEffect(() => {
-    const previewTask = getManagerSessionTaskPreview(classId, sessionId, taskId);
-    setTask(previewTask);
+  if (studentTasksSyncKey !== prevStudentTasksSyncKey) {
+    setPrevStudentTasksSyncKey(studentTasksSyncKey);
     setStudentTasks(
-      previewTask
-        ? getManagerSessionStudentTasksPreview(classId, previewTask)
-        : []
+      task ? getManagerSessionStudentTasksPreview(classId, task) : []
     );
-  }, [classId, sessionId, taskId]);
+  }
 
   if (!session || !task) {
     return (

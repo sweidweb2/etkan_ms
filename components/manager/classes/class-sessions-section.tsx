@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PlusIcon } from "lucide-react";
 import { AddClassSessionDialog } from "@/components/manager/classes/add-class-session-dialog";
 import { ClassSessionCard } from "@/components/manager/classes/class-session-card";
@@ -33,13 +33,16 @@ export function ClassSessionsSection({
   const [sessions, setSessions] = useState<ManagerClassSessionRow[]>(() =>
     sortClassSessionsNewestFirst(getManagerClassSessionsPreview(classId))
   );
-  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [sessionsClassId, setSessionsClassId] = useState(classId);
 
-  useEffect(() => {
+  if (classId !== sessionsClassId) {
+    setSessionsClassId(classId);
     setSessions(
       sortClassSessionsNewestFirst(getManagerClassSessionsPreview(classId))
     );
-  }, [classId]);
+  }
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const sortedSessions = useMemo(
     () => sortClassSessionsNewestFirst(sessions),

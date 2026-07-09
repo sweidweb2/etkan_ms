@@ -138,7 +138,7 @@ export function ManagerDashboardPanel() {
       <div className="grid gap-6 xl:grid-cols-[1.25fr_1fr]">
         <Card className="py-0">
           <CardHeader className="border-b bg-muted/40 py-4">
-            <CardTitle>Today's schedule</CardTitle>
+            <CardTitle>Today&apos;s schedule</CardTitle>
             <CardDescription>
               Snapshot of active and upcoming classes for today.
             </CardDescription>
@@ -217,7 +217,7 @@ export function ManagerDashboardPanel() {
                 <div>
                   <p className="font-medium">Schedule health</p>
                   <p className="text-sm text-muted-foreground">
-                    No room conflicts detected for today's classes.
+                    No room conflicts detected for today&apos;s classes.
                   </p>
                 </div>
               </div>

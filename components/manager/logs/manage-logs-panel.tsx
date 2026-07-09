@@ -214,11 +214,18 @@ export function ManageLogsPanel() {
   }, [logs]);
 
   const stats = useMemo(() => {
-    const now = Date.now();
+    const referenceTime = logs.reduce(
+      (latest, log) =>
+        Math.max(latest, new Date(log.created_at).getTime()),
+      0
+    );
+
     return {
       total: logs.length,
       last24Hours: logs.filter(
-        (log) => now - new Date(log.created_at).getTime() <= TWENTY_FOUR_HOURS_MS
+        (log) =>
+          referenceTime - new Date(log.created_at).getTime() <=
+          TWENTY_FOUR_HOURS_MS
       ).length,
       updates: logs.filter((log) => log.action === "update").length,
       deletes: logs.filter((log) => log.action === "delete").length,

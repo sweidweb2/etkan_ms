@@ -91,6 +91,12 @@ export function StudentJoinedClassesSection({
   const [activeTab, setActiveTab] = useState<string | null>(
     () => classes[0]?.id ?? null
   );
+  const resolvedActiveTab =
+    classes.length === 0
+      ? null
+      : activeTab && classes.some((classRow) => classRow.id === activeTab)
+        ? activeTab
+        : classes[0]!.id;
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
   const enrolledClassIds = useMemo(
@@ -107,18 +113,9 @@ export function StudentJoinedClassesSection({
   );
 
   const activeClass =
-    classes.find((classRow) => classRow.id === activeTab) ?? classes[0] ?? null;
-
-  useEffect(() => {
-    if (classes.length === 0) {
-      setActiveTab(null);
-      return;
-    }
-
-    if (!activeTab || !classes.some((classRow) => classRow.id === activeTab)) {
-      setActiveTab(classes[0]!.id);
-    }
-  }, [activeTab, classes]);
+    classes.find((classRow) => classRow.id === resolvedActiveTab) ??
+    classes[0] ??
+    null;
 
   useEffect(() => {
     activeTabRef.current?.scrollIntoView({
@@ -126,7 +123,7 @@ export function StudentJoinedClassesSection({
       block: "nearest",
       inline: "nearest",
     });
-  }, [activeTab]);
+  }, [resolvedActiveTab]);
 
   function handleAssignClass(classId: string) {
     const classOption = getManagerClassOption(classId);
@@ -179,7 +176,7 @@ export function StudentJoinedClassesSection({
             </div>
           ) : (
             <TabsPrimitive
-              value={activeTab ?? classes[0]!.id}
+              value={resolvedActiveTab ?? classes[0]!.id}
               onValueChange={setActiveTab}
               className="flex min-w-0 max-w-full flex-col gap-0"
             >
@@ -194,7 +191,9 @@ export function StudentJoinedClassesSection({
                       <TabsTriggerPrimitive
                         key={classRow.id}
                         ref={
-                          activeTab === classRow.id ? activeTabRef : undefined
+                          resolvedActiveTab === classRow.id
+                            ? activeTabRef
+                            : undefined
                         }
                         value={classRow.id}
                         className={cn(
