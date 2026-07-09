@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
+import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
 
 const PAGE_SIZE_OPTIONS = [3, 6, 9] as const;
@@ -82,8 +84,13 @@ export function SubjectClassesSection({
   const stats = useMemo(
     () => ({
       total: classes.length,
-      active: classes.filter((row) => row.status === "active").length,
-      inactive: classes.filter((row) => row.status !== "active").length,
+      inProgress: classes.filter((row) => row.status === CLASS_STATUSES.IN_PROGRESS)
+        .length,
+      scheduled: classes.filter((row) => row.status === CLASS_STATUSES.SCHEDULED).length,
+      onHold: classes.filter(
+        (row) =>
+          row.status === CLASS_STATUSES.PAUSED || row.status === CLASS_STATUSES.STOPPED
+      ).length,
     }),
     [classes]
   );
@@ -130,20 +137,25 @@ export function SubjectClassesSection({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <UserStatCard
             label="Total classes"
             value={stats.total}
             accentClassName="border-l-sky-500"
           />
           <UserStatCard
-            label="Active"
-            value={stats.active}
-            accentClassName="border-l-emerald-500"
+            label="In progress"
+            value={stats.inProgress}
+            accentClassName="border-l-sky-500"
           />
           <UserStatCard
-            label="Inactive"
-            value={stats.inactive}
+            label="Scheduled"
+            value={stats.scheduled}
+            accentClassName="border-l-violet-500"
+          />
+          <UserStatCard
+            label="On hold"
+            value={stats.onHold}
             accentClassName="border-l-amber-500"
           />
         </div>
@@ -168,8 +180,11 @@ export function SubjectClassesSection({
             </SelectTrigger>
             <SelectContent align="end">
               <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+              {CLASS_STATUS_VALUES.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {MANAGER_CLASS_STATUS_LABELS[status]}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

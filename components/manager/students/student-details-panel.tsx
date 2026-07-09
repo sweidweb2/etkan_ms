@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
@@ -22,7 +22,10 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { getManagerStudentPreview } from "@/lib/manager/get-manager-student-preview";
 import { getManagerStudentStatsPreview } from "@/lib/manager/get-manager-student-stats-preview";
 import { ROUTES } from "@/lib/constants/routes";
-import { STUDENT_DETAILS_SECTION_IDS } from "@/lib/constants/student-details-sections";
+import {
+  scrollToStudentDetailsSection,
+  STUDENT_DETAILS_SECTION_IDS,
+} from "@/lib/constants/student-details-sections";
 import type { ManagerStudentRow } from "@/types/manager-student";
 
 type StudentDetailsPanelProps = {
@@ -65,6 +68,19 @@ export function StudentDetailsPanel({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const stats = getManagerStudentStatsPreview(studentProfileId);
 
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      scrollToStudentDetailsSection(hash);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-6">
       <Breadcrumb>
@@ -81,7 +97,7 @@ export function StudentDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <StudentDetailsSectionNav />
+      <StudentDetailsSectionNav studentProfileId={studentProfileId} />
 
       <EditStudentDialog
         open={isEditOpen}

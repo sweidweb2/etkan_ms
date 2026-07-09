@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ComponentType } from "react";
 import {
   BookOpenIcon,
@@ -10,6 +11,7 @@ import {
   scrollToStudentDetailsSection,
   STUDENT_DETAILS_SECTION_IDS,
 } from "@/lib/constants/student-details-sections";
+import { getManagerStudentAccountDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 
 type NavCardConfig = {
@@ -19,7 +21,7 @@ type NavCardConfig = {
   icon: ComponentType<{ className?: string }>;
   themeClassName: string;
   iconClassName: string;
-  disabled?: boolean;
+  href?: (studentProfileId: string) => string;
 };
 
 const NAV_CARDS: NavCardConfig[] = [
@@ -48,50 +50,71 @@ const NAV_CARDS: NavCardConfig[] = [
     description: "Finance and account overview",
     icon: WalletIcon,
     themeClassName:
-      "bg-amber-100/70 ring-amber-200/70 dark:bg-amber-950/30 dark:ring-amber-900/50",
+      "bg-amber-100/90 ring-amber-200/80 hover:bg-amber-100 dark:bg-amber-950/40 dark:ring-amber-800/60 dark:hover:bg-amber-950/55",
     iconClassName:
-      "bg-amber-200/60 text-amber-700/80 dark:bg-amber-900/50 dark:text-amber-400/80",
-    disabled: true,
+      "bg-amber-200/60 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
+    href: getManagerStudentAccountDetailRoute,
   },
 ];
 
-export function StudentDetailsSectionNav() {
+type StudentDetailsSectionNavProps = {
+  studentProfileId: string;
+};
+
+function NavCardContent({ card }: { card: NavCardConfig }) {
+  const Icon = card.icon;
+
+  return (
+    <>
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-lg",
+          card.iconClassName
+        )}
+      >
+        <Icon className="size-5" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground">
+          {card.label}
+        </span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">
+          {card.description}
+        </span>
+      </span>
+    </>
+  );
+}
+
+const navCardClassName =
+  "flex min-w-0 items-center gap-3 rounded-xl p-4 text-left ring-1 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+
+export function StudentDetailsSectionNav({
+  studentProfileId,
+}: StudentDetailsSectionNavProps) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       {NAV_CARDS.map((card) => {
-        const Icon = card.icon;
+        if (card.href) {
+          return (
+            <Link
+              key={card.id}
+              href={card.href(studentProfileId)}
+              className={cn(navCardClassName, card.themeClassName)}
+            >
+              <NavCardContent card={card} />
+            </Link>
+          );
+        }
 
         return (
           <button
             key={card.id}
             type="button"
-            disabled={card.disabled}
             onClick={() => scrollToStudentDetailsSection(card.id)}
-            className={cn(
-              "flex min-w-0 items-center gap-3 rounded-xl p-4 text-left ring-1 transition-all duration-200",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              card.themeClassName,
-              card.disabled
-                ? "cursor-not-allowed opacity-60"
-                : "hover:-translate-y-0.5 hover:shadow-sm"
-            )}
+            className={cn(navCardClassName, card.themeClassName)}
           >
-            <span
-              className={cn(
-                "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                card.iconClassName
-              )}
-            >
-              <Icon className="size-5" aria-hidden="true" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-foreground">
-                {card.label}
-              </span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">
-                {card.description}
-              </span>
-            </span>
+            <NavCardContent card={card} />
           </button>
         );
       })}

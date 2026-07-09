@@ -1,6 +1,7 @@
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
+import { getPreviewClassStatus } from "@/lib/constants/manager-class-status";
 
-export const MANAGER_SUBJECT_CLASSES_MOCK: ManagerSubjectClassRow[] = [
+const MANAGER_SUBJECT_CLASSES_MOCK_RAW = [
   {
     id: "cls-sub-001-1",
     subject_id: "sub-001-math-advanced",
@@ -338,6 +339,12 @@ export const MANAGER_SUBJECT_CLASSES_MOCK: ManagerSubjectClassRow[] = [
     created_at: "2025-10-02T16:00:00.000Z",
   },
 ];
+
+export const MANAGER_SUBJECT_CLASSES_MOCK: ManagerSubjectClassRow[] =
+  MANAGER_SUBJECT_CLASSES_MOCK_RAW.map((classRow, index) => ({
+    ...classRow,
+    status: getPreviewClassStatus(index),
+  }));
 
 export function getManagerSubjectClassesPreview(
   subjectId: string

@@ -1,4 +1,5 @@
 import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
+import type { StudentAttendanceStatusValue } from "@/lib/constants/manager-student-attendance-status";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
 import type { ManagerStudentCourseGrade } from "@/types/manager-student-course-grade";
@@ -8,22 +9,16 @@ function buildAttendanceDetail(
     id: string;
     label: string;
     at: string;
-    status: (typeof STUDENT_ATTENDANCE_STATUSES)[keyof typeof STUDENT_ATTENDANCE_STATUSES];
+    status: StudentAttendanceStatusValue;
   }>
 ): Pick<ManagerStudentClassTabDetail, "attendanceSlots" | "attendanceTrend"> {
   let cumulativePresent = 0;
   let streak = 0;
 
   const attendanceTrend = sessions.map((session) => {
-    const countsAsPresent =
-      session.status === STUDENT_ATTENDANCE_STATUSES.PRESENT ||
-      session.status === STUDENT_ATTENDANCE_STATUSES.LATE;
-
-    if (countsAsPresent) {
+    if (session.status === STUDENT_ATTENDANCE_STATUSES.PRESENT) {
       cumulativePresent += 1;
       streak += 1;
-    } else if (session.status === STUDENT_ATTENDANCE_STATUSES.EXCUSED) {
-      // Excused does not break streak in this preview model.
     } else {
       streak = 0;
     }
@@ -105,7 +100,7 @@ const SARA_MATH: ManagerStudentClassTabDetail = {
       id: "sess-03",
       label: "S3",
       at: "2025-09-29T08:00:00.000Z",
-      status: STUDENT_ATTENDANCE_STATUSES.LATE,
+      status: STUDENT_ATTENDANCE_STATUSES.PRESENT,
     },
     {
       id: "sess-04",
@@ -135,7 +130,7 @@ const SARA_MATH: ManagerStudentClassTabDetail = {
       id: "sess-08",
       label: "S8",
       at: "2025-11-03T08:00:00.000Z",
-      status: STUDENT_ATTENDANCE_STATUSES.EXCUSED,
+      status: STUDENT_ATTENDANCE_STATUSES.ABSENT,
     },
     {
       id: "sess-09",
@@ -277,7 +272,7 @@ const DEFAULT_DETAIL: ManagerStudentClassTabDetail = {
       id: "sess-e",
       label: "S5",
       at: "2025-10-18T09:00:00.000Z",
-      status: STUDENT_ATTENDANCE_STATUSES.LATE,
+      status: STUDENT_ATTENDANCE_STATUSES.ABSENT,
     },
   ]),
   tasks: [

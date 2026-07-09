@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SemesterClassesSection } from "@/components/manager/phases/semester-classes-section";
+import { SemesterStudentsSection } from "@/components/manager/phases/semester-students-section";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 import { getManagerSemesterPreview } from "@/lib/manager/get-manager-semester-preview";
 import { ROUTES } from "@/lib/constants/routes";
@@ -84,6 +85,11 @@ export function SemesterDetailsPanel({
           </dl>
         </CardContent>
       </Card>
+
+      <SemesterStudentsSection
+        semesterId={semester.id}
+        semesterName={semester.name}
+      />
 
       <SemesterClassesSection
         semesterId={semester.id}

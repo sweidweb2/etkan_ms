@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { LineChartIcon, PencilIcon } from "lucide-react";
+import { LineChartIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
+import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
 import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog";
 import { ClassAnalyticsSection } from "@/components/manager/classes/class-analytics-section";
 import { ClassFinalExamSection } from "@/components/manager/classes/class-final-exam-section";
@@ -75,6 +76,7 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
     getManagerClassPreview(classId)
   );
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false);
   const [finalExam, setFinalExam] = useState<ManagerClassFinalExamRow | null>(
     () => getManagerClassFinalExamPreview(classId)
   );
@@ -118,6 +120,18 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
         onUpdateClass={setClassRow}
       />
 
+      <ChangeClassStatusDialog
+        open={isChangeStatusOpen}
+        onOpenChange={setIsChangeStatusOpen}
+        classRow={classRow}
+        onStatusChange={(status) => {
+          setClassRow((current) => ({
+            ...current,
+            status,
+          }));
+        }}
+      />
+
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/50 py-4">
           <CardTitle className="text-xl">{classRow.name}</CardTitle>
@@ -129,6 +143,14 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
               <LineChartIcon data-icon="inline-start" />
               Grades
             </Link>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsChangeStatusOpen(true)}
+            >
+              <RefreshCwIcon data-icon="inline-start" />
+              Change status
+            </Button>
             <Button type="button" onClick={() => setIsEditOpen(true)}>
               <PencilIcon data-icon="inline-start" />
               Edit class

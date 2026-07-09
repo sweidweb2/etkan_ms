@@ -1,3 +1,5 @@
+import type { ClassStatusValue } from "@/lib/constants/manager-class-status";
+
 /** classes row preview with semester linkage for manager semester detail. */
 export interface ManagerSemesterClassRow {
   id: string;
@@ -8,7 +10,7 @@ export interface ManagerSemesterClassRow {
   /** Sessions delivered for this class so far (preview aggregate). */
   completed_sessions: number;
   name: string;
-  status: string;
+  status: ClassStatusValue;
   semester_id: string | null;
   enrollment_count: number;
   created_at: string;

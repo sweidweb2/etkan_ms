@@ -21,7 +21,7 @@ The initial migration defines the Etkan MS data model:
 | --- | --- |
 | Identity | `profiles`, `student_profiles` |
 | Relationships | `relationships` |
-| Billing | `accounts`, `subscribed_phases`, `payments` |
+| Billing | `accounts`, `subscribed_semesters`, `payments` |
 | Academics | `subjects`, `classes`, `class_teacher`, `student_class`, `tasks`, `student_tasks`, `student_course_grade` |
 | Equipment | `equipments`, `borrow_equipment` |
 | Other | `student_takeouts`, `audit_logs` |

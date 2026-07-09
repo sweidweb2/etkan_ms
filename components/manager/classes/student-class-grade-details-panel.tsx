@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { getManagerClassFinalExamPreview } from "@/lib/constants/manager-class-final-exam-mock";
 import {
+  getAttendanceDisplayKey,
   MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES,
 } from "@/lib/constants/manager-student-attendance-display";
 import {
@@ -334,7 +335,7 @@ function AttendanceGradesSection({ detail }: { detail: ManagerStudentClassTabDet
                 key={slot.session_id}
                 className={cn(
                   "rounded-lg border px-3 py-2",
-                  MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[slot.status]
+                  MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[getAttendanceDisplayKey(slot.status)]
                 )}
               >
                 <p className="text-xs font-semibold">{slot.session_label}</p>

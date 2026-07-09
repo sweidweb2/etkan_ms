@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
+import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
+import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import { getManagerClassesPreview } from "@/lib/constants/manager-classes-list-mock";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
@@ -92,10 +94,14 @@ export function ManageClassesPanel() {
   const stats = useMemo(
     () => ({
       total: classes.length,
-      active: classes.filter((row) => row.status === "active").length,
-      inactive: classes.filter((row) => row.status !== "active").length,
-      linked: classes.filter((row) => row.semester_id !== null).length,
-      enrollment: classes.reduce((sum, row) => sum + row.enrollment_count, 0),
+      inProgress: classes.filter((row) => row.status === CLASS_STATUSES.IN_PROGRESS)
+        .length,
+      scheduled: classes.filter((row) => row.status === CLASS_STATUSES.SCHEDULED).length,
+      done: classes.filter((row) => row.status === CLASS_STATUSES.DONE).length,
+      onHold: classes.filter(
+        (row) =>
+          row.status === CLASS_STATUSES.PAUSED || row.status === CLASS_STATUSES.STOPPED
+      ).length,
     }),
     [classes]
   );
@@ -187,24 +193,24 @@ export function ManageClassesPanel() {
           accentClassName="border-l-sky-500"
         />
         <UserStatCard
-          label="Active"
-          value={stats.active}
-          accentClassName="border-l-emerald-500"
+          label="In progress"
+          value={stats.inProgress}
+          accentClassName="border-l-sky-500"
         />
         <UserStatCard
-          label="Inactive"
-          value={stats.inactive}
-          accentClassName="border-l-amber-500"
-        />
-        <UserStatCard
-          label="Linked to semester"
-          value={stats.linked}
+          label="Scheduled"
+          value={stats.scheduled}
           accentClassName="border-l-violet-500"
         />
         <UserStatCard
-          label="Total enrollment"
-          value={stats.enrollment}
-          accentClassName="border-l-rose-500"
+          label="Done"
+          value={stats.done}
+          accentClassName="border-l-emerald-500"
+        />
+        <UserStatCard
+          label="On hold"
+          value={stats.onHold}
+          accentClassName="border-l-amber-500"
         />
       </div>
 
@@ -233,8 +239,11 @@ export function ManageClassesPanel() {
               </SelectTrigger>
               <SelectContent align="end">
                 <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                {CLASS_STATUS_VALUES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {MANAGER_CLASS_STATUS_LABELS[status]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select

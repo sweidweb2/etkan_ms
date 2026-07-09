@@ -1,4 +1,5 @@
 import { MANAGER_CLASSES_MOCK } from "@/lib/constants/manager-classes-mock";
+import { getPreviewClassStatus } from "@/lib/constants/manager-class-status";
 import {
   getMockClassCompletedSessions,
   getSubjectSessionsPreview,
@@ -76,7 +77,7 @@ export const MANAGER_SEMESTER_CLASSES_MOCK: ManagerSemesterClassRow[] =
       subject_nb_sessions: subjectNbSessions,
       completed_sessions: Math.min(completedSessions, subjectNbSessions),
       name: classOption.name,
-      status: index % 6 === 0 ? "inactive" : "active",
+      status: getPreviewClassStatus(index),
       semester_id: classSemesterMap.get(classOption.class_id) ?? null,
       enrollment_count: 12 + (index % 8) * 2,
       created_at: new Date(

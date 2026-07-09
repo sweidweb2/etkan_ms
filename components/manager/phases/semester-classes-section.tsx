@@ -32,6 +32,8 @@ import {
   getManagerSemesterClassesPreview,
   getManagerUnlinkedSemesterClassesPreview,
 } from "@/lib/constants/manager-semester-classes-mock";
+import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
+import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import { printPageSection } from "@/lib/export/print-page-section";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 
@@ -127,8 +129,13 @@ export function SemesterClassesSection({
   const stats = useMemo(
     () => ({
       total: classes.length,
-      active: classes.filter((row) => row.status === "active").length,
-      inactive: classes.filter((row) => row.status !== "active").length,
+      inProgress: classes.filter((row) => row.status === CLASS_STATUSES.IN_PROGRESS)
+        .length,
+      scheduled: classes.filter((row) => row.status === CLASS_STATUSES.SCHEDULED).length,
+      onHold: classes.filter(
+        (row) =>
+          row.status === CLASS_STATUSES.PAUSED || row.status === CLASS_STATUSES.STOPPED
+      ).length,
       enrollment: classes.reduce((sum, row) => sum + row.enrollment_count, 0),
     }),
     [classes]
@@ -222,13 +229,18 @@ export function SemesterClassesSection({
               accentClassName="border-l-sky-500"
             />
             <UserStatCard
-              label="Active"
-              value={stats.active}
-              accentClassName="border-l-emerald-500"
+              label="In progress"
+              value={stats.inProgress}
+              accentClassName="border-l-sky-500"
             />
             <UserStatCard
-              label="Inactive"
-              value={stats.inactive}
+              label="Scheduled"
+              value={stats.scheduled}
+              accentClassName="border-l-violet-500"
+            />
+            <UserStatCard
+              label="On hold"
+              value={stats.onHold}
               accentClassName="border-l-amber-500"
             />
             <UserStatCard
@@ -265,8 +277,11 @@ export function SemesterClassesSection({
               </SelectTrigger>
               <SelectContent align="end">
                 <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                {CLASS_STATUS_VALUES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {MANAGER_CLASS_STATUS_LABELS[status]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

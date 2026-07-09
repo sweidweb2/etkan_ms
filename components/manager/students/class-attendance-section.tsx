@@ -5,6 +5,7 @@ import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { StudentAttendanceStatusBadge } from "@/components/manager/students/student-attendance-status-badge";
 import {
+  getAttendanceDisplayKey,
   MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES,
 } from "@/lib/constants/manager-student-attendance-display";
 import {
@@ -61,7 +62,7 @@ export function ClassAttendanceSection({
                 key={slot.session_id}
                 className={cn(
                   "rounded-lg border px-3 py-2",
-                  MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[slot.status]
+                  MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[getAttendanceDisplayKey(slot.status)]
                 )}
               >
                 <p className="text-xs font-semibold">{slot.session_label}</p>
@@ -99,8 +100,7 @@ export function ClassAttendanceSection({
             ]}
           />
           <p className="text-xs text-muted-foreground">
-            Present + late count toward cumulative attendance; absent resets streak.
-            Excused is neutral in this preview.
+            Present sessions increase cumulative attendance; absent sessions reset the streak.
           </p>
         </div>
       </div>

@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import { MANAGER_SUBJECTS_MOCK } from "@/lib/constants/manager-subjects-mock";
+import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
+import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import { showSuccessToast } from "@/lib/toast";
 import {
   CLASS_STATUS_VALUES,
@@ -57,7 +59,7 @@ export function AddClassDialog({
     defaultValues: {
       name: "",
       subject_id: "",
-      status: "active",
+      status: CLASS_STATUSES.SCHEDULED,
       semester_id: "",
     },
   });
@@ -71,7 +73,7 @@ export function AddClassDialog({
       reset({
         name: "",
         subject_id: "",
-        status: "active",
+        status: CLASS_STATUSES.SCHEDULED,
         semester_id: "",
       });
     }
@@ -212,7 +214,7 @@ export function AddClassDialog({
               <SelectContent align="start">
                 {CLASS_STATUS_VALUES.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {MANAGER_CLASS_STATUS_LABELS[status]}
                   </SelectItem>
                 ))}
               </SelectContent>

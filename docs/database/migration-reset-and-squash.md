@@ -73,7 +73,7 @@ Keep only `supabase/migrations/20260602202331_initial.sql` (or one new timestamp
 | Former incremental migration | Final shape in `initial.sql` |
 | --- | --- |
 | `drop_relationships_student_id` | `relationships` without `student_id` |
-| `convert_phases_to_semesters` | `semesters` table; `classes.semester_id`; `subscribed_phases.semester_id` (not `phase_id`) |
+| `convert_phases_to_semesters` | `semesters` table; `classes.semester_id`; `subscribed_semesters.semester_id` (not `phase_id`) |
 | `create_backup_history` | `backup_history` table |
 | `app_settings_maintenance_mode` | `app_settings` + RLS |
 | `create_notifications` | `notifications` table |
@@ -86,7 +86,7 @@ Omit incremental-only steps (e.g. `drop table phases`) — those tables never ex
 **Table order matters** for foreign keys. Example dependency order:
 
 1. `profiles` → `student_profiles`
-2. `semesters` before `classes`, `subscribed_phases`, `sessions`
+2. `semesters` before `classes`, `subscribed_semesters`, `sessions`
 3. `sessions` before `tasks` (FK on `session_id`) and `attendee`
 
 **Alternative:** dump the live schema after a successful reset:

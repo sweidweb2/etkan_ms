@@ -1,4 +1,3 @@
-import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
 import { getManagerClassStudentsPreview } from "@/lib/manager/get-manager-class-students-preview";
 import { getManagerClassSessionPreview } from "@/lib/manager/get-manager-class-session-preview";
 import { getPreviewSessionTasksFromStore } from "@/lib/preview/manager-session-tasks-store";
@@ -90,16 +89,9 @@ export function getManagerClassSessionAttendeesPreview(
   }
 
   const students = getManagerClassStudentsPreview(classId);
-  const statusValues = [
-    STUDENT_ATTENDANCE_STATUSES.PRESENT,
-    STUDENT_ATTENDANCE_STATUSES.ABSENT,
-    STUDENT_ATTENDANCE_STATUSES.LATE,
-    STUDENT_ATTENDANCE_STATUSES.EXCUSED,
-  ] as const;
 
   return students.map((student) => {
     const seed = hashString(`${sessionId}-${student.user_id}`);
-    const status = statusValues[seed % statusValues.length]!;
     const note = ATTENDANCE_NOTES[seed % ATTENDANCE_NOTES.length] ?? null;
     const createdAt = new Date(session.starts_at);
     createdAt.setHours(createdAt.getHours() - 2);
@@ -109,7 +101,7 @@ export function getManagerClassSessionAttendeesPreview(
       session_id: sessionId,
       student_id: student.user_id,
       full_name: student.full_name,
-      status,
+      email: student.email,
       note,
       is_active: seed % 6 !== 0,
       created_at: createdAt.toISOString(),

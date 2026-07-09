@@ -504,7 +504,7 @@ export function ClassStudentGradesSection({
                   `Tasks grade` is based on the student's graded tasks and assignments linked to the class sessions.
                 </li>
                 <li>
-                  `Attendance grade` is derived from the student's attendee records such as present, late, absent, or excused sessions.
+                  `Attendance grade` is derived from the student's present or absent session records.
                 </li>
               </ul>
             </div>

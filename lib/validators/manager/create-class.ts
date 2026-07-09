@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
 
-export const CLASS_STATUS_VALUES = ["active", "inactive"] as const;
+export { CLASS_STATUS_VALUES };
 
 export const createClassSchema = z.object({
   name: z

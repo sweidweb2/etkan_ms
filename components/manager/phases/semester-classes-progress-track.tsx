@@ -159,8 +159,8 @@ export function SemesterClassesProgressTrack({
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-medium">Semester session progress</h3>
             <p className="text-xs text-muted-foreground">
-              One connected track across all linked classes. Green shows active
-              progress; red marks inactive classes ({summary.completedSessions}/
+              One connected track across all linked classes. Color reflects each
+              class status and session completion ({summary.completedSessions}/
               {summary.totalSessions} sessions delivered).
             </p>
           </div>

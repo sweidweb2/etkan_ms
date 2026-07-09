@@ -23,6 +23,7 @@ import {
   getManagerClassStudentGrades,
   type ManagerClassStudentGrade,
 } from "@/lib/constants/manager-subject-grades-mock";
+import { MANAGER_CLASS_STATUS_DOT_CLASSES } from "@/lib/constants/manager-class-display";
 import { cn } from "@/lib/utils";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
 
@@ -304,7 +305,7 @@ export function SubjectClassStudentGradesSection({
                 <span
                   className={cn(
                     "size-2 shrink-0 rounded-full",
-                    classRow.status === "active" ? "bg-emerald-500" : "bg-amber-500"
+                    MANAGER_CLASS_STATUS_DOT_CLASSES[classRow.status]
                   )}
                   aria-hidden="true"
                 />

@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import type { AnalyticsPeriod } from "@/types/manager-analytics";
 import { MANAGER_CLASSES_MOCK } from "@/lib/constants/manager-classes-mock";
+import { getPreviewClassStatus } from "@/lib/constants/manager-class-status";
 import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import { MANAGER_RELATIONSHIPS_MOCK } from "@/lib/constants/manager-relationships-mock";
 import { MANAGER_CLASS_STUDENT_GRADES_MOCK } from "@/lib/constants/manager-subject-student-grades-data";
@@ -261,7 +262,7 @@ const SEMESTER_CLASSES_MOCK: ReportRow[] = MANAGER_CLASSES_MOCK.map(
   (cls, index) => ({
     class_name: cls.name,
     subject_name: cls.subject_name,
-    status: index % 5 === 0 ? "inactive" : "active",
+    status: getPreviewClassStatus(index),
     enrollment_count: 12 + (index % 8) * 2,
     semester_name:
       MANAGER_PHASES_MOCK[index % MANAGER_PHASES_MOCK.length]?.name ?? "—",

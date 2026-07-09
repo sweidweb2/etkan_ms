@@ -84,10 +84,10 @@ create table semesters (
 
 
 --------------------------------------------------
--- SUBSCRIBED PHASES
+-- SUBSCRIBED SEMESTERS
 --------------------------------------------------
 
-create table subscribed_phases (
+create table subscribed_semesters (
     id uuid primary key default gen_random_uuid(),
     account_id uuid not null references accounts(id) on delete cascade,
     semester_id uuid references semesters(id) on delete set null,
@@ -103,7 +103,7 @@ create table subscribed_phases (
 
 create table payments (
     id uuid primary key default gen_random_uuid(),
-    subscribed_phase_id uuid not null references subscribed_phases(id) on delete cascade,
+    subscribed_semester_id uuid not null references subscribed_semesters(id) on delete cascade,
     amount numeric(10,2) not null,
     currency text default 'USD',
     method text,
@@ -422,11 +422,11 @@ on student_class(user_id);
 create index idx_student_class_class
 on student_class(class_id);
 
-create index idx_payments_subscription
-on payments(subscribed_phase_id);
+create index idx_payments_subscribed_semester_id
+on payments(subscribed_semester_id);
 
-create index idx_subscribed_phases_semester_id
-on subscribed_phases(semester_id);
+create index idx_subscribed_semesters_semester_id
+on subscribed_semesters(semester_id);
 
 create index idx_classes_semester_id
 on classes(semester_id);

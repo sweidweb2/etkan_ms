@@ -1,4 +1,5 @@
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
+import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 
 export function getClassSessionCompletionRate(
   classRow: ManagerSemesterClassRow
@@ -14,7 +15,7 @@ export function getClassSessionCompletionRate(
 }
 
 export function isActiveSemesterClass(classRow: ManagerSemesterClassRow): boolean {
-  return classRow.status === "active";
+  return classRow.status === CLASS_STATUSES.IN_PROGRESS;
 }
 
 export function getSemesterSessionProgressSummary(
@@ -48,27 +49,52 @@ export function getClassProgressTone(classRow: ManagerSemesterClassRow): {
 } {
   const rate = getClassSessionCompletionRate(classRow);
 
-  if (!isActiveSemesterClass(classRow)) {
-    return {
-      fillClassName: "bg-rose-500",
-      ringClassName: "border-rose-500",
-      dotClassName: "border-rose-500 bg-card",
-    };
-  }
+  switch (classRow.status) {
+    case CLASS_STATUSES.DONE:
+      return {
+        fillClassName: "bg-emerald-500",
+        ringClassName: "border-emerald-500",
+        dotClassName: "border-emerald-500 bg-card",
+      };
+    case CLASS_STATUSES.IN_PROGRESS:
+      if (rate > 0) {
+        return {
+          fillClassName: "bg-emerald-500",
+          ringClassName: "border-emerald-500",
+          dotClassName: "border-emerald-500 bg-card",
+        };
+      }
 
-  if (rate > 0) {
-    return {
-      fillClassName: "bg-emerald-500",
-      ringClassName: "border-emerald-500",
-      dotClassName: "border-emerald-500 bg-card",
-    };
+      return {
+        fillClassName: "bg-sky-500",
+        ringClassName: "border-sky-500",
+        dotClassName: "border-sky-500 bg-card",
+      };
+    case CLASS_STATUSES.SCHEDULED:
+      return {
+        fillClassName: "bg-violet-500",
+        ringClassName: "border-violet-500",
+        dotClassName: "border-violet-500 bg-card",
+      };
+    case CLASS_STATUSES.PAUSED:
+      return {
+        fillClassName: "bg-amber-500",
+        ringClassName: "border-amber-500",
+        dotClassName: "border-amber-500 bg-card",
+      };
+    case CLASS_STATUSES.STOPPED:
+      return {
+        fillClassName: "bg-rose-500",
+        ringClassName: "border-rose-500",
+        dotClassName: "border-rose-500 bg-card",
+      };
+    default:
+      return {
+        fillClassName: "bg-muted-foreground/30",
+        ringClassName: "border-muted-foreground/45",
+        dotClassName: "border-muted-foreground/45 bg-card",
+      };
   }
-
-  return {
-    fillClassName: "bg-muted-foreground/30",
-    ringClassName: "border-muted-foreground/45",
-    dotClassName: "border-muted-foreground/45 bg-card",
-  };
 }
 
 /** @deprecated Use getClassProgressTone for status-aware styling. */

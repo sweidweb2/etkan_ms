@@ -83,8 +83,7 @@ export function ClassAnalyticsSection({
             ]}
           />
           <p className="mt-3 text-xs text-muted-foreground">
-            Percent of enrolled students marked present or late for each completed
-            session.
+            Percent of enrolled students marked present for each completed session.
           </p>
         </AnalyticsChartCard>
       </CardContent>

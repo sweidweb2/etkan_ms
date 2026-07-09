@@ -1,5 +1,4 @@
 import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
-import type { StudentAttendanceStatusValue } from "@/lib/constants/manager-student-attendance-status";
 
 /** tasks table row scoped to a class session. */
 export interface ManagerSessionTaskRow {
@@ -18,7 +17,7 @@ export interface ManagerSessionAttendeeRow {
   session_id: string;
   student_id: string;
   full_name: string;
-  status: StudentAttendanceStatusValue;
+  email: string;
   note: string | null;
   /** Preview-only toggle until backend supports activation rules. */
   is_active: boolean;
