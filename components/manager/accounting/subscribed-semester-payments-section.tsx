@@ -190,7 +190,7 @@ export function SubscribedSemesterPaymentsSection({
       />
 
       <Card className="py-0">
-        <CardHeader className="border-b py-4">
+        <CardHeader className="border-b bg-muted/40 py-4">
           <CardTitle>Payments</CardTitle>
           <CardAction className="self-center">
             <Button type="button" onClick={() => setIsAddOpen(true)}>

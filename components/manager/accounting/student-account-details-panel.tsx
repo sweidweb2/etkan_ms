@@ -10,6 +10,7 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { SubscribedSemesterPaymentsSection } from "@/components/manager/accounting/subscribed-semester-payments-section";
+import { ScheduledPaymentsSection } from "@/components/manager/accounting/scheduled-payments-section";
 import { EditSubscribedSemesterDialog } from "@/components/manager/accounting/edit-subscribed-semester-dialog";
 import { SubscribedSemesterStatusBadge } from "@/components/manager/accounting/subscribed-semester-status-badge";
 import {
@@ -21,7 +22,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import {
   formatAccountCurrency,
@@ -36,6 +37,7 @@ import type {
   ManagerStudentPaymentRow,
   ManagerSubscribedSemesterRow,
 } from "@/types/manager-student-account";
+import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
 
 type StudentAccountDetailsPanelProps = {
   studentProfileId: string;
@@ -76,14 +78,20 @@ function sumPaymentsForSubscription(
 function SubscribedSemesterTabPanel({
   subscription,
   payments,
+  scheduledPayments,
   onAddPayment,
   onUpdatePayment,
+  onAddScheduledPayment,
+  onUpdateScheduledPayment,
   onUpdateSubscription,
 }: {
   subscription: ManagerSubscribedSemesterRow;
   payments: ManagerStudentPaymentRow[];
+  scheduledPayments: ManagerScheduledPaymentRow[];
   onAddPayment: (payment: ManagerStudentPaymentRow) => void;
   onUpdatePayment: (payment: ManagerStudentPaymentRow) => void;
+  onAddScheduledPayment: (row: ManagerScheduledPaymentRow) => void;
+  onUpdateScheduledPayment: (row: ManagerScheduledPaymentRow) => void;
   onUpdateSubscription: (subscription: ManagerSubscribedSemesterRow) => void;
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -98,18 +106,18 @@ function SubscribedSemesterTabPanel({
         onUpdateSubscription={onUpdateSubscription}
       />
 
-      <div className="flex flex-col gap-4 rounded-lg bg-muted/20 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-foreground">
-            Subscription details
-          </h3>
-          <Button type="button" variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
-            <PencilIcon data-icon="inline-start" />
-            Edit
-          </Button>
-        </div>
-
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Card className="py-0">
+        <CardHeader className="border-b bg-muted/40 py-4">
+          <CardTitle>Subscription details</CardTitle>
+          <CardAction className="self-center">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
+              <PencilIcon data-icon="inline-start" />
+              Edit
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="py-6">
+          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <DetailField label="Subscription ID" value={subscription.id} />
         <DetailField label="Account ID" value={subscription.account_id} />
         <DetailField label="Semester" value={subscription.semester_name} />
@@ -133,8 +141,18 @@ function SubscribedSemesterTabPanel({
           label="Subscribed"
           value={format(new Date(subscription.created_at), "MMM d, yyyy 'at' h:mm a")}
         />
-        </dl>
-      </div>
+          </dl>
+        </CardContent>
+      </Card>
+
+      <ScheduledPaymentsSection
+        subscribedSemesterId={subscription.id}
+        semesterName={subscription.semester_name}
+        balanceDue={balanceDue}
+        scheduledPayments={scheduledPayments}
+        onAddScheduledPayment={onAddScheduledPayment}
+        onUpdateScheduledPayment={onUpdateScheduledPayment}
+      />
 
       <SubscribedSemesterPaymentsSection
         subscribedSemesterId={subscription.id}
@@ -160,6 +178,9 @@ export function StudentAccountDetailsPanel({
   const [payments, setPayments] = useState<ManagerStudentPaymentRow[]>(
     () => initialAccount.payments
   );
+  const [scheduledPayments, setScheduledPayments] = useState<
+    ManagerScheduledPaymentRow[]
+  >(() => initialAccount.scheduledPayments);
   const [activeTab, setActiveTab] = useState<string | null>(
     () => initialAccount.subscriptions[0]?.id ?? null
   );
@@ -196,6 +217,29 @@ export function StudentAccountDetailsPanel({
 
     return grouped;
   }, [payments]);
+
+  const scheduledPaymentsBySubscription = useMemo(() => {
+    const grouped = new Map<string, ManagerScheduledPaymentRow[]>();
+
+    for (const row of scheduledPayments) {
+      const existing = grouped.get(row.subscribed_semester_id) ?? [];
+      existing.push(row);
+      grouped.set(row.subscribed_semester_id, existing);
+    }
+
+    for (const [key, rows] of grouped) {
+      grouped.set(
+        key,
+        rows.sort(
+          (left, right) =>
+            new Date(left.payment_date).getTime() -
+            new Date(right.payment_date).getTime()
+        )
+      );
+    }
+
+    return grouped;
+  }, [scheduledPayments]);
 
   useEffect(() => {
     if (subscriptions.length === 0) {
@@ -263,6 +307,16 @@ export function StudentAccountDetailsPanel({
       current.map((subscription) =>
         subscription.id === updated.id ? updated : subscription
       )
+    );
+  }
+
+  function handleAddScheduledPayment(row: ManagerScheduledPaymentRow) {
+    setScheduledPayments((current) => [row, ...current]);
+  }
+
+  function handleUpdateScheduledPayment(updated: ManagerScheduledPaymentRow) {
+    setScheduledPayments((current) =>
+      current.map((row) => (row.id === updated.id ? updated : row))
     );
   }
 
@@ -395,8 +449,14 @@ export function StudentAccountDetailsPanel({
                     payments={
                       paymentsBySubscription.get(activeSubscription.id) ?? []
                     }
+                    scheduledPayments={
+                      scheduledPaymentsBySubscription.get(activeSubscription.id) ??
+                      []
+                    }
                     onAddPayment={handleAddPayment}
                     onUpdatePayment={handleUpdatePayment}
+                    onAddScheduledPayment={handleAddScheduledPayment}
+                    onUpdateScheduledPayment={handleUpdateScheduledPayment}
                     onUpdateSubscription={handleUpdateSubscription}
                   />
                 </div>

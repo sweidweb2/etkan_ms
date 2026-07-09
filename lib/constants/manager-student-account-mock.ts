@@ -1,3 +1,4 @@
+import { buildScheduledPaymentsForSubscriptions } from "@/lib/constants/manager-scheduled-payments-mock";
 import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import { SUBSCRIBED_SEMESTER_STATUSES } from "@/lib/constants/manager-subscribed-semester-status";
 import { getManagerStudentSemesterMockSnapshot } from "@/lib/constants/manager-student-semester-mock";
@@ -132,6 +133,7 @@ export function getManagerStudentAccountMock(
     subscriptions,
     student.student_profile_id
   );
+  const scheduledPayments = buildScheduledPaymentsForSubscriptions(subscriptions);
   const totalSubscribed = subscriptions.reduce(
     (sum, row) => sum + row.amount,
     0
@@ -159,5 +161,6 @@ export function getManagerStudentAccountMock(
     },
     subscriptions,
     payments,
+    scheduledPayments,
   };
 }

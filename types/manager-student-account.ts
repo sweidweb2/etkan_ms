@@ -1,5 +1,7 @@
 import type { SubscribedSemesterStatusValue } from "@/lib/constants/manager-subscribed-semester-status";
 
+import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
+
 export interface ManagerStudentAccountOverview {
   account_id: string;
   student_profile_id: string;
@@ -39,4 +41,5 @@ export interface ManagerStudentAccountDetails {
   overview: ManagerStudentAccountOverview;
   subscriptions: ManagerSubscribedSemesterRow[];
   payments: ManagerStudentPaymentRow[];
+  scheduledPayments: ManagerScheduledPaymentRow[];
 }
