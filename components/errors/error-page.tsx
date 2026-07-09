@@ -1,7 +1,4 @@
-"use client";
-
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants/routes";
 
 type ErrorPageProps = {
@@ -32,9 +29,9 @@ export function ErrorPage({
             Try again
           </Button>
         ) : null}
-        <Button variant="outline" nativeButton={false} render={<Link href={homeHref} />}>
+        <a href={homeHref} className={buttonVariants({ variant: "outline" })}>
           {homeLabel}
-        </Button>
+        </a>
       </div>
     </div>
   );

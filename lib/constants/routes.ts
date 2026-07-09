@@ -21,6 +21,8 @@ export const ROUTES = {
   MANAGER_CLASSES: "/manager/classes",
   MANAGER_CLASS_DETAIL: "/manager/classes/[id]",
   MANAGER_CLASS_GRADES: "/manager/classes/[id]/grades",
+  MANAGER_CLASS_STUDENT_GRADES_DETAIL:
+    "/manager/classes/[id]/grades/students/[studentId]",
   MANAGER_CLASS_SESSION_DETAIL: "/manager/classes/[id]/sessions/[sessionId]",
   MANAGER_CLASS_SESSION_TASK_DETAIL:
     "/manager/classes/[id]/sessions/[sessionId]/tasks/[taskId]",
@@ -111,6 +113,13 @@ export function getManagerClassDetailRoute(classId: string): string {
 
 export function getManagerClassGradesRoute(classId: string): string {
   return `/manager/classes/${classId}/grades`;
+}
+
+export function getManagerClassStudentGradesDetailRoute(
+  classId: string,
+  studentId: string
+): string {
+  return `/manager/classes/${classId}/grades/students/${studentId}`;
 }
 
 export function getManagerClassSessionDetailRoute(

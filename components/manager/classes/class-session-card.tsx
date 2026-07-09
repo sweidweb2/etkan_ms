@@ -82,7 +82,7 @@ export function ClassSessionCard({
     <TooltipProvider>
       <Card
         className={cn(
-          "group relative w-[17rem] shrink-0 gap-0 py-0 transition-shadow hover:border-primary/35 hover:shadow-md",
+          "group relative w-[17rem] shrink-0 gap-0 py-0 transition-shadow hover:border-emerald-400/45 hover:shadow-[0_12px_32px_rgba(16,185,129,0.18)]",
           className
         )}
       >

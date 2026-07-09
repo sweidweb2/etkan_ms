@@ -17,7 +17,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -122,14 +122,13 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
         <CardHeader className="border-b bg-muted/50 py-4">
           <CardTitle className="text-xl">{classRow.name}</CardTitle>
           <CardAction className="flex items-center gap-2 self-center">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={getManagerClassGradesRoute(classRow.id)} />}
+            <Link
+              href={getManagerClassGradesRoute(classRow.id)}
+              className={buttonVariants({ variant: "outline" })}
             >
               <LineChartIcon data-icon="inline-start" />
               Grades
-            </Button>
+            </Link>
             <Button type="button" onClick={() => setIsEditOpen(true)}>
               <PencilIcon data-icon="inline-start" />
               Edit class

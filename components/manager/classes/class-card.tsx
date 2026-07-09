@@ -84,7 +84,7 @@ export function ClassCard({ classRow }: ClassCardProps) {
 
   return (
     <TooltipProvider>
-      <Card className="group relative flex h-full flex-col overflow-hidden py-0 transition-shadow hover:border-primary/35 hover:shadow-md">
+      <Card className="group relative flex h-full flex-col overflow-hidden py-0 transition-shadow hover:border-primary/35 hover:shadow-[0_12px_32px_rgba(59,130,246,0.16)]">
         <Link
           href={getManagerClassDetailRoute(classRow.id)}
           aria-label={`View ${classRow.name}`}
