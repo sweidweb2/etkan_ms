@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -35,7 +36,6 @@ import {
   formatEquipmentUnitPrice,
   getEquipmentRemainingQuantity,
 } from "@/lib/constants/manager-equipment-display";
-import { MANAGER_EQUIPMENTS_MOCK } from "@/lib/constants/manager-equipments-mock";
 import { getManagerEquipmentDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -120,8 +120,14 @@ function matchesSearch(equipment: ManagerEquipmentRow, query: string) {
   return haystack.includes(normalizedQuery);
 }
 
-export function ManageEquipmentsPanel() {
-  const [equipments, setEquipments] = useState(MANAGER_EQUIPMENTS_MOCK);
+export function ManageEquipmentsPanel({
+  initialEquipments,
+}: {
+  initialEquipments: ManagerEquipmentRow[];
+}) {
+  const router = useRouter();
+  const [equipments, setEquipments] =
+    useState<ManagerEquipmentRow[]>(initialEquipments);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] =
     useState<ManagerEquipmentRow | null>(null);
@@ -130,6 +136,10 @@ export function ManageEquipmentsPanel() {
     10
   );
   const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setEquipments(initialEquipments);
+  }, [initialEquipments]);
 
   const stats = useMemo(() => {
     const totalStock = equipments.reduce(
@@ -194,15 +204,8 @@ export function ManageEquipmentsPanel() {
     setCurrentPage(1);
   };
 
-  const handleCreateEquipment = (equipment: ManagerEquipmentRow) => {
-    setEquipments((current) => [equipment, ...current]);
-    setCurrentPage(1);
-  };
-
-  const handleUpdateEquipment = (equipment: ManagerEquipmentRow) => {
-    setEquipments((current) =>
-      current.map((row) => (row.id === equipment.id ? equipment : row))
-    );
+  const handleEquipmentChanged = () => {
+    router.refresh();
   };
 
   return (
@@ -214,8 +217,7 @@ export function ManageEquipmentsPanel() {
               Manage equipment
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Track inventory, borrowed units, and availability. Data is mocked
-              until backend is connected.
+              Track inventory, borrowed units, and availability.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -237,7 +239,7 @@ export function ManageEquipmentsPanel() {
         <AddEquipmentDialog
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
-          onCreateEquipment={handleCreateEquipment}
+          onEquipmentCreated={handleEquipmentChanged}
         />
 
         <EditEquipmentDialog
@@ -248,7 +250,7 @@ export function ManageEquipmentsPanel() {
             }
           }}
           equipment={editingEquipment}
-          onUpdateEquipment={handleUpdateEquipment}
+          onEquipmentUpdated={handleEquipmentChanged}
         />
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -275,11 +277,11 @@ export function ManageEquipmentsPanel() {
         </div>
 
         <Card className="py-0">
-          <CardHeader className="border-b py-4">
+          <CardHeader className="border-b py-3">
             <CardTitle>Equipment inventory</CardTitle>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="border-b px-4 py-4">
+            <div className="border-b px-4 pt-2 pb-3">
               <div className="relative max-w-md">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -398,7 +400,7 @@ export function ManageEquipmentsPanel() {
               </table>
             </div>
 
-            <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredEquipments.length}

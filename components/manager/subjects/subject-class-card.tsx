@@ -71,7 +71,7 @@ export function SubjectClassCard({
   return (
     <TooltipProvider>
       <Card className="flex h-full flex-col overflow-hidden py-0 transition-shadow hover:shadow-md">
-        <CardHeader className="gap-2 border-b bg-muted/20 py-4">
+        <CardHeader className="gap-2 border-b bg-muted/20 py-3">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="min-w-0 flex-1 text-base leading-snug">
               <TruncatedText

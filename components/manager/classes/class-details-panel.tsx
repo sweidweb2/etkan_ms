@@ -134,8 +134,8 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
         }}
       />
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{classRow.name}</CardTitle>
           <CardAction className="flex items-center gap-2 self-center">
             <Link
@@ -159,7 +159,7 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="pt-4 pb-4">
+        <CardContent className="pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Name" value={classRow.name} />
             <DetailField label="Status">

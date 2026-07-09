@@ -152,7 +152,7 @@ export function ManagerSchedulePanel() {
       </div>
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle className="flex items-center gap-2">
             <GraduationCapIcon className="size-4" />
             Weekly class timetable
@@ -161,7 +161,7 @@ export function ManagerSchedulePanel() {
             Manager view of recurring weekly sessions across all active classes.
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-4 py-4">
+        <CardContent className="px-4 pt-2 pb-3">
           <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
             <Clock3Icon className="size-4" />
             <span>Sessions are fitted into their exact weekday and hour range.</span>

@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MessageSquareIcon,
+  PencilIcon,
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
 import { AddRelationshipDialog } from "@/components/manager/relationships/add-relationship-dialog";
 import { RelationshipDetailSheet } from "@/components/manager/relationships/relationship-detail-sheet";
+import { ViewRelationshipDialog } from "@/components/manager/relationships/view-relationship-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +30,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MANAGER_RELATIONSHIPS_MOCK } from "@/lib/constants/manager-relationships-mock";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerRelationshipRow } from "@/types/manager-relationship";
@@ -42,6 +44,8 @@ const COLUMN_LIMITS = {
 const USEFUL_FILTER_ALL = "all";
 const USEFUL_FILTER_USEFUL = "useful";
 const USEFUL_FILTER_NOT_USEFUL = "not_useful";
+const MAJOR_FILTER_ALL = "all";
+const SPECIALITY_FILTER_ALL = "all";
 
 function TruncatedCell({
   value,
@@ -103,6 +107,11 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
+function getDistinctValues(values: Array<string | null | undefined>) {
+  return [...new Set(values.filter((value): value is string => Boolean(value?.trim())))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
 function matchesSearch(relationship: ManagerRelationshipRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -137,16 +146,30 @@ function UsefulBadge({ isUseful }: { isUseful: boolean }) {
   );
 }
 
-export function ManageRelationshipsPanel() {
-  const [relationships, setRelationships] = useState(MANAGER_RELATIONSHIPS_MOCK);
+type ManageRelationshipsPanelProps = {
+  initialRelationships: ManagerRelationshipRow[];
+};
+
+export function ManageRelationshipsPanel({
+  initialRelationships,
+}: ManageRelationshipsPanelProps) {
+  const router = useRouter();
+  const relationships = initialRelationships;
   const [searchQuery, setSearchQuery] = useState("");
   const [usefulFilter, setUsefulFilter] = useState<string>(USEFUL_FILTER_ALL);
+  const [majorFilter, setMajorFilter] = useState<string>(MAJOR_FILTER_ALL);
+  const [specialityFilter, setSpecialityFilter] = useState<string>(
+    SPECIALITY_FILTER_ALL
+  );
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
     10
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRelationship, setSelectedRelationship] =
     useState<ManagerRelationshipRow | null>(null);
+  const [viewingRelationship, setViewingRelationship] =
+    useState<ManagerRelationshipRow | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
@@ -159,6 +182,29 @@ export function ManageRelationshipsPanel() {
     };
   }, [relationships]);
 
+  const majorOptions = useMemo(
+    () => getDistinctValues(relationships.map((row) => row.major)),
+    [relationships]
+  );
+
+  const specialityOptions = useMemo(() => {
+    const source =
+      majorFilter === MAJOR_FILTER_ALL
+        ? relationships
+        : relationships.filter((row) => row.major === majorFilter);
+
+    return getDistinctValues(source.map((row) => row.speciality));
+  }, [relationships, majorFilter]);
+
+  useEffect(() => {
+    if (
+      specialityFilter !== SPECIALITY_FILTER_ALL &&
+      !specialityOptions.includes(specialityFilter)
+    ) {
+      setSpecialityFilter(SPECIALITY_FILTER_ALL);
+    }
+  }, [specialityFilter, specialityOptions]);
+
   const filteredRelationships = useMemo(() => {
     return relationships.filter((relationship) => {
       const matchesUseful =
@@ -166,9 +212,21 @@ export function ManageRelationshipsPanel() {
         (usefulFilter === USEFUL_FILTER_USEFUL && relationship.is_useful) ||
         (usefulFilter === USEFUL_FILTER_NOT_USEFUL && !relationship.is_useful);
 
-      return matchesUseful && matchesSearch(relationship, searchQuery);
+      const matchesMajor =
+        majorFilter === MAJOR_FILTER_ALL || relationship.major === majorFilter;
+
+      const matchesSpeciality =
+        specialityFilter === SPECIALITY_FILTER_ALL ||
+        relationship.speciality === specialityFilter;
+
+      return (
+        matchesUseful &&
+        matchesMajor &&
+        matchesSpeciality &&
+        matchesSearch(relationship, searchQuery)
+      );
     });
-  }, [relationships, searchQuery, usefulFilter]);
+  }, [relationships, searchQuery, usefulFilter, majorFilter, specialityFilter]);
 
   const totalPages = Math.max(
     1,
@@ -201,6 +259,16 @@ export function ManageRelationshipsPanel() {
     setCurrentPage(1);
   };
 
+  const handleMajorFilterChange = (value: string | null) => {
+    setMajorFilter(value ?? MAJOR_FILTER_ALL);
+    setCurrentPage(1);
+  };
+
+  const handleSpecialityFilterChange = (value: string | null) => {
+    setSpecialityFilter(value ?? SPECIALITY_FILTER_ALL);
+    setCurrentPage(1);
+  };
+
   const handlePageSizeChange = (value: string | null) => {
     if (!value) {
       return;
@@ -210,21 +278,23 @@ export function ManageRelationshipsPanel() {
     setCurrentPage(1);
   };
 
-  const handleOpenSheet = (relationship: ManagerRelationshipRow) => {
+  const handleOpenViewDialog = (relationship: ManagerRelationshipRow) => {
+    setViewingRelationship(relationship);
+    setIsViewOpen(true);
+  };
+
+  const handleOpenEditSheet = (relationship: ManagerRelationshipRow) => {
     setSelectedRelationship(relationship);
     setIsSheetOpen(true);
   };
 
-  const handleUpdateRelationship = (updated: ManagerRelationshipRow) => {
-    setRelationships((current) =>
-      current.map((row) => (row.id === updated.id ? updated : row))
-    );
-    setSelectedRelationship(updated);
+  const handleRelationshipCreated = () => {
+    setCurrentPage(1);
+    router.refresh();
   };
 
-  const handleCreateRelationship = (relationship: ManagerRelationshipRow) => {
-    setRelationships((current) => [relationship, ...current]);
-    setCurrentPage(1);
+  const handleRelationshipUpdated = () => {
+    router.refresh();
   };
 
   return (
@@ -235,8 +305,8 @@ export function ManageRelationshipsPanel() {
             Manage relationships
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Preview of student relationship contacts. Data is mocked until
-            backend is connected.
+            Student relationship contacts — add, edit, and filter by major or
+            speciality.
           </p>
         </div>
 
@@ -266,18 +336,24 @@ export function ManageRelationshipsPanel() {
         <AddRelationshipDialog
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
-          onCreateRelationship={handleCreateRelationship}
+          onRelationshipCreated={handleRelationshipCreated}
+        />
+
+        <ViewRelationshipDialog
+          open={isViewOpen}
+          onOpenChange={setIsViewOpen}
+          relationship={viewingRelationship}
         />
 
         <RelationshipDetailSheet
           open={isSheetOpen}
           onOpenChange={setIsSheetOpen}
           relationship={selectedRelationship}
-          onUpdateRelationship={handleUpdateRelationship}
+          onRelationshipUpdated={handleRelationshipUpdated}
         />
 
         <Card className="py-0">
-          <CardHeader className="border-b py-4">
+          <CardHeader className="border-b py-3">
             <CardTitle>Relationships</CardTitle>
             <CardAction className="self-center">
               <Button type="button" onClick={() => setIsAddOpen(true)}>
@@ -287,8 +363,8 @@ export function ManageRelationshipsPanel() {
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 lg:flex-row lg:flex-wrap lg:items-center">
+              <div className="relative min-w-0 flex-1 lg:min-w-[12rem]">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
@@ -314,6 +390,43 @@ export function ManageRelationshipsPanel() {
                   <SelectItem value={USEFUL_FILTER_NOT_USEFUL}>
                     Not useful only
                   </SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={majorFilter} onValueChange={handleMajorFilterChange}>
+                <SelectTrigger
+                  className="w-full sm:w-44"
+                  aria-label="Filter by major"
+                >
+                  <SelectValue placeholder="All majors" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={MAJOR_FILTER_ALL}>All majors</SelectItem>
+                  {majorOptions.map((major) => (
+                    <SelectItem key={major} value={major}>
+                      {major}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={specialityFilter}
+                onValueChange={handleSpecialityFilterChange}
+              >
+                <SelectTrigger
+                  className="w-full sm:w-44"
+                  aria-label="Filter by speciality"
+                >
+                  <SelectValue placeholder="All specialities" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={SPECIALITY_FILTER_ALL}>
+                    All specialities
+                  </SelectItem>
+                  {specialityOptions.map((speciality) => (
+                    <SelectItem key={speciality} value={speciality}>
+                      {speciality}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -366,16 +479,27 @@ export function ManageRelationshipsPanel() {
                         <td className="px-4 py-3">
                           <UsefulBadge isUseful={relationship.is_useful} />
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`View ${relationship.name}`}
-                            onClick={() => handleOpenSheet(relationship)}
-                          >
-                            <MessageSquareIcon />
-                          </Button>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`View ${relationship.name}`}
+                              onClick={() => handleOpenViewDialog(relationship)}
+                            >
+                              <MessageSquareIcon />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Edit ${relationship.name}`}
+                              onClick={() => handleOpenEditSheet(relationship)}
+                            >
+                              <PencilIcon />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -384,7 +508,7 @@ export function ManageRelationshipsPanel() {
               </table>
             </div>
 
-            <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredRelationships.length}

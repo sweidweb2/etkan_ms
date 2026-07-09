@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createRelationshipAction } from "@/app/manager/relationships/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,25 +16,37 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
-import { showSuccessToast } from "@/lib/toast";
 import {
   createRelationshipSchema,
   type CreateRelationshipInput,
 } from "@/lib/validators/manager/create-relationship";
-import type { ManagerRelationshipRow } from "@/types/manager-relationship";
+import type { CreateRelationshipActionState } from "@/types/manager-relationship";
+
+const initialState: CreateRelationshipActionState = {};
 
 type AddRelationshipDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateRelationship: (relationship: ManagerRelationshipRow) => void;
+  onRelationshipCreated: () => void;
 };
 
 export function AddRelationshipDialog({
   open,
   onOpenChange,
-  onCreateRelationship,
+  onRelationshipCreated,
 }: AddRelationshipDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createRelationshipAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -69,21 +82,36 @@ export function AddRelationshipDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: CreateRelationshipInput) {
-    onCreateRelationship({
-      id: crypto.randomUUID(),
-      name: values.name.trim(),
-      phone: values.phone?.trim() || null,
-      relation_with: values.relation_with?.trim() || null,
-      major: values.major?.trim() || null,
-      speciality: values.speciality?.trim() || null,
-      is_useful: values.is_useful,
-      created_at: new Date().toISOString(),
-    });
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
 
-    showSuccessToast("Relationship added to the preview list.");
     onOpenChange(false);
+    onRelationshipCreated();
+  }, [state.success, onOpenChange, onRelationshipCreated]);
+
+  function onSubmit(values: CreateRelationshipInput) {
+    const formData = new FormData();
+    formData.set("name", values.name.trim());
+    formData.set("phone", values.phone?.trim() ?? "");
+    formData.set("relation_with", values.relation_with?.trim() ?? "");
+    formData.set("major", values.major?.trim() ?? "");
+    formData.set("speciality", values.speciality?.trim() ?? "");
+    formData.set("is_useful", String(values.is_useful));
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
+  const relationError =
+    errors.relation_with?.message ?? state.fieldErrors?.relation_with?.[0];
+  const majorError = errors.major?.message ?? state.fieldErrors?.major?.[0];
+  const specialityError =
+    errors.speciality?.message ?? state.fieldErrors?.speciality?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,8 +119,7 @@ export function AddRelationshipDialog({
         <DialogHeader>
           <DialogTitle>Add relationship</DialogTitle>
           <DialogDescription>
-            Create a standalone contact record. Data is preview-only until
-            backend is connected.
+            Create a standalone contact record for student relationships.
           </DialogDescription>
         </DialogHeader>
 
@@ -110,11 +137,12 @@ export function AddRelationshipDialog({
             />
             <Input
               id="add-relationship-name"
-              aria-invalid={!!errors.name}
+              aria-invalid={!!nameError}
+              disabled={isPending}
               {...register("name")}
             />
-            {errors.name ? (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
           </div>
 
@@ -127,11 +155,12 @@ export function AddRelationshipDialog({
             <Input
               id="add-relationship-phone"
               maxLength={AUTH_LIMITS.phone.max}
-              aria-invalid={!!errors.phone}
+              aria-invalid={!!phoneError}
+              disabled={isPending}
               {...register("phone")}
             />
-            {errors.phone ? (
-              <p className="text-sm text-destructive">{errors.phone.message}</p>
+            {phoneError ? (
+              <p className="text-sm text-destructive">{phoneError}</p>
             ) : null}
           </div>
 
@@ -143,13 +172,12 @@ export function AddRelationshipDialog({
             />
             <Input
               id="add-relationship-relation"
-              aria-invalid={!!errors.relation_with}
+              aria-invalid={!!relationError}
+              disabled={isPending}
               {...register("relation_with")}
             />
-            {errors.relation_with ? (
-              <p className="text-sm text-destructive">
-                {errors.relation_with.message}
-              </p>
+            {relationError ? (
+              <p className="text-sm text-destructive">{relationError}</p>
             ) : null}
           </div>
 
@@ -161,11 +189,12 @@ export function AddRelationshipDialog({
             />
             <Input
               id="add-relationship-major"
-              aria-invalid={!!errors.major}
+              aria-invalid={!!majorError}
+              disabled={isPending}
               {...register("major")}
             />
-            {errors.major ? (
-              <p className="text-sm text-destructive">{errors.major.message}</p>
+            {majorError ? (
+              <p className="text-sm text-destructive">{majorError}</p>
             ) : null}
           </div>
 
@@ -177,13 +206,12 @@ export function AddRelationshipDialog({
             />
             <Input
               id="add-relationship-speciality"
-              aria-invalid={!!errors.speciality}
+              aria-invalid={!!specialityError}
+              disabled={isPending}
               {...register("speciality")}
             />
-            {errors.speciality ? (
-              <p className="text-sm text-destructive">
-                {errors.speciality.message}
-              </p>
+            {specialityError ? (
+              <p className="text-sm text-destructive">{specialityError}</p>
             ) : null}
           </div>
 
@@ -197,6 +225,7 @@ export function AddRelationshipDialog({
             <Switch
               id="add-relationship-useful"
               checked={isUseful}
+              disabled={isPending}
               onCheckedChange={(checked) =>
                 setValue("is_useful", checked, { shouldValidate: true })
               }
@@ -210,11 +239,23 @@ export function AddRelationshipDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-relationship-form">
-            Create relationship
+          <Button
+            type="submit"
+            form="add-relationship-form"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Creating…
+              </>
+            ) : (
+              "Create relationship"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

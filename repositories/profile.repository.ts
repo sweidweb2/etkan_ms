@@ -46,3 +46,59 @@ export async function createProfile(
 export async function deleteProfileById(client: Supabase, id: string) {
   return client.from("profiles").delete().eq("id", id);
 }
+
+export async function updateProfileById(
+  client: Supabase,
+  id: string,
+  input: {
+    username: string;
+  }
+) {
+  return client
+    .from("profiles")
+    .update({ username: input.username })
+    .eq("id", id)
+    .select("id, username, role, created_at")
+    .single();
+}
+
+export type ListProfilesOptions = {
+  roles?: RoleValue[];
+  search?: string;
+};
+
+export async function listProfiles(
+  client: Supabase,
+  options?: ListProfilesOptions
+) {
+  let query = client
+    .from("profiles")
+    .select("id, username, role, created_at")
+    .order("created_at", { ascending: false });
+
+  if (options?.roles?.length) {
+    query = query.in("role", options.roles);
+  }
+
+  const search = options?.search?.trim();
+  if (search) {
+    query = query.ilike("username", `%${search}%`);
+  }
+
+  return query;
+}
+
+export async function countProfiles(
+  client: Supabase,
+  options?: Pick<ListProfilesOptions, "roles">
+) {
+  let query = client
+    .from("profiles")
+    .select("id", { count: "exact", head: true });
+
+  if (options?.roles?.length) {
+    query = query.in("role", options.roles);
+  }
+
+  return query;
+}

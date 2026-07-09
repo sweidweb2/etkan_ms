@@ -141,7 +141,7 @@ export function SessionTaskDetailsPanel({
           </BreadcrumbList>
         </Breadcrumb>
 
-        <Card className="py-0">
+        <Card className="gap-0 py-0">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             This task could not be found for the selected session.
           </CardContent>
@@ -180,11 +180,11 @@ export function SessionTaskDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{task.title}</CardTitle>
         </CardHeader>
-        <CardContent className="pt-4 pb-4">
+        <CardContent className="pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Title" value={task.title} />
             <DetailField label="Description" value={task.description ?? "—"} />

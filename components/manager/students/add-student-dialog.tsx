@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createStudentAction } from "@/app/manager/students/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { PasswordInput } from "@/components/auth/password-input";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,35 +15,43 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
-import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
-import { showSuccessToast } from "@/lib/toast";
 import { getLocalIsoDate } from "@/lib/utils/local-iso-date";
 import {
   createStudentSchema,
   type CreateStudentInput,
 } from "@/lib/validators/manager/create-student";
-import type { ManagerStudentRow } from "@/types/manager-student";
+import type { CreateStudentActionState } from "@/types/manager-student";
+
+const initialState: CreateStudentActionState = {};
 
 type AddStudentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateStudent: (student: ManagerStudentRow) => void;
-  existingStudents: ManagerStudentRow[];
+  onStudentCreated: () => void;
 };
 
 export function AddStudentDialog({
   open,
   onOpenChange,
-  onCreateStudent,
-  existingStudents,
+  onStudentCreated,
 }: AddStudentDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createStudentAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
     reset,
-    setError,
     formState: { errors },
   } = useZodForm({
     schema: createStudentSchema,
@@ -71,45 +81,42 @@ export function AddStudentDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: CreateStudentInput) {
-    const normalizedUsername = values.username.trim().toLowerCase();
-    const normalizedEmail = values.email.trim().toLowerCase();
-
-    const usernameTaken = existingStudents.some(
-      (student) => student.username?.toLowerCase() === normalizedUsername
-    );
-    if (usernameTaken) {
-      setError("username", { message: "This username is already taken." });
+  useEffect(() => {
+    if (!state.success) {
       return;
     }
 
-    const emailTaken = existingStudents.some(
-      (student) => student.email.toLowerCase() === normalizedEmail
-    );
-    if (emailTaken) {
-      setError("email", { message: "This email is already in use." });
-      return;
-    }
-
-    const userId = crypto.randomUUID();
-    const birthDate = values.birthDate?.trim() || null;
-    const phone = values.phone?.trim() || null;
-
-    onCreateStudent({
-      user_id: userId,
-      student_profile_id: crypto.randomUUID(),
-      username: values.username.trim(),
-      email: values.email.trim(),
-      full_name: values.fullName.trim(),
-      birth_date: birthDate,
-      phone,
-      status: STUDENT_STATUSES.ACTIVE,
-      created_at: new Date().toISOString(),
-    });
-
-    showSuccessToast("Student added to the preview list.");
     onOpenChange(false);
+    onStudentCreated();
+  }, [state.success, onOpenChange, onStudentCreated]);
+
+  function onSubmit(values: CreateStudentInput) {
+    const formData = new FormData();
+    formData.set("username", values.username.trim());
+    formData.set("fullName", values.fullName.trim());
+    formData.set("email", values.email.trim());
+    formData.set("password", values.password);
+    formData.set("confirmPassword", values.confirmPassword);
+    formData.set("birthDate", values.birthDate?.trim() ?? "");
+    formData.set("phone", values.phone?.trim() ?? "");
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const usernameError =
+    errors.username?.message ?? state.fieldErrors?.username?.[0];
+  const fullNameError =
+    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
+  const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
+  const passwordError =
+    errors.password?.message ?? state.fieldErrors?.password?.[0];
+  const confirmPasswordError =
+    errors.confirmPassword?.message ?? state.fieldErrors?.confirmPassword?.[0];
+  const birthDateError =
+    errors.birthDate?.message ?? state.fieldErrors?.birthDate?.[0];
+  const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -117,14 +124,14 @@ export function AddStudentDialog({
         <DialogHeader>
           <DialogTitle>Add student</DialogTitle>
           <DialogDescription>
-            Create a student account and profile. Backend wiring comes later.
+            Create a student account and profile.
           </DialogDescription>
         </DialogHeader>
 
         <form
           id="add-student-form"
           onSubmit={handleSubmit(onSubmit)}
-          className="flex max-h-[min(60vh,32rem)] flex-col gap-4 overflow-y-auto pr-1"
+          className="flex max-h-[min(60vh,32rem)] flex-col gap-4 overflow-y-auto px-2"
           noValidate
         >
           <div className="flex flex-col gap-2">
@@ -140,11 +147,12 @@ export function AddStudentDialog({
               placeholder="student_username"
               minLength={AUTH_LIMITS.username.min}
               maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!errors.username}
+              aria-invalid={!!usernameError}
+              disabled={isPending}
               {...register("username")}
             />
-            {errors.username ? (
-              <p className="text-sm text-destructive">{errors.username.message}</p>
+            {usernameError ? (
+              <p className="text-sm text-destructive">{usernameError}</p>
             ) : null}
           </div>
 
@@ -161,11 +169,12 @@ export function AddStudentDialog({
               placeholder="Full name"
               minLength={AUTH_LIMITS.fullName.min}
               maxLength={AUTH_LIMITS.fullName.max}
-              aria-invalid={!!errors.fullName}
+              aria-invalid={!!fullNameError}
+              disabled={isPending}
               {...register("fullName")}
             />
-            {errors.fullName ? (
-              <p className="text-sm text-destructive">{errors.fullName.message}</p>
+            {fullNameError ? (
+              <p className="text-sm text-destructive">{fullNameError}</p>
             ) : null}
           </div>
 
@@ -182,11 +191,12 @@ export function AddStudentDialog({
               placeholder="name@school.edu"
               minLength={AUTH_LIMITS.email.min}
               maxLength={AUTH_LIMITS.email.max}
-              aria-invalid={!!errors.email}
+              aria-invalid={!!emailError}
+              disabled={isPending}
               {...register("email")}
             />
-            {errors.email ? (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
+            {emailError ? (
+              <p className="text-sm text-destructive">{emailError}</p>
             ) : null}
           </div>
 
@@ -196,17 +206,17 @@ export function AddStudentDialog({
               label="Password"
               hint={AUTH_FIELD_HINTS.password}
             />
-            <Input
+            <PasswordInput
               id="add-student-password"
-              type="password"
               autoComplete="new-password"
               minLength={AUTH_LIMITS.password.min}
               maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!errors.password}
+              aria-invalid={!!passwordError}
+              disabled={isPending}
               {...register("password")}
             />
-            {errors.password ? (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
+            {passwordError ? (
+              <p className="text-sm text-destructive">{passwordError}</p>
             ) : null}
           </div>
 
@@ -216,19 +226,17 @@ export function AddStudentDialog({
               label="Confirm password"
               hint={AUTH_FIELD_HINTS.confirmPassword}
             />
-            <Input
+            <PasswordInput
               id="add-student-confirm-password"
-              type="password"
               autoComplete="new-password"
               minLength={AUTH_LIMITS.password.min}
               maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!errors.confirmPassword}
+              aria-invalid={!!confirmPasswordError}
+              disabled={isPending}
               {...register("confirmPassword")}
             />
-            {errors.confirmPassword ? (
-              <p className="text-sm text-destructive">
-                {errors.confirmPassword.message}
-              </p>
+            {confirmPasswordError ? (
+              <p className="text-sm text-destructive">{confirmPasswordError}</p>
             ) : null}
           </div>
 
@@ -242,11 +250,12 @@ export function AddStudentDialog({
               id="add-student-birth-date"
               type="date"
               max={getLocalIsoDate()}
-              aria-invalid={!!errors.birthDate}
+              aria-invalid={!!birthDateError}
+              disabled={isPending}
               {...register("birthDate")}
             />
-            {errors.birthDate ? (
-              <p className="text-sm text-destructive">{errors.birthDate.message}</p>
+            {birthDateError ? (
+              <p className="text-sm text-destructive">{birthDateError}</p>
             ) : null}
           </div>
 
@@ -262,11 +271,12 @@ export function AddStudentDialog({
               autoComplete="tel"
               placeholder="+961 70 000 000"
               maxLength={AUTH_LIMITS.phone.max}
-              aria-invalid={!!errors.phone}
+              aria-invalid={!!phoneError}
+              disabled={isPending}
               {...register("phone")}
             />
-            {errors.phone ? (
-              <p className="text-sm text-destructive">{errors.phone.message}</p>
+            {phoneError ? (
+              <p className="text-sm text-destructive">{phoneError}</p>
             ) : null}
           </div>
         </form>
@@ -276,11 +286,19 @@ export function AddStudentDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-student-form">
-            Create student
+          <Button type="submit" form="add-student-form" disabled={isPending}>
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Creating…
+              </>
+            ) : (
+              "Create student"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

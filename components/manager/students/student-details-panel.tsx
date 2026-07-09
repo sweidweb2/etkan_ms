@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
@@ -19,17 +20,19 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getManagerStudentPreview } from "@/lib/manager/get-manager-student-preview";
-import { getManagerStudentStatsPreview } from "@/lib/manager/get-manager-student-stats-preview";
 import { ROUTES } from "@/lib/constants/routes";
 import {
   scrollToStudentDetailsSection,
   STUDENT_DETAILS_SECTION_IDS,
 } from "@/lib/constants/student-details-sections";
-import type { ManagerStudentRow } from "@/types/manager-student";
+import type {
+  ManagerStudentDetailStats,
+  ManagerStudentRow,
+} from "@/types/manager-student";
 
 type StudentDetailsPanelProps = {
-  studentProfileId: string;
+  student: ManagerStudentRow;
+  stats: ManagerStudentDetailStats;
 };
 
 function DetailField({
@@ -60,13 +63,17 @@ function formatBirthDate(value: string | null) {
 }
 
 export function StudentDetailsPanel({
-  studentProfileId,
+  student: initialStudent,
+  stats,
 }: StudentDetailsPanelProps) {
-  const [student, setStudent] = useState<ManagerStudentRow>(() =>
-    getManagerStudentPreview(studentProfileId)
-  );
+  const router = useRouter();
+  const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const stats = getManagerStudentStatsPreview(studentProfileId);
+  const studentProfileId = student.student_profile_id;
+
+  useEffect(() => {
+    setStudent(initialStudent);
+  }, [initialStudent]);
 
   useEffect(() => {
     const hash = window.location.hash.slice(1);
@@ -103,11 +110,14 @@ export function StudentDetailsPanel({
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         student={student}
-        onUpdateStudent={setStudent}
+        onStudentUpdated={(updatedStudent) => {
+          setStudent(updatedStudent);
+          router.refresh();
+        }}
       />
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle className="text-xl">{student.full_name}</CardTitle>
           <CardAction className="self-center">
             <Button type="button" onClick={() => setIsEditOpen(true)}>
@@ -116,7 +126,7 @@ export function StudentDetailsPanel({
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="py-6">
+        <CardContent className="pb-4 pt-2">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Full name" value={student.full_name} />
             <DetailField label="Username" value={student.username ?? "—"} />

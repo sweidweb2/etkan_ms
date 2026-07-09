@@ -116,7 +116,7 @@ export function SessionTaskStudentTasksSection({
       />
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Student tasks</CardTitle>
           <p className="text-sm text-muted-foreground">
             One row per enrolled student for this assignment (

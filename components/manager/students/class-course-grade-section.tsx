@@ -123,7 +123,7 @@ export function ClassCourseGradeSection({
       description="Weighted breakdown from student_course_grade (attendee, total tasks, group grade, final exams)."
     >
       <div className="space-y-5 p-5">
-        <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl bg-muted/25 px-4 py-4 ring-1 ring-foreground/8">
+        <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl bg-muted/25 px-4 pt-2 pb-3 ring-1 ring-foreground/8">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Weighted final score

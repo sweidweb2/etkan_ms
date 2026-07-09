@@ -90,7 +90,7 @@ export function ClassCard({ classRow }: ClassCardProps) {
           aria-label={`View ${classRow.name}`}
           className="absolute inset-0 z-0 rounded-xl"
         />
-        <CardHeader className="relative z-10 gap-2 border-b bg-muted/20 py-4 pointer-events-none">
+        <CardHeader className="relative z-10 gap-2 border-b bg-muted/20 py-3 pointer-events-none">
           <div className="flex items-start justify-between gap-2">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300">

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
 
 export const createRelationshipSchema = z.object({
   name: z
@@ -37,3 +39,27 @@ export const createRelationshipSchema = z.object({
 });
 
 export type CreateRelationshipInput = z.infer<typeof createRelationshipSchema>;
+
+export function parseCreateRelationshipFormData(formData: FormData):
+  | { success: true; data: CreateRelationshipInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = createRelationshipSchema.safeParse({
+    name: formData.get("name"),
+    phone: formData.get("phone"),
+    relation_with: formData.get("relation_with"),
+    major: formData.get("major"),
+    speciality: formData.get("speciality"),
+    is_useful: formData.get("is_useful") === "true",
+  });
+
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(flattened),
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}

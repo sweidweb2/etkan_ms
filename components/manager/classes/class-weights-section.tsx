@@ -225,7 +225,7 @@ export function ClassWeightsSection({
 
   return (
     <Card className="py-0">
-      <CardHeader className="border-b bg-muted/40 py-4">
+      <CardHeader className="border-b bg-muted/40 py-3">
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
             <PercentIcon className="size-4" />
@@ -239,7 +239,7 @@ export function ClassWeightsSection({
         </div>
       </CardHeader>
 
-      <CardContent className="py-4">
+      <CardContent className="py-3">
         <ClassWeightsForm
           key={getWeightsFormKey(resolvedInitialWeights)}
           className={className}

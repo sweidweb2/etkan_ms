@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { addStudentToSemesterAction } from "@/app/manager/phases/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,15 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_STUDENT_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-student-semester-display";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
-import { showSuccessToast } from "@/lib/toast";
 import {
   addStudentToSemesterSchema,
   type AddStudentToSemesterInput,
 } from "@/lib/validators/manager/add-student-to-semester";
+import type { AddStudentToSemesterActionState } from "@/types/manager-phase";
 import type { ManagerStudentRow } from "@/types/manager-student";
-import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
+
+const initialState: AddStudentToSemesterActionState = {};
 
 type AddSemesterStudentDialogProps = {
   open: boolean;
@@ -35,7 +39,7 @@ type AddSemesterStudentDialogProps = {
   semesterId: string;
   semesterName: string;
   availableStudents: ManagerStudentRow[];
-  onAddStudent: (row: ManagerStudentSemesterRow) => void;
+  onStudentAdded: () => void;
 };
 
 export function AddSemesterStudentDialog({
@@ -44,14 +48,22 @@ export function AddSemesterStudentDialog({
   semesterId,
   semesterName,
   availableStudents,
-  onAddStudent,
+  onStudentAdded,
 }: AddSemesterStudentDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    addStudentToSemesterAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     handleSubmit,
     reset,
     setValue,
     watch,
-    setError,
     formState: { errors },
   } = useZodForm({
     schema: addStudentToSemesterSchema,
@@ -75,33 +87,29 @@ export function AddSemesterStudentDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: AddStudentToSemesterInput) {
-    const student = availableStudents.find(
-      (row) => row.student_profile_id === values.student_profile_id
-    );
-
-    if (!student) {
-      setError("student_profile_id", {
-        message: "This student is no longer available.",
-      });
+  useEffect(() => {
+    if (!state.success) {
       return;
     }
 
-    onAddStudent({
-      id: `ss-${student.student_profile_id}-${semesterId}`,
-      student_profile_id: student.student_profile_id,
-      user_id: student.user_id,
-      full_name: student.full_name,
-      email: student.email,
-      phone: student.phone,
-      semester_id: semesterId,
-      semester_name: semesterName,
-      status: values.status,
-      created_at: new Date().toISOString(),
-    });
-    showSuccessToast(`${student.full_name} added to ${semesterName}.`);
     onOpenChange(false);
+    onStudentAdded();
+  }, [state.success, onOpenChange, onStudentAdded]);
+
+  function onSubmit(values: AddStudentToSemesterInput) {
+    const formData = new FormData();
+    formData.set("semester_id", semesterId);
+    formData.set("student_profile_id", values.student_profile_id);
+    formData.set("status", values.status);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const studentError =
+    errors.student_profile_id?.message ?? state.fieldErrors?.student_profile_id?.[0];
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,8 +117,7 @@ export function AddSemesterStudentDialog({
         <DialogHeader>
           <DialogTitle>Add student to semester</DialogTitle>
           <DialogDescription>
-            Enroll a student in {semesterName}. Preview-only until backend is
-            connected.
+            Enroll a student in {semesterName}.
           </DialogDescription>
         </DialogHeader>
 
@@ -136,11 +143,12 @@ export function AddSemesterStudentDialog({
 
                   setValue("student_profile_id", value, { shouldValidate: true });
                 }}
+                disabled={isPending}
               >
                 <SelectTrigger
                   id="add-semester-student-id"
                   className="w-full"
-                  aria-invalid={!!errors.student_profile_id}
+                  aria-invalid={!!studentError}
                 >
                   <SelectValue placeholder="Select a student" />
                 </SelectTrigger>
@@ -157,13 +165,11 @@ export function AddSemesterStudentDialog({
               </Select>
             ) : (
               <p className="text-sm text-muted-foreground">
-                All students are already enrolled in this semester preview.
+                All students are already enrolled in this semester.
               </p>
             )}
-            {errors.student_profile_id ? (
-              <p className="text-sm text-destructive">
-                {errors.student_profile_id.message}
-              </p>
+            {studentError ? (
+              <p className="text-sm text-destructive">{studentError}</p>
             ) : null}
           </div>
 
@@ -184,11 +190,12 @@ export function AddSemesterStudentDialog({
                   shouldValidate: true,
                 });
               }}
+              disabled={isPending}
             >
               <SelectTrigger
                 id="add-semester-student-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -202,8 +209,8 @@ export function AddSemesterStudentDialog({
                 )}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
         </form>
@@ -213,15 +220,16 @@ export function AddSemesterStudentDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             form="add-semester-student-form"
-            disabled={!hasAvailableStudents}
+            disabled={!hasAvailableStudents || isPending}
           >
-            Add student
+            {isPending ? <InlineSpinner label="Adding student" /> : "Add student"}
           </Button>
         </DialogFooter>
       </DialogContent>

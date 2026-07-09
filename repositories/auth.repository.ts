@@ -62,6 +62,24 @@ export async function updateAuthUserRole(
   });
 }
 
+export async function updateAuthUserByAdmin(
+  client: Supabase,
+  authUserId: string,
+  input: {
+    email?: string;
+    fullName?: string;
+    username?: string;
+  }
+) {
+  return client.auth.admin.updateUserById(authUserId, {
+    ...(input.email ? { email: input.email } : {}),
+    user_metadata: {
+      ...(input.fullName ? { full_name: input.fullName } : {}),
+      ...(input.username ? { username: input.username } : {}),
+    },
+  });
+}
+
 /** Creates an Auth user via service role — does not start a session. */
 export async function createAuthUser(
   client: Supabase,
@@ -93,4 +111,37 @@ export async function updateAuthUserEmailAndPassword(
     ...(input.email ? { email: input.email } : {}),
     ...(input.password ? { password: input.password } : {}),
   });
+}
+
+export async function getAuthUserById(client: Supabase, id: string) {
+  return client.auth.admin.getUserById(id);
+}
+
+/** Paginates auth users until a matching email is found or pages are exhausted. */
+export async function findAuthUserByEmail(client: Supabase, email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  let page = 1;
+  const perPage = 1000;
+
+  while (true) {
+    const { data, error } = await client.auth.admin.listUsers({ page, perPage });
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    const match = data.users.find(
+      (user) => user.email?.trim().toLowerCase() === normalizedEmail
+    );
+
+    if (match) {
+      return { data: { user: match }, error: null };
+    }
+
+    if (data.users.length < perPage) {
+      return { data: null, error: null };
+    }
+
+    page += 1;
+  }
 }

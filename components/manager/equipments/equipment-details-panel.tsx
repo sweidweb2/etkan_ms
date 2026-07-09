@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import { EditEquipmentDialog } from "@/components/manager/equipments/edit-equipment-dialog";
@@ -25,13 +26,12 @@ import {
   getEquipmentInventoryValue,
   getEquipmentRemainingQuantity,
 } from "@/lib/constants/manager-equipment-display";
-import { getManagerEquipmentPreview } from "@/lib/manager/get-manager-equipment-preview";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerEquipmentRow } from "@/types/manager-equipment";
 
 type EquipmentDetailsPanelProps = {
-  equipmentId: string;
+  equipment: ManagerEquipmentRow;
 };
 
 function DetailField({
@@ -57,11 +57,17 @@ function DetailField({
   );
 }
 
-export function EquipmentDetailsPanel({ equipmentId }: EquipmentDetailsPanelProps) {
-  const [equipment, setEquipment] = useState<ManagerEquipmentRow>(() =>
-    getManagerEquipmentPreview(equipmentId)
-  );
+export function EquipmentDetailsPanel({
+  equipment: initialEquipment,
+}: EquipmentDetailsPanelProps) {
+  const router = useRouter();
+  const [equipment, setEquipment] =
+    useState<ManagerEquipmentRow>(initialEquipment);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  useEffect(() => {
+    setEquipment(initialEquipment);
+  }, [initialEquipment]);
 
   const remaining = getEquipmentRemainingQuantity(equipment);
   const inventoryValue = getEquipmentInventoryValue(equipment);
@@ -86,11 +92,11 @@ export function EquipmentDetailsPanel({ equipmentId }: EquipmentDetailsPanelProp
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         equipment={equipment}
-        onUpdateEquipment={setEquipment}
+        onEquipmentUpdated={() => router.refresh()}
       />
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{equipment.name}</CardTitle>
           <CardAction className="self-center">
             <Button type="button" onClick={() => setIsEditOpen(true)}>
@@ -99,7 +105,7 @@ export function EquipmentDetailsPanel({ equipmentId }: EquipmentDetailsPanelProp
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="pt-4 pb-4">
+        <CardContent className="pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Name" value={equipment.name} />
             <DetailField label="Description" value={equipment.description ?? "—"} />

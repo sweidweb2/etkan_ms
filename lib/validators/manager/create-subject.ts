@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
 
 const optionalUrlField = z
   .string()
@@ -20,3 +22,25 @@ export const createSubjectSchema = z.object({
 });
 
 export type CreateSubjectInput = z.infer<typeof createSubjectSchema>;
+
+export function parseCreateSubjectFormData(formData: FormData):
+  | { success: true; data: CreateSubjectInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = createSubjectSchema.safeParse({
+    name: formData.get("name"),
+    syllabus_link: formData.get("syllabus_link"),
+    reference_link: formData.get("reference_link"),
+    handout_link: formData.get("handout_link"),
+  });
+
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(flattened),
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}

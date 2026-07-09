@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { PlusIcon, SearchIcon } from "lucide-react";
+import { addStudentToSemesterAction } from "@/app/manager/phases/actions";
 import { AddSemesterStudentDialog } from "@/components/manager/phases/add-semester-student-dialog";
 import { StudentSemesterStatusBadge } from "@/components/manager/students/student-semester-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -21,20 +22,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { appendManagerStudentSemesterEnrollment } from "@/lib/constants/manager-student-semester-mock";
 import { MANAGER_STUDENT_SEMESTER_TABLE_LIMITS } from "@/lib/constants/manager-student-semester-display";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
-import {
-  getAvailableStudentsForSemesterPreview,
-  getManagerSemesterStudentsPreview,
-} from "@/lib/manager/get-manager-semester-students-preview";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
+import type { ManagerStudentRow } from "@/types/manager-student";
 import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
 
 type SemesterStudentsSectionProps = {
   semesterId: string;
   semesterName: string;
+  initialStudents: ManagerStudentSemesterRow[];
+  initialAvailableStudents: ManagerStudentRow[];
+  onStudentsChanged: () => void;
 };
 
 function TruncatedCell({
@@ -84,15 +84,25 @@ function matchesSearch(row: ManagerStudentSemesterRow, query: string) {
 export function SemesterStudentsSection({
   semesterId,
   semesterName,
+  initialStudents,
+  initialAvailableStudents,
+  onStudentsChanged,
 }: SemesterStudentsSectionProps) {
-  const [students, setStudents] = useState<ManagerStudentSemesterRow[]>(() =>
-    getManagerSemesterStudentsPreview(semesterId)
-  );
-  const [availableStudents, setAvailableStudents] = useState(() =>
-    getAvailableStudentsForSemesterPreview(semesterId)
+  const [students, setStudents] =
+    useState<ManagerStudentSemesterRow[]>(initialStudents);
+  const [availableStudents, setAvailableStudents] = useState(
+    initialAvailableStudents
   );
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    setStudents(initialStudents);
+  }, [initialStudents]);
+
+  useEffect(() => {
+    setAvailableStudents(initialAvailableStudents);
+  }, [initialAvailableStudents]);
 
   const stats = useMemo(
     () => ({
@@ -115,16 +125,6 @@ export function SemesterStudentsSection({
     [searchQuery, students]
   );
 
-  function handleAddStudent(row: ManagerStudentSemesterRow) {
-    appendManagerStudentSemesterEnrollment(row);
-    setStudents((current) => [row, ...current]);
-    setAvailableStudents((current) =>
-      current.filter(
-        (student) => student.student_profile_id !== row.student_profile_id
-      )
-    );
-  }
-
   return (
     <TooltipProvider>
       <AddSemesterStudentDialog
@@ -133,11 +133,11 @@ export function SemesterStudentsSection({
         semesterId={semesterId}
         semesterName={semesterName}
         availableStudents={availableStudents}
-        onAddStudent={handleAddStudent}
+        onStudentAdded={onStudentsChanged}
       />
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <div>
             <CardTitle>Semester students</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -153,7 +153,7 @@ export function SemesterStudentsSection({
           </CardAction>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-6 px-4 py-4">
+        <CardContent className="flex flex-col gap-6 px-4 pt-3 pb-3">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <UserStatCard
               label="Total enrolled"

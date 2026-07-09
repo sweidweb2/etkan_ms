@@ -1,4 +1,5 @@
 import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
+import type { FieldErrors } from "@/types/auth";
 
 /** Combined profiles + student_profiles row for manager student list UI. */
 export interface ManagerStudentRow {
@@ -21,3 +22,19 @@ export interface ManagerStudentDetailStats {
   tasksDone: number;
   tasksTotal: number;
 }
+
+export type CreateStudentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  student?: ManagerStudentRow;
+};
+
+export type UpdateStudentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  student?: ManagerStudentRow;
+};

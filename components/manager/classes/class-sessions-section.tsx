@@ -77,7 +77,7 @@ export function ClassSessionsSection({
       />
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Sessions</CardTitle>
           <p className="text-sm text-muted-foreground">
             {sortedSessions.length} planned session
@@ -90,7 +90,7 @@ export function ClassSessionsSection({
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="py-4">
+        <CardContent className="py-3">
           {sortedSessions.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No sessions are planned for this class yet.

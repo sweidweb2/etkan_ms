@@ -465,7 +465,7 @@ export function BorrowEquipmentPanel() {
       </div>
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Students</CardTitle>
           <CardDescription>
             Choose individual students or pick a class to select everyone enrolled
@@ -489,7 +489,7 @@ export function BorrowEquipmentPanel() {
           </CardAction>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-end">
+          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 lg:flex-row lg:items-end">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -634,14 +634,14 @@ export function BorrowEquipmentPanel() {
       </Card>
 
       <Card ref={equipmentSectionRef} className="scroll-mt-6 py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Equipment</CardTitle>
           <CardDescription>
             Select one or more items to borrow for the chosen students.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="border-b px-4 py-4">
+          <div className="border-b px-4 pt-2 pb-3">
             <div className="relative max-w-md">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input

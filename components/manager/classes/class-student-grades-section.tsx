@@ -562,7 +562,7 @@ export function ClassStudentGradesSection({
         </DialogContent>
       </Dialog>
 
-      <CardHeader className="border-b bg-muted/40 py-4">
+      <CardHeader className="border-b bg-muted/40 py-3">
         <div>
           <CardTitle>Students grades</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -591,7 +591,7 @@ export function ClassStudentGradesSection({
         </CardAction>
       </CardHeader>
 
-      <CardContent className="space-y-4 px-4 pb-4 pt-4">
+      <CardContent className="space-y-4 px-4 pb-4 pt-2">
         <ClassTabCollapsibleSection
           title="Students ready to compute"
           description="Students with all weighted grade data present and ready for computation."
@@ -693,7 +693,7 @@ export function ClassStudentGradesSection({
           title="Done computed students"
           description="Students computed with class or customized weights in this session."
         >
-          <div className="px-4 py-4">
+          <div className="px-4 pt-2 pb-3">
             {computedRows.length === 0 ? (
               <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
                 No students have been computed yet.

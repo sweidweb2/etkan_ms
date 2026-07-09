@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ChevronLeftIcon,
@@ -19,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MANAGER_SUBJECTS_MOCK } from "@/lib/constants/manager-subjects-mock";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
 const PAGE_SIZE_OPTIONS = [6, 9, 12] as const;
@@ -70,8 +70,15 @@ function matchesSearch(subject: ManagerSubjectRow, query: string) {
   return haystack.includes(normalizedQuery);
 }
 
-export function ManageSubjectsPanel() {
-  const [subjects, setSubjects] = useState(MANAGER_SUBJECTS_MOCK);
+type ManageSubjectsPanelProps = {
+  initialSubjects: ManagerSubjectRow[];
+};
+
+export function ManageSubjectsPanel({
+  initialSubjects,
+}: ManageSubjectsPanelProps) {
+  const router = useRouter();
+  const subjects = initialSubjects;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
@@ -110,9 +117,9 @@ export function ManageSubjectsPanel() {
     setCurrentPage(1);
   };
 
-  const handleCreateSubject = (subject: ManagerSubjectRow) => {
-    setSubjects((current) => [subject, ...current]);
+  const handleSubjectCreated = () => {
     setCurrentPage(1);
+    router.refresh();
   };
 
   return (
@@ -123,8 +130,7 @@ export function ManageSubjectsPanel() {
             Manage subjects
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Preview of subjects and linked class counts. Data is mocked until
-            backend is connected.
+            Subjects and linked class counts from your school catalog.
           </p>
         </div>
         <Button type="button" onClick={() => setIsAddOpen(true)}>
@@ -136,14 +142,14 @@ export function ManageSubjectsPanel() {
       <AddSubjectDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        onCreateSubject={handleCreateSubject}
+        onSubjectCreated={handleSubjectCreated}
       />
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle>Subjects</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-6 px-4 py-4">
+        <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
           <div className="relative max-w-md">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input

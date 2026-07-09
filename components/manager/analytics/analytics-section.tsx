@@ -39,7 +39,7 @@ export function AnalyticsSection({
         aria-controls={panelId}
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          "flex w-full items-center gap-3 bg-muted/50 px-4 py-4 text-left transition-colors duration-200",
+          "flex w-full items-center gap-3 bg-muted/50 px-4 pt-2 pb-3 text-left transition-colors duration-200",
           open && "border-b",
           "rounded-t-xl",
           !open && "rounded-b-xl",
@@ -70,7 +70,7 @@ export function AnalyticsSection({
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="flex flex-col gap-4 border-t bg-card px-4 py-4">
+          <div className="flex flex-col gap-4 border-t bg-card px-4 pt-2 pb-3">
             {typeof children === "function" ? children(open) : children}
 
             {drillDownHref || footerNote ? (

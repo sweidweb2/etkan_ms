@@ -53,7 +53,7 @@ export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
     >
       <TooltipProvider>
         <Card className="h-full py-0 transition-shadow hover:shadow-[0_0_0_3px_rgba(147,197,253,0.35),0_12px_28px_rgba(59,130,246,0.22)]">
-          <CardHeader className="border-b bg-muted/30 py-4">
+          <CardHeader className="border-b bg-muted/30 py-3">
             <CardTitle className="text-base">
               <TruncatedText
                 value={phase.name}
@@ -63,7 +63,7 @@ export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="flex flex-col gap-4 px-4 py-4">
+          <CardContent className="flex flex-col gap-4 px-4 pt-2 pb-3">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border bg-muted/20 p-3">
                 <p className="text-xs text-muted-foreground">Amount</p>
@@ -84,7 +84,7 @@ export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
             </div>
             <div className="inline-flex items-center gap-1.5">
               <CircleDollarSignIcon className="size-3.5" />
-              Preview-only semester pricing
+              ${phase.amount} semester amount
             </div>
           </CardFooter>
         </Card>

@@ -80,11 +80,11 @@ export function ReportFilterBar({
       <Card
         className={cn("flex h-full flex-col py-0 print:hidden", className)}
       >
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle className="text-base">Report filters</CardTitle>
           <CardDescription>No filters for this report.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-1 items-center px-4 py-4">
+        <CardContent className="flex flex-1 items-center px-4 pt-2 pb-3">
           <p className="text-sm text-muted-foreground">
             This report uses the full preview dataset.
           </p>
@@ -95,13 +95,13 @@ export function ReportFilterBar({
 
   return (
     <Card className={cn("flex h-full flex-col py-0 print:hidden", className)}>
-      <CardHeader className="border-b bg-muted/40 py-4">
+      <CardHeader className="border-b bg-muted/40 py-3">
         <CardTitle className="text-base">Report filters</CardTitle>
         <CardDescription>
           Narrow the preview before exporting or printing.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid flex-1 grid-cols-2 gap-3 px-4 py-4">
+      <CardContent className="grid flex-1 grid-cols-2 gap-3 px-4 pt-2 pb-3">
         {filterKeys.includes("period") ? (
           <Select
             value={filters.period}

@@ -28,7 +28,7 @@ export function SubjectCollapsibleSection({
         aria-controls={panelId}
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          "flex w-full items-center gap-3 bg-muted/50 px-4 py-4 text-left transition-colors duration-200",
+          "flex w-full items-center gap-3 bg-muted/50 px-4 py-3 text-left transition-colors duration-200",
           open && "border-b",
           "rounded-t-xl",
           !open && "rounded-b-xl",
@@ -58,7 +58,7 @@ export function SubjectCollapsibleSection({
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="px-4 py-4">
+          <div className="px-4 py-3">
             {typeof children === "function" ? children(open) : children}
           </div>
         </div>

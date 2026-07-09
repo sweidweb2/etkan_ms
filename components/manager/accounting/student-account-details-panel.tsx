@@ -113,8 +113,8 @@ function SubscribedSemesterTabPanel({
         scheduledPayments={scheduledPayments}
       />
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Subscription details</CardTitle>
           <CardAction className="self-center">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
@@ -353,8 +353,8 @@ export function StudentAccountDetailsPanel({
         </Button>
       </div>
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Account overview</CardTitle>
         </CardHeader>
         <CardContent className="py-6">
@@ -369,8 +369,8 @@ export function StudentAccountDetailsPanel({
         </CardContent>
       </Card>
 
-      <Card className="min-w-0 max-w-full overflow-hidden py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+      <Card className="min-w-0 max-w-full overflow-hidden gap-0 py-0">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Subscribed semesters</CardTitle>
           <p className="text-sm text-muted-foreground">
             Each tab is one subscription record for this student account.

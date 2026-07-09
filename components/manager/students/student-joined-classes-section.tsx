@@ -155,7 +155,7 @@ export function StudentJoinedClassesSection({
       />
 
       <Card className="min-w-0 max-w-full overflow-hidden py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Joined classes</CardTitle>
           <p className="text-sm text-muted-foreground">
             Select a class below. Use arrows or drag to browse enrolled classes.

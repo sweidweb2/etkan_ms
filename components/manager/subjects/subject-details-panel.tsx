@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon } from "lucide-react";
 import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
@@ -24,13 +24,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getManagerSubjectClassesPreview } from "@/lib/constants/manager-subject-classes-mock";
-import { getManagerSubjectPreview } from "@/lib/manager/get-manager-subject-preview";
 import { ROUTES } from "@/lib/constants/routes";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
+import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
 
 type SubjectDetailsPanelProps = {
-  subjectId: string;
+  subject: ManagerSubjectRow;
+  classes: ManagerSubjectClassRow[];
 };
 
 function DetailField({
@@ -78,16 +78,16 @@ function DetailLink({
   );
 }
 
-export function SubjectDetailsPanel({ subjectId }: SubjectDetailsPanelProps) {
-  const [subject, setSubject] = useState<ManagerSubjectRow>(() =>
-    getManagerSubjectPreview(subjectId)
-  );
+export function SubjectDetailsPanel({
+  subject: initialSubject,
+  classes,
+}: SubjectDetailsPanelProps) {
+  const [subject, setSubject] = useState<ManagerSubjectRow>(initialSubject);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  const classes = useMemo(
-    () => getManagerSubjectClassesPreview(subject.id),
-    [subject.id]
-  );
+  useEffect(() => {
+    setSubject(initialSubject);
+  }, [initialSubject]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -112,8 +112,8 @@ export function SubjectDetailsPanel({ subjectId }: SubjectDetailsPanelProps) {
         onUpdateSubject={setSubject}
       />
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{subject.name}</CardTitle>
           <CardAction className="self-center">
             <Button type="button" onClick={() => setIsEditOpen(true)}>
@@ -122,8 +122,8 @@ export function SubjectDetailsPanel({ subjectId }: SubjectDetailsPanelProps) {
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="pt-4 pb-4">
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="pt-2 pb-4">
+          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Name" value={subject.name} />
             <DetailLink label="Syllabus" href={subject.syllabus_link} />
             <DetailLink label="Reference" href={subject.reference_link} />

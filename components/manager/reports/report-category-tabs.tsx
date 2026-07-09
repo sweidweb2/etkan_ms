@@ -34,11 +34,11 @@ export function ReportCategoryTabs({
 }: ReportCategoryTabsProps) {
   return (
     <Card className={cn("flex h-full flex-col py-0 print:hidden", className)}>
-      <CardHeader className="border-b bg-muted/40 py-4">
+      <CardHeader className="border-b bg-muted/40 py-3">
         <CardTitle className="text-base">Category</CardTitle>
         <CardDescription>Choose a report domain.</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col justify-center px-4 py-4">
+      <CardContent className="flex flex-1 flex-col justify-center px-4 pt-2 pb-3">
         <Select
           value={value}
           onValueChange={(nextValue) => {

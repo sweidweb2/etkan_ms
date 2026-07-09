@@ -161,7 +161,7 @@ export function ClassFinalExamSection({
       />
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Final exam</CardTitle>
           <p className="text-sm text-muted-foreground">
             One final exam per class with a grade row per enrolled student.
@@ -183,7 +183,7 @@ export function ClassFinalExamSection({
             </p>
           ) : (
             <>
-              <div className="border-b bg-muted/20 px-4 py-4">
+              <div className="border-b bg-muted/20 px-4 pt-2 pb-3">
                 <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
                     <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

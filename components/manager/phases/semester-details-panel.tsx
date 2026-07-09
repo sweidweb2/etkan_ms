@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   Breadcrumb,
@@ -14,11 +15,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SemesterClassesSection } from "@/components/manager/phases/semester-classes-section";
 import { SemesterStudentsSection } from "@/components/manager/phases/semester-students-section";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
-import { getManagerSemesterPreview } from "@/lib/manager/get-manager-semester-preview";
+import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
+import type { ManagerStudentRow } from "@/types/manager-student";
+import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
 import { ROUTES } from "@/lib/constants/routes";
 
 type SemesterDetailsPanelProps = {
-  semesterId: string;
+  semester: ManagerSemesterRow;
+  initialStudents: ManagerStudentSemesterRow[];
+  initialAvailableStudents: ManagerStudentRow[];
+  initialClasses: ManagerSemesterClassRow[];
+  initialAvailableClasses: ManagerSemesterClassRow[];
 };
 
 function DetailField({
@@ -39,12 +46,19 @@ function DetailField({
 }
 
 export function SemesterDetailsPanel({
-  semesterId,
+  semester: initialSemester,
+  initialStudents,
+  initialAvailableStudents,
+  initialClasses,
+  initialAvailableClasses,
 }: SemesterDetailsPanelProps) {
-  const [semester, setSemester] = useState<ManagerSemesterRow>(() =>
-    getManagerSemesterPreview(semesterId)
-  );
+  const router = useRouter();
+  const [semester, setSemester] = useState<ManagerSemesterRow>(initialSemester);
   const [exportedAt, setExportedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setSemester(initialSemester);
+  }, [initialSemester]);
 
   const createdText = useMemo(
     () => format(new Date(semester.created_at), "MMM d, yyyy 'at' h:mm a"),
@@ -73,11 +87,11 @@ export function SemesterDetailsPanel({
         </p>
       ) : null}
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{semester.name}</CardTitle>
         </CardHeader>
-        <CardContent className="pt-0 pb-4">
+        <CardContent className="pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Number of courses" value={semester.nb_courses} />
             <DetailField label="Amount" value={`$${semester.amount}`} />
@@ -89,20 +103,19 @@ export function SemesterDetailsPanel({
       <SemesterStudentsSection
         semesterId={semester.id}
         semesterName={semester.name}
+        initialStudents={initialStudents}
+        initialAvailableStudents={initialAvailableStudents}
+        onStudentsChanged={() => router.refresh()}
       />
 
       <SemesterClassesSection
         semesterId={semester.id}
         semesterName={semester.name}
+        initialClasses={initialClasses}
+        initialAvailableClasses={initialAvailableClasses}
         onExportPdf={() => setExportedAt(new Date())}
-        onClassesCountChange={(count) => {
-          setSemester((current) => ({
-            ...current,
-            nb_courses: count,
-          }));
-        }}
+        onClassesChanged={() => router.refresh()}
       />
     </div>
   );
 }
-

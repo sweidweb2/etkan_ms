@@ -14,6 +14,24 @@ export async function findStudentProfileByUserId(
     .maybeSingle();
 }
 
+export async function findStudentProfileById(
+  client: Supabase,
+  studentProfileId: string
+) {
+  return client
+    .from("student_profiles")
+    .select("id, user_id, full_name, birth_date, phone, status, created_at")
+    .eq("id", studentProfileId)
+    .maybeSingle();
+}
+
+export async function listStudentProfiles(client: Supabase) {
+  return client
+    .from("student_profiles")
+    .select("id, user_id, full_name, birth_date, phone, status, created_at")
+    .order("created_at", { ascending: false });
+}
+
 export async function createStudentProfile(
   client: Supabase,
   input: {
@@ -34,5 +52,28 @@ export async function createStudentProfile(
       status: input.status ?? "active",
     })
     .select("id, user_id")
+    .single();
+}
+
+export async function updateStudentProfileById(
+  client: Supabase,
+  studentProfileId: string,
+  input: {
+    full_name: string;
+    birth_date?: string | null;
+    phone?: string | null;
+    status: string;
+  }
+) {
+  return client
+    .from("student_profiles")
+    .update({
+      full_name: input.full_name,
+      birth_date: input.birth_date ?? null,
+      phone: input.phone ?? null,
+      status: input.status,
+    })
+    .eq("id", studentProfileId)
+    .select("id, user_id, full_name, birth_date, phone, status, created_at")
     .single();
 }

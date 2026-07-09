@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createStaffUserAction } from "@/app/manager/users/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { PasswordInput } from "@/components/auth/password-input";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import {
@@ -27,33 +31,40 @@ import {
   MANAGER_CREATABLE_ROLES,
 } from "@/lib/constants/manager-user-roles";
 import { ROLES } from "@/lib/constants/roles";
-import { showSuccessToast } from "@/lib/toast";
 import {
   createStaffUserSchema,
   type CreateStaffUserInput,
 } from "@/lib/validators/manager/create-user";
-import type { ManagerUserRow } from "@/types/manager-user";
+import type { CreateStaffUserActionState } from "@/types/manager-user";
+
+const initialState: CreateStaffUserActionState = {};
 
 type AddUserDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateUser: (user: ManagerUserRow) => void;
-  existingUsers: ManagerUserRow[];
+  onUserCreated: () => void;
 };
 
 export function AddUserDialog({
   open,
   onOpenChange,
-  onCreateUser,
-  existingUsers,
+  onUserCreated,
 }: AddUserDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createStaffUserAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
     reset,
     setValue,
     watch,
-    setError,
     formState: { errors },
   } = useZodForm({
     schema: createStaffUserSchema,
@@ -79,37 +90,33 @@ export function AddUserDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: CreateStaffUserInput) {
-    const normalizedUsername = values.username.trim().toLowerCase();
-    const normalizedEmail = values.email.trim().toLowerCase();
-
-    const usernameTaken = existingUsers.some(
-      (user) => user.username?.toLowerCase() === normalizedUsername
-    );
-    if (usernameTaken) {
-      setError("username", { message: "This username is already taken." });
+  useEffect(() => {
+    if (!state.success) {
       return;
     }
 
-    const emailTaken = existingUsers.some(
-      (user) => user.email.toLowerCase() === normalizedEmail
-    );
-    if (emailTaken) {
-      setError("email", { message: "This email is already in use." });
-      return;
-    }
-
-    onCreateUser({
-      id: crypto.randomUUID(),
-      username: values.username.trim(),
-      email: values.email.trim(),
-      role: values.role,
-      created_at: new Date().toISOString(),
-    });
-
-    showSuccessToast("User added to the preview list.");
     onOpenChange(false);
+    onUserCreated();
+  }, [state.success, onOpenChange, onUserCreated]);
+
+  function onSubmit(values: CreateStaffUserInput) {
+    const formData = new FormData();
+    formData.set("username", values.username.trim());
+    formData.set("email", values.email.trim());
+    formData.set("password", values.password);
+    formData.set("role", values.role);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const usernameError =
+    errors.username?.message ?? state.fieldErrors?.username?.[0];
+  const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
+  const passwordError =
+    errors.password?.message ?? state.fieldErrors?.password?.[0];
+  const roleError = errors.role?.message ?? state.fieldErrors?.role?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,7 +131,7 @@ export function AddUserDialog({
         <form
           id="add-user-form"
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-4 px-2"
           noValidate
         >
           <div className="flex flex-col gap-2">
@@ -140,11 +147,12 @@ export function AddUserDialog({
               placeholder="staff_username"
               minLength={AUTH_LIMITS.username.min}
               maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!errors.username}
+              aria-invalid={!!usernameError}
+              disabled={isPending}
               {...register("username")}
             />
-            {errors.username ? (
-              <p className="text-sm text-destructive">{errors.username.message}</p>
+            {usernameError ? (
+              <p className="text-sm text-destructive">{usernameError}</p>
             ) : null}
           </div>
 
@@ -161,11 +169,12 @@ export function AddUserDialog({
               placeholder="name@school.edu"
               minLength={AUTH_LIMITS.email.min}
               maxLength={AUTH_LIMITS.email.max}
-              aria-invalid={!!errors.email}
+              aria-invalid={!!emailError}
+              disabled={isPending}
               {...register("email")}
             />
-            {errors.email ? (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
+            {emailError ? (
+              <p className="text-sm text-destructive">{emailError}</p>
             ) : null}
           </div>
 
@@ -175,17 +184,17 @@ export function AddUserDialog({
               label="Password"
               hint={AUTH_FIELD_HINTS.password}
             />
-            <Input
+            <PasswordInput
               id="add-user-password"
-              type="password"
               autoComplete="new-password"
               minLength={AUTH_LIMITS.password.min}
               maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!errors.password}
+              aria-invalid={!!passwordError}
+              disabled={isPending}
               {...register("password")}
             />
-            {errors.password ? (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
+            {passwordError ? (
+              <p className="text-sm text-destructive">{passwordError}</p>
             ) : null}
           </div>
 
@@ -193,6 +202,7 @@ export function AddUserDialog({
             <FieldLabel htmlFor="add-user-role" label="Role" hint="Staff roles only" />
             <Select
               value={selectedRole}
+              disabled={isPending}
               onValueChange={(value) => {
                 if (!value) {
                   return;
@@ -206,7 +216,7 @@ export function AddUserDialog({
               <SelectTrigger
                 id="add-user-role"
                 className="w-full"
-                aria-invalid={!!errors.role}
+                aria-invalid={!!roleError}
               >
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
@@ -218,8 +228,8 @@ export function AddUserDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.role ? (
-              <p className="text-sm text-destructive">{errors.role.message}</p>
+            {roleError ? (
+              <p className="text-sm text-destructive">{roleError}</p>
             ) : null}
           </div>
         </form>
@@ -229,11 +239,19 @@ export function AddUserDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-user-form">
-            Create user
+          <Button type="submit" form="add-user-form" disabled={isPending}>
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Creating…
+              </>
+            ) : (
+              "Create user"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

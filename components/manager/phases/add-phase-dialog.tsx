@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createSemesterAction } from "@/app/manager/phases/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,24 +14,36 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   createPhaseSchema,
   type CreatePhaseInput,
 } from "@/lib/validators/manager/create-phase";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type { CreateSemesterActionState } from "@/types/manager-phase";
+
+const initialState: CreateSemesterActionState = {};
 
 type AddPhaseDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreatePhase: (phase: ManagerSemesterRow) => void;
+  onSemesterCreated: () => void;
 };
 
 export function AddPhaseDialog({
   open,
   onOpenChange,
-  onCreatePhase,
+  onSemesterCreated,
 }: AddPhaseDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createSemesterAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -56,18 +69,30 @@ export function AddPhaseDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: CreatePhaseInput) {
-    onCreatePhase({
-      id: crypto.randomUUID(),
-      name: values.name.trim(),
-      nb_courses: values.nb_courses,
-      amount: values.amount,
-      created_at: new Date().toISOString(),
-    });
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
 
-    showSuccessToast("Semester added to the preview list.");
     onOpenChange(false);
+    onSemesterCreated();
+  }, [state.success, onOpenChange, onSemesterCreated]);
+
+  function onSubmit(values: CreatePhaseInput) {
+    const formData = new FormData();
+    formData.set("name", values.name.trim());
+    formData.set("nb_courses", String(values.nb_courses));
+    formData.set("amount", String(values.amount));
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const coursesError =
+    errors.nb_courses?.message ?? state.fieldErrors?.nb_courses?.[0];
+  const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,7 +100,7 @@ export function AddPhaseDialog({
         <DialogHeader>
           <DialogTitle>Add semester</DialogTitle>
           <DialogDescription>
-            Create a semester preview with name, number of courses, and amount.
+            Create a semester with name, number of courses, and amount.
           </DialogDescription>
         </DialogHeader>
 
@@ -90,11 +115,12 @@ export function AddPhaseDialog({
               <FieldLabel htmlFor="add-semester-name" label="Name" hint="Required" />
               <Input
                 id="add-semester-name"
-                aria-invalid={!!errors.name}
+                aria-invalid={!!nameError}
+                disabled={isPending}
                 {...register("name")}
               />
-              {errors.name ? (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
+              {nameError ? (
+                <p className="text-sm text-destructive">{nameError}</p>
               ) : null}
             </div>
 
@@ -108,13 +134,12 @@ export function AddPhaseDialog({
                 id="add-semester-courses"
                 type="number"
                 min="0"
-                aria-invalid={!!errors.nb_courses}
+                aria-invalid={!!coursesError}
+                disabled={isPending}
                 {...register("nb_courses")}
               />
-              {errors.nb_courses ? (
-                <p className="text-sm text-destructive">
-                  {errors.nb_courses.message}
-                </p>
+              {coursesError ? (
+                <p className="text-sm text-destructive">{coursesError}</p>
               ) : null}
             </div>
 
@@ -129,14 +154,14 @@ export function AddPhaseDialog({
                 type="number"
                 min="0"
                 step="0.01"
-                aria-invalid={!!errors.amount}
+                aria-invalid={!!amountError}
+                disabled={isPending}
                 {...register("amount")}
               />
-              {errors.amount ? (
-                <p className="text-sm text-destructive">{errors.amount.message}</p>
+              {amountError ? (
+                <p className="text-sm text-destructive">{amountError}</p>
               ) : null}
             </div>
-
           </div>
         </form>
 
@@ -145,11 +170,19 @@ export function AddPhaseDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-semester-form">
-            Create semester
+          <Button type="submit" form="add-semester-form" disabled={isPending}>
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Creating…
+              </>
+            ) : (
+              "Create semester"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

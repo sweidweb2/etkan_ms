@@ -195,11 +195,11 @@ export function AccountingAnalysisPaymentsTable({
       />
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Payments</CardTitle>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 lg:flex-row lg:items-center">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -349,7 +349,7 @@ export function AccountingAnalysisPaymentsTable({
             </table>
           </div>
 
-          <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>
                 Showing {rangeStart}–{rangeEnd} of {filteredPayments.length}

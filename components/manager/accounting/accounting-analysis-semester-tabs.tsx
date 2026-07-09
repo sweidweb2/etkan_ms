@@ -68,7 +68,7 @@ export function AccountingAnalysisSemesterTabs() {
           onValueChange={setActiveTab}
           className="flex flex-col gap-0"
         >
-          <div className="grid grid-cols-1 items-center gap-4 border-b bg-muted/25 px-4 py-4 lg:grid-cols-[1fr_auto_1fr]">
+          <div className="grid grid-cols-1 items-center gap-4 border-b bg-muted/25 px-4 pt-2 pb-3 lg:grid-cols-[1fr_auto_1fr]">
             <div aria-hidden="true" className="hidden lg:block" />
 
             <div className="min-w-0 overflow-x-auto">

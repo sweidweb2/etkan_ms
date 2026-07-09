@@ -1,3 +1,5 @@
+import type { FieldErrors } from "@/types/auth";
+
 export interface ManagerSubjectRow {
   id: string;
   name: string;
@@ -7,6 +9,14 @@ export interface ManagerSubjectRow {
   created_at: string;
   /** subjects.nb_sessions — planned curriculum session count. */
   nb_sessions: number;
-  /** Preview aggregate until classes are loaded from backend. */
+  /** Classes linked to this subject. */
   class_count: number;
 }
+
+export type CreateSubjectActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  subject?: ManagerSubjectRow;
+};

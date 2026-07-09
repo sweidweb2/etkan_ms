@@ -89,7 +89,8 @@ function ResourceRow({
       target="_blank"
       rel="noopener noreferrer"
       title={href}
-      className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2 text-xs transition-colors hover:bg-muted/50"
+      onClick={(event) => event.stopPropagation()}
+      className="relative z-10 flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2 text-xs transition-colors hover:bg-muted/50 pointer-events-auto"
     >
       <Icon className="size-3.5 shrink-0 text-primary" />
       <span className="min-w-0 flex-1 truncate text-muted-foreground">{label}</span>
@@ -102,6 +103,7 @@ function ResourceRow({
 }
 
 export function SubjectCard({ subject }: SubjectCardProps) {
+  const detailHref = getManagerSubjectDetailRoute(subject.id);
   const linkCount = [
     subject.syllabus_link,
     subject.reference_link,
@@ -110,8 +112,13 @@ export function SubjectCard({ subject }: SubjectCardProps) {
 
   return (
     <TooltipProvider>
-      <Card className="flex h-full flex-col overflow-hidden py-0 transition-shadow hover:shadow-md">
-        <CardHeader className="gap-3 border-b bg-muted/20 py-4">
+      <Card className="group relative flex h-full flex-col overflow-hidden py-0 transition-all duration-200 hover:border-sky-400/45 hover:shadow-[0_12px_32px_rgba(14,165,233,0.16)]">
+        <Link
+          href={detailHref}
+          aria-label={`View ${subject.name}`}
+          className="absolute inset-0 z-0 rounded-xl"
+        />
+        <CardHeader className="relative z-10 gap-3 border-b bg-muted/20 py-3 pointer-events-none">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
@@ -140,7 +147,7 @@ export function SubjectCard({ subject }: SubjectCardProps) {
           </div>
         </CardHeader>
 
-        <CardContent className="flex flex-1 flex-col gap-2 py-4">
+        <CardContent className="relative z-10 flex flex-1 flex-col gap-2 py-4 pointer-events-none">
           <ResourceRow
             label="Syllabus"
             href={subject.syllabus_link}
@@ -158,15 +165,16 @@ export function SubjectCard({ subject }: SubjectCardProps) {
           />
         </CardContent>
 
-        <CardFooter className="mt-auto flex items-center justify-between gap-2 border-t bg-muted/20 py-3">
+        <CardFooter className="relative z-10 mt-auto flex items-center justify-between gap-2 border-t bg-muted/20 py-3 pointer-events-none">
           <span className="text-xs text-muted-foreground">
             Created {format(new Date(subject.created_at), "MMM d, yyyy")}
           </span>
           <Button
             variant="outline"
             size="sm"
+            className="pointer-events-auto relative z-10 bg-background"
             nativeButton={false}
-            render={<Link href={getManagerSubjectDetailRoute(subject.id)} />}
+            render={<Link href={detailHref} />}
           >
             View
           </Button>

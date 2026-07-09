@@ -275,7 +275,7 @@ function FinalExamSection({
               {finalExam?.description ?? "No final exam description available yet."}
             </p>
           </div>
-          <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 px-4 pt-2 pb-3 sm:grid-cols-2 lg:grid-cols-4">
             <DetailField
               label="Max grade"
               value={finalExam?.max_grade?.toString() ?? "—"}
@@ -420,8 +420,8 @@ export function StudentClassGradeDetailsPanel({
           </BreadcrumbList>
         </Breadcrumb>
 
-        <Card className="py-0">
-          <CardHeader className="border-b bg-muted/50 py-4">
+        <Card className="gap-0 py-0">
+          <CardHeader className="border-b bg-muted/50 py-3">
             <CardTitle className="text-xl">Student not found</CardTitle>
           </CardHeader>
           <CardContent className="py-10 text-sm text-muted-foreground">
@@ -460,8 +460,8 @@ export function StudentClassGradeDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{student.full_name}</CardTitle>
           <CardAction className="self-center">
             <Button type="button">Recompute</Button>

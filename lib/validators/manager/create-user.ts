@@ -5,6 +5,8 @@ import {
   passwordField,
   usernameField,
 } from "@/lib/validators/auth/fields";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
 
 export const createStaffUserSchema = z.object({
   username: usernameField,
@@ -16,3 +18,25 @@ export const createStaffUserSchema = z.object({
 });
 
 export type CreateStaffUserInput = z.infer<typeof createStaffUserSchema>;
+
+export function parseCreateStaffUserFormData(formData: FormData):
+  | { success: true; data: CreateStaffUserInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = createStaffUserSchema.safeParse({
+    username: formData.get("username"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    role: formData.get("role"),
+  });
+
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(flattened),
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}

@@ -9,6 +9,9 @@ export const TOAST_MESSAGES = {
     signed_in: "Signed in successfully.",
     signed_out: "You have been signed out.",
     signed_up: "Account created. Welcome!",
+    staff_user_created: "Staff account created.",
+    student_created: "Student account created.",
+    student_updated: "Student details updated.",
   },
   error: {
     auth_callback_failed:

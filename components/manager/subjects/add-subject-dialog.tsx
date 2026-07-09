@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createSubjectAction } from "@/app/manager/subjects/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,24 +14,36 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   createSubjectSchema,
   type CreateSubjectInput,
 } from "@/lib/validators/manager/create-subject";
-import type { ManagerSubjectRow } from "@/types/manager-subject";
+import type { CreateSubjectActionState } from "@/types/manager-subject";
+
+const initialState: CreateSubjectActionState = {};
 
 type AddSubjectDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateSubject: (subject: ManagerSubjectRow) => void;
+  onSubjectCreated: () => void;
 };
 
 export function AddSubjectDialog({
   open,
   onOpenChange,
-  onCreateSubject,
+  onSubjectCreated,
 }: AddSubjectDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createSubjectAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -58,21 +71,34 @@ export function AddSubjectDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: CreateSubjectInput) {
-    onCreateSubject({
-      id: crypto.randomUUID(),
-      name: values.name.trim(),
-      syllabus_link: values.syllabus_link?.trim() || null,
-      reference_link: values.reference_link?.trim() || null,
-      handout_link: values.handout_link?.trim() || null,
-      created_at: new Date().toISOString(),
-      nb_sessions: 0,
-      class_count: 0,
-    });
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
 
-    showSuccessToast("Subject added to the preview list.");
     onOpenChange(false);
+    onSubjectCreated();
+  }, [state.success, onOpenChange, onSubjectCreated]);
+
+  function onSubmit(values: CreateSubjectInput) {
+    const formData = new FormData();
+    formData.set("name", values.name.trim());
+    formData.set("syllabus_link", values.syllabus_link?.trim() ?? "");
+    formData.set("reference_link", values.reference_link?.trim() ?? "");
+    formData.set("handout_link", values.handout_link?.trim() ?? "");
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const syllabusError =
+    errors.syllabus_link?.message ?? state.fieldErrors?.syllabus_link?.[0];
+  const referenceError =
+    errors.reference_link?.message ?? state.fieldErrors?.reference_link?.[0];
+  const handoutError =
+    errors.handout_link?.message ?? state.fieldErrors?.handout_link?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -80,8 +106,7 @@ export function AddSubjectDialog({
         <DialogHeader>
           <DialogTitle>Add subject</DialogTitle>
           <DialogDescription>
-            Create a subject with optional resource links. Preview-only until
-            backend is connected.
+            Create a subject with optional resource links.
           </DialogDescription>
         </DialogHeader>
 
@@ -99,11 +124,12 @@ export function AddSubjectDialog({
             />
             <Input
               id="add-subject-name"
-              aria-invalid={!!errors.name}
+              aria-invalid={!!nameError}
+              disabled={isPending}
               {...register("name")}
             />
-            {errors.name ? (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
           </div>
 
@@ -117,13 +143,12 @@ export function AddSubjectDialog({
               id="add-subject-syllabus"
               type="url"
               placeholder="https://"
-              aria-invalid={!!errors.syllabus_link}
+              aria-invalid={!!syllabusError}
+              disabled={isPending}
               {...register("syllabus_link")}
             />
-            {errors.syllabus_link ? (
-              <p className="text-sm text-destructive">
-                {errors.syllabus_link.message}
-              </p>
+            {syllabusError ? (
+              <p className="text-sm text-destructive">{syllabusError}</p>
             ) : null}
           </div>
 
@@ -137,13 +162,12 @@ export function AddSubjectDialog({
               id="add-subject-reference"
               type="url"
               placeholder="https://"
-              aria-invalid={!!errors.reference_link}
+              aria-invalid={!!referenceError}
+              disabled={isPending}
               {...register("reference_link")}
             />
-            {errors.reference_link ? (
-              <p className="text-sm text-destructive">
-                {errors.reference_link.message}
-              </p>
+            {referenceError ? (
+              <p className="text-sm text-destructive">{referenceError}</p>
             ) : null}
           </div>
 
@@ -157,13 +181,12 @@ export function AddSubjectDialog({
               id="add-subject-handout"
               type="url"
               placeholder="https://"
-              aria-invalid={!!errors.handout_link}
+              aria-invalid={!!handoutError}
+              disabled={isPending}
               {...register("handout_link")}
             />
-            {errors.handout_link ? (
-              <p className="text-sm text-destructive">
-                {errors.handout_link.message}
-              </p>
+            {handoutError ? (
+              <p className="text-sm text-destructive">{handoutError}</p>
             ) : null}
           </div>
         </form>
@@ -173,11 +196,23 @@ export function AddSubjectDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-subject-form">
-            Create subject
+          <Button
+            type="submit"
+            form="add-subject-form"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Creating…
+              </>
+            ) : (
+              "Create subject"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

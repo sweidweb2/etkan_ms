@@ -8,6 +8,8 @@ import {
   phoneField,
   usernameField,
 } from "@/lib/validators/auth/fields";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
 
 export const createStudentSchema = z
   .object({
@@ -30,3 +32,28 @@ export const createStudentSchema = z
   });
 
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;
+
+export function parseCreateStudentFormData(formData: FormData):
+  | { success: true; data: CreateStudentInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = createStudentSchema.safeParse({
+    username: formData.get("username"),
+    fullName: formData.get("fullName"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+    birthDate: formData.get("birthDate"),
+    phone: formData.get("phone"),
+  });
+
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(flattened),
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}

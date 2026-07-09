@@ -116,10 +116,10 @@ export function SessionDetailsActions({
 
   return (
     <Card className={cn("py-0", className)}>
-      <CardHeader className="border-b bg-muted/40 py-4">
+      <CardHeader className="border-b bg-muted/40 py-3">
         <CardTitle>Session settings</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-6 py-4 lg:grid-cols-2">
+      <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
         <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 ring-1 ring-foreground/8">
           <div className="flex items-center gap-2">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">

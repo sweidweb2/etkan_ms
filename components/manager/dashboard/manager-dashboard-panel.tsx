@@ -73,13 +73,13 @@ export function ManagerDashboardPanel() {
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <Card className="py-0">
-          <CardHeader className="border-b bg-muted/40 py-4">
+          <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Quick actions</CardTitle>
             <CardDescription>
               Jump into the sections managers use most often.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 px-4 py-4 sm:grid-cols-2">
+          <CardContent className="grid gap-3 px-4 pt-2 pb-3 sm:grid-cols-2">
             {MANAGER_DASHBOARD_QUICK_ACTIONS_MOCK.map((action) => (
               <Link
                 key={action.href}
@@ -101,13 +101,13 @@ export function ManagerDashboardPanel() {
         </Card>
 
         <Card className="py-0">
-          <CardHeader className="border-b bg-muted/40 py-4">
+          <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Priority queue</CardTitle>
             <CardDescription>
               Items that likely need manager attention today.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3 px-4 py-4">
+          <CardContent className="flex flex-col gap-3 px-4 pt-2 pb-3">
             {MANAGER_DASHBOARD_ALERTS_MOCK.map((alert) => (
               <div
                 key={alert.id}
@@ -137,13 +137,13 @@ export function ManagerDashboardPanel() {
 
       <div className="grid gap-6 xl:grid-cols-[1.25fr_1fr]">
         <Card className="py-0">
-          <CardHeader className="border-b bg-muted/40 py-4">
+          <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Today&apos;s schedule</CardTitle>
             <CardDescription>
               Snapshot of active and upcoming classes for today.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-4 py-4">
+          <CardContent className="px-4 pt-2 pb-3">
             <div className="space-y-3">
               {MANAGER_DASHBOARD_SCHEDULE_MOCK.map((item) => (
                 <div
@@ -176,13 +176,13 @@ export function ManagerDashboardPanel() {
         </Card>
 
         <Card className="py-0">
-          <CardHeader className="border-b bg-muted/40 py-4">
+          <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>At a glance</CardTitle>
             <CardDescription>
               Fast operational context for the rest of the day.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 px-4 py-4">
+          <CardContent className="grid gap-3 px-4 pt-2 pb-3">
             <div className="rounded-xl border p-4">
               <div className="flex items-center gap-3">
                 <div className="rounded-full bg-sky-500/10 p-2 text-sky-600">
@@ -228,13 +228,13 @@ export function ManagerDashboardPanel() {
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <Card className="py-0">
-          <CardHeader className="border-b bg-muted/40 py-4">
+          <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Recent activity</CardTitle>
             <CardDescription>
               Latest updates from students, subjects, payments, and relationships.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-4 py-4">
+          <CardContent className="px-4 pt-2 pb-3">
             <div className="space-y-4">
               {MANAGER_DASHBOARD_ACTIVITY_MOCK.map((item) => (
                 <div key={item.id} className="flex gap-3">
@@ -259,13 +259,13 @@ export function ManagerDashboardPanel() {
         </Card>
 
         <Card className="py-0">
-          <CardHeader className="border-b bg-muted/40 py-4">
+          <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>System shortcuts</CardTitle>
             <CardDescription>
               Reach common manager tools from one place.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3 px-4 py-4">
+          <CardContent className="flex flex-col gap-3 px-4 pt-2 pb-3">
             <Link
               href="/manager/notifications"
               className={cn(

@@ -28,10 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  getManagerSemesterClassesPreview,
-  getManagerUnlinkedSemesterClassesPreview,
-} from "@/lib/constants/manager-semester-classes-mock";
 import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import { printPageSection } from "@/lib/export/print-page-section";
@@ -43,8 +39,10 @@ const STATUS_FILTER_ALL = "all";
 type SemesterClassesSectionProps = {
   semesterId: string;
   semesterName: string;
+  initialClasses: ManagerSemesterClassRow[];
+  initialAvailableClasses: ManagerSemesterClassRow[];
   onExportPdf?: () => void;
-  onClassesCountChange?: (count: number) => void;
+  onClassesChanged: () => void;
 };
 
 function getPageNumbers(currentPage: number, totalPages: number) {
@@ -96,15 +94,15 @@ function matchesSearch(classRow: ManagerSemesterClassRow, query: string) {
 export function SemesterClassesSection({
   semesterId,
   semesterName,
+  initialClasses,
+  initialAvailableClasses,
   onExportPdf,
-  onClassesCountChange,
+  onClassesChanged,
 }: SemesterClassesSectionProps) {
-  const [classes, setClasses] = useState<ManagerSemesterClassRow[]>(() =>
-    getManagerSemesterClassesPreview(semesterId)
+  const [classes, setClasses] = useState<ManagerSemesterClassRow[]>(initialClasses);
+  const [availableClasses, setAvailableClasses] = useState<ManagerSemesterClassRow[]>(
+    initialAvailableClasses
   );
-  const [availableClasses, setAvailableClasses] = useState<
-    ManagerSemesterClassRow[]
-  >(() => getManagerUnlinkedSemesterClassesPreview());
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
@@ -113,6 +111,14 @@ export function SemesterClassesSection({
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  useEffect(() => {
+    setClasses(initialClasses);
+  }, [initialClasses]);
+
+  useEffect(() => {
+    setAvailableClasses(initialAvailableClasses);
+  }, [initialAvailableClasses]);
 
   useEffect(() => {
     const handleAfterPrint = () => setIsExportingPdf(false);
@@ -136,7 +142,6 @@ export function SemesterClassesSection({
         (row) =>
           row.status === CLASS_STATUSES.PAUSED || row.status === CLASS_STATUSES.STOPPED
       ).length,
-      enrollment: classes.reduce((sum, row) => sum + row.enrollment_count, 0),
     }),
     [classes]
   );
@@ -181,35 +186,19 @@ export function SemesterClassesSection({
     setCurrentPage(1);
   };
 
-  const handleConnectClass = (classRow: ManagerSemesterClassRow) => {
-    const connectedClass: ManagerSemesterClassRow = {
-      ...classRow,
-      semester_id: semesterId,
-    };
-
-    setClasses((current) => {
-      const next = [connectedClass, ...current];
-      onClassesCountChange?.(next.length);
-      return next;
-    });
-    setAvailableClasses((current) =>
-      current.filter((row) => row.id !== classRow.id)
-    );
-    setCurrentPage(1);
-  };
-
   return (
     <>
       <ConnectSemesterClassDialog
         open={isConnectOpen}
         onOpenChange={setIsConnectOpen}
+        semesterId={semesterId}
         semesterName={semesterName}
         availableClasses={availableClasses}
-        onConnectClass={handleConnectClass}
+        onClassConnected={onClassesChanged}
       />
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-4">
+        <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Classes</CardTitle>
           <CardDescription>
             Classes linked to this semester via classes.semester_id.
@@ -221,7 +210,7 @@ export function SemesterClassesSection({
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="flex flex-col gap-6 py-4">
+        <CardContent className="flex flex-col gap-6 pt-3 pb-3">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <UserStatCard
               label="Total classes"
@@ -242,11 +231,6 @@ export function SemesterClassesSection({
               label="On hold"
               value={stats.onHold}
               accentClassName="border-l-amber-500"
-            />
-            <UserStatCard
-              label="Total enrollment"
-              value={stats.enrollment}
-              accentClassName="border-l-violet-500"
             />
           </div>
 

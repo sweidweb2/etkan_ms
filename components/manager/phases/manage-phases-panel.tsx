@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ChevronLeftIcon,
@@ -20,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 
 const PAGE_SIZE_OPTIONS = [4, 8, 12] as const;
@@ -70,8 +70,13 @@ function matchesSearch(phase: ManagerSemesterRow, query: string) {
   return haystack.includes(normalizedQuery);
 }
 
-export function ManagePhasesPanel() {
-  const [phases, setPhases] = useState(MANAGER_PHASES_MOCK);
+type ManagePhasesPanelProps = {
+  initialSemesters: ManagerSemesterRow[];
+};
+
+export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) {
+  const router = useRouter();
+  const phases = initialSemesters;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(4);
@@ -81,12 +86,16 @@ export function ManagePhasesPanel() {
     () => ({
       total: phases.length,
       totalCourses: phases.reduce((sum, phase) => sum + phase.nb_courses, 0),
-      highestAmount: Math.max(...phases.map((phase) => phase.amount)),
+      highestAmount:
+        phases.length === 0
+          ? 0
+          : Math.max(...phases.map((phase) => phase.amount)),
       averageAmount:
         phases.length === 0
           ? 0
           : Math.round(
-              (phases.reduce((sum, phase) => sum + phase.amount, 0) / phases.length) * 100
+              (phases.reduce((sum, phase) => sum + phase.amount, 0) / phases.length) *
+                100
             ) / 100,
     }),
     [phases]
@@ -109,9 +118,9 @@ export function ManagePhasesPanel() {
     filteredPhases.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
   const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredPhases.length);
 
-  const handleCreatePhase = (phase: ManagerSemesterRow) => {
-    setPhases((current) => [phase, ...current]);
+  const handleSemesterCreated = () => {
     setCurrentPage(1);
+    router.refresh();
   };
 
   return (
@@ -120,7 +129,7 @@ export function ManagePhasesPanel() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Manage semesters</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Preview semesters in compact cards with simple filters and pagination.
+            Semesters with course counts and billing amounts.
           </p>
         </div>
         <Button type="button" onClick={() => setIsAddOpen(true)}>
@@ -132,7 +141,7 @@ export function ManagePhasesPanel() {
       <AddPhaseDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        onCreatePhase={handleCreatePhase}
+        onSemesterCreated={handleSemesterCreated}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -159,10 +168,10 @@ export function ManagePhasesPanel() {
       </div>
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle>Semesters</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-6 px-4 py-4">
+        <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
           <div className="relative max-w-md">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input

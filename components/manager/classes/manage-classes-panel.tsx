@@ -215,10 +215,10 @@ export function ManageClassesPanel() {
       </div>
 
       <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
+        <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle>Classes</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-6 px-4 py-4">
+        <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />

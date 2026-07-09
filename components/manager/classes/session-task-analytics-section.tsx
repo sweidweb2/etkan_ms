@@ -106,13 +106,13 @@ export function SessionTaskAnalyticsSection({
 
   return (
     <Card className="py-0">
-      <CardHeader className="border-b bg-muted/40 py-4">
+      <CardHeader className="border-b bg-muted/40 py-3">
         <CardTitle>Task analytics</CardTitle>
         <p className="text-sm text-muted-foreground">
           Completion breakdown and per-student scores for this assignment.
         </p>
       </CardHeader>
-      <CardContent className="grid gap-6 py-4 lg:grid-cols-2">
+      <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
         <AnalyticsChartCard
           title="Completion"
           description={`${finishedTotal} finished · ${notFinishedTotal} not finished`}

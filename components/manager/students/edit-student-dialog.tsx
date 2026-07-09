@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateStudentAction } from "@/app/manager/students/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,42 +21,55 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import { MANAGER_STUDENT_STATUS_LABELS } from "@/lib/constants/manager-student-display";
-import { MANAGER_STUDENTS_MOCK } from "@/lib/constants/manager-students-mock";
 import {
   STUDENT_STATUS_VALUES,
   type StudentStatusValue,
 } from "@/lib/constants/manager-student-status";
-import { showSuccessToast } from "@/lib/toast";
 import { getLocalIsoDate } from "@/lib/utils/local-iso-date";
 import {
   updateStudentSchema,
   type UpdateStudentInput,
 } from "@/lib/validators/manager/update-student";
-import type { ManagerStudentRow } from "@/types/manager-student";
+import type {
+  ManagerStudentRow,
+  UpdateStudentActionState,
+} from "@/types/manager-student";
+
+const initialState: UpdateStudentActionState = {};
 
 type EditStudentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   student: ManagerStudentRow;
-  onUpdateStudent: (student: ManagerStudentRow) => void;
+  onStudentUpdated: (student: ManagerStudentRow) => void;
 };
 
 export function EditStudentDialog({
   open,
   onOpenChange,
   student,
-  onUpdateStudent,
+  onStudentUpdated,
 }: EditStudentDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateStudentAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
     reset,
     setValue,
     watch,
-    setError,
     formState: { errors },
   } = useZodForm({
     schema: updateStudentSchema,
@@ -85,46 +99,40 @@ export function EditStudentDialog({
     }
   }, [open, reset, student]);
 
-  function onSubmit(values: UpdateStudentInput) {
-    const normalizedUsername = values.username.trim().toLowerCase();
-    const normalizedEmail = values.email.trim().toLowerCase();
-
-    const usernameTaken = MANAGER_STUDENTS_MOCK.some(
-      (existingStudent) =>
-        existingStudent.student_profile_id !== student.student_profile_id &&
-        existingStudent.username?.toLowerCase() === normalizedUsername
-    );
-    if (usernameTaken) {
-      setError("username", { message: "This username is already taken." });
+  useEffect(() => {
+    if (!state.success || !state.student) {
       return;
     }
 
-    const emailTaken = MANAGER_STUDENTS_MOCK.some(
-      (existingStudent) =>
-        existingStudent.student_profile_id !== student.student_profile_id &&
-        existingStudent.email.toLowerCase() === normalizedEmail
-    );
-    if (emailTaken) {
-      setError("email", { message: "This email is already in use." });
-      return;
-    }
-
-    const birthDate = values.birthDate?.trim() || null;
-    const phone = values.phone?.trim() || null;
-
-    onUpdateStudent({
-      ...student,
-      username: values.username.trim(),
-      full_name: values.fullName.trim(),
-      email: values.email.trim(),
-      birth_date: birthDate,
-      phone,
-      status: values.status,
-    });
-
-    showSuccessToast("Student details updated in the preview.");
     onOpenChange(false);
+    onStudentUpdated(state.student);
+  }, [state.success, state.student, onOpenChange, onStudentUpdated]);
+
+  function onSubmit(values: UpdateStudentInput) {
+    const formData = new FormData();
+    formData.set("studentProfileId", student.student_profile_id);
+    formData.set("userId", student.user_id);
+    formData.set("username", values.username.trim());
+    formData.set("fullName", values.fullName.trim());
+    formData.set("email", values.email.trim());
+    formData.set("birthDate", values.birthDate?.trim() ?? "");
+    formData.set("phone", values.phone?.trim() ?? "");
+    formData.set("status", values.status);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const usernameError =
+    errors.username?.message ?? state.fieldErrors?.username?.[0];
+  const fullNameError =
+    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
+  const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
+  const birthDateError =
+    errors.birthDate?.message ?? state.fieldErrors?.birthDate?.[0];
+  const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -132,15 +140,14 @@ export function EditStudentDialog({
         <DialogHeader>
           <DialogTitle>Edit student</DialogTitle>
           <DialogDescription>
-            Update student profile details. Changes are preview-only until backend
-            is connected.
+            Update student profile and account details.
           </DialogDescription>
         </DialogHeader>
 
         <form
           id="edit-student-form"
           onSubmit={handleSubmit(onSubmit)}
-          className="flex max-h-[min(60vh,32rem)] flex-col gap-4 overflow-y-auto pr-1"
+          className="flex max-h-[min(60vh,32rem)] flex-col gap-4 overflow-y-auto px-2"
           noValidate
         >
           <div className="flex flex-col gap-2">
@@ -155,11 +162,12 @@ export function EditStudentDialog({
               autoComplete="username"
               minLength={AUTH_LIMITS.username.min}
               maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!errors.username}
+              aria-invalid={!!usernameError}
+              disabled={isPending}
               {...register("username")}
             />
-            {errors.username ? (
-              <p className="text-sm text-destructive">{errors.username.message}</p>
+            {usernameError ? (
+              <p className="text-sm text-destructive">{usernameError}</p>
             ) : null}
           </div>
 
@@ -175,11 +183,12 @@ export function EditStudentDialog({
               autoComplete="name"
               minLength={AUTH_LIMITS.fullName.min}
               maxLength={AUTH_LIMITS.fullName.max}
-              aria-invalid={!!errors.fullName}
+              aria-invalid={!!fullNameError}
+              disabled={isPending}
               {...register("fullName")}
             />
-            {errors.fullName ? (
-              <p className="text-sm text-destructive">{errors.fullName.message}</p>
+            {fullNameError ? (
+              <p className="text-sm text-destructive">{fullNameError}</p>
             ) : null}
           </div>
 
@@ -195,11 +204,12 @@ export function EditStudentDialog({
               autoComplete="email"
               minLength={AUTH_LIMITS.email.min}
               maxLength={AUTH_LIMITS.email.max}
-              aria-invalid={!!errors.email}
+              aria-invalid={!!emailError}
+              disabled={isPending}
               {...register("email")}
             />
-            {errors.email ? (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
+            {emailError ? (
+              <p className="text-sm text-destructive">{emailError}</p>
             ) : null}
           </div>
 
@@ -213,11 +223,12 @@ export function EditStudentDialog({
               id="edit-student-birth-date"
               type="date"
               max={getLocalIsoDate()}
-              aria-invalid={!!errors.birthDate}
+              aria-invalid={!!birthDateError}
+              disabled={isPending}
               {...register("birthDate")}
             />
-            {errors.birthDate ? (
-              <p className="text-sm text-destructive">{errors.birthDate.message}</p>
+            {birthDateError ? (
+              <p className="text-sm text-destructive">{birthDateError}</p>
             ) : null}
           </div>
 
@@ -232,11 +243,12 @@ export function EditStudentDialog({
               type="tel"
               autoComplete="tel"
               maxLength={AUTH_LIMITS.phone.max}
-              aria-invalid={!!errors.phone}
+              aria-invalid={!!phoneError}
+              disabled={isPending}
               {...register("phone")}
             />
-            {errors.phone ? (
-              <p className="text-sm text-destructive">{errors.phone.message}</p>
+            {phoneError ? (
+              <p className="text-sm text-destructive">{phoneError}</p>
             ) : null}
           </div>
 
@@ -248,6 +260,7 @@ export function EditStudentDialog({
             />
             <Select
               value={selectedStatus}
+              disabled={isPending}
               onValueChange={(value) => {
                 if (!value) {
                   return;
@@ -261,7 +274,7 @@ export function EditStudentDialog({
               <SelectTrigger
                 id="edit-student-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -273,8 +286,8 @@ export function EditStudentDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
         </form>
@@ -284,11 +297,19 @@ export function EditStudentDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="edit-student-form">
-            Save changes
+          <Button type="submit" form="edit-student-form" disabled={isPending}>
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Saving…
+              </>
+            ) : (
+              "Save changes"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

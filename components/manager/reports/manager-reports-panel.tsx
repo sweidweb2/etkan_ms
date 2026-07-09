@@ -139,14 +139,14 @@ export function ManagerReportsPanel() {
       </div>
 
       <Card className="py-0" id="report-print-area">
-        <CardHeader className="border-b bg-muted/40 py-4 print:hidden">
+        <CardHeader className="border-b bg-muted/40 py-3 print:hidden">
           <CardTitle className="text-base">Preview</CardTitle>
           <CardDescription>
             {rows.length} row{rows.length === 1 ? "" : "s"} · Updated{" "}
             {format(generatedAt, "h:mm a")}
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-4 py-4">
+        <CardContent className="px-4 pt-2 pb-3">
           <div className="mb-4 print:hidden">
             <ReportExportActions
               reportId={reportId}

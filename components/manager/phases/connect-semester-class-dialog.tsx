@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { connectClassToSemesterAction } from "@/app/manager/phases/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,34 +20,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   connectSemesterClassSchema,
   type ConnectSemesterClassInput,
 } from "@/lib/validators/manager/connect-semester-class";
+import type { ConnectSemesterClassActionState } from "@/types/manager-phase";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
+
+const initialState: ConnectSemesterClassActionState = {};
 
 type ConnectSemesterClassDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  semesterId: string;
   semesterName: string;
   availableClasses: ManagerSemesterClassRow[];
-  onConnectClass: (classRow: ManagerSemesterClassRow) => void;
+  onClassConnected: () => void;
 };
 
 export function ConnectSemesterClassDialog({
   open,
   onOpenChange,
+  semesterId,
   semesterName,
   availableClasses,
-  onConnectClass,
+  onClassConnected,
 }: ConnectSemesterClassDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    connectClassToSemesterAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     handleSubmit,
     reset,
     setValue,
     watch,
-    setError,
     formState: { errors },
   } = useZodForm({
     schema: connectSemesterClassSchema,
@@ -65,21 +80,26 @@ export function ConnectSemesterClassDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: ConnectSemesterClassInput) {
-    const classRow = availableClasses.find((row) => row.id === values.classId);
-
-    if (!classRow) {
-      setError("classId", { message: "This class is no longer available." });
+  useEffect(() => {
+    if (!state.success) {
       return;
     }
 
-    onConnectClass({
-      ...classRow,
-      semester_id: classRow.semester_id,
-    });
-    showSuccessToast(`${classRow.name} connected to ${semesterName}.`);
     onOpenChange(false);
+    onClassConnected();
+  }, [state.success, onOpenChange, onClassConnected]);
+
+  function onSubmit(values: ConnectSemesterClassInput) {
+    const formData = new FormData();
+    formData.set("semester_id", semesterId);
+    formData.set("classId", values.classId);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const classError = errors.classId?.message ?? state.fieldErrors?.classId?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,7 +108,7 @@ export function ConnectSemesterClassDialog({
           <DialogTitle>Connect class</DialogTitle>
           <DialogDescription>
             Link a class that is not assigned to another semester to{" "}
-            {semesterName}. Preview-only until backend is connected.
+            {semesterName}.
           </DialogDescription>
         </DialogHeader>
 
@@ -114,11 +134,12 @@ export function ConnectSemesterClassDialog({
 
                   setValue("classId", value, { shouldValidate: true });
                 }}
+                disabled={isPending}
               >
                 <SelectTrigger
                   id="connect-semester-class-id"
                   className="w-full"
-                  aria-invalid={!!errors.classId}
+                  aria-invalid={!!classError}
                 >
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
@@ -132,11 +153,11 @@ export function ConnectSemesterClassDialog({
               </Select>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No unlinked classes are available in the preview.
+                No unlinked classes are available.
               </p>
             )}
-            {errors.classId ? (
-              <p className="text-sm text-destructive">{errors.classId.message}</p>
+            {classError ? (
+              <p className="text-sm text-destructive">{classError}</p>
             ) : null}
           </div>
         </form>
@@ -146,15 +167,16 @@ export function ConnectSemesterClassDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             form="connect-semester-class-form"
-            disabled={!hasAvailableClasses}
+            disabled={!hasAvailableClasses || isPending}
           >
-            Connect class
+            {isPending ? <InlineSpinner label="Connecting class" /> : "Connect class"}
           </Button>
         </DialogFooter>
       </DialogContent>

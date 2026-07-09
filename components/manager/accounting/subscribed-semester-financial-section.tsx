@@ -40,7 +40,7 @@ export function SubscribedSemesterFinancialSection({
 
   return (
     <Card className="py-0">
-      <CardHeader className="border-b bg-muted/40 py-4">
+      <CardHeader className="border-b bg-muted/40 py-3">
         <CardTitle>Financial summary</CardTitle>
         <p className="text-sm text-muted-foreground">
           Totals and progress for {subscription.semester_name}.

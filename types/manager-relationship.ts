@@ -1,3 +1,5 @@
+import type { FieldErrors } from "@/types/auth";
+
 export interface ManagerRelationshipRow {
   id: string;
   name: string;
@@ -8,3 +10,19 @@ export interface ManagerRelationshipRow {
   is_useful: boolean;
   created_at: string;
 }
+
+export type CreateRelationshipActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  relationship?: ManagerRelationshipRow;
+};
+
+export type UpdateRelationshipActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  relationship?: ManagerRelationshipRow;
+};

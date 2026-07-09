@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useEffect, useTransition } from "react";
 import { format } from "date-fns";
+import { updateRelationshipAction } from "@/app/manager/relationships/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,57 +17,124 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import { showSuccessToast } from "@/lib/toast";
-import type { ManagerRelationshipRow } from "@/types/manager-relationship";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
+import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import {
+  updateRelationshipSchema,
+  type UpdateRelationshipInput,
+} from "@/lib/validators/manager/update-relationship";
+import type {
+  ManagerRelationshipRow,
+  UpdateRelationshipActionState,
+} from "@/types/manager-relationship";
+
+const initialState: UpdateRelationshipActionState = {};
 
 type RelationshipDetailFormProps = {
   relationship: ManagerRelationshipRow;
   onOpenChange: (open: boolean) => void;
-  onUpdateRelationship: (relationship: ManagerRelationshipRow) => void;
+  onRelationshipUpdated: () => void;
 };
 
 function RelationshipDetailForm({
   relationship,
   onOpenChange,
-  onUpdateRelationship,
+  onRelationshipUpdated,
 }: RelationshipDetailFormProps) {
-  const [form, setForm] = useState<ManagerRelationshipRow>(relationship);
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateRelationshipAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
 
-  function updateField<K extends keyof ManagerRelationshipRow>(
-    key: K,
-    value: ManagerRelationshipRow[K]
-  ) {
-    setForm((current) => ({ ...current, [key]: value }));
-  }
+  useActionStateToast(state, isPending);
 
-  function handleSave() {
-    if (!form.name.trim()) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useZodForm({
+    schema: updateRelationshipSchema,
+    mode: "onBlur",
+    defaultValues: {
+      id: relationship.id,
+      name: relationship.name,
+      phone: relationship.phone ?? "",
+      relation_with: relationship.relation_with ?? "",
+      major: relationship.major ?? "",
+      speciality: relationship.speciality ?? "",
+      is_useful: relationship.is_useful,
+    },
+  });
+
+  const isUseful = watch("is_useful");
+
+  useEffect(() => {
+    reset({
+      id: relationship.id,
+      name: relationship.name,
+      phone: relationship.phone ?? "",
+      relation_with: relationship.relation_with ?? "",
+      major: relationship.major ?? "",
+      speciality: relationship.speciality ?? "",
+      is_useful: relationship.is_useful,
+    });
+  }, [relationship, reset]);
+
+  useEffect(() => {
+    if (!state.success) {
       return;
     }
 
-    onUpdateRelationship({
-      ...form,
-      name: form.name.trim(),
-      phone: form.phone?.trim() || null,
-      relation_with: form.relation_with?.trim() || null,
-      major: form.major?.trim() || null,
-      speciality: form.speciality?.trim() || null,
-    });
-    showSuccessToast("Relationship updated in the preview.");
     onOpenChange(false);
+    onRelationshipUpdated();
+  }, [state.success, onOpenChange, onRelationshipUpdated]);
+
+  function onSubmit(values: UpdateRelationshipInput) {
+    const formData = new FormData();
+    formData.set("id", values.id);
+    formData.set("name", values.name.trim());
+    formData.set("phone", values.phone?.trim() ?? "");
+    formData.set("relation_with", values.relation_with?.trim() ?? "");
+    formData.set("major", values.major?.trim() ?? "");
+    formData.set("speciality", values.speciality?.trim() ?? "");
+    formData.set("is_useful", String(values.is_useful));
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
+  const relationError =
+    errors.relation_with?.message ?? state.fieldErrors?.relation_with?.[0];
+  const majorError = errors.major?.message ?? state.fieldErrors?.major?.[0];
+  const specialityError =
+    errors.speciality?.message ?? state.fieldErrors?.speciality?.[0];
 
   return (
     <>
       <SheetHeader>
-        <SheetTitle>{form.name}</SheetTitle>
+        <SheetTitle>{relationship.name}</SheetTitle>
         <SheetDescription>
-          View and edit relationship details. Changes are preview-only until
-          backend is connected.
+          View and edit relationship contact details.
         </SheetDescription>
       </SheetHeader>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
+      <form
+        id="relationship-detail-form"
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
+        noValidate
+      >
+        <input type="hidden" {...register("id")} />
+
         <div className="flex flex-col gap-2">
           <FieldLabel
             htmlFor="relationship-name"
@@ -74,9 +143,13 @@ function RelationshipDetailForm({
           />
           <Input
             id="relationship-name"
-            value={form.name}
-            onChange={(event) => updateField("name", event.target.value)}
+            aria-invalid={!!nameError}
+            disabled={isPending}
+            {...register("name")}
           />
+          {nameError ? (
+            <p className="text-sm text-destructive">{nameError}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -87,9 +160,14 @@ function RelationshipDetailForm({
           />
           <Input
             id="relationship-phone"
-            value={form.phone ?? ""}
-            onChange={(event) => updateField("phone", event.target.value)}
+            maxLength={AUTH_LIMITS.phone.max}
+            aria-invalid={!!phoneError}
+            disabled={isPending}
+            {...register("phone")}
           />
+          {phoneError ? (
+            <p className="text-sm text-destructive">{phoneError}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -100,11 +178,13 @@ function RelationshipDetailForm({
           />
           <Input
             id="relationship-relation"
-            value={form.relation_with ?? ""}
-            onChange={(event) =>
-              updateField("relation_with", event.target.value)
-            }
+            aria-invalid={!!relationError}
+            disabled={isPending}
+            {...register("relation_with")}
           />
+          {relationError ? (
+            <p className="text-sm text-destructive">{relationError}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -115,9 +195,13 @@ function RelationshipDetailForm({
           />
           <Input
             id="relationship-major"
-            value={form.major ?? ""}
-            onChange={(event) => updateField("major", event.target.value)}
+            aria-invalid={!!majorError}
+            disabled={isPending}
+            {...register("major")}
           />
+          {majorError ? (
+            <p className="text-sm text-destructive">{majorError}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -128,11 +212,13 @@ function RelationshipDetailForm({
           />
           <Input
             id="relationship-speciality"
-            value={form.speciality ?? ""}
-            onChange={(event) =>
-              updateField("speciality", event.target.value)
-            }
+            aria-invalid={!!specialityError}
+            disabled={isPending}
+            {...register("speciality")}
           />
+          {specialityError ? (
+            <p className="text-sm text-destructive">{specialityError}</p>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
@@ -144,8 +230,11 @@ function RelationshipDetailForm({
           </div>
           <Switch
             id="relationship-useful"
-            checked={form.is_useful}
-            onCheckedChange={(checked) => updateField("is_useful", checked)}
+            checked={isUseful}
+            disabled={isPending}
+            onCheckedChange={(checked) =>
+              setValue("is_useful", checked, { shouldValidate: true })
+            }
             aria-label="Useful contact"
           />
         </div>
@@ -154,23 +243,35 @@ function RelationshipDetailForm({
           <Label htmlFor="relationship-created">Created</Label>
           <Input
             id="relationship-created"
-            value={format(new Date(form.created_at), "MMM d, yyyy 'at' h:mm a")}
+            value={format(new Date(relationship.created_at), "MMM d, yyyy 'at' h:mm a")}
             readOnly
             disabled
           />
         </div>
-      </div>
+      </form>
 
       <SheetFooter className="flex-row justify-end gap-2 border-t pt-4">
         <Button
           type="button"
           variant="outline"
           onClick={() => onOpenChange(false)}
+          disabled={isPending}
         >
           Cancel
         </Button>
-        <Button type="button" onClick={handleSave} disabled={!form.name.trim()}>
-          Save changes
+        <Button
+          type="submit"
+          form="relationship-detail-form"
+          disabled={isPending}
+        >
+          {isPending ? (
+            <>
+              <InlineSpinner className="mr-2" />
+              Saving…
+            </>
+          ) : (
+            "Save changes"
+          )}
         </Button>
       </SheetFooter>
     </>
@@ -181,14 +282,14 @@ type RelationshipDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   relationship: ManagerRelationshipRow | null;
-  onUpdateRelationship: (relationship: ManagerRelationshipRow) => void;
+  onRelationshipUpdated: () => void;
 };
 
 export function RelationshipDetailSheet({
   open,
   onOpenChange,
   relationship,
-  onUpdateRelationship,
+  onRelationshipUpdated,
 }: RelationshipDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -198,7 +299,7 @@ export function RelationshipDetailSheet({
             key={relationship.id}
             relationship={relationship}
             onOpenChange={onOpenChange}
-            onUpdateRelationship={onUpdateRelationship}
+            onRelationshipUpdated={onRelationshipUpdated}
           />
         ) : null}
       </SheetContent>

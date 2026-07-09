@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
@@ -35,7 +36,6 @@ import {
   STUDENT_STATUS_VALUES,
   type StudentStatusValue,
 } from "@/lib/constants/manager-student-status";
-import { MANAGER_STUDENTS_MOCK } from "@/lib/constants/manager-students-mock";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -50,6 +50,9 @@ const COLUMN_LIMITS = {
 } as const;
 
 const STATUS_FILTER_ALL = "all";
+
+const STUDENT_ROW_CLASS =
+  "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
 function TruncatedCell({
   value,
@@ -143,15 +146,20 @@ function StudentViewAction({ student }: { student: ManagerStudentRow }) {
     <Link
       href={getManagerStudentDetailRoute(student.student_profile_id)}
       aria-label={`View ${student.full_name}`}
-      className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      onClick={(event) => event.stopPropagation()}
+      className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
     >
       <EyeIcon className="size-4" />
     </Link>
   );
 }
 
-export function ManageStudentsPanel() {
-  const [students, setStudents] = useState(MANAGER_STUDENTS_MOCK);
+export function ManageStudentsPanel({
+  initialStudents,
+}: {
+  initialStudents: ManagerStudentRow[];
+}) {
+  const router = useRouter();
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
@@ -159,6 +167,8 @@ export function ManageStudentsPanel() {
     10
   );
   const [currentPage, setCurrentPage] = useState(1);
+
+  const students = initialStudents;
 
   const stats = useMemo(
     () => ({
@@ -216,9 +226,23 @@ export function ManageStudentsPanel() {
     setCurrentPage(1);
   };
 
-  const handleCreateStudent = (student: ManagerStudentRow) => {
-    setStudents((currentStudents) => [student, ...currentStudents]);
+  const handleStudentCreated = () => {
     setCurrentPage(1);
+    router.refresh();
+  };
+
+  const openStudentDetails = (student: ManagerStudentRow) => {
+    router.push(getManagerStudentDetailRoute(student.student_profile_id));
+  };
+
+  const handleStudentRowKeyDown = (
+    event: React.KeyboardEvent<HTMLTableRowElement>,
+    student: ManagerStudentRow
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openStudentDetails(student);
+    }
   };
 
   return (
@@ -227,7 +251,7 @@ export function ManageStudentsPanel() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Manage students</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Preview of student profiles. Data is mocked until backend is connected.
+            View and create student accounts for your school.
           </p>
         </div>
 
@@ -257,12 +281,11 @@ export function ManageStudentsPanel() {
         <AddStudentDialog
           open={isAddStudentOpen}
           onOpenChange={setIsAddStudentOpen}
-          onCreateStudent={handleCreateStudent}
-          existingStudents={students}
+          onStudentCreated={handleStudentCreated}
         />
 
         <Card className="py-0">
-          <CardHeader className="border-b py-4">
+          <CardHeader className="border-b py-3">
             <CardTitle>Students</CardTitle>
             <CardAction className="self-center">
               <Button type="button" onClick={() => setIsAddStudentOpen(true)}>
@@ -272,7 +295,7 @@ export function ManageStudentsPanel() {
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
               <div className="relative min-w-0 flex-1">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -329,7 +352,12 @@ export function ManageStudentsPanel() {
                     paginatedStudents.map((student) => (
                       <tr
                         key={student.student_profile_id}
-                        className="border-b last:border-b-0 hover:bg-muted/30"
+                        className={STUDENT_ROW_CLASS}
+                        tabIndex={0}
+                        role="link"
+                        aria-label={`View details for ${student.full_name}`}
+                        onClick={() => openStudentDetails(student)}
+                        onKeyDown={(event) => handleStudentRowKeyDown(event, student)}
                       >
                         <td className="max-w-[12rem] px-4 py-3">
                           <TruncatedCell
@@ -364,7 +392,10 @@ export function ManageStudentsPanel() {
                         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                           {format(new Date(student.created_at), "MMM d, yyyy")}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td
+                          className="px-4 py-3 text-right"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           <StudentViewAction student={student} />
                         </td>
                       </tr>
@@ -374,7 +405,7 @@ export function ManageStudentsPanel() {
               </table>
             </div>
 
-            <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   Showing {rangeStart}–{rangeEnd} of {filteredStudents.length}

@@ -31,13 +31,13 @@ export function AnalyticsFilterBar({
 }: AnalyticsFilterBarProps) {
   return (
     <Card className="py-0">
-      <CardHeader className="border-b bg-muted/40 py-4">
+      <CardHeader className="border-b bg-muted/40 py-3">
         <CardTitle className="text-base">Filters</CardTitle>
         <CardDescription>
           Adjust the period and semester to explore trends across the school.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center">
+      <CardContent className="flex flex-col gap-3 px-4 pt-2 pb-3 sm:flex-row sm:items-center">
         <Select
           value={filters.period}
           onValueChange={(value) => onPeriodChange(value as AnalyticsPeriod)}
