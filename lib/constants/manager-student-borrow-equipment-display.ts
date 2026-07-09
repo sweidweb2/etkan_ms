@@ -20,3 +20,8 @@ export const MANAGER_BORROW_EQUIPMENT_TOGGLE_LABELS = {
   borrowed: "Mark as returned",
   returned: "Mark as borrowed",
 } as const;
+
+export const MANAGER_BORROW_RETURNED_TOGGLE_LABELS = {
+  off: "Mark as returned",
+  on: "Borrow is returned",
+} as const;

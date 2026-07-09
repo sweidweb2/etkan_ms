@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import { EditEquipmentDialog } from "@/components/manager/equipments/edit-equipment-dialog";
+import { EquipmentBorrowsSection } from "@/components/manager/equipments/equipment-borrows-section";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -29,9 +30,11 @@ import {
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerEquipmentRow } from "@/types/manager-equipment";
+import type { ManagerEquipmentBorrowRow } from "@/types/manager-equipment-borrow";
 
 type EquipmentDetailsPanelProps = {
   equipment: ManagerEquipmentRow;
+  initialBorrows: ManagerEquipmentBorrowRow[];
 };
 
 function DetailField({
@@ -59,6 +62,7 @@ function DetailField({
 
 export function EquipmentDetailsPanel({
   equipment: initialEquipment,
+  initialBorrows,
 }: EquipmentDetailsPanelProps) {
   const router = useRouter();
   const [equipment, setEquipment] =
@@ -147,6 +151,11 @@ export function EquipmentDetailsPanel({
           </dl>
         </CardContent>
       </Card>
+
+      <EquipmentBorrowsSection
+        equipmentName={equipment.name}
+        initialBorrows={initialBorrows}
+      />
     </div>
   );
 }

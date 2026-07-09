@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseAddStudentToSemesterFormData } from "@/lib/validators/manager/add-student-to-semester";
 import { parseConnectSemesterClassFormData } from "@/lib/validators/manager/connect-semester-class";
+import { parseCreateBorrowsFormData } from "@/lib/validators/manager/create-borrows";
 import { parseCreateEquipmentFormData } from "@/lib/validators/manager/create-equipment";
 import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
 import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create-relationship";
@@ -295,5 +296,38 @@ describe("parseUpdateEquipmentFormData", () => {
     if (!result.success) {
       expect(result.fieldErrors?.id).toBeDefined();
     }
+  });
+});
+
+describe("parseCreateBorrowsFormData", () => {
+  it("parses valid borrow items JSON", () => {
+    const formData = new FormData();
+    formData.set(
+      "items",
+      JSON.stringify([
+        {
+          user_id: relationshipId,
+          equipment_id: relationshipId,
+          quantity: 2,
+        },
+      ])
+    );
+
+    const result = parseCreateBorrowsFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.items).toHaveLength(1);
+      expect(result.data.items[0]?.quantity).toBe(2);
+    }
+  });
+
+  it("rejects empty items", () => {
+    const formData = new FormData();
+    formData.set("items", JSON.stringify([]));
+
+    const result = parseCreateBorrowsFormData(formData);
+
+    expect(result.success).toBe(false);
   });
 });

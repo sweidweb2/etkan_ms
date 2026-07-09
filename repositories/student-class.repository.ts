@@ -35,3 +35,7 @@ export async function listStudentClassCountsByClassIds(
 
   return client.from("student_class").select("class_id").in("class_id", classIds);
 }
+
+export async function listStudentClassEnrollments(client: Supabase) {
+  return client.from("student_class").select("class_id, user_id");
+}

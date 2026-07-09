@@ -1,8 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { format } from "date-fns";
-import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PencilIcon,
+  SearchIcon,
+} from "lucide-react";
+import {
+  toggleBorrowReturnedAction,
+} from "@/app/manager/equipments/actions";
+import { EditBorrowRecordDialog } from "@/components/manager/equipments/edit-borrow-record-dialog";
 import { BorrowEquipmentStatusBadge } from "@/components/manager/students/borrow-equipment-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
@@ -21,23 +36,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import {
   BORROW_EQUIPMENT_STATUSES,
   BORROW_EQUIPMENT_STATUS_VALUES,
   type BorrowEquipmentStatusValue,
 } from "@/lib/constants/manager-borrow-equipment-status";
-import { MANAGER_BORROW_EQUIPMENT_STATUS_LABELS } from "@/lib/constants/manager-student-borrow-equipment-display";
+import {
+  MANAGER_BORROW_EQUIPMENT_STATUS_LABELS,
+  MANAGER_BORROW_RETURNED_TOGGLE_LABELS,
+} from "@/lib/constants/manager-student-borrow-equipment-display";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
-import type { ManagerBorrowEquipmentListRow } from "@/types/manager-borrow-equipment-list";
+import type {
+  ManagerBorrowEquipmentListRow,
+  ToggleBorrowReturnedActionState,
+} from "@/types/manager-borrow-equipment-list";
+import type { ManagerEquipmentRow } from "@/types/manager-equipment";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const TABLE_PAGE_SIZE = 10;
 const STATUS_FILTER_ALL = "all";
 
 const COLUMN_LIMITS = {
@@ -46,8 +70,12 @@ const COLUMN_LIMITS = {
   equipmentDescription: 32,
 } as const;
 
+const initialToggleState: ToggleBorrowReturnedActionState = {};
+
 type BorrowEquipmentHistorySectionProps = {
   borrows: ManagerBorrowEquipmentListRow[];
+  equipments: ManagerEquipmentRow[];
+  onRecordsChanged: () => void;
 };
 
 function TruncatedCell({
@@ -148,13 +176,69 @@ function formatDateCell(value: string | null) {
 
 export function BorrowEquipmentHistorySection({
   borrows,
+  equipments,
+  onRecordsChanged,
 }: BorrowEquipmentHistorySectionProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [toggleState, toggleAction, isTogglePending] = useActionState(
+    toggleBorrowReturnedAction,
+    initialToggleState
+  );
+  const isToggleActionPending = isTogglePending || isTransitionPending;
+
+  useActionStateToast(toggleState, isToggleActionPending);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
-  );
   const [currentPage, setCurrentPage] = useState(1);
+  const [editRow, setEditRow] = useState<ManagerBorrowEquipmentListRow | null>(
+    null
+  );
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
+  const [optimisticReturnedById, setOptimisticReturnedById] = useState<
+    Record<string, boolean>
+  >({});
+
+  useEffect(() => {
+    if (isToggleActionPending || !pendingToggleId) {
+      return;
+    }
+
+    if (toggleState.success) {
+      setOptimisticReturnedById((current) => {
+        const next = { ...current };
+        delete next[pendingToggleId];
+        return next;
+      });
+      setPendingToggleId(null);
+      onRecordsChanged();
+      return;
+    }
+
+    if (toggleState.error) {
+      setOptimisticReturnedById((current) => {
+        const next = { ...current };
+        delete next[pendingToggleId];
+        return next;
+      });
+      setPendingToggleId(null);
+    }
+  }, [
+    isToggleActionPending,
+    onRecordsChanged,
+    pendingToggleId,
+    toggleState.error,
+    toggleState.success,
+  ]);
+
+  const getRowIsReturned = (row: ManagerBorrowEquipmentListRow) => {
+    if (row.id in optimisticReturnedById) {
+      return optimisticReturnedById[row.id]!;
+    }
+
+    return row.status === BORROW_EQUIPMENT_STATUSES.RETURNED;
+  };
 
   const stats = useMemo(
     () => ({
@@ -178,18 +262,26 @@ export function BorrowEquipmentHistorySection({
     });
   }, [borrows, searchQuery, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredBorrows.length / pageSize));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredBorrows.length / TABLE_PAGE_SIZE)
+  );
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedBorrows = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredBorrows.slice(startIndex, startIndex + pageSize);
-  }, [filteredBorrows, pageSize, safeCurrentPage]);
+    const startIndex = (safeCurrentPage - 1) * TABLE_PAGE_SIZE;
+    return filteredBorrows.slice(startIndex, startIndex + TABLE_PAGE_SIZE);
+  }, [filteredBorrows, safeCurrentPage]);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredBorrows.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredBorrows.length);
+    filteredBorrows.length === 0
+      ? 0
+      : (safeCurrentPage - 1) * TABLE_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(
+    safeCurrentPage * TABLE_PAGE_SIZE,
+    filteredBorrows.length
+  );
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -201,17 +293,40 @@ export function BorrowEquipmentHistorySection({
     setCurrentPage(1);
   };
 
-  const handlePageSizeChange = (value: string | null) => {
-    if (!value) {
-      return;
-    }
+  const handleToggleReturned = (
+    row: ManagerBorrowEquipmentListRow,
+    isReturned: boolean
+  ) => {
+    setOptimisticReturnedById((current) => ({
+      ...current,
+      [row.id]: isReturned,
+    }));
 
-    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
-    setCurrentPage(1);
+    const formData = new FormData();
+    formData.set("id", row.id);
+    formData.set("isReturned", String(isReturned));
+
+    setPendingToggleId(row.id);
+    startTransition(() => {
+      toggleAction(formData);
+    });
+  };
+
+  const openEditDialog = (row: ManagerBorrowEquipmentListRow) => {
+    setEditRow(row);
+    setIsEditOpen(true);
   };
 
   return (
     <TooltipProvider>
+      <EditBorrowRecordDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        borrowRow={editRow}
+        equipments={equipments}
+        onSaved={onRecordsChanged}
+      />
+
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <UserStatCard
@@ -240,7 +355,7 @@ export function BorrowEquipmentHistorySection({
           <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Borrowing records</CardTitle>
             <CardDescription>
-              Read-only preview of borrow_equipment rows across all students.
+              Borrow history across all students and equipment.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-0">
@@ -278,7 +393,7 @@ export function BorrowEquipmentHistorySection({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-sm">
+              <table className="w-full min-w-[1040px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="px-4 py-3 font-medium">Student</th>
@@ -288,92 +403,110 @@ export function BorrowEquipmentHistorySection({
                     <th className="px-4 py-3 font-medium">Borrowed</th>
                     <th className="px-4 py-3 font-medium">Returned</th>
                     <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Returned?</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedBorrows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={9}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         No borrowing records match your filters.
                       </td>
                     </tr>
                   ) : (
-                    paginatedBorrows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-b last:border-b-0 hover:bg-muted/30"
-                      >
-                        <td className="max-w-[11rem] px-4 py-3 font-medium">
-                          <TruncatedCell
-                            value={row.student_name}
-                            maxLength={COLUMN_LIMITS.studentName}
-                          />
-                        </td>
-                        <td className="max-w-[12rem] px-4 py-3">
-                          <TruncatedCell
-                            value={row.equipment_name}
-                            maxLength={COLUMN_LIMITS.equipmentName}
-                          />
-                        </td>
-                        <td className="max-w-[14rem] px-4 py-3 text-muted-foreground">
-                          <TruncatedCell
-                            value={row.equipment_description ?? "—"}
-                            maxLength={COLUMN_LIMITS.equipmentDescription}
-                          />
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
-                          {row.quantity}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                          {formatDateCell(row.borrowed_at)}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                          {formatDateCell(row.returned_at)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <BorrowEquipmentStatusBadge status={row.status} />
-                        </td>
-                      </tr>
-                    ))
+                    paginatedBorrows.map((row) => {
+                      const isReturned = getRowIsReturned(row);
+                      const isTogglePending =
+                        isToggleActionPending && pendingToggleId === row.id;
+
+                      return (
+                        <tr
+                          key={row.id}
+                          className="border-b last:border-b-0 hover:bg-muted/30"
+                        >
+                          <td className="max-w-[11rem] px-4 py-3 font-medium">
+                            <TruncatedCell
+                              value={row.student_name}
+                              maxLength={COLUMN_LIMITS.studentName}
+                            />
+                          </td>
+                          <td className="max-w-[12rem] px-4 py-3">
+                            <TruncatedCell
+                              value={row.equipment_name}
+                              maxLength={COLUMN_LIMITS.equipmentName}
+                            />
+                          </td>
+                          <td className="max-w-[14rem] px-4 py-3 text-muted-foreground">
+                            <TruncatedCell
+                              value={row.equipment_description ?? "—"}
+                              maxLength={COLUMN_LIMITS.equipmentDescription}
+                            />
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                            {row.quantity}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                            {formatDateCell(row.borrowed_at)}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                            {formatDateCell(row.returned_at)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <BorrowEquipmentStatusBadge status={row.status} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Switch
+                              checked={isReturned}
+                              disabled={isTogglePending}
+                              onCheckedChange={(checked) =>
+                                handleToggleReturned(row, checked)
+                              }
+                              className={
+                                isReturned
+                                  ? "bg-emerald-500 hover:bg-emerald-500/90"
+                                  : undefined
+                              }
+                              aria-label={
+                                isReturned
+                                  ? MANAGER_BORROW_RETURNED_TOGGLE_LABELS.on
+                                  : MANAGER_BORROW_RETURNED_TOGGLE_LABELS.off
+                              }
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Edit borrow record"
+                                onClick={() => openEditDialog(row)}
+                              >
+                                <PencilIcon />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  Showing {rangeStart}–{rangeEnd} of {filteredBorrows.length}
-                </span>
-                <span aria-hidden="true">·</span>
-                <div className="flex items-center gap-2">
-                  <span>Rows</span>
-                  <Select
-                    value={String(pageSize)}
-                    onValueChange={handlePageSizeChange}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="w-16"
-                      aria-label="Rows per page"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="start">
-                      {PAGE_SIZE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={String(option)}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <span className="text-sm text-muted-foreground">
+                {filteredBorrows.length <= TABLE_PAGE_SIZE
+                  ? `Showing ${filteredBorrows.length} ${filteredBorrows.length === 1 ? "row" : "rows"}`
+                  : `Showing ${rangeStart}–${rangeEnd} of ${filteredBorrows.length}`}
+              </span>
 
-              <div className="flex items-center gap-1">
+              {filteredBorrows.length > TABLE_PAGE_SIZE ? (
+                <div className="flex items-center gap-1">
                 <Button
                   type="button"
                   variant="outline"
@@ -419,7 +552,8 @@ export function BorrowEquipmentHistorySection({
                 >
                   <ChevronRightIcon />
                 </Button>
-              </div>
+                </div>
+              ) : null}
             </div>
           </CardContent>
         </Card>

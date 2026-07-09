@@ -32,6 +32,20 @@ export async function listStudentProfiles(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+export async function listStudentProfilesByUserIds(
+  client: Supabase,
+  userIds: string[]
+) {
+  if (userIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("student_profiles")
+    .select("user_id, full_name")
+    .in("user_id", userIds);
+}
+
 export async function createStudentProfile(
   client: Supabase,
   input: {

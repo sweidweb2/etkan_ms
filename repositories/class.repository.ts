@@ -15,6 +15,15 @@ export type ClassRecord = {
   created_at: string | null;
 };
 
+const CLASS_LIST_COLUMNS = "id, name";
+
+export async function listClasses(client: Supabase) {
+  return client
+    .from("classes")
+    .select(CLASS_LIST_COLUMNS)
+    .order("name", { ascending: true });
+}
+
 export async function listClassSubjectIds(client: Supabase) {
   return client.from("classes").select("subject_id");
 }

@@ -31,6 +31,17 @@ export async function listEquipments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+export async function listEquipmentsByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("equipments")
+    .select(EQUIPMENT_COLUMNS)
+    .in("id", ids);
+}
+
 export async function findEquipmentById(client: Supabase, id: string) {
   return client
     .from("equipments")

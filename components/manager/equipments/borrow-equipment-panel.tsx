@@ -1,7 +1,18 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { ChevronDownIcon, MinusIcon, PlusIcon, SearchIcon } from "lucide-react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { createBorrowsAction } from "@/app/manager/equipments/actions";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -20,7 +31,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -29,24 +39,37 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BorrowEquipmentHistorySection } from "@/components/manager/equipments/borrow-equipment-history-section";
-import { MANAGER_CLASSES_MOCK } from "@/lib/constants/manager-classes-mock";
-import { BORROW_EQUIPMENT_STATUSES } from "@/lib/constants/manager-borrow-equipment-status";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import {
   formatEquipmentUnitPrice,
+  exceedsEquipmentRemainingStock,
   getEquipmentRemainingQuantity,
+  getMaxBorrowQuantityPerStudent,
 } from "@/lib/constants/manager-equipment-display";
-import { MANAGER_EQUIPMENTS_MOCK } from "@/lib/constants/manager-equipments-mock";
-import { MANAGER_STUDENTS_MOCK } from "@/lib/constants/manager-students-mock";
-import { getManagerAllBorrowEquipmentPreview } from "@/lib/manager/get-manager-all-borrow-equipment-preview";
-import { getManagerClassStudentProfileIdsPreview } from "@/lib/manager/get-manager-class-student-ids-preview";
 import { ROUTES } from "@/lib/constants/routes";
-import { showErrorToast, showSuccessToast } from "@/lib/toast";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import type { ManagerBorrowEquipmentListRow } from "@/types/manager-borrow-equipment-list";
+import type {
+  CreateBorrowsActionState,
+  ManagerBorrowClassOption,
+  ManagerBorrowEquipmentListRow,
+} from "@/types/manager-borrow-equipment-list";
 import type { ManagerEquipmentRow } from "@/types/manager-equipment";
 import type { ManagerStudentRow } from "@/types/manager-student";
 
 const CLASS_FILTER_ALL = "all";
+const TABLE_PAGE_SIZE = 10;
+
+const initialBorrowState: CreateBorrowsActionState = {};
+
+type BorrowEquipmentPanelProps = {
+  initialStudents: ManagerStudentRow[];
+  initialEquipments: ManagerEquipmentRow[];
+  initialClasses: ManagerBorrowClassOption[];
+  initialClassStudentProfileIds: Record<string, string[]>;
+  initialBorrowHistory: ManagerBorrowEquipmentListRow[];
+};
 
 function toggleSetMember(
   set: Set<string>,
@@ -167,14 +190,138 @@ function stopRowToggle(event: MouseEvent | KeyboardEvent) {
   event.stopPropagation();
 }
 
-export function BorrowEquipmentPanel() {
+function getPageNumbers(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, totalPages, currentPage]);
+
+  for (let offset = -1; offset <= 1; offset += 1) {
+    const page = currentPage + offset;
+    if (page > 1 && page < totalPages) {
+      pages.add(page);
+    }
+  }
+
+  const sortedPages = [...pages].sort((a, b) => a - b);
+  const result: Array<number | "ellipsis"> = [];
+
+  sortedPages.forEach((page, index) => {
+    const previousPage = sortedPages[index - 1];
+    if (previousPage !== undefined && page - previousPage > 1) {
+      result.push("ellipsis");
+    }
+    result.push(page);
+  });
+
+  return result;
+}
+
+function TablePaginationFooter({
+  currentPage,
+  totalItems,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / TABLE_PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const rangeStart =
+    totalItems === 0 ? 0 : (safeCurrentPage - 1) * TABLE_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * TABLE_PAGE_SIZE, totalItems);
+  const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
+
+  if (totalItems <= TABLE_PAGE_SIZE) {
+    return (
+      <div className="border-t px-4 pt-2 pb-3 text-sm text-muted-foreground">
+        Showing {totalItems} {totalItems === 1 ? "row" : "rows"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-sm text-muted-foreground">
+        Showing {rangeStart}–{rangeEnd} of {totalItems}
+      </span>
+
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          disabled={safeCurrentPage <= 1}
+          onClick={() => onPageChange(safeCurrentPage - 1)}
+          aria-label="Previous page"
+        >
+          <ChevronLeftIcon />
+        </Button>
+
+        {pageNumbers.map((page, index) =>
+          page === "ellipsis" ? (
+            <span
+              key={`ellipsis-${index}`}
+              className="px-1 text-sm text-muted-foreground"
+            >
+              …
+            </span>
+          ) : (
+            <Button
+              key={page}
+              type="button"
+              variant={page === safeCurrentPage ? "default" : "outline"}
+              size="icon-sm"
+              className="min-w-7"
+              onClick={() => onPageChange(page)}
+              aria-label={`Page ${page}`}
+              aria-current={page === safeCurrentPage ? "page" : undefined}
+            >
+              {page}
+            </Button>
+          )
+        )}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          disabled={safeCurrentPage >= totalPages}
+          onClick={() => onPageChange(safeCurrentPage + 1)}
+          aria-label="Next page"
+        >
+          <ChevronRightIcon />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function BorrowEquipmentPanel({
+  initialStudents,
+  initialEquipments,
+  initialClasses,
+  initialClassStudentProfileIds,
+  initialBorrowHistory,
+}: BorrowEquipmentPanelProps) {
+  const router = useRouter();
   const equipmentSectionRef = useRef<HTMLDivElement>(null);
   const borrowHistorySectionRef = useRef<HTMLDivElement>(null);
-  const [students] = useState(MANAGER_STUDENTS_MOCK);
-  const [equipments, setEquipments] = useState(MANAGER_EQUIPMENTS_MOCK);
-  const [borrowHistory, setBorrowHistory] = useState<
-    ManagerBorrowEquipmentListRow[]
-  >(() => getManagerAllBorrowEquipmentPreview());
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createBorrowsAction,
+    initialBorrowState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
+  const students = initialStudents;
+  const equipments = initialEquipments;
+  const borrowHistory = initialBorrowHistory;
+
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -184,7 +331,57 @@ export function BorrowEquipmentPanel() {
   const [classFilter, setClassFilter] = useState(CLASS_FILTER_ALL);
   const [studentSearch, setStudentSearch] = useState("");
   const [equipmentSearch, setEquipmentSearch] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [studentCurrentPage, setStudentCurrentPage] = useState(1);
+  const [equipmentCurrentPage, setEquipmentCurrentPage] = useState(1);
+
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+
+    setSelectedStudentIds(new Set());
+    setEquipmentQuantities({});
+    setClassFilter(CLASS_FILTER_ALL);
+    router.refresh();
+  }, [state.success, router]);
+
+  const studentCount = selectedStudentIds.size;
+
+  useEffect(() => {
+    if (studentCount === 0) {
+      return;
+    }
+
+    setEquipmentQuantities((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      for (const [equipmentId, quantity] of Object.entries(current)) {
+        const equipment = equipments.find((row) => row.id === equipmentId);
+        if (!equipment) {
+          continue;
+        }
+
+        const maxQuantity = getMaxBorrowQuantityPerStudent(
+          equipment,
+          studentCount
+        );
+
+        if (maxQuantity === 0) {
+          delete next[equipmentId];
+          changed = true;
+          continue;
+        }
+
+        if (quantity > maxQuantity) {
+          next[equipmentId] = maxQuantity;
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [studentCount, equipments]);
 
   const selectedEquipmentIds = useMemo(
     () => new Set(Object.keys(equipmentQuantities)),
@@ -197,6 +394,20 @@ export function BorrowEquipmentPanel() {
     );
   }, [equipments, selectedEquipmentIds]);
 
+  const hasInsufficientStockForSave = useMemo(() => {
+    if (studentCount === 0 || selectedEquipmentsList.length === 0) {
+      return false;
+    }
+
+    return selectedEquipmentsList.some((equipment) =>
+      exceedsEquipmentRemainingStock(
+        equipment,
+        studentCount,
+        equipmentQuantities[equipment.id] ?? 1
+      )
+    );
+  }, [equipmentQuantities, selectedEquipmentsList, studentCount]);
+
   const filteredStudents = useMemo(() => {
     return students.filter((student) =>
       matchesStudentSearch(student, studentSearch)
@@ -208,6 +419,30 @@ export function BorrowEquipmentPanel() {
       matchesEquipmentSearch(equipment, equipmentSearch)
     );
   }, [equipmentSearch, equipments]);
+
+  const studentTotalPages = Math.max(
+    1,
+    Math.ceil(filteredStudents.length / TABLE_PAGE_SIZE)
+  );
+  const equipmentTotalPages = Math.max(
+    1,
+    Math.ceil(filteredEquipments.length / TABLE_PAGE_SIZE)
+  );
+  const safeStudentCurrentPage = Math.min(studentCurrentPage, studentTotalPages);
+  const safeEquipmentCurrentPage = Math.min(
+    equipmentCurrentPage,
+    equipmentTotalPages
+  );
+
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (safeStudentCurrentPage - 1) * TABLE_PAGE_SIZE;
+    return filteredStudents.slice(startIndex, startIndex + TABLE_PAGE_SIZE);
+  }, [filteredStudents, safeStudentCurrentPage]);
+
+  const paginatedEquipments = useMemo(() => {
+    const startIndex = (safeEquipmentCurrentPage - 1) * TABLE_PAGE_SIZE;
+    return filteredEquipments.slice(startIndex, startIndex + TABLE_PAGE_SIZE);
+  }, [filteredEquipments, safeEquipmentCurrentPage]);
 
   const allFilteredStudentsSelected =
     filteredStudents.length > 0 &&
@@ -229,11 +464,10 @@ export function BorrowEquipmentPanel() {
       return;
     }
 
-    const classStudentIds =
-      getManagerClassStudentProfileIdsPreview(nextClass);
+    const classStudentIds = initialClassStudentProfileIds[nextClass] ?? [];
 
     if (classStudentIds.length === 0) {
-      showErrorToast("No students are enrolled in this class in the preview.");
+      showErrorToast("No students are enrolled in this class.");
       return;
     }
 
@@ -278,7 +512,13 @@ export function BorrowEquipmentPanel() {
 
       const next = { ...current };
       for (const equipment of filteredEquipments) {
-        next[equipment.id] = next[equipment.id] ?? 1;
+        const maxQuantity = getMaxBorrowQuantityPerStudent(
+          equipment,
+          Math.max(studentCount, 1)
+        );
+        if (maxQuantity > 0) {
+          next[equipment.id] = Math.min(next[equipment.id] ?? 1, maxQuantity);
+        }
       }
       return next;
     });
@@ -288,7 +528,20 @@ export function BorrowEquipmentPanel() {
     setEquipmentQuantities((current) => {
       const next = { ...current };
       if (checked) {
-        next[equipmentId] = next[equipmentId] ?? 1;
+        const equipment = equipments.find((row) => row.id === equipmentId);
+        if (!equipment) {
+          return current;
+        }
+
+        const maxQuantity = getMaxBorrowQuantityPerStudent(
+          equipment,
+          Math.max(studentCount, 1)
+        );
+        if (maxQuantity === 0) {
+          return current;
+        }
+
+        next[equipmentId] = Math.min(current[equipmentId] ?? 1, maxQuantity);
       } else {
         delete next[equipmentId];
       }
@@ -301,9 +554,10 @@ export function BorrowEquipmentPanel() {
   };
 
   const getMaxQuantityPerStudent = (equipment: ManagerEquipmentRow) => {
-    const remaining = getEquipmentRemainingQuantity(equipment);
-    const studentCount = Math.max(selectedStudentIds.size, 1);
-    return Math.max(1, Math.floor(remaining / studentCount));
+    return getMaxBorrowQuantityPerStudent(
+      equipment,
+      Math.max(studentCount, 1)
+    );
   };
 
   const handleEquipmentQuantityChange = (
@@ -318,6 +572,10 @@ export function BorrowEquipmentPanel() {
     setEquipmentQuantities((current) => {
       const currentQuantity = current[equipmentId] ?? 1;
       const maxQuantity = getMaxQuantityPerStudent(equipment);
+      if (maxQuantity === 0) {
+        return current;
+      }
+
       const nextQuantity = Math.min(
         maxQuantity,
         Math.max(1, currentQuantity + delta)
@@ -369,13 +627,13 @@ export function BorrowEquipmentPanel() {
     );
     const studentCount = selectedStudentIds.size;
 
-    const insufficientStock = selectedEquipments.find((equipment) => {
-      const borrowQuantity = equipmentQuantities[equipment.id] ?? 1;
-      return (
-        getEquipmentRemainingQuantity(equipment) <
-        studentCount * borrowQuantity
-      );
-    });
+    const insufficientStock = selectedEquipments.find((equipment) =>
+      exceedsEquipmentRemainingStock(
+        equipment,
+        studentCount,
+        equipmentQuantities[equipment.id] ?? 1
+      )
+    );
 
     if (insufficientStock) {
       const borrowQuantity = equipmentQuantities[insufficientStock.id] ?? 1;
@@ -385,57 +643,20 @@ export function BorrowEquipmentPanel() {
       return;
     }
 
-    setIsSaving(true);
-
-    const borrowedAt = new Date().toISOString();
-    const newRows: ManagerBorrowEquipmentListRow[] = [];
-
-    for (const student of selectedStudentsList) {
-      for (const equipment of selectedEquipments) {
-        const borrowQuantity = equipmentQuantities[equipment.id] ?? 1;
-
-        newRows.push({
-          id: crypto.randomUUID(),
-          equipment_id: equipment.id,
-          user_id: student.user_id,
-          equipment_name: equipment.name,
-          equipment_description: equipment.description,
-          equipment_unit_price: equipment.unit_price,
-          quantity: borrowQuantity,
-          borrowed_at: borrowedAt,
-          returned_at: null,
-          status: BORROW_EQUIPMENT_STATUSES.BORROWED,
-          student_name: student.full_name,
-        });
-      }
-    }
-
-    const borrowCount = newRows.length;
-
-    setBorrowHistory((current) => [...newRows, ...current]);
-    setEquipments((current) =>
-      current.map((equipment) => {
-        const borrowQuantity = equipmentQuantities[equipment.id];
-        if (!borrowQuantity) {
-          return equipment;
-        }
-
-        return {
-          ...equipment,
-          borrowed_quantity:
-            equipment.borrowed_quantity + studentCount * borrowQuantity,
-        };
-      })
+    const items = selectedStudentsList.flatMap((student) =>
+      selectedEquipments.map((equipment) => ({
+        user_id: student.user_id,
+        equipment_id: equipment.id,
+        quantity: equipmentQuantities[equipment.id] ?? 1,
+      }))
     );
 
-    showSuccessToast(
-      `${borrowCount} borrow record${borrowCount === 1 ? "" : "s"} saved to the preview.`
-    );
+    const formData = new FormData();
+    formData.set("items", JSON.stringify(items));
 
-    setSelectedStudentIds(new Set());
-    setEquipmentQuantities({});
-    setClassFilter(CLASS_FILTER_ALL);
-    setIsSaving(false);
+    startTransition(() => {
+      formAction(formData);
+    });
   };
 
   return (
@@ -460,7 +681,6 @@ export function BorrowEquipmentPanel() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Select one or more students and equipment items, then save the borrow.
-          Preview-only until backend is connected.
         </p>
       </div>
 
@@ -494,14 +714,16 @@ export function BorrowEquipmentPanel() {
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={studentSearch}
-                onChange={(event) => setStudentSearch(event.target.value)}
+                onChange={(event) => {
+                  setStudentSearch(event.target.value);
+                  setStudentCurrentPage(1);
+                }}
                 placeholder="Search student name, username, or email…"
                 className="pl-8"
                 aria-label="Search students"
               />
             </div>
-            <div className="flex w-full flex-col gap-2 lg:w-72">
-              <Label htmlFor="borrow-class-filter">Select by class</Label>
+            <div className="w-full lg:w-72">
               <Select
                 value={classFilter}
                 onValueChange={handleClassFilterChange}
@@ -517,11 +739,8 @@ export function BorrowEquipmentPanel() {
                   <SelectItem value={CLASS_FILTER_ALL}>
                     No class shortcut
                   </SelectItem>
-                  {MANAGER_CLASSES_MOCK.map((classOption) => (
-                    <SelectItem
-                      key={classOption.class_id}
-                      value={classOption.class_id}
-                    >
+                  {initialClasses.map((classOption) => (
+                    <SelectItem key={classOption.id} value={classOption.id}>
                       {classOption.name}
                     </SelectItem>
                   ))}
@@ -554,7 +773,7 @@ export function BorrowEquipmentPanel() {
                     <SelectionCheckbox
                       checked={allFilteredStudentsSelected}
                       onCheckedChange={handleToggleAllStudents}
-                      ariaLabel="Select all visible students"
+                      ariaLabel="Select all matching students"
                     />
                   </th>
                   <th className="px-4 py-3 font-medium">Full name</th>
@@ -573,7 +792,7 @@ export function BorrowEquipmentPanel() {
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map((student) => {
+                  paginatedStudents.map((student) => {
                     const isSelected = selectedStudentIds.has(
                       student.student_profile_id
                     );
@@ -630,6 +849,12 @@ export function BorrowEquipmentPanel() {
               </tbody>
             </table>
           </div>
+
+          <TablePaginationFooter
+            currentPage={safeStudentCurrentPage}
+            totalItems={filteredStudents.length}
+            onPageChange={setStudentCurrentPage}
+          />
         </CardContent>
       </Card>
 
@@ -646,7 +871,10 @@ export function BorrowEquipmentPanel() {
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={equipmentSearch}
-                onChange={(event) => setEquipmentSearch(event.target.value)}
+                onChange={(event) => {
+                  setEquipmentSearch(event.target.value);
+                  setEquipmentCurrentPage(1);
+                }}
                 placeholder="Search equipment name or description…"
                 className="pl-8"
                 aria-label="Search equipment"
@@ -678,7 +906,7 @@ export function BorrowEquipmentPanel() {
                     <SelectionCheckbox
                       checked={allFilteredEquipmentsSelected}
                       onCheckedChange={handleToggleAllEquipments}
-                      ariaLabel="Select all visible equipment"
+                      ariaLabel="Select all matching equipment"
                     />
                   </th>
                   <th className="px-4 py-3 font-medium">Name</th>
@@ -704,12 +932,14 @@ export function BorrowEquipmentPanel() {
                     </td>
                   </tr>
                 ) : (
-                  filteredEquipments.map((equipment) => {
+                  paginatedEquipments.map((equipment) => {
                     const isSelected = selectedEquipmentIds.has(equipment.id);
                     const remaining = getEquipmentRemainingQuantity(equipment);
-                    const isOutOfStock = remaining === 0;
-                    const quantity = equipmentQuantities[equipment.id] ?? 1;
                     const maxQuantity = getMaxQuantityPerStudent(equipment);
+                    const isOutOfStock =
+                      remaining === 0 ||
+                      (studentCount > 0 && maxQuantity === 0);
+                    const quantity = equipmentQuantities[equipment.id] ?? 1;
 
                     return (
                       <tr
@@ -797,6 +1027,12 @@ export function BorrowEquipmentPanel() {
               </tbody>
             </table>
           </div>
+
+          <TablePaginationFooter
+            currentPage={safeEquipmentCurrentPage}
+            totalItems={filteredEquipments.length}
+            onPageChange={setEquipmentCurrentPage}
+          />
         </CardContent>
       </Card>
 
@@ -804,14 +1040,23 @@ export function BorrowEquipmentPanel() {
         <Button
           type="button"
           onClick={handleSaveBorrow}
-          disabled={isSaving}
+          disabled={isPending || hasInsufficientStockForSave}
+          className="bg-orange-500 text-white hover:bg-orange-500/90"
         >
-          Save borrow
+          {isPending ? (
+            <InlineSpinner label="Saving borrow" />
+          ) : (
+            "Save borrow"
+          )}
         </Button>
       </div>
 
       <div ref={borrowHistorySectionRef} className="scroll-mt-6">
-        <BorrowEquipmentHistorySection borrows={borrowHistory} />
+        <BorrowEquipmentHistorySection
+          borrows={borrowHistory}
+          equipments={equipments}
+          onRecordsChanged={() => router.refresh()}
+        />
       </div>
     </div>
   );
