@@ -48,7 +48,7 @@ import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type { ManagerStudentRow } from "@/types/manager-student";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const PAGE_SIZE = 10;
 const STATUS_FILTER_ALL = "all";
 
 type ClassStudentsSectionProps = {
@@ -155,9 +155,6 @@ export function ClassStudentsSection({
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
-  );
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredStudents = useMemo(() => {
@@ -170,18 +167,21 @@ export function ClassStudentsSection({
     });
   }, [students, searchQuery, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedStudents = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredStudents.slice(startIndex, startIndex + pageSize);
-  }, [filteredStudents, pageSize, safeCurrentPage]);
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredStudents.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredStudents, safeCurrentPage]);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredStudents.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredStudents.length);
+    filteredStudents.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(
+    safeCurrentPage * PAGE_SIZE,
+    filteredStudents.length
+  );
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -193,29 +193,18 @@ export function ClassStudentsSection({
     setCurrentPage(1);
   };
 
-  const handlePageSizeChange = (value: string | null) => {
-    if (!value) {
-      return;
-    }
-
-    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
-    setCurrentPage(1);
-  };
-
   const handleAddStudent = (
     student: ManagerClassStudentRow,
     classRow: ManagerClassRow,
     studentGrade?: ManagerStudentFinalExamGradeRow
   ) => {
-    setStudents((current) => {
-      if (current.some((row) => row.id === student.id)) {
-        return current;
-      }
+    if (students.some((row) => row.id === student.id)) {
+      return;
+    }
 
-      const nextStudents = [student, ...current];
-      onStudentsChange(nextStudents);
-      return nextStudents;
-    });
+    const nextStudents = [student, ...students];
+    setStudents(nextStudents);
+    onStudentsChange(nextStudents);
     onAvailableStudentsChange(
       availableStudents.filter(
         (row) => row.student_profile_id !== student.student_profile_id
@@ -370,34 +359,9 @@ export function ClassStudentsSection({
 
           {filteredStudents.length > 0 ? (
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  Showing {rangeStart}–{rangeEnd} of {filteredStudents.length}
-                </span>
-                <span aria-hidden="true">·</span>
-                <div className="flex items-center gap-2">
-                  <span>Rows</span>
-                  <Select
-                    value={String(pageSize)}
-                    onValueChange={handlePageSizeChange}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="w-16"
-                      aria-label="Rows per page"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="start">
-                      {PAGE_SIZE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={String(option)}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Showing {rangeStart}–{rangeEnd} of {filteredStudents.length}
+              </p>
 
               <div className="flex items-center gap-1">
                 <Button

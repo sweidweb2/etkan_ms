@@ -1,6 +1,7 @@
 "use server";
 
 import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { revalidateManagerUsersList } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStaffUserFormData } from "@/lib/validators/manager/create-user";
 import { createStaffUser } from "@/services/user.service";
@@ -40,6 +41,8 @@ export async function createStaffUserAction(
       fieldErrors: result.fieldErrors,
     };
   }
+
+  revalidateManagerUsersList();
 
   return {
     success: true,

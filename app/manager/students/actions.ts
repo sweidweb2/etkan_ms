@@ -1,6 +1,7 @@
 "use server";
 
 import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { revalidateManagerPeopleLists } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStudentFormData } from "@/lib/validators/manager/create-student";
 import { parseUpdateStudentFormData } from "@/lib/validators/manager/update-student";
@@ -45,6 +46,8 @@ export async function createStudentAction(
     };
   }
 
+  revalidateManagerPeopleLists();
+
   return {
     success: true,
     message: result.message,
@@ -86,6 +89,8 @@ export async function updateStudentAction(
       fieldErrors: result.fieldErrors,
     };
   }
+
+  revalidateManagerPeopleLists();
 
   return {
     success: true,

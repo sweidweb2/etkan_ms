@@ -6,6 +6,7 @@ import {
   Calculator,
   CalendarDays,
   ChartColumn,
+  Clock,
   DatabaseBackup,
   FileText,
   Layers,
@@ -38,4 +39,5 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   analytics: ChartColumn,
   backup: DatabaseBackup,
   logs: ScrollText,
+  clock: Clock,
 };

@@ -1,4 +1,7 @@
+import { unstable_cache } from "next/cache";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createRelationshipSchema } from "@/lib/validators/manager/create-relationship";
 import { updateRelationshipSchema } from "@/lib/validators/manager/update-relationship";
 import * as relationshipRepository from "@/repositories/relationship.repository";
@@ -92,12 +95,9 @@ function mapUpdateRelationshipError(message: string): string {
   return "Unable to update relationship. Please try again.";
 }
 
-export async function listRelationshipsForManager(
-  adminClient: Supabase,
-  actorRole: RoleValue | null
+async function fetchRelationshipsForManager(
+  adminClient: Supabase
 ): Promise<ManagerRelationshipRow[]> {
-  assertManagerRole(actorRole);
-
   const { data, error } = await relationshipRepository.listRelationships(
     adminClient
   );
@@ -107,6 +107,29 @@ export async function listRelationshipsForManager(
   }
 
   return (data ?? []).map(mapRelationshipRecordToRow);
+}
+
+const listRelationshipsForManagerCached = unstable_cache(
+  async () => {
+    const adminClient = createSupabaseAdminClient();
+    return fetchRelationshipsForManager(adminClient);
+  },
+  ["manager-relationships-list"],
+  { tags: [MANAGER_CACHE_TAGS.RELATIONSHIPS] }
+);
+
+/**
+ * Lists all relationships for the manager panel.
+ * Auth is checked outside the cache; the list body is shared-server-cached
+ * with no TTL (invalidated only on relationship create/update/delete).
+ * The `adminClient` argument is kept for call-site compatibility.
+ */
+export async function listRelationshipsForManager(
+  _adminClient: Supabase,
+  actorRole: RoleValue | null
+): Promise<ManagerRelationshipRow[]> {
+  assertManagerRole(actorRole);
+  return listRelationshipsForManagerCached();
 }
 
 export async function createRelationshipForManager(

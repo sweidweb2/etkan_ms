@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon, PlusIcon } from "lucide-react";
 import { CreateFinalExamDialog } from "@/components/manager/classes/create-final-exam-dialog";
+import { EditFinalExamDialog } from "@/components/manager/classes/edit-final-exam-dialog";
 import { EditStudentFinalExamGradeSheet } from "@/components/manager/classes/edit-student-finalexam-grade-sheet";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
 import { Button } from "@/components/ui/button";
@@ -86,9 +87,10 @@ export function ClassFinalExamSection({
   onStudentGradesChange,
 }: ClassFinalExamSectionProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditExamOpen, setIsEditExamOpen] = useState(false);
   const [selectedStudentGrade, setSelectedStudentGrade] =
     useState<ManagerStudentFinalExamGradeRow | null>(null);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isEditGradeOpen, setIsEditGradeOpen] = useState(false);
 
   const sortedStudentGrades = useMemo(
     () =>
@@ -106,9 +108,13 @@ export function ClassFinalExamSection({
     onStudentGradesChange(grades);
   };
 
-  const handleOpenEdit = (row: ManagerStudentFinalExamGradeRow) => {
+  const handleUpdateFinalExam = (exam: ManagerClassFinalExamRow) => {
+    onFinalExamChange(exam);
+  };
+
+  const handleOpenEditGrade = (row: ManagerStudentFinalExamGradeRow) => {
     setSelectedStudentGrade(row);
-    setIsEditOpen(true);
+    setIsEditGradeOpen(true);
   };
 
   const handleUpdateStudentGrade = (updated: ManagerStudentFinalExamGradeRow) => {
@@ -130,10 +136,20 @@ export function ClassFinalExamSection({
         />
       ) : null}
 
-      {isEditOpen ? (
+      {isEditExamOpen && finalExam ? (
+        <EditFinalExamDialog
+          open
+          onOpenChange={setIsEditExamOpen}
+          finalExam={finalExam}
+          className={className}
+          onFinalExamUpdated={handleUpdateFinalExam}
+        />
+      ) : null}
+
+      {isEditGradeOpen ? (
         <EditStudentFinalExamGradeSheet
           open
-          onOpenChange={setIsEditOpen}
+          onOpenChange={setIsEditGradeOpen}
           studentGrade={selectedStudentGrade}
           maxGrade={finalExam?.max_grade ?? null}
           onStudentGradeUpdated={handleUpdateStudentGrade}
@@ -146,14 +162,24 @@ export function ClassFinalExamSection({
           <p className="text-sm text-muted-foreground">
             One final exam per class with a grade row per enrolled student.
           </p>
-          {!finalExam ? (
-            <CardAction className="self-center">
+          <CardAction className="self-center">
+            {!finalExam ? (
               <Button type="button" onClick={() => setIsCreateOpen(true)}>
                 <PlusIcon data-icon="inline-start" />
                 Create final exam
               </Button>
-            </CardAction>
-          ) : null}
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Edit final exam"
+                onClick={() => setIsEditExamOpen(true)}
+              >
+                <PencilIcon />
+              </Button>
+            )}
+          </CardAction>
         </CardHeader>
 
         <CardContent className="px-0 pb-0">
@@ -266,7 +292,7 @@ export function ClassFinalExamSection({
                                 variant="ghost"
                                 size="icon-sm"
                                 aria-label={`Edit final exam for ${row.full_name}`}
-                                onClick={() => handleOpenEdit(row)}
+                                onClick={() => handleOpenEditGrade(row)}
                               >
                                 <PencilIcon />
                               </Button>

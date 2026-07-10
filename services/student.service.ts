@@ -1,7 +1,10 @@
+import { unstable_cache } from "next/cache";
 import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStudentSchema } from "@/lib/validators/manager/create-student";
 import { updateStudentSchema } from "@/lib/validators/manager/update-student";
 import * as authRepository from "@/repositories/auth.repository";
@@ -164,13 +167,9 @@ async function mapStudentProfileToManagerStudentRow(
   };
 }
 
-/** Lists all students for the manager panel. Uses admin client (student_profiles RLS is self-only). */
-export async function listStudentsForManager(
-  adminClient: Supabase,
-  actorRole: RoleValue | null
+async function fetchStudentsForManager(
+  adminClient: Supabase
 ): Promise<ManagerStudentRow[]> {
-  assertManagerRole(actorRole);
-
   const { data: studentProfiles, error } =
     await studentProfileRepository.listStudentProfiles(adminClient);
 
@@ -188,7 +187,32 @@ export async function listStudentsForManager(
     )
   );
 
-  return students.filter((student): student is ManagerStudentRow => student !== null);
+  return students.filter(
+    (student): student is ManagerStudentRow => student !== null
+  );
+}
+
+const listStudentsForManagerCached = unstable_cache(
+  async () => {
+    const adminClient = createSupabaseAdminClient();
+    return fetchStudentsForManager(adminClient);
+  },
+  ["manager-students-list"],
+  { tags: [MANAGER_CACHE_TAGS.STUDENTS], revalidate: 3600 }
+);
+
+/**
+ * Lists all students for the manager panel.
+ * Auth is checked outside the cache; the list body is shared-server-cached.
+ * The `adminClient` argument is kept for call-site compatibility; the cached
+ * path creates its own admin client inside `unstable_cache`.
+ */
+export async function listStudentsForManager(
+  _adminClient: Supabase,
+  actorRole: RoleValue | null
+): Promise<ManagerStudentRow[]> {
+  assertManagerRole(actorRole);
+  return listStudentsForManagerCached();
 }
 
 export async function getStudentForManager(

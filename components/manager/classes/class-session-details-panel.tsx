@@ -23,26 +23,35 @@ import {
   SESSION_TIMING_BADGE_CLASSES,
   SESSION_TIMING_LABELS,
 } from "@/lib/constants/manager-class-session-display";
-import { getSessionPhaseLinkPreview } from "@/lib/constants/manager-session-phase-link-mock";
-import { getSessionGroupGradePreview } from "@/lib/constants/manager-session-group-grade-mock";
-import { setPreviewSessionPhaseLink } from "@/lib/preview/manager-session-phase-store";
-import { setPreviewSessionGroupGrade } from "@/lib/preview/manager-session-group-grade-store";
 import { SESSION_GROUP_GRADE_LEVEL_LABELS } from "@/lib/constants/manager-session-group-grade-display";
-import { getManagerClassPreview } from "@/lib/manager/get-manager-class-preview";
-import { getManagerClassSessionPreview } from "@/lib/manager/get-manager-class-session-preview";
 import {
   getManagerClassDetailRoute,
   getManagerSemesterDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-import { getSessionTimingLabel } from "@/types/manager-class-session";
+import {
+  getSessionTimingLabel,
+  type ManagerClassSessionRow,
+} from "@/types/manager-class-session";
+import type {
+  ManagerSessionAttendeeRow,
+  ManagerSessionTaskRow,
+} from "@/types/manager-class-session-detail";
 import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
-import type { SessionGroupGradeLevelValue } from "@/types/manager-session-group-grade";
 
 type ClassSessionDetailsPanelProps = {
-  classId: string;
-  sessionId: string;
+  session: ManagerClassSessionRow;
+  classRow: {
+    id: string;
+    name: string;
+    semester_id: string | null;
+    semester_name: string | null;
+  };
+  linkedPhase: ManagerSessionPhaseLink | null;
+  phaseOptions: ManagerSessionPhaseLink[];
+  initialTasks: ManagerSessionTaskRow[];
+  initialAttendees: ManagerSessionAttendeeRow[];
 };
 
 function DetailField({
@@ -69,57 +78,16 @@ function DetailField({
 }
 
 export function ClassSessionDetailsPanel({
-  classId,
-  sessionId,
+  session: initialSession,
+  classRow,
+  linkedPhase: initialLinkedPhase,
+  phaseOptions,
+  initialTasks,
+  initialAttendees,
 }: ClassSessionDetailsPanelProps) {
-  const classRow = getManagerClassPreview(classId);
-  const session = getManagerClassSessionPreview(classId, sessionId);
-  const [linkedPhase, setLinkedPhase] = useState<ManagerSessionPhaseLink | null>(
-    () =>
-      session
-        ? getSessionPhaseLinkPreview(
-            sessionId,
-            session.nb_order,
-            classRow.semester_id
-          )
-        : null
-  );
-  const [groupGradeLevel, setGroupGradeLevel] =
-    useState<SessionGroupGradeLevelValue | null>(() =>
-      session ? getSessionGroupGradePreview(sessionId, session.nb_order) : null
-    );
-
-  if (!session) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={ROUTES.MANAGER_CLASSES}>
-                Manage classes
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href={getManagerClassDetailRoute(classId)}>
-                {classRow.name}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Session not found</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <Card className="gap-0 py-0">
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            This session could not be found for {classRow.name}.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const [session, setSession] = useState(initialSession);
+  const [linkedPhase, setLinkedPhase] =
+    useState<ManagerSessionPhaseLink | null>(initialLinkedPhase);
 
   const timingLabel = getSessionTimingLabel(session);
   const timingText = SESSION_TIMING_LABELS[timingLabel];
@@ -135,6 +103,7 @@ export function ClassSessionDetailsPanel({
     "MMM d, yyyy 'at' h:mm a"
   );
   const durationText = formatDistanceStrict(startsAt, endsAt);
+  const groupGradeLevel = session.group_grade_level;
 
   return (
     <div className="flex flex-col gap-6">
@@ -147,7 +116,7 @@ export function ClassSessionDetailsPanel({
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href={getManagerClassDetailRoute(classId)}>
+            <BreadcrumbLink href={getManagerClassDetailRoute(classRow.id)}>
               {classRow.name}
             </BreadcrumbLink>
           </BreadcrumbItem>
@@ -185,17 +154,12 @@ export function ClassSessionDetailsPanel({
             <DetailField label="Duration" value={durationText} />
             <DetailField label="Class">
               <Link
-                href={getManagerClassDetailRoute(classId)}
+                href={getManagerClassDetailRoute(classRow.id)}
                 className="text-primary underline-offset-4 hover:underline"
               >
                 {classRow.name}
               </Link>
             </DetailField>
-            <DetailField
-              label="Class ID"
-              value={session.class_id}
-              className="font-mono text-xs"
-            />
             <DetailField
               label="Session ID"
               value={session.id}
@@ -224,20 +188,28 @@ export function ClassSessionDetailsPanel({
       </Card>
 
       <SessionDetailsActions
+        classId={classRow.id}
+        sessionId={session.id}
         linkedPhase={linkedPhase}
+        phaseOptions={phaseOptions}
         defaultPhaseId={classRow.semester_id}
         groupGradeLevel={groupGradeLevel}
-        onLinkPhase={(link) => {
-          setPreviewSessionPhaseLink(sessionId, link);
-          setLinkedPhase(link);
-        }}
-        onSaveGroupGrade={(level) => {
-          setPreviewSessionGroupGrade(sessionId, level);
-          setGroupGradeLevel(level);
+        onSettingsUpdated={(nextSession, nextLinkedPhase) => {
+          setSession(nextSession);
+          if (nextLinkedPhase !== undefined) {
+            setLinkedPhase(nextLinkedPhase);
+          }
         }}
       />
 
-      <SessionDetailsTabsSection classId={classId} sessionId={sessionId} />
+      <SessionDetailsTabsSection
+        classId={classRow.id}
+        sessionId={session.id}
+        sessionLabel={`S${session.nb_order} · ${session.topic}`}
+        sessionStartsAt={session.starts_at}
+        initialTasks={initialTasks}
+        initialAttendees={initialAttendees}
+      />
     </div>
   );
 }

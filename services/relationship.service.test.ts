@@ -13,6 +13,12 @@ vi.mock("@/repositories/relationship.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: () => adminClient,
+}));
 
 const adminClient = {} as never;
 const actor: AuditActor = {

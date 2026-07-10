@@ -28,6 +28,11 @@ export type CreateSessionRecordInput = {
   group_grade_level?: string | null;
 };
 
+export type UpdateSessionSettingsInput = {
+  semester_id?: string | null;
+  group_grade_level?: string | null;
+};
+
 export async function listSessionCountsByClassIds(
   client: Supabase,
   classIds: string[]
@@ -45,6 +50,14 @@ export async function listSessionsByClassId(client: Supabase, classId: string) {
     .select(SESSION_COLUMNS)
     .eq("class_id", classId)
     .order("nb_order", { ascending: true });
+}
+
+export async function findSessionById(client: Supabase, id: string) {
+  return client
+    .from("sessions")
+    .select(SESSION_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
 }
 
 export async function getMaxSessionNbOrderByClassId(
@@ -75,6 +88,32 @@ export async function createSession(
       semester_id: input.semester_id ?? null,
       group_grade_level: input.group_grade_level ?? null,
     })
+    .select(SESSION_COLUMNS)
+    .single();
+}
+
+export async function updateSessionSettings(
+  client: Supabase,
+  id: string,
+  input: UpdateSessionSettingsInput
+) {
+  const patch: {
+    semester_id?: string | null;
+    group_grade_level?: string | null;
+  } = {};
+
+  if ("semester_id" in input) {
+    patch.semester_id = input.semester_id ?? null;
+  }
+
+  if ("group_grade_level" in input) {
+    patch.group_grade_level = input.group_grade_level ?? null;
+  }
+
+  return client
+    .from("sessions")
+    .update(patch)
+    .eq("id", id)
     .select(SESSION_COLUMNS)
     .single();
 }

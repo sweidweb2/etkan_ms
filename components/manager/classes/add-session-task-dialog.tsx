@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createSessionTaskAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,20 +14,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   createSessionTaskSchema,
   type CreateSessionTaskInput,
 } from "@/lib/validators/manager/create-session-task";
 import { cn } from "@/lib/utils";
-import type { ManagerSessionTaskRow } from "@/types/manager-class-session-detail";
+import type {
+  CreateSessionTaskActionState,
+  ManagerSessionTaskRow,
+} from "@/types/manager-class-session-detail";
+
+const initialState: CreateSessionTaskActionState = {};
 
 type AddSessionTaskDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  classId: string;
   sessionId: string;
   sessionLabel: string;
-  nextTaskId: string;
   defaultDueDate?: string;
   onCreateTask: (task: ManagerSessionTaskRow) => void;
 };
@@ -40,12 +48,21 @@ function toDatetimeLocalValue(date: Date) {
 export function AddSessionTaskDialog({
   open,
   onOpenChange,
+  classId,
   sessionId,
   sessionLabel,
-  nextTaskId,
   defaultDueDate,
   onCreateTask,
 }: AddSessionTaskDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createSessionTaskAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -81,33 +98,42 @@ export function AddSessionTaskDialog({
     });
   }, [defaultDueDate, open, reset]);
 
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.task) {
+        return;
+      }
+
+      onCreateTask(nextState.task);
+      onOpenChange(false);
+    },
+    (nextState) => Boolean(nextState.success && nextState.task)
+  );
+
   function onSubmit(values: CreateSessionTaskInput) {
-    const dueDate = values.due_date?.trim()
-      ? new Date(values.due_date)
-      : null;
+    const formData = new FormData();
+    formData.set("class_id", classId);
+    formData.set("session_id", sessionId);
+    formData.set("title", values.title);
+    formData.set("description", values.description ?? "");
+    formData.set("due_date", values.due_date ?? "");
+    formData.set(
+      "max_grade",
+      values.max_grade === undefined || values.max_grade === ""
+        ? ""
+        : String(values.max_grade)
+    );
 
-    if (dueDate && Number.isNaN(dueDate.getTime())) {
-      return;
-    }
-
-    const maxGrade =
-      values.max_grade === "" || values.max_grade === undefined
-        ? null
-        : Number(values.max_grade);
-
-    onCreateTask({
-      id: nextTaskId,
-      session_id: sessionId,
-      title: values.title.trim(),
-      description: values.description?.trim() || null,
-      due_date: dueDate?.toISOString() ?? null,
-      max_grade: maxGrade,
-      created_at: new Date().toISOString(),
+    startTransition(() => {
+      formAction(formData);
     });
-
-    showSuccessToast(`Task added to ${sessionLabel}.`);
-    onOpenChange(false);
   }
+
+  const titleError = errors.title?.message ?? state.fieldErrors?.title?.[0];
+  const maxGradeError =
+    errors.max_grade?.message ?? state.fieldErrors?.max_grade?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -115,8 +141,8 @@ export function AddSessionTaskDialog({
         <DialogHeader>
           <DialogTitle>Create task</DialogTitle>
           <DialogDescription>
-            Add a task for {sessionLabel}. Preview-only until backend is
-            connected.
+            Add a task for {sessionLabel}. Enrolled students get pending
+            student_tasks rows automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -134,11 +160,12 @@ export function AddSessionTaskDialog({
             />
             <Input
               id="add-session-task-title"
-              aria-invalid={!!errors.title}
+              aria-invalid={!!titleError}
+              disabled={isPending}
               {...register("title")}
             />
-            {errors.title ? (
-              <p className="text-sm text-destructive">{errors.title.message}</p>
+            {titleError ? (
+              <p className="text-sm text-destructive">{titleError}</p>
             ) : null}
           </div>
 
@@ -152,6 +179,7 @@ export function AddSessionTaskDialog({
               id="add-session-task-description"
               rows={3}
               aria-invalid={!!errors.description}
+              disabled={isPending}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
@@ -175,6 +203,7 @@ export function AddSessionTaskDialog({
                 id="add-session-task-due-date"
                 type="datetime-local"
                 aria-invalid={!!errors.due_date}
+                disabled={isPending}
                 {...register("due_date")}
               />
               {errors.due_date ? (
@@ -196,13 +225,12 @@ export function AddSessionTaskDialog({
                 min={0}
                 max={999}
                 step={0.5}
-                aria-invalid={!!errors.max_grade}
+                aria-invalid={!!maxGradeError}
+                disabled={isPending}
                 {...register("max_grade")}
               />
-              {errors.max_grade ? (
-                <p className="text-sm text-destructive">
-                  {errors.max_grade.message}
-                </p>
+              {maxGradeError ? (
+                <p className="text-sm text-destructive">{maxGradeError}</p>
               ) : null}
             </div>
           </div>
@@ -212,11 +240,13 @@ export function AddSessionTaskDialog({
           <Button
             type="button"
             variant="outline"
+            disabled={isPending}
             onClick={() => onOpenChange(false)}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-session-task-form">
+          <Button type="submit" form="add-session-task-form" disabled={isPending}>
+            {isPending ? <InlineSpinner /> : null}
             Create task
           </Button>
         </DialogFooter>

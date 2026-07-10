@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { LayersIcon, UsersRoundIcon } from "lucide-react";
+import { updateSessionSettingsAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,31 +19,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getManagerPhaseOptions } from "@/lib/constants/manager-session-phase-link-mock";
 import {
   SESSION_GROUP_GRADE_LEVEL_DOT_CLASSES,
   SESSION_GROUP_GRADE_LEVEL_LABELS,
   SESSION_GROUP_GRADE_LEVEL_ORDER,
   SESSION_GROUP_GRADE_LEVEL_TOGGLE_CLASSES,
 } from "@/lib/constants/manager-session-group-grade-display";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { cn } from "@/lib/utils";
+import type { ManagerClassSessionRow } from "@/types/manager-class-session";
+import type { UpdateSessionSettingsActionState } from "@/types/manager-class-session-detail";
 import type { SessionGroupGradeLevelValue } from "@/types/manager-session-group-grade";
 import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
+const initialState: UpdateSessionSettingsActionState = {};
+
 type SessionDetailsActionsProps = {
+  classId: string;
+  sessionId: string;
   linkedPhase: ManagerSessionPhaseLink | null;
+  phaseOptions: ManagerSessionPhaseLink[];
   defaultPhaseId?: string | null;
   groupGradeLevel: SessionGroupGradeLevelValue | null;
-  onLinkPhase: (link: ManagerSessionPhaseLink) => void;
-  onSaveGroupGrade: (level: SessionGroupGradeLevelValue) => void;
+  onSettingsUpdated: (
+    session: ManagerClassSessionRow,
+    linkedPhase?: ManagerSessionPhaseLink | null
+  ) => void;
   className?: string;
 };
 
 function getInitialPhaseId(
   linkedPhase: ManagerSessionPhaseLink | null,
   defaultPhaseId: string | null | undefined,
-  phaseOptions: ReturnType<typeof getManagerPhaseOptions>
+  phaseOptions: ManagerSessionPhaseLink[]
 ) {
   if (linkedPhase?.phase_id) {
     return linkedPhase.phase_id;
@@ -49,7 +60,7 @@ function getInitialPhaseId(
 
   if (
     defaultPhaseId &&
-    phaseOptions.some((phase) => phase.id === defaultPhaseId)
+    phaseOptions.some((phase) => phase.phase_id === defaultPhaseId)
   ) {
     return defaultPhaseId;
   }
@@ -58,17 +69,34 @@ function getInitialPhaseId(
 }
 
 export function SessionDetailsActions({
+  classId,
+  sessionId,
   linkedPhase,
+  phaseOptions,
   defaultPhaseId,
   groupGradeLevel,
-  onLinkPhase,
-  onSaveGroupGrade,
+  onSettingsUpdated,
   className,
 }: SessionDetailsActionsProps) {
-  const phaseOptions = getManagerPhaseOptions();
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateSessionSettingsAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const initialPhaseId = useMemo(
     () => getInitialPhaseId(linkedPhase, defaultPhaseId, phaseOptions),
     [defaultPhaseId, linkedPhase, phaseOptions]
+  );
+  const phaseSelectItems = useMemo(
+    () =>
+      Object.fromEntries(
+        phaseOptions.map((phase) => [phase.phase_id, phase.phase_name])
+      ),
+    [phaseOptions]
   );
   const [selectedPhaseId, setSelectedPhaseId] = useState(initialPhaseId);
   const [selectedGroupGrade, setSelectedGroupGrade] =
@@ -89,18 +117,32 @@ export function SessionDetailsActions({
     setSelectedGroupGrade(groupGradeLevel);
   }
 
-  function handleSavePhase() {
-    const phase = phaseOptions.find((row) => row.id === selectedPhaseId);
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.session) {
+        return;
+      }
 
-    if (!phase) {
+      onSettingsUpdated(nextState.session, nextState.linkedPhase);
+    },
+    (nextState) => Boolean(nextState.success && nextState.session)
+  );
+
+  function handleSavePhase() {
+    if (!selectedPhaseId) {
       return;
     }
 
-    onLinkPhase({
-      phase_id: phase.id,
-      phase_name: phase.name,
+    const formData = new FormData();
+    formData.set("class_id", classId);
+    formData.set("session_id", sessionId);
+    formData.set("semester_id", selectedPhaseId);
+
+    startTransition(() => {
+      formAction(formData);
     });
-    showSuccessToast(`Session linked to ${phase.name}.`);
   }
 
   function handleSaveGroupGrade() {
@@ -108,10 +150,14 @@ export function SessionDetailsActions({
       return;
     }
 
-    onSaveGroupGrade(selectedGroupGrade);
-    showSuccessToast(
-      `Group grade set to ${SESSION_GROUP_GRADE_LEVEL_LABELS[selectedGroupGrade]}.`
-    );
+    const formData = new FormData();
+    formData.set("class_id", classId);
+    formData.set("session_id", sessionId);
+    formData.set("group_grade_level", selectedGroupGrade);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
 
   return (
@@ -143,24 +189,21 @@ export function SessionDetailsActions({
             />
             <Select
               value={selectedPhaseId || null}
-              disabled={!!linkedPhase}
+              items={phaseSelectItems}
+              disabled={isPending}
               onValueChange={(value) => {
-                if (value && !linkedPhase) {
+                if (value) {
                   setSelectedPhaseId(value);
                 }
               }}
             >
-              <SelectTrigger
-                id="session-phase-select"
-                className="w-full"
-                disabled={!!linkedPhase}
-              >
+              <SelectTrigger id="session-phase-select" className="w-full">
                 <SelectValue placeholder="Select a phase" />
               </SelectTrigger>
               <SelectContent align="start">
                 {phaseOptions.map((phase) => (
-                  <SelectItem key={phase.id} value={phase.id}>
-                    {phase.name}
+                  <SelectItem key={phase.phase_id} value={phase.phase_id}>
+                    {phase.phase_name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -170,10 +213,11 @@ export function SessionDetailsActions({
           <Button
             type="button"
             className="self-start"
-            disabled={!!linkedPhase || !selectedPhaseId}
+            disabled={isPending || !selectedPhaseId}
             onClick={handleSavePhase}
           >
-            {linkedPhase ? "Phase linked" : "Save phase link"}
+            {isPending ? <InlineSpinner /> : null}
+            Save phase link
           </Button>
         </div>
 
@@ -190,7 +234,7 @@ export function SessionDetailsActions({
             </div>
           </div>
 
-          <fieldset className="flex flex-col gap-2">
+          <fieldset className="flex flex-col gap-2" disabled={isPending}>
             <legend className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-sm font-medium">
               <span>Level</span>
               <span className="text-xs font-normal text-muted-foreground">
@@ -237,9 +281,10 @@ export function SessionDetailsActions({
           <Button
             type="button"
             className="self-start"
-            disabled={!selectedGroupGrade}
+            disabled={isPending || !selectedGroupGrade}
             onClick={handleSaveGroupGrade}
           >
+            {isPending ? <InlineSpinner /> : null}
             Save group grade
           </Button>
         </div>

@@ -1,6 +1,7 @@
 "use server";
 
 import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { revalidateManagerRelationshipsList } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create-relationship";
 import { parseUpdateRelationshipFormData } from "@/lib/validators/manager/update-relationship";
@@ -48,6 +49,8 @@ export async function createRelationshipAction(
     };
   }
 
+  revalidateManagerRelationshipsList();
+
   return {
     success: true,
     message: result.message,
@@ -89,6 +92,8 @@ export async function updateRelationshipAction(
       fieldErrors: result.fieldErrors,
     };
   }
+
+  revalidateManagerRelationshipsList();
 
   return {
     success: true,

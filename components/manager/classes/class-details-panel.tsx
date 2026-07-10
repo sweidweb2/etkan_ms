@@ -239,11 +239,6 @@ export function ClassDetailsPanel({
               value={`${classRow.completed_sessions}/${classRow.subject_nb_sessions} · ${sessionRate}%`}
               className="tabular-nums"
             />
-            <DetailField
-              label="Class ID"
-              value={classRow.id}
-              className="font-mono text-xs"
-            />
             <DetailField label="Created" value={createdText} />
           </dl>
         </CardContent>

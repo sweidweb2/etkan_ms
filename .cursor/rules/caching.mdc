@@ -1,0 +1,45 @@
+---
+alwaysApply: false
+---
+# Caching
+
+Full reference: `docs/caching/[01] caching.md`.
+
+## Defaults
+
+- **Do not cache by default.** RSC → service → repository → Supabase is the normal path.
+- **Never cache inside `repositories/`.**
+- **Never** use a shared server cache key for auth/session or per-user secrets.
+
+## Choose the type
+
+| Goal | Use |
+|------|-----|
+| Fewer DB hits for data shared by all managers | **Shared server cache** (`unstable_cache` + tags) |
+| Snappy back-nav / dialog refetches for one user | **Client cache** (panel state or TanStack Query) |
+| Both | Server cache + local panel update / Query invalidate |
+
+## Shared server cache
+
+- Place cache in the **service** (or thin wrapper), create Supabase admin client **inside** the cached function.
+- Use stable tags: `manager-users`, `manager-students`, `manager-subjects`, `manager-classes`, `manager-semesters`, `manager-equipments`, `manager-relationships`.
+- Set a `revalidate` TTL as a safety net (people lists: **3600** / 1 hour).
+- After every successful create/update/delete: `revalidateTag("…")` and usually `revalidatePath("…")`.
+- Keep **authorization** (`assertManagerRole` / equivalent) on the request path; do not serve cached lists to unauthorized roles.
+
+## Client cache
+
+- Prefer existing **RSC props + `useState`** for simple manager lists.
+- Use **TanStack Query** only when the screen is client-data-driven (repeated fetches, shared option queries).
+- On mutation: update local state and/or `invalidateQueries` for the matching key.
+
+## Good fits (Etkan)
+
+- Server: users/subjects/classes/semesters/equipments lists; slow report aggregates.
+- Client: return to a list after detail; append row after create; reuse select options in dialogs.
+
+## Bad fits
+
+- Write-heavy flows with no invalidation plan.
+- Personalized data under a global cache key.
+- Using cache instead of fixing a slow query.

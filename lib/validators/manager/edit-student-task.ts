@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
+import type { FieldErrors } from "@/types/auth";
 
 export const STUDENT_TASK_STATUS_VALUES = [
   STUDENT_TASK_STATUSES.PENDING,
@@ -32,3 +34,40 @@ export const editStudentTaskSchema = z.object({
 });
 
 export type EditStudentTaskInput = z.infer<typeof editStudentTaskSchema>;
+
+export function parseEditStudentTaskFormData(formData: FormData):
+  | {
+      success: true;
+      data: EditStudentTaskInput & { id: string };
+    }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const id = String(formData.get("id") ?? "").trim();
+
+  if (!id) {
+    return { success: false, error: "Student task id is required." };
+  }
+
+  const parsed = editStudentTaskSchema.safeParse({
+    status: formData.get("status"),
+    grade: formData.get("grade") ?? undefined,
+    notes: formData.get("notes") ?? undefined,
+    submitted_at: formData.get("submitted_at") ?? undefined,
+    graded_at: formData.get("graded_at") ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      id,
+      ...parsed.data,
+    },
+  };
+}

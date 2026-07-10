@@ -29,6 +29,12 @@ vi.mock("@/services/audit-log.service", () => ({
 }));
 vi.mock("@/services/profile.service");
 vi.mock("@/services/role.service");
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: () => adminClient,
+}));
 
 const adminClient = {} as never;
 const actor: AuditActor = {

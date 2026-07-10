@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateStudentTaskAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,15 +21,22 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
-import { showSuccessToast } from "@/lib/toast";
 import {
   editStudentTaskSchema,
   STUDENT_TASK_STATUS_VALUES,
   type EditStudentTaskInput,
 } from "@/lib/validators/manager/edit-student-task";
 import { cn } from "@/lib/utils";
-import type { ManagerStudentTaskRow } from "@/types/manager-class-session-detail";
+import type {
+  ManagerStudentTaskRow,
+  UpdateStudentTaskActionState,
+} from "@/types/manager-class-session-detail";
+
+const initialState: UpdateStudentTaskActionState = {};
 
 type EditStudentTaskSheetProps = {
   open: boolean;
@@ -53,16 +61,6 @@ function toDatetimeLocalValue(value: string | null) {
   return local.toISOString().slice(0, 16);
 }
 
-function parseOptionalDatetime(value: string | undefined) {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const date = new Date(trimmed);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
 export function EditStudentTaskSheet({
   open,
   onOpenChange,
@@ -70,6 +68,15 @@ export function EditStudentTaskSheet({
   maxGrade,
   onUpdateStudentTask,
 }: EditStudentTaskSheetProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateStudentTaskAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -105,6 +112,20 @@ export function EditStudentTaskSheet({
     });
   }, [open, reset, studentTask]);
 
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.studentTask) {
+        return;
+      }
+
+      onUpdateStudentTask(nextState.studentTask);
+      onOpenChange(false);
+    },
+    (nextState) => Boolean(nextState.success && nextState.studentTask)
+  );
+
   if (!studentTask) {
     return null;
   }
@@ -114,20 +135,27 @@ export function EditStudentTaskSheet({
       return;
     }
 
-    onUpdateStudentTask({
-      ...studentTask,
-      status: values.status,
-      grade:
-        values.grade === "" || values.grade === undefined
-          ? null
-          : Number(values.grade),
-      notes: values.notes?.trim() || null,
-      submitted_at: parseOptionalDatetime(values.submitted_at),
-      graded_at: parseOptionalDatetime(values.graded_at),
+    const formData = new FormData();
+    formData.set("id", studentTask.id);
+    formData.set("status", values.status);
+    formData.set(
+      "grade",
+      values.grade === undefined || values.grade === ""
+        ? ""
+        : String(values.grade)
+    );
+    formData.set("notes", values.notes ?? "");
+    formData.set("submitted_at", values.submitted_at ?? "");
+    formData.set("graded_at", values.graded_at ?? "");
+
+    startTransition(() => {
+      formAction(formData);
     });
-    showSuccessToast(`${studentTask.full_name}'s task record updated.`);
-    onOpenChange(false);
   }
+
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
+  const gradeError = errors.grade?.message ?? state.fieldErrors?.grade?.[0];
+  const notesError = errors.notes?.message ?? state.fieldErrors?.notes?.[0];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -135,8 +163,7 @@ export function EditStudentTaskSheet({
         <SheetHeader>
           <SheetTitle>{studentTask.full_name}</SheetTitle>
           <SheetDescription>
-            Edit student_tasks fields for this assignment. Preview-only until
-            backend is connected.
+            Edit student_tasks fields for this assignment.
           </SheetDescription>
         </SheetHeader>
 
@@ -154,6 +181,7 @@ export function EditStudentTaskSheet({
             />
             <Select
               value={selectedStatus || null}
+              disabled={isPending}
               onValueChange={(value) => {
                 if (!value) {
                   return;
@@ -167,7 +195,7 @@ export function EditStudentTaskSheet({
               <SelectTrigger
                 id="edit-student-task-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -179,8 +207,8 @@ export function EditStudentTaskSheet({
                 ))}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
 
@@ -196,11 +224,12 @@ export function EditStudentTaskSheet({
               min={0}
               max={maxGrade ?? 999}
               step={0.5}
-              aria-invalid={!!errors.grade}
+              aria-invalid={!!gradeError}
+              disabled={isPending}
               {...register("grade")}
             />
-            {errors.grade ? (
-              <p className="text-sm text-destructive">{errors.grade.message}</p>
+            {gradeError ? (
+              <p className="text-sm text-destructive">{gradeError}</p>
             ) : null}
           </div>
 
@@ -213,14 +242,15 @@ export function EditStudentTaskSheet({
             <textarea
               id="edit-student-task-notes"
               rows={4}
-              aria-invalid={!!errors.notes}
+              aria-invalid={!!notesError}
+              disabled={isPending}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
               {...register("notes")}
             />
-            {errors.notes ? (
-              <p className="text-sm text-destructive">{errors.notes.message}</p>
+            {notesError ? (
+              <p className="text-sm text-destructive">{notesError}</p>
             ) : null}
           </div>
 
@@ -234,6 +264,7 @@ export function EditStudentTaskSheet({
               id="edit-student-task-submitted-at"
               type="datetime-local"
               aria-invalid={!!errors.submitted_at}
+              disabled={isPending}
               {...register("submitted_at")}
             />
           </div>
@@ -248,6 +279,7 @@ export function EditStudentTaskSheet({
               id="edit-student-task-graded-at"
               type="datetime-local"
               aria-invalid={!!errors.graded_at}
+              disabled={isPending}
               {...register("graded_at")}
             />
           </div>
@@ -257,11 +289,17 @@ export function EditStudentTaskSheet({
           <Button
             type="button"
             variant="outline"
+            disabled={isPending}
             onClick={() => onOpenChange(false)}
           >
             Cancel
           </Button>
-          <Button type="submit" form="edit-student-task-form">
+          <Button
+            type="submit"
+            form="edit-student-task-form"
+            disabled={isPending}
+          >
+            {isPending ? <InlineSpinner /> : null}
             Save changes
           </Button>
         </SheetFooter>

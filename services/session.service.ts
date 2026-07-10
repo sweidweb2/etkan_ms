@@ -1,0 +1,1015 @@
+import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import {
+  ATTENDEE_STATUSES,
+  type AttendeeStatusValue,
+} from "@/lib/constants/manager-attendee-status";
+import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
+import {
+  STUDENT_TASK_STATUSES,
+  type StudentTaskStatusValue,
+} from "@/lib/constants/manager-student-task-status";
+import { createSessionTaskSchema } from "@/lib/validators/manager/create-session-task";
+import { editStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
+import { updateAttendeeSchema } from "@/lib/validators/manager/update-attendee";
+import { updateSessionSettingsSchema } from "@/lib/validators/manager/update-session-settings";
+import * as attendeeRepository from "@/repositories/attendee.repository";
+import type { AttendeeRecord } from "@/repositories/attendee.repository";
+import * as authRepository from "@/repositories/auth.repository";
+import * as classRepository from "@/repositories/class.repository";
+import * as semesterRepository from "@/repositories/semester.repository";
+import * as sessionRepository from "@/repositories/session.repository";
+import type { SessionRecord } from "@/repositories/session.repository";
+import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentTaskRepository from "@/repositories/student-task.repository";
+import type { StudentTaskRecord } from "@/repositories/student-task.repository";
+import * as taskRepository from "@/repositories/task.repository";
+import type { TaskRecord } from "@/repositories/task.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
+import type { FieldErrors } from "@/types/auth";
+import type { ManagerClassSessionRow } from "@/types/manager-class-session";
+import type {
+  ManagerSessionAttendeeRow,
+  ManagerSessionTaskRow,
+  ManagerStudentTaskRow,
+} from "@/types/manager-class-session-detail";
+import type { ManagerClassRow } from "@/types/manager-class-list";
+import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
+import {
+  SESSION_GROUP_GRADE_LEVELS,
+  type SessionGroupGradeLevelValue,
+} from "@/types/manager-session-group-grade";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
+import { z } from "zod";
+
+type Supabase = SupabaseClient<Database>;
+
+type MutationFailure = {
+  success: false;
+  error: string;
+  fieldErrors?: FieldErrors;
+};
+
+function assertManagerRole(actorRole: RoleValue | null): void {
+  if (actorRole !== ROLES.MANAGER) {
+    throw new Error("Unauthorized.");
+  }
+}
+
+function isUuid(value: string): boolean {
+  return z.string().uuid().safeParse(value).success;
+}
+
+function normalizeOptionalString(value?: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function toIsoOrNull(value?: string | null): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const date = new Date(trimmed);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function mapGroupGradeLevel(
+  value: string | null
+): SessionGroupGradeLevelValue | null {
+  if (
+    value === SESSION_GROUP_GRADE_LEVELS.VERY_LOW ||
+    value === SESSION_GROUP_GRADE_LEVELS.LOW ||
+    value === SESSION_GROUP_GRADE_LEVELS.MEDIUM ||
+    value === SESSION_GROUP_GRADE_LEVELS.HIGH ||
+    value === SESSION_GROUP_GRADE_LEVELS.VERY_HIGH
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function mapSessionRecord(record: SessionRecord): ManagerClassSessionRow {
+  return {
+    id: record.id,
+    class_id: record.class_id,
+    nb_order: record.nb_order,
+    topic: record.topic,
+    starts_at: record.starts_at,
+    ends_at: record.ends_at,
+    semester_id: record.semester_id,
+    group_grade_level: mapGroupGradeLevel(record.group_grade_level),
+    created_at: record.created_at,
+  };
+}
+
+function mapTaskRecord(record: TaskRecord): ManagerSessionTaskRow {
+  return {
+    id: record.id,
+    session_id: record.session_id ?? "",
+    title: record.title,
+    description: record.description,
+    due_date: record.due_date,
+    max_grade: record.max_grade,
+    created_at: record.created_at ?? "",
+  };
+}
+
+function mapStudentTaskStatus(status: string): StudentTaskStatusValue {
+  if (
+    status === STUDENT_TASK_STATUSES.PENDING ||
+    status === STUDENT_TASK_STATUSES.SUBMITTED ||
+    status === STUDENT_TASK_STATUSES.GRADED ||
+    status === STUDENT_TASK_STATUSES.LATE ||
+    status === STUDENT_TASK_STATUSES.MISSING
+  ) {
+    return status;
+  }
+
+  return STUDENT_TASK_STATUSES.PENDING;
+}
+
+function mapAttendeeStatus(status: string): AttendeeStatusValue {
+  if (
+    status === ATTENDEE_STATUSES.PRESENT ||
+    status === ATTENDEE_STATUSES.ABSENT ||
+    status === ATTENDEE_STATUSES.LATE ||
+    status === ATTENDEE_STATUSES.EXCUSED
+  ) {
+    return status;
+  }
+
+  return ATTENDEE_STATUSES.PRESENT;
+}
+
+async function buildStudentDisplayByUserId(
+  adminClient: Supabase,
+  userIds: string[]
+): Promise<Map<string, { full_name: string; email: string }>> {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  const map = new Map<string, { full_name: string; email: string }>();
+
+  if (uniqueIds.length === 0) {
+    return map;
+  }
+
+  const profilesResult =
+    await studentProfileRepository.listStudentProfilesByUserIds(
+      adminClient,
+      uniqueIds
+    );
+
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+
+  await Promise.all(
+    uniqueIds.map(async (userId) => {
+      const profile = (profilesResult.data ?? []).find(
+        (row) => row.user_id === userId
+      );
+      const authResult = await authRepository.getAuthUserById(
+        adminClient,
+        userId
+      );
+      map.set(userId, {
+        full_name: profile?.full_name ?? "Unknown student",
+        email: authResult.data.user?.email ?? "",
+      });
+    })
+  );
+
+  return map;
+}
+
+export async function ensureSessionAttendeesForEnrolledStudents(
+  adminClient: Supabase,
+  sessionId: string,
+  classId: string
+): Promise<void> {
+  const [enrolledResult, attendeesResult] = await Promise.all([
+    studentClassRepository.listEnrolledUserIdsByClassId(adminClient, classId),
+    attendeeRepository.listAttendeesBySessionId(adminClient, sessionId),
+  ]);
+
+  if (enrolledResult.error) {
+    throw new Error(enrolledResult.error.message);
+  }
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
+
+  const existing = new Set(
+    (attendeesResult.data ?? []).map((row) => row.student_id)
+  );
+  const missing = (enrolledResult.data ?? [])
+    .map((row) => row.user_id)
+    .filter((userId) => !existing.has(userId));
+
+  if (missing.length === 0) {
+    return;
+  }
+
+  const { error } = await attendeeRepository.createAttendees(
+    adminClient,
+    missing.map((studentId) => ({
+      session_id: sessionId,
+      student_id: studentId,
+      status: ATTENDEE_STATUSES.PRESENT,
+      note: null,
+    }))
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * When a student joins a class late, create absent attendee rows for every
+ * existing session they do not already have, with a late-enrollment note.
+ */
+export async function seedLateJoinAttendeesForStudent(
+  adminClient: Supabase,
+  classId: string,
+  studentUserId: string
+): Promise<void> {
+  const sessionsResult = await sessionRepository.listSessionIdsByClassId(
+    adminClient,
+    classId
+  );
+
+  if (sessionsResult.error) {
+    throw new Error(sessionsResult.error.message);
+  }
+
+  const sessionIds = (sessionsResult.data ?? []).map((row) => row.id);
+
+  if (sessionIds.length === 0) {
+    return;
+  }
+
+  const attendeesResult = await attendeeRepository.listAttendeesBySessionIds(
+    adminClient,
+    sessionIds
+  );
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
+
+  const sessionsWithStudent = new Set(
+    (attendeesResult.data ?? [])
+      .filter((row) => row.student_id === studentUserId)
+      .map((row) => row.session_id)
+  );
+
+  const missingSessionIds = sessionIds.filter(
+    (sessionId) => !sessionsWithStudent.has(sessionId)
+  );
+
+  if (missingSessionIds.length === 0) {
+    return;
+  }
+
+  const { error } = await attendeeRepository.createAttendees(
+    adminClient,
+    missingSessionIds.map((sessionId) => ({
+      session_id: sessionId,
+      student_id: studentUserId,
+      status: ATTENDEE_STATUSES.ABSENT,
+      note: LATE_ENROLLMENT_NOTE,
+    }))
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export type ManagerSessionDetailBundle = {
+  session: ManagerClassSessionRow;
+  classRow: Pick<ManagerClassRow, "id" | "name" | "semester_id" | "semester_name">;
+  linkedPhase: ManagerSessionPhaseLink | null;
+  phaseOptions: ManagerSessionPhaseLink[];
+  tasks: ManagerSessionTaskRow[];
+  attendees: ManagerSessionAttendeeRow[];
+};
+
+export async function getSessionDetailForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  classId: string,
+  sessionId: string
+): Promise<ManagerSessionDetailBundle | null> {
+  assertManagerRole(actorRole);
+
+  if (!isUuid(classId) || !isUuid(sessionId)) {
+    return null;
+  }
+
+  const [sessionResult, classResult] = await Promise.all([
+    sessionRepository.findSessionById(adminClient, sessionId),
+    classRepository.findClassDetailById(adminClient, classId),
+  ]);
+
+  if (sessionResult.error) {
+    throw new Error(sessionResult.error.message);
+  }
+
+  if (classResult.error) {
+    throw new Error(classResult.error.message);
+  }
+
+  if (
+    !sessionResult.data ||
+    !classResult.data ||
+    sessionResult.data.class_id !== classId
+  ) {
+    return null;
+  }
+
+  await ensureSessionAttendeesForEnrolledStudents(
+    adminClient,
+    sessionId,
+    classId
+  );
+
+  const [tasksResult, attendeesResult, semestersResult] = await Promise.all([
+    taskRepository.listTasksBySessionId(adminClient, sessionId),
+    attendeeRepository.listAttendeesBySessionId(adminClient, sessionId),
+    semesterRepository.listSemesters(adminClient),
+  ]);
+
+  if (tasksResult.error) {
+    throw new Error(tasksResult.error.message);
+  }
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
+
+  if (semestersResult.error) {
+    throw new Error(semestersResult.error.message);
+  }
+
+  const attendeeRecords = (attendeesResult.data ?? []) as AttendeeRecord[];
+  const displayByUserId = await buildStudentDisplayByUserId(
+    adminClient,
+    attendeeRecords.map((row) => row.student_id)
+  );
+
+  const session = mapSessionRecord(sessionResult.data as SessionRecord);
+  const phaseOptions: ManagerSessionPhaseLink[] = (semestersResult.data ?? []).map(
+    (row) => ({
+      phase_id: row.id,
+      phase_name: row.name,
+    })
+  );
+
+  const linkedPhase =
+    phaseOptions.find((phase) => phase.phase_id === session.semester_id) ?? null;
+
+  return {
+    session,
+    classRow: {
+      id: classResult.data.id,
+      name: classResult.data.name,
+      semester_id: classResult.data.semester_id,
+      semester_name: classResult.data.semesters?.name ?? null,
+    },
+    linkedPhase,
+    phaseOptions,
+    tasks: ((tasksResult.data ?? []) as TaskRecord[]).map(mapTaskRecord),
+    attendees: attendeeRecords.map((row) => {
+      const display = displayByUserId.get(row.student_id);
+      return {
+        id: row.id,
+        session_id: row.session_id,
+        student_id: row.student_id,
+        full_name: display?.full_name ?? "Unknown student",
+        email: display?.email ?? "",
+        note: row.note,
+        status: mapAttendeeStatus(row.status),
+        created_at: row.created_at,
+      };
+    }),
+  };
+}
+
+export type ManagerSessionTaskDetailBundle = {
+  task: ManagerSessionTaskRow;
+  session: ManagerClassSessionRow;
+  classRow: Pick<ManagerClassRow, "id" | "name">;
+  studentTasks: ManagerStudentTaskRow[];
+};
+
+export async function getSessionTaskDetailForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  classId: string,
+  sessionId: string,
+  taskId: string
+): Promise<ManagerSessionTaskDetailBundle | null> {
+  assertManagerRole(actorRole);
+
+  if (!isUuid(classId) || !isUuid(sessionId) || !isUuid(taskId)) {
+    return null;
+  }
+
+  const [taskResult, sessionResult, classResult] = await Promise.all([
+    taskRepository.findTaskById(adminClient, taskId),
+    sessionRepository.findSessionById(adminClient, sessionId),
+    classRepository.findClassById(adminClient, classId),
+  ]);
+
+  if (taskResult.error) {
+    throw new Error(taskResult.error.message);
+  }
+
+  if (sessionResult.error) {
+    throw new Error(sessionResult.error.message);
+  }
+
+  if (classResult.error) {
+    throw new Error(classResult.error.message);
+  }
+
+  if (
+    !taskResult.data ||
+    !sessionResult.data ||
+    !classResult.data ||
+    sessionResult.data.class_id !== classId ||
+    taskResult.data.session_id !== sessionId
+  ) {
+    return null;
+  }
+
+  const studentTasksResult = await studentTaskRepository.listStudentTasksByTaskId(
+    adminClient,
+    taskId
+  );
+
+  if (studentTasksResult.error) {
+    throw new Error(studentTasksResult.error.message);
+  }
+
+  const studentTaskRecords = (studentTasksResult.data ??
+    []) as StudentTaskRecord[];
+  const displayByUserId = await buildStudentDisplayByUserId(
+    adminClient,
+    studentTaskRecords.map((row) => row.student_id)
+  );
+
+  return {
+    task: mapTaskRecord(taskResult.data as TaskRecord),
+    session: mapSessionRecord(sessionResult.data as SessionRecord),
+    classRow: {
+      id: classResult.data.id,
+      name: classResult.data.name,
+    },
+    studentTasks: studentTaskRecords.map((row) => ({
+      id: row.id,
+      task_id: row.task_id,
+      student_id: row.student_id,
+      full_name: displayByUserId.get(row.student_id)?.full_name ?? "Unknown student",
+      status: mapStudentTaskStatus(row.status),
+      submitted_at: row.submitted_at,
+      grade: row.grade,
+      notes: row.notes,
+      graded_at: row.graded_at,
+    })),
+  };
+}
+
+export type UpdateSessionSettingsResult =
+  | {
+      success: true;
+      session: ManagerClassSessionRow;
+      linkedPhase: ManagerSessionPhaseLink | null;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function updateSessionSettingsForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    session_id: string;
+    class_id: string;
+    semester_id?: string;
+    group_grade_level?: string;
+  }
+): Promise<UpdateSessionSettingsResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = updateSessionSettingsSchema.safeParse({
+    semester_id: input.semester_id,
+    group_grade_level: input.group_grade_level,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existing = await sessionRepository.findSessionById(
+    adminClient,
+    input.session_id
+  );
+
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+
+  if (!existing.data || existing.data.class_id !== input.class_id) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const patch: {
+    semester_id?: string | null;
+    group_grade_level?: string | null;
+  } = {};
+
+  if (parsed.data.semester_id !== undefined) {
+    patch.semester_id =
+      parsed.data.semester_id === "" ? null : parsed.data.semester_id;
+  }
+
+  if (parsed.data.group_grade_level !== undefined) {
+    patch.group_grade_level =
+      parsed.data.group_grade_level === ""
+        ? null
+        : parsed.data.group_grade_level;
+  }
+
+  if (
+    patch.semester_id === undefined &&
+    patch.group_grade_level === undefined
+  ) {
+    return {
+      success: false,
+      error: "Provide a phase or group grade to update.",
+    };
+  }
+
+  if (patch.semester_id) {
+    const semesterResult = await semesterRepository.findSemesterById(
+      adminClient,
+      patch.semester_id
+    );
+    if (semesterResult.error) {
+      return { success: false, error: semesterResult.error.message };
+    }
+    if (!semesterResult.data) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: { semester_id: ["Semester not found."] },
+      };
+    }
+  }
+
+  const { data, error } = await sessionRepository.updateSessionSettings(
+    adminClient,
+    input.session_id,
+    patch
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to update session settings.",
+    };
+  }
+
+  const session = mapSessionRecord(data as SessionRecord);
+  let linkedPhase: ManagerSessionPhaseLink | null = null;
+
+  if (session.semester_id) {
+    const semesterResult = await semesterRepository.findSemesterById(
+      adminClient,
+      session.semester_id
+    );
+    if (semesterResult.data) {
+      linkedPhase = {
+        phase_id: semesterResult.data.id,
+        phase_name: semesterResult.data.name,
+      };
+    }
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "sessions",
+    record_id: session.id,
+    old_data: {
+      semester_id: existing.data.semester_id,
+      group_grade_level: existing.data.group_grade_level,
+    },
+    new_data: {
+      semester_id: session.semester_id,
+      group_grade_level: session.group_grade_level,
+    },
+    metadata: { note: "Session settings updated." },
+  });
+
+  return {
+    success: true,
+    session,
+    linkedPhase,
+    message: "Session settings saved.",
+  };
+}
+
+export type CreateSessionTaskResult =
+  | {
+      success: true;
+      task: ManagerSessionTaskRow;
+      studentTasks: ManagerStudentTaskRow[];
+      message: string;
+    }
+  | MutationFailure;
+
+export async function createSessionTaskForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    class_id: string;
+    session_id: string;
+    title: string;
+    description?: string;
+    due_date?: string;
+    max_grade?: string | number;
+  }
+): Promise<CreateSessionTaskResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = createSessionTaskSchema.safeParse({
+    title: input.title,
+    description: input.description,
+    due_date: input.due_date,
+    max_grade: input.max_grade,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const sessionResult = await sessionRepository.findSessionById(
+    adminClient,
+    input.session_id
+  );
+
+  if (sessionResult.error) {
+    return { success: false, error: sessionResult.error.message };
+  }
+
+  if (!sessionResult.data || sessionResult.data.class_id !== input.class_id) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const maxGrade =
+    parsed.data.max_grade === "" || parsed.data.max_grade === undefined
+      ? null
+      : Number(parsed.data.max_grade);
+
+  const { data, error } = await taskRepository.createTask(adminClient, {
+    session_id: input.session_id,
+    title: parsed.data.title.trim(),
+    description: normalizeOptionalString(parsed.data.description),
+    due_date: toIsoOrNull(parsed.data.due_date),
+    max_grade: maxGrade,
+  });
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to create task.",
+    };
+  }
+
+  const enrolledResult =
+    await studentClassRepository.listEnrolledUserIdsByClassId(
+      adminClient,
+      input.class_id
+    );
+
+  if (enrolledResult.error) {
+    return { success: false, error: enrolledResult.error.message };
+  }
+
+  const enrolledUserIds = (enrolledResult.data ?? []).map((row) => row.user_id);
+  const gradesResult = await studentTaskRepository.createStudentTasks(
+    adminClient,
+    enrolledUserIds.map((studentId) => ({
+      task_id: data.id,
+      student_id: studentId,
+      status: STUDENT_TASK_STATUSES.PENDING,
+    }))
+  );
+
+  if (gradesResult.error) {
+    return { success: false, error: gradesResult.error.message };
+  }
+
+  const studentTaskRecords = (gradesResult.data ?? []) as StudentTaskRecord[];
+  const displayByUserId = await buildStudentDisplayByUserId(
+    adminClient,
+    studentTaskRecords.map((row) => row.student_id)
+  );
+
+  const task = mapTaskRecord(data as TaskRecord);
+  const studentTasks: ManagerStudentTaskRow[] = studentTaskRecords.map(
+    (row) => ({
+      id: row.id,
+      task_id: row.task_id,
+      student_id: row.student_id,
+      full_name:
+        displayByUserId.get(row.student_id)?.full_name ?? "Unknown student",
+      status: mapStudentTaskStatus(row.status),
+      submitted_at: row.submitted_at,
+      grade: row.grade,
+      notes: row.notes,
+      graded_at: row.graded_at,
+    })
+  );
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "tasks",
+    record_id: task.id,
+    new_data: {
+      session_id: task.session_id,
+      title: task.title,
+      student_task_count: studentTasks.length,
+    },
+    metadata: { note: "Session task created with pending student rows." },
+  });
+
+  return {
+    success: true,
+    task,
+    studentTasks,
+    message: "Task created.",
+  };
+}
+
+export type UpdateAttendeeResult =
+  | {
+      success: true;
+      attendee: ManagerSessionAttendeeRow;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function updateAttendeeForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    class_id: string;
+    session_id: string;
+    status: AttendeeStatusValue;
+    note?: string;
+  }
+): Promise<UpdateAttendeeResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = updateAttendeeSchema.safeParse({
+    status: input.status,
+    note: input.note,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existing = await attendeeRepository.findAttendeeById(
+    adminClient,
+    input.id
+  );
+
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+
+  if (!existing.data || existing.data.session_id !== input.session_id) {
+    return { success: false, error: "Attendee not found." };
+  }
+
+  const sessionResult = await sessionRepository.findSessionById(
+    adminClient,
+    input.session_id
+  );
+
+  if (sessionResult.error) {
+    return { success: false, error: sessionResult.error.message };
+  }
+
+  if (!sessionResult.data || sessionResult.data.class_id !== input.class_id) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const { data, error } = await attendeeRepository.updateAttendee(
+    adminClient,
+    input.id,
+    {
+      status: parsed.data.status,
+      note:
+        parsed.data.note !== undefined
+          ? normalizeOptionalString(parsed.data.note)
+          : existing.data.note,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to update attendance.",
+    };
+  }
+
+  const displayByUserId = await buildStudentDisplayByUserId(adminClient, [
+    data.student_id,
+  ]);
+  const display = displayByUserId.get(data.student_id);
+
+  const attendee: ManagerSessionAttendeeRow = {
+    id: data.id,
+    session_id: data.session_id,
+    student_id: data.student_id,
+    full_name: display?.full_name ?? "Unknown student",
+    email: display?.email ?? "",
+    note: data.note,
+    status: mapAttendeeStatus(data.status),
+    created_at: data.created_at,
+  };
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "attendee",
+    record_id: attendee.id,
+    old_data: {
+      status: existing.data.status,
+      note: existing.data.note,
+    },
+    new_data: {
+      status: attendee.status,
+      note: attendee.note,
+    },
+  });
+
+  return {
+    success: true,
+    attendee,
+    message: "Attendance updated.",
+  };
+}
+
+export type UpdateStudentTaskResult =
+  | {
+      success: true;
+      studentTask: ManagerStudentTaskRow;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function updateStudentTaskForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    status: string;
+    grade?: string | number;
+    notes?: string;
+    submitted_at?: string;
+    graded_at?: string;
+  }
+): Promise<UpdateStudentTaskResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = editStudentTaskSchema.safeParse({
+    status: input.status,
+    grade: input.grade,
+    notes: input.notes,
+    submitted_at: input.submitted_at,
+    graded_at: input.graded_at,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existing = await studentTaskRepository.findStudentTaskById(
+    adminClient,
+    input.id
+  );
+
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Student task not found." };
+  }
+
+  const grade =
+    parsed.data.grade === "" || parsed.data.grade === undefined
+      ? null
+      : Number(parsed.data.grade);
+
+  const { data, error } = await studentTaskRepository.updateStudentTask(
+    adminClient,
+    input.id,
+    {
+      status: parsed.data.status,
+      grade,
+      notes: normalizeOptionalString(parsed.data.notes),
+      submitted_at: toIsoOrNull(parsed.data.submitted_at),
+      graded_at: toIsoOrNull(parsed.data.graded_at),
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to update student task.",
+    };
+  }
+
+  const displayByUserId = await buildStudentDisplayByUserId(adminClient, [
+    data.student_id,
+  ]);
+
+  const studentTask: ManagerStudentTaskRow = {
+    id: data.id,
+    task_id: data.task_id,
+    student_id: data.student_id,
+    full_name:
+      displayByUserId.get(data.student_id)?.full_name ?? "Unknown student",
+    status: mapStudentTaskStatus(data.status),
+    submitted_at: data.submitted_at,
+    grade: data.grade,
+    notes: data.notes,
+    graded_at: data.graded_at,
+  };
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "student_tasks",
+    record_id: studentTask.id,
+    old_data: {
+      status: existing.data.status,
+      grade: existing.data.grade,
+    },
+    new_data: {
+      status: studentTask.status,
+      grade: studentTask.grade,
+    },
+  });
+
+  return {
+    success: true,
+    studentTask,
+    message: "Student task updated.",
+  };
+}

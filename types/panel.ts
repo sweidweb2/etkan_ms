@@ -14,7 +14,8 @@ export type PanelNavIconKey =
   | "reports"
   | "analytics"
   | "backup"
-  | "logs";
+  | "logs"
+  | "clock";
 
 export type PanelNavItem = {
   title: string;

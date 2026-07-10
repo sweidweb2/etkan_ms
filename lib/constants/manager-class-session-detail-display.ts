@@ -1,8 +1,4 @@
-/** Maps to `attendee.status` in the database (true = present, false = absent). */
-export const SESSION_ATTENDEE_STATUS_LABELS = {
-  present: "Present",
-  absent: "Absent",
-} as const;
+export { SESSION_ATTENDEE_STATUS_LABELS } from "@/lib/constants/manager-attendee-status";
 
 export const SESSION_TASK_TABLE_LIMITS = {
   title: 48,

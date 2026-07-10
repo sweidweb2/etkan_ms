@@ -1,5 +1,8 @@
+import { unstable_cache } from "next/cache";
 import { MANAGER_CREATABLE_ROLES } from "@/lib/constants/manager-user-roles";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -94,13 +97,9 @@ async function mapProfileToManagerUserRow(
   };
 }
 
-/** Lists all users for the manager panel. Uses admin client (profiles RLS is self-only). */
-export async function listUsersForManager(
-  adminClient: Supabase,
-  actorRole: RoleValue | null
+async function fetchUsersForManager(
+  adminClient: Supabase
 ): Promise<ManagerUserRow[]> {
-  assertManagerRole(actorRole);
-
   const { data: profiles, error } = await profileRepository.listProfiles(
     adminClient
   );
@@ -118,6 +117,29 @@ export async function listUsersForManager(
   );
 
   return users.filter((user): user is ManagerUserRow => user !== null);
+}
+
+const listUsersForManagerCached = unstable_cache(
+  async () => {
+    const adminClient = createSupabaseAdminClient();
+    return fetchUsersForManager(adminClient);
+  },
+  ["manager-users-list"],
+  { tags: [MANAGER_CACHE_TAGS.USERS], revalidate: 3600 }
+);
+
+/**
+ * Lists all users for the manager panel.
+ * Auth is checked outside the cache; the list body is shared-server-cached.
+ * The `adminClient` argument is kept for call-site compatibility; the cached
+ * path creates its own admin client inside `unstable_cache`.
+ */
+export async function listUsersForManager(
+  _adminClient: Supabase,
+  actorRole: RoleValue | null
+): Promise<ManagerUserRow[]> {
+  assertManagerRole(actorRole);
+  return listUsersForManagerCached();
 }
 
 export async function createStaffUser(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import {
   Breadcrumb,
@@ -19,25 +19,26 @@ import {
 } from "@/components/ui/card";
 import { SessionTaskStudentTasksSection } from "@/components/manager/classes/session-task-student-tasks-section";
 import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
-import { getManagerSessionStudentTasksPreview } from "@/lib/constants/manager-session-student-tasks-mock";
-import { getManagerClassPreview } from "@/lib/manager/get-manager-class-preview";
-import { getManagerClassSessionPreview } from "@/lib/manager/get-manager-class-session-preview";
-import { getManagerSessionTaskPreview } from "@/lib/manager/get-manager-session-task-preview";
 import {
   getManagerClassDetailRoute,
   getManagerClassSessionDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
+import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
   ManagerSessionTaskRow,
   ManagerStudentTaskRow,
 } from "@/types/manager-class-session-detail";
 
 type SessionTaskDetailsPanelProps = {
-  classId: string;
-  sessionId: string;
-  taskId: string;
+  task: ManagerSessionTaskRow;
+  session: ManagerClassSessionRow;
+  classRow: {
+    id: string;
+    name: string;
+  };
+  initialStudentTasks: ManagerStudentTaskRow[];
 };
 
 function DetailField({
@@ -72,83 +73,12 @@ function formatDateTime(value: string | null) {
 }
 
 export function SessionTaskDetailsPanel({
-  classId,
-  sessionId,
-  taskId,
+  task,
+  session,
+  classRow,
+  initialStudentTasks,
 }: SessionTaskDetailsPanelProps) {
-  const classRow = getManagerClassPreview(classId);
-  const session = getManagerClassSessionPreview(classId, sessionId);
-  const task = useMemo(
-    () => getManagerSessionTaskPreview(classId, sessionId, taskId),
-    [classId, sessionId, taskId]
-  );
-  const studentTasksSyncKey = `${classId}:${sessionId}:${taskId}`;
-  const [studentTasks, setStudentTasks] = useState<ManagerStudentTaskRow[]>(
-    () => {
-      const previewTask = getManagerSessionTaskPreview(
-        classId,
-        sessionId,
-        taskId
-      );
-
-      return previewTask
-        ? getManagerSessionStudentTasksPreview(classId, previewTask)
-        : [];
-    }
-  );
-  const [prevStudentTasksSyncKey, setPrevStudentTasksSyncKey] =
-    useState(studentTasksSyncKey);
-
-  if (studentTasksSyncKey !== prevStudentTasksSyncKey) {
-    setPrevStudentTasksSyncKey(studentTasksSyncKey);
-    setStudentTasks(
-      task ? getManagerSessionStudentTasksPreview(classId, task) : []
-    );
-  }
-
-  if (!session || !task) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={ROUTES.MANAGER_CLASSES}>
-                Manage classes
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href={getManagerClassDetailRoute(classId)}>
-                {classRow.name}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              {session ? (
-                <BreadcrumbLink
-                  href={getManagerClassSessionDetailRoute(classId, sessionId)}
-                >
-                  S{session.nb_order} · {session.topic}
-                </BreadcrumbLink>
-              ) : (
-                <BreadcrumbPage>Session</BreadcrumbPage>
-              )}
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Task not found</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <Card className="gap-0 py-0">
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            This task could not be found for the selected session.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const [studentTasks, setStudentTasks] = useState(initialStudentTasks);
 
   return (
     <div className="flex flex-col gap-6">
@@ -161,14 +91,14 @@ export function SessionTaskDetailsPanel({
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href={getManagerClassDetailRoute(classId)}>
+            <BreadcrumbLink href={getManagerClassDetailRoute(classRow.id)}>
               {classRow.name}
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink
-              href={getManagerClassSessionDetailRoute(classId, sessionId)}
+              href={getManagerClassSessionDetailRoute(classRow.id, session.id)}
             >
               S{session.nb_order} · {session.topic}
             </BreadcrumbLink>
@@ -196,7 +126,7 @@ export function SessionTaskDetailsPanel({
             />
             <DetailField label="Session">
               <Link
-                href={getManagerClassSessionDetailRoute(classId, sessionId)}
+                href={getManagerClassSessionDetailRoute(classRow.id, session.id)}
                 className="text-primary underline-offset-4 hover:underline"
               >
                 S{session.nb_order} · {session.topic}
@@ -204,17 +134,12 @@ export function SessionTaskDetailsPanel({
             </DetailField>
             <DetailField label="Class">
               <Link
-                href={getManagerClassDetailRoute(classId)}
+                href={getManagerClassDetailRoute(classRow.id)}
                 className="text-primary underline-offset-4 hover:underline"
               >
                 {classRow.name}
               </Link>
             </DetailField>
-            <DetailField
-              label="Session ID"
-              value={task.session_id}
-              className="font-mono text-xs"
-            />
             <DetailField
               label="Task ID"
               value={task.id}
@@ -226,7 +151,6 @@ export function SessionTaskDetailsPanel({
       </Card>
 
       <SessionTaskStudentTasksSection
-        classId={classId}
         task={task}
         studentTasks={studentTasks}
         onStudentTasksChange={setStudentTasks}

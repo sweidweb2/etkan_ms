@@ -94,7 +94,7 @@ export type Database = {
           id: string
           note: string | null
           session_id: string
-          status: boolean
+          status: string
           student_id: string
         }
         Insert: {
@@ -102,7 +102,7 @@ export type Database = {
           id?: string
           note?: string | null
           session_id: string
-          status?: boolean
+          status?: string
           student_id: string
         }
         Update: {
@@ -110,7 +110,7 @@ export type Database = {
           id?: string
           note?: string | null
           session_id?: string
-          status?: boolean
+          status?: string
           student_id?: string
         }
         Relationships: [
@@ -1037,7 +1037,7 @@ export type Database = {
           graded_at: string | null
           id: string
           notes: string | null
-          status: string | null
+          status: string
           student_id: string
           submitted_at: string | null
           task_id: string
@@ -1047,7 +1047,7 @@ export type Database = {
           graded_at?: string | null
           id?: string
           notes?: string | null
-          status?: string | null
+          status?: string
           student_id: string
           submitted_at?: string | null
           task_id: string
@@ -1057,7 +1057,7 @@ export type Database = {
           graded_at?: string | null
           id?: string
           notes?: string | null
-          status?: string | null
+          status?: string
           student_id?: string
           submitted_at?: string | null
           task_id?: string

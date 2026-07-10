@@ -1,4 +1,8 @@
 import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
+import type { AttendeeStatusValue } from "@/lib/constants/manager-attendee-status";
+import type { FieldErrors } from "@/types/auth";
+import type { ManagerClassSessionRow } from "@/types/manager-class-session";
+import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
 /** tasks table row scoped to a class session. */
 export interface ManagerSessionTaskRow {
@@ -19,8 +23,8 @@ export interface ManagerSessionAttendeeRow {
   full_name: string;
   email: string;
   note: string | null;
-  /** Matches `attendee.status` (true = present, false = absent). */
-  status: boolean;
+  /** Matches `attendee.status` (present|absent|late|excused). */
+  status: AttendeeStatusValue;
   created_at: string;
 }
 
@@ -38,3 +42,36 @@ export interface ManagerStudentTaskRow {
   notes: string | null;
   graded_at: string | null;
 }
+
+export type UpdateSessionSettingsActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  session?: ManagerClassSessionRow;
+  linkedPhase?: ManagerSessionPhaseLink | null;
+};
+
+export type CreateSessionTaskActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  task?: ManagerSessionTaskRow;
+};
+
+export type UpdateAttendeeActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  attendee?: ManagerSessionAttendeeRow;
+};
+
+export type UpdateStudentTaskActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  studentTask?: ManagerStudentTaskRow;
+};

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PlusIcon } from "lucide-react";
+import { updateAttendeeAction } from "@/app/manager/classes/actions";
 import { AddSessionTaskDialog } from "@/components/manager/classes/add-session-task-dialog";
 import {
   Tabs as TabsPrimitive,
@@ -13,42 +14,58 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  getManagerClassSessionAttendeesPreview,
-  getManagerClassSessionTasksPreview,
-} from "@/lib/constants/manager-class-session-detail-mock";
-import { getManagerClassSessionPreview } from "@/lib/manager/get-manager-class-session-preview";
-import { getNextSessionTaskId } from "@/lib/manager/get-manager-session-task-preview";
-import { appendPreviewSessionTask } from "@/lib/preview/manager-session-tasks-store";
 import { getManagerClassSessionTaskDetailRoute } from "@/lib/constants/routes";
 import {
-  SESSION_ATTENDEE_TABLE_LIMITS,
+  ATTENDEE_STATUSES,
+  ATTENDEE_STATUS_VALUES,
   SESSION_ATTENDEE_STATUS_LABELS,
+  type AttendeeStatusValue,
+} from "@/lib/constants/manager-attendee-status";
+import {
+  SESSION_ATTENDEE_TABLE_LIMITS,
   SESSION_TASK_TABLE_LIMITS,
 } from "@/lib/constants/manager-class-session-detail-display";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   ManagerSessionAttendeeRow,
   ManagerSessionTaskRow,
   SessionDetailsTabValue,
+  UpdateAttendeeActionState,
 } from "@/types/manager-class-session-detail";
+
+const initialAttendeeState: UpdateAttendeeActionState = {};
+
+const ATTENDEE_STATUS_SELECT_ITEMS = Object.fromEntries(
+  ATTENDEE_STATUS_VALUES.map((status) => [
+    status,
+    SESSION_ATTENDEE_STATUS_LABELS[status],
+  ])
+) as Record<AttendeeStatusValue, string>;
 
 type SessionDetailsTabsSectionProps = {
   classId: string;
   sessionId: string;
+  sessionLabel: string;
+  sessionStartsAt: string;
+  initialTasks: ManagerSessionTaskRow[];
+  initialAttendees: ManagerSessionAttendeeRow[];
 };
 
 function TruncatedCell({
@@ -111,7 +128,9 @@ function SessionTasksTable({
   const router = useRouter();
 
   const handleOpenTask = (taskId: string) => {
-    router.push(getManagerClassSessionTaskDetailRoute(classId, sessionId, taskId));
+    router.push(
+      getManagerClassSessionTaskDetailRoute(classId, sessionId, taskId)
+    );
   };
 
   return (
@@ -185,29 +204,56 @@ function SessionTasksTable({
 function SessionAttendeesTable({
   classId,
   sessionId,
+  attendees,
+  onAttendeeUpdated,
 }: {
   classId: string;
   sessionId: string;
+  attendees: ManagerSessionAttendeeRow[];
+  onAttendeeUpdated: (attendee: ManagerSessionAttendeeRow) => void;
 }) {
-  const [attendees, setAttendees] = useState<ManagerSessionAttendeeRow[]>(() =>
-    getManagerClassSessionAttendeesPreview(classId, sessionId)
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateAttendeeAction,
+    initialAttendeeState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.attendee) {
+        return;
+      }
+
+      onAttendeeUpdated(nextState.attendee);
+    },
+    (nextState) => Boolean(nextState.success && nextState.attendee)
   );
 
-  const handleToggleStatus = (
+  const handleStatusChange = (
     attendee: ManagerSessionAttendeeRow,
-    isPresent: boolean
+    status: AttendeeStatusValue
   ) => {
-    setAttendees((current) =>
-      current.map((row) =>
-        row.id === attendee.id ? { ...row, status: isPresent } : row
-      )
-    );
+    if (status === attendee.status) {
+      return;
+    }
 
-    showSuccessToast(
-      isPresent
-        ? `${attendee.full_name} marked present.`
-        : `${attendee.full_name} marked absent.`
-    );
+    const formData = new FormData();
+    formData.set("id", attendee.id);
+    formData.set("class_id", classId);
+    formData.set("session_id", sessionId);
+    formData.set("status", status);
+    if (attendee.note) {
+      formData.set("note", attendee.note);
+    }
+
+    startTransition(() => {
+      formAction(formData);
+    });
   };
 
   return (
@@ -218,7 +264,7 @@ function SessionAttendeesTable({
             <th className="px-4 py-3 font-medium">Student</th>
             <th className="px-4 py-3 font-medium">Email</th>
             <th className="px-4 py-3 font-medium">Note</th>
-            <th className="px-4 py-3 font-medium text-right">Present</th>
+            <th className="px-4 py-3 font-medium">Status</th>
             <th className="px-4 py-3 font-medium">Created</th>
           </tr>
         </thead>
@@ -238,7 +284,9 @@ function SessionAttendeesTable({
                 key={attendee.id}
                 className={cn(
                   "border-b last:border-b-0 hover:bg-muted/30",
-                  !attendee.status && "opacity-60"
+                  (attendee.status === ATTENDEE_STATUSES.ABSENT ||
+                    attendee.status === ATTENDEE_STATUSES.EXCUSED) &&
+                    "opacity-60"
                 )}
               >
                 <td className="max-w-[12rem] px-4 py-3">
@@ -261,19 +309,35 @@ function SessionAttendeesTable({
                   />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end">
-                    <Switch
-                      checked={attendee.status}
-                      onCheckedChange={(checked) =>
-                        handleToggleStatus(attendee, checked)
+                  <Select
+                    value={attendee.status}
+                    items={ATTENDEE_STATUS_SELECT_ITEMS}
+                    disabled={isPending}
+                    onValueChange={(value) => {
+                      if (!value) {
+                        return;
                       }
-                      aria-label={
-                        attendee.status
-                          ? SESSION_ATTENDEE_STATUS_LABELS.present
-                          : SESSION_ATTENDEE_STATUS_LABELS.absent
-                      }
-                    />
-                  </div>
+
+                      handleStatusChange(
+                        attendee,
+                        value as AttendeeStatusValue
+                      );
+                    }}
+                  >
+                    <SelectTrigger
+                      className="w-[8.5rem]"
+                      aria-label={`Attendance status for ${attendee.full_name}`}
+                    >
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      {ATTENDEE_STATUS_VALUES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {SESSION_ATTENDEE_STATUS_LABELS[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                   {formatDateTimeCell(attendee.created_at)}
@@ -290,58 +354,50 @@ function SessionAttendeesTable({
 export function SessionDetailsTabsSection({
   classId,
   sessionId,
+  sessionLabel,
+  sessionStartsAt,
+  initialTasks,
+  initialAttendees,
 }: SessionDetailsTabsSectionProps) {
   const [activeTab, setActiveTab] = useState<SessionDetailsTabValue>("tasks");
-  const session = getManagerClassSessionPreview(classId, sessionId);
-  const sessionLabel = session
-    ? `S${session.nb_order} · ${session.topic}`
-    : "this session";
-  const [tasks, setTasks] = useState<ManagerSessionTaskRow[]>(() =>
-    getManagerClassSessionTasksPreview(classId, sessionId)
-  );
+  const [tasks, setTasks] = useState(initialTasks);
+  const [attendees, setAttendees] = useState(initialAttendees);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
-  const nextTaskId = useMemo(
-    () => getNextSessionTaskId(sessionId, tasks),
-    [sessionId, tasks]
-  );
-
   const defaultDueDate = useMemo(() => {
-    if (!session) {
-      return undefined;
-    }
-
-    const dueDate = new Date(session.starts_at);
+    const dueDate = new Date(sessionStartsAt);
     dueDate.setDate(dueDate.getDate() + 2);
     dueDate.setHours(23, 59, 0, 0);
 
     const offset = dueDate.getTimezoneOffset();
     const local = new Date(dueDate.getTime() - offset * 60_000);
     return local.toISOString().slice(0, 16);
-  }, [session]);
-
-  const handleCreateTask = (task: ManagerSessionTaskRow) => {
-    appendPreviewSessionTask(task);
-    setTasks((current) => [task, ...current.filter((row) => row.id !== task.id)]);
-  };
+  }, [sessionStartsAt]);
 
   return (
     <TooltipProvider>
       <AddSessionTaskDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
+        classId={classId}
         sessionId={sessionId}
         sessionLabel={sessionLabel}
-        nextTaskId={nextTaskId}
         defaultDueDate={defaultDueDate}
-        onCreateTask={handleCreateTask}
+        onCreateTask={(task) => {
+          setTasks((current) => [
+            task,
+            ...current.filter((row) => row.id !== task.id),
+          ]);
+        }}
       />
 
       <Card className="py-0">
         <CardContent className="px-0 pb-0">
           <TabsPrimitive
             value={activeTab}
-            onValueChange={(value) => setActiveTab(value as SessionDetailsTabValue)}
+            onValueChange={(value) =>
+              setActiveTab(value as SessionDetailsTabValue)
+            }
             className="flex flex-col gap-0"
           >
             <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b bg-muted/25 px-4 pt-2 pb-3">
@@ -389,7 +445,18 @@ export function SessionDetailsTabsSection({
                 />
               </TabsContentPrimitive>
               <TabsContentPrimitive value="attendee" className="px-0 py-0">
-                <SessionAttendeesTable classId={classId} sessionId={sessionId} />
+                <SessionAttendeesTable
+                  classId={classId}
+                  sessionId={sessionId}
+                  attendees={attendees}
+                  onAttendeeUpdated={(attendee) => {
+                    setAttendees((current) =>
+                      current.map((row) =>
+                        row.id === attendee.id ? attendee : row
+                      )
+                    );
+                  }}
+                />
               </TabsContentPrimitive>
             </TabsContentsPrimitive>
           </TabsPrimitive>

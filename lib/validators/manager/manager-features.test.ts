@@ -5,9 +5,13 @@ import { parseCreateBorrowsFormData } from "@/lib/validators/manager/create-borr
 import { parseCreateEquipmentFormData } from "@/lib/validators/manager/create-equipment";
 import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
 import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create-relationship";
+import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
+import { parseEditStudentTaskFormData } from "@/lib/validators/manager/edit-student-task";
 import { parseUpdateRelationshipFormData } from "@/lib/validators/manager/update-relationship";
+import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
 import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
+import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
 import { parseCreateNotificationFormData } from "@/lib/validators/manager/create-notification";
 import { parseUpdateNotificationFormData } from "@/lib/validators/manager/update-notification";
 import { parseNotificationIdFormData } from "@/lib/validators/manager/notification-id";
@@ -484,5 +488,83 @@ describe("parseWeeklyScheduleSlotIdFormData", () => {
     const result = parseWeeklyScheduleSlotIdFormData(formData);
 
     expect(result.success).toBe(true);
+  });
+});
+
+describe("parseUpdateSessionSettingsFormData", () => {
+  it("parses phase link fields", () => {
+    const formData = new FormData();
+    formData.set("session_id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("semester_id", relationshipId);
+
+    const result = parseUpdateSessionSettingsFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.semester_id).toBe(relationshipId);
+      expect(result.data.group_grade_level).toBeUndefined();
+    }
+  });
+
+  it("rejects missing session or class", () => {
+    const formData = new FormData();
+    formData.set("semester_id", relationshipId);
+
+    const result = parseUpdateSessionSettingsFormData(formData);
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("parseUpdateAttendeeFormData", () => {
+  it("parses attendance status enum", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("session_id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("status", "late");
+
+    const result = parseUpdateAttendeeFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("late");
+    }
+  });
+});
+
+describe("parseCreateSessionTaskFormData", () => {
+  it("parses task create payload", () => {
+    const formData = new FormData();
+    formData.set("session_id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("title", "Homework 1");
+    formData.set("max_grade", "20");
+
+    const result = parseCreateSessionTaskFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.title).toBe("Homework 1");
+      expect(result.data.max_grade).toBe(20);
+    }
+  });
+});
+
+describe("parseEditStudentTaskFormData", () => {
+  it("parses student task update", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("status", "graded");
+    formData.set("grade", "18");
+
+    const result = parseEditStudentTaskFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("graded");
+      expect(result.data.grade).toBe(18);
+    }
   });
 });

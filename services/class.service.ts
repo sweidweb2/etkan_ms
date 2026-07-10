@@ -16,6 +16,7 @@ import { createClassSchema } from "@/lib/validators/manager/create-class";
 import { createClassSessionSchema } from "@/lib/validators/manager/create-class-session";
 import { createFinalExamSchema } from "@/lib/validators/manager/create-final-exam";
 import { editStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
+import { updateFinalExamSchema } from "@/lib/validators/manager/update-final-exam";
 import { addStudentToClassSchema } from "@/lib/validators/manager/add-student-to-class";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
@@ -39,6 +40,9 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
+import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
+import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
+import { ensureSessionAttendeesForEnrolledStudents, seedLateJoinAttendeesForStudent } from "@/services/session.service";
 import { listStudentsForManager } from "@/services/student.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
@@ -339,6 +343,50 @@ async function buildFullNameByUserId(
     map.set(row.user_id, row.full_name);
   }
   return map;
+}
+
+function isFinalExamDueDatePast(
+  dueDate: string | null,
+  now: Date = new Date()
+): boolean {
+  if (!dueDate) {
+    return false;
+  }
+
+  const dueMs = new Date(dueDate).getTime();
+  if (Number.isNaN(dueMs)) {
+    return false;
+  }
+
+  return dueMs < now.getTime();
+}
+
+function buildEnrollmentFinalExamGradeInput(
+  finalExamId: string,
+  studentId: string,
+  dueDate: string | null
+): {
+  final_exam_id: string;
+  student_id: string;
+  status: string;
+  grade?: number | null;
+  notes?: string | null;
+} {
+  if (isFinalExamDueDatePast(dueDate)) {
+    return {
+      final_exam_id: finalExamId,
+      student_id: studentId,
+      status: STUDENT_TASK_STATUSES.MISSING,
+      grade: 0,
+      notes: LATE_ENROLLMENT_NOTE,
+    };
+  }
+
+  return {
+    final_exam_id: finalExamId,
+    student_id: studentId,
+    status: STUDENT_TASK_STATUSES.PENDING,
+  };
 }
 
 function isUuid(value: string): boolean {
@@ -1098,7 +1146,7 @@ export async function getClassAnalyticsForManager(
 
   const attendeesBySessionId = new Map<
     string,
-    Array<{ student_id: string; status: boolean }>
+    Array<{ student_id: string; status: string }>
   >();
   for (const row of attendeesResult.data ?? []) {
     const list = attendeesBySessionId.get(row.session_id) ?? [];
@@ -1135,7 +1183,9 @@ export async function getClassAnalyticsForManager(
 
   const attendanceTrend = sessions.map((session) => {
     const attendees = attendeesBySessionId.get(session.id) ?? [];
-    const presentCount = attendees.filter((row) => row.status).length;
+    const presentCount = attendees.filter((row) =>
+      isAttendeePresentForRate(row.status)
+    ).length;
     const denominator = enrolledCount > 0 ? enrolledCount : attendees.length;
     const rate =
       denominator === 0
@@ -1498,6 +1548,23 @@ export async function createClassSessionForManager(
   }
 
   const session = mapSessionRecord(data as SessionRecord);
+
+  try {
+    await ensureSessionAttendeesForEnrolledStudents(
+      adminClient,
+      session.id,
+      input.class_id
+    );
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Session created, but attendance rows could not be seeded.",
+    };
+  }
+
   const refreshed = await classRepository.findClassDetailById(
     adminClient,
     input.class_id
@@ -1655,6 +1722,7 @@ export async function createFinalExamForManager(
   );
 
   if (gradesResult.error) {
+    await finalExamRepository.deleteFinalExamById(adminClient, data.id);
     return { success: false, error: gradesResult.error.message };
   }
 
@@ -1674,12 +1742,16 @@ export async function createFinalExamForManager(
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
+    severity: "info",
     table_name: "final_exam",
     record_id: finalExam.id,
     new_data: {
       class_id: finalExam.class_id,
       title: finalExam.title,
       student_grade_count: studentGrades.length,
+    },
+    metadata: {
+      note: "Final exam created with pending grade rows for enrolled students.",
     },
   });
 
@@ -1688,6 +1760,114 @@ export async function createFinalExamForManager(
     finalExam,
     studentGrades,
     message: "Final exam created.",
+  };
+}
+
+export type UpdateFinalExamResult =
+  | {
+      success: true;
+      finalExam: ManagerClassFinalExamRow;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function updateFinalExamForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    title: string;
+    description?: string;
+    due_date?: string;
+    max_grade?: string | number;
+  }
+): Promise<UpdateFinalExamResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  if (!isUuid(input.id)) {
+    return { success: false, error: "Final exam not found." };
+  }
+
+  const parsed = updateFinalExamSchema.safeParse({
+    title: input.title,
+    description: input.description,
+    due_date: input.due_date,
+    max_grade: input.max_grade,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existing = await finalExamRepository.findFinalExamById(
+    adminClient,
+    input.id
+  );
+
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Final exam not found." };
+  }
+
+  const maxGrade =
+    parsed.data.max_grade === "" || parsed.data.max_grade === undefined
+      ? null
+      : Number(parsed.data.max_grade);
+
+  const { data, error } = await finalExamRepository.updateFinalExam(
+    adminClient,
+    input.id,
+    {
+      title: parsed.data.title.trim(),
+      description: normalizeOptionalString(parsed.data.description),
+      due_date: toIsoOrNull(parsed.data.due_date),
+      max_grade: maxGrade,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to update final exam.",
+    };
+  }
+
+  const finalExam = mapFinalExamRecord(data as FinalExamRecord);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "final_exam",
+    record_id: finalExam.id,
+    old_data: {
+      title: existing.data.title,
+      description: existing.data.description,
+      due_date: existing.data.due_date,
+      max_grade: existing.data.max_grade,
+    },
+    new_data: {
+      title: finalExam.title,
+      description: finalExam.description,
+      due_date: finalExam.due_date,
+      max_grade: finalExam.max_grade,
+    },
+    metadata: { note: "Final exam updated." },
+  });
+
+  return {
+    success: true,
+    finalExam,
+    message: "Final exam updated.",
   };
 }
 
@@ -1953,11 +2133,11 @@ export async function addStudentToClassForManager(
   if (examResult.data) {
     const gradeResult = await finalExamRepository.createStudentFinalExamGrade(
       adminClient,
-      {
-        final_exam_id: examResult.data.id,
-        student_id: userId,
-        status: STUDENT_TASK_STATUSES.PENDING,
-      }
+      buildEnrollmentFinalExamGradeInput(
+        examResult.data.id,
+        userId,
+        examResult.data.due_date
+      )
     );
 
     if (gradeResult.error || !gradeResult.data) {
@@ -1973,6 +2153,18 @@ export async function addStudentToClassForManager(
       gradeResult.data as StudentFinalExamGradeRecord,
       student.full_name
     );
+  }
+
+  try {
+    await seedLateJoinAttendeesForStudent(adminClient, input.class_id, userId);
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Student enrolled, but attendance rows could not be created.",
+    };
   }
 
   const classRow = await mapClassDetailToRow(

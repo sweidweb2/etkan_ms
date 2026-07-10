@@ -10,7 +10,12 @@ import {
 import { parseCreateClassFormData } from "@/lib/validators/manager/create-class";
 import { parseCreateClassSessionFormData } from "@/lib/validators/manager/create-class-session";
 import { parseCreateFinalExamFormData } from "@/lib/validators/manager/create-final-exam";
+import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
 import { parseEditStudentFinalExamGradeFormData } from "@/lib/validators/manager/edit-student-finalexam-grade";
+import { parseEditStudentTaskFormData } from "@/lib/validators/manager/edit-student-task";
+import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
+import { parseUpdateFinalExamFormData } from "@/lib/validators/manager/update-final-exam";
+import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
 import {
   parseChangeClassStatusFormData,
   parseUpdateClassFormData,
@@ -24,8 +29,15 @@ import {
   unassignTeacherFromClassForManager,
   updateClassForManager,
   updateClassStatusForManager,
+  updateFinalExamForManager,
   updateStudentFinalExamGradeForManager,
 } from "@/services/class.service";
+import {
+  createSessionTaskForManager,
+  updateAttendeeForManager,
+  updateSessionSettingsForManager,
+  updateStudentTaskForManager,
+} from "@/services/session.service";
 import type {
   AddStudentToClassActionState,
   AssignClassTeacherActionState,
@@ -35,8 +47,15 @@ import type {
   UnassignClassTeacherActionState,
   UpdateClassActionState,
   UpdateClassStatusActionState,
+  UpdateFinalExamActionState,
   UpdateStudentFinalExamGradeActionState,
 } from "@/types/manager-class-detail";
+import type {
+  CreateSessionTaskActionState,
+  UpdateAttendeeActionState,
+  UpdateSessionSettingsActionState,
+  UpdateStudentTaskActionState,
+} from "@/types/manager-class-session-detail";
 
 export async function createClassAction(
   _prevState: CreateClassActionState,
@@ -250,6 +269,48 @@ export async function createFinalExamAction(
   };
 }
 
+export async function updateFinalExamAction(
+  _prevState: UpdateFinalExamActionState,
+  formData: FormData
+): Promise<UpdateFinalExamActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const parsed = parseUpdateFinalExamFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateFinalExamForManager(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    finalExam: result.finalExam,
+  };
+}
+
 export async function updateStudentFinalExamGradeAction(
   _prevState: UpdateStudentFinalExamGradeActionState,
   formData: FormData
@@ -419,5 +480,174 @@ export async function unassignClassTeacherAction(
     message: result.message,
     teacherId: result.teacherId,
     classRow: result.classRow,
+  };
+}
+
+export async function updateSessionSettingsAction(
+  _prevState: UpdateSessionSettingsActionState,
+  formData: FormData
+): Promise<UpdateSessionSettingsActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const parsed = parseUpdateSessionSettingsFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateSessionSettingsForManager(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    session: result.session,
+    linkedPhase: result.linkedPhase,
+  };
+}
+
+export async function createSessionTaskAction(
+  _prevState: CreateSessionTaskActionState,
+  formData: FormData
+): Promise<CreateSessionTaskActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const parsed = parseCreateSessionTaskFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createSessionTaskForManager(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    task: result.task,
+  };
+}
+
+export async function updateAttendeeAction(
+  _prevState: UpdateAttendeeActionState,
+  formData: FormData
+): Promise<UpdateAttendeeActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const parsed = parseUpdateAttendeeFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateAttendeeForManager(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    attendee: result.attendee,
+  };
+}
+
+export async function updateStudentTaskAction(
+  _prevState: UpdateStudentTaskActionState,
+  formData: FormData
+): Promise<UpdateStudentTaskActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const parsed = parseEditStudentTaskFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateStudentTaskForManager(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    studentTask: result.studentTask,
   };
 }

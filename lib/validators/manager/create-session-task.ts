@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
 
 export const createSessionTaskSchema = z.object({
   title: z
@@ -24,3 +26,44 @@ export const createSessionTaskSchema = z.object({
 });
 
 export type CreateSessionTaskInput = z.infer<typeof createSessionTaskSchema>;
+
+export function parseCreateSessionTaskFormData(formData: FormData):
+  | {
+      success: true;
+      data: CreateSessionTaskInput & {
+        session_id: string;
+        class_id: string;
+      };
+    }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const session_id = String(formData.get("session_id") ?? "").trim();
+  const class_id = String(formData.get("class_id") ?? "").trim();
+
+  if (!session_id || !class_id) {
+    return { success: false, error: "Session and class are required." };
+  }
+
+  const parsed = createSessionTaskSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description") ?? undefined,
+    due_date: formData.get("due_date") ?? undefined,
+    max_grade: formData.get("max_grade") ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      session_id,
+      class_id,
+      ...parsed.data,
+    },
+  };
+}

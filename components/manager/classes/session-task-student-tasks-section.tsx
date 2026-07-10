@@ -18,9 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getManagerSessionStudentTasksPreview } from "@/lib/constants/manager-session-student-tasks-mock";
 import { SESSION_STUDENT_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
-import { upsertPreviewStudentTask } from "@/lib/preview/manager-student-tasks-store";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
@@ -29,7 +27,6 @@ import type {
 } from "@/types/manager-class-session-detail";
 
 type SessionTaskStudentTasksSectionProps = {
-  classId: string;
   task: ManagerSessionTaskRow;
   studentTasks: ManagerStudentTaskRow[];
   onStudentTasksChange: (studentTasks: ManagerStudentTaskRow[]) => void;
@@ -76,7 +73,6 @@ function formatDateTimeCell(value: string | null) {
 }
 
 export function SessionTaskStudentTasksSection({
-  classId,
   task,
   studentTasks,
   onStudentTasksChange,
@@ -99,7 +95,6 @@ export function SessionTaskStudentTasksSection({
   };
 
   const handleUpdateStudentTask = (updated: ManagerStudentTaskRow) => {
-    upsertPreviewStudentTask(updated);
     onStudentTasksChange(
       studentTasks.map((row) => (row.id === updated.id ? updated : row))
     );

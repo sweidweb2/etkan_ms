@@ -70,6 +70,14 @@ export type CreateFinalExamActionState = {
   studentGrades?: ManagerStudentFinalExamGradeRow[];
 };
 
+export type UpdateFinalExamActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  finalExam?: ManagerClassFinalExamRow;
+};
+
 export type UpdateStudentFinalExamGradeActionState = {
   success?: boolean;
   error?: string;
