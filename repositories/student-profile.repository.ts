@@ -46,6 +46,20 @@ export async function listStudentProfilesByUserIds(
     .in("user_id", userIds);
 }
 
+export async function listStudentProfileDetailsByUserIds(
+  client: Supabase,
+  userIds: string[]
+) {
+  if (userIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("student_profiles")
+    .select("id, user_id, full_name, birth_date, phone, status, created_at")
+    .in("user_id", userIds);
+}
+
 export async function createStudentProfile(
   client: Supabase,
   input: {

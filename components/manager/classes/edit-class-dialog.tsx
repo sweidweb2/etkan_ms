@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateClassAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,33 +21,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
-import { MANAGER_SUBJECTS_MOCK } from "@/lib/constants/manager-subjects-mock";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
-import { showSuccessToast } from "@/lib/toast";
 import {
   CLASS_STATUS_VALUES,
   updateClassSchema,
   type UpdateClassInput,
 } from "@/lib/validators/manager/update-class";
+import type {
+  ManagerClassSemesterOption,
+  ManagerClassSubjectOption,
+  UpdateClassActionState,
+} from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
 const SEMESTER_UNLINKED = "unlinked";
+const initialState: UpdateClassActionState = {};
 
 type EditClassDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   classRow: ManagerClassRow | null;
-  onUpdateClass: (classRow: ManagerClassRow) => void;
+  subjectOptions: ManagerClassSubjectOption[];
+  semesterOptions: ManagerClassSemesterOption[];
+  onClassUpdated: (classRow: ManagerClassRow) => void;
 };
 
 export function EditClassDialog({
   open,
   onOpenChange,
   classRow,
-  onUpdateClass,
+  subjectOptions,
+  semesterOptions,
+  onClassUpdated,
 }: EditClassDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateClassAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -69,6 +89,24 @@ export function EditClassDialog({
   const selectedStatus = watch("status");
   const selectedSemesterId = watch("semester_id");
 
+  const subjectSelectItems = subjectOptions.map((subject) => ({
+    value: subject.id,
+    label: subject.name,
+  }));
+
+  const statusSelectItems = CLASS_STATUS_VALUES.map((status) => ({
+    value: status,
+    label: MANAGER_CLASS_STATUS_LABELS[status],
+  }));
+
+  const semesterSelectItems = [
+    { value: SEMESTER_UNLINKED, label: "No semester" },
+    ...semesterOptions.map((semester) => ({
+      value: semester.id,
+      label: semester.name,
+    })),
+  ];
+
   useEffect(() => {
     if (!open || !classRow) {
       return;
@@ -82,45 +120,47 @@ export function EditClassDialog({
     });
   }, [classRow, open, reset]);
 
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.classRow) {
+        return;
+      }
+
+      onClassUpdated(nextState.classRow);
+      onOpenChange(false);
+    },
+    (nextState) => Boolean(nextState.success && nextState.classRow)
+  );
+
   function onSubmit(values: UpdateClassInput) {
     if (!classRow) {
       return;
     }
 
-    const subject = MANAGER_SUBJECTS_MOCK.find(
-      (row) => row.id === values.subject_id
-    );
-
-    if (!subject) {
-      return;
-    }
-
-    const semesterId =
+    const formData = new FormData();
+    formData.set("class_id", classRow.id);
+    formData.set("name", values.name);
+    formData.set("subject_id", values.subject_id);
+    formData.set("status", values.status);
+    formData.set(
+      "semester_id",
       values.semester_id && values.semester_id !== SEMESTER_UNLINKED
         ? values.semester_id
-        : null;
-    const semester = semesterId
-      ? MANAGER_PHASES_MOCK.find((row) => row.id === semesterId)
-      : null;
+        : SEMESTER_UNLINKED
+    );
 
-    onUpdateClass({
-      ...classRow,
-      name: values.name.trim(),
-      subject_id: subject.id,
-      subject_name: subject.name,
-      subject_nb_sessions: subject.nb_sessions,
-      completed_sessions: Math.min(
-        classRow.completed_sessions,
-        subject.nb_sessions
-      ),
-      status: values.status,
-      semester_id: semesterId,
-      semester_name: semester?.name ?? null,
+    startTransition(() => {
+      formAction(formData);
     });
-
-    showSuccessToast("Class updated in the preview.");
-    onOpenChange(false);
   }
+
+  const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const subjectError =
+    errors.subject_id?.message ?? state.fieldErrors?.subject_id?.[0];
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
+  const semesterError = state.fieldErrors?.semester_id?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,7 +169,6 @@ export function EditClassDialog({
           <DialogTitle>Edit class</DialogTitle>
           <DialogDescription>
             Update class details for {classRow?.name ?? "this class"}.
-            Preview-only until backend is connected.
           </DialogDescription>
         </DialogHeader>
 
@@ -147,11 +186,12 @@ export function EditClassDialog({
             />
             <Input
               id="edit-class-name"
-              aria-invalid={!!errors.name}
+              aria-invalid={!!nameError}
+              disabled={isPending}
               {...register("name")}
             />
-            {errors.name ? (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
           </div>
 
@@ -163,6 +203,7 @@ export function EditClassDialog({
             />
             <Select
               value={selectedSubjectId || null}
+              items={subjectSelectItems}
               onValueChange={(value) => {
                 if (!value) {
                   return;
@@ -170,26 +211,25 @@ export function EditClassDialog({
 
                 setValue("subject_id", value, { shouldValidate: true });
               }}
+              disabled={isPending}
             >
               <SelectTrigger
                 id="edit-class-subject"
                 className="w-full"
-                aria-invalid={!!errors.subject_id}
+                aria-invalid={!!subjectError}
               >
                 <SelectValue placeholder="Select a subject" />
               </SelectTrigger>
               <SelectContent align="start">
-                {MANAGER_SUBJECTS_MOCK.map((subject) => (
+                {subjectOptions.map((subject) => (
                   <SelectItem key={subject.id} value={subject.id}>
                     {subject.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.subject_id ? (
-              <p className="text-sm text-destructive">
-                {errors.subject_id.message}
-              </p>
+            {subjectError ? (
+              <p className="text-sm text-destructive">{subjectError}</p>
             ) : null}
           </div>
 
@@ -201,6 +241,7 @@ export function EditClassDialog({
             />
             <Select
               value={selectedStatus || null}
+              items={statusSelectItems}
               onValueChange={(value) => {
                 if (!value) {
                   return;
@@ -210,11 +251,12 @@ export function EditClassDialog({
                   shouldValidate: true,
                 });
               }}
+              disabled={isPending}
             >
               <SelectTrigger
                 id="edit-class-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -226,8 +268,8 @@ export function EditClassDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
 
@@ -239,24 +281,29 @@ export function EditClassDialog({
             />
             <Select
               value={selectedSemesterId || SEMESTER_UNLINKED}
+              items={semesterSelectItems}
               onValueChange={(value) => {
                 setValue("semester_id", value ?? SEMESTER_UNLINKED, {
                   shouldValidate: true,
                 });
               }}
+              disabled={isPending}
             >
               <SelectTrigger id="edit-class-semester" className="w-full">
                 <SelectValue placeholder="No semester" />
               </SelectTrigger>
               <SelectContent align="start">
                 <SelectItem value={SEMESTER_UNLINKED}>No semester</SelectItem>
-                {MANAGER_PHASES_MOCK.map((semester) => (
+                {semesterOptions.map((semester) => (
                   <SelectItem key={semester.id} value={semester.id}>
                     {semester.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {semesterError ? (
+              <p className="text-sm text-destructive">{semesterError}</p>
+            ) : null}
           </div>
         </form>
 
@@ -265,11 +312,23 @@ export function EditClassDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="edit-class-form" disabled={!classRow}>
-            Save changes
+          <Button
+            type="submit"
+            form="edit-class-form"
+            disabled={!classRow || isPending}
+          >
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Save changes"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

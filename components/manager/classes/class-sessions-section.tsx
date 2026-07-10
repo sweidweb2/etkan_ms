@@ -14,34 +14,25 @@ import {
 } from "@/components/ui/card";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import {
-  getManagerClassSessionsPreview,
   sortClassSessionsNewestFirst,
-} from "@/lib/constants/manager-class-sessions-mock";
-import type { ManagerClassSessionRow } from "@/types/manager-class-session";
+  type ManagerClassSessionRow,
+} from "@/types/manager-class-session";
+import type { ManagerClassRow } from "@/types/manager-class-list";
 
 type ClassSessionsSectionProps = {
   classId: string;
   className: string;
-  onSessionsCountChange?: (count: number) => void;
+  initialSessions: ManagerClassSessionRow[];
+  onClassUpdated: (classRow: ManagerClassRow) => void;
 };
 
 export function ClassSessionsSection({
   classId,
   className,
-  onSessionsCountChange,
+  initialSessions,
+  onClassUpdated,
 }: ClassSessionsSectionProps) {
-  const [sessions, setSessions] = useState<ManagerClassSessionRow[]>(() =>
-    sortClassSessionsNewestFirst(getManagerClassSessionsPreview(classId))
-  );
-  const [sessionsClassId, setSessionsClassId] = useState(classId);
-
-  if (classId !== sessionsClassId) {
-    setSessionsClassId(classId);
-    setSessions(
-      sortClassSessionsNewestFirst(getManagerClassSessionsPreview(classId))
-    );
-  }
-
+  const [sessions, setSessions] = useState(initialSessions);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   const sortedSessions = useMemo(
@@ -57,24 +48,32 @@ export function ClassSessionsSection({
     return Math.max(...sortedSessions.map((session) => session.nb_order)) + 1;
   }, [sortedSessions]);
 
-  const handleCreateSession = (session: ManagerClassSessionRow) => {
+  const handleSessionCreated = (
+    session: ManagerClassSessionRow,
+    classRow: ManagerClassRow
+  ) => {
     setSessions((current) => {
-      const next = sortClassSessionsNewestFirst([...current, session]);
-      onSessionsCountChange?.(next.length);
-      return next;
+      if (current.some((row) => row.id === session.id)) {
+        return current;
+      }
+
+      return sortClassSessionsNewestFirst([session, ...current]);
     });
+    onClassUpdated(classRow);
   };
 
   return (
     <>
-      <AddClassSessionDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        classId={classId}
-        className={className}
-        nextNbOrder={nextNbOrder}
-        onCreateSession={handleCreateSession}
-      />
+      {isAddOpen ? (
+        <AddClassSessionDialog
+          open
+          onOpenChange={setIsAddOpen}
+          classId={classId}
+          className={className}
+          nextNbOrder={nextNbOrder}
+          onSessionCreated={handleSessionCreated}
+        />
+      ) : null}
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-3">

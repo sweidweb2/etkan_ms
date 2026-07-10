@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
 
 export const createClassSessionSchema = z
   .object({
@@ -34,3 +36,38 @@ export const createClassSessionSchema = z
   );
 
 export type CreateClassSessionInput = z.infer<typeof createClassSessionSchema>;
+
+export function parseCreateClassSessionFormData(formData: FormData):
+  | {
+      success: true;
+      data: CreateClassSessionInput & { class_id: string };
+    }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const class_id = String(formData.get("class_id") ?? "").trim();
+
+  if (!class_id) {
+    return { success: false, error: "Class is required." };
+  }
+
+  const parsed = createClassSessionSchema.safeParse({
+    topic: formData.get("topic"),
+    starts_at: formData.get("starts_at"),
+    ends_at: formData.get("ends_at"),
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      class_id,
+      ...parsed.data,
+    },
+  };
+}

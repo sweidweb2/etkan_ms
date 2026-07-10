@@ -1,27 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { AnalyticsChartCard } from "@/components/manager/analytics/analytics-chart-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getManagerClassAnalyticsPreview } from "@/lib/constants/manager-class-analytics-mock";
+import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 
 type ClassAnalyticsSectionProps = {
-  classId: string;
   className: string;
-  enrollmentCount: number;
+  analytics: ManagerClassAnalyticsPreview;
 };
 
 export function ClassAnalyticsSection({
-  classId,
   className,
-  enrollmentCount,
+  analytics,
 }: ClassAnalyticsSectionProps) {
-  const analytics = useMemo(
-    () => getManagerClassAnalyticsPreview(classId, enrollmentCount),
-    [classId, enrollmentCount]
-  );
-
   const taskGradeChartData = analytics.taskGradeTrend.map((point) => ({
     session_label: point.session_label,
     average_grade: point.average_grade,
@@ -37,8 +29,7 @@ export function ClassAnalyticsSection({
       <CardHeader className="border-b bg-muted/40 py-3">
         <CardTitle>Class analytics</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Average task grades and attendance across completed sessions for{" "}
-          {className}.
+          Average task grades and attendance across sessions for {className}.
         </p>
       </CardHeader>
       <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
@@ -83,7 +74,7 @@ export function ClassAnalyticsSection({
             ]}
           />
           <p className="mt-3 text-xs text-muted-foreground">
-            Percent of enrolled students marked present for each completed session.
+            Percent of enrolled students marked present for each session.
           </p>
         </AnalyticsChartCard>
       </CardContent>

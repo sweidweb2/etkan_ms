@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
 
 export const createFinalExamSchema = z.object({
   title: z
@@ -24,3 +26,39 @@ export const createFinalExamSchema = z.object({
 });
 
 export type CreateFinalExamInput = z.infer<typeof createFinalExamSchema>;
+
+export function parseCreateFinalExamFormData(formData: FormData):
+  | {
+      success: true;
+      data: CreateFinalExamInput & { class_id: string };
+    }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const class_id = String(formData.get("class_id") ?? "").trim();
+
+  if (!class_id) {
+    return { success: false, error: "Class is required." };
+  }
+
+  const parsed = createFinalExamSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description") ?? undefined,
+    due_date: formData.get("due_date") ?? undefined,
+    max_grade: formData.get("max_grade") ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      class_id,
+      ...parsed.data,
+    },
+  };
+}

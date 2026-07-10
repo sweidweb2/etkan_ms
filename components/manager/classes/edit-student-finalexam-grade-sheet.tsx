@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateStudentFinalExamGradeAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,22 +21,27 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
-import { showSuccessToast } from "@/lib/toast";
 import {
   editStudentFinalExamGradeSchema,
   STUDENT_FINAL_EXAM_STATUS_VALUES,
   type EditStudentFinalExamGradeInput,
 } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { cn } from "@/lib/utils";
+import type { UpdateStudentFinalExamGradeActionState } from "@/types/manager-class-detail";
 import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
+
+const initialState: UpdateStudentFinalExamGradeActionState = {};
 
 type EditStudentFinalExamGradeSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentGrade: ManagerStudentFinalExamGradeRow | null;
   maxGrade: number | null;
-  onUpdateStudentGrade: (row: ManagerStudentFinalExamGradeRow) => void;
+  onStudentGradeUpdated: (row: ManagerStudentFinalExamGradeRow) => void;
 };
 
 function toDatetimeLocalValue(value: string | null) {
@@ -53,23 +59,22 @@ function toDatetimeLocalValue(value: string | null) {
   return local.toISOString().slice(0, 16);
 }
 
-function parseOptionalDatetime(value: string | undefined) {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const date = new Date(trimmed);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
 export function EditStudentFinalExamGradeSheet({
   open,
   onOpenChange,
   studentGrade,
   maxGrade,
-  onUpdateStudentGrade,
+  onStudentGradeUpdated,
 }: EditStudentFinalExamGradeSheetProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateStudentFinalExamGradeAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -105,6 +110,20 @@ export function EditStudentFinalExamGradeSheet({
     });
   }, [open, reset, studentGrade]);
 
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.studentGrade) {
+        return;
+      }
+
+      onStudentGradeUpdated(nextState.studentGrade);
+      onOpenChange(false);
+    },
+    (nextState) => Boolean(nextState.success && nextState.studentGrade)
+  );
+
   if (!studentGrade) {
     return null;
   }
@@ -114,20 +133,27 @@ export function EditStudentFinalExamGradeSheet({
       return;
     }
 
-    onUpdateStudentGrade({
-      ...studentGrade,
-      status: values.status,
-      grade:
-        values.grade === "" || values.grade === undefined
-          ? null
-          : Number(values.grade),
-      notes: values.notes?.trim() || null,
-      submitted_at: parseOptionalDatetime(values.submitted_at),
-      graded_at: parseOptionalDatetime(values.graded_at),
+    const formData = new FormData();
+    formData.set("id", studentGrade.id);
+    formData.set("status", values.status);
+    formData.set(
+      "grade",
+      values.grade === undefined || values.grade === ""
+        ? ""
+        : String(values.grade)
+    );
+    formData.set("notes", values.notes ?? "");
+    formData.set("submitted_at", values.submitted_at ?? "");
+    formData.set("graded_at", values.graded_at ?? "");
+
+    startTransition(() => {
+      formAction(formData);
     });
-    showSuccessToast(`${studentGrade.full_name}'s final exam record updated.`);
-    onOpenChange(false);
   }
+
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
+  const gradeError = errors.grade?.message ?? state.fieldErrors?.grade?.[0];
+  const notesError = errors.notes?.message ?? state.fieldErrors?.notes?.[0];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -135,8 +161,7 @@ export function EditStudentFinalExamGradeSheet({
         <SheetHeader>
           <SheetTitle>{studentGrade.full_name}</SheetTitle>
           <SheetDescription>
-            Edit student_finalexam_grade for this class final exam.
-            Preview-only until backend is connected.
+            Edit final exam grade for this student.
           </SheetDescription>
         </SheetHeader>
 
@@ -165,11 +190,12 @@ export function EditStudentFinalExamGradeSheet({
                   { shouldValidate: true }
                 );
               }}
+              disabled={isPending}
             >
               <SelectTrigger
                 id="edit-student-finalexam-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -181,8 +207,8 @@ export function EditStudentFinalExamGradeSheet({
                 ))}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
 
@@ -198,11 +224,12 @@ export function EditStudentFinalExamGradeSheet({
               min={0}
               max={maxGrade ?? 999}
               step={0.5}
-              aria-invalid={!!errors.grade}
+              aria-invalid={!!gradeError}
+              disabled={isPending}
               {...register("grade")}
             />
-            {errors.grade ? (
-              <p className="text-sm text-destructive">{errors.grade.message}</p>
+            {gradeError ? (
+              <p className="text-sm text-destructive">{gradeError}</p>
             ) : null}
           </div>
 
@@ -215,14 +242,15 @@ export function EditStudentFinalExamGradeSheet({
             <textarea
               id="edit-student-finalexam-notes"
               rows={4}
-              aria-invalid={!!errors.notes}
+              aria-invalid={!!notesError}
+              disabled={isPending}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
               )}
               {...register("notes")}
             />
-            {errors.notes ? (
-              <p className="text-sm text-destructive">{errors.notes.message}</p>
+            {notesError ? (
+              <p className="text-sm text-destructive">{notesError}</p>
             ) : null}
           </div>
 
@@ -235,6 +263,7 @@ export function EditStudentFinalExamGradeSheet({
             <Input
               id="edit-student-finalexam-submitted-at"
               type="datetime-local"
+              disabled={isPending}
               {...register("submitted_at")}
             />
           </div>
@@ -248,6 +277,7 @@ export function EditStudentFinalExamGradeSheet({
             <Input
               id="edit-student-finalexam-graded-at"
               type="datetime-local"
+              disabled={isPending}
               {...register("graded_at")}
             />
           </div>
@@ -258,11 +288,23 @@ export function EditStudentFinalExamGradeSheet({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="edit-student-finalexam-grade-form">
-            Save changes
+          <Button
+            type="submit"
+            form="edit-student-finalexam-grade-form"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Save changes"
+            )}
           </Button>
         </SheetFooter>
       </SheetContent>

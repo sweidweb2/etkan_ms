@@ -3,6 +3,23 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
+const STUDENT_CLASS_COLUMNS =
+  "id, user_id, class_id, status, joined_at";
+
+export type StudentClassRecord = {
+  id: string;
+  user_id: string;
+  class_id: string;
+  status: string | null;
+  joined_at: string | null;
+};
+
+export type CreateStudentClassInput = {
+  user_id: string;
+  class_id: string;
+  status: string;
+};
+
 export async function countStudentClassesByUserId(
   client: Supabase,
   userId: string
@@ -38,4 +55,60 @@ export async function listStudentClassCountsByClassIds(
 
 export async function listStudentClassEnrollments(client: Supabase) {
   return client.from("student_class").select("class_id, user_id");
+}
+
+export async function listStudentClassesByClassId(
+  client: Supabase,
+  classId: string
+) {
+  return client
+    .from("student_class")
+    .select(STUDENT_CLASS_COLUMNS)
+    .eq("class_id", classId)
+    .order("joined_at", { ascending: false });
+}
+
+export async function listEnrolledUserIdsByClassId(
+  client: Supabase,
+  classId: string
+) {
+  return client.from("student_class").select("user_id").eq("class_id", classId);
+}
+
+export async function findStudentClassByUserAndClass(
+  client: Supabase,
+  userId: string,
+  classId: string
+) {
+  return client
+    .from("student_class")
+    .select(STUDENT_CLASS_COLUMNS)
+    .eq("user_id", userId)
+    .eq("class_id", classId)
+    .maybeSingle();
+}
+
+export async function createStudentClassEnrollment(
+  client: Supabase,
+  input: CreateStudentClassInput
+) {
+  return client
+    .from("student_class")
+    .insert({
+      user_id: input.user_id,
+      class_id: input.class_id,
+      status: input.status,
+    })
+    .select(STUDENT_CLASS_COLUMNS)
+    .single();
+}
+
+export async function countStudentClassesByClassId(
+  client: Supabase,
+  classId: string
+) {
+  return client
+    .from("student_class")
+    .select("id", { count: "exact", head: true })
+    .eq("class_id", classId);
 }

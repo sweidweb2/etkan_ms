@@ -20,10 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
-import { getManagerClassesPreview } from "@/lib/constants/manager-classes-list-mock";
+import type {
+  ManagerClassSemesterOption,
+  ManagerClassSubjectOption,
+  ManagerClassTeacherSelectOption,
+} from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
 const PAGE_SIZE_OPTIONS = [6, 9, 12] as const;
@@ -78,10 +81,20 @@ function matchesSearch(classRow: ManagerClassRow, query: string) {
   return haystack.includes(normalizedQuery);
 }
 
-export function ManageClassesPanel() {
-  const [classes, setClasses] = useState<ManagerClassRow[]>(() =>
-    getManagerClassesPreview()
-  );
+type ManageClassesPanelProps = {
+  initialClasses: ManagerClassRow[];
+  subjectOptions: ManagerClassSubjectOption[];
+  semesterOptions: ManagerClassSemesterOption[];
+  teacherOptions: ManagerClassTeacherSelectOption[];
+};
+
+export function ManageClassesPanel({
+  initialClasses,
+  subjectOptions,
+  semesterOptions,
+  teacherOptions,
+}: ManageClassesPanelProps) {
+  const [classes, setClasses] = useState(initialClasses);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
@@ -158,7 +171,13 @@ export function ManageClassesPanel() {
   };
 
   const handleCreateClass = (classRow: ManagerClassRow) => {
-    setClasses((current) => [classRow, ...current]);
+    setClasses((current) => {
+      if (current.some((row) => row.id === classRow.id)) {
+        return current;
+      }
+
+      return [classRow, ...current];
+    });
     setCurrentPage(1);
   };
 
@@ -170,8 +189,7 @@ export function ManageClassesPanel() {
             Manage classes
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Preview of classes with subject, semester, and enrollment context.
-            Data is mocked until backend is connected.
+            Classes with subject, semester, and enrollment context.
           </p>
         </div>
         <Button type="button" onClick={() => setIsAddOpen(true)}>
@@ -180,11 +198,16 @@ export function ManageClassesPanel() {
         </Button>
       </div>
 
-      <AddClassDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        onCreateClass={handleCreateClass}
-      />
+      {isAddOpen ? (
+        <AddClassDialog
+          open
+          onOpenChange={setIsAddOpen}
+          subjectOptions={subjectOptions}
+          semesterOptions={semesterOptions}
+          teacherOptions={teacherOptions}
+          onClassCreated={handleCreateClass}
+        />
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <UserStatCard
@@ -263,7 +286,7 @@ export function ManageClassesPanel() {
                 <SelectItem value={SEMESTER_FILTER_UNLINKED}>
                   Unlinked
                 </SelectItem>
-                {MANAGER_PHASES_MOCK.map((semester) => (
+                {semesterOptions.map((semester) => (
                   <SelectItem key={semester.id} value={semester.id}>
                     {semester.name}
                   </SelectItem>
@@ -275,7 +298,7 @@ export function ManageClassesPanel() {
           {paginatedClasses.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               {classes.length === 0
-                ? "No classes in the preview yet."
+                ? "No classes yet. Create one to get started."
                 : "No classes match your filters."}
             </p>
           ) : (

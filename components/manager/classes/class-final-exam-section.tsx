@@ -21,15 +21,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CLASS_FINAL_EXAM_TABLE_LIMITS } from "@/lib/constants/manager-class-final-exam-display";
-import {
-  buildInitialStudentFinalExamGrades,
-  getManagerStudentFinalExamGradesPreview,
-} from "@/lib/constants/manager-class-final-exam-mock";
-import { setPreviewClassFinalExam } from "@/lib/preview/manager-class-final-exam-store";
-import {
-  setPreviewStudentFinalExamGrades,
-  upsertPreviewStudentFinalExamGrade,
-} from "@/lib/preview/manager-student-finalexam-grade-store";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
@@ -41,7 +32,9 @@ type ClassFinalExamSectionProps = {
   classId: string;
   className: string;
   finalExam: ManagerClassFinalExamRow | null;
+  studentGrades: ManagerStudentFinalExamGradeRow[];
   onFinalExamChange: (exam: ManagerClassFinalExamRow | null) => void;
+  onStudentGradesChange: (grades: ManagerStudentFinalExamGradeRow[]) => void;
 };
 
 function TruncatedCell({
@@ -88,28 +81,11 @@ export function ClassFinalExamSection({
   classId,
   className,
   finalExam,
+  studentGrades,
   onFinalExamChange,
+  onStudentGradesChange,
 }: ClassFinalExamSectionProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [studentGrades, setStudentGrades] = useState<
-    ManagerStudentFinalExamGradeRow[]
-  >(() =>
-    finalExam
-      ? getManagerStudentFinalExamGradesPreview(classId, finalExam)
-      : []
-  );
-  const gradesSyncKey = `${classId}:${finalExam?.id ?? "none"}`;
-  const [prevGradesSyncKey, setPrevGradesSyncKey] = useState(gradesSyncKey);
-
-  if (gradesSyncKey !== prevGradesSyncKey) {
-    setPrevGradesSyncKey(gradesSyncKey);
-    setStudentGrades(
-      finalExam
-        ? getManagerStudentFinalExamGradesPreview(classId, finalExam)
-        : []
-    );
-  }
-
   const [selectedStudentGrade, setSelectedStudentGrade] =
     useState<ManagerStudentFinalExamGradeRow | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -122,12 +98,12 @@ export function ClassFinalExamSection({
     [studentGrades]
   );
 
-  const handleCreateFinalExam = (exam: ManagerClassFinalExamRow) => {
-    const initialRows = buildInitialStudentFinalExamGrades(classId, exam);
-    setPreviewClassFinalExam(exam);
-    setPreviewStudentFinalExamGrades(exam.id, initialRows);
+  const handleCreateFinalExam = (
+    exam: ManagerClassFinalExamRow,
+    grades: ManagerStudentFinalExamGradeRow[]
+  ) => {
     onFinalExamChange(exam);
-    setStudentGrades(initialRows);
+    onStudentGradesChange(grades);
   };
 
   const handleOpenEdit = (row: ManagerStudentFinalExamGradeRow) => {
@@ -136,29 +112,33 @@ export function ClassFinalExamSection({
   };
 
   const handleUpdateStudentGrade = (updated: ManagerStudentFinalExamGradeRow) => {
-    upsertPreviewStudentFinalExamGrade(updated);
-    setStudentGrades((current) =>
-      current.map((row) => (row.id === updated.id ? updated : row))
+    onStudentGradesChange(
+      studentGrades.map((row) => (row.id === updated.id ? updated : row))
     );
+    setSelectedStudentGrade(updated);
   };
 
   return (
     <TooltipProvider>
-      <CreateFinalExamDialog
-        open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
-        classId={classId}
-        className={className}
-        onCreateFinalExam={handleCreateFinalExam}
-      />
+      {isCreateOpen ? (
+        <CreateFinalExamDialog
+          open
+          onOpenChange={setIsCreateOpen}
+          classId={classId}
+          className={className}
+          onFinalExamCreated={handleCreateFinalExam}
+        />
+      ) : null}
 
-      <EditStudentFinalExamGradeSheet
-        open={isEditOpen}
-        onOpenChange={setIsEditOpen}
-        studentGrade={selectedStudentGrade}
-        maxGrade={finalExam?.max_grade ?? null}
-        onUpdateStudentGrade={handleUpdateStudentGrade}
-      />
+      {isEditOpen ? (
+        <EditStudentFinalExamGradeSheet
+          open
+          onOpenChange={setIsEditOpen}
+          studentGrade={selectedStudentGrade}
+          maxGrade={finalExam?.max_grade ?? null}
+          onStudentGradeUpdated={handleUpdateStudentGrade}
+        />
+      ) : null}
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-3">

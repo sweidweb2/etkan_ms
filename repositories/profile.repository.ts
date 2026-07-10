@@ -102,3 +102,14 @@ export async function countProfiles(
 
   return query;
 }
+
+export async function listProfilesByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("profiles")
+    .select("id, username, role, created_at")
+    .in("id", ids);
+}

@@ -40,11 +40,13 @@ import {
   STUDENT_CLASS_STATUS_VALUES,
   type StudentClassStatusValue,
 } from "@/lib/constants/manager-student-class-status";
-import { getManagerClassStudentsPreview } from "@/lib/manager/get-manager-class-students-preview";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
+import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
+import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type { ManagerStudentRow } from "@/types/manager-student";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const STATUS_FILTER_ALL = "all";
@@ -52,7 +54,12 @@ const STATUS_FILTER_ALL = "all";
 type ClassStudentsSectionProps = {
   classId: string;
   className: string;
-  onEnrollmentChange?: (count: number) => void;
+  initialStudents: ManagerClassStudentRow[];
+  availableStudents: ManagerStudentRow[];
+  onStudentsChange: (students: ManagerClassStudentRow[]) => void;
+  onAvailableStudentsChange: (students: ManagerStudentRow[]) => void;
+  onClassUpdated: (classRow: ManagerClassRow) => void;
+  onStudentGradeAdded: (grade: ManagerStudentFinalExamGradeRow) => void;
 };
 
 function TruncatedCell({
@@ -137,11 +144,14 @@ function matchesSearch(student: ManagerClassStudentRow, query: string) {
 export function ClassStudentsSection({
   classId,
   className,
-  onEnrollmentChange,
+  initialStudents,
+  availableStudents,
+  onStudentsChange,
+  onAvailableStudentsChange,
+  onClassUpdated,
+  onStudentGradeAdded,
 }: ClassStudentsSectionProps) {
-  const [students, setStudents] = useState<ManagerClassStudentRow[]>(() =>
-    getManagerClassStudentsPreview(classId)
-  );
+  const [students, setStudents] = useState(initialStudents);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
@@ -149,11 +159,6 @@ export function ClassStudentsSection({
     10
   );
   const [currentPage, setCurrentPage] = useState(1);
-
-  const enrolledStudentProfileIds = useMemo(
-    () => new Set(students.map((student) => student.student_profile_id)),
-    [students]
-  );
 
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
@@ -197,24 +202,44 @@ export function ClassStudentsSection({
     setCurrentPage(1);
   };
 
-  const handleAddStudent = (student: ManagerClassStudentRow) => {
+  const handleAddStudent = (
+    student: ManagerClassStudentRow,
+    classRow: ManagerClassRow,
+    studentGrade?: ManagerStudentFinalExamGradeRow
+  ) => {
     setStudents((current) => {
-      const next = [student, ...current];
-      onEnrollmentChange?.(next.length);
-      return next;
+      if (current.some((row) => row.id === student.id)) {
+        return current;
+      }
+
+      const nextStudents = [student, ...current];
+      onStudentsChange(nextStudents);
+      return nextStudents;
     });
+    onAvailableStudentsChange(
+      availableStudents.filter(
+        (row) => row.student_profile_id !== student.student_profile_id
+      )
+    );
+    onClassUpdated(classRow);
+    if (studentGrade) {
+      onStudentGradeAdded(studentGrade);
+    }
     setCurrentPage(1);
   };
 
   return (
     <TooltipProvider>
-      <AddStudentToClassDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        className={className}
-        enrolledStudentProfileIds={enrolledStudentProfileIds}
-        onAddStudent={handleAddStudent}
-      />
+      {isAddOpen ? (
+        <AddStudentToClassDialog
+          open
+          onOpenChange={setIsAddOpen}
+          classId={classId}
+          className={className}
+          availableStudents={availableStudents}
+          onStudentAdded={handleAddStudent}
+        />
+      ) : null}
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
@@ -321,7 +346,9 @@ export function ClassStudentsSection({
                         />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                        {format(new Date(student.joined_at), "MMM d, yyyy")}
+                        {student.joined_at
+                          ? format(new Date(student.joined_at), "MMM d, yyyy")
+                          : "—"}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Link

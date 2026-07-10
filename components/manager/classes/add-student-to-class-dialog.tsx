@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { addStudentToClassAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,40 +20,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MANAGER_STUDENTS_MOCK } from "@/lib/constants/manager-students-mock";
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   addStudentToClassSchema,
   type AddStudentToClassInput,
 } from "@/lib/validators/manager/add-student-to-class";
+import type { AddStudentToClassActionState } from "@/types/manager-class-detail";
+import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
+import type { ManagerStudentRow } from "@/types/manager-student";
+
+const initialState: AddStudentToClassActionState = {};
 
 type AddStudentToClassDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  classId: string;
   className: string;
-  enrolledStudentProfileIds: Set<string>;
-  onAddStudent: (student: ManagerClassStudentRow) => void;
+  availableStudents: ManagerStudentRow[];
+  onStudentAdded: (
+    student: ManagerClassStudentRow,
+    classRow: ManagerClassRow,
+    studentGrade?: ManagerStudentFinalExamGradeRow
+  ) => void;
 };
 
 export function AddStudentToClassDialog({
   open,
   onOpenChange,
+  classId,
   className,
-  enrolledStudentProfileIds,
-  onAddStudent,
+  availableStudents,
+  onStudentAdded,
 }: AddStudentToClassDialogProps) {
-  const availableStudents = MANAGER_STUDENTS_MOCK.filter(
-    (student) => !enrolledStudentProfileIds.has(student.student_profile_id)
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    addStudentToClassAction,
+    initialState
   );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
 
   const {
     handleSubmit,
     reset,
     setValue,
     watch,
-    setError,
     formState: { errors },
   } = useZodForm({
     schema: addStudentToClassSchema,
@@ -65,39 +82,45 @@ export function AddStudentToClassDialog({
   const selectedStudentProfileId = watch("studentProfileId");
   const hasAvailableStudents = availableStudents.length > 0;
 
+  const studentSelectItems = availableStudents.map((student) => ({
+    value: student.student_profile_id,
+    label: `${student.full_name} · ${student.email}`,
+  }));
+
   useEffect(() => {
     if (!open) {
       reset({ studentProfileId: "" });
     }
   }, [open, reset]);
 
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.student || !nextState.classRow) {
+        return;
+      }
+
+      onStudentAdded(nextState.student, nextState.classRow, nextState.studentGrade);
+      onOpenChange(false);
+    },
+    (nextState) =>
+      Boolean(nextState.success && nextState.student && nextState.classRow)
+  );
+
   function onSubmit(values: AddStudentToClassInput) {
-    const student = availableStudents.find(
-      (row) => row.student_profile_id === values.studentProfileId
-    );
+    const formData = new FormData();
+    formData.set("class_id", classId);
+    formData.set("studentProfileId", values.studentProfileId);
 
-    if (!student) {
-      setError("studentProfileId", {
-        message: "This student is no longer available.",
-      });
-      return;
-    }
-
-    onAddStudent({
-      id: crypto.randomUUID(),
-      student_profile_id: student.student_profile_id,
-      user_id: student.user_id,
-      full_name: student.full_name,
-      username: student.username,
-      email: student.email,
-      phone: student.phone,
-      enrollment_status: STUDENT_CLASS_STATUSES.IN_PROGRESS,
-      joined_at: new Date().toISOString(),
+    startTransition(() => {
+      formAction(formData);
     });
-
-    showSuccessToast(`${student.full_name} added to ${className}.`);
-    onOpenChange(false);
   }
+
+  const studentError =
+    errors.studentProfileId?.message ??
+    state.fieldErrors?.studentProfileId?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,8 +128,7 @@ export function AddStudentToClassDialog({
         <DialogHeader>
           <DialogTitle>Add student to class</DialogTitle>
           <DialogDescription>
-            Enroll a student in {className} via student_class. Preview-only
-            until backend is connected.
+            Enroll a student in {className}.
           </DialogDescription>
         </DialogHeader>
 
@@ -120,11 +142,12 @@ export function AddStudentToClassDialog({
             <FieldLabel
               htmlFor="add-student-to-class-id"
               label="Student"
-              hint="Required · maps to student_class.user_id"
+              hint="Required"
             />
             {hasAvailableStudents ? (
               <Select
                 value={selectedStudentProfileId || null}
+                items={studentSelectItems}
                 onValueChange={(value) => {
                   if (!value) {
                     return;
@@ -132,11 +155,12 @@ export function AddStudentToClassDialog({
 
                   setValue("studentProfileId", value, { shouldValidate: true });
                 }}
+                disabled={isPending}
               >
                 <SelectTrigger
                   id="add-student-to-class-id"
                   className="w-full"
-                  aria-invalid={!!errors.studentProfileId}
+                  aria-invalid={!!studentError}
                 >
                   <SelectValue placeholder="Select a student" />
                 </SelectTrigger>
@@ -156,10 +180,8 @@ export function AddStudentToClassDialog({
                 Every available student is already enrolled in this class.
               </p>
             )}
-            {errors.studentProfileId ? (
-              <p className="text-sm text-destructive">
-                {errors.studentProfileId.message}
-              </p>
+            {studentError ? (
+              <p className="text-sm text-destructive">{studentError}</p>
             ) : null}
           </div>
         </form>
@@ -169,15 +191,23 @@ export function AddStudentToClassDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             form="add-student-to-class-form"
-            disabled={!hasAvailableStudents}
+            disabled={!hasAvailableStudents || isPending}
           >
-            Add student
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Adding student
+              </>
+            ) : (
+              "Add student"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

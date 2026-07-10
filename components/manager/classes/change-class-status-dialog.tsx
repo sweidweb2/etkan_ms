@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
 import { z } from "zod";
+import { updateClassStatusAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,12 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   CLASS_STATUS_VALUES,
-  type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
-import { showSuccessToast } from "@/lib/toast";
+import type { UpdateClassStatusActionState } from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
 const changeClassStatusSchema = z.object({
@@ -36,19 +39,30 @@ const changeClassStatusSchema = z.object({
 
 type ChangeClassStatusInput = z.infer<typeof changeClassStatusSchema>;
 
+const initialState: UpdateClassStatusActionState = {};
+
 type ChangeClassStatusDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   classRow: ManagerClassRow | null;
-  onStatusChange: (status: ClassStatusValue) => void;
+  onClassUpdated: (classRow: ManagerClassRow) => void;
 };
 
 export function ChangeClassStatusDialog({
   open,
   onOpenChange,
   classRow,
-  onStatusChange,
+  onClassUpdated,
 }: ChangeClassStatusDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateClassStatusAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     handleSubmit,
     reset,
@@ -74,17 +88,35 @@ export function ChangeClassStatusDialog({
     });
   }, [classRow, open, reset]);
 
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.classRow) {
+        return;
+      }
+
+      onClassUpdated(nextState.classRow);
+      onOpenChange(false);
+    },
+    (nextState) => Boolean(nextState.success && nextState.classRow)
+  );
+
   function onSubmit(values: ChangeClassStatusInput) {
     if (!classRow) {
       return;
     }
 
-    onStatusChange(values.status);
-    showSuccessToast(
-      `${classRow.name} is now ${MANAGER_CLASS_STATUS_LABELS[values.status].toLowerCase()}.`
-    );
-    onOpenChange(false);
+    const formData = new FormData();
+    formData.set("class_id", classRow.id);
+    formData.set("status", values.status);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,7 +125,6 @@ export function ChangeClassStatusDialog({
           <DialogTitle>Change class status</DialogTitle>
           <DialogDescription>
             Update the lifecycle status for {classRow?.name ?? "this class"}.
-            Preview-only until backend is connected.
           </DialogDescription>
         </DialogHeader>
 
@@ -120,11 +151,12 @@ export function ChangeClassStatusDialog({
                   shouldValidate: true,
                 });
               }}
+              disabled={isPending}
             >
               <SelectTrigger
                 id="change-class-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -136,8 +168,8 @@ export function ChangeClassStatusDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
         </form>
@@ -147,11 +179,23 @@ export function ChangeClassStatusDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="change-class-status-form" disabled={!classRow}>
-            Save status
+          <Button
+            type="submit"
+            form="change-class-status-form"
+            disabled={!classRow || isPending}
+          >
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Save status"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

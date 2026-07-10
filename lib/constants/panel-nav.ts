@@ -79,17 +79,17 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       defaultOpen: true,
       items: [
         {
-          title: "Accounting",
+          title: "Accounting ❗",
           href: ROUTES.MANAGER_ACCOUNTING,
           icon: "calculator",
         },
         {
-          title: "Schedule",
+          title: "Schedule ❗",
           href: ROUTES.MANAGER_SCHEDULE,
           icon: "calendar-days",
         },
         {
-          title: "Notifications",
+          title: "Notifications ❗",
           href: ROUTES.MANAGER_NOTIFICATIONS,
           icon: "bell",
         },
@@ -101,12 +101,12 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       defaultOpen: true,
       items: [
         {
-          title: "Reports",
+          title: "Reports ❗",
           href: ROUTES.MANAGER_REPORTS,
           icon: "reports",
         },
         {
-          title: "Analytics",
+          title: "Analytics ❗",
           href: ROUTES.MANAGER_ANALYTICS,
           icon: "analytics",
         },

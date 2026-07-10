@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { LineChartIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
+import { AssignClassTeachersDropdown } from "@/components/manager/classes/assign-class-teachers-dropdown";
 import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
 import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog";
 import { ClassAnalyticsSection } from "@/components/manager/classes/class-analytics-section";
@@ -26,26 +27,43 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  getClassSessionCompletionRate,
-} from "@/lib/constants/manager-semester-class-progress";
+import { getClassSessionCompletionRate } from "@/lib/constants/manager-semester-class-progress";
 import {
   CLASS_STATUS_BADGE_CLASSES,
   CLASS_STATUS_LABELS,
 } from "@/lib/constants/manager-subject-display";
-import { getManagerClassPreview } from "@/lib/manager/get-manager-class-preview";
-import { getManagerClassFinalExamPreview } from "@/lib/constants/manager-class-final-exam-mock";
 import {
   getManagerClassGradesRoute,
   getManagerSemesterDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
+import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
+import type {
+  ManagerClassFinalExamRow,
+  ManagerStudentFinalExamGradeRow,
+} from "@/types/manager-class-final-exam";
 import type { ManagerClassRow } from "@/types/manager-class-list";
-import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
+import type { ManagerClassSessionRow } from "@/types/manager-class-session";
+import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type {
+  ManagerClassSemesterOption,
+  ManagerClassSubjectOption,
+  ManagerClassTeacherOption,
+} from "@/types/manager-class-detail";
+import type { ManagerStudentRow } from "@/types/manager-student";
 
 type ClassDetailsPanelProps = {
-  classId: string;
+  classRow: ManagerClassRow;
+  initialSessions: ManagerClassSessionRow[];
+  initialStudents: ManagerClassStudentRow[];
+  initialAvailableStudents: ManagerStudentRow[];
+  initialFinalExam: ManagerClassFinalExamRow | null;
+  initialStudentGrades: ManagerStudentFinalExamGradeRow[];
+  initialAnalytics: ManagerClassAnalyticsPreview;
+  initialTeachers: ManagerClassTeacherOption[];
+  subjectOptions: ManagerClassSubjectOption[];
+  semesterOptions: ManagerClassSemesterOption[];
 };
 
 function DetailField({
@@ -71,25 +89,31 @@ function DetailField({
   );
 }
 
-export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
-  const [classRow, setClassRow] = useState<ManagerClassRow>(() =>
-    getManagerClassPreview(classId)
-  );
+export function ClassDetailsPanel({
+  classRow: initialClassRow,
+  initialSessions,
+  initialStudents,
+  initialAvailableStudents,
+  initialFinalExam,
+  initialStudentGrades,
+  initialAnalytics,
+  initialTeachers,
+  subjectOptions,
+  semesterOptions,
+}: ClassDetailsPanelProps) {
+  const [classRow, setClassRow] = useState(initialClassRow);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false);
-  const [finalExam, setFinalExam] = useState<ManagerClassFinalExamRow | null>(
-    () => getManagerClassFinalExamPreview(classId)
+  const [finalExam, setFinalExam] = useState(initialFinalExam);
+  const [studentGrades, setStudentGrades] = useState(initialStudentGrades);
+  const [students, setStudents] = useState(initialStudents);
+  const [availableStudents, setAvailableStudents] = useState(
+    initialAvailableStudents
   );
-  const [finalExamClassId, setFinalExamClassId] = useState(classId);
-
-  if (classId !== finalExamClassId) {
-    setFinalExamClassId(classId);
-    setFinalExam(getManagerClassFinalExamPreview(classId));
-  }
+  const [teachers, setTeachers] = useState(initialTeachers);
 
   const sessionRate = getClassSessionCompletionRate(classRow);
-  const statusLabel =
-    CLASS_STATUS_LABELS[classRow.status] ?? classRow.status;
+  const statusLabel = CLASS_STATUS_LABELS[classRow.status] ?? classRow.status;
   const statusClassName =
     CLASS_STATUS_BADGE_CLASSES[classRow.status] ??
     "bg-muted text-muted-foreground";
@@ -115,36 +139,46 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <EditClassDialog
-        open={isEditOpen}
-        onOpenChange={setIsEditOpen}
-        classRow={classRow}
-        onUpdateClass={setClassRow}
-      />
+      {isEditOpen ? (
+        <EditClassDialog
+          open
+          onOpenChange={setIsEditOpen}
+          classRow={classRow}
+          subjectOptions={subjectOptions}
+          semesterOptions={semesterOptions}
+          onClassUpdated={setClassRow}
+        />
+      ) : null}
 
-      <ChangeClassStatusDialog
-        open={isChangeStatusOpen}
-        onOpenChange={setIsChangeStatusOpen}
-        classRow={classRow}
-        onStatusChange={(status) => {
-          setClassRow((current) => ({
-            ...current,
-            status,
-          }));
-        }}
-      />
+      {isChangeStatusOpen ? (
+        <ChangeClassStatusDialog
+          open
+          onOpenChange={setIsChangeStatusOpen}
+          classRow={classRow}
+          onClassUpdated={setClassRow}
+        />
+      ) : null}
 
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{classRow.name}</CardTitle>
-          <CardAction className="flex items-center gap-2 self-center">
+          <CardAction className="flex flex-wrap items-center gap-2 self-center">
             <Link
               href={getManagerClassGradesRoute(classRow.id)}
-              className={buttonVariants({ variant: "outline" })}
+              className={cn(
+                buttonVariants({ variant: "secondary" }),
+                "border border-sky-500/20 bg-sky-500/10 text-sky-800 shadow-none hover:bg-sky-500/15 hover:text-sky-900 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:bg-sky-400/15 dark:hover:text-sky-100"
+              )}
             >
               <LineChartIcon data-icon="inline-start" />
               Grades
             </Link>
+            <AssignClassTeachersDropdown
+              classId={classRow.id}
+              teachers={teachers}
+              onTeachersChange={setTeachers}
+              onClassUpdated={setClassRow}
+            />
             <Button
               type="button"
               variant="outline"
@@ -175,7 +209,7 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
             <DetailField label="Subject" value={classRow.subject_name} />
             <DetailField
               label="Subject ID"
-              value={classRow.subject_id}
+              value={classRow.subject_id || "—"}
               className="font-mono text-xs"
             />
             <DetailField label="Semester">
@@ -218,11 +252,26 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
       <ClassSessionsSection
         classId={classRow.id}
         className={classRow.name}
-        onSessionsCountChange={(count) => {
-          setClassRow((current) => ({
-            ...current,
-            subject_nb_sessions: count,
-          }));
+        initialSessions={initialSessions}
+        onClassUpdated={setClassRow}
+      />
+
+      <ClassStudentsSection
+        classId={classRow.id}
+        className={classRow.name}
+        initialStudents={students}
+        availableStudents={availableStudents}
+        onStudentsChange={setStudents}
+        onAvailableStudentsChange={setAvailableStudents}
+        onClassUpdated={setClassRow}
+        onStudentGradeAdded={(grade) => {
+          setStudentGrades((current) => {
+            if (current.some((row) => row.id === grade.id)) {
+              return current;
+            }
+
+            return [...current, grade];
+          });
         }}
       />
 
@@ -230,24 +279,14 @@ export function ClassDetailsPanel({ classId }: ClassDetailsPanelProps) {
         classId={classRow.id}
         className={classRow.name}
         finalExam={finalExam}
+        studentGrades={studentGrades}
         onFinalExamChange={setFinalExam}
+        onStudentGradesChange={setStudentGrades}
       />
 
       <ClassAnalyticsSection
-        classId={classRow.id}
         className={classRow.name}
-        enrollmentCount={classRow.enrollment_count}
-      />
-
-      <ClassStudentsSection
-        classId={classRow.id}
-        className={classRow.name}
-        onEnrollmentChange={(count) => {
-          setClassRow((current) => ({
-            ...current,
-            enrollment_count: count,
-          }));
-        }}
+        analytics={initialAnalytics}
       />
     </div>
   );

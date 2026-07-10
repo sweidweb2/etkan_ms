@@ -15,9 +15,13 @@ export default function MaintenancePage() {
             </p>
           </div>
 
-          <div className="text-sm">
+          <div className="text-sm" suppressHydrationWarning>
             Manager can turn it off here:{" "}
-            <Link className="underline" href="/manager/settings">
+            <Link
+              className="underline"
+              href="/manager/settings"
+              suppressHydrationWarning
+            >
               Settings
             </Link>
           </div>

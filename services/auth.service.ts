@@ -3,9 +3,10 @@ import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import { ROUTES } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { loginSchema, signupSchema } from "@/lib/validators/auth/auth";
+import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import { ROLES } from "@/lib/constants/roles";
+import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { ensureStudentRegistration } from "@/services/profile.service";
 import { resolveUserRole, syncAuthUserRole } from "@/services/role.service";
 import type { LoginResult, SignupResult } from "@/types/auth";
@@ -13,6 +14,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
+
+const MAINTENANCE_BLOCKED_ROLES: ReadonlySet<RoleValue> = new Set([
+  ROLES.STUDENT,
+  ROLES.TEACHER,
+]);
+
+const MAINTENANCE_LOGIN_ERROR =
+  "The app is under maintenance. Please try again later.";
 
 function mapAuthError(message: string): string {
   const normalized = message.toLowerCase();
@@ -80,6 +89,19 @@ export async function login(
   }
 
   const role = await resolveUserRole(client, data.user);
+
+  if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
+    const maintenanceMode =
+      await appSettingsRepository.getMaintenanceMode(client);
+
+    if (maintenanceMode) {
+      await authRepository.signOut(client);
+      return {
+        success: false,
+        error: MAINTENANCE_LOGIN_ERROR,
+      };
+    }
+  }
 
   return {
     success: true,

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createClassSessionAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,12 +14,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   createClassSessionSchema,
   type CreateClassSessionInput,
 } from "@/lib/validators/manager/create-class-session";
+import type { CreateClassSessionActionState } from "@/types/manager-class-detail";
+import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
+
+const initialState: CreateClassSessionActionState = {};
 
 type AddClassSessionDialogProps = {
   open: boolean;
@@ -26,7 +33,10 @@ type AddClassSessionDialogProps = {
   classId: string;
   className: string;
   nextNbOrder: number;
-  onCreateSession: (session: ManagerClassSessionRow) => void;
+  onSessionCreated: (
+    session: ManagerClassSessionRow,
+    classRow: ManagerClassRow
+  ) => void;
 };
 
 function toDatetimeLocalValue(date: Date) {
@@ -41,8 +51,17 @@ export function AddClassSessionDialog({
   classId,
   className,
   nextNbOrder,
-  onCreateSession,
+  onSessionCreated,
 }: AddClassSessionDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createClassSessionAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -70,7 +89,7 @@ export function AddClassSessionDialog({
 
     const startsAt = new Date();
     const endsAt = new Date(startsAt);
-    endsAt.setMinutes(endsAt.getMinutes() + 90);
+    endsAt.setDate(endsAt.getDate() + 7);
 
     reset({
       topic: `Session ${nextNbOrder}`,
@@ -79,29 +98,37 @@ export function AddClassSessionDialog({
     });
   }, [nextNbOrder, open, reset]);
 
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.session || !nextState.classRow) {
+        return;
+      }
+
+      onSessionCreated(nextState.session, nextState.classRow);
+      onOpenChange(false);
+    },
+    (nextState) =>
+      Boolean(nextState.success && nextState.session && nextState.classRow)
+  );
+
   function onSubmit(values: CreateClassSessionInput) {
-    const startsAt = new Date(values.starts_at);
-    const endsAt = new Date(values.ends_at);
+    const formData = new FormData();
+    formData.set("class_id", classId);
+    formData.set("topic", values.topic);
+    formData.set("starts_at", values.starts_at);
+    formData.set("ends_at", values.ends_at);
 
-    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
-      return;
-    }
-
-    onCreateSession({
-      id: `${classId}-session-${nextNbOrder}`,
-      class_id: classId,
-      nb_order: nextNbOrder,
-      topic: values.topic.trim(),
-      starts_at: startsAt.toISOString(),
-      ends_at: endsAt.toISOString(),
-      semester_id: null,
-      group_grade_level: null,
-      created_at: new Date().toISOString(),
+    startTransition(() => {
+      formAction(formData);
     });
-
-    showSuccessToast(`Session added to ${className}.`);
-    onOpenChange(false);
   }
+
+  const topicError = errors.topic?.message ?? state.fieldErrors?.topic?.[0];
+  const startsError =
+    errors.starts_at?.message ?? state.fieldErrors?.starts_at?.[0];
+  const endsError = errors.ends_at?.message ?? state.fieldErrors?.ends_at?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,8 +136,7 @@ export function AddClassSessionDialog({
         <DialogHeader>
           <DialogTitle>Add session</DialogTitle>
           <DialogDescription>
-            Schedule session {nextNbOrder} for {className}. Preview-only until
-            backend is connected.
+            Schedule session {nextNbOrder} for {className}.
           </DialogDescription>
         </DialogHeader>
 
@@ -128,11 +154,12 @@ export function AddClassSessionDialog({
             />
             <Input
               id="add-class-session-topic"
-              aria-invalid={!!errors.topic}
+              aria-invalid={!!topicError}
+              disabled={isPending}
               {...register("topic")}
             />
-            {errors.topic ? (
-              <p className="text-sm text-destructive">{errors.topic.message}</p>
+            {topicError ? (
+              <p className="text-sm text-destructive">{topicError}</p>
             ) : null}
           </div>
 
@@ -145,11 +172,12 @@ export function AddClassSessionDialog({
             <Input
               id="add-class-session-starts-at"
               type="datetime-local"
-              aria-invalid={!!errors.starts_at}
+              aria-invalid={!!startsError}
+              disabled={isPending}
               {...register("starts_at")}
             />
-            {errors.starts_at ? (
-              <p className="text-sm text-destructive">{errors.starts_at.message}</p>
+            {startsError ? (
+              <p className="text-sm text-destructive">{startsError}</p>
             ) : null}
           </div>
 
@@ -162,11 +190,12 @@ export function AddClassSessionDialog({
             <Input
               id="add-class-session-ends-at"
               type="datetime-local"
-              aria-invalid={!!errors.ends_at}
+              aria-invalid={!!endsError}
+              disabled={isPending}
               {...register("ends_at")}
             />
-            {errors.ends_at ? (
-              <p className="text-sm text-destructive">{errors.ends_at.message}</p>
+            {endsError ? (
+              <p className="text-sm text-destructive">{endsError}</p>
             ) : null}
           </div>
         </form>
@@ -176,11 +205,19 @@ export function AddClassSessionDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-class-session-form">
-            Create session
+          <Button type="submit" form="add-class-session-form" disabled={isPending}>
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Creating session
+              </>
+            ) : (
+              "Create session"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

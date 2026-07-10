@@ -6,6 +6,7 @@ import {
   isGuestOnlyAuthRoute,
   isPublicAuthRoute,
 } from "@/lib/constants/auth";
+import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
   getDashboardRouteForRole,
   getPanelRootForRole,
@@ -15,6 +16,22 @@ import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
 import { resolveUserRole } from "@/services/role.service";
 import { getMaintenanceMode } from "@/repositories/app-settings.repository";
 
+const MAINTENANCE_PATH = "/maintenance";
+
+const MAINTENANCE_BLOCKED_ROLES: ReadonlySet<RoleValue> = new Set([
+  ROLES.STUDENT,
+  ROLES.TEACHER,
+]);
+
+function isTeacherOrStudentPanelPath(pathname: string): boolean {
+  return (
+    pathname === ROUTES.TEACHER_ROOT ||
+    pathname.startsWith(`${ROUTES.TEACHER_ROOT}/`) ||
+    pathname === ROUTES.STUDENT_ROOT ||
+    pathname.startsWith(`${ROUTES.STUDENT_ROOT}/`)
+  );
+}
+
 export async function middleware(request: NextRequest) {
   const { supabase, response } = createSupabaseMiddlewareClient(request);
   const {
@@ -22,14 +39,34 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const maintenanceMode = await getMaintenanceMode(supabase);
 
-  const maintenancePathname = "/maintenance";
-  if (
-    (await getMaintenanceMode(supabase)) &&
-    pathname !== maintenancePathname &&
-    pathname !== ROUTES.MANAGER_SETTINGS
-  ) {
-    return NextResponse.redirect(new URL(maintenancePathname, request.url));
+  if (maintenanceMode) {
+    const isMaintenancePage = pathname === MAINTENANCE_PATH;
+    const isManagerSettings = pathname === ROUTES.MANAGER_SETTINGS;
+    const isAuthRoute = isPublicAuthRoute(pathname);
+
+    if (isMaintenancePage || isManagerSettings || isAuthRoute) {
+      if (user && isGuestOnlyAuthRoute(pathname)) {
+        const role = await resolveUserRole(supabase, user);
+        if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
+          return NextResponse.redirect(new URL(MAINTENANCE_PATH, request.url));
+        }
+        const next = request.nextUrl.searchParams.get("next");
+        const redirectTo = getPostLoginRedirect(role, next);
+        return NextResponse.redirect(new URL(redirectTo, request.url));
+      }
+      return response;
+    }
+
+    if (user) {
+      const role = await resolveUserRole(supabase, user);
+      if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
+        return NextResponse.redirect(new URL(MAINTENANCE_PATH, request.url));
+      }
+    } else if (isTeacherOrStudentPanelPath(pathname)) {
+      return NextResponse.redirect(new URL(MAINTENANCE_PATH, request.url));
+    }
   }
 
   if (isPublicAuthRoute(pathname)) {

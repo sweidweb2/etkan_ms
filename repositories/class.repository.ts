@@ -119,3 +119,87 @@ export async function updateClassSemesterId(
     .select(CLASS_WITH_SUBJECT_SELECT)
     .single();
 }
+
+const CLASS_DETAIL_SELECT =
+  "id, subject_id, name, status, semester_id, created_at, subjects ( name, nb_sessions ), semesters ( name )";
+
+export type ClassDetailRecord = ClassRecord & {
+  subjects: { name: string; nb_sessions: number } | null;
+  semesters: { name: string } | null;
+};
+
+export type UpdateClassRecordInput = {
+  name: string;
+  subject_id: string;
+  status: string;
+  semester_id: string | null;
+};
+
+export async function findClassDetailById(client: Supabase, id: string) {
+  return client
+    .from("classes")
+    .select(CLASS_DETAIL_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+}
+
+export async function updateClass(
+  client: Supabase,
+  classId: string,
+  input: UpdateClassRecordInput
+) {
+  return client
+    .from("classes")
+    .update({
+      name: input.name,
+      subject_id: input.subject_id,
+      status: input.status,
+      semester_id: input.semester_id,
+    })
+    .eq("id", classId)
+    .select(CLASS_DETAIL_SELECT)
+    .single();
+}
+
+export async function updateClassStatus(
+  client: Supabase,
+  classId: string,
+  status: string
+) {
+  return client
+    .from("classes")
+    .update({ status })
+    .eq("id", classId)
+    .select(CLASS_DETAIL_SELECT)
+    .single();
+}
+
+export type CreateClassRecordInput = {
+  name: string;
+  subject_id: string;
+  status: string;
+  semester_id: string | null;
+};
+
+export async function listClassDetails(client: Supabase) {
+  return client
+    .from("classes")
+    .select(CLASS_DETAIL_SELECT)
+    .order("created_at", { ascending: false });
+}
+
+export async function createClass(
+  client: Supabase,
+  input: CreateClassRecordInput
+) {
+  return client
+    .from("classes")
+    .insert({
+      name: input.name,
+      subject_id: input.subject_id,
+      status: input.status,
+      semester_id: input.semester_id,
+    })
+    .select(CLASS_DETAIL_SELECT)
+    .single();
+}

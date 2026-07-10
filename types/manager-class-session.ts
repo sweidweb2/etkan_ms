@@ -33,3 +33,19 @@ export function getSessionTimingLabel(session: {
 
   return "in_progress";
 }
+
+export function sortClassSessionsNewestFirst(
+  sessions: ManagerClassSessionRow[]
+): ManagerClassSessionRow[] {
+  return [...sessions].sort((left, right) => {
+    const orderCompare = right.nb_order - left.nb_order;
+
+    if (orderCompare !== 0) {
+      return orderCompare;
+    }
+
+    return (
+      new Date(right.starts_at).getTime() - new Date(left.starts_at).getTime()
+    );
+  });
+}

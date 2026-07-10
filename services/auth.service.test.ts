@@ -2,12 +2,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
 import { ROLES } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
+import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { login, logout, register } from "@/services/auth.service";
 import * as profileService from "@/services/profile.service";
 import * as roleService from "@/services/role.service";
 
+vi.mock("@/repositories/app-settings.repository");
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/services/profile.service");
@@ -38,6 +40,9 @@ const validRegisterInput = {
 describe("login", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(
+      false
+    );
   });
 
   it("returns field errors for invalid input", async () => {
@@ -90,6 +95,95 @@ describe("login", () => {
     if (result.success) {
       expect(result.redirectTo).toBe(ROUTES.MANAGER_DASHBOARD);
     }
+  });
+
+  it("allows student login when maintenance mode is off", async () => {
+    vi.mocked(authRepository.signInWithPassword).mockResolvedValue({
+      data: { user: authUser, session: {} as never },
+      error: null,
+    });
+    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.STUDENT);
+    vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(
+      false
+    );
+
+    const result = await login(authClient, {
+      email: "jane@school.com",
+      password: "secret123",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.redirectTo).toBe(ROUTES.STUDENT_DASHBOARD);
+    }
+    expect(authRepository.signOut).not.toHaveBeenCalled();
+  });
+
+  it("rejects student login when maintenance mode is on", async () => {
+    vi.mocked(authRepository.signInWithPassword).mockResolvedValue({
+      data: { user: authUser, session: {} as never },
+      error: null,
+    });
+    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.STUDENT);
+    vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(true);
+    vi.mocked(authRepository.signOut).mockResolvedValue({ error: null });
+
+    const result = await login(authClient, {
+      email: "jane@school.com",
+      password: "secret123",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe(
+        "The app is under maintenance. Please try again later."
+      );
+    }
+    expect(authRepository.signOut).toHaveBeenCalledWith(authClient);
+  });
+
+  it("rejects teacher login when maintenance mode is on", async () => {
+    vi.mocked(authRepository.signInWithPassword).mockResolvedValue({
+      data: { user: authUser, session: {} as never },
+      error: null,
+    });
+    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.TEACHER);
+    vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(true);
+    vi.mocked(authRepository.signOut).mockResolvedValue({ error: null });
+
+    const result = await login(authClient, {
+      email: "jane@school.com",
+      password: "secret123",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe(
+        "The app is under maintenance. Please try again later."
+      );
+    }
+    expect(authRepository.signOut).toHaveBeenCalledWith(authClient);
+  });
+
+  it("allows manager login when maintenance mode is on", async () => {
+    vi.mocked(authRepository.signInWithPassword).mockResolvedValue({
+      data: { user: authUser, session: {} as never },
+      error: null,
+    });
+    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.MANAGER);
+    vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(true);
+
+    const result = await login(authClient, {
+      email: "jane@school.com",
+      password: "secret123",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.redirectTo).toBe(ROUTES.MANAGER_DASHBOARD);
+    }
+    expect(authRepository.signOut).not.toHaveBeenCalled();
+    expect(appSettingsRepository.getMaintenanceMode).not.toHaveBeenCalled();
   });
 });
 
