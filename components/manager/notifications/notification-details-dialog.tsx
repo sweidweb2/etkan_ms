@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowUpRightIcon, MessageSquareTextIcon } from "lucide-react";
+import { ArrowUpRightIcon, MessageSquareTextIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { NotificationCategoryBadge } from "@/components/manager/notifications/notification-category-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,11 +19,17 @@ import type { ManagerNotificationRow } from "@/types/manager-notification";
 type NotificationDetailsDialogProps = {
   notification: ManagerNotificationRow | null;
   onOpenChange: (open: boolean) => void;
+  onEdit: (notification: ManagerNotificationRow) => void;
+  onDelete: (notification: ManagerNotificationRow) => void;
+  isDeletePending?: boolean;
 };
 
 export function NotificationDetailsDialog({
   notification,
   onOpenChange,
+  onEdit,
+  onDelete,
+  isDeletePending = false,
 }: NotificationDetailsDialogProps) {
   return (
     <Dialog
@@ -128,32 +134,45 @@ export function NotificationDetailsDialog({
                     : "—"}
                 </dd>
               </div>
-
-              <div className="flex flex-col gap-1 sm:col-span-2">
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Notification ID
-                </dt>
-                <dd className="break-all text-sm text-foreground">
-                  {notification.id}
-                </dd>
-              </div>
             </dl>
           </div>
         ) : null}
 
         <DialogFooter className="sm:justify-between">
-          {notification?.action_href ? (
-            <Button
-              render={<Link href={notification.action_href} />}
-              nativeButton={false}
-              variant="outline"
-            >
-              Open related page
-              <ArrowUpRightIcon data-icon="inline-end" />
-            </Button>
-          ) : (
-            <span />
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {notification?.action_href ? (
+              <Button
+                render={<Link href={notification.action_href} />}
+                nativeButton={false}
+                variant="outline"
+              >
+                Open related page
+                <ArrowUpRightIcon data-icon="inline-end" />
+              </Button>
+            ) : null}
+            {notification ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onEdit(notification)}
+                  disabled={isDeletePending}
+                >
+                  <PencilIcon data-icon="inline-start" />
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => onDelete(notification)}
+                  disabled={isDeletePending}
+                >
+                  <Trash2Icon data-icon="inline-start" />
+                  Delete
+                </Button>
+              </>
+            ) : null}
+          </div>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>

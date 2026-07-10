@@ -8,6 +8,15 @@ import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
 import { parseUpdateRelationshipFormData } from "@/lib/validators/manager/update-relationship";
 import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
+import { parseCreateNotificationFormData } from "@/lib/validators/manager/create-notification";
+import { parseUpdateNotificationFormData } from "@/lib/validators/manager/update-notification";
+import { parseNotificationIdFormData } from "@/lib/validators/manager/notification-id";
+import { parseMarkNotificationReadFormData } from "@/lib/validators/manager/mark-notifications-read";
+import {
+  parseCreateWeeklyScheduleSlotFormData,
+  parseUpdateWeeklyScheduleSlotFormData,
+  parseWeeklyScheduleSlotIdFormData,
+} from "@/lib/validators/manager/weekly-schedule-slot";
 
 const relationshipId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 
@@ -329,5 +338,151 @@ describe("parseCreateBorrowsFormData", () => {
     const result = parseCreateBorrowsFormData(formData);
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("parseCreateNotificationFormData", () => {
+  it("parses valid notification form data", () => {
+    const formData = new FormData();
+    formData.set("title", "Schedule update");
+    formData.set("body", "Classes resume on Monday.");
+    formData.set("audience", "manager");
+    formData.set("category", "academic");
+    formData.set("priority", "high");
+    formData.set("action_href", "__none__");
+
+    const result = parseCreateNotificationFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.title).toBe("Schedule update");
+      expect(result.data.audience).toBe("manager");
+    }
+  });
+
+  it("rejects missing title", () => {
+    const formData = new FormData();
+    formData.set("title", "");
+    formData.set("body", "Message");
+    formData.set("audience", "manager");
+    formData.set("category", "general");
+    formData.set("priority", "normal");
+
+    const result = parseCreateNotificationFormData(formData);
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("parseUpdateNotificationFormData", () => {
+  it("parses valid update form data", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("title", "Updated title");
+    formData.set("body", "Updated body");
+    formData.set("audience", "teacher");
+    formData.set("category", "system");
+    formData.set("priority", "low");
+    formData.set("action_href", "__none__");
+
+    const result = parseUpdateNotificationFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.id).toBe(relationshipId);
+    }
+  });
+});
+
+describe("parseNotificationIdFormData", () => {
+  it("parses notification id", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+
+    const result = parseNotificationIdFormData(formData);
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("parseMarkNotificationReadFormData", () => {
+  it("parses single mark read", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+
+    const result = parseMarkNotificationReadFormData(formData);
+
+    expect(result.success).toBe(true);
+  });
+
+  it("parses mark all", () => {
+    const formData = new FormData();
+    formData.set("mark_all", "true");
+
+    const result = parseMarkNotificationReadFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.mark_all).toBe(true);
+    }
+  });
+});
+
+describe("parseCreateWeeklyScheduleSlotFormData", () => {
+  it("parses valid schedule slot form data", () => {
+    const formData = new FormData();
+    formData.set("class_id", relationshipId);
+    formData.set("day", "Monday");
+    formData.set("start_time", "09:00");
+    formData.set("end_time", "10:30");
+    formData.set("room", "Room A-201");
+
+    const result = parseCreateWeeklyScheduleSlotFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.day).toBe("Monday");
+      expect(result.data.room).toBe("Room A-201");
+    }
+  });
+
+  it("rejects end time before start time", () => {
+    const formData = new FormData();
+    formData.set("class_id", relationshipId);
+    formData.set("day", "Monday");
+    formData.set("start_time", "11:00");
+    formData.set("end_time", "10:00");
+    formData.set("room", "Room A-201");
+
+    const result = parseCreateWeeklyScheduleSlotFormData(formData);
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("parseUpdateWeeklyScheduleSlotFormData", () => {
+  it("parses valid update form data", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("day", "Tuesday");
+    formData.set("start_time", "08:00");
+    formData.set("end_time", "09:30");
+    formData.set("room", "Lab B-104");
+
+    const result = parseUpdateWeeklyScheduleSlotFormData(formData);
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("parseWeeklyScheduleSlotIdFormData", () => {
+  it("parses slot id", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+
+    const result = parseWeeklyScheduleSlotIdFormData(formData);
+
+    expect(result.success).toBe(true);
   });
 });

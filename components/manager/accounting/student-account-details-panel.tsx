@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon } from "lucide-react";
 import {
@@ -28,20 +29,19 @@ import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-caro
 import {
   formatAccountCurrency,
 } from "@/lib/constants/manager-subscribed-semester-display";
-import { getManagerStudentAccountPreview } from "@/lib/manager/get-manager-student-account-preview";
 import {
   getManagerStudentDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type {
+  ManagerStudentAccountDetails,
   ManagerStudentPaymentRow,
-  ManagerSubscribedSemesterRow,
 } from "@/types/manager-student-account";
 import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
 
 type StudentAccountDetailsPanelProps = {
-  studentProfileId: string;
+  accountDetails: ManagerStudentAccountDetails;
 };
 
 function DetailField({
@@ -63,37 +63,16 @@ function DetailField({
   );
 }
 
-function sumPaymentsForSubscription(
-  paymentsList: ManagerStudentPaymentRow[],
-  subscribedSemesterId: string
-) {
-  return (
-    Math.round(
-      paymentsList
-        .filter((payment) => payment.subscribed_semester_id === subscribedSemesterId)
-        .reduce((sum, payment) => sum + payment.amount, 0) * 100
-    ) / 100
-  );
-}
-
 function SubscribedSemesterTabPanel({
   subscription,
   payments,
   scheduledPayments,
-  onAddPayment,
-  onUpdatePayment,
-  onAddScheduledPayment,
-  onUpdateScheduledPayment,
-  onUpdateSubscription,
+  onMutationSuccess,
 }: {
-  subscription: ManagerSubscribedSemesterRow;
+  subscription: ManagerStudentAccountDetails["subscriptions"][number];
   payments: ManagerStudentPaymentRow[];
   scheduledPayments: ManagerScheduledPaymentRow[];
-  onAddPayment: (payment: ManagerStudentPaymentRow) => void;
-  onUpdatePayment: (payment: ManagerStudentPaymentRow) => void;
-  onAddScheduledPayment: (row: ManagerScheduledPaymentRow) => void;
-  onUpdateScheduledPayment: (row: ManagerScheduledPaymentRow) => void;
-  onUpdateSubscription: (subscription: ManagerSubscribedSemesterRow) => void;
+  onMutationSuccess: () => void;
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const balanceDue = Math.max(subscription.amount - subscription.paid_amount, 0);
@@ -104,7 +83,7 @@ function SubscribedSemesterTabPanel({
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         subscription={subscription}
-        onUpdateSubscription={onUpdateSubscription}
+        onSubscriptionSaved={onMutationSuccess}
       />
 
       <SubscribedSemesterFinancialSection
@@ -149,39 +128,26 @@ function SubscribedSemesterTabPanel({
         semesterName={subscription.semester_name}
         balanceDue={balanceDue}
         scheduledPayments={scheduledPayments}
-        onAddScheduledPayment={onAddScheduledPayment}
-        onUpdateScheduledPayment={onUpdateScheduledPayment}
+        onScheduledPaymentSaved={onMutationSuccess}
       />
 
       <SubscribedSemesterPaymentsSection
         subscribedSemesterId={subscription.id}
         semesterName={subscription.semester_name}
         payments={payments}
-        onAddPayment={onAddPayment}
-        onUpdatePayment={onUpdatePayment}
+        onPaymentSaved={onMutationSuccess}
       />
     </div>
   );
 }
 
 export function StudentAccountDetailsPanel({
-  studentProfileId,
+  accountDetails,
 }: StudentAccountDetailsPanelProps) {
-  const initialAccount = useMemo(
-    () => getManagerStudentAccountPreview(studentProfileId),
-    [studentProfileId]
-  );
-  const [subscriptions, setSubscriptions] = useState<ManagerSubscribedSemesterRow[]>(
-    () => initialAccount.subscriptions
-  );
-  const [payments, setPayments] = useState<ManagerStudentPaymentRow[]>(
-    () => initialAccount.payments
-  );
-  const [scheduledPayments, setScheduledPayments] = useState<
-    ManagerScheduledPaymentRow[]
-  >(() => initialAccount.scheduledPayments);
+  const router = useRouter();
+  const { overview, subscriptions, payments, scheduledPayments } = accountDetails;
   const [activeTab, setActiveTab] = useState<string | null>(
-    () => initialAccount.subscriptions[0]?.id ?? null
+    () => subscriptions[0]?.id ?? null
   );
   const resolvedActiveTab =
     subscriptions.length === 0
@@ -191,7 +157,9 @@ export function StudentAccountDetailsPanel({
         : subscriptions[0]!.id;
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
-  const { overview } = initialAccount;
+  const handleMutationSuccess = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   const openedText = useMemo(
     () => format(new Date(overview.opened_at), "MMM d, yyyy 'at' h:mm a"),
@@ -255,66 +223,6 @@ export function StudentAccountDetailsPanel({
       inline: "nearest",
     });
   }, [resolvedActiveTab]);
-
-  function handleAddPayment(payment: ManagerStudentPaymentRow) {
-    setPayments((current) => {
-      const nextPayments = [payment, ...current];
-      const paidAmount = sumPaymentsForSubscription(
-        nextPayments,
-        payment.subscribed_semester_id
-      );
-
-      setSubscriptions((currentSubscriptions) =>
-        currentSubscriptions.map((subscription) =>
-          subscription.id === payment.subscribed_semester_id
-            ? { ...subscription, paid_amount: paidAmount }
-            : subscription
-        )
-      );
-
-      return nextPayments;
-    });
-  }
-
-  function handleUpdatePayment(updated: ManagerStudentPaymentRow) {
-    setPayments((current) => {
-      const nextPayments = current.map((payment) =>
-        payment.id === updated.id ? updated : payment
-      );
-      const paidAmount = sumPaymentsForSubscription(
-        nextPayments,
-        updated.subscribed_semester_id
-      );
-
-      setSubscriptions((currentSubscriptions) =>
-        currentSubscriptions.map((subscription) =>
-          subscription.id === updated.subscribed_semester_id
-            ? { ...subscription, paid_amount: paidAmount }
-            : subscription
-        )
-      );
-
-      return nextPayments;
-    });
-  }
-
-  function handleUpdateSubscription(updated: ManagerSubscribedSemesterRow) {
-    setSubscriptions((current) =>
-      current.map((subscription) =>
-        subscription.id === updated.id ? updated : subscription
-      )
-    );
-  }
-
-  function handleAddScheduledPayment(row: ManagerScheduledPaymentRow) {
-    setScheduledPayments((current) => [row, ...current]);
-  }
-
-  function handleUpdateScheduledPayment(updated: ManagerScheduledPaymentRow) {
-    setScheduledPayments((current) =>
-      current.map((row) => (row.id === updated.id ? updated : row))
-    );
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -451,11 +359,7 @@ export function StudentAccountDetailsPanel({
                       scheduledPaymentsBySubscription.get(activeSubscription.id) ??
                       []
                     }
-                    onAddPayment={handleAddPayment}
-                    onUpdatePayment={handleUpdatePayment}
-                    onAddScheduledPayment={handleAddScheduledPayment}
-                    onUpdateScheduledPayment={handleUpdateScheduledPayment}
-                    onUpdateSubscription={handleUpdateSubscription}
+                    onMutationSuccess={handleMutationSuccess}
                   />
                 </div>
               ) : null}

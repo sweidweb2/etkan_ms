@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateSubscribedSemesterAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,28 +21,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_SUBSCRIBED_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-subscribed-semester-display";
 import type { SubscribedSemesterStatusValue } from "@/lib/constants/manager-subscribed-semester-status";
-import { showSuccessToast } from "@/lib/toast";
 import {
   updateSubscribedSemesterSchema,
   type UpdateSubscribedSemesterInput,
 } from "@/lib/validators/manager/update-subscribed-semester";
+import type { AccountingMutationActionState } from "@/types/manager-accounting";
 import type { ManagerSubscribedSemesterRow } from "@/types/manager-student-account";
+
+const initialState: AccountingMutationActionState = {};
 
 type EditSubscribedSemesterDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subscription: ManagerSubscribedSemesterRow;
-  onUpdateSubscription: (subscription: ManagerSubscribedSemesterRow) => void;
+  onSubscriptionSaved: () => void;
 };
 
 export function EditSubscribedSemesterDialog({
   open,
   onOpenChange,
   subscription,
-  onUpdateSubscription,
+  onSubscriptionSaved,
 }: EditSubscribedSemesterDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateSubscribedSemesterAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -53,6 +67,7 @@ export function EditSubscribedSemesterDialog({
     schema: updateSubscribedSemesterSchema,
     mode: "onBlur",
     defaultValues: {
+      id: subscription.id,
       amount: subscription.amount,
       status: subscription.status,
     },
@@ -63,21 +78,35 @@ export function EditSubscribedSemesterDialog({
   useEffect(() => {
     if (open) {
       reset({
+        id: subscription.id,
         amount: subscription.amount,
         status: subscription.status,
       });
     }
   }, [open, reset, subscription]);
 
-  function onSubmit(values: UpdateSubscribedSemesterInput) {
-    onUpdateSubscription({
-      ...subscription,
-      amount: values.amount,
-      status: values.status,
-    });
-    showSuccessToast("Subscribed semester updated.");
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+
     onOpenChange(false);
+    onSubscriptionSaved();
+  }, [state.success, onOpenChange, onSubscriptionSaved]);
+
+  function onSubmit(values: UpdateSubscribedSemesterInput) {
+    const formData = new FormData();
+    formData.set("id", values.id);
+    formData.set("amount", String(values.amount));
+    formData.set("status", values.status);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,8 +114,7 @@ export function EditSubscribedSemesterDialog({
         <DialogHeader>
           <DialogTitle>Edit subscribed semester</DialogTitle>
           <DialogDescription>
-            Update billing details for {subscription.semester_name}. Changes are
-            preview-only until backend is connected.
+            Update billing details for {subscription.semester_name}.
           </DialogDescription>
         </DialogHeader>
 
@@ -108,10 +136,10 @@ export function EditSubscribedSemesterDialog({
               min="0"
               step="0.01"
               {...register("amount")}
-              aria-invalid={!!errors.amount}
+              aria-invalid={!!amountError}
             />
-            {errors.amount ? (
-              <p className="text-sm text-destructive">{errors.amount.message}</p>
+            {amountError ? (
+              <p className="text-sm text-destructive">{amountError}</p>
             ) : null}
           </div>
 
@@ -136,7 +164,7 @@ export function EditSubscribedSemesterDialog({
               <SelectTrigger
                 id="edit-subscribed-semester-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -150,8 +178,8 @@ export function EditSubscribedSemesterDialog({
                 )}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
         </form>
@@ -160,7 +188,8 @@ export function EditSubscribedSemesterDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="edit-subscribed-semester-form">
+          <Button type="submit" form="edit-subscribed-semester-form" disabled={isPending}>
+            {isPending ? <InlineSpinner /> : null}
             Save changes
           </Button>
         </DialogFooter>

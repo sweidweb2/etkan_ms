@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowUpRightIcon,
@@ -20,11 +21,25 @@ import {
   WrenchIcon,
 } from "lucide-react";
 import { AddNotificationDialog } from "@/components/manager/notifications/add-notification-dialog";
+import { EditNotificationDialog } from "@/components/manager/notifications/edit-notification-dialog";
 import { NotificationDetailsDialog } from "@/components/manager/notifications/notification-details-dialog";
 import { NotificationCategoryBadge } from "@/components/manager/notifications/notification-category-badge";
 import { NotificationPriorityBadge } from "@/components/manager/notifications/notification-priority-badge";
-import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import {
+  deleteNotificationAction,
+  markNotificationReadAction,
+} from "@/app/manager/notifications/actions";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Card,
   CardAction,
@@ -46,9 +61,20 @@ import {
   NOTIFICATION_CATEGORY_VALUES,
   type NotificationCategoryValue,
 } from "@/lib/constants/manager-notification-display";
-import { MANAGER_NOTIFICATIONS_MOCK } from "@/lib/constants/manager-notifications-mock";
+import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { cn } from "@/lib/utils";
 import type { ManagerNotificationRow } from "@/types/manager-notification";
+import type {
+  DeleteNotificationActionState,
+  MarkNotificationReadActionState,
+} from "@/types/manager-notification";
+
+const initialMarkReadState: MarkNotificationReadActionState = {};
+const initialDeleteState: DeleteNotificationActionState = {};
+
+type ManageNotificationsPanelProps = {
+  initialNotifications: ManagerNotificationRow[];
+};
 
 const PAGE_SIZE_OPTIONS = [5, 8, 12] as const;
 const READ_FILTER_ALL = "all";
@@ -140,9 +166,32 @@ function matchesCategoryFilter(
   return notification.category === categoryFilter;
 }
 
-export function ManageNotificationsPanel() {
-  const [notifications, setNotifications] = useState(MANAGER_NOTIFICATIONS_MOCK);
+export function ManageNotificationsPanel({
+  initialNotifications,
+}: ManageNotificationsPanelProps) {
+  const router = useRouter();
+  const [isTransitionPending, startTransition] = useTransition();
+  const [markReadState, markReadAction, isMarkReadPending] = useActionState(
+    markNotificationReadAction,
+    initialMarkReadState
+  );
+  const [deleteState, deleteAction, isDeletePending] = useActionState(
+    deleteNotificationAction,
+    initialDeleteState
+  );
+  const isMarkReadActionPending = isMarkReadPending || isTransitionPending;
+  const isDeleteActionPending = isDeletePending || isTransitionPending;
+
+  useActionStateToast(markReadState, isMarkReadActionPending);
+  useActionStateToast(deleteState, isDeleteActionPending);
+
+  const notifications = initialNotifications;
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editNotification, setEditNotification] =
+    useState<ManagerNotificationRow | null>(null);
+  const [deleteTarget, setDeleteTarget] =
+    useState<ManagerNotificationRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [readFilter, setReadFilter] = useState(READ_FILTER_ALL);
   const [categoryFilter, setCategoryFilter] = useState(CATEGORY_FILTER_ALL);
@@ -150,6 +199,32 @@ export function ManageNotificationsPanel() {
   const [currentPage, setCurrentPage] = useState(1);
   const [detailsNotification, setDetailsNotification] =
     useState<ManagerNotificationRow | null>(null);
+
+  const handleNotificationsChanged = () => {
+    router.refresh();
+  };
+
+  useEffect(() => {
+    if (isMarkReadActionPending) {
+      return;
+    }
+
+    if (markReadState.success) {
+      handleNotificationsChanged();
+    }
+  }, [isMarkReadActionPending, markReadState.success]);
+
+  useEffect(() => {
+    if (isDeleteActionPending) {
+      return;
+    }
+
+    if (deleteState.success) {
+      setDeleteTarget(null);
+      setDetailsNotification(null);
+      handleNotificationsChanged();
+    }
+  }, [deleteState.success, isDeleteActionPending]);
 
   const stats = useMemo(
     () => ({
@@ -218,39 +293,43 @@ export function ManageNotificationsPanel() {
   };
 
   const handleMarkAsRead = (notificationId: string) => {
-    setNotifications((currentNotifications) =>
-      currentNotifications.map((notification) =>
-        notification.id === notificationId
-          ? {
-              ...notification,
-              is_read: true,
-              read_at: new Date().toISOString(),
-            }
-          : notification
-      )
-    );
+    const formData = new FormData();
+    formData.set("id", notificationId);
+
+    startTransition(() => {
+      markReadAction(formData);
+    });
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications((currentNotifications) =>
-      currentNotifications.map((notification) =>
-        notification.is_read
-          ? notification
-          : {
-              ...notification,
-              is_read: true,
-              read_at: new Date().toISOString(),
-            }
-      )
-    );
+    const formData = new FormData();
+    formData.set("mark_all", "true");
+
+    startTransition(() => {
+      markReadAction(formData);
+    });
   };
 
-  const handleCreateNotification = (notification: ManagerNotificationRow) => {
-    setNotifications((currentNotifications) => [
-      notification,
-      ...currentNotifications,
-    ]);
-    setCurrentPage(1);
+  const handleEditNotification = (notification: ManagerNotificationRow) => {
+    setEditNotification(notification);
+    setIsEditOpen(true);
+  };
+
+  const handleRequestDelete = (notification: ManagerNotificationRow) => {
+    setDeleteTarget(notification);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("id", deleteTarget.id);
+
+    startTransition(() => {
+      deleteAction(formData);
+    });
   };
 
   return (
@@ -259,8 +338,7 @@ export function ManageNotificationsPanel() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Review school updates, alerts, and system messages. Data is mocked until
-            backend is connected.
+            Review school updates, alerts, and system messages.
           </p>
         </div>
         <Button type="button" onClick={() => setIsCreateOpen(true)}>
@@ -272,7 +350,17 @@ export function ManageNotificationsPanel() {
       <AddNotificationDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onCreateNotification={handleCreateNotification}
+        onNotificationCreated={() => {
+          setCurrentPage(1);
+          handleNotificationsChanged();
+        }}
+      />
+
+      <EditNotificationDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        notification={editNotification}
+        onNotificationUpdated={handleNotificationsChanged}
       />
 
       <NotificationDetailsDialog
@@ -282,7 +370,54 @@ export function ManageNotificationsPanel() {
             setDetailsNotification(null);
           }
         }}
+        onEdit={handleEditNotification}
+        onDelete={handleRequestDelete}
+        isDeletePending={isDeleteActionPending}
       />
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete notification</DialogTitle>
+            <DialogDescription>
+              This will permanently remove &quot;{deleteTarget?.title}&quot;. This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeleteActionPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleteActionPending}
+            >
+              {isDeleteActionPending ? (
+                <>
+                  <InlineSpinner />
+                  Deleting notification
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <UserStatCard
@@ -314,7 +449,7 @@ export function ManageNotificationsPanel() {
               variant="outline"
               size="sm"
               onClick={handleMarkAllAsRead}
-              disabled={stats.unread === 0}
+              disabled={stats.unread === 0 || isMarkReadActionPending}
             >
               <CheckCheckIcon data-icon="inline-start" />
               Mark all read
@@ -474,6 +609,7 @@ export function ManageNotificationsPanel() {
                               event.stopPropagation();
                               handleMarkAsRead(notification.id);
                             }}
+                            disabled={isMarkReadActionPending}
                           >
                             <CheckIcon data-icon="inline-start" />
                             Mark as read

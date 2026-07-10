@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createScheduledPaymentAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,18 +21,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_SCHEDULED_PAYMENT_STATUS_LABELS } from "@/lib/constants/manager-scheduled-payment-display";
 import { SCHEDULED_PAYMENT_STATUSES } from "@/lib/constants/manager-scheduled-payment-status";
 import { formatAccountCurrency } from "@/lib/constants/manager-subscribed-semester-display";
-import { showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { toDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
 import {
   createScheduledPaymentSchema,
-  parseScheduledPaymentAmount,
   type CreateScheduledPaymentInput,
 } from "@/lib/validators/manager/scheduled-payment";
-import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
+import type { AccountingMutationActionState } from "@/types/manager-accounting";
+
+const initialState: AccountingMutationActionState = {};
+
+const scheduledPaymentFormSchema = createScheduledPaymentSchema.omit({
+  subscribed_semester_id: true,
+});
 
 type AddScheduledPaymentDialogProps = {
   open: boolean;
@@ -39,7 +46,7 @@ type AddScheduledPaymentDialogProps = {
   subscribedSemesterId: string;
   semesterName: string;
   balanceDue: number;
-  onAddScheduledPayment: (row: ManagerScheduledPaymentRow) => void;
+  onScheduledPaymentSaved: () => void;
 };
 
 export function AddScheduledPaymentDialog({
@@ -48,8 +55,17 @@ export function AddScheduledPaymentDialog({
   subscribedSemesterId,
   semesterName,
   balanceDue,
-  onAddScheduledPayment,
+  onScheduledPaymentSaved,
 }: AddScheduledPaymentDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createScheduledPaymentAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -58,7 +74,7 @@ export function AddScheduledPaymentDialog({
     watch,
     formState: { errors },
   } = useZodForm({
-    schema: createScheduledPaymentSchema,
+    schema: scheduledPaymentFormSchema,
     mode: "onBlur",
     defaultValues: {
       payment_date: toDateTimeLocalValue(new Date()),
@@ -81,23 +97,33 @@ export function AddScheduledPaymentDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: CreateScheduledPaymentInput) {
-    const amount = parseScheduledPaymentAmount(values.amount);
-    const now = new Date().toISOString();
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
 
-    onAddScheduledPayment({
-      id: crypto.randomUUID(),
-      subscribed_semester_id: subscribedSemesterId,
-      payment_date: new Date(values.payment_date).toISOString(),
-      amount,
-      status: values.status,
-      note: values.note?.trim() ? values.note.trim() : null,
-      created_at: now,
-      updated_at: now,
-    });
-    showSuccessToast("Payment reminder scheduled.");
     onOpenChange(false);
+    onScheduledPaymentSaved();
+  }, [state.success, onOpenChange, onScheduledPaymentSaved]);
+
+  function onSubmit(values: Omit<CreateScheduledPaymentInput, "subscribed_semester_id">) {
+    const formData = new FormData();
+    formData.set("subscribed_semester_id", subscribedSemesterId);
+    formData.set("payment_date", values.payment_date);
+    formData.set("amount", values.amount === "" ? "" : String(values.amount));
+    formData.set("status", values.status);
+    formData.set("note", values.note?.trim() ?? "");
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const paymentDateError =
+    errors.payment_date?.message ?? state.fieldErrors?.payment_date?.[0];
+  const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
+  const noteError = errors.note?.message ?? state.fieldErrors?.note?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,12 +153,10 @@ export function AddScheduledPaymentDialog({
               id="add-scheduled-payment-date"
               type="datetime-local"
               {...register("payment_date")}
-              aria-invalid={!!errors.payment_date}
+              aria-invalid={!!paymentDateError}
             />
-            {errors.payment_date ? (
-              <p className="text-sm text-destructive">
-                {errors.payment_date.message}
-              </p>
+            {paymentDateError ? (
+              <p className="text-sm text-destructive">{paymentDateError}</p>
             ) : null}
           </div>
 
@@ -149,10 +173,10 @@ export function AddScheduledPaymentDialog({
               step="0.01"
               placeholder={`Up to ${balanceDue}`}
               {...register("amount")}
-              aria-invalid={!!errors.amount}
+              aria-invalid={!!amountError}
             />
-            {errors.amount ? (
-              <p className="text-sm text-destructive">{errors.amount.message}</p>
+            {amountError ? (
+              <p className="text-sm text-destructive">{amountError}</p>
             ) : null}
           </div>
 
@@ -177,7 +201,7 @@ export function AddScheduledPaymentDialog({
               <SelectTrigger
                 id="add-scheduled-payment-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -191,8 +215,8 @@ export function AddScheduledPaymentDialog({
                 )}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
 
@@ -202,14 +226,14 @@ export function AddScheduledPaymentDialog({
               id="add-scheduled-payment-note"
               rows={3}
               placeholder="Reminder context for you and the student…"
-              aria-invalid={!!errors.note}
+              aria-invalid={!!noteError}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
               {...register("note")}
             />
-            {errors.note ? (
-              <p className="text-sm text-destructive">{errors.note.message}</p>
+            {noteError ? (
+              <p className="text-sm text-destructive">{noteError}</p>
             ) : null}
           </div>
         </form>
@@ -218,7 +242,8 @@ export function AddScheduledPaymentDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="add-scheduled-payment-form">
+          <Button type="submit" form="add-scheduled-payment-form" disabled={isPending}>
+            {isPending ? <InlineSpinner /> : null}
             Schedule reminder
           </Button>
         </DialogFooter>

@@ -45,6 +45,7 @@ The app follows a **layered architecture** with strict separation of concerns.
   - Orchestrates use cases (e.g. create order, update product, apply discount).
   - Combines multiple repositories when needed.
   - Contains authorization checks, validation, and domain rules.
+  - **Always write an audit log** for every mutating backend operation (create, update, delete, and other state-changing use cases).
   - **Never talks directly to Supabase**.
 
 - `repositories/`

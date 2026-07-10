@@ -52,8 +52,7 @@ type ScheduledPaymentsSectionProps = {
   semesterName: string;
   balanceDue: number;
   scheduledPayments: ManagerScheduledPaymentRow[];
-  onAddScheduledPayment: (row: ManagerScheduledPaymentRow) => void;
-  onUpdateScheduledPayment: (row: ManagerScheduledPaymentRow) => void;
+  onScheduledPaymentSaved: () => void;
 };
 
 function TruncatedCell({
@@ -141,8 +140,7 @@ export function ScheduledPaymentsSection({
   semesterName,
   balanceDue,
   scheduledPayments,
-  onAddScheduledPayment,
-  onUpdateScheduledPayment,
+  onScheduledPaymentSaved,
 }: ScheduledPaymentsSectionProps) {
   const canSchedule = balanceDue > 0;
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -189,7 +187,7 @@ export function ScheduledPaymentsSection({
         subscribedSemesterId={subscribedSemesterId}
         semesterName={semesterName}
         balanceDue={balanceDue}
-        onAddScheduledPayment={onAddScheduledPayment}
+        onScheduledPaymentSaved={onScheduledPaymentSaved}
       />
 
       <EditScheduledPaymentDialog
@@ -201,7 +199,7 @@ export function ScheduledPaymentsSection({
           }
         }}
         scheduledPayment={editingRow}
-        onUpdateScheduledPayment={onUpdateScheduledPayment}
+        onScheduledPaymentSaved={onScheduledPaymentSaved}
       />
 
       <ScheduledPaymentDetailsDialog

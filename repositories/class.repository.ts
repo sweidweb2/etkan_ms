@@ -24,6 +24,21 @@ export async function listClasses(client: Supabase) {
     .order("name", { ascending: true });
 }
 
+const CLASS_PICKER_SELECT = "id, name, subjects ( name )";
+
+export type ClassPickerRecord = {
+  id: string;
+  name: string;
+  subjects: { name: string } | null;
+};
+
+export async function listClassesWithSubjectForPicker(client: Supabase) {
+  return client
+    .from("classes")
+    .select(CLASS_PICKER_SELECT)
+    .order("name", { ascending: true });
+}
+
 export async function listClassSubjectIds(client: Supabase) {
   return client.from("classes").select("subject_id");
 }

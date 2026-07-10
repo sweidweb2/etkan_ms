@@ -50,8 +50,7 @@ type SubscribedSemesterPaymentsSectionProps = {
   subscribedSemesterId: string;
   semesterName: string;
   payments: ManagerStudentPaymentRow[];
-  onAddPayment: (payment: ManagerStudentPaymentRow) => void;
-  onUpdatePayment: (payment: ManagerStudentPaymentRow) => void;
+  onPaymentSaved: () => void;
 };
 
 function TruncatedCell({
@@ -135,8 +134,7 @@ export function SubscribedSemesterPaymentsSection({
   subscribedSemesterId,
   semesterName,
   payments,
-  onAddPayment,
-  onUpdatePayment,
+  onPaymentSaved,
 }: SubscribedSemesterPaymentsSectionProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -179,7 +177,7 @@ export function SubscribedSemesterPaymentsSection({
         onOpenChange={setIsAddOpen}
         subscribedSemesterId={subscribedSemesterId}
         semesterName={semesterName}
-        onAddPayment={onAddPayment}
+        onPaymentSaved={onPaymentSaved}
       />
 
       <EditPaymentDialog
@@ -191,7 +189,7 @@ export function SubscribedSemesterPaymentsSection({
           }
         }}
         payment={editingPayment}
-        onUpdatePayment={onUpdatePayment}
+        onPaymentSaved={onPaymentSaved}
       />
 
       <PaymentDetailsDialog

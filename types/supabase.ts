@@ -722,6 +722,47 @@ export type Database = {
           },
         ]
       }
+      weekly_schedule_slots: {
+        Row: {
+          class_id: string
+          created_at: string
+          day_of_week: string
+          end_time: string
+          id: string
+          room: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          day_of_week: string
+          end_time: string
+          id?: string
+          room: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          day_of_week?: string
+          end_time?: string
+          id?: string
+          room?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_schedule_slots_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_class: {
         Row: {
           class_id: string

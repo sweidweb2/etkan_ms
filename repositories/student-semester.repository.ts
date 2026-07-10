@@ -68,3 +68,21 @@ export async function createStudentSemesterEnrollment(
     .select(ENROLLMENT_COLUMNS)
     .single();
 }
+
+export async function listAllStudentSemesterEnrollments(client: Supabase) {
+  return client
+    .from("student_semester")
+    .select(ENROLLMENT_COLUMNS)
+    .order("created_at", { ascending: false });
+}
+
+export async function listEnrollmentsByStudentProfileId(
+  client: Supabase,
+  studentProfileId: string
+) {
+  return client
+    .from("student_semester")
+    .select(ENROLLMENT_COLUMNS)
+    .eq("student_profile_id", studentProfileId)
+    .order("created_at", { ascending: false });
+}

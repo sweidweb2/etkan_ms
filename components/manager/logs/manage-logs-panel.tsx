@@ -37,7 +37,11 @@ import {
   AUDIT_LOG_ACTION_LABELS,
   AUDIT_LOG_ACTION_VALUES,
 } from "@/lib/constants/manager-audit-log-display";
-import { MANAGER_AUDIT_LOGS_MOCK } from "@/lib/constants/manager-audit-logs-mock";
+import {
+  BACKUP_TABLE_LABELS,
+  BACKUP_TABLES,
+  type BackupTableName,
+} from "@/lib/constants/backup-tables";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerAuditLogRow } from "@/types/manager-audit-log";
@@ -45,7 +49,20 @@ import type { ManagerAuditLogRow } from "@/types/manager-audit-log";
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const ACTION_FILTER_ALL = "all";
 const TABLE_FILTER_ALL = "all";
+const ACTOR_FILTER_ALL = "all";
+const TIME_FILTER_ALL = "all";
+const TIME_FILTER_24H = "24h";
+const TIME_FILTER_7D = "7d";
+const TIME_FILTER_30D = "30d";
+const TIME_FILTER_LABELS: Record<string, string> = {
+  [TIME_FILTER_ALL]: "Time",
+  [TIME_FILTER_24H]: "Last 24 hours",
+  [TIME_FILTER_7D]: "Last 7 days",
+  [TIME_FILTER_30D]: "Last 30 days",
+};
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * TWENTY_FOUR_HOURS_MS;
+const THIRTY_DAYS_MS = 30 * TWENTY_FOUR_HOURS_MS;
 
 const COLUMN_LIMITS = {
   userLabel: 24,
@@ -53,6 +70,10 @@ const COLUMN_LIMITS = {
   recordId: 12,
   changeSummary: 40,
 } as const;
+
+type ManageLogsPanelProps = {
+  initialLogs: ManagerAuditLogRow[];
+};
 
 function TruncatedCell({
   value,
@@ -159,6 +180,14 @@ function formatRecordId(recordId: string | null) {
   return recordId;
 }
 
+function getTableLabel(tableName: string) {
+  if ((BACKUP_TABLES as readonly string[]).includes(tableName)) {
+    return BACKUP_TABLE_LABELS[tableName as BackupTableName];
+  }
+
+  return tableName;
+}
+
 function matchesSearch(log: ManagerAuditLogRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -194,53 +223,106 @@ function matchesTableFilter(log: ManagerAuditLogRow, tableFilter: string) {
   return log.table_name === tableFilter;
 }
 
-export function ManageLogsPanel() {
-  const [logs] = useState(MANAGER_AUDIT_LOGS_MOCK);
+function matchesActorFilter(log: ManagerAuditLogRow, actorFilter: string) {
+  if (actorFilter === ACTOR_FILTER_ALL) {
+    return true;
+  }
+
+  return log.user_label === actorFilter;
+}
+
+function matchesTimeWindowFilter(
+  log: ManagerAuditLogRow,
+  timeFilter: string,
+  nowMs: number
+) {
+  if (timeFilter === TIME_FILTER_ALL) {
+    return true;
+  }
+
+  const createdAtMs = new Date(log.created_at).getTime();
+  const ageMs = nowMs - createdAtMs;
+
+  if (timeFilter === TIME_FILTER_24H) {
+    return ageMs <= TWENTY_FOUR_HOURS_MS;
+  }
+
+  if (timeFilter === TIME_FILTER_7D) {
+    return ageMs <= SEVEN_DAYS_MS;
+  }
+
+  if (timeFilter === TIME_FILTER_30D) {
+    return ageMs <= THIRTY_DAYS_MS;
+  }
+
+  return true;
+}
+
+export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
+  const logs = initialLogs;
   const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState(ACTION_FILTER_ALL);
   const [tableFilter, setTableFilter] = useState(TABLE_FILTER_ALL);
+  const [actorFilter, setActorFilter] = useState(ACTOR_FILTER_ALL);
+  const [timeFilter, setTimeFilter] = useState(TIME_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [detailsLog, setDetailsLog] = useState<ManagerAuditLogRow | null>(null);
 
+  const nowMs = Date.now();
+
   const tableOptions = useMemo(() => {
-    const names = new Set<string>();
+    const names = new Set<string>(BACKUP_TABLES);
     logs.forEach((log) => {
       if (log.table_name) {
         names.add(log.table_name);
       }
     });
-    return [...names].sort();
+    return [...names].sort((left, right) =>
+      getTableLabel(left).localeCompare(getTableLabel(right))
+    );
+  }, [logs]);
+
+  const actorOptions = useMemo(() => {
+    const labels = new Set<string>();
+    logs.forEach((log) => {
+      if (log.user_label.trim()) {
+        labels.add(log.user_label);
+      }
+    });
+    return [...labels].sort((left, right) => left.localeCompare(right));
   }, [logs]);
 
   const stats = useMemo(() => {
-    const referenceTime = logs.reduce(
-      (latest, log) =>
-        Math.max(latest, new Date(log.created_at).getTime()),
-      0
-    );
-
     return {
       total: logs.length,
       last24Hours: logs.filter(
-        (log) =>
-          referenceTime - new Date(log.created_at).getTime() <=
-          TWENTY_FOUR_HOURS_MS
+        (log) => nowMs - new Date(log.created_at).getTime() <= TWENTY_FOUR_HOURS_MS
       ).length,
       updates: logs.filter((log) => log.action === "update").length,
       deletes: logs.filter((log) => log.action === "delete").length,
     };
-  }, [logs]);
+  }, [logs, nowMs]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       return (
         matchesSearch(log, searchQuery) &&
         matchesActionFilter(log, actionFilter) &&
-        matchesTableFilter(log, tableFilter)
+        matchesTableFilter(log, tableFilter) &&
+        matchesActorFilter(log, actorFilter) &&
+        matchesTimeWindowFilter(log, timeFilter, nowMs)
       );
     });
-  }, [actionFilter, logs, searchQuery, tableFilter]);
+  }, [
+    actionFilter,
+    actorFilter,
+    logs,
+    nowMs,
+    searchQuery,
+    tableFilter,
+    timeFilter,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -255,19 +337,40 @@ export function ManageLogsPanel() {
     filteredLogs.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
   const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredLogs.length);
 
+  const resetToFirstPage = () => setCurrentPage(1);
+
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1);
+    resetToFirstPage();
   };
 
   const handleActionFilterChange = (value: string | null) => {
     setActionFilter(value ?? ACTION_FILTER_ALL);
-    setCurrentPage(1);
+    resetToFirstPage();
   };
 
   const handleTableFilterChange = (value: string | null) => {
     setTableFilter(value ?? TABLE_FILTER_ALL);
-    setCurrentPage(1);
+    resetToFirstPage();
+  };
+
+  const handleActorFilterChange = (value: string | null) => {
+    setActorFilter(value ?? ACTOR_FILTER_ALL);
+    resetToFirstPage();
+  };
+
+  const handleTimeFilterChange = (value: string | null) => {
+    setTimeFilter(value ?? TIME_FILTER_ALL);
+    resetToFirstPage();
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setActionFilter(ACTION_FILTER_ALL);
+    setTableFilter(TABLE_FILTER_ALL);
+    setActorFilter(ACTOR_FILTER_ALL);
+    setTimeFilter(TIME_FILTER_ALL);
+    resetToFirstPage();
   };
 
   const handlePageSizeChange = (value: string | null) => {
@@ -276,8 +379,15 @@ export function ManageLogsPanel() {
     }
 
     setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
-    setCurrentPage(1);
+    resetToFirstPage();
   };
+
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    actionFilter !== ACTION_FILTER_ALL ||
+    tableFilter !== TABLE_FILTER_ALL ||
+    actorFilter !== ACTOR_FILTER_ALL ||
+    timeFilter !== TIME_FILTER_ALL;
 
   return (
     <TooltipProvider>
@@ -285,8 +395,7 @@ export function ManageLogsPanel() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Logs</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Review audit activity across tables and user actions. Data is mocked
-            until backend is connected.
+            Review audit activity across tables and user actions.
           </p>
         </div>
 
@@ -326,30 +435,42 @@ export function ManageLogsPanel() {
           <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Audit log</CardTitle>
             <CardDescription>
-              Filter by action or table, then open a row for full change details.
+              Filter by action, table, actor, or time window, then open a row for
+              full change details.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="relative w-full sm:w-44 sm:shrink-0">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search actor, table, record, or summary…"
+                  placeholder="Search…"
                   className="pl-8"
                   aria-label="Search audit logs"
                 />
               </div>
-              <Select value={actionFilter} onValueChange={handleActionFilterChange}>
+              <Select
+                value={actionFilter}
+                onValueChange={handleActionFilterChange}
+              >
                 <SelectTrigger
-                  className="w-full sm:w-36"
+                  className="w-full sm:w-32"
                   aria-label="Filter by action"
                 >
-                  <SelectValue placeholder="All actions" />
+                  <SelectValue placeholder="Action">
+                    {(value) =>
+                      !value || value === ACTION_FILTER_ALL
+                        ? "Action"
+                        : (AUDIT_LOG_ACTION_LABELS[
+                            value as keyof typeof AUDIT_LOG_ACTION_LABELS
+                          ] ?? String(value))
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent align="end">
-                  <SelectItem value={ACTION_FILTER_ALL}>All actions</SelectItem>
+                  <SelectItem value={ACTION_FILTER_ALL}>Action</SelectItem>
                   {AUDIT_LOG_ACTION_VALUES.map((action) => (
                     <SelectItem key={action} value={action}>
                       {AUDIT_LOG_ACTION_LABELS[action]}
@@ -357,22 +478,85 @@ export function ManageLogsPanel() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={tableFilter} onValueChange={handleTableFilterChange}>
+              <Select
+                value={tableFilter}
+                onValueChange={handleTableFilterChange}
+              >
                 <SelectTrigger
-                  className="w-full sm:w-44"
+                  className="w-full sm:w-36"
                   aria-label="Filter by table"
                 >
-                  <SelectValue placeholder="All tables" />
+                  <SelectValue placeholder="Table">
+                    {(value) =>
+                      !value || value === TABLE_FILTER_ALL
+                        ? "Table"
+                        : getTableLabel(String(value))
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent align="end">
-                  <SelectItem value={TABLE_FILTER_ALL}>All tables</SelectItem>
+                  <SelectItem value={TABLE_FILTER_ALL}>Table</SelectItem>
                   {tableOptions.map((tableName) => (
                     <SelectItem key={tableName} value={tableName}>
-                      {tableName}
+                      {getTableLabel(tableName)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <Select
+                value={actorFilter}
+                onValueChange={handleActorFilterChange}
+              >
+                <SelectTrigger
+                  className="w-full sm:w-36"
+                  aria-label="Filter by actor"
+                >
+                  <SelectValue placeholder="Actor">
+                    {(value) =>
+                      !value || value === ACTOR_FILTER_ALL
+                        ? "Actor"
+                        : String(value)
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={ACTOR_FILTER_ALL}>Actor</SelectItem>
+                  {actorOptions.map((actor) => (
+                    <SelectItem key={actor} value={actor}>
+                      {actor}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
+                <SelectTrigger
+                  className="w-full sm:w-36"
+                  aria-label="Filter by time window"
+                >
+                  <SelectValue placeholder="Time">
+                    {(value) =>
+                      TIME_FILTER_LABELS[String(value ?? TIME_FILTER_ALL)] ??
+                      "Time"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={TIME_FILTER_ALL}>Time</SelectItem>
+                  <SelectItem value={TIME_FILTER_24H}>Last 24 hours</SelectItem>
+                  <SelectItem value={TIME_FILTER_7D}>Last 7 days</SelectItem>
+                  <SelectItem value={TIME_FILTER_30D}>Last 30 days</SelectItem>
+                </SelectContent>
+              </Select>
+              {hasActiveFilters ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearFilters}
+                >
+                  Clear filters
+                </Button>
+              ) : null}
             </div>
 
             <div className="overflow-x-auto">
@@ -395,7 +579,9 @@ export function ManageLogsPanel() {
                         colSpan={7}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
-                        No logs match your filters.
+                        {logs.length === 0
+                          ? "No audit logs yet."
+                          : "No logs match your filters."}
                       </td>
                     </tr>
                   ) : (
@@ -422,7 +608,11 @@ export function ManageLogsPanel() {
                           </td>
                           <td className="max-w-[8rem] px-4 py-3">
                             <TruncatedCell
-                              value={log.table_name ?? "—"}
+                              value={
+                                log.table_name
+                                  ? getTableLabel(log.table_name)
+                                  : "—"
+                              }
                               maxLength={COLUMN_LIMITS.tableName}
                             />
                           </td>

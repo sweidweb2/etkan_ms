@@ -4,6 +4,8 @@ import type {
   NotificationPriorityValue,
 } from "@/lib/constants/manager-notification-display";
 
+import type { FieldErrors } from "@/types/auth";
+
 export interface ManagerNotificationRow {
   id: string;
   recipient_id: string | null;
@@ -18,3 +20,31 @@ export interface ManagerNotificationRow {
   created_by: string | null;
   created_at: string;
 }
+
+export type CreateNotificationActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  notification?: ManagerNotificationRow;
+};
+
+export type UpdateNotificationActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  notification?: ManagerNotificationRow;
+};
+
+export type MarkNotificationReadActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+};
+
+export type DeleteNotificationActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+};

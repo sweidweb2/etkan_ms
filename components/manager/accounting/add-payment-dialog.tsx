@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { createPaymentAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,24 +21,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_VALUES,
 } from "@/lib/constants/manager-payment-methods";
-import { showSuccessToast } from "@/lib/toast";
 import { toDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
 import {
   addPaymentSchema,
   type AddPaymentInput,
 } from "@/lib/validators/manager/add-payment";
-import type { ManagerStudentPaymentRow } from "@/types/manager-student-account";
+import type { AccountingMutationActionState } from "@/types/manager-accounting";
+
+const initialState: AccountingMutationActionState = {};
 
 type AddPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subscribedSemesterId: string;
   semesterName: string;
-  onAddPayment: (payment: ManagerStudentPaymentRow) => void;
+  onPaymentSaved: () => void;
 };
 
 export function AddPaymentDialog({
@@ -45,8 +49,17 @@ export function AddPaymentDialog({
   onOpenChange,
   subscribedSemesterId,
   semesterName,
-  onAddPayment,
+  onPaymentSaved,
 }: AddPaymentDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createPaymentAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -78,19 +91,33 @@ export function AddPaymentDialog({
     }
   }, [open, reset]);
 
-  function onSubmit(values: AddPaymentInput) {
-    onAddPayment({
-      id: crypto.randomUUID(),
-      subscribed_semester_id: subscribedSemesterId,
-      semester_name: semesterName,
-      amount: values.amount,
-      currency: values.currency,
-      method: values.method,
-      paid_at: new Date(values.paid_at).toISOString(),
-    });
-    showSuccessToast("Payment recorded.");
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+
     onOpenChange(false);
+    onPaymentSaved();
+  }, [state.success, onOpenChange, onPaymentSaved]);
+
+  function onSubmit(values: AddPaymentInput) {
+    const formData = new FormData();
+    formData.set("subscribed_semester_id", subscribedSemesterId);
+    formData.set("amount", String(values.amount));
+    formData.set("currency", values.currency.trim());
+    formData.set("method", values.method);
+    formData.set("paid_at", values.paid_at);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
+  const currencyError =
+    errors.currency?.message ?? state.fieldErrors?.currency?.[0];
+  const methodError = errors.method?.message ?? state.fieldErrors?.method?.[0];
+  const paidAtError = errors.paid_at?.message ?? state.fieldErrors?.paid_at?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,8 +125,7 @@ export function AddPaymentDialog({
         <DialogHeader>
           <DialogTitle>Add payment</DialogTitle>
           <DialogDescription>
-            Record a payment for {semesterName}. Preview-only until backend is
-            connected.
+            Record a payment for {semesterName}.
           </DialogDescription>
         </DialogHeader>
 
@@ -117,10 +143,10 @@ export function AddPaymentDialog({
               min="0"
               step="0.01"
               {...register("amount")}
-              aria-invalid={!!errors.amount}
+              aria-invalid={!!amountError}
             />
-            {errors.amount ? (
-              <p className="text-sm text-destructive">{errors.amount.message}</p>
+            {amountError ? (
+              <p className="text-sm text-destructive">{amountError}</p>
             ) : null}
           </div>
 
@@ -133,10 +159,10 @@ export function AddPaymentDialog({
             <Input
               id="add-payment-currency"
               {...register("currency")}
-              aria-invalid={!!errors.currency}
+              aria-invalid={!!currencyError}
             />
-            {errors.currency ? (
-              <p className="text-sm text-destructive">{errors.currency.message}</p>
+            {currencyError ? (
+              <p className="text-sm text-destructive">{currencyError}</p>
             ) : null}
           </div>
 
@@ -161,7 +187,7 @@ export function AddPaymentDialog({
               <SelectTrigger
                 id="add-payment-method"
                 className="w-full"
-                aria-invalid={!!errors.method}
+                aria-invalid={!!methodError}
               >
                 <SelectValue placeholder="Select method" />
               </SelectTrigger>
@@ -173,8 +199,8 @@ export function AddPaymentDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.method ? (
-              <p className="text-sm text-destructive">{errors.method.message}</p>
+            {methodError ? (
+              <p className="text-sm text-destructive">{methodError}</p>
             ) : null}
           </div>
 
@@ -184,10 +210,10 @@ export function AddPaymentDialog({
               id="add-payment-paid-at"
               type="datetime-local"
               {...register("paid_at")}
-              aria-invalid={!!errors.paid_at}
+              aria-invalid={!!paidAtError}
             />
-            {errors.paid_at ? (
-              <p className="text-sm text-destructive">{errors.paid_at.message}</p>
+            {paidAtError ? (
+              <p className="text-sm text-destructive">{paidAtError}</p>
             ) : null}
           </div>
         </form>
@@ -196,7 +222,8 @@ export function AddPaymentDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="add-payment-form">
+          <Button type="submit" form="add-payment-form" disabled={isPending}>
+            {isPending ? <InlineSpinner /> : null}
             Add payment
           </Button>
         </DialogFooter>

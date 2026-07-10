@@ -32,7 +32,10 @@ export function PanelNavMenu({ items }: PanelNavMenuProps) {
         const Icon = PANEL_ICONS[item.icon];
 
         return (
-          <SidebarMenuItem key={item.href}>
+          <SidebarMenuItem
+            key={item.href}
+            className="mx-1 group-data-[collapsible=icon]:mx-0"
+          >
             <SidebarMenuButton
               isActive={isActive}
               render={<Link href={item.href} />}
@@ -90,7 +93,7 @@ export function PanelCollapsibleNavGroup({
         aria-controls={contentId}
         onClick={() => setIsOpen((open) => !open)}
         className={cn(
-          "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left",
+          "mx-1 flex items-center justify-between rounded-md px-2 py-1.5 text-left",
           "text-xs font-medium text-sidebar-foreground/70",
           "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
           "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-hidden",

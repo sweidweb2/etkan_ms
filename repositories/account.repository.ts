@@ -22,6 +22,20 @@ export async function createAccount(
     .insert({
       user_id: input.user_id,
     })
-    .select("id, user_id")
+    .select("id, user_id, opened_at")
     .single();
+}
+
+export async function listAccountsByUserIds(
+  client: Supabase,
+  userIds: string[]
+) {
+  if (userIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("accounts")
+    .select("id, user_id, opened_at")
+    .in("user_id", userIds);
 }

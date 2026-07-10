@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useMemo, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { createNotificationAction } from "@/app/manager/notifications/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { getNotificationActionPagesForAudience } from "@/lib/constants/notification-action-pages";
 import {
   NOTIFICATION_AUDIENCE_LABELS,
@@ -29,26 +33,36 @@ import {
   NOTIFICATION_PRIORITY_LABELS,
   NOTIFICATION_PRIORITY_VALUES,
 } from "@/lib/constants/manager-notification-display";
-import { showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
   createNotificationSchema,
   NOTIFICATION_ACTION_NONE_VALUE,
   type CreateNotificationInput,
 } from "@/lib/validators/manager/create-notification";
-import type { ManagerNotificationRow } from "@/types/manager-notification";
+import type { CreateNotificationActionState } from "@/types/manager-notification";
+
+const initialState: CreateNotificationActionState = {};
 
 type AddNotificationDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateNotification: (notification: ManagerNotificationRow) => void;
+  onNotificationCreated: () => void;
 };
 
 export function AddNotificationDialog({
   open,
   onOpenChange,
-  onCreateNotification,
+  onNotificationCreated,
 }: AddNotificationDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    createNotificationAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -112,31 +126,44 @@ export function AddNotificationDialog({
     }
   }, [actionPages, open, selectedActionHref, setValue]);
 
-  function onSubmit(values: CreateNotificationInput) {
-    const actionHref =
-      values.action_href &&
-      values.action_href !== NOTIFICATION_ACTION_NONE_VALUE
-        ? values.action_href
-        : null;
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
 
-    onCreateNotification({
-      id: crypto.randomUUID(),
-      recipient_id: null,
-      audience: values.audience,
-      category: values.category,
-      priority: values.priority,
-      title: values.title.trim(),
-      body: values.body.trim(),
-      action_href: actionHref,
-      is_read: false,
-      read_at: null,
-      created_by: null,
-      created_at: new Date().toISOString(),
-    });
-
-    showSuccessToast("Notification added to the preview list.");
     onOpenChange(false);
+    onNotificationCreated();
+  }, [state.success, onOpenChange, onNotificationCreated]);
+
+  function onSubmit(values: CreateNotificationInput) {
+    const formData = new FormData();
+    formData.set("title", values.title.trim());
+    formData.set("body", values.body.trim());
+    formData.set("audience", values.audience);
+    formData.set("category", values.category);
+    formData.set("priority", values.priority);
+    formData.set(
+      "action_href",
+      values.action_href && values.action_href !== NOTIFICATION_ACTION_NONE_VALUE
+        ? values.action_href
+        : NOTIFICATION_ACTION_NONE_VALUE
+    );
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const titleError = errors.title?.message ?? state.fieldErrors?.title?.[0];
+  const bodyError = errors.body?.message ?? state.fieldErrors?.body?.[0];
+  const audienceError =
+    errors.audience?.message ?? state.fieldErrors?.audience?.[0];
+  const categoryError =
+    errors.category?.message ?? state.fieldErrors?.category?.[0];
+  const priorityError =
+    errors.priority?.message ?? state.fieldErrors?.priority?.[0];
+  const actionHrefError =
+    errors.action_href?.message ?? state.fieldErrors?.action_href?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,8 +171,8 @@ export function AddNotificationDialog({
         <DialogHeader>
           <DialogTitle>Create notification</DialogTitle>
           <DialogDescription>
-            Compose a preview notification for a role audience. Backend delivery
-            is not connected yet.
+            Compose a notification for a role audience. It will be stored and
+            available in the inbox.
           </DialogDescription>
         </DialogHeader>
 
@@ -163,11 +190,12 @@ export function AddNotificationDialog({
             />
             <Input
               id="create-notification-title"
-              aria-invalid={!!errors.title}
+              aria-invalid={!!titleError}
+              disabled={isPending}
               {...register("title")}
             />
-            {errors.title ? (
-              <p className="text-sm text-destructive">{errors.title.message}</p>
+            {titleError ? (
+              <p className="text-sm text-destructive">{titleError}</p>
             ) : null}
           </div>
 
@@ -180,14 +208,15 @@ export function AddNotificationDialog({
             <textarea
               id="create-notification-body"
               rows={4}
-              aria-invalid={!!errors.body}
+              aria-invalid={!!bodyError}
+              disabled={isPending}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
               {...register("body")}
             />
-            {errors.body ? (
-              <p className="text-sm text-destructive">{errors.body.message}</p>
+            {bodyError ? (
+              <p className="text-sm text-destructive">{bodyError}</p>
             ) : null}
           </div>
 
@@ -200,6 +229,7 @@ export function AddNotificationDialog({
               />
               <Select
                 value={selectedAudience}
+                disabled={isPending}
                 onValueChange={(value) => {
                   if (!value) {
                     return;
@@ -216,7 +246,7 @@ export function AddNotificationDialog({
                 <SelectTrigger
                   id="create-notification-audience"
                   className="w-full"
-                  aria-invalid={!!errors.audience}
+                  aria-invalid={!!audienceError}
                 >
                   <SelectValue placeholder="Select audience" />
                 </SelectTrigger>
@@ -228,10 +258,8 @@ export function AddNotificationDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.audience ? (
-                <p className="text-sm text-destructive">
-                  {errors.audience.message}
-                </p>
+              {audienceError ? (
+                <p className="text-sm text-destructive">{audienceError}</p>
               ) : null}
             </div>
 
@@ -243,6 +271,7 @@ export function AddNotificationDialog({
               />
               <Select
                 value={selectedCategory}
+                disabled={isPending}
                 onValueChange={(value) => {
                   if (!value) {
                     return;
@@ -256,7 +285,7 @@ export function AddNotificationDialog({
                 <SelectTrigger
                   id="create-notification-category"
                   className="w-full"
-                  aria-invalid={!!errors.category}
+                  aria-invalid={!!categoryError}
                 >
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -268,10 +297,8 @@ export function AddNotificationDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.category ? (
-                <p className="text-sm text-destructive">
-                  {errors.category.message}
-                </p>
+              {categoryError ? (
+                <p className="text-sm text-destructive">{categoryError}</p>
               ) : null}
             </div>
 
@@ -283,6 +310,7 @@ export function AddNotificationDialog({
               />
               <Select
                 value={selectedPriority}
+                disabled={isPending}
                 onValueChange={(value) => {
                   if (!value) {
                     return;
@@ -296,7 +324,7 @@ export function AddNotificationDialog({
                 <SelectTrigger
                   id="create-notification-priority"
                   className="w-full"
-                  aria-invalid={!!errors.priority}
+                  aria-invalid={!!priorityError}
                 >
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
@@ -308,10 +336,8 @@ export function AddNotificationDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.priority ? (
-                <p className="text-sm text-destructive">
-                  {errors.priority.message}
-                </p>
+              {priorityError ? (
+                <p className="text-sm text-destructive">{priorityError}</p>
               ) : null}
             </div>
           </div>
@@ -328,6 +354,7 @@ export function AddNotificationDialog({
             />
             <Select
               value={selectedActionHref ?? NOTIFICATION_ACTION_NONE_VALUE}
+              disabled={isPending}
               onValueChange={(value) => {
                 if (!value) {
                   return;
@@ -339,7 +366,7 @@ export function AddNotificationDialog({
               <SelectTrigger
                 id="create-notification-action-href"
                 className="w-full"
-                aria-invalid={!!errors.action_href}
+                aria-invalid={!!actionHrefError}
               >
                 <SelectValue placeholder="Select a page" />
               </SelectTrigger>
@@ -354,10 +381,8 @@ export function AddNotificationDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.action_href ? (
-              <p className="text-sm text-destructive">
-                {errors.action_href.message}
-              </p>
+            {actionHrefError ? (
+              <p className="text-sm text-destructive">{actionHrefError}</p>
             ) : null}
           </div>
         </form>
@@ -367,11 +392,19 @@ export function AddNotificationDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="create-notification-form">
-            Create notification
+          <Button type="submit" form="create-notification-form" disabled={isPending}>
+            {isPending ? (
+              <>
+                <InlineSpinner />
+                Creating notification
+              </>
+            ) : (
+              "Create notification"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

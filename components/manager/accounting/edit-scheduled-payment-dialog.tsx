@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateScheduledPaymentAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,34 +21,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_SCHEDULED_PAYMENT_STATUS_LABELS } from "@/lib/constants/manager-scheduled-payment-display";
 import {
   SCHEDULED_PAYMENT_STATUSES,
   type ScheduledPaymentStatusValue,
 } from "@/lib/constants/manager-scheduled-payment-status";
-import { showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { toDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
 import {
-  parseScheduledPaymentAmount,
   updateScheduledPaymentSchema,
   type UpdateScheduledPaymentInput,
 } from "@/lib/validators/manager/scheduled-payment";
+import type { AccountingMutationActionState } from "@/types/manager-accounting";
 import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
+
+const initialState: AccountingMutationActionState = {};
+
+const scheduledPaymentFormSchema = updateScheduledPaymentSchema.omit({ id: true });
 
 type EditScheduledPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   scheduledPayment: ManagerScheduledPaymentRow | null;
-  onUpdateScheduledPayment: (row: ManagerScheduledPaymentRow) => void;
+  onScheduledPaymentSaved: () => void;
 };
 
 export function EditScheduledPaymentDialog({
   open,
   onOpenChange,
   scheduledPayment,
-  onUpdateScheduledPayment,
+  onScheduledPaymentSaved,
 }: EditScheduledPaymentDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateScheduledPaymentAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -56,7 +71,7 @@ export function EditScheduledPaymentDialog({
     watch,
     formState: { errors },
   } = useZodForm({
-    schema: updateScheduledPaymentSchema,
+    schema: scheduledPaymentFormSchema,
     mode: "onBlur",
     defaultValues: {
       payment_date: toDateTimeLocalValue(new Date()),
@@ -81,22 +96,37 @@ export function EditScheduledPaymentDialog({
     });
   }, [open, reset, scheduledPayment]);
 
-  function onSubmit(values: UpdateScheduledPaymentInput) {
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+
+    onOpenChange(false);
+    onScheduledPaymentSaved();
+  }, [state.success, onOpenChange, onScheduledPaymentSaved]);
+
+  function onSubmit(values: Omit<UpdateScheduledPaymentInput, "id">) {
     if (!scheduledPayment) {
       return;
     }
 
-    onUpdateScheduledPayment({
-      ...scheduledPayment,
-      payment_date: new Date(values.payment_date).toISOString(),
-      amount: parseScheduledPaymentAmount(values.amount),
-      status: values.status,
-      note: values.note?.trim() ? values.note.trim() : null,
-      updated_at: new Date().toISOString(),
+    const formData = new FormData();
+    formData.set("id", scheduledPayment.id);
+    formData.set("payment_date", values.payment_date);
+    formData.set("amount", values.amount === "" ? "" : String(values.amount));
+    formData.set("status", values.status);
+    formData.set("note", values.note?.trim() ?? "");
+
+    startTransition(() => {
+      formAction(formData);
     });
-    showSuccessToast("Scheduled payment updated.");
-    onOpenChange(false);
   }
+
+  const paymentDateError =
+    errors.payment_date?.message ?? state.fieldErrors?.payment_date?.[0];
+  const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
+  const noteError = errors.note?.message ?? state.fieldErrors?.note?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,8 +134,7 @@ export function EditScheduledPaymentDialog({
         <DialogHeader>
           <DialogTitle>Edit scheduled payment</DialogTitle>
           <DialogDescription>
-            Update this payment reminder checkpoint. Preview-only until backend is
-            connected.
+            Update this payment reminder checkpoint.
           </DialogDescription>
         </DialogHeader>
 
@@ -125,12 +154,10 @@ export function EditScheduledPaymentDialog({
               id="edit-scheduled-payment-date"
               type="datetime-local"
               {...register("payment_date")}
-              aria-invalid={!!errors.payment_date}
+              aria-invalid={!!paymentDateError}
             />
-            {errors.payment_date ? (
-              <p className="text-sm text-destructive">
-                {errors.payment_date.message}
-              </p>
+            {paymentDateError ? (
+              <p className="text-sm text-destructive">{paymentDateError}</p>
             ) : null}
           </div>
 
@@ -146,10 +173,10 @@ export function EditScheduledPaymentDialog({
               min="0"
               step="0.01"
               {...register("amount")}
-              aria-invalid={!!errors.amount}
+              aria-invalid={!!amountError}
             />
-            {errors.amount ? (
-              <p className="text-sm text-destructive">{errors.amount.message}</p>
+            {amountError ? (
+              <p className="text-sm text-destructive">{amountError}</p>
             ) : null}
           </div>
 
@@ -166,7 +193,7 @@ export function EditScheduledPaymentDialog({
                   return;
                 }
 
-                setValue("status", value as UpdateScheduledPaymentInput["status"], {
+                setValue("status", value as ScheduledPaymentStatusValue, {
                   shouldValidate: true,
                 });
               }}
@@ -174,7 +201,7 @@ export function EditScheduledPaymentDialog({
               <SelectTrigger
                 id="edit-scheduled-payment-status"
                 className="w-full"
-                aria-invalid={!!errors.status}
+                aria-invalid={!!statusError}
               >
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -188,8 +215,8 @@ export function EditScheduledPaymentDialog({
                 )}
               </SelectContent>
             </Select>
-            {errors.status ? (
-              <p className="text-sm text-destructive">{errors.status.message}</p>
+            {statusError ? (
+              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
 
@@ -198,14 +225,14 @@ export function EditScheduledPaymentDialog({
             <textarea
               id="edit-scheduled-payment-note"
               rows={3}
-              aria-invalid={!!errors.note}
+              aria-invalid={!!noteError}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
               {...register("note")}
             />
-            {errors.note ? (
-              <p className="text-sm text-destructive">{errors.note.message}</p>
+            {noteError ? (
+              <p className="text-sm text-destructive">{noteError}</p>
             ) : null}
           </div>
         </form>
@@ -214,7 +241,12 @@ export function EditScheduledPaymentDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="edit-scheduled-payment-form" disabled={!scheduledPayment}>
+          <Button
+            type="submit"
+            form="edit-scheduled-payment-form"
+            disabled={!scheduledPayment || isPending}
+          >
+            {isPending ? <InlineSpinner /> : null}
             Save changes
           </Button>
         </DialogFooter>

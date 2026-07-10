@@ -30,10 +30,6 @@ import {
 } from "@/components/ui/tooltip";
 import { MANAGER_STUDENT_SEMESTER_TABLE_LIMITS } from "@/lib/constants/manager-student-semester-display";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
-import {
-  getManagerAccountingSemesterOptions,
-  getManagerAccountingStudentsPreview,
-} from "@/lib/manager/get-manager-accounting-students-preview";
 import { getManagerStudentAccountDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -119,10 +115,16 @@ function matchesSearch(row: ManagerAccountingStudentRow, query: string) {
     .includes(normalizedQuery);
 }
 
-export function ManageAccountingPanel() {
+export function ManageAccountingPanel({
+  initialStudents,
+  initialSemesterOptions,
+}: {
+  initialStudents: ManagerAccountingStudentRow[];
+  initialSemesterOptions: Array<{ id: string; name: string }>;
+}) {
   const router = useRouter();
-  const semesterOptions = useMemo(() => getManagerAccountingSemesterOptions(), []);
-  const [students] = useState(() => getManagerAccountingStudentsPreview());
+  const [students] = useState(() => initialStudents);
+  const semesterOptions = initialSemesterOptions;
   const [searchQuery, setSearchQuery] = useState("");
   const [semesterFilter, setSemesterFilter] = useState<string>(SEMESTER_FILTER_ALL);
   const [balanceFilter, setBalanceFilter] = useState<string>(BALANCE_FILTER_ALL);

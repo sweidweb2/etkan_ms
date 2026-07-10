@@ -1,8 +1,11 @@
 import type { ManagerWeeklyScheduleSession } from "@/types/manager-weekly-schedule";
 
+const MOCK_CLASS_ID = "00000000-0000-4000-8000-000000000001";
+
 export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   {
     id: "schedule-sunday-fundamentals",
+    class_id: MOCK_CLASS_ID,
     className: "Computer Fundamentals",
     subjectName: "Computer Science",
     teacherName: "Ms. Nora Hassan",
@@ -13,6 +16,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-advanced-algebra",
+    class_id: MOCK_CLASS_ID,
     className: "Advanced Algebra II",
     subjectName: "Mathematics",
     teacherName: "Ms. Rania Omar",
@@ -23,6 +27,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-physics-mechanics",
+    class_id: MOCK_CLASS_ID,
     className: "Physics - Mechanics",
     subjectName: "Physics",
     teacherName: "Mr. Samer Khalil",
@@ -33,6 +38,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-general-chemistry",
+    class_id: MOCK_CLASS_ID,
     className: "General Chemistry",
     subjectName: "Chemistry",
     teacherName: "Dr. Huda Nasser",
@@ -43,6 +49,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-creative-writing",
+    class_id: MOCK_CLASS_ID,
     className: "Creative Writing",
     subjectName: "English",
     teacherName: "Ms. Aya Salem",
@@ -53,6 +60,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-python-programming",
+    class_id: MOCK_CLASS_ID,
     className: "Python Programming",
     subjectName: "Computer Science",
     teacherName: "Mr. Youssef Adel",
@@ -63,6 +71,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-human-anatomy",
+    class_id: MOCK_CLASS_ID,
     className: "Human Anatomy",
     subjectName: "Biology",
     teacherName: "Dr. Nada Fawzy",
@@ -73,6 +82,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-microeconomics",
+    class_id: MOCK_CLASS_ID,
     className: "Microeconomics",
     subjectName: "Economics",
     teacherName: "Mr. Karim Hassan",
@@ -83,6 +93,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-web-development",
+    class_id: MOCK_CLASS_ID,
     className: "Web Development",
     subjectName: "Computer Science",
     teacherName: "Ms. Farah Mostafa",
@@ -93,6 +104,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-studio-art",
+    class_id: MOCK_CLASS_ID,
     className: "Studio Art & Design",
     subjectName: "Art",
     teacherName: "Ms. Dalia Said",
@@ -103,6 +115,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-fitness-training",
+    class_id: MOCK_CLASS_ID,
     className: "Fitness Training",
     subjectName: "Physical Education",
     teacherName: "Coach Ahmed Fares",
@@ -113,6 +126,7 @@ export const MANAGER_WEEKLY_SCHEDULE_MOCK: ManagerWeeklyScheduleSession[] = [
   },
   {
     id: "schedule-robotics-foundations",
+    class_id: MOCK_CLASS_ID,
     className: "Robotics Foundations",
     subjectName: "Robotics",
     teacherName: "Eng. Mariam Ali",

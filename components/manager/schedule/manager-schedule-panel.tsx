@@ -1,12 +1,22 @@
 "use client";
 
 import * as React from "react";
+import { useActionState, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Clock3Icon,
   GraduationCapIcon,
   MapPinIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
   UserIcon,
 } from "lucide-react";
+import { deleteWeeklyScheduleSlotAction } from "@/app/manager/schedule/actions";
+import { AddWeeklyScheduleSlotDialog } from "@/components/manager/schedule/add-weekly-schedule-slot-dialog";
+import { EditWeeklyScheduleSlotDialog } from "@/components/manager/schedule/edit-weekly-schedule-slot-dialog";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -18,15 +28,20 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MANAGER_WEEKLY_SCHEDULE_MOCK } from "@/lib/constants/manager-weekly-schedule-mock";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import type {
+  DeleteWeeklyScheduleSlotActionState,
+  ManagerWeeklyScheduleClassOption,
   ManagerWeeklyScheduleSession,
   WeeklyScheduleDay,
 } from "@/types/manager-weekly-schedule";
 import { cn } from "@/lib/utils";
+
+const initialDeleteState: DeleteWeeklyScheduleSlotActionState = {};
 
 const WEEK_DAYS: WeeklyScheduleDay[] = [
   "Sunday",
@@ -53,6 +68,11 @@ const CALENDAR_START_HOUR = 5;
 const CALENDAR_END_HOUR = 24;
 const HOUR_ROW_HEIGHT = 80;
 
+type ManagerSchedulePanelProps = {
+  initialSessions: ManagerWeeklyScheduleSession[];
+  classOptions: ManagerWeeklyScheduleClassOption[];
+};
+
 function sortSessionsByTime(
   sessions: ManagerWeeklyScheduleSession[]
 ): ManagerWeeklyScheduleSession[] {
@@ -61,10 +81,11 @@ function sortSessionsByTime(
   );
 }
 
-function getSessionsByDay(day: WeeklyScheduleDay): ManagerWeeklyScheduleSession[] {
-  return sortSessionsByTime(
-    MANAGER_WEEKLY_SCHEDULE_MOCK.filter((session) => session.day === day)
-  );
+function getSessionsByDay(
+  sessions: ManagerWeeklyScheduleSession[],
+  day: WeeklyScheduleDay
+): ManagerWeeklyScheduleSession[] {
+  return sortSessionsByTime(sessions.filter((session) => session.day === day));
 }
 
 function timeToMinutes(value: string): number {
@@ -130,26 +151,140 @@ function SessionCard({
   );
 }
 
-export function ManagerSchedulePanel() {
+export function ManagerSchedulePanel({
+  initialSessions,
+  classOptions,
+}: ManagerSchedulePanelProps) {
+  const router = useRouter();
+  const [isTransitionPending, startTransition] = useTransition();
+  const [deleteState, deleteAction, isDeletePending] = useActionState(
+    deleteWeeklyScheduleSlotAction,
+    initialDeleteState
+  );
+  const isDeleteActionPending = isDeletePending || isTransitionPending;
+
+  useActionStateToast(deleteState, isDeleteActionPending);
+
   const hourSlots = getHourSlots();
   const calendarHeight = (CALENDAR_END_HOUR - CALENDAR_START_HOUR) * HOUR_ROW_HEIGHT;
   const [open, setOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isEditOpen, setIsEditOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] =
+    React.useState<ManagerWeeklyScheduleSession | null>(null);
   const [selectedSession, setSelectedSession] =
     React.useState<ManagerWeeklyScheduleSession | null>(null);
+
+  const sessions = initialSessions;
+
+  const handleScheduleChanged = () => {
+    router.refresh();
+  };
+
+  useEffect(() => {
+    if (isDeleteActionPending) {
+      return;
+    }
+
+    if (deleteState.success) {
+      setDeleteTarget(null);
+      setOpen(false);
+      setSelectedSession(null);
+      handleScheduleChanged();
+    }
+  }, [deleteState.success, isDeleteActionPending]);
 
   function openSession(session: ManagerWeeklyScheduleSession) {
     setSelectedSession(session);
     setOpen(true);
   }
 
+  function handleConfirmDelete() {
+    if (!deleteTarget) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("id", deleteTarget.id);
+
+    startTransition(() => {
+      deleteAction(formData);
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Weekly schedule</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Default weekly calendar from 5 AM to 12 midnight.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Weekly schedule</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Default weekly calendar from 5 AM to 12 midnight.
+          </p>
+        </div>
+        <Button type="button" onClick={() => setIsCreateOpen(true)}>
+          <PlusIcon data-icon="inline-start" />
+          Add slot
+        </Button>
       </div>
+
+      <AddWeeklyScheduleSlotDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        classOptions={classOptions}
+        onSlotCreated={handleScheduleChanged}
+      />
+
+      <EditWeeklyScheduleSlotDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        session={selectedSession}
+        classOptions={classOptions}
+        onSlotUpdated={handleScheduleChanged}
+      />
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete schedule slot</DialogTitle>
+            <DialogDescription>
+              This will permanently remove the {deleteTarget?.day} slot for{" "}
+              {deleteTarget?.className}. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeleteActionPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleteActionPending}
+            >
+              {isDeleteActionPending ? (
+                <>
+                  <InlineSpinner />
+                  Deleting slot
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
@@ -169,7 +304,7 @@ export function ManagerSchedulePanel() {
 
           <div className="grid gap-4 lg:hidden">
             {WEEK_DAYS.map((day) => {
-              const sessions = getSessionsByDay(day);
+              const daySessions = getSessionsByDay(sessions, day);
 
               return (
                 <div key={day} className="rounded-xl border">
@@ -177,8 +312,8 @@ export function ManagerSchedulePanel() {
                     <h2 className="font-medium">{day}</h2>
                   </div>
                   <div className="grid gap-3 p-4">
-                    {sessions.length > 0 ? (
-                      sessions.map((session) => (
+                    {daySessions.length > 0 ? (
+                      daySessions.map((session) => (
                         <SessionCard
                           key={session.id}
                           session={session}
@@ -238,7 +373,7 @@ export function ManagerSchedulePanel() {
                 </div>
 
                 {WEEK_DAYS.map((day) => {
-                  const sessions = getSessionsByDay(day);
+                  const daySessions = getSessionsByDay(sessions, day);
 
                   return (
                     <div
@@ -257,11 +392,12 @@ export function ManagerSchedulePanel() {
                         />
                       ))}
 
-                      {sessions.map((session) => {
+                      {daySessions.map((session) => {
                         const startMinutes = timeToMinutes(session.startTime);
                         const endMinutes = timeToMinutes(session.endTime);
                         const top =
-                          ((startMinutes - CALENDAR_START_HOUR * 60) / 60) * HOUR_ROW_HEIGHT;
+                          ((startMinutes - CALENDAR_START_HOUR * 60) / 60) *
+                          HOUR_ROW_HEIGHT;
                         const height =
                           ((endMinutes - startMinutes) / 60) * HOUR_ROW_HEIGHT;
 
@@ -333,6 +469,36 @@ export function ManagerSchedulePanel() {
                     </p>
                   </div>
                 </div>
+              ) : null}
+
+              {selectedSession ? (
+                <DialogFooter className="sm:justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditOpen(true);
+                      }}
+                      disabled={isDeleteActionPending}
+                    >
+                      <PencilIcon data-icon="inline-start" />
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => setDeleteTarget(selectedSession)}
+                      disabled={isDeleteActionPending}
+                    >
+                      <Trash2Icon data-icon="inline-start" />
+                      Delete
+                    </Button>
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    Close
+                  </Button>
+                </DialogFooter>
               ) : null}
             </DialogContent>
           </Dialog>
