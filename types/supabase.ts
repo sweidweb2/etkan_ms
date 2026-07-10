@@ -139,6 +139,7 @@ export type Database = {
           new_data: Json | null
           old_data: Json | null
           record_id: string | null
+          severity: string
           table_name: string | null
           user_id: string | null
           user_label: string
@@ -151,6 +152,7 @@ export type Database = {
           new_data?: Json | null
           old_data?: Json | null
           record_id?: string | null
+          severity?: string
           table_name?: string | null
           user_id?: string | null
           user_label?: string
@@ -163,6 +165,7 @@ export type Database = {
           new_data?: Json | null
           old_data?: Json | null
           record_id?: string | null
+          severity?: string
           table_name?: string | null
           user_id?: string | null
           user_label?: string

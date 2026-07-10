@@ -4,6 +4,8 @@ import { BORROW_EQUIPMENT_STATUSES } from "@/lib/constants/manager-borrow-equipm
 import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
 import * as equipmentRepository from "@/repositories/equipment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import {
   createBorrowsForManager,
   listAllBorrowsForManager,
@@ -15,8 +17,15 @@ import {
 vi.mock("@/repositories/borrow-equipment.repository");
 vi.mock("@/repositories/equipment.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 const equipmentId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 const userId = "b2b3c4d5-e6f7-8901-bcde-f12345678901";
 
@@ -178,10 +187,11 @@ describe("listAllBorrowsForManager", () => {
 describe("createBorrowsForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized for non-manager", async () => {
-    const result = await createBorrowsForManager(adminClient, ROLES.TEACHER, {
+    const result = await createBorrowsForManager(adminClient, ROLES.TEACHER, actor, {
       items: [
         {
           user_id: userId,
@@ -221,7 +231,7 @@ describe("createBorrowsForManager", () => {
       statusText: "OK",
     });
 
-    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, {
+    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, actor, {
       items: [
         {
           user_id: userId,
@@ -268,7 +278,7 @@ describe("createBorrowsForManager", () => {
       statusText: "OK",
     });
 
-    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, {
+    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, actor, {
       items: [
         {
           user_id: userId,
@@ -340,7 +350,7 @@ describe("createBorrowsForManager", () => {
       statusText: "OK",
     });
 
-    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, {
+    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, actor, {
       items: [
         {
           user_id: userId,
@@ -384,6 +394,7 @@ describe("updateBorrowRecordForManager", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   const equipmentRecord = {
@@ -418,11 +429,16 @@ describe("updateBorrowRecordForManager", () => {
     });
     mockEquipmentLookup(9);
 
-    const result = await updateBorrowRecordForManager(adminClient, ROLES.MANAGER, {
-      id: borrowId,
-      quantity: 4,
-      status: BORROW_EQUIPMENT_STATUSES.BORROWED,
-    });
+    const result = await updateBorrowRecordForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: borrowId,
+        quantity: 4,
+        status: BORROW_EQUIPMENT_STATUSES.BORROWED,
+      }
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -445,11 +461,16 @@ describe("updateBorrowRecordForManager", () => {
       statusText: "OK",
     });
 
-    const result = await updateBorrowRecordForManager(adminClient, ROLES.MANAGER, {
-      id: borrowId,
-      quantity: 4,
-      status: BORROW_EQUIPMENT_STATUSES.BORROWED,
-    });
+    const result = await updateBorrowRecordForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: borrowId,
+        quantity: 4,
+        status: BORROW_EQUIPMENT_STATUSES.BORROWED,
+      }
+    );
 
     expect(result).toEqual({
       success: true,
@@ -463,6 +484,7 @@ describe("toggleBorrowReturnedForManager", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("marks a borrow as returned without stock validation", async () => {
@@ -497,6 +519,7 @@ describe("toggleBorrowReturnedForManager", () => {
     const result = await toggleBorrowReturnedForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       { id: borrowId, isReturned: true }
     );
 
@@ -547,6 +570,7 @@ describe("toggleBorrowReturnedForManager", () => {
     const result = await toggleBorrowReturnedForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       { id: borrowId, isReturned: false }
     );
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create-relationship";
 import { parseUpdateRelationshipFormData } from "@/lib/validators/manager/update-relationship";
@@ -17,7 +17,10 @@ export async function createRelationshipAction(
   _prevState: CreateRelationshipActionState,
   formData: FormData
 ): Promise<CreateRelationshipActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
 
   const parsed = parseCreateRelationshipFormData(formData);
 
@@ -33,6 +36,7 @@ export async function createRelationshipAction(
   const result = await createRelationshipForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -55,7 +59,10 @@ export async function updateRelationshipAction(
   _prevState: UpdateRelationshipActionState,
   formData: FormData
 ): Promise<UpdateRelationshipActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
 
   const parsed = parseUpdateRelationshipFormData(formData);
 
@@ -71,6 +78,7 @@ export async function updateRelationshipAction(
   const result = await updateRelationshipForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 

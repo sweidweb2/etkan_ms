@@ -1,7 +1,9 @@
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
   AUDIT_LOG_ACTION_VALUES,
+  AUDIT_LOG_SEVERITY_VALUES,
   type AuditLogActionValue,
+  type AuditLogSeverityValue,
 } from "@/lib/constants/manager-audit-log-display";
 import * as auditLogRepository from "@/repositories/audit-log.repository";
 import type { AuditLogRecord } from "@/repositories/audit-log.repository";
@@ -14,6 +16,21 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Supabase = SupabaseClient<Database>;
 
+export type AuditActor = {
+  userId: string | null;
+  userLabel: string;
+};
+
+export type AuditLogEntry = {
+  action: AuditLogActionValue;
+  severity?: AuditLogSeverityValue;
+  table_name?: string | null;
+  record_id?: string | null;
+  old_data?: AuditLogJsonValue | null;
+  new_data?: AuditLogJsonValue | null;
+  metadata?: AuditLogJsonValue | null;
+};
+
 function assertManagerRole(actorRole: RoleValue | null): void {
   if (actorRole !== ROLES.MANAGER) {
     throw new Error("Unauthorized.");
@@ -22,6 +39,10 @@ function assertManagerRole(actorRole: RoleValue | null): void {
 
 function isAuditLogAction(value: string): value is AuditLogActionValue {
   return (AUDIT_LOG_ACTION_VALUES as readonly string[]).includes(value);
+}
+
+function isAuditLogSeverity(value: string): value is AuditLogSeverityValue {
+  return (AUDIT_LOG_SEVERITY_VALUES as readonly string[]).includes(value);
 }
 
 function toJsonObject(value: Json | null): AuditLogJsonValue | null {
@@ -38,6 +59,7 @@ function mapAuditLogRecordToRow(record: AuditLogRecord): ManagerAuditLogRow {
     user_id: record.user_id,
     user_label: record.user_label,
     action: isAuditLogAction(record.action) ? record.action : "other",
+    severity: isAuditLogSeverity(record.severity) ? record.severity : "info",
     table_name: record.table_name,
     record_id: record.record_id,
     old_data: toJsonObject(record.old_data),
@@ -66,6 +88,7 @@ export type CreateAuditLogInput = {
   user_id?: string | null;
   user_label: string;
   action: AuditLogActionValue;
+  severity?: AuditLogSeverityValue;
   table_name?: string | null;
   record_id?: string | null;
   old_data?: AuditLogJsonValue | null;
@@ -81,6 +104,7 @@ export async function createAuditLogForManager(
     user_id: input.user_id ?? null,
     user_label: input.user_label,
     action: input.action,
+    severity: input.severity ?? "info",
     table_name: input.table_name ?? null,
     record_id: input.record_id ?? null,
     old_data: (input.old_data ?? null) as Json | null,
@@ -93,4 +117,30 @@ export async function createAuditLogForManager(
   }
 
   return mapAuditLogRecordToRow(data);
+}
+
+/**
+ * Records an audit log after a successful mutation.
+ * Never throws — audit failures must not fail the parent use case.
+ */
+export async function recordManagerAuditLog(
+  adminClient: Supabase,
+  actor: AuditActor,
+  entry: AuditLogEntry
+): Promise<ManagerAuditLogRow | null> {
+  try {
+    return await createAuditLogForManager(adminClient, {
+      user_id: actor.userId,
+      user_label: actor.userLabel.trim() || "System",
+      action: entry.action,
+      severity: entry.severity ?? "info",
+      table_name: entry.table_name ?? null,
+      record_id: entry.record_id ?? null,
+      old_data: entry.old_data ?? null,
+      new_data: entry.new_data ?? null,
+      metadata: entry.metadata ?? null,
+    });
+  } catch {
+    return null;
+  }
 }

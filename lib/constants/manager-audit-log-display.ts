@@ -29,3 +29,26 @@ export const AUDIT_LOG_ACTION_BADGE_CLASSES: Record<AuditLogActionValue, string>
   export: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
   other: "bg-muted text-muted-foreground",
 };
+
+export const AUDIT_LOG_SEVERITY_VALUES = [
+  "info",
+  "warning",
+  "critical",
+] as const;
+
+export type AuditLogSeverityValue = (typeof AUDIT_LOG_SEVERITY_VALUES)[number];
+
+export const AUDIT_LOG_SEVERITY_LABELS: Record<AuditLogSeverityValue, string> = {
+  info: "Info",
+  warning: "Warning",
+  critical: "Critical",
+};
+
+export const AUDIT_LOG_SEVERITY_BADGE_CLASSES: Record<
+  AuditLogSeverityValue,
+  string
+> = {
+  info: "bg-muted text-muted-foreground",
+  warning: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  critical: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+};

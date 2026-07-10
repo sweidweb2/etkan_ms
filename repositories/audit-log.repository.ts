@@ -4,13 +4,14 @@ import type { Database, Json } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const AUDIT_LOG_COLUMNS =
-  "id, user_id, user_label, action, table_name, record_id, old_data, new_data, metadata, created_at";
+  "id, user_id, user_label, action, severity, table_name, record_id, old_data, new_data, metadata, created_at";
 
 export type AuditLogRecord = {
   id: string;
   user_id: string | null;
   user_label: string;
   action: string;
+  severity: string;
   table_name: string | null;
   record_id: string | null;
   old_data: Json | null;
@@ -23,6 +24,7 @@ export type CreateAuditLogRecordInput = {
   user_id?: string | null;
   user_label: string;
   action: string;
+  severity?: string;
   table_name?: string | null;
   record_id?: string | null;
   old_data?: Json | null;
@@ -55,6 +57,7 @@ export async function createAuditLog(
       user_id: input.user_id ?? null,
       user_label: input.user_label,
       action: input.action,
+      severity: input.severity ?? "info",
       table_name: input.table_name ?? null,
       record_id: input.record_id ?? null,
       old_data: input.old_data ?? null,

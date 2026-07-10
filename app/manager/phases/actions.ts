@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddStudentToSemesterFormData } from "@/lib/validators/manager/add-student-to-semester";
 import { parseConnectSemesterClassFormData } from "@/lib/validators/manager/connect-semester-class";
@@ -20,7 +20,10 @@ export async function createSemesterAction(
   _prevState: CreateSemesterActionState,
   formData: FormData
 ): Promise<CreateSemesterActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
 
   const parsed = parseCreatePhaseFormData(formData);
 
@@ -36,6 +39,7 @@ export async function createSemesterAction(
   const result = await createSemesterForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -58,7 +62,10 @@ export async function addStudentToSemesterAction(
   _prevState: AddStudentToSemesterActionState,
   formData: FormData
 ): Promise<AddStudentToSemesterActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseAddStudentToSemesterFormData(formData);
 
   if (!parsed.success) {
@@ -73,6 +80,7 @@ export async function addStudentToSemesterAction(
   const result = await addStudentToSemesterForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -95,7 +103,10 @@ export async function connectClassToSemesterAction(
   _prevState: ConnectSemesterClassActionState,
   formData: FormData
 ): Promise<ConnectSemesterClassActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseConnectSemesterClassFormData(formData);
 
   if (!parsed.success) {
@@ -110,6 +121,7 @@ export async function connectClassToSemesterAction(
   const result = await connectClassToSemesterForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 

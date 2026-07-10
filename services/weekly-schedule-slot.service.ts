@@ -8,6 +8,10 @@ import * as classRepository from "@/repositories/class.repository";
 import type { ClassPickerRecord } from "@/repositories/class.repository";
 import * as weeklyScheduleSlotRepository from "@/repositories/weekly-schedule-slot.repository";
 import type { WeeklyScheduleSlotWithClassRecord } from "@/repositories/weekly-schedule-slot.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerWeeklyScheduleClassOption,
@@ -199,6 +203,7 @@ export async function listWeeklyScheduleSlotsForManager(
 export async function createWeeklyScheduleSlotForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     class_id: string;
     day: string;
@@ -275,6 +280,21 @@ export async function createWeeklyScheduleSlotForManager(
     };
   }
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "weekly_schedule_slots",
+    record_id: data.id,
+    new_data: {
+      class_id: data.class_id,
+      day_of_week: data.day_of_week,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      room: data.room,
+    },
+    metadata: { note: "Schedule slot created." },
+  });
+
   return {
     success: true,
     session: mapSlotRecordToSession(
@@ -287,6 +307,7 @@ export async function createWeeklyScheduleSlotForManager(
 export async function updateWeeklyScheduleSlotForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     id: string;
     class_id: string;
@@ -384,6 +405,37 @@ export async function updateWeeklyScheduleSlotForManager(
     };
   }
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "weekly_schedule_slots",
+    record_id: data.id,
+    old_data: {
+      class_id: existingSlot.data.class_id,
+      day_of_week: existingSlot.data.day_of_week,
+      start_time: existingSlot.data.start_time,
+      end_time: existingSlot.data.end_time,
+      room: existingSlot.data.room,
+    },
+    new_data: {
+      class_id: data.class_id,
+      day_of_week: data.day_of_week,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      room: data.room,
+    },
+    metadata: {
+      note: "Schedule slot updated.",
+      changed_fields: [
+        "class_id",
+        "day_of_week",
+        "start_time",
+        "end_time",
+        "room",
+      ],
+    },
+  });
+
   return {
     success: true,
     session: mapSlotRecordToSession(
@@ -396,6 +448,7 @@ export async function updateWeeklyScheduleSlotForManager(
 export async function deleteWeeklyScheduleSlotForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   slotId: string
 ): Promise<DeleteWeeklyScheduleSlotResult> {
   if (actorRole !== ROLES.MANAGER) {
@@ -429,6 +482,21 @@ export async function deleteWeeklyScheduleSlotForManager(
       error: "Unable to delete schedule slot. Please try again.",
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "critical",
+    table_name: "weekly_schedule_slots",
+    record_id: slotId,
+    old_data: {
+      class_id: existingSlot.data.class_id,
+      day_of_week: existingSlot.data.day_of_week,
+      start_time: existingSlot.data.start_time,
+      end_time: existingSlot.data.end_time,
+      room: existingSlot.data.room,
+    },
+    metadata: { note: "Schedule slot deleted." },
+  });
 
   return { success: true, message: "Schedule slot deleted." };
 }

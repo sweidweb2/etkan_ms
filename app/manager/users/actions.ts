@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStaffUserFormData } from "@/lib/validators/manager/create-user";
 import { createStaffUser } from "@/services/user.service";
@@ -10,7 +10,10 @@ export async function createStaffUserAction(
   _prevState: CreateStaffUserActionState,
   formData: FormData
 ): Promise<CreateStaffUserActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
 
   const parsed = parseCreateStaffUserFormData(formData);
 
@@ -23,7 +26,12 @@ export async function createStaffUserAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await createStaffUser(adminClient, actorRole, parsed.data);
+  const result = await createStaffUser(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
 
   if (!result.success) {
     return {

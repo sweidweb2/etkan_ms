@@ -3,14 +3,23 @@ import type { User } from "@supabase/supabase-js";
 import { ROLES } from "@/lib/constants/roles";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import * as roleService from "@/services/role.service";
 import { createStaffUser, listUsersForManager } from "@/services/user.service";
 
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/services/role.service");
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 
 const authUser = {
   id: "user-1",
@@ -77,10 +86,16 @@ describe("listUsersForManager", () => {
 describe("createStaffUser", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("rejects non-manager actors", async () => {
-    const result = await createStaffUser(adminClient, ROLES.TEACHER, validStaffInput);
+    const result = await createStaffUser(
+      adminClient,
+      ROLES.TEACHER,
+      actor,
+      validStaffInput
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -89,7 +104,7 @@ describe("createStaffUser", () => {
   });
 
   it("returns field errors for invalid input", async () => {
-    const result = await createStaffUser(adminClient, ROLES.MANAGER, {
+    const result = await createStaffUser(adminClient, ROLES.MANAGER, actor, {
       ...validStaffInput,
       email: "not-an-email",
     });
@@ -102,7 +117,7 @@ describe("createStaffUser", () => {
   });
 
   it("rejects student role", async () => {
-    const result = await createStaffUser(adminClient, ROLES.MANAGER, {
+    const result = await createStaffUser(adminClient, ROLES.MANAGER, actor, {
       ...validStaffInput,
       role: ROLES.STUDENT,
     });
@@ -125,6 +140,7 @@ describe("createStaffUser", () => {
     const result = await createStaffUser(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validStaffInput
     );
 
@@ -153,6 +169,7 @@ describe("createStaffUser", () => {
     const result = await createStaffUser(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validStaffInput
     );
 
@@ -194,6 +211,7 @@ describe("createStaffUser", () => {
     const result = await createStaffUser(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validStaffInput
     );
 
@@ -253,6 +271,7 @@ describe("createStaffUser", () => {
     const result = await createStaffUser(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validStaffInput
     );
 

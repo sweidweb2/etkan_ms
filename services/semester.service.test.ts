@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import * as semesterRepository from "@/repositories/semester.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import {
   createSemesterForManager,
   getSemesterForManager,
@@ -8,8 +10,15 @@ import {
 } from "@/services/semester.service";
 
 vi.mock("@/repositories/semester.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 
 const semesterId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 
@@ -132,12 +141,14 @@ describe("getSemesterForManager", () => {
 describe("createSemesterForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized when actor is not a manager", async () => {
     const result = await createSemesterForManager(
       adminClient,
       ROLES.TEACHER,
+      actor,
       validCreateInput
     );
 
@@ -145,10 +156,15 @@ describe("createSemesterForManager", () => {
   });
 
   it("returns validation errors for invalid input", async () => {
-    const result = await createSemesterForManager(adminClient, ROLES.MANAGER, {
-      ...validCreateInput,
-      name: "",
-    });
+    const result = await createSemesterForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        ...validCreateInput,
+        name: "",
+      }
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -169,6 +185,7 @@ describe("createSemesterForManager", () => {
     const result = await createSemesterForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validCreateInput
     );
 
@@ -199,6 +216,7 @@ describe("createSemesterForManager", () => {
     const result = await createSemesterForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validCreateInput
     );
 

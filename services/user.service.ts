@@ -3,6 +3,10 @@ import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import { syncAuthUserRole } from "@/services/role.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerUserRow } from "@/types/manager-user";
@@ -119,6 +123,7 @@ export async function listUsersForManager(
 export async function createStaffUser(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     username: string;
     email: string;
@@ -253,6 +258,19 @@ export async function createStaffUser(
     } catch {
       // Email failures must not roll back a successfully created account.
     }
+
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "insert",
+      severity: "warning",
+      table_name: "profiles",
+      record_id: authUserId,
+      new_data: {
+        username: normalizedUsername,
+        role,
+        email: normalizedEmail,
+      },
+      metadata: { note: "Staff account created." },
+    });
 
     return {
       success: true,

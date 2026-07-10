@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   parseCreateWeeklyScheduleSlotFormData,
@@ -22,7 +22,10 @@ export async function createWeeklyScheduleSlotAction(
   _prevState: CreateWeeklyScheduleSlotActionState,
   formData: FormData
 ): Promise<CreateWeeklyScheduleSlotActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseCreateWeeklyScheduleSlotFormData(formData);
 
   if (!parsed.success) {
@@ -37,6 +40,7 @@ export async function createWeeklyScheduleSlotAction(
   const result = await createWeeklyScheduleSlotForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -59,7 +63,10 @@ export async function updateWeeklyScheduleSlotAction(
   _prevState: UpdateWeeklyScheduleSlotActionState,
   formData: FormData
 ): Promise<UpdateWeeklyScheduleSlotActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseUpdateWeeklyScheduleSlotFormData(formData);
 
   if (!parsed.success) {
@@ -74,6 +81,7 @@ export async function updateWeeklyScheduleSlotAction(
   const result = await updateWeeklyScheduleSlotForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -96,7 +104,10 @@ export async function deleteWeeklyScheduleSlotAction(
   _prevState: DeleteWeeklyScheduleSlotActionState,
   formData: FormData
 ): Promise<DeleteWeeklyScheduleSlotActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseWeeklyScheduleSlotIdFormData(formData);
 
   if (!parsed.success) {
@@ -110,6 +121,7 @@ export async function deleteWeeklyScheduleSlotAction(
   const result = await deleteWeeklyScheduleSlotForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data.id
   );
 

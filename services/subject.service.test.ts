@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import * as classRepository from "@/repositories/class.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import {
   createSubjectForManager,
   getSubjectForManager,
@@ -11,8 +13,15 @@ import {
 
 vi.mock("@/repositories/subject.repository");
 vi.mock("@/repositories/class.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 
 const subjectId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 
@@ -107,12 +116,14 @@ describe("listSubjectsForManager", () => {
 describe("createSubjectForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized when actor is not a manager", async () => {
     const result = await createSubjectForManager(
       adminClient,
       ROLES.TEACHER,
+      actor,
       validCreateInput
     );
 
@@ -120,10 +131,15 @@ describe("createSubjectForManager", () => {
   });
 
   it("returns validation errors for invalid input", async () => {
-    const result = await createSubjectForManager(adminClient, ROLES.MANAGER, {
-      ...validCreateInput,
-      name: "",
-    });
+    const result = await createSubjectForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        ...validCreateInput,
+        name: "",
+      }
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -144,6 +160,7 @@ describe("createSubjectForManager", () => {
     const result = await createSubjectForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validCreateInput
     );
 
@@ -174,6 +191,7 @@ describe("createSubjectForManager", () => {
     const result = await createSubjectForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validCreateInput
     );
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreatePaymentFormData } from "@/lib/validators/manager/add-payment";
 import {
@@ -22,7 +22,10 @@ export async function createPaymentAction(
   _prevState: AccountingMutationActionState,
   formData: FormData
 ): Promise<AccountingMutationActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseCreatePaymentFormData(formData);
 
   if (!parsed.success) {
@@ -37,6 +40,7 @@ export async function createPaymentAction(
   const result = await createPaymentForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -58,7 +62,10 @@ export async function updatePaymentAction(
   _prevState: AccountingMutationActionState,
   formData: FormData
 ): Promise<AccountingMutationActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseUpdatePaymentFormData(formData);
 
   if (!parsed.success) {
@@ -73,6 +80,7 @@ export async function updatePaymentAction(
   const result = await updatePaymentForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -94,7 +102,10 @@ export async function updateSubscribedSemesterAction(
   _prevState: AccountingMutationActionState,
   formData: FormData
 ): Promise<AccountingMutationActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseUpdateSubscribedSemesterFormData(formData);
 
   if (!parsed.success) {
@@ -109,6 +120,7 @@ export async function updateSubscribedSemesterAction(
   const result = await updateSubscribedSemesterForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -130,7 +142,10 @@ export async function createScheduledPaymentAction(
   _prevState: AccountingMutationActionState,
   formData: FormData
 ): Promise<AccountingMutationActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseCreateScheduledPaymentFormData(formData);
 
   if (!parsed.success) {
@@ -145,6 +160,7 @@ export async function createScheduledPaymentAction(
   const result = await createScheduledPaymentForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -166,7 +182,10 @@ export async function updateScheduledPaymentAction(
   _prevState: AccountingMutationActionState,
   formData: FormData
 ): Promise<AccountingMutationActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseUpdateScheduledPaymentFormData(formData);
 
   if (!parsed.success) {
@@ -181,6 +200,7 @@ export async function updateScheduledPaymentAction(
   const result = await updateScheduledPaymentForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 

@@ -8,6 +8,10 @@ import * as classRepository from "@/repositories/class.repository";
 import type { ClassRecord } from "@/repositories/class.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
 import type { SubjectRecord } from "@/repositories/subject.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
@@ -136,6 +140,7 @@ export async function listSubjectsForManager(
 export async function createSubjectForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     name: string;
     syllabus_link?: string;
@@ -194,6 +199,21 @@ export async function createSubjectForManager(
       error: mapCreateSubjectError(error?.message ?? "Unknown error"),
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "subjects",
+    record_id: data.id,
+    new_data: {
+      name: data.name,
+      syllabus_link: data.syllabus_link,
+      reference_link: data.reference_link,
+      handout_link: data.handout_link,
+      nb_sessions: data.nb_sessions,
+    },
+    metadata: { note: "Subject created." },
+  });
 
   return {
     success: true,

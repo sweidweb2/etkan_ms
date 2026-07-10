@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
 import * as equipmentRepository from "@/repositories/equipment.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import {
   createEquipmentForManager,
   getEquipmentForManager,
@@ -11,8 +13,15 @@ import {
 
 vi.mock("@/repositories/equipment.repository");
 vi.mock("@/repositories/borrow-equipment.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 const equipmentId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 
 const equipmentRecord = {
@@ -100,12 +109,14 @@ describe("getEquipmentForManager", () => {
 describe("createEquipmentForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized for non-manager", async () => {
     const result = await createEquipmentForManager(
       adminClient,
       ROLES.TEACHER,
+      actor,
       validCreateInput
     );
 
@@ -123,6 +134,7 @@ describe("createEquipmentForManager", () => {
     const result = await createEquipmentForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validCreateInput
     );
 
@@ -131,12 +143,42 @@ describe("createEquipmentForManager", () => {
       expect(result.equipment.name).toBe("Microscope");
       expect(result.message).toBe("Equipment created.");
     }
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "insert",
+        severity: "info",
+        table_name: "equipments",
+        record_id: equipmentId,
+      })
+    );
+  });
+
+  it("still succeeds when audit logging fails", async () => {
+    vi.mocked(equipmentRepository.createEquipment).mockResolvedValue({
+      data: equipmentRecord,
+      error: null,
+      status: 201,
+      statusText: "Created",
+    });
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+
+    const result = await createEquipmentForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      validCreateInput
+    );
+
+    expect(result.success).toBe(true);
   });
 });
 
 describe("updateEquipmentForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("rejects quantity below borrowed count", async () => {
@@ -154,7 +196,7 @@ describe("updateEquipmentForManager", () => {
       statusText: "OK",
     });
 
-    const result = await updateEquipmentForManager(adminClient, ROLES.MANAGER, {
+    const result = await updateEquipmentForManager(adminClient, ROLES.MANAGER, actor, {
       id: equipmentId,
       ...validCreateInput,
       quantity: 2,
@@ -190,7 +232,7 @@ describe("updateEquipmentForManager", () => {
       statusText: "OK",
     });
 
-    const result = await updateEquipmentForManager(adminClient, ROLES.MANAGER, {
+    const result = await updateEquipmentForManager(adminClient, ROLES.MANAGER, actor, {
       id: equipmentId,
       ...validCreateInput,
       name: "Updated Microscope",

@@ -3,6 +3,10 @@ import { createRelationshipSchema } from "@/lib/validators/manager/create-relati
 import { updateRelationshipSchema } from "@/lib/validators/manager/update-relationship";
 import * as relationshipRepository from "@/repositories/relationship.repository";
 import type { RelationshipRecord } from "@/repositories/relationship.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerRelationshipRow } from "@/types/manager-relationship";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -108,6 +112,7 @@ export async function listRelationshipsForManager(
 export async function createRelationshipForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     name: string;
     phone?: string;
@@ -153,6 +158,22 @@ export async function createRelationshipForManager(
     };
   }
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "relationships",
+    record_id: data.id,
+    new_data: {
+      name: data.name,
+      phone: data.phone,
+      relation_with: data.relation_with,
+      major: data.major,
+      speciality: data.speciality,
+      is_useful: data.is_useful,
+    },
+    metadata: { note: "Relationship created." },
+  });
+
   return {
     success: true,
     relationship: mapRelationshipRecordToRow(data),
@@ -163,6 +184,7 @@ export async function createRelationshipForManager(
 export async function updateRelationshipForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     id: string;
     name: string;
@@ -228,6 +250,40 @@ export async function updateRelationshipForManager(
       error: mapUpdateRelationshipError(error?.message ?? "Unknown error"),
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "relationships",
+    record_id: data.id,
+    old_data: {
+      name: existing.data.name,
+      phone: existing.data.phone,
+      relation_with: existing.data.relation_with,
+      major: existing.data.major,
+      speciality: existing.data.speciality,
+      is_useful: existing.data.is_useful,
+    },
+    new_data: {
+      name: data.name,
+      phone: data.phone,
+      relation_with: data.relation_with,
+      major: data.major,
+      speciality: data.speciality,
+      is_useful: data.is_useful,
+    },
+    metadata: {
+      note: "Relationship updated.",
+      changed_fields: [
+        "name",
+        "phone",
+        "relation_with",
+        "major",
+        "speciality",
+        "is_useful",
+      ],
+    },
+  });
 
   return {
     success: true,

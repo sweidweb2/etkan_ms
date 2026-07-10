@@ -11,6 +11,10 @@ import * as semesterRepository from "@/repositories/semester.repository";
 import type { SemesterRecord } from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
@@ -194,6 +198,7 @@ export async function getSemesterForManager(
 export async function createSemesterForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     name: string;
     nb_courses: number;
@@ -250,6 +255,19 @@ export async function createSemesterForManager(
     };
   }
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "semesters",
+    record_id: data.id,
+    new_data: {
+      name: data.name,
+      nb_courses: data.nb_courses,
+      amount: data.amount,
+    },
+    metadata: { note: "Semester created." },
+  });
+
   return {
     success: true,
     semester: mapSemesterRecordToRow(data),
@@ -296,6 +314,7 @@ export async function listUnlinkedClassesForManager(
 export async function connectClassToSemesterForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     semester_id: string;
     classId: string;
@@ -409,6 +428,21 @@ export async function connectClassToSemesterForManager(
   if (!classRow) {
     return { success: false, error: "Unable to load connected class." };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "classes",
+    record_id: data.id,
+    old_data: { semester_id: existingClass.data.semester_id },
+    new_data: { semester_id: data.semester_id },
+    metadata: {
+      note: "Class connected to semester.",
+      semester_id: input.semester_id,
+      semester_name: semesterResult.data.name,
+      changed_fields: ["semester_id"],
+    },
+  });
 
   return {
     success: true,

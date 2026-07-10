@@ -4,6 +4,10 @@ import { updateEquipmentSchema } from "@/lib/validators/manager/update-equipment
 import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
 import * as equipmentRepository from "@/repositories/equipment.repository";
 import type { EquipmentRecord } from "@/repositories/equipment.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerEquipmentRow } from "@/types/manager-equipment";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -176,6 +180,7 @@ export async function getEquipmentForManager(
 export async function createEquipmentForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     name: string;
     description?: string | null;
@@ -216,6 +221,20 @@ export async function createEquipmentForManager(
     };
   }
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "equipments",
+    record_id: data.id,
+    new_data: {
+      name: data.name,
+      description: data.description,
+      quantity: data.quantity,
+      unit_price: data.unit_price,
+    },
+    metadata: { note: "Equipment created." },
+  });
+
   return {
     success: true,
     equipment: mapEquipmentRecordToRow(data, 0),
@@ -226,6 +245,7 @@ export async function createEquipmentForManager(
 export async function updateEquipmentForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     id: string;
     name: string;
@@ -301,6 +321,29 @@ export async function updateEquipmentForManager(
       error: mapUpdateEquipmentError(error?.message ?? "Unknown error"),
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "equipments",
+    record_id: data.id,
+    old_data: {
+      name: existing.data.name,
+      description: existing.data.description,
+      quantity: existing.data.quantity,
+      unit_price: existing.data.unit_price,
+    },
+    new_data: {
+      name: data.name,
+      description: data.description,
+      quantity: data.quantity,
+      unit_price: data.unit_price,
+    },
+    metadata: {
+      note: "Equipment updated.",
+      changed_fields: ["name", "description", "quantity", "unit_price"],
+    },
+  });
 
   return {
     success: true,

@@ -3,6 +3,8 @@ import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import {
   addStudentToSemesterForManager,
   listAvailableStudentsForSemester,
@@ -12,9 +14,16 @@ import * as studentService from "@/services/student.service";
 
 vi.mock("@/repositories/student-semester.repository");
 vi.mock("@/repositories/semester.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/services/student.service");
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 const semesterId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 const studentProfileId = "b2b3c4d5-e6f7-8901-bcde-f12345678901";
 
@@ -129,14 +138,20 @@ describe("listAvailableStudentsForSemester", () => {
 describe("addStudentToSemesterForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized for non-manager", async () => {
-    const result = await addStudentToSemesterForManager(adminClient, ROLES.TEACHER, {
-      semester_id: semesterId,
-      student_profile_id: studentProfileId,
-      status: STUDENT_SEMESTER_STATUSES.PENDING,
-    });
+    const result = await addStudentToSemesterForManager(
+      adminClient,
+      ROLES.TEACHER,
+      actor,
+      {
+        semester_id: semesterId,
+        student_profile_id: studentProfileId,
+        status: STUDENT_SEMESTER_STATUSES.PENDING,
+      }
+    );
 
     expect(result).toEqual({ success: false, error: "Unauthorized." });
   });
@@ -171,6 +186,7 @@ describe("addStudentToSemesterForManager", () => {
     const result = await addStudentToSemesterForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       {
         semester_id: semesterId,
         student_profile_id: studentProfileId,
@@ -206,6 +222,7 @@ describe("addStudentToSemesterForManager", () => {
     const result = await addStudentToSemesterForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       {
         semester_id: semesterId,
         student_profile_id: studentProfileId,

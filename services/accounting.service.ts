@@ -27,6 +27,10 @@ import * as studentProfileRepository from "@/repositories/student-profile.reposi
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import * as subscribedSemesterRepository from "@/repositories/subscribed-semester.repository";
 import type { SubscribedSemesterRecord } from "@/repositories/subscribed-semester.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import { listStudentsForManager } from "@/services/student.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
@@ -578,6 +582,7 @@ async function assertSubscribedSemesterExists(
 export async function createPaymentForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     subscribed_semester_id: string;
     amount: number;
@@ -609,7 +614,7 @@ export async function createPaymentForManager(
     return { success: false, error: subscriptionCheck.error };
   }
 
-  const { error } = await paymentRepository.createPayment(adminClient, {
+  const { data, error } = await paymentRepository.createPayment(adminClient, {
     subscribed_semester_id: parsed.data.subscribed_semester_id,
     amount: parsed.data.amount,
     currency: parsed.data.currency,
@@ -617,9 +622,24 @@ export async function createPaymentForManager(
     paid_at: new Date(parsed.data.paid_at).toISOString(),
   });
 
-  if (error) {
+  if (error || !data) {
     return { success: false, error: "Unable to record payment. Please try again." };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "warning",
+    table_name: "payments",
+    record_id: data.id,
+    new_data: {
+      subscribed_semester_id: data.subscribed_semester_id,
+      amount: data.amount,
+      currency: data.currency,
+      method: data.method,
+      paid_at: data.paid_at,
+    },
+    metadata: { note: "Payment recorded." },
+  });
 
   return { success: true, message: "Payment recorded." };
 }
@@ -627,6 +647,7 @@ export async function createPaymentForManager(
 export async function updatePaymentForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     id: string;
     amount: number;
@@ -662,17 +683,44 @@ export async function updatePaymentForManager(
     return { success: false, error: "Payment not found." };
   }
 
-  const { error } = await paymentRepository.updatePayment(adminClient, input.id, {
-    subscribed_semester_id: existing.data.subscribed_semester_id,
-    amount: parsed.data.amount,
-    currency: parsed.data.currency,
-    method: parsed.data.method,
-    paid_at: new Date(parsed.data.paid_at).toISOString(),
-  });
+  const { data, error } = await paymentRepository.updatePayment(
+    adminClient,
+    input.id,
+    {
+      subscribed_semester_id: existing.data.subscribed_semester_id,
+      amount: parsed.data.amount,
+      currency: parsed.data.currency,
+      method: parsed.data.method,
+      paid_at: new Date(parsed.data.paid_at).toISOString(),
+    }
+  );
 
-  if (error) {
+  if (error || !data) {
     return { success: false, error: "Unable to update payment. Please try again." };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "warning",
+    table_name: "payments",
+    record_id: data.id,
+    old_data: {
+      amount: existing.data.amount,
+      currency: existing.data.currency,
+      method: existing.data.method,
+      paid_at: existing.data.paid_at,
+    },
+    new_data: {
+      amount: data.amount,
+      currency: data.currency,
+      method: data.method,
+      paid_at: data.paid_at,
+    },
+    metadata: {
+      note: "Payment updated.",
+      changed_fields: ["amount", "currency", "method", "paid_at"],
+    },
+  });
 
   return { success: true, message: "Payment updated." };
 }
@@ -680,6 +728,7 @@ export async function updatePaymentForManager(
 export async function updateSubscribedSemesterForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     id: string;
     amount: number;
@@ -709,7 +758,7 @@ export async function updateSubscribedSemesterForManager(
     return { success: false, error: subscriptionCheck.error };
   }
 
-  const { error } = await subscribedSemesterRepository.updateSubscribedSemester(
+  const { data, error } = await subscribedSemesterRepository.updateSubscribedSemester(
     adminClient,
     input.id,
     {
@@ -718,12 +767,31 @@ export async function updateSubscribedSemesterForManager(
     }
   );
 
-  if (error) {
+  if (error || !data) {
     return {
       success: false,
       error: "Unable to update subscription. Please try again.",
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "warning",
+    table_name: "subscribed_semesters",
+    record_id: data.id,
+    old_data: {
+      amount: subscriptionCheck.data.amount,
+      status: subscriptionCheck.data.status,
+    },
+    new_data: {
+      amount: data.amount,
+      status: data.status,
+    },
+    metadata: {
+      note: "Subscribed semester updated.",
+      changed_fields: ["amount", "status"],
+    },
+  });
 
   return { success: true, message: "Subscribed semester updated." };
 }
@@ -731,6 +799,7 @@ export async function updateSubscribedSemesterForManager(
 export async function createScheduledPaymentForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     subscribed_semester_id: string;
     payment_date: string;
@@ -762,7 +831,7 @@ export async function createScheduledPaymentForManager(
     return { success: false, error: subscriptionCheck.error };
   }
 
-  const { error } = await scheduledPaymentRepository.createScheduledPayment(
+  const { data, error } = await scheduledPaymentRepository.createScheduledPayment(
     adminClient,
     {
       subscribed_semester_id: parsed.data.subscribed_semester_id,
@@ -773,12 +842,27 @@ export async function createScheduledPaymentForManager(
     }
   );
 
-  if (error) {
+  if (error || !data) {
     return {
       success: false,
       error: "Unable to create scheduled payment. Please try again.",
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "warning",
+    table_name: "scheduled_payments",
+    record_id: data.id,
+    new_data: {
+      subscribed_semester_id: data.subscribed_semester_id,
+      payment_date: data.payment_date,
+      amount: data.amount,
+      status: data.status,
+      note: data.note,
+    },
+    metadata: { note: "Scheduled payment created." },
+  });
 
   return { success: true, message: "Scheduled payment created." };
 }
@@ -786,6 +870,7 @@ export async function createScheduledPaymentForManager(
 export async function updateScheduledPaymentForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     id: string;
     payment_date: string;
@@ -821,7 +906,7 @@ export async function updateScheduledPaymentForManager(
     return { success: false, error: "Scheduled payment not found." };
   }
 
-  const { error } = await scheduledPaymentRepository.updateScheduledPayment(
+  const { data, error } = await scheduledPaymentRepository.updateScheduledPayment(
     adminClient,
     input.id,
     {
@@ -832,12 +917,35 @@ export async function updateScheduledPaymentForManager(
     }
   );
 
-  if (error) {
+  if (error || !data) {
     return {
       success: false,
       error: "Unable to update scheduled payment. Please try again.",
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "warning",
+    table_name: "scheduled_payments",
+    record_id: data.id,
+    old_data: {
+      payment_date: existing.data.payment_date,
+      amount: existing.data.amount,
+      status: existing.data.status,
+      note: existing.data.note,
+    },
+    new_data: {
+      payment_date: data.payment_date,
+      amount: data.amount,
+      status: data.status,
+      note: data.note,
+    },
+    metadata: {
+      note: "Scheduled payment updated.",
+      changed_fields: ["payment_date", "amount", "status", "note"],
+    },
+  });
 
   return { success: true, message: "Scheduled payment updated." };
 }

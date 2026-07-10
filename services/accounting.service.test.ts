@@ -8,6 +8,8 @@ import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import * as subscribedSemesterRepository from "@/repositories/subscribed-semester.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import * as studentService from "@/services/student.service";
 import {
   createPaymentForManager,
@@ -23,9 +25,16 @@ vi.mock("@/repositories/semester.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-semester.repository");
 vi.mock("@/repositories/subscribed-semester.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/services/student.service");
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 const studentProfileId = "b2b3b4b5-b6b7-4890-bcde-f23456789012";
 const userId = "c3c4c5c6-c7c8-4901-cdef-345678901234";
 const accountId = "d4d5d6d7-d8d9-4012-defa-456789012345";
@@ -36,10 +45,11 @@ const semesterId = "a7a8a9a0-a1a2-4456-8bcd-789012345678";
 describe("createPaymentForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized for non-manager", async () => {
-    const result = await createPaymentForManager(adminClient, ROLES.TEACHER, {
+    const result = await createPaymentForManager(adminClient, ROLES.TEACHER, actor, {
       subscribed_semester_id: subscriptionId,
       amount: 100,
       currency: "USD",
@@ -77,7 +87,7 @@ describe("createPaymentForManager", () => {
       statusText: "Created",
     });
 
-    const result = await createPaymentForManager(adminClient, ROLES.MANAGER, {
+    const result = await createPaymentForManager(adminClient, ROLES.MANAGER, actor, {
       subscribed_semester_id: subscriptionId,
       amount: 100,
       currency: "USD",
@@ -87,12 +97,14 @@ describe("createPaymentForManager", () => {
 
     expect(result).toEqual({ success: true, message: "Payment recorded." });
     expect(paymentRepository.createPayment).toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
 });
 
 describe("updatePaymentForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns not found when payment is missing", async () => {
@@ -101,7 +113,7 @@ describe("updatePaymentForManager", () => {
       error: null,
     });
 
-    const result = await updatePaymentForManager(adminClient, ROLES.MANAGER, {
+    const result = await updatePaymentForManager(adminClient, ROLES.MANAGER, actor, {
       id: paymentId,
       amount: 50,
       currency: "USD",
@@ -116,6 +128,7 @@ describe("updatePaymentForManager", () => {
 describe("updateSubscribedSemesterForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("updates subscription when it exists", async () => {
@@ -145,19 +158,24 @@ describe("updateSubscribedSemesterForManager", () => {
       statusText: "OK",
     });
 
-    const result = await updateSubscribedSemesterForManager(adminClient, ROLES.MANAGER, {
-      id: subscriptionId,
-      amount: 600,
-      status: SUBSCRIBED_SEMESTER_STATUSES.OVERDUE,
-    });
+    const result = await updateSubscribedSemesterForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: subscriptionId,
+        amount: 600,
+        status: SUBSCRIBED_SEMESTER_STATUSES.OVERDUE,
+      }
+    );
 
     expect(result).toEqual({
       success: true,
       message: "Subscribed semester updated.",
     });
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
 });
-
 describe("getStudentAccountForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();

@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
 import { createSubjectForManager } from "@/services/subject.service";
@@ -10,7 +10,10 @@ export async function createSubjectAction(
   _prevState: CreateSubjectActionState,
   formData: FormData
 ): Promise<CreateSubjectActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
 
   const parsed = parseCreateSubjectFormData(formData);
 
@@ -26,6 +29,7 @@ export async function createSubjectAction(
   const result = await createSubjectForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 

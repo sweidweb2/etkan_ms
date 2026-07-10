@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import * as relationshipRepository from "@/repositories/relationship.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import {
   createRelationshipForManager,
   listRelationshipsForManager,
@@ -8,8 +10,15 @@ import {
 } from "@/services/relationship.service";
 
 vi.mock("@/repositories/relationship.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 
 const relationshipId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 
@@ -138,12 +147,14 @@ describe("listRelationshipsForManager", () => {
 describe("createRelationshipForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized when actor is not a manager", async () => {
     const result = await createRelationshipForManager(
       adminClient,
       ROLES.TEACHER,
+      actor,
       validCreateInput
     );
 
@@ -162,6 +173,7 @@ describe("createRelationshipForManager", () => {
     const result = await createRelationshipForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validCreateInput
     );
 
@@ -182,10 +194,15 @@ describe("createRelationshipForManager", () => {
   });
 
   it("returns validation errors for invalid input", async () => {
-    const result = await createRelationshipForManager(adminClient, ROLES.MANAGER, {
-      ...validCreateInput,
-      name: "",
-    });
+    const result = await createRelationshipForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        ...validCreateInput,
+        name: "",
+      }
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -206,6 +223,7 @@ describe("createRelationshipForManager", () => {
     const result = await createRelationshipForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validCreateInput
     );
 
@@ -219,12 +237,14 @@ describe("createRelationshipForManager", () => {
 describe("updateRelationshipForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized when actor is not a manager", async () => {
     const result = await updateRelationshipForManager(
       adminClient,
       ROLES.TEACHER,
+      actor,
       validUpdateInput
     );
 
@@ -243,6 +263,7 @@ describe("updateRelationshipForManager", () => {
     const result = await updateRelationshipForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validUpdateInput
     );
 
@@ -275,6 +296,7 @@ describe("updateRelationshipForManager", () => {
     const result = await updateRelationshipForManager(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validUpdateInput
     );
 
@@ -295,10 +317,15 @@ describe("updateRelationshipForManager", () => {
   });
 
   it("returns validation errors for invalid id", async () => {
-    const result = await updateRelationshipForManager(adminClient, ROLES.MANAGER, {
-      ...validUpdateInput,
-      id: "not-a-uuid",
-    });
+    const result = await updateRelationshipForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        ...validUpdateInput,
+        id: "not-a-uuid",
+      }
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {

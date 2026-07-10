@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStudentFormData } from "@/lib/validators/manager/create-student";
 import { parseUpdateStudentFormData } from "@/lib/validators/manager/update-student";
@@ -14,7 +14,10 @@ export async function createStudentAction(
   _prevState: CreateStudentActionState,
   formData: FormData
 ): Promise<CreateStudentActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
 
   const parsed = parseCreateStudentFormData(formData);
 
@@ -27,7 +30,12 @@ export async function createStudentAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await createStudent(adminClient, actorRole, parsed.data);
+  const result = await createStudent(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
 
   if (!result.success) {
     return {
@@ -48,7 +56,10 @@ export async function updateStudentAction(
   _prevState: UpdateStudentActionState,
   formData: FormData
 ): Promise<UpdateStudentActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
 
   const parsed = parseUpdateStudentFormData(formData);
 
@@ -61,7 +72,12 @@ export async function updateStudentAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await updateStudent(adminClient, actorRole, parsed.data);
+  const result = await updateStudent(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
 
   if (!result.success) {
     return {

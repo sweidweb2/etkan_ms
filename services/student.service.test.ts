@@ -7,6 +7,8 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
+import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import * as profileService from "@/services/profile.service";
 import * as roleService from "@/services/role.service";
 import {
@@ -22,10 +24,17 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-task.repository");
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/services/profile.service");
 vi.mock("@/services/role.service");
 
 const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
 
 const authUser = {
   id: "user-1",
@@ -216,10 +225,16 @@ describe("getStudentDetailStatsForManager", () => {
 describe("createStudent", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("rejects non-manager actors", async () => {
-    const result = await createStudent(adminClient, ROLES.TEACHER, validStudentInput);
+    const result = await createStudent(
+      adminClient,
+      ROLES.TEACHER,
+      actor,
+      validStudentInput
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -228,7 +243,7 @@ describe("createStudent", () => {
   });
 
   it("returns field errors for invalid input", async () => {
-    const result = await createStudent(adminClient, ROLES.MANAGER, {
+    const result = await createStudent(adminClient, ROLES.MANAGER, actor, {
       ...validStudentInput,
       email: "not-an-email",
     });
@@ -252,6 +267,7 @@ describe("createStudent", () => {
     const result = await createStudent(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validStudentInput
     );
 
@@ -280,6 +296,7 @@ describe("createStudent", () => {
     const result = await createStudent(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validStudentInput
     );
 
@@ -327,6 +344,7 @@ describe("createStudent", () => {
     const result = await createStudent(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validStudentInput
     );
 
@@ -382,6 +400,7 @@ describe("createStudent", () => {
     const result = await createStudent(
       adminClient,
       ROLES.MANAGER,
+      actor,
       validStudentInput
     );
 
@@ -407,10 +426,16 @@ describe("updateStudent", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("rejects non-manager actors", async () => {
-    const result = await updateStudent(adminClient, ROLES.TEACHER, updateInput);
+    const result = await updateStudent(
+      adminClient,
+      ROLES.TEACHER,
+      actor,
+      updateInput
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -448,7 +473,12 @@ describe("updateStudent", () => {
       statusText: "OK",
     });
 
-    const result = await updateStudent(adminClient, ROLES.MANAGER, updateInput);
+    const result = await updateStudent(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      updateInput
+    );
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -492,6 +522,10 @@ describe("updateStudent", () => {
       data: { user: authUser },
       error: null,
     });
+    vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
 
     vi.mocked(profileRepository.updateProfileById).mockResolvedValue({
       data: {
@@ -521,7 +555,12 @@ describe("updateStudent", () => {
 
     mockStudentLookups();
 
-    const result = await updateStudent(adminClient, ROLES.MANAGER, updateInput);
+    const result = await updateStudent(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      updateInput
+    );
 
     expect(result.success).toBe(true);
     if (result.success) {

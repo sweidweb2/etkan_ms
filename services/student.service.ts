@@ -9,6 +9,10 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import { ensureStudentRegistration } from "@/services/profile.service";
 import { syncAuthUserRole } from "@/services/role.service";
 import type { FieldErrors } from "@/types/auth";
@@ -265,6 +269,7 @@ export async function getStudentDetailStatsForManager(
 export async function createStudent(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     username: string;
     fullName: string;
@@ -407,6 +412,23 @@ export async function createStudent(
       // Email failures must not roll back a successfully created account.
     }
 
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "insert",
+      severity: "warning",
+      table_name: "student_profiles",
+      record_id: studentProfile.id,
+      new_data: {
+        user_id: studentProfile.user_id,
+        full_name: studentProfile.full_name,
+        birth_date: studentProfile.birth_date,
+        phone: studentProfile.phone,
+        status: studentProfile.status,
+        username: normalizedUsername,
+        email: normalizedEmail,
+      },
+      metadata: { note: "Student account created." },
+    });
+
     return {
       success: true,
       student,
@@ -425,6 +447,7 @@ export async function createStudent(
 export async function updateStudent(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     studentProfileId: string;
     userId: string;
@@ -542,6 +565,12 @@ export async function updateStudent(
     };
   }
 
+  const authUserResult = await authRepository.getAuthUserById(
+    adminClient,
+    userId
+  );
+  const oldEmail = authUserResult.data?.user?.email ?? null;
+
   const { error: profileError } = await profileRepository.updateProfileById(
     adminClient,
     userId,
@@ -604,6 +633,41 @@ export async function updateStudent(
       error: "Failed to load updated student.",
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "warning",
+    table_name: "student_profiles",
+    record_id: studentProfileId,
+    old_data: {
+      full_name: existingStudentProfile.data.full_name,
+      birth_date: existingStudentProfile.data.birth_date,
+      phone: existingStudentProfile.data.phone,
+      status: existingStudentProfile.data.status,
+      username: existingProfile.data.username,
+      email: oldEmail,
+    },
+    new_data: {
+      full_name: updatedStudentProfile.full_name,
+      birth_date: updatedStudentProfile.birth_date,
+      phone: updatedStudentProfile.phone,
+      status: updatedStudentProfile.status,
+      username: normalizedUsername,
+      email: normalizedEmail,
+    },
+    metadata: {
+      note: "Student details updated.",
+      changed_fields: [
+        "full_name",
+        "birth_date",
+        "phone",
+        "status",
+        "username",
+        "email",
+      ],
+      user_id: userId,
+    },
+  });
 
   return {
     success: true,

@@ -16,6 +16,10 @@ import * as equipmentRepository from "@/repositories/equipment.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
+import {
   getEquipmentForManager,
   listEquipmentsForManager,
 } from "@/services/equipment.service";
@@ -423,6 +427,7 @@ export async function listEquipmentBorrowsForManager(
 export async function createBorrowsForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: { items: Array<{ user_id: string; equipment_id: string; quantity: number }> }
 ): Promise<CreateBorrowsResult> {
   if (actorRole !== ROLES.MANAGER) {
@@ -491,6 +496,26 @@ export async function createBorrowsForManager(
 
   const createdCount = data.length;
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "borrow_equipment",
+    record_id: data[0]?.id ?? null,
+    new_data: {
+      ids: data.map((row) => row.id),
+      items: data.map((row) => ({
+        equipment_id: row.equipment_id,
+        user_id: row.user_id,
+        quantity: row.quantity,
+        status: row.status,
+      })),
+    },
+    metadata: {
+      note: "Borrow records created.",
+      createdCount,
+    },
+  });
+
   return {
     success: true,
     message: `${createdCount} borrow record${createdCount === 1 ? "" : "s"} saved.`,
@@ -501,6 +526,7 @@ export async function createBorrowsForManager(
 export async function updateBorrowRecordForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     id: string;
     quantity: number;
@@ -546,13 +572,18 @@ export async function updateBorrowRecordForManager(
     return stockError;
   }
 
+  const returnedAt = resolveReturnedAt(
+    parsed.data.status,
+    parsed.data.returnedAt
+  );
+
   const { error } = await borrowEquipmentRepository.updateBorrowRecord(
     adminClient,
     parsed.data.id,
     {
       quantity: parsed.data.quantity,
       status: parsed.data.status,
-      returned_at: resolveReturnedAt(parsed.data.status, parsed.data.returnedAt),
+      returned_at: returnedAt,
     }
   );
 
@@ -563,6 +594,27 @@ export async function updateBorrowRecordForManager(
     };
   }
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "borrow_equipment",
+    record_id: parsed.data.id,
+    old_data: {
+      quantity: existing.quantity,
+      status: existing.status,
+      returned_at: existing.returned_at,
+    },
+    new_data: {
+      quantity: parsed.data.quantity,
+      status: parsed.data.status,
+      returned_at: returnedAt,
+    },
+    metadata: {
+      note: "Borrow record updated.",
+      changed_fields: ["quantity", "status", "returned_at"],
+    },
+  });
+
   return {
     success: true,
     message: "Borrow record updated.",
@@ -572,6 +624,7 @@ export async function updateBorrowRecordForManager(
 export async function toggleBorrowReturnedForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: { id: string; isReturned: boolean }
 ): Promise<ToggleBorrowReturnedResult> {
   if (actorRole !== ROLES.MANAGER) {
@@ -614,15 +667,15 @@ export async function toggleBorrowReturnedForManager(
     }
   }
 
+  const returnedAt = parsed.data.isReturned ? new Date().toISOString() : null;
+
   const { error } = await borrowEquipmentRepository.updateBorrowRecord(
     adminClient,
     parsed.data.id,
     {
       quantity: existing.quantity ?? 1,
       status: nextStatus,
-      returned_at: parsed.data.isReturned
-        ? new Date().toISOString()
-        : null,
+      returned_at: returnedAt,
     }
   );
 
@@ -632,6 +685,27 @@ export async function toggleBorrowReturnedForManager(
       error: mapUpdateBorrowError(error.message),
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "borrow_equipment",
+    record_id: parsed.data.id,
+    old_data: {
+      status: existing.status,
+      returned_at: existing.returned_at,
+    },
+    new_data: {
+      status: nextStatus,
+      returned_at: returnedAt,
+    },
+    metadata: {
+      note: parsed.data.isReturned
+        ? "Equipment marked as returned."
+        : "Equipment marked as borrowed.",
+      changed_fields: ["status", "returned_at"],
+    },
+  });
 
   return {
     success: true,

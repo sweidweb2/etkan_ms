@@ -4,6 +4,10 @@ import { createNotificationSchema } from "@/lib/validators/manager/create-notifi
 import { updateNotificationSchema } from "@/lib/validators/manager/update-notification";
 import * as notificationRepository from "@/repositories/notification.repository";
 import type { NotificationRecord } from "@/repositories/notification.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   NotificationAudienceValue,
@@ -149,7 +153,7 @@ export async function listNotificationsForManager(
 export async function createNotificationForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
-  actorUserId: string | null,
+  actor: AuditActor,
   input: {
     title: string;
     body: string;
@@ -185,7 +189,7 @@ export async function createNotificationForManager(
       title: title.trim(),
       body: body.trim(),
       action_href: normalizeActionHref(action_href),
-      created_by: actorUserId,
+      created_by: actor.userId,
     }
   );
 
@@ -195,6 +199,21 @@ export async function createNotificationForManager(
       error: mapCreateNotificationError(error?.message ?? "Unknown error"),
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "notifications",
+    record_id: data.id,
+    new_data: {
+      title: data.title,
+      audience: data.audience,
+      category: data.category,
+      priority: data.priority,
+      action_href: data.action_href,
+    },
+    metadata: { note: "Notification created." },
+  });
 
   return {
     success: true,
@@ -206,6 +225,7 @@ export async function createNotificationForManager(
 export async function updateNotificationForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     id: string;
     title: string;
@@ -269,6 +289,31 @@ export async function updateNotificationForManager(
     };
   }
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "notifications",
+    record_id: data.id,
+    old_data: {
+      title: existing.data.title,
+      audience: existing.data.audience,
+      category: existing.data.category,
+      priority: existing.data.priority,
+      action_href: existing.data.action_href,
+    },
+    new_data: {
+      title: data.title,
+      audience: data.audience,
+      category: data.category,
+      priority: data.priority,
+      action_href: data.action_href,
+    },
+    metadata: {
+      note: "Notification updated.",
+      changed_fields: ["title", "body", "audience", "category", "priority", "action_href"],
+    },
+  });
+
   return {
     success: true,
     notification: mapNotificationRecordToRow(data),
@@ -279,6 +324,7 @@ export async function updateNotificationForManager(
 export async function markNotificationReadForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: { id?: string; mark_all?: boolean }
 ): Promise<MarkNotificationReadResult> {
   if (actorRole !== ROLES.MANAGER) {
@@ -296,6 +342,13 @@ export async function markNotificationReadForManager(
         error: "Unable to mark notifications as read. Please try again.",
       };
     }
+
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "update",
+      severity: "info",
+      table_name: "notifications",
+      metadata: { note: "All notifications marked as read." },
+    });
 
     return { success: true, message: "All notifications marked as read." };
   }
@@ -336,12 +389,23 @@ export async function markNotificationReadForManager(
     };
   }
 
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "notifications",
+    record_id: input.id,
+    old_data: { is_read: false },
+    new_data: { is_read: true },
+    metadata: { note: "Notification marked as read.", changed_fields: ["is_read"] },
+  });
+
   return { success: true, message: "Notification marked as read." };
 }
 
 export async function deleteNotificationForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   notificationId: string
 ): Promise<DeleteNotificationResult> {
   if (actorRole !== ROLES.MANAGER) {
@@ -375,6 +439,20 @@ export async function deleteNotificationForManager(
       error: "Unable to delete notification. Please try again.",
     };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "critical",
+    table_name: "notifications",
+    record_id: notificationId,
+    old_data: {
+      title: existing.data.title,
+      audience: existing.data.audience,
+      category: existing.data.category,
+      priority: existing.data.priority,
+    },
+    metadata: { note: "Notification deleted." },
+  });
 
   return { success: true, message: "Notification deleted." };
 }

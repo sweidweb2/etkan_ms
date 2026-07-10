@@ -9,6 +9,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { AuditLogActionBadge } from "@/components/manager/logs/audit-log-action-badge";
+import { AuditLogSeverityBadge } from "@/components/manager/logs/audit-log-severity-badge";
 import { LogDetailsDialog } from "@/components/manager/logs/log-details-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,8 @@ import {
 import {
   AUDIT_LOG_ACTION_LABELS,
   AUDIT_LOG_ACTION_VALUES,
+  AUDIT_LOG_SEVERITY_LABELS,
+  AUDIT_LOG_SEVERITY_VALUES,
 } from "@/lib/constants/manager-audit-log-display";
 import {
   BACKUP_TABLE_LABELS,
@@ -48,6 +51,7 @@ import type { ManagerAuditLogRow } from "@/types/manager-audit-log";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const ACTION_FILTER_ALL = "all";
+const SEVERITY_FILTER_ALL = "all";
 const TABLE_FILTER_ALL = "all";
 const ACTOR_FILTER_ALL = "all";
 const TIME_FILTER_ALL = "all";
@@ -215,6 +219,17 @@ function matchesActionFilter(log: ManagerAuditLogRow, actionFilter: string) {
   return log.action === actionFilter;
 }
 
+function matchesSeverityFilter(
+  log: ManagerAuditLogRow,
+  severityFilter: string
+) {
+  if (severityFilter === SEVERITY_FILTER_ALL) {
+    return true;
+  }
+
+  return log.severity === severityFilter;
+}
+
 function matchesTableFilter(log: ManagerAuditLogRow, tableFilter: string) {
   if (tableFilter === TABLE_FILTER_ALL) {
     return true;
@@ -262,6 +277,7 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
   const logs = initialLogs;
   const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState(ACTION_FILTER_ALL);
+  const [severityFilter, setSeverityFilter] = useState(SEVERITY_FILTER_ALL);
   const [tableFilter, setTableFilter] = useState(TABLE_FILTER_ALL);
   const [actorFilter, setActorFilter] = useState(ACTOR_FILTER_ALL);
   const [timeFilter, setTimeFilter] = useState(TIME_FILTER_ALL);
@@ -309,6 +325,7 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
       return (
         matchesSearch(log, searchQuery) &&
         matchesActionFilter(log, actionFilter) &&
+        matchesSeverityFilter(log, severityFilter) &&
         matchesTableFilter(log, tableFilter) &&
         matchesActorFilter(log, actorFilter) &&
         matchesTimeWindowFilter(log, timeFilter, nowMs)
@@ -320,6 +337,7 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
     logs,
     nowMs,
     searchQuery,
+    severityFilter,
     tableFilter,
     timeFilter,
   ]);
@@ -349,6 +367,11 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
     resetToFirstPage();
   };
 
+  const handleSeverityFilterChange = (value: string | null) => {
+    setSeverityFilter(value ?? SEVERITY_FILTER_ALL);
+    resetToFirstPage();
+  };
+
   const handleTableFilterChange = (value: string | null) => {
     setTableFilter(value ?? TABLE_FILTER_ALL);
     resetToFirstPage();
@@ -367,6 +390,7 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
   const handleClearFilters = () => {
     setSearchQuery("");
     setActionFilter(ACTION_FILTER_ALL);
+    setSeverityFilter(SEVERITY_FILTER_ALL);
     setTableFilter(TABLE_FILTER_ALL);
     setActorFilter(ACTOR_FILTER_ALL);
     setTimeFilter(TIME_FILTER_ALL);
@@ -385,6 +409,7 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
   const hasActiveFilters =
     searchQuery.trim() !== "" ||
     actionFilter !== ACTION_FILTER_ALL ||
+    severityFilter !== SEVERITY_FILTER_ALL ||
     tableFilter !== TABLE_FILTER_ALL ||
     actorFilter !== ACTOR_FILTER_ALL ||
     timeFilter !== TIME_FILTER_ALL;
@@ -435,8 +460,8 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
           <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Audit log</CardTitle>
             <CardDescription>
-              Filter by action, table, actor, or time window, then open a row for
-              full change details.
+              Filter by action, severity, table, actor, or time window, then open
+              a row for full change details.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-0">
@@ -474,6 +499,33 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
                   {AUDIT_LOG_ACTION_VALUES.map((action) => (
                     <SelectItem key={action} value={action}>
                       {AUDIT_LOG_ACTION_LABELS[action]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={severityFilter}
+                onValueChange={handleSeverityFilterChange}
+              >
+                <SelectTrigger
+                  className="w-full sm:w-32"
+                  aria-label="Filter by severity"
+                >
+                  <SelectValue placeholder="Severity">
+                    {(value) =>
+                      !value || value === SEVERITY_FILTER_ALL
+                        ? "Severity"
+                        : (AUDIT_LOG_SEVERITY_LABELS[
+                            value as keyof typeof AUDIT_LOG_SEVERITY_LABELS
+                          ] ?? String(value))
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={SEVERITY_FILTER_ALL}>Severity</SelectItem>
+                  {AUDIT_LOG_SEVERITY_VALUES.map((severity) => (
+                    <SelectItem key={severity} value={severity}>
+                      {AUDIT_LOG_SEVERITY_LABELS[severity]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -604,7 +656,10 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
                             />
                           </td>
                           <td className="px-4 py-3">
-                            <AuditLogActionBadge action={log.action} />
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <AuditLogActionBadge action={log.action} />
+                              <AuditLogSeverityBadge severity={log.severity} />
+                            </div>
                           </td>
                           <td className="max-w-[8rem] px-4 py-3">
                             <TruncatedCell

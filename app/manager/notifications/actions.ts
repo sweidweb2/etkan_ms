@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionRole, getSessionUser } from "@/lib/auth/session";
+import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateNotificationFormData } from "@/lib/validators/manager/create-notification";
 import { parseMarkNotificationReadFormData } from "@/lib/validators/manager/mark-notifications-read";
@@ -23,8 +23,10 @@ export async function createNotificationAction(
   _prevState: CreateNotificationActionState,
   formData: FormData
 ): Promise<CreateNotificationActionState> {
-  const actorRole = await getSessionRole();
-  const user = await getSessionUser();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseCreateNotificationFormData(formData);
 
   if (!parsed.success) {
@@ -39,7 +41,7 @@ export async function createNotificationAction(
   const result = await createNotificationForManager(
     adminClient,
     actorRole,
-    user?.id ?? null,
+    actor,
     parsed.data
   );
 
@@ -62,7 +64,10 @@ export async function updateNotificationAction(
   _prevState: UpdateNotificationActionState,
   formData: FormData
 ): Promise<UpdateNotificationActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseUpdateNotificationFormData(formData);
 
   if (!parsed.success) {
@@ -77,6 +82,7 @@ export async function updateNotificationAction(
   const result = await updateNotificationForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -99,7 +105,10 @@ export async function markNotificationReadAction(
   _prevState: MarkNotificationReadActionState,
   formData: FormData
 ): Promise<MarkNotificationReadActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseMarkNotificationReadFormData(formData);
 
   if (!parsed.success) {
@@ -113,6 +122,7 @@ export async function markNotificationReadAction(
   const result = await markNotificationReadForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data
   );
 
@@ -133,7 +143,10 @@ export async function deleteNotificationAction(
   _prevState: DeleteNotificationActionState,
   formData: FormData
 ): Promise<DeleteNotificationActionState> {
-  const actorRole = await getSessionRole();
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
   const parsed = parseNotificationIdFormData(formData);
 
   if (!parsed.success) {
@@ -147,6 +160,7 @@ export async function deleteNotificationAction(
   const result = await deleteNotificationForManager(
     adminClient,
     actorRole,
+    actor,
     parsed.data.id
   );
 

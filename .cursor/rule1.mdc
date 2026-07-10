@@ -46,6 +46,7 @@ The app follows a **layered architecture** with strict separation of concerns.
   - Combines multiple repositories when needed.
   - Contains authorization checks, validation, and domain rules.
   - **Always write an audit log** for every mutating backend operation (create, update, delete, and other state-changing use cases).
+  - Set audit `severity`: `info` for routine non-destructive creates/updates; `warning` for sensitive money, account, or access changes; `critical` for deletes and irreversible/high-impact changes.
   - **Never talks directly to Supabase**.
 
 - `repositories/`

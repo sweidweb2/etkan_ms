@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { MessageSquareTextIcon } from "lucide-react";
 import { AuditLogActionBadge } from "@/components/manager/logs/audit-log-action-badge";
+import { AuditLogSeverityBadge } from "@/components/manager/logs/audit-log-severity-badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -71,6 +72,15 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
                 </dt>
                 <dd>
                   <AuditLogActionBadge action={log.action} />
+                </dd>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Severity
+                </dt>
+                <dd>
+                  <AuditLogSeverityBadge severity={log.severity} />
                 </dd>
               </div>
 

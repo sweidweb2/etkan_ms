@@ -7,6 +7,10 @@ import { addStudentToSemesterSchema } from "@/lib/validators/manager/add-student
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import type { StudentSemesterRecord } from "@/repositories/student-semester.repository";
+import {
+  recordManagerAuditLog,
+  type AuditActor,
+} from "@/services/audit-log.service";
 import { listStudentsForManager } from "@/services/student.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerStudentRow } from "@/types/manager-student";
@@ -150,6 +154,7 @@ export async function listAvailableStudentsForSemester(
 export async function addStudentToSemesterForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
+  actor: AuditActor,
   input: {
     semester_id: string;
     student_profile_id: string;
@@ -234,6 +239,23 @@ export async function addStudentToSemesterForManager(
   if (!student) {
     return { success: false, error: "Student not found." };
   }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "student_semester",
+    record_id: data.id,
+    new_data: {
+      student_profile_id: data.student_profile_id,
+      semester_id: data.semester_id,
+      status: data.status,
+    },
+    metadata: {
+      note: "Student added to semester.",
+      student_name: student.full_name,
+      semester_name: semesterResult.data.name,
+    },
+  });
 
   return {
     success: true,
