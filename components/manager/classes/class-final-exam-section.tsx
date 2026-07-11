@@ -152,6 +152,7 @@ export function ClassFinalExamSection({
           onOpenChange={setIsEditGradeOpen}
           studentGrade={selectedStudentGrade}
           maxGrade={finalExam?.max_grade ?? null}
+          dueDate={finalExam?.due_date ?? null}
           onStudentGradeUpdated={handleUpdateStudentGrade}
         />
       ) : null}

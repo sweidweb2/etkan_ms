@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { format } from "date-fns";
 import { updateStudentFinalExamGradeAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -25,11 +26,13 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
+import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import {
-  editStudentFinalExamGradeSchema,
+  createEditStudentFinalExamGradeSchema,
   STUDENT_FINAL_EXAM_STATUS_VALUES,
   type EditStudentFinalExamGradeInput,
 } from "@/lib/validators/manager/edit-student-finalexam-grade";
+import { resolveStudentWorkStatusOnSave } from "@/lib/validators/manager/resolve-student-work-status";
 import { cn } from "@/lib/utils";
 import type { UpdateStudentFinalExamGradeActionState } from "@/types/manager-class-detail";
 import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
@@ -41,15 +44,16 @@ type EditStudentFinalExamGradeSheetProps = {
   onOpenChange: (open: boolean) => void;
   studentGrade: ManagerStudentFinalExamGradeRow | null;
   maxGrade: number | null;
+  dueDate?: string | null;
   onStudentGradeUpdated: (row: ManagerStudentFinalExamGradeRow) => void;
 };
 
-function toDatetimeLocalValue(value: string | null) {
+function toDatetimeLocalValue(value: string | Date | null) {
   if (!value) {
     return "";
   }
 
-  const date = new Date(value);
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
@@ -64,6 +68,7 @@ export function EditStudentFinalExamGradeSheet({
   onOpenChange,
   studentGrade,
   maxGrade,
+  dueDate = null,
   onStudentGradeUpdated,
 }: EditStudentFinalExamGradeSheetProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -72,6 +77,20 @@ export function EditStudentFinalExamGradeSheet({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const [gradedAtPreview, setGradedAtPreview] = useState("");
+
+  const schema = useMemo(
+    () => createEditStudentFinalExamGradeSchema(maxGrade, dueDate),
+    [dueDate, maxGrade]
+  );
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && isPending) {
+      return;
+    }
+
+    onOpenChange(nextOpen);
+  }
 
   useActionStateToast(state, isPending);
 
@@ -83,32 +102,43 @@ export function EditStudentFinalExamGradeSheet({
     watch,
     formState: { errors },
   } = useZodForm({
-    schema: editStudentFinalExamGradeSchema,
+    schema,
     mode: "onBlur",
     defaultValues: {
       status: "pending",
       grade: "",
       notes: "",
       submitted_at: "",
-      graded_at: "",
     },
   });
 
   const selectedStatus = watch("status");
+  const gradeValue = watch("grade");
+  const hasGradeValue =
+    gradeValue !== undefined &&
+    gradeValue !== "" &&
+    !Number.isNaN(Number(gradeValue));
+  const showAnalyticsHint =
+    hasGradeValue &&
+    selectedStatus !== STUDENT_TASK_STATUSES.GRADED &&
+    selectedStatus !== STUDENT_TASK_STATUSES.LATE &&
+    selectedStatus !== STUDENT_TASK_STATUSES.PENDING &&
+    selectedStatus !== STUDENT_TASK_STATUSES.MISSING;
 
   useEffect(() => {
     if (!open || !studentGrade) {
       return;
     }
 
+    setGradedAtPreview(toDatetimeLocalValue(new Date()));
+
     reset({
       status: studentGrade.status,
       grade: studentGrade.grade === null ? "" : studentGrade.grade,
       notes: studentGrade.notes ?? "",
       submitted_at: toDatetimeLocalValue(studentGrade.submitted_at),
-      graded_at: toDatetimeLocalValue(studentGrade.graded_at),
     });
-  }, [open, reset, studentGrade]);
+  }, [open, reset, schema, studentGrade]);
 
   useActionStateSuccess(
     state,
@@ -133,9 +163,15 @@ export function EditStudentFinalExamGradeSheet({
       return;
     }
 
+    const resolvedStatus = resolveStudentWorkStatusOnSave({
+      status: values.status,
+      grade: values.grade,
+      dueDate,
+    });
+
     const formData = new FormData();
     formData.set("id", studentGrade.id);
-    formData.set("status", values.status);
+    formData.set("status", resolvedStatus);
     formData.set(
       "grade",
       values.grade === undefined || values.grade === ""
@@ -144,7 +180,6 @@ export function EditStudentFinalExamGradeSheet({
     );
     formData.set("notes", values.notes ?? "");
     formData.set("submitted_at", values.submitted_at ?? "");
-    formData.set("graded_at", values.graded_at ?? "");
 
     startTransition(() => {
       formAction(formData);
@@ -154,10 +189,17 @@ export function EditStudentFinalExamGradeSheet({
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
   const gradeError = errors.grade?.message ?? state.fieldErrors?.grade?.[0];
   const notesError = errors.notes?.message ?? state.fieldErrors?.notes?.[0];
+  const gradedAtDisplay = gradedAtPreview
+    ? format(new Date(gradedAtPreview), "MMM d, yyyy 'at' h:mm a")
+    : "—";
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md">
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-md"
+        showCloseButton={!isPending}
+      >
         <SheetHeader>
           <SheetTitle>{studentGrade.full_name}</SheetTitle>
           <SheetDescription>
@@ -222,7 +264,7 @@ export function EditStudentFinalExamGradeSheet({
               id="edit-student-finalexam-grade"
               type="number"
               min={0}
-              max={maxGrade ?? 999}
+              max={maxGrade ?? undefined}
               step={0.5}
               aria-invalid={!!gradeError}
               disabled={isPending}
@@ -230,6 +272,11 @@ export function EditStudentFinalExamGradeSheet({
             />
             {gradeError ? (
               <p className="text-sm text-destructive">{gradeError}</p>
+            ) : null}
+            {showAnalyticsHint ? (
+              <p className="text-sm text-muted-foreground">
+                Grade won&apos;t count as graded until status is Graded or Late.
+              </p>
             ) : null}
           </div>
 
@@ -272,13 +319,16 @@ export function EditStudentFinalExamGradeSheet({
             <FieldLabel
               htmlFor="edit-student-finalexam-graded-at"
               label="Graded at"
-              hint="Optional"
+              hint="Automatic on save"
             />
             <Input
               id="edit-student-finalexam-graded-at"
-              type="datetime-local"
-              disabled={isPending}
-              {...register("graded_at")}
+              type="text"
+              readOnly
+              tabIndex={-1}
+              value={gradedAtDisplay}
+              disabled
+              className="bg-muted/50"
             />
           </div>
         </form>
@@ -287,7 +337,7 @@ export function EditStudentFinalExamGradeSheet({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={isPending}
           >
             Cancel
@@ -297,14 +347,8 @@ export function EditStudentFinalExamGradeSheet({
             form="edit-student-finalexam-grade-form"
             disabled={isPending}
           >
-            {isPending ? (
-              <>
-                <InlineSpinner className="mr-2" />
-                Saving
-              </>
-            ) : (
-              "Save changes"
-            )}
+            {isPending ? <InlineSpinner /> : null}
+            Save changes
           </Button>
         </SheetFooter>
       </SheetContent>

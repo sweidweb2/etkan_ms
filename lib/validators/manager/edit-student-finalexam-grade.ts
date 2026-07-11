@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
+import { resolveStudentWorkStatusOnSave } from "@/lib/validators/manager/resolve-student-work-status";
 import type { FieldErrors } from "@/types/auth";
 
 export const STUDENT_FINAL_EXAM_STATUS_VALUES = [
@@ -11,27 +12,53 @@ export const STUDENT_FINAL_EXAM_STATUS_VALUES = [
   STUDENT_TASK_STATUSES.MISSING,
 ] as const;
 
-export const editStudentFinalExamGradeSchema = z.object({
-  status: z.enum(STUDENT_FINAL_EXAM_STATUS_VALUES, {
-    message: "Status is required.",
-  }),
-  grade: z
+function gradeFieldSchema(maxGrade: number | null) {
+  const upperBound = maxGrade ?? 999;
+  const maxMessage =
+    maxGrade === null
+      ? "Grade must be at most 999."
+      : `Grade must be at most ${maxGrade}.`;
+
+  return z
     .union([
       z.literal(""),
       z.coerce
         .number()
         .min(0, { message: "Grade must be at least 0." })
-        .max(999, { message: "Grade must be at most 999." }),
+        .max(upperBound, { message: maxMessage }),
     ])
-    .optional(),
-  notes: z
-    .string()
-    .trim()
-    .max(500, { message: "Notes must be at most 500 characters." })
-    .optional(),
-  submitted_at: z.string().trim().optional(),
-  graded_at: z.string().trim().optional(),
-});
+    .optional();
+}
+
+export function createEditStudentFinalExamGradeSchema(
+  maxGrade: number | null,
+  dueDate?: string | null
+) {
+  return z
+    .object({
+      status: z.enum(STUDENT_FINAL_EXAM_STATUS_VALUES, {
+        message: "Status is required.",
+      }),
+      grade: gradeFieldSchema(maxGrade),
+      notes: z
+        .string()
+        .trim()
+        .max(500, { message: "Notes must be at most 500 characters." })
+        .optional(),
+      submitted_at: z.string().trim().optional(),
+    })
+    .transform((data) => ({
+      ...data,
+      status: resolveStudentWorkStatusOnSave({
+        status: data.status,
+        grade: data.grade,
+        dueDate,
+      }),
+    }));
+}
+
+export const editStudentFinalExamGradeSchema =
+  createEditStudentFinalExamGradeSchema(null);
 
 export type EditStudentFinalExamGradeInput = z.infer<
   typeof editStudentFinalExamGradeSchema
@@ -54,7 +81,6 @@ export function parseEditStudentFinalExamGradeFormData(formData: FormData):
     grade: formData.get("grade") ?? undefined,
     notes: formData.get("notes") ?? undefined,
     submitted_at: formData.get("submitted_at") ?? undefined,
-    graded_at: formData.get("graded_at") ?? undefined,
   });
 
   if (!parsed.success) {

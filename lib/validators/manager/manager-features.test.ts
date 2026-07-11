@@ -8,6 +8,7 @@ import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create
 import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
 import { parseEditStudentTaskFormData, createEditStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
+import { createEditStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { parseUpdateRelationshipFormData } from "@/lib/validators/manager/update-relationship";
 import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
 import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
@@ -717,6 +718,45 @@ describe("parseEditStudentTaskFormData", () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.status).toBe("missing");
+    }
+  });
+
+  it("promotes missing to late when a grade is provided", () => {
+    const schema = createEditStudentTaskSchema(20, "2099-01-01T00:00:00.000Z");
+    const parsed = schema.safeParse({
+      status: "missing",
+      grade: "15",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("late");
+    }
+  });
+});
+
+describe("createEditStudentFinalExamGradeSchema", () => {
+  it("rejects grade above final exam max", () => {
+    const schema = createEditStudentFinalExamGradeSchema(50);
+    const parsed = schema.safeParse({
+      status: "graded",
+      grade: "55",
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("promotes missing to late when a grade is provided", () => {
+    const schema = createEditStudentFinalExamGradeSchema(100, "2099-01-01T00:00:00.000Z");
+    const parsed = schema.safeParse({
+      status: "missing",
+      grade: "72",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("late");
+      expect(parsed.data.grade).toBe(72);
     }
   });
 });

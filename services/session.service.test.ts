@@ -649,6 +649,79 @@ describe("updateStudentTaskForManager", () => {
     );
   });
 
+  it("promotes missing to late when a grade is provided", async () => {
+    vi.mocked(studentTaskRepository.findStudentTaskById).mockResolvedValue({
+      data: {
+        id: studentTaskId,
+        task_id: taskId,
+        student_id: studentA,
+        status: STUDENT_TASK_STATUSES.MISSING,
+        submitted_at: null,
+        grade: null,
+        notes: null,
+        graded_at: null,
+      },
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+      data: {
+        id: taskId,
+        session_id: sessionId,
+        title: "Homework",
+        description: null,
+        due_date: "2020-01-01T00:00:00.000Z",
+        max_grade: 20,
+        created_at: "2026-07-01T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.updateStudentTask).mockResolvedValue({
+      data: {
+        id: studentTaskId,
+        task_id: taskId,
+        student_id: studentA,
+        status: STUDENT_TASK_STATUSES.LATE,
+        submitted_at: null,
+        grade: 14,
+        notes: null,
+        graded_at: "2026-07-11T12:00:00.000Z",
+      },
+      error: null,
+    } as never);
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesByUserIds
+    ).mockResolvedValue({
+      data: [{ user_id: studentA, full_name: "Alice" }],
+      error: null,
+    } as never);
+    mockAuthEmails([{ id: studentA, email: "alice@example.com" }]);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await updateStudentTaskForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: studentTaskId,
+        status: STUDENT_TASK_STATUSES.MISSING,
+        grade: 14,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(studentTaskRepository.updateStudentTask).toHaveBeenCalledWith(
+      adminClient,
+      studentTaskId,
+      expect.objectContaining({
+        status: STUDENT_TASK_STATUSES.LATE,
+        grade: 14,
+      })
+    );
+  });
+
   it("demotes graded to pending when grade is cleared", async () => {
     vi.mocked(studentTaskRepository.findStudentTaskById).mockResolvedValue({
       data: {

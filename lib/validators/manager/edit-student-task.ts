@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
+import {
+  isStudentWorkPastDue,
+  resolveStudentWorkStatusOnSave,
+} from "@/lib/validators/manager/resolve-student-work-status";
 import type { FieldErrors } from "@/types/auth";
 
 export const STUDENT_TASK_STATUS_VALUES = [
@@ -29,21 +33,8 @@ function gradeFieldSchema(maxGrade: number | null) {
     .optional();
 }
 
-function hasProvidedGrade(grade: string | number | undefined) {
-  return grade !== undefined && grade !== "";
-}
-
-export function isStudentTaskPastDue(
-  dueDate: string | null | undefined,
-  now: Date = new Date()
-) {
-  if (!dueDate) {
-    return false;
-  }
-
-  const due = new Date(dueDate);
-  return !Number.isNaN(due.getTime()) && due.getTime() < now.getTime();
-}
+export { isStudentWorkPastDue as isStudentTaskPastDue };
+export { resolveStudentWorkStatusOnSave as resolveStudentTaskStatusOnSave };
 
 export type ResolveStudentTaskStatusInput<
   TStatus extends (typeof STUDENT_TASK_STATUS_VALUES)[number],
@@ -53,34 +44,6 @@ export type ResolveStudentTaskStatusInput<
   dueDate?: string | null;
   now?: Date;
 };
-
-/** Applies grade and due-date rules before persisting a student task update. */
-export function resolveStudentTaskStatusOnSave<
-  TStatus extends (typeof STUDENT_TASK_STATUS_VALUES)[number],
->(input: ResolveStudentTaskStatusInput<TStatus>): TStatus {
-  const { status, grade, dueDate, now = new Date() } = input;
-  const hasGrade = hasProvidedGrade(grade);
-
-  if (hasGrade && status === STUDENT_TASK_STATUSES.PENDING) {
-    return STUDENT_TASK_STATUSES.GRADED as TStatus;
-  }
-
-  let resolved = status;
-
-  if (!hasGrade && status === STUDENT_TASK_STATUSES.GRADED) {
-    resolved = STUDENT_TASK_STATUSES.PENDING as TStatus;
-  }
-
-  if (
-    !hasGrade &&
-    resolved === STUDENT_TASK_STATUSES.PENDING &&
-    isStudentTaskPastDue(dueDate, now)
-  ) {
-    return STUDENT_TASK_STATUSES.MISSING as TStatus;
-  }
-
-  return resolved;
-}
 
 export function createEditStudentTaskSchema(
   maxGrade: number | null,
@@ -101,7 +64,7 @@ export function createEditStudentTaskSchema(
     })
     .transform((data) => ({
       ...data,
-      status: resolveStudentTaskStatusOnSave({
+      status: resolveStudentWorkStatusOnSave({
         status: data.status,
         grade: data.grade,
         dueDate,

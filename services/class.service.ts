@@ -21,7 +21,7 @@ import { updateClassSchema } from "@/lib/validators/manager/update-class";
 import { createClassSchema } from "@/lib/validators/manager/create-class";
 import { createClassSessionSchema } from "@/lib/validators/manager/create-class-session";
 import { createFinalExamSchema } from "@/lib/validators/manager/create-final-exam";
-import { editStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
+import { createEditStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { updateFinalExamSchema } from "@/lib/validators/manager/update-final-exam";
 import { addStudentToClassSchema } from "@/lib/validators/manager/add-student-to-class";
 import { updateStudentClassStatusSchema } from "@/lib/validators/manager/update-student-class-status";
@@ -1879,27 +1879,10 @@ export async function updateStudentFinalExamGradeForManager(
     grade?: string | number;
     notes?: string;
     submitted_at?: string;
-    graded_at?: string;
   }
 ): Promise<UpdateStudentFinalExamGradeResult> {
   if (actorRole !== ROLES.MANAGER) {
     return { success: false, error: "Unauthorized." };
-  }
-
-  const parsed = editStudentFinalExamGradeSchema.safeParse({
-    status: input.status,
-    grade: input.grade,
-    notes: input.notes,
-    submitted_at: input.submitted_at,
-    graded_at: input.graded_at,
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
   }
 
   const existing = await finalExamRepository.findStudentFinalExamGradeById(
@@ -1915,10 +1898,47 @@ export async function updateStudentFinalExamGradeForManager(
     return { success: false, error: "Final exam grade not found." };
   }
 
+  const finalExamResult = await finalExamRepository.findFinalExamById(
+    adminClient,
+    existing.data.final_exam_id
+  );
+
+  if (finalExamResult.error) {
+    return { success: false, error: finalExamResult.error.message };
+  }
+
+  if (!finalExamResult.data) {
+    return { success: false, error: "Final exam not found." };
+  }
+
+  const parsed = createEditStudentFinalExamGradeSchema(
+    finalExamResult.data.max_grade,
+    finalExamResult.data.due_date
+  ).safeParse({
+    status: input.status,
+    grade: input.grade,
+    notes: input.notes,
+    submitted_at: input.submitted_at,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
   const grade =
     parsed.data.grade === "" || parsed.data.grade === undefined
       ? null
       : Number(parsed.data.grade);
+
+  const gradedAt = new Date().toISOString();
+  const shouldSetGradedAt =
+    grade !== null &&
+    (parsed.data.status === STUDENT_TASK_STATUSES.GRADED ||
+      parsed.data.status === STUDENT_TASK_STATUSES.LATE);
 
   const { data, error } = await finalExamRepository.updateStudentFinalExamGrade(
     adminClient,
@@ -1928,7 +1948,7 @@ export async function updateStudentFinalExamGradeForManager(
       grade,
       notes: normalizeOptionalString(parsed.data.notes),
       submitted_at: toIsoOrNull(parsed.data.submitted_at),
-      graded_at: toIsoOrNull(parsed.data.graded_at),
+      graded_at: shouldSetGradedAt ? gradedAt : null,
     }
   );
 

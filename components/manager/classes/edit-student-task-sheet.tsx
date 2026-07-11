@@ -112,7 +112,8 @@ export function EditStudentTaskSheet({
     hasGradeValue &&
     selectedStatus !== STUDENT_TASK_STATUSES.GRADED &&
     selectedStatus !== STUDENT_TASK_STATUSES.LATE &&
-    selectedStatus !== STUDENT_TASK_STATUSES.PENDING;
+    selectedStatus !== STUDENT_TASK_STATUSES.PENDING &&
+    selectedStatus !== STUDENT_TASK_STATUSES.MISSING;
 
   useEffect(() => {
     if (!open || !studentTask) {
