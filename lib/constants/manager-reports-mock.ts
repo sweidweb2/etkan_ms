@@ -16,6 +16,7 @@ import { getManagerStudentClassDetailPreview } from "@/lib/manager/get-manager-s
 import {
   computeManagerStudentCourseFinalGrade,
   formatCourseGradeValue,
+  getManagerStudentCourseGradePreviewField,
 } from "@/lib/constants/manager-student-course-grade-display";
 import { MANAGER_STUDENTS_MOCK } from "@/lib/constants/manager-students-mock";
 import { MANAGER_USERS_MOCK } from "@/lib/constants/manager-users-mock";
@@ -427,9 +428,13 @@ function buildStudentTranscript(filters: ReportFilters): ReportRow[] {
     return {
       class_name: cls.name,
       subject_name: cls.subject_name,
-      attendance_grade: formatCourseGradeValue(grade?.attendee_grade),
+      attendance_grade: formatCourseGradeValue(
+        getManagerStudentCourseGradePreviewField(grade, "attendee_grade")
+      ),
       task_grade: formatCourseGradeValue(grade?.task_total_grade),
-      group_grade: formatCourseGradeValue(grade?.total_group_grade),
+      group_grade: formatCourseGradeValue(
+        getManagerStudentCourseGradePreviewField(grade, "total_group_grade")
+      ),
       exam_grade: formatCourseGradeValue(grade?.final_exam_grade),
       final_grade: formatCourseGradeValue(finalGrade),
     };

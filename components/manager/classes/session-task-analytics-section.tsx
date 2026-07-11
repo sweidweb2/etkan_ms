@@ -6,8 +6,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -54,7 +52,7 @@ function CompletionBarTooltip({
   );
 }
 
-function GradeLineTooltip({
+function GradeBarTooltip({
   active,
   payload,
 }: {
@@ -88,7 +86,7 @@ export function SessionTaskAnalyticsSection({
     () => getTaskCompletionBarData(studentTasks),
     [studentTasks]
   );
-  const gradeLineData = useMemo(
+  const gradeBarData = useMemo(
     () => getTaskStudentGradeLineData(studentTasks),
     [studentTasks]
   );
@@ -101,8 +99,8 @@ export function SessionTaskAnalyticsSection({
   const notFinishedTotal = completionData[1]?.value ?? 0;
   const yMax =
     maxGrade ??
-    Math.max(...gradeLineData.map((point) => point.grade ?? 0), 20, 1);
-  const xAngle = gradeLineData.length > 6 ? -35 : 0;
+    Math.max(...gradeBarData.map((point) => point.grade ?? 0), 20, 1);
+  const xAngle = gradeBarData.length > 6 ? -35 : 0;
 
   return (
     <Card className="py-0">
@@ -163,14 +161,14 @@ export function SessionTaskAnalyticsSection({
           }
         >
           <div className="h-[18rem] w-full min-w-0">
-            {gradeLineData.length === 0 ? (
+            {gradeBarData.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
                 No student scores yet.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={gradeLineData}
+                <BarChart
+                  data={gradeBarData}
                   margin={{
                     top: 8,
                     right: 12,
@@ -208,7 +206,10 @@ export function SessionTaskAnalyticsSection({
                       },
                     }}
                   />
-                  <Tooltip content={<GradeLineTooltip />} />
+                  <Tooltip
+                    cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                    content={<GradeBarTooltip />}
+                  />
                   {averageGrade !== null ? (
                     <ReferenceLine
                       y={averageGrade}
@@ -222,22 +223,32 @@ export function SessionTaskAnalyticsSection({
                       }}
                     />
                   ) : null}
-                  <Line
-                    type="monotone"
+                  <Bar
                     dataKey="grade"
                     name="Student grade"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "#8b5cf6", strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                    connectNulls
-                  />
-                </LineChart>
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={48}
+                  >
+                    {gradeBarData.map((entry) => (
+                      <Cell
+                        key={entry.student_label}
+                        fill={
+                          entry.grade === null
+                            ? "var(--muted)"
+                            : averageGrade !== null &&
+                                entry.grade >= averageGrade
+                              ? "#8b5cf6"
+                              : "#a78bfa"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             )}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Line chart of each student&apos;s grade for this task. Dashed line
+            Bar chart of each student&apos;s grade for this task. Dashed line
             shows the class average.
           </p>
         </AnalyticsChartCard>

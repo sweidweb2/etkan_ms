@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "seed:admin": "tsx scripts/seed-admin.ts",
+    "seed:demo": "tsx scripts/seed-demo-data.ts",
+    "seed": "tsx scripts/seed-admin.ts && tsx scripts/seed-demo-data.ts",
     "gen:types": "supabase gen types typescript --project-id diqqcfnrysgzeiqfadic > types/supabase.ts"
   },
   "dependencies": {
@@ -54,6 +57,7 @@
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "tsx": "^4.23.0",
     "vitest": "^3.2.4"
   }
 }

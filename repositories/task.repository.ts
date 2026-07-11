@@ -38,6 +38,21 @@ export async function listTasksBySessionIds(
     .in("session_id", sessionIds);
 }
 
+export async function listTasksForGradesBySessionIds(
+  client: Supabase,
+  sessionIds: string[]
+) {
+  if (sessionIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("tasks")
+    .select("id, session_id, title, max_grade, created_at")
+    .in("session_id", sessionIds)
+    .order("created_at", { ascending: true });
+}
+
 export async function listTasksBySessionId(client: Supabase, sessionId: string) {
   return client
     .from("tasks")

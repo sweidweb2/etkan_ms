@@ -21,17 +21,13 @@ function parseWeight(value: string, fieldLabel: string) {
 
 export const updateClassWeightsSchema = z
   .object({
-    group_weight: z.string(),
-    final_exam_weight: z.string(),
     tasks_weight: z.string(),
-    attendee_weight: z.string(),
+    final_exam_weight: z.string(),
   })
   .superRefine((values, ctx) => {
     const parsedWeights = [
-      ["group_weight", "Group weight", values.group_weight],
-      ["final_exam_weight", "Final exam weight", values.final_exam_weight],
       ["tasks_weight", "Tasks weight", values.tasks_weight],
-      ["attendee_weight", "Attendee weight", values.attendee_weight],
+      ["final_exam_weight", "Final exam weight", values.final_exam_weight],
     ] as const;
 
     let total = 0;
@@ -53,8 +49,8 @@ export const updateClassWeightsSchema = z
     if (Math.abs(total - 100) > 0.001) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["attendee_weight"],
-        message: "All weights must add up to 100%.",
+        path: ["final_exam_weight"],
+        message: "Tasks and final exam weights must add up to 100%.",
       });
     }
   });

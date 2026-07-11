@@ -27,6 +27,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getClassSessionCompletionRate } from "@/lib/constants/manager-semester-class-progress";
 import {
   CLASS_STATUS_BADGE_CLASSES,
@@ -38,6 +44,7 @@ import {
   ROUTES,
 } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
+import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 import type {
   ManagerClassFinalExamRow,
@@ -113,6 +120,7 @@ export function ClassDetailsPanel({
   const [teachers, setTeachers] = useState(initialTeachers);
 
   const sessionRate = getClassSessionCompletionRate(classRow);
+  const gradesUnlocked = isClassGradesUnlocked(classRow.status);
   const statusLabel = CLASS_STATUS_LABELS[classRow.status] ?? classRow.status;
   const statusClassName =
     CLASS_STATUS_BADGE_CLASSES[classRow.status] ??
@@ -124,6 +132,7 @@ export function ClassDetailsPanel({
   );
 
   return (
+    <TooltipProvider>
     <div className="flex flex-col gap-6">
       <Breadcrumb>
         <BreadcrumbList>
@@ -163,16 +172,39 @@ export function ClassDetailsPanel({
         <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{classRow.name}</CardTitle>
           <CardAction className="flex flex-wrap items-center gap-2 self-center">
-            <Link
-              href={getManagerClassGradesRoute(classRow.id)}
-              className={cn(
-                buttonVariants({ variant: "secondary" }),
-                "border border-sky-500/20 bg-sky-500/10 text-sky-800 shadow-none hover:bg-sky-500/15 hover:text-sky-900 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:bg-sky-400/15 dark:hover:text-sky-100"
-              )}
-            >
-              <LineChartIcon data-icon="inline-start" />
-              Grades
-            </Link>
+            {gradesUnlocked ? (
+              <Link
+                href={getManagerClassGradesRoute(classRow.id)}
+                className={cn(
+                  buttonVariants({ variant: "secondary" }),
+                  "border border-sky-500/20 bg-sky-500/10 text-sky-800 shadow-none hover:bg-sky-500/15 hover:text-sky-900 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:bg-sky-400/15 dark:hover:text-sky-100"
+                )}
+              >
+                <LineChartIcon data-icon="inline-start" />
+                Grades
+              </Link>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span className="inline-flex" tabIndex={0} />
+                  }
+                >
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled
+                    className="border border-sky-500/20 bg-sky-500/10 text-sky-800 shadow-none dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200"
+                  >
+                    <LineChartIcon data-icon="inline-start" />
+                    Grades
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Grades are available after the class is marked Done.
+                </TooltipContent>
+              </Tooltip>
+            )}
             <AssignClassTeachersDropdown
               classId={classRow.id}
               teachers={teachers}
@@ -284,5 +316,6 @@ export function ClassDetailsPanel({
         analytics={initialAnalytics}
       />
     </div>
+    </TooltipProvider>
   );
 }

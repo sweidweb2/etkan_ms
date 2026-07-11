@@ -69,7 +69,7 @@ export async function listStudentTasksByTaskId(
     .eq("task_id", taskId);
 }
 
-const STUDENT_TASK_GRADE_ANALYTICS_COLUMNS = "task_id, grade, status";
+const STUDENT_TASK_GRADE_ANALYTICS_COLUMNS = "student_id, task_id, grade, status";
 const STUDENT_TASKS_PAGE_SIZE = 1000;
 const TASK_ID_QUERY_CHUNK_SIZE = 100;
 
@@ -82,6 +82,7 @@ export async function listStudentTasksByTaskIds(
   }
 
   const rows: Array<{
+    student_id: string;
     task_id: string;
     grade: number | null;
     status: string;

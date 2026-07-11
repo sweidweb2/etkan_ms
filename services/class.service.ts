@@ -51,6 +51,10 @@ import {
 } from "@/services/audit-log.service";
 import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
+import {
+  CLASS_GRADES_LOCKED_ERROR,
+  isClassGradesUnlocked,
+} from "@/lib/manager/class-grades-access";
 import { ensureSessionAttendeesForEnrolledStudents, seedLateJoinAttendeesForStudent } from "@/services/session.service";
 import { listStudentsForManager } from "@/services/student.service";
 import type { FieldErrors } from "@/types/auth";
@@ -650,6 +654,33 @@ export async function getClassForManager(
   }
 
   return mapClassDetailToRow(adminClient, data as ClassDetailRecord);
+}
+
+export async function assertClassGradesUnlockedForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  classId: string
+): Promise<
+  | { ok: true; classRow: ManagerClassRow }
+  | { ok: false; error: string }
+> {
+  assertManagerRole(actorRole);
+
+  if (!isUuid(classId)) {
+    return { ok: false, error: "Class not found." };
+  }
+
+  const classRow = await getClassForManager(adminClient, actorRole, classId);
+
+  if (!classRow) {
+    return { ok: false, error: "Class not found." };
+  }
+
+  if (!isClassGradesUnlocked(classRow.status)) {
+    return { ok: false, error: CLASS_GRADES_LOCKED_ERROR };
+  }
+
+  return { ok: true, classRow };
 }
 
 export async function listTeacherOptionsForManager(

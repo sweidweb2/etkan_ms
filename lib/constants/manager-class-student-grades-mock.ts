@@ -24,22 +24,15 @@ export function getManagerClassStudentGradesPreview(
     return seed % 5 !== 0;
   });
 
-  return students.map((student, index) => {
+  return students.map((student) => {
     const seed = hashString(`${classId}:${student.student_profile_id}`);
-    const totalGroupGrade = roundGrade(55 + (seed % 41));
     const taskTotalGrade = roundGrade(65 + ((seed * 5) % 31));
-    const totalAttendeeGrade = roundGrade(60 + ((seed * 3) % 36));
     const finalExamGrade = roundGrade(50 + ((seed * 7) % 46));
     const missingBucket = seed % 5;
-    const groupGradeValue = missingBucket === 0 ? null : totalGroupGrade;
     const taskGradeValue = missingBucket === 1 ? null : taskTotalGrade;
-    const attendeeGradeValue = missingBucket === 2 ? null : totalAttendeeGrade;
     const finalExamGradeValue = missingBucket === 3 ? null : finalExamGrade;
     const totalGrade = roundGrade(
-      (groupGradeValue ?? 0) * 0.25 +
-        (attendeeGradeValue ?? 0) * 0.25 +
-        (finalExamGradeValue ?? 0) * 0.25 +
-        (taskGradeValue ?? 0) * 0.25
+      (finalExamGradeValue ?? 0) * 0.4 + (taskGradeValue ?? 0) * 0.6
     );
 
     return {
@@ -60,9 +53,7 @@ export function getManagerClassStudentGradesPreview(
             readyStudent.student_profile_id === student.student_profile_id
         ) >= Math.ceil(readyStudents.length / 2),
       total_grade: totalGrade,
-      total_group_grade: groupGradeValue,
       task_total_grade: taskGradeValue,
-      total_attendee_grade: attendeeGradeValue,
       final_exam_grade: finalExamGradeValue,
     };
   });

@@ -3,6 +3,10 @@ import type {
   ManagerStudentCourseGradeComponent,
   ManagerStudentCourseGradeComponentKey,
 } from "@/types/manager-student-course-grade";
+import {
+  averageAttendeeGradeFromJson,
+  averageGroupGradeFromJson,
+} from "@/types/manager-student-course-grade";
 
 export const MANAGER_STUDENT_COURSE_GRADE_COMPONENT_LABELS: Record<
   ManagerStudentCourseGradeComponentKey,
@@ -83,8 +87,8 @@ export function getManagerStudentCourseGradeComponents(
   }> = [
     {
       key: "attendance",
-      grade: courseGrade.attendee_grade,
-      weight: courseGrade.attendee_weight,
+      grade: averageAttendeeGradeFromJson(courseGrade.attendee_grades_json),
+      weight: null,
     },
     {
       key: "tasks",
@@ -93,8 +97,8 @@ export function getManagerStudentCourseGradeComponents(
     },
     {
       key: "group",
-      grade: courseGrade.total_group_grade,
-      weight: courseGrade.group_grade_weight,
+      grade: averageGroupGradeFromJson(courseGrade.group_grades_json),
+      weight: null,
     },
     {
       key: "final_exam",
@@ -166,4 +170,19 @@ export function getManagerStudentCourseGradeTypeLabel(type: string | null): stri
   }
 
   return MANAGER_STUDENT_COURSE_GRADE_TYPE_LABELS[type] ?? type.replaceAll("_", " ");
+}
+
+export function getManagerStudentCourseGradePreviewField(
+  courseGrade: ManagerStudentCourseGrade | null,
+  key: "total_group_grade" | "attendee_grade"
+): number | null {
+  if (!courseGrade) {
+    return null;
+  }
+
+  if (key === "total_group_grade") {
+    return averageGroupGradeFromJson(courseGrade.group_grades_json);
+  }
+
+  return averageAttendeeGradeFromJson(courseGrade.attendee_grades_json);
 }

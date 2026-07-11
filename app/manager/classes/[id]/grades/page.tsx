@@ -1,5 +1,6 @@
+import { notFound } from "next/navigation";
+import { ClassGradesLockedSection } from "@/components/manager/classes/class-grades-locked-section";
 import { ClassStudentGradesSection } from "@/components/manager/classes/class-student-grades-section";
-import { ClassWeightsSection } from "@/components/manager/classes/class-weights-section";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,16 +9,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { getManagerClassStudentGradesPreview } from "@/lib/constants/manager-class-student-grades-mock";
-import { getManagerClassWeightsPreview } from "@/lib/constants/manager-class-weights-mock";
+import { getSessionRole } from "@/lib/auth/session";
 import { getManagerClassDetailRoute, ROUTES } from "@/lib/constants/routes";
-import { getManagerClassPreview } from "@/lib/manager/get-manager-class-preview";
+import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getClassForManager } from "@/services/class.service";
+import { listClassStudentGradesForManager } from "@/services/student-course-grade.service";
 
 type ManagerClassGradesPageProps = {
   params: Promise<{ id: string }>;
@@ -27,9 +24,15 @@ export default async function ManagerClassGradesPage({
   params,
 }: ManagerClassGradesPageProps) {
   const { id } = await params;
-  const classRow = getManagerClassPreview(id);
-  const classWeights = getManagerClassWeightsPreview(id);
-  const studentGradeRows = getManagerClassStudentGradesPreview(id);
+  const adminClient = createSupabaseAdminClient();
+  const role = await getSessionRole();
+  const classRow = await getClassForManager(adminClient, role, id);
+
+  if (!classRow) {
+    notFound();
+  }
+
+  const gradesUnlocked = isClassGradesUnlocked(classRow.status);
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,31 +56,36 @@ export default async function ManagerClassGradesPage({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/50 py-4">
-          <CardTitle className="text-xl">Class grades</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Grade summaries for {classRow.name}. More views will be added here
-            later.
-          </p>
-        </CardHeader>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Task and session grade summaries coming soon.
-        </CardContent>
-      </Card>
-
-      <ClassWeightsSection
-        classId={id}
-        className={classRow.name}
-        initialWeights={classWeights}
-      />
-
-      <ClassStudentGradesSection
-        classId={id}
-        className={classRow.name}
-        rows={studentGradeRows}
-        initialWeights={classWeights}
-      />
+      {gradesUnlocked ? (
+        <ManagerClassGradesContent classId={id} className={classRow.name} />
+      ) : (
+        <ClassGradesLockedSection status={classRow.status} />
+      )}
     </div>
+  );
+}
+
+async function ManagerClassGradesContent({
+  classId,
+  className,
+}: {
+  classId: string;
+  className: string;
+}) {
+  const adminClient = createSupabaseAdminClient();
+  const role = await getSessionRole();
+  const { rows, tasks } = await listClassStudentGradesForManager(
+    adminClient,
+    role,
+    classId
+  );
+
+  return (
+    <ClassStudentGradesSection
+      classId={classId}
+      className={className}
+      rows={rows}
+      classTasks={tasks}
+    />
   );
 }

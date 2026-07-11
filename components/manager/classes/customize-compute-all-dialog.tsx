@@ -15,21 +15,22 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   buildDefaultTaskWeights,
+  buildFactorWeightsFormFromClassWeights,
   type FactorWeightsForm,
   parseWeight,
   toFactorWeightValues,
   validateFactorWeights,
   validateTaskWeights,
 } from "@/lib/compute/custom-compute-form-utils";
-import { getDefaultManagerClassWeights } from "@/lib/constants/manager-class-weights-mock";
-import { getManagerClassTasksPreview } from "@/lib/manager/get-manager-class-tasks-preview";
+import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
 import { cn } from "@/lib/utils";
+import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
 
 type CustomizeComputeAllDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  classId: string;
   className: string;
+  classTasks: ManagerClassTaskForGradesRow[];
   pendingCount: number;
   onConfirm: (values: {
     factorWeights: ReturnType<typeof toFactorWeightValues>;
@@ -40,15 +41,22 @@ type CustomizeComputeAllDialogProps = {
 export function CustomizeComputeAllDialog({
   open,
   onOpenChange,
-  classId,
   className,
+  classTasks,
   pendingCount,
   onConfirm,
 }: CustomizeComputeAllDialogProps) {
-  const classTasks = useMemo(() => getManagerClassTasksPreview(classId), [classId]);
   const defaultFactors = useMemo(
-    () => getDefaultManagerClassWeights(classId),
-    [classId]
+    () => ({
+      class_id: "",
+      tasks_weight: DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.tasks_weight,
+      final_exam_weight: DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.final_exam_weight,
+    }),
+    []
+  );
+  const defaultFactorForm = useMemo(
+    () => buildFactorWeightsFormFromClassWeights(defaultFactors),
+    [defaultFactors]
   );
   const defaultTaskWeights = useMemo(
     () => buildDefaultTaskWeights(classTasks),
@@ -70,22 +78,15 @@ export function CustomizeComputeAllDialog({
     reset,
     formState: { errors },
   } = useForm<FactorWeightsForm>({
-    defaultValues: {
-      group_weight: String(defaultFactors.group_weight),
-      final_exam_weight: String(defaultFactors.final_exam_weight),
-      tasks_weight: String(defaultFactors.tasks_weight),
-      attendee_weight: String(defaultFactors.attendee_weight),
-    },
+    defaultValues: defaultFactorForm,
   });
 
   const factorValues = watch();
   const factorTotal = useMemo(
     () =>
-      parseWeight(factorValues.group_weight ?? "") +
-      parseWeight(factorValues.final_exam_weight ?? "") +
       parseWeight(factorValues.tasks_weight ?? "") +
-      parseWeight(factorValues.attendee_weight ?? ""),
-    [factorValues]
+      parseWeight(factorValues.final_exam_weight ?? ""),
+    [factorValues.final_exam_weight, factorValues.tasks_weight]
   );
 
   const taskTotal = useMemo(
@@ -102,12 +103,7 @@ export function CustomizeComputeAllDialog({
       setIsConfirmStep(false);
       setPendingFactorValues(null);
       setFormError(null);
-      reset({
-        group_weight: String(defaultFactors.group_weight),
-        final_exam_weight: String(defaultFactors.final_exam_weight),
-        tasks_weight: String(defaultFactors.tasks_weight),
-        attendee_weight: String(defaultFactors.attendee_weight),
-      });
+      reset(defaultFactorForm);
       setTaskWeights(defaultTaskWeights);
     }
 
@@ -115,7 +111,12 @@ export function CustomizeComputeAllDialog({
   }
 
   function handleReview(values: FactorWeightsForm) {
-    const factorError = validateFactorWeights(values);
+    const normalizedValues: FactorWeightsForm = {
+      ...values,
+      group_weight: "0",
+      attendee_weight: "0",
+    };
+    const factorError = validateFactorWeights(normalizedValues);
     if (factorError) {
       setFormError(factorError);
       return;
@@ -128,7 +129,7 @@ export function CustomizeComputeAllDialog({
     }
 
     setFormError(null);
-    setPendingFactorValues(values);
+    setPendingFactorValues(normalizedValues);
     setIsConfirmStep(true);
   }
 
@@ -165,23 +166,13 @@ export function CustomizeComputeAllDialog({
                 <h4 className="text-sm font-medium">Factor weights</h4>
                 <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                   <div>
-                    <dt className="text-muted-foreground">Group</dt>
-                    <dd className="font-medium">{pendingFactorValues.group_weight}%</dd>
+                    <dt className="text-muted-foreground">Tasks</dt>
+                    <dd className="font-medium">{pendingFactorValues.tasks_weight}%</dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Final exam</dt>
                     <dd className="font-medium">
                       {pendingFactorValues.final_exam_weight}%
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Tasks</dt>
-                    <dd className="font-medium">{pendingFactorValues.tasks_weight}%</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Attendance</dt>
-                    <dd className="font-medium">
-                      {pendingFactorValues.attendee_weight}%
                     </dd>
                   </div>
                 </dl>
@@ -215,47 +206,18 @@ export function CustomizeComputeAllDialog({
               className="flex flex-col gap-6"
               noValidate
             >
+              <input type="hidden" {...register("group_weight")} value="0" />
+              <input type="hidden" {...register("attendee_weight")} value="0" />
+
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-semibold">Grade factor weights</h4>
                   <p className="text-xs text-muted-foreground">
-                    Must total 100% across group, tasks, attendance, and final exam.
+                    Tasks and final exam must total 100%. Group and attendance are not used yet.
                   </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <FieldLabel
-                      htmlFor="customize-group-weight"
-                      label="Group weight"
-                      hint="Percent"
-                    />
-                    <Input
-                      id="customize-group-weight"
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      aria-invalid={!!errors.group_weight}
-                      {...register("group_weight")}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <FieldLabel
-                      htmlFor="customize-final-exam-weight"
-                      label="Final exam weight"
-                      hint="Percent"
-                    />
-                    <Input
-                      id="customize-final-exam-weight"
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      aria-invalid={!!errors.final_exam_weight}
-                      {...register("final_exam_weight")}
-                    />
-                  </div>
                   <div className="flex flex-col gap-2">
                     <FieldLabel
                       htmlFor="customize-tasks-weight"
@@ -274,18 +236,18 @@ export function CustomizeComputeAllDialog({
                   </div>
                   <div className="flex flex-col gap-2">
                     <FieldLabel
-                      htmlFor="customize-attendee-weight"
-                      label="Attendance weight"
+                      htmlFor="customize-final-exam-weight"
+                      label="Final exam weight"
                       hint="Percent"
                     />
                     <Input
-                      id="customize-attendee-weight"
+                      id="customize-final-exam-weight"
                       type="number"
                       min={0}
                       max={100}
                       step={0.5}
-                      aria-invalid={!!errors.attendee_weight}
-                      {...register("attendee_weight")}
+                      aria-invalid={!!errors.final_exam_weight}
+                      {...register("final_exam_weight")}
                     />
                   </div>
                 </div>

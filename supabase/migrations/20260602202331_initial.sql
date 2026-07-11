@@ -96,6 +96,9 @@ create table subscribed_semesters (
     created_at timestamp default now()
 );
 
+comment on table subscribed_semesters is
+    'Student account subscription to a semester for billing.';
+
 
 --------------------------------------------------
 -- PAYMENTS
@@ -109,6 +112,39 @@ create table payments (
     method text,
     paid_at timestamp default now()
 );
+
+
+--------------------------------------------------
+-- SCHEDULED PAYMENTS
+--------------------------------------------------
+
+create table scheduled_payments (
+    id uuid primary key default gen_random_uuid(),
+    subscribed_semester_id uuid not null
+        references subscribed_semesters(id) on delete cascade,
+    payment_date timestamptz not null,
+    amount numeric(10,2),
+    status text not null default 'scheduled'
+        check (status in ('scheduled', 'reminded', 'completed', 'missed', 'cancelled')),
+    note text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+comment on table scheduled_payments is
+    'Payment reminder checkpoints for a subscribed semester. Informational only; does not record actual payments.';
+
+comment on column scheduled_payments.payment_date is
+    'Reminder date for the manager and student to follow up on an outstanding balance.';
+
+comment on column scheduled_payments.amount is
+    'Optional expected payment amount at this checkpoint.';
+
+comment on column scheduled_payments.status is
+    'Reminder lifecycle: scheduled, reminded, completed, missed, or cancelled.';
+
+comment on column scheduled_payments.note is
+    'Optional context for the reminder (e.g. agreed follow-up or partial payment plan).';
 
 
 --------------------------------------------------
@@ -131,6 +167,28 @@ comment on column subjects.nb_sessions is
 
 
 --------------------------------------------------
+-- STUDENT SEMESTER
+--------------------------------------------------
+
+create table student_semester (
+    id uuid primary key default gen_random_uuid(),
+    student_profile_id uuid not null references student_profiles(id) on delete cascade,
+    semester_id uuid not null references semesters(id) on delete cascade,
+    status text not null default 'pending'
+        check (status in ('pending', 'active', 'inactive', 'withdrawn')),
+    created_at timestamptz not null default now(),
+    constraint student_semester_student_semester_unique
+        unique (student_profile_id, semester_id)
+);
+
+comment on table student_semester is
+    'Student enrollment in a semester for accounting and access tracking.';
+
+comment on column student_semester.status is
+    'Enrollment lifecycle: pending, active, inactive, or withdrawn.';
+
+
+--------------------------------------------------
 -- CLASS
 --------------------------------------------------
 
@@ -139,9 +197,13 @@ create table classes (
     subject_id uuid references subjects(id),
     semester_id uuid references semesters(id) on delete set null,
     name text not null,
-    status text default 'active',
+    status text not null default 'scheduled'
+        check (status in ('scheduled', 'in_progress', 'done', 'paused', 'stopped')),
     created_at timestamp default now()
 );
+
+comment on column classes.status is
+    'Class lifecycle status: scheduled, in_progress, done, paused, or stopped.';
 
 
 --------------------------------------------------
@@ -165,9 +227,13 @@ create table student_class (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null references profiles(id) on delete cascade,
     class_id uuid not null references classes(id) on delete cascade,
-    status text default 'active',
+    status text not null default 'enrolled'
+        check (status in ('enrolled', 'paused', 'stopped')),
     joined_at timestamp default now()
 );
+
+comment on column student_class.status is
+    'Enrollment lifecycle status: enrolled, paused, or stopped.';
 
 
 --------------------------------------------------
@@ -210,6 +276,33 @@ comment on column sessions.group_grade_level is
 
 
 --------------------------------------------------
+-- WEEKLY SCHEDULE SLOTS
+--------------------------------------------------
+
+create table weekly_schedule_slots (
+    id uuid primary key default gen_random_uuid(),
+    class_id uuid not null references classes(id) on delete cascade,
+    day_of_week text not null
+        check (day_of_week in (
+            'Sunday', 'Monday', 'Tuesday', 'Wednesday',
+            'Thursday', 'Friday', 'Saturday'
+        )),
+    start_time time not null,
+    end_time time not null,
+    room text not null,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint weekly_schedule_slots_end_after_start check (end_time > start_time)
+);
+
+comment on table weekly_schedule_slots is
+    'Recurring weekly class schedule slots (day, time range, room).';
+
+comment on column weekly_schedule_slots.day_of_week is
+    'Weekday name matching app calendar (Sunday–Saturday).';
+
+
+--------------------------------------------------
 -- TASKS
 --------------------------------------------------
 
@@ -232,12 +325,53 @@ create table student_tasks (
     id uuid primary key default gen_random_uuid(),
     task_id uuid not null references tasks(id) on delete cascade,
     student_id uuid not null references profiles(id) on delete cascade,
-    status text default 'pending',
+    status text not null default 'pending'
+        check (status in ('pending', 'submitted', 'graded', 'late', 'missing')),
     submitted_at timestamp,
     grade numeric(5,2),
     notes text,
     graded_at timestamp
 );
+
+comment on column student_tasks.status is
+    'Task progress: pending, submitted, graded, late, missing (aligned with student_finalexam_grade.status).';
+
+
+--------------------------------------------------
+-- FINAL EXAM
+--------------------------------------------------
+
+create table final_exam (
+    id uuid primary key default gen_random_uuid(),
+    class_id uuid not null references classes(id) on delete cascade,
+    title text not null,
+    description text,
+    due_date timestamptz,
+    max_grade numeric(5,2),
+    created_at timestamptz not null default now(),
+    constraint final_exam_class_unique unique (class_id)
+);
+
+comment on table final_exam is
+    'One final exam per class (class_id, no session_id).';
+
+create table student_finalexam_grade (
+    id uuid primary key default gen_random_uuid(),
+    final_exam_id uuid not null references final_exam(id) on delete cascade,
+    student_id uuid not null references profiles(id) on delete cascade,
+    status text not null default 'pending'
+        check (status in ('pending', 'submitted', 'graded', 'late', 'missing')),
+    submitted_at timestamptz,
+    grade numeric(5,2),
+    notes text,
+    graded_at timestamptz,
+    created_at timestamptz not null default now(),
+    constraint student_finalexam_grade_exam_student_unique
+        unique (final_exam_id, student_id)
+);
+
+comment on table student_finalexam_grade is
+    'Student final exam grade row (mirrors student_tasks for final_exam).';
 
 
 --------------------------------------------------
@@ -254,11 +388,8 @@ create table student_course_grade (
 
     task_json_grade_weights jsonb,
 
-    total_group_grade numeric(5,2),
-    group_grade_weight numeric(5,2),
-
-    attendee_grade numeric(5,2),
-    attendee_weight numeric(5,2),
+    group_grades_json jsonb,
+    attendee_grades_json jsonb,
 
     task_weight numeric(5,2),
     task_total_grade numeric(5,2),
@@ -270,6 +401,12 @@ create table student_course_grade (
 
     created_at timestamp default now()
 );
+
+comment on column student_course_grade.group_grades_json is
+    'Per-session group grade entries for this student in the class.';
+
+comment on column student_course_grade.attendee_grades_json is
+    'Per-session attendance grade entries for this student in the class.';
 
 
 --------------------------------------------------
@@ -319,6 +456,8 @@ create table audit_logs (
 
     action text not null
         check (action in ('insert', 'update', 'delete', 'login', 'logout', 'export', 'other')),
+    severity text not null default 'info'
+        check (severity in ('info', 'warning', 'critical')),
     table_name text,
     record_id uuid,
 
@@ -328,6 +467,9 @@ create table audit_logs (
 
     created_at timestamptz not null default now()
 );
+
+comment on column audit_logs.severity is
+    'Change criticality: info (routine), warning (sensitive), critical (destructive/high-impact).';
 
 
 --------------------------------------------------
@@ -422,6 +564,9 @@ on student_class(user_id);
 create index idx_student_class_class
 on student_class(class_id);
 
+create unique index student_class_user_class_unique
+on student_class (user_id, class_id);
+
 create index idx_payments_subscribed_semester_id
 on payments(subscribed_semester_id);
 
@@ -448,6 +593,9 @@ on audit_logs(action);
 
 create index idx_audit_logs_table_name
 on audit_logs(table_name);
+
+create index idx_audit_logs_severity
+on audit_logs(severity);
 
 create index idx_backup_history_created_at
 on backup_history(created_at desc);
@@ -485,6 +633,42 @@ on attendee(student_id);
 
 create index idx_attendee_status
 on attendee(status);
+
+create index idx_final_exam_class_id
+on final_exam(class_id);
+
+create index idx_student_finalexam_grade_final_exam_id
+on student_finalexam_grade(final_exam_id);
+
+create index idx_student_finalexam_grade_student_id
+on student_finalexam_grade(student_id);
+
+create index idx_student_semester_semester_id
+on student_semester(semester_id);
+
+create index idx_student_semester_student_profile_id
+on student_semester(student_profile_id);
+
+create index idx_student_semester_status
+on student_semester(status);
+
+create index idx_scheduled_payments_subscribed_semester_id
+on scheduled_payments(subscribed_semester_id);
+
+create index idx_scheduled_payments_payment_date
+on scheduled_payments(payment_date);
+
+create index idx_scheduled_payments_status
+on scheduled_payments(status);
+
+create index idx_weekly_schedule_slots_day
+on weekly_schedule_slots(day_of_week);
+
+create index idx_weekly_schedule_slots_class_id
+on weekly_schedule_slots(class_id);
+
+create index idx_weekly_schedule_slots_room_day
+on weekly_schedule_slots(room, day_of_week);
 
 
 --------------------------------------------------

@@ -1,8 +1,3 @@
-﻿ /**
- * Generated from the linked Supabase project schema.
- * Regenerate after migrations:
- *   npx supabase gen types typescript --project-id diqqcfnrysgzeiqfadic > types/supabase.ts
- */
 export type Json =
   | string
   | number
@@ -315,51 +310,13 @@ export type Database = {
           },
         ]
       }
-      class_weights: {
-        Row: {
-          attendee_weight: number
-          class_id: string
-          created_at: string
-          final_exam_weight: number
-          group_weight: number
-          tasks_weight: number
-          updated_at: string
-        }
-        Insert: {
-          attendee_weight?: number
-          class_id: string
-          created_at?: string
-          final_exam_weight?: number
-          group_weight?: number
-          tasks_weight?: number
-          updated_at?: string
-        }
-        Update: {
-          attendee_weight?: number
-          class_id?: string
-          created_at?: string
-          final_exam_weight?: number
-          group_weight?: number
-          tasks_weight?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "class_weights_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: true
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       classes: {
         Row: {
           created_at: string | null
           id: string
           name: string
           semester_id: string | null
-          status: string | null
+          status: string
           subject_id: string | null
         }
         Insert: {
@@ -367,7 +324,7 @@ export type Database = {
           id?: string
           name: string
           semester_id?: string | null
-          status?: string | null
+          status?: string
           subject_id?: string | null
         }
         Update: {
@@ -375,7 +332,7 @@ export type Database = {
           id?: string
           name?: string
           semester_id?: string | null
-          status?: string | null
+          status?: string
           subject_id?: string | null
         }
         Relationships: [
@@ -725,67 +682,26 @@ export type Database = {
           },
         ]
       }
-      weekly_schedule_slots: {
-        Row: {
-          class_id: string
-          created_at: string
-          day_of_week: string
-          end_time: string
-          id: string
-          room: string
-          start_time: string
-          updated_at: string
-        }
-        Insert: {
-          class_id: string
-          created_at?: string
-          day_of_week: string
-          end_time: string
-          id?: string
-          room: string
-          start_time: string
-          updated_at?: string
-        }
-        Update: {
-          class_id?: string
-          created_at?: string
-          day_of_week?: string
-          end_time?: string
-          id?: string
-          room?: string
-          start_time?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "weekly_schedule_slots_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       student_class: {
         Row: {
           class_id: string
           id: string
           joined_at: string | null
-          status: string | null
+          status: string
           user_id: string
         }
         Insert: {
           class_id: string
           id?: string
           joined_at?: string | null
-          status?: string | null
+          status?: string
           user_id: string
         }
         Update: {
           class_id?: string
           id?: string
           joined_at?: string | null
-          status?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: [
@@ -807,50 +723,44 @@ export type Database = {
       }
       student_course_grade: {
         Row: {
-          attendee_grade: number | null
-          attendee_weight: number | null
+          attendee_grades_json: Json | null
           class_id: string
           created_at: string | null
           final_exam_grade: number | null
           final_exam_weight: number | null
-          group_grade_weight: number | null
+          group_grades_json: Json | null
           id: string
           task_json_grade_weights: Json | null
           task_total_grade: number | null
           task_weight: number | null
-          total_group_grade: number | null
           type: string | null
           user_id: string
         }
         Insert: {
-          attendee_grade?: number | null
-          attendee_weight?: number | null
+          attendee_grades_json?: Json | null
           class_id: string
           created_at?: string | null
           final_exam_grade?: number | null
           final_exam_weight?: number | null
-          group_grade_weight?: number | null
+          group_grades_json?: Json | null
           id?: string
           task_json_grade_weights?: Json | null
           task_total_grade?: number | null
           task_weight?: number | null
-          total_group_grade?: number | null
           type?: string | null
           user_id: string
         }
         Update: {
-          attendee_grade?: number | null
-          attendee_weight?: number | null
+          attendee_grades_json?: Json | null
           class_id?: string
           created_at?: string | null
           final_exam_grade?: number | null
           final_exam_weight?: number | null
-          group_grade_weight?: number | null
+          group_grades_json?: Json | null
           id?: string
           task_json_grade_weights?: Json | null
           task_total_grade?: number | null
           task_weight?: number | null
-          total_group_grade?: number | null
           type?: string | null
           user_id?: string
         }
@@ -1136,14 +1046,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "subscribed_phases_account_id_fkey"
+            foreignKeyName: "subscribed_semesters_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "subscribed_phases_semester_id_fkey"
+            foreignKeyName: "subscribed_semesters_semester_id_fkey"
             columns: ["semester_id"]
             isOneToOne: false
             referencedRelation: "semesters"
@@ -1189,12 +1099,53 @@ export type Database = {
           },
         ]
       }
+      weekly_schedule_slots: {
+        Row: {
+          class_id: string
+          created_at: string
+          day_of_week: string
+          end_time: string
+          id: string
+          room: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          day_of_week: string
+          end_time: string
+          id?: string
+          room: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          day_of_week?: string
+          end_time?: string
+          id?: string
+          room?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_schedule_slots_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      mark_overdue_pending_work_missing: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

@@ -1,5 +1,6 @@
 import type { ManagerClassTaskWithSessionRow } from "@/lib/manager/get-manager-class-tasks-preview";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
+import type { ManagerClassWeightsRow } from "@/types/manager-class-weights";
 
 export type FactorWeightsForm = {
   group_weight: string;
@@ -25,6 +26,17 @@ function hashString(value: string) {
   return hash;
 }
 
+export function buildFactorWeightsFormFromClassWeights(
+  weights: ManagerClassWeightsRow
+): FactorWeightsForm {
+  return {
+    group_weight: "0",
+    final_exam_weight: String(weights.final_exam_weight),
+    tasks_weight: String(weights.tasks_weight),
+    attendee_weight: "0",
+  };
+}
+
 export function parseWeight(value: string) {
   const parsed = Number(value);
   return Number.isNaN(parsed) ? 0 : parsed;
@@ -38,7 +50,7 @@ export function roundGrade(value: number) {
   return Math.round(value * 10) / 10;
 }
 
-export function buildDefaultTaskWeights(tasks: ManagerClassTaskWithSessionRow[]) {
+export function buildDefaultTaskWeights(tasks: Array<{ id: string }>) {
   if (tasks.length === 0) {
     return {};
   }
@@ -73,7 +85,7 @@ export function validateFactorWeights(values: FactorWeightsForm) {
 }
 
 export function validateTaskWeights(
-  tasks: ManagerClassTaskWithSessionRow[],
+  tasks: Array<{ id: string }>,
   taskWeights: Record<string, string>
 ) {
   if (tasks.length === 0) {
@@ -117,9 +129,7 @@ export function computePreviewTotalGrade(
   const tasksSubgrade = deriveTasksSubgrade(row);
 
   return roundGrade(
-    (row.total_group_grade ?? 0) * (factorWeights.group_weight / 100) +
-      tasksSubgrade * (factorWeights.tasks_weight / 100) +
-      (row.total_attendee_grade ?? 0) * (factorWeights.attendee_weight / 100) +
+    tasksSubgrade * (factorWeights.tasks_weight / 100) +
       (row.final_exam_grade ?? 0) * (factorWeights.final_exam_weight / 100)
   );
 }

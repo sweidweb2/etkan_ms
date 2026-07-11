@@ -17,29 +17,42 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   buildDefaultTaskWeights,
+  buildFactorWeightsFormFromClassWeights,
+  toFactorWeightValues,
   type FactorWeightsForm,
   parseWeight,
   validateFactorWeights,
   validateTaskWeights,
 } from "@/lib/compute/custom-compute-form-utils";
-import { getDefaultManagerClassWeights } from "@/lib/constants/manager-class-weights-mock";
+import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
 import { getManagerClassTasksPreview } from "@/lib/manager/get-manager-class-tasks-preview";
-import { showSuccessToast } from "@/lib/toast";
+import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { computeStudentGradeAloneAction } from "@/app/manager/classes/grades/actions";
 
 type StudentComputeAloneSectionProps = {
   classId: string;
+  userId: string;
   studentName: string;
 };
 
 export function StudentComputeAloneSection({
   classId,
+  userId,
   studentName,
 }: StudentComputeAloneSectionProps) {
   const classTasks = useMemo(() => getManagerClassTasksPreview(classId), [classId]);
   const defaultFactors = useMemo(
-    () => getDefaultManagerClassWeights(classId),
+    () => ({
+      class_id: classId,
+      tasks_weight: DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.tasks_weight,
+      final_exam_weight: DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.final_exam_weight,
+    }),
     [classId]
+  );
+  const defaultFactorForm = useMemo(
+    () => buildFactorWeightsFormFromClassWeights(defaultFactors),
+    [defaultFactors]
   );
   const defaultTaskWeights = useMemo(
     () => buildDefaultTaskWeights(classTasks),
@@ -58,22 +71,15 @@ export function StudentComputeAloneSection({
     watch,
     formState: { errors },
   } = useForm<FactorWeightsForm>({
-    defaultValues: {
-      group_weight: String(defaultFactors.group_weight),
-      final_exam_weight: String(defaultFactors.final_exam_weight),
-      tasks_weight: String(defaultFactors.tasks_weight),
-      attendee_weight: String(defaultFactors.attendee_weight),
-    },
+    defaultValues: defaultFactorForm,
   });
 
   const factorValues = watch();
   const factorTotal = useMemo(
     () =>
-      parseWeight(factorValues.group_weight ?? "") +
-      parseWeight(factorValues.final_exam_weight ?? "") +
       parseWeight(factorValues.tasks_weight ?? "") +
-      parseWeight(factorValues.attendee_weight ?? ""),
-    [factorValues]
+      parseWeight(factorValues.final_exam_weight ?? ""),
+    [factorValues.final_exam_weight, factorValues.tasks_weight]
   );
 
   const taskTotal = useMemo(
@@ -86,7 +92,12 @@ export function StudentComputeAloneSection({
   );
 
   function openConfirmModal(values: FactorWeightsForm) {
-    const factorError = validateFactorWeights(values);
+    const normalizedValues: FactorWeightsForm = {
+      ...values,
+      group_weight: "0",
+      attendee_weight: "0",
+    };
+    const factorError = validateFactorWeights(normalizedValues);
     if (factorError) {
       setFormError(factorError);
       return;
@@ -102,10 +113,23 @@ export function StudentComputeAloneSection({
     setIsConfirmOpen(true);
   }
 
-  function handleConfirmCompute() {
+  async function handleConfirmCompute() {
+    const guard = await computeStudentGradeAloneAction(classId, userId, {
+      factorWeights: toFactorWeightValues({
+        ...factorValues,
+        group_weight: "0",
+        attendee_weight: "0",
+      }),
+      taskWeights,
+    });
+
+    if (!guard.success) {
+      showErrorToast(guard.error ?? "Unable to compute grade.");
+      return;
+    }
+
     showSuccessToast(
-      `Compute alone preview finished for ${studentName}.`,
-      "Temporary weights were used only for this calculation and were not saved."
+      guard.message ?? `Computed grade for ${studentName}.`
     );
     setIsConfirmOpen(false);
   }
@@ -113,7 +137,7 @@ export function StudentComputeAloneSection({
   return (
     <ClassTabCollapsibleSection
       title="Compute alone"
-      description="Temporary custom weights for a one-off grade calculation. Nothing is stored."
+      description="Temporary custom weights for a one-off grade calculation saved to student_course_grade."
     >
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -130,20 +154,12 @@ export function StudentComputeAloneSection({
               <h4 className="text-sm font-medium">Factor weights</h4>
               <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-muted-foreground">Group</dt>
-                  <dd className="font-medium">{factorValues.group_weight}%</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Final exam</dt>
-                  <dd className="font-medium">{factorValues.final_exam_weight}%</dd>
-                </div>
-                <div>
                   <dt className="text-muted-foreground">Tasks</dt>
                   <dd className="font-medium">{factorValues.tasks_weight}%</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Attendance</dt>
-                  <dd className="font-medium">{factorValues.attendee_weight}%</dd>
+                  <dt className="text-muted-foreground">Final exam</dt>
+                  <dd className="font-medium">{factorValues.final_exam_weight}%</dd>
                 </div>
               </dl>
             </div>
@@ -183,14 +199,17 @@ export function StudentComputeAloneSection({
         className="flex flex-col gap-6 p-5"
         noValidate
       >
+        <input type="hidden" {...register("group_weight")} value="0" />
+        <input type="hidden" {...register("attendee_weight")} value="0" />
+
         <div className="flex items-start gap-3 rounded-xl border border-dashed bg-muted/15 p-4">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-700 dark:text-orange-300">
             <CalculatorIcon className="size-4" />
           </div>
           <p className="text-sm text-muted-foreground">
             Adjust factor and per-task weights for this student only. Use
-            Recompute to preview the calculation. Values are discarded after
-            confirmation and are never written to the database.
+            Recompute to calculate and save the course grade using these
+            weights.
           </p>
         </div>
 
@@ -198,43 +217,11 @@ export function StudentComputeAloneSection({
           <div>
             <h4 className="text-sm font-semibold">Grade factor weights</h4>
             <p className="text-xs text-muted-foreground">
-              Must total 100% across group, tasks, attendance, and final exam.
+              Tasks and final exam must total 100%. Group and attendance are not used yet.
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="compute-alone-group-weight"
-                label="Group weight"
-                hint="Percent"
-              />
-              <Input
-                id="compute-alone-group-weight"
-                type="number"
-                min={0}
-                max={100}
-                step={0.5}
-                aria-invalid={!!errors.group_weight}
-                {...register("group_weight")}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="compute-alone-final-exam-weight"
-                label="Final exam weight"
-                hint="Percent"
-              />
-              <Input
-                id="compute-alone-final-exam-weight"
-                type="number"
-                min={0}
-                max={100}
-                step={0.5}
-                aria-invalid={!!errors.final_exam_weight}
-                {...register("final_exam_weight")}
-              />
-            </div>
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="compute-alone-tasks-weight"
@@ -253,18 +240,18 @@ export function StudentComputeAloneSection({
             </div>
             <div className="flex flex-col gap-2">
               <FieldLabel
-                htmlFor="compute-alone-attendee-weight"
-                label="Attendance weight"
+                htmlFor="compute-alone-final-exam-weight"
+                label="Final exam weight"
                 hint="Percent"
               />
               <Input
-                id="compute-alone-attendee-weight"
+                id="compute-alone-final-exam-weight"
                 type="number"
                 min={0}
                 max={100}
                 step={0.5}
-                aria-invalid={!!errors.attendee_weight}
-                {...register("attendee_weight")}
+                aria-invalid={!!errors.final_exam_weight}
+                {...register("final_exam_weight")}
               />
             </div>
           </div>

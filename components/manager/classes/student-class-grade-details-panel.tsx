@@ -22,6 +22,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  averageGroupGradeFromJson,
+} from "@/types/manager-student-course-grade";
 import { getManagerClassFinalExamPreview } from "@/lib/constants/manager-class-final-exam-mock";
 import {
   getAttendanceDisplayKey,
@@ -79,7 +82,19 @@ function clampGrade(value: number) {
 }
 
 function buildGroupGradeSlots(detail: ManagerStudentClassTabDetail) {
-  const baseGrade = detail.courseGrade?.total_group_grade ?? 0;
+  const jsonEntries = detail.courseGrade?.group_grades_json ?? [];
+  const baseGrade = averageGroupGradeFromJson(jsonEntries) ?? 0;
+
+  if (jsonEntries.length > 0) {
+    return jsonEntries.map((entry) => ({
+      session_id: entry.session_id,
+      session_label: entry.session_label ?? entry.session_id,
+      session_at: detail.attendanceSlots.find(
+        (slot) => slot.session_id === entry.session_id
+      )?.session_at ?? "",
+      grade: entry.grade,
+    }));
+  }
 
   return detail.attendanceSlots.map((slot, index) => {
     const offsetPattern = [-4, 2, 5, -1, 3, -3];
@@ -504,6 +519,7 @@ export function StudentClassGradeDetailsPanel({
           <AttendanceGradesSection detail={detail} />
           <StudentComputeAloneSection
             classId={classId}
+            userId={student.user_id}
             studentName={student.full_name}
           />
         </>

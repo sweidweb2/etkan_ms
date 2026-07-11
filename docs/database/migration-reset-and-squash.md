@@ -1,203 +1,135 @@
-# Supabase Migration Reset & Squash
+# Supabase migration reset & squash
 
-How to refresh or squash Supabase migrations without breaking remote history.
+General reference for keeping local migrations and remote history in sync.
 
 ## Core rule
 
-**Local migration files and remote migration history are separate.**
+Local migration files and remote migration history are **separate**.
 
-Supabase Cloud records every applied migration in `supabase_migrations.schema_migrations` (version = the timestamp prefix in the filename, e.g. `20260602202331`).
+- Remote tracks applied versions in `supabase_migrations.schema_migrations` (version = timestamp prefix in each filename).
+- **Do not** delete or rename migrations already pushed, then run `db push` alone — remote still has the old versions.
+- **Either** reset the linked remote when squashing, **or** only add new migrations on top of existing history.
 
 | Action | Local files | Remote history |
 | --- | --- | --- |
 | Delete/rename a migration file | Changes | Unchanged |
-| `npx supabase db push` | Reads local | Appends new versions only |
-| `npx supabase db reset --linked` | Reads local | Wiped and rebuilt from scratch |
-
-**Never** delete or rename migrations that were already pushed, then run `db push` alone. Remote still remembers the old versions → mismatch errors.
-
-**Always** reset the linked remote when squashing, or only add new migrations on top of existing history.
+| `db push` | Reads local | Appends new versions only |
+| `db reset --linked` | Reads local | Wiped and rebuilt from scratch |
 
 ---
 
-## Two kinds of reset
+## Reset types
 
 | Goal | Command | Effect |
 | --- | --- | --- |
 | Local dev only | `npx supabase db reset` | Wipes local Docker DB, replays `supabase/migrations/` |
-| Remote (linked cloud) | `npx supabase db reset --linked` | Wipes remote DB + auth users + migration history, replays local migrations |
+| Linked remote | `npx supabase db reset --linked` | Wipes remote DB, auth users, and migration history; replays local migrations |
 
-Use `--linked` only on **dev/staging** projects where losing all data is acceptable.
+Use `--linked` only on **dev/staging** where losing all data is acceptable.
 
 ---
 
-## Check sync before and after
+## Check sync
 
 ```bash
 npx supabase migration list
 ```
 
-Healthy state: every row shows the same version under **Local** and **Remote**.
-
-```
-   Local          | Remote         | Time (UTC)
-  ----------------|----------------|---------------------
-   20260602202331 | 20260602202331 | 2026-06-02 20:23:31
-```
+Healthy: every version appears under both **Local** and **Remote**.
 
 ---
 
 ## Normal workflow (additive changes)
 
-When the remote is already in sync and you only need a schema change:
+When remote is already in sync and you only need a schema change:
 
-```bash
-npx supabase migration new my_change_name
-# edit supabase/migrations/<timestamp>_my_change_name.sql
-npx supabase db push
-npx supabase gen types typescript --project-id YOUR_PROJECT_ID > types/supabase.ts
-```
+1. Create a new migration file.
+2. Edit the SQL.
+3. Push to remote.
+4. Regenerate TypeScript types if your project uses them.
 
 Do **not** delete old migration files in this flow.
 
 ---
 
-## Squash all migrations into one file
+## Squash migrations
 
-Use when you want a single clean `initial.sql` (no incremental `phase_id` renames, `drop if exists` hacks, etc.).
+Use when you want one consolidated migration file instead of incremental history.
 
-### 1. Write the final schema in one migration
+**This project:** schema lives in `20260602202331_initial.sql`; cron / `pg_cron` jobs stay in a separate file (`20260711000000_cron_mark_overdue_pending_missing.sql`) because they require the `pg_cron` extension and `cron.schedule`.
 
-Keep only `supabase/migrations/20260602202331_initial.sql` (or one new timestamped file) with the **end state** of the schema:
+1. **Write final schema** in a single migration — end state only, not incremental renames/drops for objects that never exist on fresh install.
+2. **Respect FK order** when writing or dumping schema (parents before children).
+3. **Keep local files** — one initial schema file plus any cron/extension-only migrations; remove superseded incremental files.
+4. **Reset linked remote** — required; do not squash by deleting files and running `db push` alone.
+5. **Verify** with `migration list` (Local = Remote for every remaining file).
+6. **Restore app data** (seed admin, test data, etc.) as needed.
 
-| Former incremental migration | Final shape in `initial.sql` |
+Optional: dump live schema after a good reset instead of hand-writing the file.
+
+### `db push` vs `db reset --linked`
+
+| Squash (wrong) | Squash (correct) |
 | --- | --- |
-| `drop_relationships_student_id` | `relationships` without `student_id` |
-| `convert_phases_to_semesters` | `semesters` table; `classes.semester_id`; `subscribed_semesters.semester_id` (not `phase_id`) |
-| `create_backup_history` | `backup_history` table |
-| `app_settings_maintenance_mode` | `app_settings` + RLS |
-| `create_notifications` | `notifications` table |
-| `subjects_nb_sessions` | `subjects.nb_sessions` + check constraint |
-| `create_sessions_and_attendee` | `sessions`, `attendee`, `tasks.session_id` FK |
-| `sessions_semester_and_group_grade` | `sessions.semester_id`, `sessions.group_grade_level` |
+| Delete local files, add new file(s), `db push` | Delete extras, keep one file, `db reset --linked` |
+| Remote keeps old versions | Remote history wiped; replay from scratch |
 
-Omit incremental-only steps (e.g. `drop table phases`) — those tables never exist on a fresh install.
+- `db push` — apply **new** migrations on top of existing history.
+- `db reset --linked` — wipe DB and replay **all** local migrations from scratch.
 
-**Table order matters** for foreign keys. Example dependency order:
-
-1. `profiles` → `student_profiles`
-2. `semesters` before `classes`, `subscribed_semesters`, `sessions`
-3. `sessions` before `tasks` (FK on `session_id`) and `attendee`
-
-**Alternative:** dump the live schema after a successful reset:
+### After squash (this repo)
 
 ```bash
-npx supabase db dump --linked -f supabase/migrations/20260602202331_initial.sql --schema public
-```
+# 1. Commit the squashed migrations (2 files in supabase/migrations/)
 
-Verify RLS policies (`profiles`, `student_profiles`, `app_settings`) are included in the dump.
-
-### 2. Delete all other migration files locally
-
-```text
-supabase/migrations/
-  20260602202331_initial.sql   ← keep only this
-```
-
-Remove every other `supabase/migrations/*.sql` file.
-
-**Do this only when you are about to reset the linked remote** (step 3). Do not delete files and run `db push` alone.
-
-### 3. Reset linked remote (required)
-
-```bash
-npx supabase db reset --linked
-```
-
-This will:
-
-1. Drop all `public` tables
-2. Truncate `supabase_migrations.schema_migrations`
-3. Truncate `auth.users` and related auth tables
-4. Apply the single local migration file
-
-You do **not** need `db push` after a successful `db reset --linked`.
-
-### 4. Verify and restore app data
-
-```bash
+# 2. See mismatch before fix (Remote has old versions, Local has 2)
 npx supabase migration list
+
+# 3. Wipe remote dev/staging and replay local migrations — NOT db push
+npx supabase db reset --linked
+
+# 4. Confirm sync (2 rows, Local = Remote)
+npx supabase migration list
+
+# 5. Restore admin user (uses .env.local Supabase keys)
 npm run seed:admin
-npx supabase gen types typescript --project-id YOUR_PROJECT_ID > types/supabase.ts
+
+# 6. Load demo semesters, classes, teachers, and students
+npm run seed:demo
+
+# Or both at once:
+npm run seed
+
+# 7. Regenerate types
+npm run gen:types
 ```
 
-`migration list` should show **one row** with Local = Remote.
-
----
-
-## Why `db push` fails after deleting local migrations
-
-| Broken flow | Correct squash flow |
-| --- | --- |
-| Delete local migration files | Delete local migration files (keep one) |
-| Create new local migration(s) | One consolidated `initial.sql` |
-| `npx supabase db push` | `npx supabase db reset --linked` |
-| Remote still has old N versions | Remote history wiped; only 1 version recorded |
-
-`db push` = apply **new** migrations on top of existing history.  
-`db reset --linked` = wipe DB and replay **all** local migrations from scratch.
-
----
-
-## Timestamp: keep or change?
-
-| Choice | Notes |
-| --- | --- |
-| Keep `20260602202331_initial.sql` | Fine after `db reset --linked` |
-| New timestamp e.g. `20260710000000_initial.sql` | Also fine — delete the old file so exactly **one** file remains |
-
-What matters: **one local file + reset remote**. The timestamp name is irrelevant after a full reset.
+Local-only dev (Docker): `npx supabase db reset` instead of `--linked`, then `npm run seed`.
 
 ---
 
 ## Teammates and CI
 
-Squashing rewrites migration history in git. Everyone on the branch must:
+Squashing rewrites git history. After pull, each dev with a linked project should run `db reset --linked`.
 
-1. Pull the squashed migrations
-2. Run `npx supabase db reset --linked` on their linked dev project
-
-**Do not squash** migrations already applied to **production** with real data unless you have a dedicated migration plan.
+**Do not squash** migrations already on **production** with real data unless you have a dedicated migration plan.
 
 ---
 
-## Optional: seed warning
+## Seed note
 
-`supabase/config.toml` references `supabase/seed.sql`. If that file is missing, `db reset` prints:
-
-```text
-WARN: no files matched pattern: supabase/seed.sql
-```
-
-The reset still succeeds. Use `npm run seed:admin` for the first admin user, or add `supabase/seed.sql` / disable seed in config.
+If `supabase/config.toml` references a seed file that does not exist, `db reset` may warn but still succeed. Add the seed file, disable seed in config, or use your app’s seed script.
 
 ---
 
-## Quick reference
+## Quick commands
 
 ```bash
-# Check local vs remote
 npx supabase migration list
-
-# Full remote refresh (dev only)
-npx supabase db reset --linked
-
-# Normal new change (no squash)
-npx supabase migration new change_name
+npx supabase db reset              # local only
+npx supabase db reset --linked     # remote dev/staging only
+npx supabase migration new <name>
 npx supabase db push
-
-# After any schema change
-npx supabase gen types typescript --project-id YOUR_PROJECT_ID > types/supabase.ts
 ```
 
-See also: [docs/cmds/migrations.md](../cmds/migrations.md) for day-to-day commands, [database_explanation_v1.md](./database_explanation_v1.md) for schema overview.
+See also: [docs/cmds/migrations.md](../cmds/migrations.md), [database_explanation_v1.md](./database_explanation_v1.md).
