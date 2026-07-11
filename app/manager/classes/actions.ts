@@ -14,8 +14,10 @@ import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-
 import { parseEditStudentFinalExamGradeFormData } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { parseEditStudentTaskFormData } from "@/lib/validators/manager/edit-student-task";
 import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
+import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update-class-session";
 import { parseUpdateFinalExamFormData } from "@/lib/validators/manager/update-final-exam";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
+import { parseUpdateStudentClassStatusFormData } from "@/lib/validators/manager/update-student-class-status";
 import {
   parseChangeClassStatusFormData,
   parseUpdateClassFormData,
@@ -29,12 +31,14 @@ import {
   unassignTeacherFromClassForManager,
   updateClassForManager,
   updateClassStatusForManager,
+  updateClassStudentStatusForManager,
   updateFinalExamForManager,
   updateStudentFinalExamGradeForManager,
 } from "@/services/class.service";
 import {
   createSessionTaskForManager,
   updateAttendeeForManager,
+  updateClassSessionForManager,
   updateSessionSettingsForManager,
   updateStudentTaskForManager,
 } from "@/services/session.service";
@@ -47,12 +51,14 @@ import type {
   UnassignClassTeacherActionState,
   UpdateClassActionState,
   UpdateClassStatusActionState,
+  UpdateClassStudentStatusActionState,
   UpdateFinalExamActionState,
   UpdateStudentFinalExamGradeActionState,
 } from "@/types/manager-class-detail";
 import type {
   CreateSessionTaskActionState,
   UpdateAttendeeActionState,
+  UpdateClassSessionActionState,
   UpdateSessionSettingsActionState,
   UpdateStudentTaskActionState,
 } from "@/types/manager-class-session-detail";
@@ -397,6 +403,48 @@ export async function addStudentToClassAction(
   };
 }
 
+export async function updateClassStudentStatusAction(
+  _prevState: UpdateClassStudentStatusActionState,
+  formData: FormData
+): Promise<UpdateClassStudentStatusActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const parsed = parseUpdateStudentClassStatusFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateClassStudentStatusForManager(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    student: result.student,
+  };
+}
+
 export async function assignClassTeacherAction(
   _prevState: AssignClassTeacherActionState,
   formData: FormData
@@ -523,6 +571,48 @@ export async function updateSessionSettingsAction(
     message: result.message,
     session: result.session,
     linkedPhase: result.linkedPhase,
+  };
+}
+
+export async function updateClassSessionAction(
+  _prevState: UpdateClassSessionActionState,
+  formData: FormData
+): Promise<UpdateClassSessionActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const parsed = parseUpdateClassSessionFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateClassSessionForManager(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    session: result.session,
   };
 }
 

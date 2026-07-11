@@ -11,27 +11,40 @@ export const STUDENT_TASK_STATUS_VALUES = [
   STUDENT_TASK_STATUSES.MISSING,
 ] as const;
 
-export const editStudentTaskSchema = z.object({
-  status: z.enum(STUDENT_TASK_STATUS_VALUES, {
-    message: "Status is required.",
-  }),
-  grade: z
+function gradeFieldSchema(maxGrade: number | null) {
+  const upperBound = maxGrade ?? 999;
+  const maxMessage =
+    maxGrade === null
+      ? "Grade must be at most 999."
+      : `Grade must be at most ${maxGrade}.`;
+
+  return z
     .union([
       z.literal(""),
       z.coerce
         .number()
         .min(0, { message: "Grade must be at least 0." })
-        .max(999, { message: "Grade must be at most 999." }),
+        .max(upperBound, { message: maxMessage }),
     ])
-    .optional(),
-  notes: z
-    .string()
-    .trim()
-    .max(500, { message: "Notes must be at most 500 characters." })
-    .optional(),
-  submitted_at: z.string().trim().optional(),
-  graded_at: z.string().trim().optional(),
-});
+    .optional();
+}
+
+export function createEditStudentTaskSchema(maxGrade: number | null) {
+  return z.object({
+    status: z.enum(STUDENT_TASK_STATUS_VALUES, {
+      message: "Status is required.",
+    }),
+    grade: gradeFieldSchema(maxGrade),
+    notes: z
+      .string()
+      .trim()
+      .max(500, { message: "Notes must be at most 500 characters." })
+      .optional(),
+    submitted_at: z.string().trim().optional(),
+  });
+}
+
+export const editStudentTaskSchema = createEditStudentTaskSchema(null);
 
 export type EditStudentTaskInput = z.infer<typeof editStudentTaskSchema>;
 
@@ -52,7 +65,6 @@ export function parseEditStudentTaskFormData(formData: FormData):
     grade: formData.get("grade") ?? undefined,
     notes: formData.get("notes") ?? undefined,
     submitted_at: formData.get("submitted_at") ?? undefined,
-    graded_at: formData.get("graded_at") ?? undefined,
   });
 
   if (!parsed.success) {

@@ -114,4 +114,12 @@ export type UnassignClassTeacherActionState = {
   classRow?: ManagerClassRow;
 };
 
+export type UpdateClassStudentStatusActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  student?: ManagerClassStudentRow;
+};
+
 export type { ManagerClassAnalyticsPreview };

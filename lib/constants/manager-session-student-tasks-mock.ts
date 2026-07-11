@@ -25,6 +25,7 @@ function buildMockStudentTaskRow(
   task: ManagerSessionTaskRow,
   student: {
     user_id: string;
+    student_profile_id: string;
     full_name: string;
   }
 ): ManagerStudentTaskRow {
@@ -67,6 +68,7 @@ function buildMockStudentTaskRow(
     id: `${task.id}-student-task-${student.user_id}`,
     task_id: task.id,
     student_id: student.user_id,
+    student_profile_id: student.student_profile_id,
     full_name: student.full_name,
     status,
     submitted_at: submittedAt,
@@ -94,6 +96,7 @@ export function getManagerSessionStudentTasksPreview(
 
     return buildMockStudentTaskRow(task, {
       user_id: student.user_id,
+      student_profile_id: student.student_profile_id,
       full_name: student.full_name,
     });
   });

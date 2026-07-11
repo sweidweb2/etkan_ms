@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -23,12 +23,18 @@ type PanelNavMenuProps = {
 
 export function PanelNavMenu({ items }: PanelNavMenuProps) {
   const pathname = usePathname();
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   return (
     <SidebarMenu>
       {items.map((item) => {
         const isActive =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
+          hasMounted &&
+          (pathname === item.href || pathname.startsWith(`${item.href}/`));
         const Icon = PANEL_ICONS[item.icon];
 
         return (
@@ -38,7 +44,7 @@ export function PanelNavMenu({ items }: PanelNavMenuProps) {
           >
             <SidebarMenuButton
               isActive={isActive}
-              render={<Link href={item.href} />}
+              render={(props) => <Link {...props} href={item.href} />}
             >
               <Icon />
               <span>{item.title}</span>

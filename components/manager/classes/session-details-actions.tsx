@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { LayersIcon, UsersRoundIcon } from "lucide-react";
 import { updateSessionSettingsAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -23,7 +23,8 @@ import {
   SESSION_GROUP_GRADE_LEVEL_DOT_CLASSES,
   SESSION_GROUP_GRADE_LEVEL_LABELS,
   SESSION_GROUP_GRADE_LEVEL_ORDER,
-  SESSION_GROUP_GRADE_LEVEL_TOGGLE_CLASSES,
+  SESSION_GROUP_GRADE_LEVEL_TOGGLE_OFF_CLASSES,
+  SESSION_GROUP_GRADE_LEVEL_TOGGLE_ON_CLASSES,
 } from "@/lib/constants/manager-session-group-grade-display";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -34,6 +35,8 @@ import type { SessionGroupGradeLevelValue } from "@/types/manager-session-group-
 import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
 const initialState: UpdateSessionSettingsActionState = {};
+
+type SaveTarget = "phase" | "groupGrade";
 
 type SessionDetailsActionsProps = {
   classId: string;
@@ -84,6 +87,15 @@ export function SessionDetailsActions({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const [saveTarget, setSaveTarget] = useState<SaveTarget | null>(null);
+  const isPhasePending = isPending && saveTarget === "phase";
+  const isGroupGradePending = isPending && saveTarget === "groupGrade";
+
+  useEffect(() => {
+    if (!isPending) {
+      setSaveTarget(null);
+    }
+  }, [isPending]);
 
   useActionStateToast(state, isPending);
 
@@ -140,6 +152,7 @@ export function SessionDetailsActions({
     formData.set("session_id", sessionId);
     formData.set("semester_id", selectedPhaseId);
 
+    setSaveTarget("phase");
     startTransition(() => {
       formAction(formData);
     });
@@ -155,6 +168,7 @@ export function SessionDetailsActions({
     formData.set("session_id", sessionId);
     formData.set("group_grade_level", selectedGroupGrade);
 
+    setSaveTarget("groupGrade");
     startTransition(() => {
       formAction(formData);
     });
@@ -216,7 +230,7 @@ export function SessionDetailsActions({
             disabled={isPending || !selectedPhaseId}
             onClick={handleSavePhase}
           >
-            {isPending ? <InlineSpinner /> : null}
+            {isPhasePending ? <InlineSpinner /> : null}
             Save phase link
           </Button>
         </div>
@@ -260,14 +274,16 @@ export function SessionDetailsActions({
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                       "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                      SESSION_GROUP_GRADE_LEVEL_TOGGLE_CLASSES[level]
+                      isSelected
+                        ? SESSION_GROUP_GRADE_LEVEL_TOGGLE_ON_CLASSES[level]
+                        : SESSION_GROUP_GRADE_LEVEL_TOGGLE_OFF_CLASSES[level]
                     )}
                   >
                     <span
                       className={cn(
                         "size-2 shrink-0 rounded-full",
                         SESSION_GROUP_GRADE_LEVEL_DOT_CLASSES[level],
-                        isSelected ? "opacity-100" : "opacity-70"
+                        isSelected ? "opacity-100" : "opacity-45"
                       )}
                       aria-hidden="true"
                     />
@@ -284,7 +300,7 @@ export function SessionDetailsActions({
             disabled={isPending || !selectedGroupGrade}
             onClick={handleSaveGroupGrade}
           >
-            {isPending ? <InlineSpinner /> : null}
+            {isGroupGradePending ? <InlineSpinner /> : null}
             Save group grade
           </Button>
         </div>

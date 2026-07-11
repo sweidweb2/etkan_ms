@@ -33,6 +33,12 @@ export type UpdateSessionSettingsInput = {
   group_grade_level?: string | null;
 };
 
+export type UpdateSessionDetailsInput = {
+  topic: string;
+  starts_at: string;
+  ends_at: string;
+};
+
 export async function listSessionCountsByClassIds(
   client: Supabase,
   classIds: string[]
@@ -88,6 +94,23 @@ export async function createSession(
       semester_id: input.semester_id ?? null,
       group_grade_level: input.group_grade_level ?? null,
     })
+    .select(SESSION_COLUMNS)
+    .single();
+}
+
+export async function updateSessionDetails(
+  client: Supabase,
+  id: string,
+  input: UpdateSessionDetailsInput
+) {
+  return client
+    .from("sessions")
+    .update({
+      topic: input.topic,
+      starts_at: input.starts_at,
+      ends_at: input.ends_at,
+    })
+    .eq("id", id)
     .select(SESSION_COLUMNS)
     .single();
 }

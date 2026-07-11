@@ -9,8 +9,9 @@ import {
   type StudentTaskStatusValue,
 } from "@/lib/constants/manager-student-task-status";
 import { createSessionTaskSchema } from "@/lib/validators/manager/create-session-task";
-import { editStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
+import { createEditStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
 import { updateAttendeeSchema } from "@/lib/validators/manager/update-attendee";
+import { updateClassSessionSchema } from "@/lib/validators/manager/update-class-session";
 import { updateSessionSettingsSchema } from "@/lib/validators/manager/update-session-settings";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import type { AttendeeRecord } from "@/repositories/attendee.repository";
@@ -151,9 +152,17 @@ function mapAttendeeStatus(status: string): AttendeeStatusValue {
 async function buildStudentDisplayByUserId(
   adminClient: Supabase,
   userIds: string[]
-): Promise<Map<string, { full_name: string; email: string }>> {
+): Promise<
+  Map<
+    string,
+    { full_name: string; email: string; student_profile_id: string | null }
+  >
+> {
   const uniqueIds = [...new Set(userIds.filter(Boolean))];
-  const map = new Map<string, { full_name: string; email: string }>();
+  const map = new Map<
+    string,
+    { full_name: string; email: string; student_profile_id: string | null }
+  >();
 
   if (uniqueIds.length === 0) {
     return map;
@@ -181,11 +190,35 @@ async function buildStudentDisplayByUserId(
       map.set(userId, {
         full_name: profile?.full_name ?? "Unknown student",
         email: authResult.data.user?.email ?? "",
+        student_profile_id: profile?.id ?? null,
       });
     })
   );
 
   return map;
+}
+
+function mapStudentTaskRow(
+  row: StudentTaskRecord,
+  displayByUserId: Map<
+    string,
+    { full_name: string; email: string; student_profile_id: string | null }
+  >
+): ManagerStudentTaskRow {
+  const display = displayByUserId.get(row.student_id);
+
+  return {
+    id: row.id,
+    task_id: row.task_id,
+    student_id: row.student_id,
+    student_profile_id: display?.student_profile_id ?? null,
+    full_name: display?.full_name ?? "Unknown student",
+    status: mapStudentTaskStatus(row.status),
+    submitted_at: row.submitted_at,
+    grade: row.grade,
+    notes: row.notes,
+    graded_at: row.graded_at,
+  };
 }
 
 export async function ensureSessionAttendeesForEnrolledStudents(
@@ -475,17 +508,9 @@ export async function getSessionTaskDetailForManager(
       id: classResult.data.id,
       name: classResult.data.name,
     },
-    studentTasks: studentTaskRecords.map((row) => ({
-      id: row.id,
-      task_id: row.task_id,
-      student_id: row.student_id,
-      full_name: displayByUserId.get(row.student_id)?.full_name ?? "Unknown student",
-      status: mapStudentTaskStatus(row.status),
-      submitted_at: row.submitted_at,
-      grade: row.grade,
-      notes: row.notes,
-      graded_at: row.graded_at,
-    })),
+    studentTasks: studentTaskRecords.map((row) =>
+      mapStudentTaskRow(row, displayByUserId)
+    ),
   };
 }
 
@@ -636,6 +661,118 @@ export async function updateSessionSettingsForManager(
   };
 }
 
+export type UpdateClassSessionResult =
+  | {
+      success: true;
+      session: ManagerClassSessionRow;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function updateClassSessionForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    session_id: string;
+    class_id: string;
+    topic: string;
+    starts_at: string;
+    ends_at: string;
+  }
+): Promise<UpdateClassSessionResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  if (!isUuid(input.session_id) || !isUuid(input.class_id)) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const parsed = updateClassSessionSchema.safeParse({
+    topic: input.topic,
+    starts_at: input.starts_at,
+    ends_at: input.ends_at,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existing = await sessionRepository.findSessionById(
+    adminClient,
+    input.session_id
+  );
+
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+
+  if (!existing.data || existing.data.class_id !== input.class_id) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const startsAt = toIsoOrNull(parsed.data.starts_at);
+  const endsAt = toIsoOrNull(parsed.data.ends_at);
+
+  if (!startsAt || !endsAt) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        starts_at: ["Invalid date and time."],
+      },
+    };
+  }
+
+  const { data, error } = await sessionRepository.updateSessionDetails(
+    adminClient,
+    input.session_id,
+    {
+      topic: parsed.data.topic.trim(),
+      starts_at: startsAt,
+      ends_at: endsAt,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to update session. Please try again.",
+    };
+  }
+
+  const session = mapSessionRecord(data as SessionRecord);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "sessions",
+    record_id: session.id,
+    old_data: {
+      topic: existing.data.topic,
+      starts_at: existing.data.starts_at,
+      ends_at: existing.data.ends_at,
+    },
+    new_data: {
+      topic: session.topic,
+      starts_at: session.starts_at,
+      ends_at: session.ends_at,
+    },
+    metadata: { note: "Session details updated." },
+  });
+
+  return {
+    success: true,
+    session,
+    message: "Session updated.",
+  };
+}
+
 export type CreateSessionTaskResult =
   | {
       success: true;
@@ -741,19 +878,8 @@ export async function createSessionTaskForManager(
   );
 
   const task = mapTaskRecord(data as TaskRecord);
-  const studentTasks: ManagerStudentTaskRow[] = studentTaskRecords.map(
-    (row) => ({
-      id: row.id,
-      task_id: row.task_id,
-      student_id: row.student_id,
-      full_name:
-        displayByUserId.get(row.student_id)?.full_name ?? "Unknown student",
-      status: mapStudentTaskStatus(row.status),
-      submitted_at: row.submitted_at,
-      grade: row.grade,
-      notes: row.notes,
-      graded_at: row.graded_at,
-    })
+  const studentTasks: ManagerStudentTaskRow[] = studentTaskRecords.map((row) =>
+    mapStudentTaskRow(row, displayByUserId)
   );
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -915,27 +1041,10 @@ export async function updateStudentTaskForManager(
     grade?: string | number;
     notes?: string;
     submitted_at?: string;
-    graded_at?: string;
   }
 ): Promise<UpdateStudentTaskResult> {
   if (actorRole !== ROLES.MANAGER) {
     return { success: false, error: "Unauthorized." };
-  }
-
-  const parsed = editStudentTaskSchema.safeParse({
-    status: input.status,
-    grade: input.grade,
-    notes: input.notes,
-    submitted_at: input.submitted_at,
-    graded_at: input.graded_at,
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
   }
 
   const existing = await studentTaskRepository.findStudentTaskById(
@@ -951,10 +1060,42 @@ export async function updateStudentTaskForManager(
     return { success: false, error: "Student task not found." };
   }
 
+  const taskResult = await taskRepository.findTaskById(
+    adminClient,
+    existing.data.task_id
+  );
+
+  if (taskResult.error) {
+    return { success: false, error: taskResult.error.message };
+  }
+
+  if (!taskResult.data) {
+    return { success: false, error: "Task not found." };
+  }
+
+  const parsed = createEditStudentTaskSchema(taskResult.data.max_grade).safeParse(
+    {
+      status: input.status,
+      grade: input.grade,
+      notes: input.notes,
+      submitted_at: input.submitted_at,
+    }
+  );
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
   const grade =
     parsed.data.grade === "" || parsed.data.grade === undefined
       ? null
       : Number(parsed.data.grade);
+
+  const gradedAt = new Date().toISOString();
 
   const { data, error } = await studentTaskRepository.updateStudentTask(
     adminClient,
@@ -964,7 +1105,7 @@ export async function updateStudentTaskForManager(
       grade,
       notes: normalizeOptionalString(parsed.data.notes),
       submitted_at: toIsoOrNull(parsed.data.submitted_at),
-      graded_at: toIsoOrNull(parsed.data.graded_at),
+      graded_at: gradedAt,
     }
   );
 
@@ -979,18 +1120,10 @@ export async function updateStudentTaskForManager(
     data.student_id,
   ]);
 
-  const studentTask: ManagerStudentTaskRow = {
-    id: data.id,
-    task_id: data.task_id,
-    student_id: data.student_id,
-    full_name:
-      displayByUserId.get(data.student_id)?.full_name ?? "Unknown student",
-    status: mapStudentTaskStatus(data.status),
-    submitted_at: data.submitted_at,
-    grade: data.grade,
-    notes: data.notes,
-    graded_at: data.graded_at,
-  };
+  const studentTask = mapStudentTaskRow(
+    data as StudentTaskRecord,
+    displayByUserId
+  );
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",

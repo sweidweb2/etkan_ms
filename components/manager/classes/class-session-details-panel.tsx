@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { format, formatDistanceStrict } from "date-fns";
+import { PencilIcon } from "lucide-react";
+import { EditClassSessionDialog } from "@/components/manager/classes/edit-class-session-dialog";
 import { SessionDetailsActions } from "@/components/manager/classes/session-details-actions";
 import { SessionDetailsTabsSection } from "@/components/manager/classes/session-details-tabs-section";
 import {
@@ -15,10 +17,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   Card,
+  CardAction,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   SESSION_TIMING_BADGE_CLASSES,
   SESSION_TIMING_LABELS,
@@ -88,6 +92,7 @@ export function ClassSessionDetailsPanel({
   const [session, setSession] = useState(initialSession);
   const [linkedPhase, setLinkedPhase] =
     useState<ManagerSessionPhaseLink | null>(initialLinkedPhase);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const timingLabel = getSessionTimingLabel(session);
   const timingText = SESSION_TIMING_LABELS[timingLabel];
@@ -134,6 +139,12 @@ export function ClassSessionDetailsPanel({
           <CardTitle className="text-xl">
             S{session.nb_order} · {session.topic}
           </CardTitle>
+          <CardAction className="self-center">
+            <Button type="button" onClick={() => setIsEditOpen(true)}>
+              <PencilIcon data-icon="inline-start" />
+              Edit session
+            </Button>
+          </CardAction>
         </CardHeader>
         <CardContent className="pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -186,6 +197,15 @@ export function ClassSessionDetailsPanel({
           </dl>
         </CardContent>
       </Card>
+
+      <EditClassSessionDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        session={session}
+        classId={classRow.id}
+        className={classRow.name}
+        onSessionUpdated={setSession}
+      />
 
       <SessionDetailsActions
         classId={classRow.id}

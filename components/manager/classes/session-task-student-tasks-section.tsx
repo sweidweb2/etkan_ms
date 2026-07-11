@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { PencilIcon } from "lucide-react";
+import { EyeIcon, PencilIcon } from "lucide-react";
 import { EditStudentTaskSheet } from "@/components/manager/classes/edit-student-task-sheet";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SESSION_STUDENT_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
+import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
@@ -174,7 +176,18 @@ export function SessionTaskStudentTasksSection({
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-1">
+                          {studentTask.student_profile_id ? (
+                            <Link
+                              href={getManagerStudentDetailRoute(
+                                studentTask.student_profile_id
+                              )}
+                              aria-label={`View ${studentTask.full_name}`}
+                              className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              <EyeIcon className="size-4" />
+                            </Link>
+                          ) : null}
                           <Button
                             type="button"
                             variant="ghost"

@@ -1,6 +1,5 @@
 export const STUDENT_CLASS_STATUSES = {
-  IN_PROGRESS: "in_progress",
-  DONE: "done",
+  ENROLLED: "enrolled",
   PAUSED: "paused",
   STOPPED: "stopped",
 } as const;

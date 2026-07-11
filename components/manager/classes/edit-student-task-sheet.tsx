@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { format } from "date-fns";
 import { updateStudentTaskAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -26,7 +27,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
 import {
-  editStudentTaskSchema,
+  createEditStudentTaskSchema,
   STUDENT_TASK_STATUS_VALUES,
   type EditStudentTaskInput,
 } from "@/lib/validators/manager/edit-student-task";
@@ -46,12 +47,8 @@ type EditStudentTaskSheetProps = {
   onUpdateStudentTask: (studentTask: ManagerStudentTaskRow) => void;
 };
 
-function toDatetimeLocalValue(value: string | null) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
+function toDatetimeLocalValue(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
@@ -74,6 +71,12 @@ export function EditStudentTaskSheet({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const [gradedAtPreview, setGradedAtPreview] = useState("");
+
+  const schema = useMemo(
+    () => createEditStudentTaskSchema(maxGrade),
+    [maxGrade]
+  );
 
   useActionStateToast(state, isPending);
 
@@ -85,14 +88,13 @@ export function EditStudentTaskSheet({
     watch,
     formState: { errors },
   } = useZodForm({
-    schema: editStudentTaskSchema,
+    schema,
     mode: "onBlur",
     defaultValues: {
       status: "pending",
       grade: "",
       notes: "",
       submitted_at: "",
-      graded_at: "",
     },
   });
 
@@ -103,14 +105,15 @@ export function EditStudentTaskSheet({
       return;
     }
 
+    setGradedAtPreview(toDatetimeLocalValue(new Date()));
+
     reset({
       status: studentTask.status,
       grade: studentTask.grade === null ? "" : studentTask.grade,
       notes: studentTask.notes ?? "",
       submitted_at: toDatetimeLocalValue(studentTask.submitted_at),
-      graded_at: toDatetimeLocalValue(studentTask.graded_at),
     });
-  }, [open, reset, studentTask]);
+  }, [open, maxGrade, reset, schema, studentTask]);
 
   useActionStateSuccess(
     state,
@@ -146,7 +149,6 @@ export function EditStudentTaskSheet({
     );
     formData.set("notes", values.notes ?? "");
     formData.set("submitted_at", values.submitted_at ?? "");
-    formData.set("graded_at", values.graded_at ?? "");
 
     startTransition(() => {
       formAction(formData);
@@ -156,6 +158,9 @@ export function EditStudentTaskSheet({
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
   const gradeError = errors.grade?.message ?? state.fieldErrors?.grade?.[0];
   const notesError = errors.notes?.message ?? state.fieldErrors?.notes?.[0];
+  const gradedAtDisplay = gradedAtPreview
+    ? format(new Date(gradedAtPreview), "MMM d, yyyy 'at' h:mm a")
+    : "—";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -222,7 +227,7 @@ export function EditStudentTaskSheet({
               id="edit-student-task-grade"
               type="number"
               min={0}
-              max={maxGrade ?? 999}
+              max={maxGrade ?? undefined}
               step={0.5}
               aria-invalid={!!gradeError}
               disabled={isPending}
@@ -273,14 +278,16 @@ export function EditStudentTaskSheet({
             <FieldLabel
               htmlFor="edit-student-task-graded-at"
               label="Graded at"
-              hint="Optional"
+              hint="Automatic on save"
             />
             <Input
               id="edit-student-task-graded-at"
-              type="datetime-local"
-              aria-invalid={!!errors.graded_at}
-              disabled={isPending}
-              {...register("graded_at")}
+              type="text"
+              readOnly
+              tabIndex={-1}
+              value={gradedAtDisplay}
+              disabled
+              className="bg-muted/50"
             />
           </div>
         </form>

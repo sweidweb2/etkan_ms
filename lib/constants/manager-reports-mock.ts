@@ -547,7 +547,7 @@ function buildClassRoster(filters: ReportFilters): ReportRow[] {
     return [
       {
         student_name: "Sara Ahmad",
-        status: "in_progress",
+        status: "enrolled",
         phone: "+961 71 234 567",
         joined_at: formatDate("2025-09-14T08:15:00.000Z"),
       },
@@ -571,19 +571,19 @@ function buildClassRoster(filters: ReportFilters): ReportRow[] {
   return withMockFallback(rows, [
     {
       student_name: "Sara Ahmad",
-      status: "in_progress",
+      status: "enrolled",
       phone: "+961 71 234 567",
       joined_at: formatDate("2025-09-14T08:15:00.000Z"),
     },
     {
       student_name: "Omar Khalil",
-      status: "in_progress",
+      status: "enrolled",
       phone: "+961 76 345 678",
       joined_at: formatDate("2025-09-20T10:00:00.000Z"),
     },
     {
       student_name: "Fatima Zahra",
-      status: "done",
+      status: "stopped",
       phone: "+961 70 456 789",
       joined_at: formatDate("2025-10-05T16:10:00.000Z"),
     },

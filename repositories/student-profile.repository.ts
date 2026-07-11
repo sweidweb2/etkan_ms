@@ -42,7 +42,7 @@ export async function listStudentProfilesByUserIds(
 
   return client
     .from("student_profiles")
-    .select("user_id, full_name")
+    .select("id, user_id, full_name")
     .in("user_id", userIds);
 }
 

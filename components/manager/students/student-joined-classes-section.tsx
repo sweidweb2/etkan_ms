@@ -136,7 +136,7 @@ export function StudentJoinedClassesSection({
       class_id: classOption.class_id,
       name: classOption.name,
       subject_name: classOption.subject_name,
-      status: STUDENT_CLASS_STATUSES.IN_PROGRESS,
+      status: STUDENT_CLASS_STATUSES.ENROLLED,
       joined_at: new Date().toISOString(),
     };
 

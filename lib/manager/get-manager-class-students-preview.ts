@@ -70,7 +70,7 @@ function buildPreviewExtraStudents(
       username: `${firstName}.${lastName}.${serial}`.toLowerCase(),
       email: `${firstName}.${lastName}.${serial}@preview.edu`.toLowerCase(),
       phone: seed % 4 === 0 ? null : `+961 70 ${String(100000 + (seed % 900000)).slice(0, 6)}`,
-      enrollment_status: STUDENT_CLASS_STATUSES.IN_PROGRESS,
+      enrollment_status: STUDENT_CLASS_STATUSES.ENROLLED,
       joined_at: `2026-01-${joinedDay}T${joinedHour}:${joinedMinute}:00.000Z`,
     };
   });

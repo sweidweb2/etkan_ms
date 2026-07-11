@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -10,8 +10,8 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { updateClassStudentStatusAction } from "@/app/manager/classes/actions";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
-import { StudentClassStatusBadge } from "@/components/manager/students/student-class-status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,15 +41,26 @@ import {
   type StudentClassStatusValue,
 } from "@/lib/constants/manager-student-class-status";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type { ManagerStudentRow } from "@/types/manager-student";
+import type { UpdateClassStudentStatusActionState } from "@/types/manager-class-detail";
 
 const PAGE_SIZE = 10;
 const STATUS_FILTER_ALL = "all";
+const initialStatusUpdateState: UpdateClassStudentStatusActionState = {};
+
+const ENROLLMENT_STATUS_SELECT_ITEMS = Object.fromEntries(
+  STUDENT_CLASS_STATUS_VALUES.map((status) => [
+    status,
+    MANAGER_STUDENT_CLASS_STATUS_LABELS[status as StudentClassStatusValue],
+  ])
+) as Record<StudentClassStatusValue, string>;
 
 type ClassStudentsSectionProps = {
   classId: string;
@@ -151,11 +162,37 @@ export function ClassStudentsSection({
   onClassUpdated,
   onStudentGradeAdded,
 }: ClassStudentsSectionProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [statusUpdateState, statusUpdateAction, isStatusUpdatePending] =
+    useActionState(updateClassStudentStatusAction, initialStatusUpdateState);
+  const isStatusPending = isStatusUpdatePending || isTransitionPending;
+
+  useActionStateToast(statusUpdateState, isStatusPending);
+
   const [students, setStudents] = useState(initialStudents);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(1);
+
+  useActionStateSuccess(
+    statusUpdateState,
+    isStatusPending,
+    (nextState) => {
+      if (!nextState.student) {
+        return;
+      }
+
+      setStudents((prev) => {
+        const nextStudents = prev.map((row) =>
+          row.id === nextState.student!.id ? nextState.student! : row
+        );
+        onStudentsChange(nextStudents);
+        return nextStudents;
+      });
+    },
+    (nextState) => Boolean(nextState.success && nextState.student)
+  );
 
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
@@ -191,6 +228,24 @@ export function ClassStudentsSection({
   const handleStatusFilterChange = (value: string | null) => {
     setStatusFilter(value ?? STATUS_FILTER_ALL);
     setCurrentPage(1);
+  };
+
+  const handleEnrollmentStatusChange = (
+    student: ManagerClassStudentRow,
+    status: StudentClassStatusValue
+  ) => {
+    if (status === student.enrollment_status) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("id", student.id);
+    formData.set("class_id", classId);
+    formData.set("status", status);
+
+    startTransition(() => {
+      statusUpdateAction(formData);
+    });
   };
 
   const handleAddStudent = (
@@ -330,9 +385,39 @@ export function ClassStudentsSection({
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <StudentClassStatusBadge
-                          status={student.enrollment_status}
-                        />
+                        <Select
+                          value={student.enrollment_status}
+                          items={ENROLLMENT_STATUS_SELECT_ITEMS}
+                          disabled={isStatusPending}
+                          onValueChange={(value) => {
+                            if (!value) {
+                              return;
+                            }
+
+                            handleEnrollmentStatusChange(
+                              student,
+                              value as StudentClassStatusValue
+                            );
+                          }}
+                        >
+                          <SelectTrigger
+                            className="w-[9.5rem]"
+                            aria-label={`Enrollment status for ${student.full_name}`}
+                          >
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent align="start">
+                            {STUDENT_CLASS_STATUS_VALUES.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {
+                                  MANAGER_STUDENT_CLASS_STATUS_LABELS[
+                                    status as StudentClassStatusValue
+                                  ]
+                                }
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                         {student.joined_at

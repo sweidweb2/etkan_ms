@@ -256,7 +256,7 @@ export async function getStudentDetailStatsForManager(
     studentClassRepository.countStudentClassesByUserIdAndStatus(
       adminClient,
       userId,
-      STUDENT_CLASS_STATUSES.DONE
+      STUDENT_CLASS_STATUSES.STOPPED
     ),
     studentTaskRepository.countStudentTasksByStudentId(adminClient, userId),
     studentTaskRepository.countStudentTasksDoneByStudentId(adminClient, userId),

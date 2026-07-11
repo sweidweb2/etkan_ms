@@ -18,6 +18,7 @@ import { createFinalExamSchema } from "@/lib/validators/manager/create-final-exa
 import { editStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { updateFinalExamSchema } from "@/lib/validators/manager/update-final-exam";
 import { addStudentToClassSchema } from "@/lib/validators/manager/add-student-to-class";
+import { updateStudentClassStatusSchema } from "@/lib/validators/manager/update-student-class-status";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
@@ -33,6 +34,7 @@ import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import type { StudentClassRecord } from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
 import * as taskRepository from "@/repositories/task.repository";
@@ -94,15 +96,22 @@ function mapClassStatus(status: string | null): ClassStatusValue {
 
 function mapEnrollmentStatus(status: string | null): StudentClassStatusValue {
   if (
-    status === STUDENT_CLASS_STATUSES.IN_PROGRESS ||
-    status === STUDENT_CLASS_STATUSES.DONE ||
+    status === STUDENT_CLASS_STATUSES.ENROLLED ||
     status === STUDENT_CLASS_STATUSES.PAUSED ||
     status === STUDENT_CLASS_STATUSES.STOPPED
   ) {
     return status;
   }
 
-  return STUDENT_CLASS_STATUSES.IN_PROGRESS;
+  if (status === "done") {
+    return STUDENT_CLASS_STATUSES.STOPPED;
+  }
+
+  if (status === "in_progress" || status === "active") {
+    return STUDENT_CLASS_STATUSES.ENROLLED;
+  }
+
+  return STUDENT_CLASS_STATUSES.ENROLLED;
 }
 
 function mapFinalExamStatus(status: string): StudentTaskStatusValue {
@@ -2073,7 +2082,7 @@ export async function addStudentToClassForManager(
     {
       user_id: userId,
       class_id: input.class_id,
-      status: STUDENT_CLASS_STATUSES.IN_PROGRESS,
+      status: STUDENT_CLASS_STATUSES.ENROLLED,
     }
   );
 
@@ -2189,5 +2198,123 @@ export async function addStudentToClassForManager(
     studentGrade,
     classRow,
     message: `${student.full_name} added to class.`,
+  };
+}
+
+export type UpdateClassStudentStatusResult =
+  | {
+      success: true;
+      student: ManagerClassStudentRow;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function updateClassStudentStatusForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    class_id: string;
+    status: string;
+  }
+): Promise<UpdateClassStudentStatusResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = updateStudentClassStatusSchema.safeParse({
+    status: input.status,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existing = await studentClassRepository.findStudentClassById(
+    adminClient,
+    input.id
+  );
+
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+
+  if (!existing.data || existing.data.class_id !== input.class_id) {
+    return { success: false, error: "Enrollment not found." };
+  }
+
+  const { data, error } = await studentClassRepository.updateStudentClassStatus(
+    adminClient,
+    input.id,
+    parsed.data.status
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to update enrollment status.",
+    };
+  }
+
+  const enrollment = data as StudentClassRecord;
+  const [profileResult, studentProfileResult, authResult] = await Promise.all([
+    profileRepository.findProfileById(adminClient, enrollment.user_id),
+    studentProfileRepository.findStudentProfileByUserId(
+      adminClient,
+      enrollment.user_id
+    ),
+    authRepository.getAuthUserById(adminClient, enrollment.user_id),
+  ]);
+
+  if (profileResult.error || !profileResult.data) {
+    return {
+      success: false,
+      error: profileResult.error?.message ?? "Unable to load student profile.",
+    };
+  }
+
+  if (studentProfileResult.error || !studentProfileResult.data) {
+    return {
+      success: false,
+      error:
+        studentProfileResult.error?.message ??
+        "Unable to load student profile.",
+    };
+  }
+
+  const student: ManagerClassStudentRow = {
+    id: enrollment.id,
+    student_profile_id: studentProfileResult.data.id,
+    user_id: enrollment.user_id,
+    full_name: studentProfileResult.data.full_name,
+    username: profileResult.data.username,
+    email: authResult.data.user?.email ?? "",
+    phone: studentProfileResult.data.phone,
+    enrollment_status: mapEnrollmentStatus(enrollment.status),
+    joined_at: enrollment.joined_at ?? "",
+  };
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "student_class",
+    record_id: student.id,
+    old_data: {
+      status: existing.data.status,
+    },
+    new_data: {
+      status: student.enrollment_status,
+    },
+  });
+
+  return {
+    success: true,
+    student,
+    message: "Enrollment status updated.",
   };
 }

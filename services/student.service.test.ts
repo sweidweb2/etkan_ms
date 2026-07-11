@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
 import { ROLES } from "@/lib/constants/roles";
+import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -225,6 +226,14 @@ describe("getStudentDetailStatsForManager", () => {
       tasksDone: 6,
       tasksTotal: 10,
     });
+
+    expect(
+      studentClassRepository.countStudentClassesByUserIdAndStatus
+    ).toHaveBeenCalledWith(
+      adminClient,
+      "user-1",
+      STUDENT_CLASS_STATUSES.STOPPED
+    );
   });
 });
 

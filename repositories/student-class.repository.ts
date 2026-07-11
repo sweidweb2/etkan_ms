@@ -103,6 +103,27 @@ export async function createStudentClassEnrollment(
     .single();
 }
 
+export async function findStudentClassById(client: Supabase, id: string) {
+  return client
+    .from("student_class")
+    .select(STUDENT_CLASS_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+}
+
+export async function updateStudentClassStatus(
+  client: Supabase,
+  id: string,
+  status: string
+) {
+  return client
+    .from("student_class")
+    .update({ status })
+    .eq("id", id)
+    .select(STUDENT_CLASS_COLUMNS)
+    .single();
+}
+
 export async function countStudentClassesByClassId(
   client: Supabase,
   classId: string

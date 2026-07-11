@@ -35,6 +35,7 @@ export interface ManagerStudentTaskRow {
   id: string;
   task_id: string;
   student_id: string;
+  student_profile_id: string | null;
   full_name: string;
   status: StudentTaskStatusValue;
   submitted_at: string | null;
@@ -42,6 +43,14 @@ export interface ManagerStudentTaskRow {
   notes: string | null;
   graded_at: string | null;
 }
+
+export type UpdateClassSessionActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  session?: ManagerClassSessionRow;
+};
 
 export type UpdateSessionSettingsActionState = {
   success?: boolean;

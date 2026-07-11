@@ -7,11 +7,13 @@ import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase"
 import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create-relationship";
 import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
-import { parseEditStudentTaskFormData } from "@/lib/validators/manager/edit-student-task";
+import { parseEditStudentTaskFormData, createEditStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
 import { parseUpdateRelationshipFormData } from "@/lib/validators/manager/update-relationship";
 import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
 import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
+import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update-class-session";
+import { parseUpdateStudentClassStatusFormData } from "@/lib/validators/manager/update-student-class-status";
 import { parseCreateNotificationFormData } from "@/lib/validators/manager/create-notification";
 import { parseUpdateNotificationFormData } from "@/lib/validators/manager/update-notification";
 import { parseNotificationIdFormData } from "@/lib/validators/manager/notification-id";
@@ -517,6 +519,52 @@ describe("parseUpdateSessionSettingsFormData", () => {
   });
 });
 
+describe("parseUpdateClassSessionFormData", () => {
+  it("parses valid session update payload", () => {
+    const formData = new FormData();
+    formData.set("session_id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("topic", "Updated topic");
+    formData.set("starts_at", "2026-07-01T10:00");
+    formData.set("ends_at", "2026-07-01T12:00");
+
+    const result = parseUpdateClassSessionFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.session_id).toBe(relationshipId);
+      expect(result.data.class_id).toBe(relationshipId);
+      expect(result.data.topic).toBe("Updated topic");
+      expect(result.data.starts_at).toBe("2026-07-01T10:00");
+      expect(result.data.ends_at).toBe("2026-07-01T12:00");
+    }
+  });
+
+  it("rejects end before start", () => {
+    const formData = new FormData();
+    formData.set("session_id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("topic", "Updated topic");
+    formData.set("starts_at", "2026-07-01T12:00");
+    formData.set("ends_at", "2026-07-01T10:00");
+
+    const result = parseUpdateClassSessionFormData(formData);
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing session or class", () => {
+    const formData = new FormData();
+    formData.set("topic", "Updated topic");
+    formData.set("starts_at", "2026-07-01T10:00");
+    formData.set("ends_at", "2026-07-01T12:00");
+
+    const result = parseUpdateClassSessionFormData(formData);
+
+    expect(result.success).toBe(false);
+  });
+});
+
 describe("parseUpdateAttendeeFormData", () => {
   it("parses attendance status enum", () => {
     const formData = new FormData();
@@ -566,5 +614,54 @@ describe("parseEditStudentTaskFormData", () => {
       expect(result.data.status).toBe("graded");
       expect(result.data.grade).toBe(18);
     }
+  });
+
+  it("rejects grade above task max when schema is scoped", () => {
+    const schema = createEditStudentTaskSchema(20);
+    const parsed = schema.safeParse({
+      status: "graded",
+      grade: "25",
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+});
+
+describe("parseUpdateStudentClassStatusFormData", () => {
+  it("parses enrollment status update", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("status", "enrolled");
+
+    const result = parseUpdateStudentClassStatusFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("enrolled");
+    }
+  });
+
+  it("parses paused enrollment status", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("status", "paused");
+
+    const result = parseUpdateStudentClassStatusFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("paused");
+    }
+  });
+
+  it("rejects missing enrollment or class", () => {
+    const formData = new FormData();
+    formData.set("status", "invalid");
+
+    const result = parseUpdateStudentClassStatusFormData(formData);
+
+    expect(result.success).toBe(false);
   });
 });
