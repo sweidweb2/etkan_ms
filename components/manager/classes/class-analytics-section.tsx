@@ -3,6 +3,10 @@
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { AnalyticsChartCard } from "@/components/manager/analytics/analytics-chart-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  formatGroupGradeLevelTick,
+  GROUP_GRADE_LEVEL_Y_TICKS,
+} from "@/lib/manager/class-group-grade-analytics";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 
 type ClassAnalyticsSectionProps = {
@@ -12,6 +16,9 @@ type ClassAnalyticsSectionProps = {
 
 const NO_GRADED_TASKS_MESSAGE =
   "No graded tasks yet. Set student task status to Graded or Late (with a grade) on session task pages to populate this chart.";
+
+const NO_GROUP_GRADES_MESSAGE =
+  "No group grades yet. Set a group grade level on session settings to populate this chart.";
 
 function formatTaskTooltipExtra(
   point: Record<string, string | number | null>
@@ -36,12 +43,19 @@ export function ClassAnalyticsSection({
   const hasGradedTaskData = analytics.taskGradeTrend.some(
     (point) => point.graded_count > 0
   );
+  const hasGroupGradeData = analytics.groupGradeTrend.length > 0;
 
   const taskGradeChartData = analytics.taskGradeTrend.map((point) => ({
     session_label: point.session_label,
     average_grade: point.graded_count > 0 ? point.average_grade : null,
     task_count: point.task_count,
     graded_count: point.graded_count,
+  }));
+
+  const groupGradeChartData = analytics.groupGradeTrend.map((point) => ({
+    session_label: point.session_label,
+    group_grade_index: point.group_grade_index,
+    group_grade_label: point.group_grade_label,
   }));
 
   const attendanceChartData = analytics.attendanceTrend.map((point) => ({
@@ -54,7 +68,8 @@ export function ClassAnalyticsSection({
       <CardHeader className="border-b bg-muted/40 py-3">
         <CardTitle>Class analytics</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Average task grades and attendance across sessions for {className}.
+          Task grades, group grades, and attendance across sessions for{" "}
+          {className}.
         </p>
       </CardHeader>
       <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
@@ -84,6 +99,39 @@ export function ClassAnalyticsSection({
           <p className="mt-3 text-xs text-muted-foreground">
             Sessions appear once at least one task has graded student rows.
             Multiple tasks in a session are averaged equally.
+          </p>
+        </AnalyticsChartCard>
+
+        <AnalyticsChartCard
+          title="Group grades per session"
+          description={
+            hasGroupGradeData
+              ? `${analytics.groupGradeTrend.length} session${analytics.groupGradeTrend.length === 1 ? "" : "s"} with a group grade`
+              : "Set group grade levels on sessions to see trends"
+          }
+        >
+          <ClassLineChart
+            data={groupGradeChartData}
+            xKey="session_label"
+            yDomain={[0, GROUP_GRADE_LEVEL_Y_TICKS.length - 1]}
+            yTicks={GROUP_GRADE_LEVEL_Y_TICKS}
+            yTickFormatter={formatGroupGradeLevelTick}
+            yLabel="Level"
+            emptyMessage={NO_GROUP_GRADES_MESSAGE}
+            formatTooltipSeriesValue={(_value, _seriesKey, point) =>
+              String(point.group_grade_label ?? "")
+            }
+            series={[
+              {
+                key: "group_grade_index",
+                label: "Group grade",
+                color: "#f59e0b",
+              },
+            ]}
+          />
+          <p className="mt-3 text-xs text-muted-foreground">
+            Sessions without a group grade level are omitted. Levels run from
+            Very low to Very high.
           </p>
         </AnalyticsChartCard>
 

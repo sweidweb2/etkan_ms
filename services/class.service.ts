@@ -12,6 +12,7 @@ import {
   computeOverallAverageTaskGrade,
   computeSessionTaskGradeSummary,
 } from "@/lib/manager/class-analytics";
+import { buildClassGroupGradeTrend } from "@/lib/manager/class-group-grade-analytics";
 import {
   STUDENT_TASK_STATUSES,
   type StudentTaskStatusValue,
@@ -1106,6 +1107,7 @@ export async function getClassAnalyticsForManager(
   if (sessions.length === 0) {
     return {
       taskGradeTrend: [],
+      groupGradeTrend: [],
       attendanceTrend: [],
       overallAverageTaskGrade: 0,
       overallAttendanceRate: 0,
@@ -1174,6 +1176,8 @@ export async function getClassAnalyticsForManager(
     };
   });
 
+  const groupGradeTrend = buildClassGroupGradeTrend(sessions);
+
   const attendanceTrend = sessions.map((session) => {
     const attendees = attendeesBySessionId.get(session.id) ?? [];
     const presentCount = attendees.filter((row) =>
@@ -1210,6 +1214,7 @@ export async function getClassAnalyticsForManager(
 
   return {
     taskGradeTrend,
+    groupGradeTrend,
     attendanceTrend,
     overallAverageTaskGrade,
     overallAttendanceRate,

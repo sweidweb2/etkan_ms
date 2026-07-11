@@ -33,21 +33,59 @@ function hasProvidedGrade(grade: string | number | undefined) {
   return grade !== undefined && grade !== "";
 }
 
-/** When a grade is saved on a pending row, promote status to graded automatically. */
-export function resolveStudentTaskStatusOnGradeSave<
+export function isStudentTaskPastDue(
+  dueDate: string | null | undefined,
+  now: Date = new Date()
+) {
+  if (!dueDate) {
+    return false;
+  }
+
+  const due = new Date(dueDate);
+  return !Number.isNaN(due.getTime()) && due.getTime() < now.getTime();
+}
+
+export type ResolveStudentTaskStatusInput<
   TStatus extends (typeof STUDENT_TASK_STATUS_VALUES)[number],
->(status: TStatus, grade: string | number | undefined): TStatus {
-  if (
-    hasProvidedGrade(grade) &&
-    status === STUDENT_TASK_STATUSES.PENDING
-  ) {
+> = {
+  status: TStatus;
+  grade?: string | number | undefined;
+  dueDate?: string | null;
+  now?: Date;
+};
+
+/** Applies grade and due-date rules before persisting a student task update. */
+export function resolveStudentTaskStatusOnSave<
+  TStatus extends (typeof STUDENT_TASK_STATUS_VALUES)[number],
+>(input: ResolveStudentTaskStatusInput<TStatus>): TStatus {
+  const { status, grade, dueDate, now = new Date() } = input;
+  const hasGrade = hasProvidedGrade(grade);
+
+  if (hasGrade && status === STUDENT_TASK_STATUSES.PENDING) {
     return STUDENT_TASK_STATUSES.GRADED as TStatus;
   }
 
-  return status;
+  let resolved = status;
+
+  if (!hasGrade && status === STUDENT_TASK_STATUSES.GRADED) {
+    resolved = STUDENT_TASK_STATUSES.PENDING as TStatus;
+  }
+
+  if (
+    !hasGrade &&
+    resolved === STUDENT_TASK_STATUSES.PENDING &&
+    isStudentTaskPastDue(dueDate, now)
+  ) {
+    return STUDENT_TASK_STATUSES.MISSING as TStatus;
+  }
+
+  return resolved;
 }
 
-export function createEditStudentTaskSchema(maxGrade: number | null) {
+export function createEditStudentTaskSchema(
+  maxGrade: number | null,
+  dueDate?: string | null
+) {
   return z
     .object({
       status: z.enum(STUDENT_TASK_STATUS_VALUES, {
@@ -63,7 +101,11 @@ export function createEditStudentTaskSchema(maxGrade: number | null) {
     })
     .transform((data) => ({
       ...data,
-      status: resolveStudentTaskStatusOnGradeSave(data.status, data.grade),
+      status: resolveStudentTaskStatusOnSave({
+        status: data.status,
+        grade: data.grade,
+        dueDate,
+      }),
     }));
 }
 

@@ -29,7 +29,7 @@ import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-stud
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import {
   createEditStudentTaskSchema,
-  resolveStudentTaskStatusOnGradeSave,
+  resolveStudentTaskStatusOnSave,
   STUDENT_TASK_STATUS_VALUES,
   type EditStudentTaskInput,
 } from "@/lib/validators/manager/edit-student-task";
@@ -46,6 +46,7 @@ type EditStudentTaskSheetProps = {
   onOpenChange: (open: boolean) => void;
   studentTask: ManagerStudentTaskRow | null;
   maxGrade: number | null;
+  dueDate?: string | null;
   onUpdateStudentTask: (studentTask: ManagerStudentTaskRow) => void;
 };
 
@@ -65,6 +66,7 @@ export function EditStudentTaskSheet({
   onOpenChange,
   studentTask,
   maxGrade,
+  dueDate = null,
   onUpdateStudentTask,
 }: EditStudentTaskSheetProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -76,8 +78,8 @@ export function EditStudentTaskSheet({
   const [gradedAtPreview, setGradedAtPreview] = useState("");
 
   const schema = useMemo(
-    () => createEditStudentTaskSchema(maxGrade),
-    [maxGrade]
+    () => createEditStudentTaskSchema(maxGrade, dueDate),
+    [dueDate, maxGrade]
   );
 
   useActionStateToast(state, isPending);
@@ -150,10 +152,11 @@ export function EditStudentTaskSheet({
       return;
     }
 
-    const resolvedStatus = resolveStudentTaskStatusOnGradeSave(
-      values.status,
-      values.grade
-    );
+    const resolvedStatus = resolveStudentTaskStatusOnSave({
+      status: values.status,
+      grade: values.grade,
+      dueDate,
+    });
 
     const formData = new FormData();
     formData.set("id", studentTask.id);

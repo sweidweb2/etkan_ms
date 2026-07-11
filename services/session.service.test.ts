@@ -514,7 +514,7 @@ describe("updateStudentTaskForManager", () => {
         session_id: sessionId,
         title: "Homework",
         description: null,
-        due_date: null,
+        due_date: "2099-01-01T00:00:00.000Z",
         max_grade: 20,
         created_at: "2026-07-01T00:00:00.000Z",
       },
@@ -596,7 +596,7 @@ describe("updateStudentTaskForManager", () => {
         session_id: sessionId,
         title: "Homework",
         description: null,
-        due_date: null,
+        due_date: "2099-01-01T00:00:00.000Z",
         max_grade: 20,
         created_at: "2026-07-01T00:00:00.000Z",
       },
@@ -649,6 +649,153 @@ describe("updateStudentTaskForManager", () => {
     );
   });
 
+  it("demotes graded to pending when grade is cleared", async () => {
+    vi.mocked(studentTaskRepository.findStudentTaskById).mockResolvedValue({
+      data: {
+        id: studentTaskId,
+        task_id: taskId,
+        student_id: studentA,
+        status: STUDENT_TASK_STATUSES.GRADED,
+        submitted_at: null,
+        grade: 18,
+        notes: null,
+        graded_at: "2026-07-11T12:00:00.000Z",
+      },
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+      data: {
+        id: taskId,
+        session_id: sessionId,
+        title: "Homework",
+        description: null,
+        due_date: "2099-01-01T00:00:00.000Z",
+        max_grade: 20,
+        created_at: "2026-07-01T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.updateStudentTask).mockResolvedValue({
+      data: {
+        id: studentTaskId,
+        task_id: taskId,
+        student_id: studentA,
+        status: STUDENT_TASK_STATUSES.PENDING,
+        submitted_at: null,
+        grade: null,
+        notes: null,
+        graded_at: null,
+      },
+      error: null,
+    } as never);
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesByUserIds
+    ).mockResolvedValue({
+      data: [{ user_id: studentA, full_name: "Alice" }],
+      error: null,
+    } as never);
+    mockAuthEmails([{ id: studentA, email: "alice@example.com" }]);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await updateStudentTaskForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: studentTaskId,
+        status: STUDENT_TASK_STATUSES.GRADED,
+        grade: "",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(studentTaskRepository.updateStudentTask).toHaveBeenCalledWith(
+      adminClient,
+      studentTaskId,
+      expect.objectContaining({
+        status: STUDENT_TASK_STATUSES.PENDING,
+        grade: null,
+        graded_at: null,
+      })
+    );
+  });
+
+  it("marks overdue pending work as missing when saved without a grade", async () => {
+    vi.mocked(studentTaskRepository.findStudentTaskById).mockResolvedValue({
+      data: {
+        id: studentTaskId,
+        task_id: taskId,
+        student_id: studentA,
+        status: STUDENT_TASK_STATUSES.PENDING,
+        submitted_at: null,
+        grade: null,
+        notes: null,
+        graded_at: null,
+      },
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+      data: {
+        id: taskId,
+        session_id: sessionId,
+        title: "Homework",
+        description: null,
+        due_date: "2020-01-01T00:00:00.000Z",
+        max_grade: 20,
+        created_at: "2026-07-01T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.updateStudentTask).mockResolvedValue({
+      data: {
+        id: studentTaskId,
+        task_id: taskId,
+        student_id: studentA,
+        status: STUDENT_TASK_STATUSES.MISSING,
+        submitted_at: null,
+        grade: null,
+        notes: null,
+        graded_at: null,
+      },
+      error: null,
+    } as never);
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesByUserIds
+    ).mockResolvedValue({
+      data: [{ user_id: studentA, full_name: "Alice" }],
+      error: null,
+    } as never);
+    mockAuthEmails([{ id: studentA, email: "alice@example.com" }]);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await updateStudentTaskForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: studentTaskId,
+        status: STUDENT_TASK_STATUSES.PENDING,
+        grade: "",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(studentTaskRepository.updateStudentTask).toHaveBeenCalledWith(
+      adminClient,
+      studentTaskId,
+      expect.objectContaining({
+        status: STUDENT_TASK_STATUSES.MISSING,
+        grade: null,
+      })
+    );
+  });
+
   it("rejects grade above task max", async () => {
     vi.mocked(studentTaskRepository.findStudentTaskById).mockResolvedValue({
       data: {
@@ -669,7 +816,7 @@ describe("updateStudentTaskForManager", () => {
         session_id: sessionId,
         title: "Homework",
         description: null,
-        due_date: null,
+        due_date: "2099-01-01T00:00:00.000Z",
         max_grade: 20,
         created_at: "2026-07-01T00:00:00.000Z",
       },

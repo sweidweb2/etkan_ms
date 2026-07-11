@@ -1,3 +1,7 @@
+import {
+  SESSION_GROUP_GRADE_LEVEL_LABELS,
+  SESSION_GROUP_GRADE_LEVEL_ORDER,
+} from "@/lib/constants/manager-session-group-grade-display";
 import { getManagerClassPreview } from "@/lib/manager/get-manager-class-preview";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 
@@ -138,8 +142,29 @@ export function getManagerClassAnalyticsPreview(
       attendanceTrend.length
   );
 
+  const groupGradeTrend = Array.from({ length: sessionCount }, (_, index) => {
+    const sessionNumber = sessionCount - index;
+    const level =
+      SESSION_GROUP_GRADE_LEVEL_ORDER[
+        (sessionNumber - 1) % SESSION_GROUP_GRADE_LEVEL_ORDER.length
+      ]!;
+
+    if (sessionNumber % 4 === 0) {
+      return null;
+    }
+
+    return {
+      session_label: `S${sessionNumber}`,
+      nb_order: sessionNumber,
+      group_grade_level: level,
+      group_grade_label: SESSION_GROUP_GRADE_LEVEL_LABELS[level],
+      group_grade_index: SESSION_GROUP_GRADE_LEVEL_ORDER.indexOf(level),
+    };
+  }).filter((point): point is NonNullable<typeof point> => point !== null);
+
   return {
     taskGradeTrend,
+    groupGradeTrend,
     attendanceTrend,
     overallAverageTaskGrade,
     overallAttendanceRate,

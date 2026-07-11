@@ -1075,7 +1075,10 @@ export async function updateStudentTaskForManager(
     return { success: false, error: "Task not found." };
   }
 
-  const parsed = createEditStudentTaskSchema(taskResult.data.max_grade).safeParse(
+  const parsed = createEditStudentTaskSchema(
+    taskResult.data.max_grade,
+    taskResult.data.due_date
+  ).safeParse(
     {
       status: input.status,
       grade: input.grade,
@@ -1098,6 +1101,10 @@ export async function updateStudentTaskForManager(
       : Number(parsed.data.grade);
 
   const gradedAt = new Date().toISOString();
+  const shouldSetGradedAt =
+    grade !== null &&
+    (parsed.data.status === STUDENT_TASK_STATUSES.GRADED ||
+      parsed.data.status === STUDENT_TASK_STATUSES.LATE);
 
   const { data, error } = await studentTaskRepository.updateStudentTask(
     adminClient,
@@ -1107,7 +1114,7 @@ export async function updateStudentTaskForManager(
       grade,
       notes: normalizeOptionalString(parsed.data.notes),
       submitted_at: toIsoOrNull(parsed.data.submitted_at),
-      graded_at: gradedAt,
+      graded_at: shouldSetGradedAt ? gradedAt : null,
     }
   );
 

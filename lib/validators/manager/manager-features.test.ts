@@ -667,6 +667,58 @@ describe("parseEditStudentTaskFormData", () => {
       expect(result.data.status).toBe("submitted");
     }
   });
+
+  it("demotes graded to pending when grade is cleared", () => {
+    const schema = createEditStudentTaskSchema(20, "2099-01-01T00:00:00.000Z");
+    const parsed = schema.safeParse({
+      status: "graded",
+      grade: "",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("pending");
+    }
+  });
+
+  it("marks pending as missing when due date has passed", () => {
+    const schema = createEditStudentTaskSchema(20, "2020-01-01T00:00:00.000Z");
+    const parsed = schema.safeParse({
+      status: "pending",
+      grade: "",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("missing");
+    }
+  });
+
+  it("keeps overdue pending as graded when a grade is provided", () => {
+    const schema = createEditStudentTaskSchema(20, "2020-01-01T00:00:00.000Z");
+    const parsed = schema.safeParse({
+      status: "pending",
+      grade: "15",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("graded");
+    }
+  });
+
+  it("marks cleared graded work as missing when due date has passed", () => {
+    const schema = createEditStudentTaskSchema(20, "2020-01-01T00:00:00.000Z");
+    const parsed = schema.safeParse({
+      status: "graded",
+      grade: "",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("missing");
+    }
+  });
 });
 
 describe("parseUpdateStudentClassStatusFormData", () => {

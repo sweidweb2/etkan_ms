@@ -109,6 +109,7 @@ export function SessionTaskStudentTasksSection({
         onOpenChange={setIsEditOpen}
         studentTask={selectedStudentTask}
         maxGrade={task.max_grade}
+        dueDate={task.due_date}
         onUpdateStudentTask={handleUpdateStudentTask}
       />
 

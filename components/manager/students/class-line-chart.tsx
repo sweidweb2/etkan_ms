@@ -25,6 +25,13 @@ type ClassLineChartProps = {
   className?: string;
   yDomain?: [number, number];
   yLabel?: string;
+  yTicks?: number[];
+  yTickFormatter?: (value: number) => string;
+  formatTooltipSeriesValue?: (
+    value: number,
+    seriesKey: string,
+    point: Record<string, string | number | null>
+  ) => string;
   visible?: boolean;
   emptyMessage?: string;
   getTooltipExtraLines?: (
@@ -51,6 +58,9 @@ export function ClassLineChart({
   className,
   yDomain,
   yLabel,
+  yTicks,
+  yTickFormatter,
+  formatTooltipSeriesValue,
   visible = true,
   emptyMessage = "No chart data yet.",
   getTooltipExtraLines,
@@ -106,7 +116,9 @@ export function ClassLineChart({
             tickLine={false}
             axisLine={false}
             domain={yDomain}
-            width={yLabel ? 48 : 36}
+            ticks={yTicks}
+            tickFormatter={yTickFormatter}
+            width={yTickFormatter ? 72 : yLabel ? 48 : 36}
             label={
               yLabel
                 ? {
@@ -147,14 +159,26 @@ export function ClassLineChart({
                   }}
                 >
                   <p className="font-medium">{label}</p>
-                  {payload.map((entry) =>
-                    entry.value == null ? null : (
+                  {payload.map((entry) => {
+                    if (entry.value == null) {
+                      return null;
+                    }
+
+                    const numericValue = Number(entry.value);
+                    const displayValue = formatTooltipSeriesValue
+                      ? formatTooltipSeriesValue(
+                          numericValue,
+                          String(entry.dataKey),
+                          point
+                        )
+                      : `${entry.value}${yDomain?.[1] === 100 ? "%" : ""}`;
+
+                    return (
                       <p key={entry.dataKey} className="mt-1">
-                        {entry.name}: {entry.value}
-                        {yDomain?.[1] === 100 ? "%" : ""}
+                        {entry.name}: {displayValue}
                       </p>
-                    )
-                  )}
+                    );
+                  })}
                   {extraLines.map((line) => (
                     <p key={line} className="mt-1 text-muted-foreground">
                       {line}
