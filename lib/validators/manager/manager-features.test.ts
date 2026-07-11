@@ -625,6 +625,48 @@ describe("parseEditStudentTaskFormData", () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it("promotes pending to graded when a grade is provided", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("status", "pending");
+    formData.set("grade", "18");
+
+    const result = parseEditStudentTaskFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("graded");
+      expect(result.data.grade).toBe(18);
+    }
+  });
+
+  it("keeps pending when no grade is provided", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("status", "pending");
+
+    const result = parseEditStudentTaskFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("pending");
+    }
+  });
+
+  it("does not change submitted when a grade is provided", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("status", "submitted");
+    formData.set("grade", "18");
+
+    const result = parseEditStudentTaskFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("submitted");
+    }
+  });
 });
 
 describe("parseUpdateStudentClassStatusFormData", () => {

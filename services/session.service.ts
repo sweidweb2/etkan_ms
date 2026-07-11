@@ -1028,6 +1028,8 @@ export type UpdateStudentTaskResult =
       success: true;
       studentTask: ManagerStudentTaskRow;
       message: string;
+      classId: string | null;
+      sessionId: string | null;
     }
   | MutationFailure;
 
@@ -1125,6 +1127,20 @@ export async function updateStudentTaskForManager(
     displayByUserId
   );
 
+  let classId: string | null = null;
+  const sessionId = taskResult.data.session_id;
+
+  if (sessionId) {
+    const sessionResult = await sessionRepository.findSessionById(
+      adminClient,
+      sessionId
+    );
+
+    if (!sessionResult.error && sessionResult.data) {
+      classId = sessionResult.data.class_id;
+    }
+  }
+
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "info",
@@ -1144,5 +1160,7 @@ export async function updateStudentTaskForManager(
     success: true,
     studentTask,
     message: "Student task updated.",
+    classId,
+    sessionId,
   };
 }

@@ -69,6 +69,53 @@ export async function listStudentTasksByTaskId(
     .eq("task_id", taskId);
 }
 
+const STUDENT_TASK_GRADE_ANALYTICS_COLUMNS = "task_id, grade, status";
+const STUDENT_TASKS_PAGE_SIZE = 1000;
+const TASK_ID_QUERY_CHUNK_SIZE = 100;
+
+export async function listStudentTasksByTaskIds(
+  client: Supabase,
+  taskIds: string[]
+) {
+  if (taskIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const rows: Array<{
+    task_id: string;
+    grade: number | null;
+    status: string;
+  }> = [];
+
+  for (let index = 0; index < taskIds.length; index += TASK_ID_QUERY_CHUNK_SIZE) {
+    const taskIdChunk = taskIds.slice(index, index + TASK_ID_QUERY_CHUNK_SIZE);
+    let offset = 0;
+
+    while (true) {
+      const { data, error } = await client
+        .from("student_tasks")
+        .select(STUDENT_TASK_GRADE_ANALYTICS_COLUMNS)
+        .in("task_id", taskIdChunk)
+        .range(offset, offset + STUDENT_TASKS_PAGE_SIZE - 1);
+
+      if (error) {
+        return { data: null, error };
+      }
+
+      const page = data ?? [];
+      rows.push(...page);
+
+      if (page.length < STUDENT_TASKS_PAGE_SIZE) {
+        break;
+      }
+
+      offset += STUDENT_TASKS_PAGE_SIZE;
+    }
+  }
+
+  return { data: rows, error: null };
+}
+
 export async function findStudentTaskById(client: Supabase, id: string) {
   return client
     .from("student_tasks")

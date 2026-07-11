@@ -1,6 +1,12 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import {
+  getManagerClassDetailRoute,
+  getManagerClassSessionDetailRoute,
+  getManagerClassSessionTaskDetailRoute,
+} from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddStudentToClassFormData } from "@/lib/validators/manager/add-student-to-class";
 import {
@@ -651,6 +657,11 @@ export async function createSessionTaskAction(
     };
   }
 
+  revalidatePath(getManagerClassDetailRoute(parsed.data.class_id));
+  revalidatePath(
+    getManagerClassSessionDetailRoute(parsed.data.class_id, parsed.data.session_id)
+  );
+
   return {
     success: true,
     message: result.message,
@@ -733,6 +744,23 @@ export async function updateStudentTaskAction(
       error: result.error,
       fieldErrors: result.fieldErrors,
     };
+  }
+
+  if (result.classId) {
+    revalidatePath(getManagerClassDetailRoute(result.classId));
+  }
+
+  if (result.classId && result.sessionId) {
+    revalidatePath(
+      getManagerClassSessionDetailRoute(result.classId, result.sessionId)
+    );
+    revalidatePath(
+      getManagerClassSessionTaskDetailRoute(
+        result.classId,
+        result.sessionId,
+        result.studentTask.task_id
+      )
+    );
   }
 
   return {

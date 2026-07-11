@@ -3,6 +3,7 @@ export interface ManagerClassSessionTaskGradePoint {
   nb_order: number;
   average_grade: number;
   task_count: number;
+  graded_count: number;
 }
 
 export interface ManagerClassSessionAttendancePoint {

@@ -19,14 +19,30 @@ type ClassLineChartSeries = {
 };
 
 type ClassLineChartProps = {
-  data: Array<Record<string, string | number>>;
+  data: Array<Record<string, string | number | null>>;
   series: ClassLineChartSeries[];
   xKey: string;
   className?: string;
   yDomain?: [number, number];
   yLabel?: string;
   visible?: boolean;
+  emptyMessage?: string;
+  getTooltipExtraLines?: (
+    point: Record<string, string | number | null>
+  ) => string[];
 };
+
+export function hasPlottableSeriesValues(
+  data: Array<Record<string, string | number | null>>,
+  seriesKeys: string[]
+) {
+  return data.some((point) =>
+    seriesKeys.some((key) => {
+      const value = point[key];
+      return value !== null && value !== undefined && value !== "";
+    })
+  );
+}
 
 export function ClassLineChart({
   data,
@@ -36,6 +52,8 @@ export function ClassLineChart({
   yDomain,
   yLabel,
   visible = true,
+  emptyMessage = "No chart data yet.",
+  getTooltipExtraLines,
 }: ClassLineChartProps) {
   if (!visible) {
     return (
@@ -48,15 +66,18 @@ export function ClassLineChart({
     );
   }
 
-  if (data.length === 0) {
+  const seriesKeys = series.map((item) => item.key);
+  const hasPlottableValues = hasPlottableSeriesValues(data, seriesKeys);
+
+  if (data.length === 0 || !hasPlottableValues) {
     return (
       <div
         className={cn(
-          "flex h-[18rem] w-full min-w-0 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground",
+          "flex h-[18rem] w-full min-w-0 items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm text-muted-foreground",
           className
         )}
       >
-        No chart data yet.
+        {emptyMessage}
       </div>
     );
   }
@@ -101,12 +122,46 @@ export function ClassLineChart({
             }
           />
           <Tooltip
-            contentStyle={{
-              borderRadius: "0.5rem",
-              border: "1px solid var(--border)",
-              background: "var(--popover)",
-              color: "var(--popover-foreground)",
-              fontSize: "12px",
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) {
+                return null;
+              }
+
+              const point = payload[0]?.payload as
+                | Record<string, string | number | null>
+                | undefined;
+
+              if (!point) {
+                return null;
+              }
+
+              const extraLines = getTooltipExtraLines?.(point) ?? [];
+
+              return (
+                <div
+                  className="rounded-lg border px-3 py-2 text-xs shadow-sm"
+                  style={{
+                    borderColor: "var(--border)",
+                    background: "var(--popover)",
+                    color: "var(--popover-foreground)",
+                  }}
+                >
+                  <p className="font-medium">{label}</p>
+                  {payload.map((entry) =>
+                    entry.value == null ? null : (
+                      <p key={entry.dataKey} className="mt-1">
+                        {entry.name}: {entry.value}
+                        {yDomain?.[1] === 100 ? "%" : ""}
+                      </p>
+                    )
+                  )}
+                  {extraLines.map((line) => (
+                    <p key={line} className="mt-1 text-muted-foreground">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              );
             }}
           />
           {series.length > 1 ? <Legend wrapperStyle={{ fontSize: "12px" }} /> : null}

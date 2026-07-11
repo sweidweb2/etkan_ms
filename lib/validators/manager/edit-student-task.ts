@@ -29,19 +29,42 @@ function gradeFieldSchema(maxGrade: number | null) {
     .optional();
 }
 
+function hasProvidedGrade(grade: string | number | undefined) {
+  return grade !== undefined && grade !== "";
+}
+
+/** When a grade is saved on a pending row, promote status to graded automatically. */
+export function resolveStudentTaskStatusOnGradeSave<
+  TStatus extends (typeof STUDENT_TASK_STATUS_VALUES)[number],
+>(status: TStatus, grade: string | number | undefined): TStatus {
+  if (
+    hasProvidedGrade(grade) &&
+    status === STUDENT_TASK_STATUSES.PENDING
+  ) {
+    return STUDENT_TASK_STATUSES.GRADED as TStatus;
+  }
+
+  return status;
+}
+
 export function createEditStudentTaskSchema(maxGrade: number | null) {
-  return z.object({
-    status: z.enum(STUDENT_TASK_STATUS_VALUES, {
-      message: "Status is required.",
-    }),
-    grade: gradeFieldSchema(maxGrade),
-    notes: z
-      .string()
-      .trim()
-      .max(500, { message: "Notes must be at most 500 characters." })
-      .optional(),
-    submitted_at: z.string().trim().optional(),
-  });
+  return z
+    .object({
+      status: z.enum(STUDENT_TASK_STATUS_VALUES, {
+        message: "Status is required.",
+      }),
+      grade: gradeFieldSchema(maxGrade),
+      notes: z
+        .string()
+        .trim()
+        .max(500, { message: "Notes must be at most 500 characters." })
+        .optional(),
+      submitted_at: z.string().trim().optional(),
+    })
+    .transform((data) => ({
+      ...data,
+      status: resolveStudentTaskStatusOnGradeSave(data.status, data.grade),
+    }));
 }
 
 export const editStudentTaskSchema = createEditStudentTaskSchema(null);

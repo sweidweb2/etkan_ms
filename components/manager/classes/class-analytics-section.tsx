@@ -10,13 +10,38 @@ type ClassAnalyticsSectionProps = {
   analytics: ManagerClassAnalyticsPreview;
 };
 
+const NO_GRADED_TASKS_MESSAGE =
+  "No graded tasks yet. Set student task status to Graded or Late (with a grade) on session task pages to populate this chart.";
+
+function formatTaskTooltipExtra(
+  point: Record<string, string | number | null>
+) {
+  const taskCount = Number(point.task_count ?? 0);
+  const gradedCount = Number(point.graded_count ?? 0);
+
+  if (taskCount <= 0) {
+    return [];
+  }
+
+  const taskLabel = taskCount === 1 ? "task" : "tasks";
+  const rowLabel = gradedCount === 1 ? "graded row" : "graded rows";
+
+  return [`${taskCount} ${taskLabel} · ${gradedCount} ${rowLabel}`];
+}
+
 export function ClassAnalyticsSection({
   className,
   analytics,
 }: ClassAnalyticsSectionProps) {
+  const hasGradedTaskData = analytics.taskGradeTrend.some(
+    (point) => point.graded_count > 0
+  );
+
   const taskGradeChartData = analytics.taskGradeTrend.map((point) => ({
     session_label: point.session_label,
-    average_grade: point.average_grade,
+    average_grade: point.graded_count > 0 ? point.average_grade : null,
+    task_count: point.task_count,
+    graded_count: point.graded_count,
   }));
 
   const attendanceChartData = analytics.attendanceTrend.map((point) => ({
@@ -35,13 +60,19 @@ export function ClassAnalyticsSection({
       <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
         <AnalyticsChartCard
           title="Average task grades"
-          description={`Class mean across graded tasks · overall ${analytics.overallAverageTaskGrade}%`}
+          description={
+            hasGradedTaskData
+              ? `Class mean across graded tasks · overall ${analytics.overallAverageTaskGrade}%`
+              : "Grade student tasks to see session trends"
+          }
         >
           <ClassLineChart
             data={taskGradeChartData}
             xKey="session_label"
             yDomain={[0, 100]}
             yLabel="Grade %"
+            emptyMessage={NO_GRADED_TASKS_MESSAGE}
+            getTooltipExtraLines={formatTaskTooltipExtra}
             series={[
               {
                 key: "average_grade",
@@ -51,8 +82,8 @@ export function ClassAnalyticsSection({
             ]}
           />
           <p className="mt-3 text-xs text-muted-foreground">
-            Line chart of mean student_tasks grades per session (tasks linked via
-            session_id).
+            Sessions appear once at least one task has graded student rows.
+            Multiple tasks in a session are averaged equally.
           </p>
         </AnalyticsChartCard>
 

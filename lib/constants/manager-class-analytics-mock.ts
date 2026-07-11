@@ -102,12 +102,14 @@ export function getManagerClassAnalyticsPreview(
   const taskGradeTrend = Array.from({ length: sessionCount }, (_, index) => {
     const sessionNumber = sessionCount - index;
     const averageGrade = taskGrades[sessionNumber - 1] ?? taskGrades[0] ?? 0;
+    const taskCount = 1 + ((sessionNumber - 1) % 3);
 
     return {
       session_label: `S${sessionNumber}`,
       nb_order: sessionNumber,
       average_grade: averageGrade,
-      task_count: 1 + ((sessionNumber - 1) % 3),
+      task_count: taskCount,
+      graded_count: taskCount * Math.max(1, Math.round(enrolledCount * 0.8)),
     };
   });
 

@@ -8,6 +8,11 @@ import {
   type StudentClassStatusValue,
 } from "@/lib/constants/manager-student-class-status";
 import {
+  buildGradesByTaskId,
+  computeOverallAverageTaskGrade,
+  computeSessionTaskGradeSummary,
+} from "@/lib/manager/class-analytics";
+import {
   STUDENT_TASK_STATUSES,
   type StudentTaskStatusValue,
 } from "@/lib/constants/manager-student-task-status";
@@ -36,6 +41,7 @@ import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import type { StudentClassRecord } from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
 import * as taskRepository from "@/repositories/task.repository";
 import {
@@ -1123,7 +1129,7 @@ export async function getClassAnalyticsForManager(
 
   const tasks = tasksResult.data ?? [];
   const taskIds = tasks.map((task) => task.id);
-  const studentTasksResult = await taskRepository.listStudentTasksByTaskIds(
+  const studentTasksResult = await studentTaskRepository.listStudentTasksByTaskIds(
     adminClient,
     taskIds
   );
@@ -1143,15 +1149,7 @@ export async function getClassAnalyticsForManager(
     tasksBySessionId.set(task.session_id, list);
   }
 
-  const gradesByTaskId = new Map<string, number[]>();
-  for (const row of studentTasks) {
-    if (row.grade === null || row.status !== STUDENT_TASK_STATUSES.GRADED) {
-      continue;
-    }
-    const list = gradesByTaskId.get(row.task_id) ?? [];
-    list.push(Number(row.grade));
-    gradesByTaskId.set(row.task_id, list);
-  }
+  const gradesByTaskId = buildGradesByTaskId(studentTasks);
 
   const attendeesBySessionId = new Map<
     string,
@@ -1165,28 +1163,14 @@ export async function getClassAnalyticsForManager(
 
   const taskGradeTrend = sessions.map((session) => {
     const sessionTasks = tasksBySessionId.get(session.id) ?? [];
-    const grades: number[] = [];
-
-    for (const task of sessionTasks) {
-      const taskGrades = gradesByTaskId.get(task.id) ?? [];
-      const maxGrade = task.max_grade ? Number(task.max_grade) : 100;
-      for (const grade of taskGrades) {
-        grades.push(maxGrade > 0 ? (grade / maxGrade) * 100 : 0);
-      }
-    }
-
-    const average =
-      grades.length === 0
-        ? 0
-        : Math.round(
-            (grades.reduce((sum, value) => sum + value, 0) / grades.length) * 10
-          ) / 10;
+    const summary = computeSessionTaskGradeSummary(sessionTasks, gradesByTaskId);
 
     return {
       session_label: `S${session.nb_order}`,
       nb_order: session.nb_order,
-      average_grade: average,
-      task_count: sessionTasks.length,
+      average_grade: summary.average_grade,
+      task_count: summary.task_count,
+      graded_count: summary.graded_count,
     };
   });
 
@@ -1210,15 +1194,7 @@ export async function getClassAnalyticsForManager(
     };
   });
 
-  const gradedPoints = taskGradeTrend.filter((point) => point.task_count > 0);
-  const overallAverageTaskGrade =
-    gradedPoints.length === 0
-      ? 0
-      : Math.round(
-          (gradedPoints.reduce((sum, point) => sum + point.average_grade, 0) /
-            gradedPoints.length) *
-            10
-        ) / 10;
+  const overallAverageTaskGrade = computeOverallAverageTaskGrade(taskGradeTrend);
 
   const overallAttendanceRate =
     attendanceTrend.length === 0

@@ -26,8 +26,10 @@ import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
+import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import {
   createEditStudentTaskSchema,
+  resolveStudentTaskStatusOnGradeSave,
   STUDENT_TASK_STATUS_VALUES,
   type EditStudentTaskInput,
 } from "@/lib/validators/manager/edit-student-task";
@@ -99,6 +101,16 @@ export function EditStudentTaskSheet({
   });
 
   const selectedStatus = watch("status");
+  const gradeValue = watch("grade");
+  const hasGradeValue =
+    gradeValue !== undefined &&
+    gradeValue !== "" &&
+    !Number.isNaN(Number(gradeValue));
+  const showAnalyticsHint =
+    hasGradeValue &&
+    selectedStatus !== STUDENT_TASK_STATUSES.GRADED &&
+    selectedStatus !== STUDENT_TASK_STATUSES.LATE &&
+    selectedStatus !== STUDENT_TASK_STATUSES.PENDING;
 
   useEffect(() => {
     if (!open || !studentTask) {
@@ -138,9 +150,14 @@ export function EditStudentTaskSheet({
       return;
     }
 
+    const resolvedStatus = resolveStudentTaskStatusOnGradeSave(
+      values.status,
+      values.grade
+    );
+
     const formData = new FormData();
     formData.set("id", studentTask.id);
-    formData.set("status", values.status);
+    formData.set("status", resolvedStatus);
     formData.set(
       "grade",
       values.grade === undefined || values.grade === ""
@@ -235,6 +252,12 @@ export function EditStudentTaskSheet({
             />
             {gradeError ? (
               <p className="text-sm text-destructive">{gradeError}</p>
+            ) : null}
+            {showAnalyticsHint ? (
+              <p className="text-sm text-muted-foreground">
+                Grade won&apos;t appear in class analytics until status is
+                Graded or Late.
+              </p>
             ) : null}
           </div>
 

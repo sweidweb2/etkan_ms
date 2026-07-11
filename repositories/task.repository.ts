@@ -68,16 +68,3 @@ export async function createTask(client: Supabase, input: CreateTaskInput) {
     .single();
 }
 
-export async function listStudentTasksByTaskIds(
-  client: Supabase,
-  taskIds: string[]
-) {
-  if (taskIds.length === 0) {
-    return { data: [], error: null };
-  }
-
-  return client
-    .from("student_tasks")
-    .select("task_id, grade, status")
-    .in("task_id", taskIds);
-}
