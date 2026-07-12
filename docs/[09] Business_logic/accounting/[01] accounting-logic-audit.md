@@ -244,7 +244,7 @@ In `student-account-details-panel.tsx`, dots check `"active"` / `"overdue"`. Rea
 
 #### 6.8 `special_case_no_money` never shown
 
-**Status: Done (2026-07-12).** Manage list wires `AccountingSpecialCaseAlertBadge`; detail shows no-money for active zero scholarship.
+**Status: Done (2026-07-12).** Manage list shows special-case badges in Alert only while `balance_due > 0`. `special_case_no_money` is scholarship + zero paid + special total &gt; 0 (not 100% scholarships). Detail no longer labels full scholarships as “No money.”
 
 Service sets `special_case_no_money` (active scholarship + zero paid). `AccountingSpecialCaseAlertBadge` exists but is unused on list/detail.
 

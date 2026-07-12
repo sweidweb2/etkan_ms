@@ -1,5 +1,5 @@
 import {
-  isOpenBillingSubscriptionStatus,
+  isSubscriptionOpenForPaymentAlerts,
   resolveManageAccountingAlert,
 } from "@/lib/constants/manager-accounting-payment-alert";
 import {
@@ -288,6 +288,32 @@ function getSubscriptionBilling(
   };
 }
 
+function listOpenBillingSubscriptions(
+  subscriptions: SubscribedSemesterRecord[],
+  payments: PaymentRecord[],
+  accountId: string | undefined,
+  specialCaseByAccountSemester?: Map<
+    string,
+    { status: string; total_amount: number | null }
+  >
+) {
+  return subscriptions.filter((subscription) => {
+    const special =
+      accountId && subscription.semester_id && specialCaseByAccountSemester
+        ? specialCaseByAccountSemester.get(
+            specialCaseKey(accountId, subscription.semester_id)
+          )
+        : undefined;
+
+    return isSubscriptionOpenForPaymentAlerts({
+      status: subscription.status,
+      subscriptionAmount: Number(subscription.amount ?? 0),
+      totalPaid: sumPayments(payments, subscription.id),
+      activeSpecialCaseTotalAmount: getActiveSpecialCaseTotal(special),
+    });
+  });
+}
+
 function getActiveSpecialCaseTotal(
   specialCase: { status: string; total_amount: number | null } | null | undefined
 ): number | null {
@@ -497,8 +523,11 @@ export async function listAccountingStudentsForManager(
     const subscriptions = account
       ? (subscriptionsByAccountId.get(account.id) ?? [])
       : [];
-    const openBillingSubscriptions = subscriptions.filter((row) =>
-      isOpenBillingSubscriptionStatus(row.status)
+    const openBillingSubscriptions = listOpenBillingSubscriptions(
+      subscriptions,
+      payments,
+      account?.id,
+      specialCaseByAccountSemester
     );
     const subscription = subscriptions.find(
       (row) => row.semester_id === enrollment.semester_id
@@ -594,7 +623,8 @@ export async function listAccountingStudentsForManager(
       special_case_type: specialCaseType,
       special_case_no_money:
         specialCaseType === ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP &&
-        totalPaid === 0,
+        totalPaid === 0 &&
+        Number(specialCase?.total_amount ?? 0) > 0,
       has_missed_scheduled_payment: subscription
         ? subscriptionIdsWithMissedSchedule.has(subscription.id)
         : false,
@@ -610,8 +640,11 @@ export async function listAccountingStudentsForManager(
     const subscriptions = account
       ? (subscriptionsByAccountId.get(account.id) ?? [])
       : [];
-    const openBillingSubscriptions = subscriptions.filter((row) =>
-      isOpenBillingSubscriptionStatus(row.status)
+    const openBillingSubscriptions = listOpenBillingSubscriptions(
+      subscriptions,
+      payments,
+      account?.id,
+      specialCaseByAccountSemester
     );
     const billing = getAccountBillingTotals(
       subscriptions,

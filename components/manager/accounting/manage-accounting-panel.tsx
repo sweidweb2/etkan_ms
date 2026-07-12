@@ -440,7 +440,8 @@ export function ManageAccountingPanel({
                             <AccountingPaymentAlertBadge
                               reasons={row.payment_alert_reasons}
                             />
-                            {row.special_case_type ? (
+                            {row.special_case_type &&
+                            (row.balance_due ?? 0) > 0 ? (
                               <AccountingSpecialCaseAlertBadge
                                 caseType={row.special_case_type}
                                 noMoney={row.special_case_no_money}

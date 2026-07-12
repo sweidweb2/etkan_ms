@@ -1,4 +1,5 @@
 import { SUBSCRIBED_SEMESTER_STATUSES } from "@/lib/constants/manager-subscribed-semester-status";
+import { getSubscriptionBillingGate } from "@/lib/manager/subscribed-semester-billing";
 import type {
   ManagerAccountingPaymentAlertReason,
   ManagerAccountingPaymentMissedMonths,
@@ -44,6 +45,30 @@ export function isOpenBillingSubscriptionStatus(
   return !(ACCOUNTING_CLOSED_SUBSCRIPTION_STATUSES as readonly string[]).includes(
     status
   );
+}
+
+/**
+ * Open for manage-account payment alerts: pending (etc.) and still has remaining due.
+ * Fully covered rows (including 100% scholarship / special total 0) are excluded.
+ */
+export function isSubscriptionOpenForPaymentAlerts(input: {
+  status: string | null | undefined;
+  subscriptionAmount: number;
+  totalPaid: number;
+  activeSpecialCaseTotalAmount?: number | null;
+}): boolean {
+  if (!isOpenBillingSubscriptionStatus(input.status)) {
+    return false;
+  }
+
+  const gate = getSubscriptionBillingGate({
+    status: input.status,
+    subscriptionAmount: input.subscriptionAmount,
+    totalPaid: input.totalPaid,
+    activeSpecialCaseTotalAmount: input.activeSpecialCaseTotalAmount,
+  });
+
+  return gate.remainingDue > 0;
 }
 
 export function isPaymentInCurrentMonthWindow(
@@ -225,12 +250,9 @@ export function resolveManageAccountingAlert(
       ? null
       : roundCurrency(Number(input.semesterAmount));
 
-  if (specialOwed !== null && semesterAmount !== null) {
-    // paid + (semester − special owed) === semester  ⇔  paid === special owed
-    const covered =
-      roundCurrency(totalPaid + (semesterAmount - specialOwed)) === semesterAmount;
-
-    if (covered) {
+  if (specialOwed !== null) {
+    // Covered when paid meets special owed (0 = 100% scholarship → always covered).
+    if (totalPaid >= specialOwed) {
       return withReasons(["done"], { payment_alert: false });
     }
 
@@ -242,6 +264,10 @@ export function resolveManageAccountingAlert(
     }
 
     return withReasons(reasons);
+  }
+
+  if (semesterAmount !== null && totalPaid >= semesterAmount) {
+    return withReasons(["done"], { payment_alert: false });
   }
 
   const reasons: ManagerAccountingPaymentAlertReason[] = [];

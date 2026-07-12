@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon, PlusIcon } from "lucide-react";
-import { AccountSpecialCaseNoMoneyBadge, AccountSpecialCaseTypeBadge } from "@/components/manager/accounting/account-special-case-badges";
+import { AccountSpecialCaseTypeBadge } from "@/components/manager/accounting/account-special-case-badges";
 import { AddAccountSpecialCaseDialog } from "@/components/manager/accounting/add-account-special-case-dialog";
 import { EditAccountSpecialCaseDialog } from "@/components/manager/accounting/edit-account-special-case-dialog";
 import { Button } from "@/components/ui/button";
@@ -87,11 +87,6 @@ export function AccountSpecialCaseSection({
                 </dt>
                 <dd className="flex flex-wrap items-center gap-1.5">
                   <AccountSpecialCaseTypeBadge caseType={specialCase.case_type} />
-                  {specialCase.case_type === "scholarship" &&
-                  specialCase.status === "active" &&
-                  specialCase.total_amount === 0 ? (
-                    <AccountSpecialCaseNoMoneyBadge />
-                  ) : null}
                 </dd>
               </div>
               <div className="flex flex-col gap-1">

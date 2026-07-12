@@ -44,6 +44,22 @@ describe("getSubscriptionBillingGate", () => {
     expect(gate.canEditPayments).toBe(true);
   });
 
+  it("treats 0 special-case amount as fully paid (100% scholarship)", () => {
+    const gate = getSubscriptionBillingGate({
+      status: SUBSCRIBED_SEMESTER_STATUSES.PENDING,
+      subscriptionAmount: 500,
+      totalPaid: 0,
+      activeSpecialCaseTotalAmount: 0,
+    });
+
+    expect(gate.owedAmount).toBe(0);
+    expect(gate.remainingDue).toBe(0);
+    expect(gate.isFullyPaid).toBe(true);
+    expect(gate.canCreatePayments).toBe(false);
+    expect(gate.canMutateSchedules).toBe(false);
+    expect(gate.createLockReason).toBe("fully_paid");
+  });
+
   it("locks create and edit when status is paused", () => {
     const gate = getSubscriptionBillingGate({
       status: SUBSCRIBED_SEMESTER_STATUSES.PAUSED,

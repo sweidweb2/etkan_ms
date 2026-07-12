@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveManageAccountingAlert,
   isOpenBillingSubscriptionStatus,
+  isSubscriptionOpenForPaymentAlerts,
 } from "@/lib/constants/manager-accounting-payment-alert";
 import { SUBSCRIBED_SEMESTER_STATUSES } from "@/lib/constants/manager-subscribed-semester-status";
 
@@ -64,6 +65,65 @@ describe("resolveManageAccountingAlert", () => {
 
     expect(result.payment_alert_reasons).toEqual(["done"]);
     expect(result.payment_alert).toBe(false);
+  });
+
+  it("marks done for 100% scholarship (special total 0) with no payments", () => {
+    const result = resolveManageAccountingAlert({
+      openBillingCount: 1,
+      isFocusOpenSubscription: true,
+      totalPaid: 0,
+      semesterAmount: 500,
+      activeSpecialCaseTotalAmount: 0,
+      hasScheduledPayments: true,
+      hasMissedScheduledPayment: true,
+      paidAts: [],
+      now,
+    });
+
+    expect(result.payment_alert_reasons).toEqual(["done"]);
+    expect(result.payment_alert).toBe(false);
+  });
+
+  it("marks done for 100% scholarship even when prior payments exist", () => {
+    const result = resolveManageAccountingAlert({
+      openBillingCount: 1,
+      isFocusOpenSubscription: true,
+      totalPaid: 50,
+      semesterAmount: 500,
+      activeSpecialCaseTotalAmount: 0,
+      paidAts: ["2026-01-01T00:00:00.000Z"],
+      now,
+    });
+
+    expect(result.payment_alert_reasons).toEqual(["done"]);
+    expect(result.payment_alert).toBe(false);
+  });
+
+  it("excludes fully covered subscriptions from open payment alerts", () => {
+    expect(
+      isSubscriptionOpenForPaymentAlerts({
+        status: SUBSCRIBED_SEMESTER_STATUSES.PENDING,
+        subscriptionAmount: 500,
+        totalPaid: 0,
+        activeSpecialCaseTotalAmount: 0,
+      })
+    ).toBe(false);
+    expect(
+      isSubscriptionOpenForPaymentAlerts({
+        status: SUBSCRIBED_SEMESTER_STATUSES.PENDING,
+        subscriptionAmount: 500,
+        totalPaid: 0,
+        activeSpecialCaseTotalAmount: 200,
+      })
+    ).toBe(true);
+    expect(
+      isSubscriptionOpenForPaymentAlerts({
+        status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
+        subscriptionAmount: 500,
+        totalPaid: 0,
+        activeSpecialCaseTotalAmount: 0,
+      })
+    ).toBe(false);
   });
 
   it("uses schedule missed for incomplete special case with schedules", () => {

@@ -30,7 +30,7 @@ import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-caro
 import {
   ACCOUNTING_PAYMENT_ALERT_MIN_AMOUNT,
   ACCOUNTING_PAYMENT_ALERT_REASON_LABELS,
-  isOpenBillingSubscriptionStatus,
+  isSubscriptionOpenForPaymentAlerts,
   resolveManageAccountingAlert,
 } from "@/lib/constants/manager-accounting-payment-alert";
 import {
@@ -346,10 +346,24 @@ export function StudentAccountDetailsPanel({
 
   const openBillingSubscriptions = useMemo(
     () =>
-      subscriptions.filter((row) =>
-        isOpenBillingSubscriptionStatus(row.status)
-      ),
-    [subscriptions]
+      subscriptions.filter((row) => {
+        const specialCase =
+          specialCases.find(
+            (special) =>
+              special.semester_id === row.semester_id &&
+              special.status === ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE
+          ) ?? null;
+
+        return isSubscriptionOpenForPaymentAlerts({
+          status: row.status,
+          subscriptionAmount: row.amount,
+          totalPaid: row.paid_amount,
+          activeSpecialCaseTotalAmount: specialCase
+            ? specialCase.total_amount
+            : null,
+        });
+      }),
+    [subscriptions, specialCases]
   );
   const openBillingCount = openBillingSubscriptions.length;
   const singleOpenSubscription =
