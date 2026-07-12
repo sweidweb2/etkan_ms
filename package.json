@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "seed:manager": "tsx scripts/seed-manager.ts",
     "seed:demo": "tsx scripts/seed-demo-data.ts",
     "seed": "tsx scripts/seed-admin.ts && tsx scripts/seed-demo-data.ts",
     "gen:types": "supabase gen types typescript --project-id diqqcfnrysgzeiqfadic > types/supabase.ts"

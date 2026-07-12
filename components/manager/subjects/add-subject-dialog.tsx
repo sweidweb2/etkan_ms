@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
@@ -71,14 +72,10 @@ export function AddSubjectDialog({
     }
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onSubjectCreated();
-  }, [state.success, onOpenChange, onSubjectCreated]);
+  });
 
   function onSubmit(values: CreateSubjectInput) {
     const formData = new FormData();

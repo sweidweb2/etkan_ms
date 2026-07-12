@@ -33,6 +33,7 @@ export function useActionStateSuccess<T extends SuccessState>(
   useEffect(() => {
     if (isPending) {
       wasPendingRef.current = true;
+      lastFingerprintRef.current = null;
       return;
     }
 

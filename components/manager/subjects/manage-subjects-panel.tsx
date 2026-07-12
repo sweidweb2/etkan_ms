@@ -82,7 +82,7 @@ export function ManageSubjectsPanel({
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    6
+    9
   );
   const [currentPage, setCurrentPage] = useState(1);
 

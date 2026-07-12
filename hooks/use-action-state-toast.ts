@@ -35,6 +35,7 @@ export function useActionStateToast(
   useEffect(() => {
     if (isPending) {
       wasPendingRef.current = true;
+      lastFingerprintRef.current = null;
       return;
     }
 
