@@ -317,11 +317,28 @@ export function ManageAccountingPanel({
                     className="w-full sm:w-48"
                     aria-label="Filter by special case or missed schedule"
                   >
-                    <SelectValue placeholder="All cases" />
+                    <SelectValue placeholder="Special case">
+                      {(value) => {
+                        if (!value || value === SPECIAL_CASE_FILTER_ALL) {
+                          return "Special case";
+                        }
+                        if (value === SPECIAL_CASE_FILTER_MISSED_SCHEDULE) {
+                          return "Missed schedule";
+                        }
+                        if (value === SPECIAL_CASE_FILTER_NONE) {
+                          return "No special case";
+                        }
+                        return (
+                          ACCOUNT_SPECIAL_CASE_TYPE_LABELS[
+                            value as keyof typeof ACCOUNT_SPECIAL_CASE_TYPE_LABELS
+                          ] ?? String(value)
+                        );
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent align="end">
                     <SelectItem value={SPECIAL_CASE_FILTER_ALL}>
-                      All special cases
+                      Special case
                     </SelectItem>
                     <SelectItem value={ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP}>
                       {ACCOUNT_SPECIAL_CASE_TYPE_LABELS.scholarship}
@@ -345,10 +362,23 @@ export function ManageAccountingPanel({
                     className="w-full sm:w-44"
                     aria-label="Filter by balance"
                   >
-                    <SelectValue placeholder="All balances" />
+                    <SelectValue placeholder="Balance">
+                      {(value) => {
+                        if (!value || value === BALANCE_FILTER_ALL) {
+                          return "Balance";
+                        }
+                        if (value === BALANCE_FILTER_DUE) {
+                          return "Balance due";
+                        }
+                        if (value === BALANCE_FILTER_PAID) {
+                          return "Paid in full";
+                        }
+                        return String(value);
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent align="end">
-                    <SelectItem value={BALANCE_FILTER_ALL}>All balances</SelectItem>
+                    <SelectItem value={BALANCE_FILTER_ALL}>Balance</SelectItem>
                     <SelectItem value={BALANCE_FILTER_DUE}>Balance due</SelectItem>
                     <SelectItem value={BALANCE_FILTER_PAID}>Paid in full</SelectItem>
                   </SelectContent>
@@ -361,10 +391,23 @@ export function ManageAccountingPanel({
                     className="w-full sm:w-52"
                     aria-label="Filter by semester"
                   >
-                    <SelectValue placeholder="All semesters" />
+                    <SelectValue placeholder="Semester">
+                      {(value) => {
+                        if (!value || value === SEMESTER_FILTER_ALL) {
+                          return "Semester";
+                        }
+                        if (value === "unassigned") {
+                          return "Unassigned";
+                        }
+                        return (
+                          semesterOptions.find((semester) => semester.id === value)
+                            ?.name ?? String(value)
+                        );
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent align="end">
-                    <SelectItem value={SEMESTER_FILTER_ALL}>All semesters</SelectItem>
+                    <SelectItem value={SEMESTER_FILTER_ALL}>Semester</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {semesterOptions.map((semester) => (
                       <SelectItem key={semester.id} value={semester.id}>
