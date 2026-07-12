@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -196,14 +196,11 @@ export function ManageRelationshipsPanel({
     return getDistinctValues(source.map((row) => row.speciality));
   }, [relationships, majorFilter]);
 
-  useEffect(() => {
-    if (
-      specialityFilter !== SPECIALITY_FILTER_ALL &&
-      !specialityOptions.includes(specialityFilter)
-    ) {
-      setSpecialityFilter(SPECIALITY_FILTER_ALL);
-    }
-  }, [specialityFilter, specialityOptions]);
+  const resolvedSpecialityFilter =
+    specialityFilter !== SPECIALITY_FILTER_ALL &&
+    !specialityOptions.includes(specialityFilter)
+      ? SPECIALITY_FILTER_ALL
+      : specialityFilter;
 
   const filteredRelationships = useMemo(() => {
     return relationships.filter((relationship) => {
@@ -216,8 +213,8 @@ export function ManageRelationshipsPanel({
         majorFilter === MAJOR_FILTER_ALL || relationship.major === majorFilter;
 
       const matchesSpeciality =
-        specialityFilter === SPECIALITY_FILTER_ALL ||
-        relationship.speciality === specialityFilter;
+        resolvedSpecialityFilter === SPECIALITY_FILTER_ALL ||
+        relationship.speciality === resolvedSpecialityFilter;
 
       return (
         matchesUseful &&
@@ -226,7 +223,13 @@ export function ManageRelationshipsPanel({
         matchesSearch(relationship, searchQuery)
       );
     });
-  }, [relationships, searchQuery, usefulFilter, majorFilter, specialityFilter]);
+  }, [
+    relationships,
+    searchQuery,
+    usefulFilter,
+    majorFilter,
+    resolvedSpecialityFilter,
+  ]);
 
   const totalPages = Math.max(
     1,
@@ -409,7 +412,7 @@ export function ManageRelationshipsPanel({
                 </SelectContent>
               </Select>
               <Select
-                value={specialityFilter}
+                value={resolvedSpecialityFilter}
                 onValueChange={handleSpecialityFilterChange}
               >
                 <SelectTrigger

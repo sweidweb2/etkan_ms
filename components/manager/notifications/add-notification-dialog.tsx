@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { createNotificationAction } from "@/app/manager/notifications/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -40,6 +40,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import {
   formatPaymentMethodLabel,
@@ -189,14 +190,10 @@ export function SubscribedSemesterPaymentsSection({
 
   useActionStateToast(deleteState, isDeletePending);
 
-  useEffect(() => {
-    if (!deleteState.success) {
-      return;
-    }
-
+  useActionStateSuccess(deleteState, isDeletePending, () => {
     setDeleteTarget(null);
     onPaymentSaved();
-  }, [deleteState.success, onPaymentSaved]);
+  });
 
   const filteredPayments = useMemo(() => {
     return payments.filter((payment) => {

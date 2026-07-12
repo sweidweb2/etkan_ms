@@ -285,7 +285,7 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [detailsLog, setDetailsLog] = useState<ManagerAuditLogRow | null>(null);
 
-  const nowMs = Date.now();
+  const [nowMs] = useState(() => Date.now());
 
   const tableOptions = useMemo(() => {
     const names = new Set<string>(BACKUP_TABLES);

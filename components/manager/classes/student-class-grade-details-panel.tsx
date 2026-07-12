@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { ExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   ComputeFactorWeightsFields,
@@ -470,8 +470,16 @@ export function StudentClassGradeDetailsPanel({
   );
   const [computeWeightError, setComputeWeightError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isComputeDialogOpen || !bundle) {
+  const computeFactorTotal = useMemo(
+    () =>
+      parseWeight(computeWeights.tasks_weight) +
+      parseWeight(computeWeights.final_exam_weight),
+    [computeWeights.final_exam_weight, computeWeights.tasks_weight]
+  );
+  const isComputeWeightTotalValid = Math.abs(computeFactorTotal - 100) <= 0.001;
+
+  function openComputeDialog() {
+    if (!bundle) {
       return;
     }
 
@@ -485,15 +493,8 @@ export function StudentClassGradeDetailsPanel({
       })
     );
     setComputeWeightError(null);
-  }, [isComputeDialogOpen, bundle]);
-
-  const computeFactorTotal = useMemo(
-    () =>
-      parseWeight(computeWeights.tasks_weight) +
-      parseWeight(computeWeights.final_exam_weight),
-    [computeWeights.final_exam_weight, computeWeights.tasks_weight]
-  );
-  const isComputeWeightTotalValid = Math.abs(computeFactorTotal - 100) <= 0.001;
+    setIsComputeDialogOpen(true);
+  }
 
   if (!bundle) {
     return (
@@ -766,7 +767,7 @@ export function StudentClassGradeDetailsPanel({
               <Button
                 type="button"
                 disabled={isComputing || isDeleting}
-                onClick={() => setIsComputeDialogOpen(true)}
+                onClick={() => openComputeDialog()}
               >
                 {hasComputedGrade ? "Recompute" : "Compute"}
               </Button>

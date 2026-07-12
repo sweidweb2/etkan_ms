@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -21,13 +21,15 @@ type PanelNavMenuProps = {
   items: PanelNavItem[];
 };
 
+const emptySubscribe = () => () => {};
+
 export function PanelNavMenu({ items }: PanelNavMenuProps) {
   const pathname = usePathname();
-  const [hasMounted, setHasMounted] = useState(false);
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
+  const hasMounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   return (
     <SidebarMenu>

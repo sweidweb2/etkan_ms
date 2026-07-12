@@ -176,7 +176,7 @@ export function ConnectSemesterClassDialog({
             form="connect-semester-class-form"
             disabled={!hasAvailableClasses || isPending}
           >
-            {isPending ? <InlineSpinner label="Connecting class" /> : "Connect class"}
+            {isPending ? <InlineSpinner /> : "Connect class"}
           </Button>
         </DialogFooter>
       </DialogContent>

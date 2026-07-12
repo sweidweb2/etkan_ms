@@ -229,7 +229,7 @@ export function AddSemesterStudentDialog({
             form="add-semester-student-form"
             disabled={!hasAvailableStudents || isPending}
           >
-            {isPending ? <InlineSpinner label="Adding student" /> : "Add student"}
+            {isPending ? <InlineSpinner /> : "Add student"}
           </Button>
         </DialogFooter>
       </DialogContent>

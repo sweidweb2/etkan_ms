@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon } from "lucide-react";
 import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
@@ -83,11 +83,14 @@ export function SubjectDetailsPanel({
   classes,
 }: SubjectDetailsPanelProps) {
   const [subject, setSubject] = useState<ManagerSubjectRow>(initialSubject);
+  const [prevSubject, setPrevSubject] =
+    useState<ManagerSubjectRow>(initialSubject);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  useEffect(() => {
+  if (initialSubject !== prevSubject) {
+    setPrevSubject(initialSubject);
     setSubject(initialSubject);
-  }, [initialSubject]);
+  }
 
   return (
     <div className="flex flex-col gap-6">

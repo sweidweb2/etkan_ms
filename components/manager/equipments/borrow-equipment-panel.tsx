@@ -2,7 +2,6 @@
 
 import {
   useActionState,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -40,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { BorrowEquipmentHistorySection } from "@/components/manager/equipments/borrow-equipment-history-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import {
   formatEquipmentUnitPrice,
@@ -334,54 +334,51 @@ export function BorrowEquipmentPanel({
   const [studentCurrentPage, setStudentCurrentPage] = useState(1);
   const [equipmentCurrentPage, setEquipmentCurrentPage] = useState(1);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     setSelectedStudentIds(new Set());
     setEquipmentQuantities({});
     setClassFilter(CLASS_FILTER_ALL);
     router.refresh();
-  }, [state.success, router]);
+  });
 
   const studentCount = selectedStudentIds.size;
+  const [prevStudentCount, setPrevStudentCount] = useState(studentCount);
 
-  useEffect(() => {
-    if (studentCount === 0) {
-      return;
+  if (studentCount !== prevStudentCount) {
+    setPrevStudentCount(studentCount);
+
+    if (studentCount > 0) {
+      setEquipmentQuantities((current) => {
+        let changed = false;
+        const next = { ...current };
+
+        for (const [equipmentId, quantity] of Object.entries(current)) {
+          const equipment = equipments.find((row) => row.id === equipmentId);
+          if (!equipment) {
+            continue;
+          }
+
+          const maxQuantity = getMaxBorrowQuantityPerStudent(
+            equipment,
+            studentCount
+          );
+
+          if (maxQuantity === 0) {
+            delete next[equipmentId];
+            changed = true;
+            continue;
+          }
+
+          if (quantity > maxQuantity) {
+            next[equipmentId] = maxQuantity;
+            changed = true;
+          }
+        }
+
+        return changed ? next : current;
+      });
     }
-
-    setEquipmentQuantities((current) => {
-      let changed = false;
-      const next = { ...current };
-
-      for (const [equipmentId, quantity] of Object.entries(current)) {
-        const equipment = equipments.find((row) => row.id === equipmentId);
-        if (!equipment) {
-          continue;
-        }
-
-        const maxQuantity = getMaxBorrowQuantityPerStudent(
-          equipment,
-          studentCount
-        );
-
-        if (maxQuantity === 0) {
-          delete next[equipmentId];
-          changed = true;
-          continue;
-        }
-
-        if (quantity > maxQuantity) {
-          next[equipmentId] = maxQuantity;
-          changed = true;
-        }
-      }
-
-      return changed ? next : current;
-    });
-  }, [studentCount, equipments]);
+  }
 
   const selectedEquipmentIds = useMemo(
     () => new Set(Object.keys(equipmentQuantities)),
@@ -1044,7 +1041,7 @@ export function BorrowEquipmentPanel({
           className="bg-orange-500 text-white hover:bg-orange-500/90"
         >
           {isPending ? (
-            <InlineSpinner label="Saving borrow" />
+            <InlineSpinner />
           ) : (
             "Save borrow"
           )}

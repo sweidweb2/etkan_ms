@@ -1,6 +1,7 @@
 import { getManagerClassStudentsPreview } from "@/lib/manager/get-manager-class-students-preview";
 import { getManagerClassSessionPreview } from "@/lib/manager/get-manager-class-session-preview";
 import { getPreviewSessionTasksFromStore } from "@/lib/preview/manager-session-tasks-store";
+import { ATTENDEE_STATUSES } from "@/lib/constants/manager-attendee-status";
 import type {
   ManagerSessionAttendeeRow,
   ManagerSessionTaskRow,
@@ -103,7 +104,10 @@ export function getManagerClassSessionAttendeesPreview(
       full_name: student.full_name,
       email: student.email,
       note,
-      status: seed % 6 !== 0,
+      status:
+        seed % 6 !== 0
+          ? ATTENDEE_STATUSES.PRESENT
+          : ATTENDEE_STATUSES.ABSENT,
       created_at: createdAt.toISOString(),
     };
   });

@@ -125,8 +125,7 @@ export function getSessionProgressTone(rate: number): {
 }
 
 export function getSegmentProgressTone(
-  classRow: ClassSessionProgressSource,
-  _segmentIndex?: number
+  classRow: ClassSessionProgressSource
 ): ReturnType<typeof getClassProgressTone> {
   return getClassProgressTone(classRow);
 }

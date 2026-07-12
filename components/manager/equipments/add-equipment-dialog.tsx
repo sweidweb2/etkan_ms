@@ -209,7 +209,7 @@ export function AddEquipmentDialog({
           </Button>
           <Button type="submit" form="add-equipment-form" disabled={isPending}>
             {isPending ? (
-              <InlineSpinner label="Creating equipment" />
+              <InlineSpinner />
             ) : (
               "Create equipment"
             )}

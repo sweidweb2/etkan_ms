@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import { EditEquipmentDialog } from "@/components/manager/equipments/edit-equipment-dialog";
@@ -61,17 +61,11 @@ function DetailField({
 }
 
 export function EquipmentDetailsPanel({
-  equipment: initialEquipment,
+  equipment,
   initialBorrows,
 }: EquipmentDetailsPanelProps) {
   const router = useRouter();
-  const [equipment, setEquipment] =
-    useState<ManagerEquipmentRow>(initialEquipment);
   const [isEditOpen, setIsEditOpen] = useState(false);
-
-  useEffect(() => {
-    setEquipment(initialEquipment);
-  }, [initialEquipment]);
 
   const remaining = getEquipmentRemainingQuantity(equipment);
   const inventoryValue = getEquipmentInventoryValue(equipment);

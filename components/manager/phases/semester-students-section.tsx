@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { PlusIcon, SearchIcon } from "lucide-react";
-import { addStudentToSemesterAction } from "@/app/manager/phases/actions";
 import { AddSemesterStudentDialog } from "@/components/manager/phases/add-semester-student-dialog";
 import { StudentSemesterStatusBadge } from "@/components/manager/students/student-semester-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -88,21 +87,10 @@ export function SemesterStudentsSection({
   initialAvailableStudents,
   onStudentsChanged,
 }: SemesterStudentsSectionProps) {
-  const [students, setStudents] =
-    useState<ManagerStudentSemesterRow[]>(initialStudents);
-  const [availableStudents, setAvailableStudents] = useState(
-    initialAvailableStudents
-  );
+  const students = initialStudents;
+  const availableStudents = initialAvailableStudents;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    setStudents(initialStudents);
-  }, [initialStudents]);
-
-  useEffect(() => {
-    setAvailableStudents(initialAvailableStudents);
-  }, [initialAvailableStudents]);
 
   const stats = useMemo(
     () => ({

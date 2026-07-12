@@ -225,7 +225,7 @@ export function EditEquipmentDialog({
             disabled={!equipment || isPending}
           >
             {isPending ? (
-              <InlineSpinner label="Saving changes" />
+              <InlineSpinner />
             ) : (
               "Save changes"
             )}

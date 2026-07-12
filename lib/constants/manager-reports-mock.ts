@@ -514,7 +514,8 @@ function buildStudentTasks(filters: ReportFilters): ReportRow[] {
   ]);
 }
 
-function buildAtRiskStudents(_filters: ReportFilters): ReportRow[] {
+function buildAtRiskStudents(filters: ReportFilters): ReportRow[] {
+  void filters;
   return [
     {
       student_name: "Maya Ibrahim",
@@ -638,11 +639,17 @@ function buildSubjectCatalog(): ReportRow[] {
 
 function buildSemesterClassList(filters: ReportFilters): ReportRow[] {
   if (filters.semesterId === "all") {
-    return SEMESTER_CLASSES_MOCK.map(({ semester_id: _, ...row }) => row);
+    return SEMESTER_CLASSES_MOCK.map(({ semester_id, ...row }) => {
+      void semester_id;
+      return row;
+    });
   }
   return SEMESTER_CLASSES_MOCK.filter(
     (row) => row.semester_id === filters.semesterId
-  ).map(({ semester_id: _, ...row }) => row);
+  ).map(({ semester_id, ...row }) => {
+    void semester_id;
+    return row;
+  });
 }
 
 function buildPaymentLedger(filters: ReportFilters): ReportRow[] {

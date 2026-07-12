@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useActionState, useEffect, useTransition } from "react";
+import { useActionState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Clock3Icon,
@@ -32,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import type {
   DeleteWeeklyScheduleSlotActionState,
@@ -181,18 +182,12 @@ export function ManagerSchedulePanel({
     router.refresh();
   };
 
-  useEffect(() => {
-    if (isDeleteActionPending) {
-      return;
-    }
-
-    if (deleteState.success) {
-      setDeleteTarget(null);
-      setOpen(false);
-      setSelectedSession(null);
-      handleScheduleChanged();
-    }
-  }, [deleteState.success, isDeleteActionPending]);
+  useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+    setDeleteTarget(null);
+    setOpen(false);
+    setSelectedSession(null);
+    handleScheduleChanged();
+  });
 
   function openSession(session: ManagerWeeklyScheduleSession) {
     setSelectedSession(session);

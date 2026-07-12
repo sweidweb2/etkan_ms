@@ -89,12 +89,17 @@ function ClassTabPanel({
 }
 
 export function StudentJoinedClassesSection({
-  userId: _userId,
+  userId,
   initialClasses,
   classBundles,
 }: StudentJoinedClassesSectionProps) {
+  void userId;
   const [classes, setClasses] = useState<ManagerStudentClassRow[]>(initialClasses);
+  const [prevInitialClasses, setPrevInitialClasses] =
+    useState<ManagerStudentClassRow[]>(initialClasses);
   const [bundles, setBundles] =
+    useState<ManagerStudentClassAcademicBundle[]>(classBundles);
+  const [prevClassBundles, setPrevClassBundles] =
     useState<ManagerStudentClassAcademicBundle[]>(classBundles);
   const [isAssignClassOpen, setIsAssignClassOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string | null>(
@@ -108,10 +113,15 @@ export function StudentJoinedClassesSection({
         : classes[0]!.id;
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
+  if (initialClasses !== prevInitialClasses) {
+    setPrevInitialClasses(initialClasses);
     setClasses(initialClasses);
+  }
+
+  if (classBundles !== prevClassBundles) {
+    setPrevClassBundles(classBundles);
     setBundles(classBundles);
-  }, [initialClasses, classBundles]);
+  }
 
   const enrolledClassIds = useMemo(
     () => new Set(classes.map((classRow) => classRow.class_id)),

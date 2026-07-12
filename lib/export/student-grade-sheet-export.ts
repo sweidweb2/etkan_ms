@@ -358,7 +358,7 @@ function buildHorizontalPdfInfoBody(model: StudentClassGradeSheetModel) {
       {
         content: getAttendanceLabel(model),
         colSpan: 3,
-        styles: { fontStyle: "bold" },
+        styles: { fontStyle: "bold" as const },
       },
     ],
   ];
@@ -374,7 +374,7 @@ function buildVerticalPdfInfoBody(model: StudentClassGradeSheetModel) {
     ["Compute status", getSheetComputeStatus(model)],
     [
       "Attendance",
-      { content: getAttendanceLabel(model), styles: { fontStyle: "bold" } },
+      { content: getAttendanceLabel(model), styles: { fontStyle: "bold" as const } },
     ],
   ];
 }

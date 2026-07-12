@@ -33,7 +33,7 @@ export function parseAddStudentToSemesterFormData(formData: FormData):
     return {
       success: false,
       error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error),
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
     };
   }
 

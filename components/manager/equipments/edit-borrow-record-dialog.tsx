@@ -115,7 +115,7 @@ export function EditBorrowRecordDialog({
 
   const quantityExceedsStock =
     selectedStatus === BORROW_EQUIPMENT_STATUSES.BORROWED &&
-    selectedQuantity > maxQuantity;
+    Number(selectedQuantity ?? 0) > maxQuantity;
 
   useEffect(() => {
     if (!open || !borrowRow) {
@@ -182,7 +182,11 @@ export function EditBorrowRecordDialog({
             </div>
 
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="edit-borrow-quantity" label="Quantity" />
+              <FieldLabel
+                htmlFor="edit-borrow-quantity"
+                label="Quantity"
+                hint="Required"
+              />
               <Input
                 id="edit-borrow-quantity"
                 type="number"
@@ -209,7 +213,11 @@ export function EditBorrowRecordDialog({
             </div>
 
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="edit-borrow-status" label="Status" />
+              <FieldLabel
+                htmlFor="edit-borrow-status"
+                label="Status"
+                hint="Required"
+              />
               <Select
                 value={selectedStatus}
                 onValueChange={(value) => {
@@ -247,6 +255,7 @@ export function EditBorrowRecordDialog({
                 <FieldLabel
                   htmlFor="edit-borrow-returned-at"
                   label="Returned date"
+                  hint="Required"
                 />
                 <Input
                   id="edit-borrow-returned-at"

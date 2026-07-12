@@ -79,12 +79,12 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       defaultOpen: true,
       items: [
         {
-          title: "Accounting ❗",
+          title: "Accounting",
           href: ROUTES.MANAGER_ACCOUNTING,
           icon: "calculator",
         },
         {
-          title: "Schedule ❗",
+          title: "Schedule",
           href: ROUTES.MANAGER_SCHEDULE,
           icon: "calendar-days",
         },

@@ -99,10 +99,8 @@ export function SemesterClassesSection({
   onExportPdf,
   onClassesChanged,
 }: SemesterClassesSectionProps) {
-  const [classes, setClasses] = useState<ManagerSemesterClassRow[]>(initialClasses);
-  const [availableClasses, setAvailableClasses] = useState<ManagerSemesterClassRow[]>(
-    initialAvailableClasses
-  );
+  const classes = initialClasses;
+  const availableClasses = initialAvailableClasses;
   const [isConnectOpen, setIsConnectOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
@@ -111,14 +109,6 @@ export function SemesterClassesSection({
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-
-  useEffect(() => {
-    setClasses(initialClasses);
-  }, [initialClasses]);
-
-  useEffect(() => {
-    setAvailableClasses(initialAvailableClasses);
-  }, [initialAvailableClasses]);
 
   useEffect(() => {
     const handleAfterPrint = () => setIsExportingPdf(false);

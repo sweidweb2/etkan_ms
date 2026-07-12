@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { EyeIcon, DownloadIcon, MessageSquareTextIcon } from "lucide-react";
 import { ClassFastCertificatePanel } from "@/components/manager/classes/class-fast-certificate-panel";
 import { CustomizeComputeAllDialog } from "@/components/manager/classes/customize-compute-all-dialog";
@@ -162,11 +162,7 @@ export function ClassStudentGradesSection({
     () => new Map(finalExamStudentGrades.map((row) => [row.student_id, row])),
     [finalExamStudentGrades]
   );
-  const [gradeRows, setGradeRows] = useState(rows);
-
-  useEffect(() => {
-    setGradeRows(rows);
-  }, [rows]);
+  const gradeRows = rows;
 
   const unreadyRows = useMemo(
     () =>
@@ -240,22 +236,6 @@ export function ClassStudentGradesSection({
   const [isDeleteGradePending, setIsDeleteGradePending] = useState(false);
   const [isExportingCertificates, setIsExportingCertificates] = useState(false);
 
-  useEffect(() => {
-    if (!isComputeOpen || !selectedRow) {
-      return;
-    }
-
-    setComputeWeights(
-      getComputeFactorWeightFormDefaults({
-        stored_tasks_weight: selectedRow.stored_tasks_weight,
-        stored_final_exam_weight: selectedRow.stored_final_exam_weight,
-        default_tasks_weight: defaultFactorWeights.tasks_weight,
-        default_final_exam_weight: defaultFactorWeights.final_exam_weight,
-      })
-    );
-    setComputeWeightError(null);
-  }, [defaultFactorWeights, isComputeOpen, selectedRow]);
-
   const computeFactorTotal = useMemo(
     () =>
       parseWeight(computeWeights.tasks_weight) +
@@ -271,6 +251,15 @@ export function ClassStudentGradesSection({
 
   function openComputeDialog(row: ManagerClassStudentGradeRow) {
     setSelectedRow(row);
+    setComputeWeights(
+      getComputeFactorWeightFormDefaults({
+        stored_tasks_weight: row.stored_tasks_weight,
+        stored_final_exam_weight: row.stored_final_exam_weight,
+        default_tasks_weight: defaultFactorWeights.tasks_weight,
+        default_final_exam_weight: defaultFactorWeights.final_exam_weight,
+      })
+    );
+    setComputeWeightError(null);
     setIsComputeOpen(true);
   }
 

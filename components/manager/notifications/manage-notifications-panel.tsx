@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -30,6 +30,7 @@ import {
   markNotificationReadAction,
 } from "@/app/manager/notifications/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -204,27 +205,15 @@ export function ManageNotificationsPanel({
     router.refresh();
   };
 
-  useEffect(() => {
-    if (isMarkReadActionPending) {
-      return;
-    }
+  useActionStateSuccess(markReadState, isMarkReadActionPending, () => {
+    handleNotificationsChanged();
+  });
 
-    if (markReadState.success) {
-      handleNotificationsChanged();
-    }
-  }, [isMarkReadActionPending, markReadState.success]);
-
-  useEffect(() => {
-    if (isDeleteActionPending) {
-      return;
-    }
-
-    if (deleteState.success) {
-      setDeleteTarget(null);
-      setDetailsNotification(null);
-      handleNotificationsChanged();
-    }
-  }, [deleteState.success, isDeleteActionPending]);
+  useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+    setDeleteTarget(null);
+    setDetailsNotification(null);
+    handleNotificationsChanged();
+  });
 
   const stats = useMemo(
     () => ({

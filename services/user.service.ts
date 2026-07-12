@@ -66,8 +66,9 @@ function mapCreateStaffUserError(message: string): string {
 
 /** Phase 2: send welcome email with account credentials. */
 async function notifyStaffUserCreated(
-  _payload: StaffWelcomeEmailPayload
+  payload: StaffWelcomeEmailPayload
 ): Promise<void> {
+  void payload;
   // Intentionally no-op until email infrastructure is added.
 }
 

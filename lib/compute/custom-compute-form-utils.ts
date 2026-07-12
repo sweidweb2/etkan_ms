@@ -1,4 +1,3 @@
-import type { ManagerClassTaskWithSessionRow } from "@/lib/manager/get-manager-class-tasks-preview";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassWeightsRow } from "@/types/manager-class-weights";
 

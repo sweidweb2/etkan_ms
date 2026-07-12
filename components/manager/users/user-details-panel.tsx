@@ -45,7 +45,8 @@ function DetailField({
   );
 }
 
-export function UserDetailsPanel({ userId: _userId }: UserDetailsPanelProps) {
+export function UserDetailsPanel({ userId }: UserDetailsPanelProps) {
+  void userId;
   const [user, setUser] = useState<ManagerUserRow>(() =>
     getManagerUserPreview(MANAGER_USER_PREVIEW_ID)
   );

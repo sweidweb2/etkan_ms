@@ -113,15 +113,22 @@ export function SessionTaskStudentTasksSection({
 
   return (
     <TooltipProvider>
-      <EditStudentTaskSheet
-        open={isEditOpen}
-        onOpenChange={setIsEditOpen}
-        studentTask={selectedStudentTask}
-        maxGrade={task.max_grade}
-        dueDate={task.due_date}
-        onUpdateStudentTask={handleUpdateStudentTask}
-        readOnly={selectedTaskLocked}
-      />
+      {isEditOpen && selectedStudentTask ? (
+        <EditStudentTaskSheet
+          open
+          onOpenChange={(nextOpen) => {
+            setIsEditOpen(nextOpen);
+            if (!nextOpen) {
+              setSelectedStudentTask(null);
+            }
+          }}
+          studentTask={selectedStudentTask}
+          maxGrade={task.max_grade}
+          dueDate={task.due_date}
+          onUpdateStudentTask={handleUpdateStudentTask}
+          readOnly={selectedTaskLocked}
+        />
+      ) : null}
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-3">

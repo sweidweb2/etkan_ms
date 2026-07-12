@@ -93,7 +93,10 @@ export function StudentGradeMissingDataDialog({
   const [isTaskEditOpen, setIsTaskEditOpen] = useState(false);
   const [isFinalExamEditOpen, setIsFinalExamEditOpen] = useState(false);
 
-  const missingItems = student?.missing_items ?? [];
+  const missingItems = useMemo(
+    () => student?.missing_items ?? [],
+    [student?.missing_items]
+  );
   const recordLocked = Boolean(student?.is_computed);
   const taskItems = useMemo(
     () => missingItems.filter((item) => item.kind === "task"),
@@ -259,35 +262,39 @@ export function StudentGradeMissingDataDialog({
         </DialogContent>
       </Dialog>
 
-      <EditStudentTaskSheet
-        open={isTaskEditOpen}
-        onOpenChange={setIsTaskEditOpen}
-        studentTask={taskEditTarget}
-        maxGrade={
-          missingItems.find((item) => item.studentTaskId === taskEditTarget?.id)
-            ?.maxGrade ?? null
-        }
-        dueDate={
-          missingItems.find((item) => item.studentTaskId === taskEditTarget?.id)
-            ?.dueDate ?? null
-        }
-        readOnly={recordLocked}
-        onUpdateStudentTask={() => {
-          handleRefresh();
-        }}
-      />
+      {isTaskEditOpen && taskEditTarget ? (
+        <EditStudentTaskSheet
+          open
+          onOpenChange={setIsTaskEditOpen}
+          studentTask={taskEditTarget}
+          maxGrade={
+            missingItems.find((item) => item.studentTaskId === taskEditTarget.id)
+              ?.maxGrade ?? null
+          }
+          dueDate={
+            missingItems.find((item) => item.studentTaskId === taskEditTarget.id)
+              ?.dueDate ?? null
+          }
+          readOnly={recordLocked}
+          onUpdateStudentTask={() => {
+            handleRefresh();
+          }}
+        />
+      ) : null}
 
-      <EditStudentFinalExamGradeSheet
-        open={isFinalExamEditOpen}
-        onOpenChange={setIsFinalExamEditOpen}
-        studentGrade={finalExamStudentGrade}
-        maxGrade={finalExam?.max_grade ?? null}
-        dueDate={finalExam?.due_date ?? null}
-        readOnly={recordLocked}
-        onStudentGradeUpdated={() => {
-          handleRefresh();
-        }}
-      />
+      {isFinalExamEditOpen && finalExamStudentGrade ? (
+        <EditStudentFinalExamGradeSheet
+          open
+          onOpenChange={setIsFinalExamEditOpen}
+          studentGrade={finalExamStudentGrade}
+          maxGrade={finalExam?.max_grade ?? null}
+          dueDate={finalExam?.due_date ?? null}
+          readOnly={recordLocked}
+          onStudentGradeUpdated={() => {
+            handleRefresh();
+          }}
+        />
+      ) : null}
     </>
   );
 }

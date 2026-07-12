@@ -148,7 +148,7 @@ export function AddWeeklyScheduleSlotDialog({
               hint="Required"
             />
             <Select
-              value={selectedClassId || undefined}
+              value={selectedClassId || null}
               disabled={isPending}
               onValueChange={(value) => {
                 if (!value) {

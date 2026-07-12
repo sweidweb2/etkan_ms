@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { LayersIcon, UsersRoundIcon } from "lucide-react";
 import { updateSessionSettingsAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -94,13 +94,16 @@ export function SessionDetailsActions({
   const isPhasePending = isPending && saveTarget === "phase";
   const isGroupGradePending = isPending && saveTarget === "groupGrade";
 
-  useEffect(() => {
-    if (!isPending) {
-      setSaveTarget(null);
-    }
-  }, [isPending]);
-
   useActionStateToast(state, isPending);
+
+  useActionStateSuccess(
+    state,
+    isPending,
+    () => {
+      setSaveTarget(null);
+    },
+    () => true
+  );
 
   const initialPhaseId = useMemo(
     () => getInitialPhaseId(linkedPhase, defaultPhaseId, phaseOptions),

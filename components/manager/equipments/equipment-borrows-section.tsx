@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -145,18 +145,13 @@ export function EquipmentBorrowsSection({
   equipmentName,
   initialBorrows,
 }: EquipmentBorrowsSectionProps) {
-  const [borrows, setBorrows] =
-    useState<ManagerEquipmentBorrowRow[]>(initialBorrows);
+  const borrows = initialBorrows;
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
     10
   );
   const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    setBorrows(initialBorrows);
-  }, [initialBorrows]);
 
   const stats = useMemo(
     () => ({

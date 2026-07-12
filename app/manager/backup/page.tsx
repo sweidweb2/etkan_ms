@@ -5,12 +5,13 @@ import { createSupabaseServerComponentClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/services/auth.service";
 import { getRecentBackupHistory } from "@/services/backup-history.service";
 import { resolveUserRole } from "@/services/role.service";
+import type { BackupHistoryEntry } from "@/types/backup-history";
 
 export default async function ManagerBackupPage() {
   const sessionClient = await createSupabaseServerComponentClient();
   const user = await getCurrentUser(sessionClient);
 
-  let history = [];
+  let history: BackupHistoryEntry[] = [];
 
   if (user) {
     const role = await resolveUserRole(sessionClient, user);

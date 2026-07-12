@@ -31,4 +31,5 @@ export type ToggleBorrowReturnedActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  fieldErrors?: FieldErrors;
 };

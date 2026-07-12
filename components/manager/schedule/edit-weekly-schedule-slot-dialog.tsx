@@ -157,7 +157,7 @@ export function EditWeeklyScheduleSlotDialog({
               hint="Required"
             />
             <Select
-              value={selectedClassId || undefined}
+              value={selectedClassId || null}
               disabled={isPending}
               onValueChange={(value) => {
                 if (!value) {

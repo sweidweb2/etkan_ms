@@ -174,7 +174,7 @@ export function ClassLineChart({
                       : `${entry.value}${yDomain?.[1] === 100 ? "%" : ""}`;
 
                     return (
-                      <p key={entry.dataKey} className="mt-1">
+                      <p key={String(entry.dataKey)} className="mt-1">
                         {entry.name}: {displayValue}
                       </p>
                     );

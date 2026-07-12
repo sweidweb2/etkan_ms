@@ -45,28 +45,26 @@ export function ClassFastCertificatePanel({
   );
   const [isLoading, setIsLoading] = useState(false);
 
+  const resolvedSelectedStudentProfileId =
+    selectedStudentProfileId &&
+    sortedStudents.some(
+      (row) => row.student_profile_id === selectedStudentProfileId
+    )
+      ? selectedStudentProfileId
+      : "";
+
   const selectedStudent = useMemo(
     () =>
       sortedStudents.find(
-        (row) => row.student_profile_id === selectedStudentProfileId
+        (row) => row.student_profile_id === resolvedSelectedStudentProfileId
       ) ?? null,
-    [selectedStudentProfileId, sortedStudents]
+    [resolvedSelectedStudentProfileId, sortedStudents]
   );
 
-  useEffect(() => {
-    if (
-      selectedStudentProfileId &&
-      !sortedStudents.some(
-        (row) => row.student_profile_id === selectedStudentProfileId
-      )
-    ) {
-      setSelectedStudentProfileId("");
-    }
-  }, [selectedStudentProfileId, sortedStudents]);
+  const displayBundle = resolvedSelectedStudentProfileId ? bundle : null;
 
   useEffect(() => {
-    if (!selectedStudentProfileId) {
-      setBundle(null);
+    if (!resolvedSelectedStudentProfileId) {
       return;
     }
 
@@ -78,7 +76,7 @@ export function ClassFastCertificatePanel({
       try {
         const result = await fetchStudentFastCertificateBundleAction(
           classId,
-          selectedStudentProfileId
+          resolvedSelectedStudentProfileId
         );
 
         if (cancelled) {
@@ -106,7 +104,7 @@ export function ClassFastCertificatePanel({
     return () => {
       cancelled = true;
     };
-  }, [classId, selectedStudentProfileId]);
+  }, [classId, resolvedSelectedStudentProfileId]);
 
   if (sortedStudents.length === 0) {
     return null;
@@ -126,7 +124,7 @@ export function ClassFastCertificatePanel({
             hint="Choose who this fast certificate is for"
           />
           <Select
-            value={selectedStudentProfileId || null}
+            value={resolvedSelectedStudentProfileId || null}
             onValueChange={(value) => {
               setSelectedStudentProfileId(value ?? "");
             }}
@@ -149,7 +147,7 @@ export function ClassFastCertificatePanel({
           </Select>
         </div>
 
-        {!selectedStudentProfileId ? (
+        {!resolvedSelectedStudentProfileId ? (
           <p className="text-sm text-muted-foreground">
             Select a student to configure weights and export a certificate.
           </p>
@@ -157,15 +155,15 @@ export function ClassFastCertificatePanel({
           <div className="flex min-h-32 items-center justify-center rounded-xl border border-dashed">
             <InlineSpinner />
           </div>
-        ) : bundle ? (
+        ) : displayBundle ? (
           <StudentFastCertificateContent
             classRow={classRow}
-            student={bundle.student}
-            gradeRow={bundle.gradeRow}
-            detail={bundle.detail}
-            classTasks={bundle.classTasks}
-            finalExam={bundle.finalExam}
-            finalExamGrade={bundle.finalExamGrade}
+            student={displayBundle.student}
+            gradeRow={displayBundle.gradeRow}
+            detail={displayBundle.detail}
+            classTasks={displayBundle.classTasks}
+            finalExam={displayBundle.finalExam}
+            finalExamGrade={displayBundle.finalExamGrade}
             wrapInCollapsible={false}
           />
         ) : null}

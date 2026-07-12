@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { updateStudentTaskAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -62,6 +62,17 @@ function toDatetimeLocalValue(value: string | Date) {
   return local.toISOString().slice(0, 16);
 }
 
+function getStudentTaskFormDefaults(studentTask: ManagerStudentTaskRow) {
+  return {
+    status: studentTask.status,
+    grade: studentTask.grade === null ? "" : studentTask.grade,
+    notes: studentTask.notes ?? "",
+    submitted_at: studentTask.submitted_at
+      ? toDatetimeLocalValue(studentTask.submitted_at)
+      : "",
+  };
+}
+
 export function EditStudentTaskSheet({
   open,
   onOpenChange,
@@ -78,7 +89,9 @@ export function EditStudentTaskSheet({
   );
   const isPending = isActionPending || isTransitionPending;
   const isFormDisabled = isPending || readOnly;
-  const [gradedAtPreview, setGradedAtPreview] = useState("");
+  const [gradedAtPreview, setGradedAtPreview] = useState(() =>
+    toDatetimeLocalValue(new Date())
+  );
 
   const schema = useMemo(
     () => createEditStudentTaskSchema(maxGrade, dueDate),
@@ -97,13 +110,28 @@ export function EditStudentTaskSheet({
   } = useZodForm({
     schema,
     mode: "onBlur",
-    defaultValues: {
-      status: "pending",
-      grade: "",
-      notes: "",
-      submitted_at: "",
-    },
+    defaultValues: studentTask
+      ? getStudentTaskFormDefaults(studentTask)
+      : {
+          status: "pending",
+          grade: "",
+          notes: "",
+          submitted_at: "",
+        },
   });
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && isPending) {
+      return;
+    }
+
+    if (nextOpen && studentTask) {
+      setGradedAtPreview(toDatetimeLocalValue(new Date()));
+      reset(getStudentTaskFormDefaults(studentTask));
+    }
+
+    onOpenChange(nextOpen);
+  }
 
   const selectedStatus = watch("status");
   const gradeValue = watch("grade");
@@ -117,23 +145,6 @@ export function EditStudentTaskSheet({
     selectedStatus !== STUDENT_TASK_STATUSES.LATE &&
     selectedStatus !== STUDENT_TASK_STATUSES.PENDING &&
     selectedStatus !== STUDENT_TASK_STATUSES.MISSING;
-
-  useEffect(() => {
-    if (!open || !studentTask) {
-      return;
-    }
-
-    setGradedAtPreview(toDatetimeLocalValue(new Date()));
-
-    reset({
-      status: studentTask.status,
-      grade: studentTask.grade === null ? "" : studentTask.grade,
-      notes: studentTask.notes ?? "",
-      submitted_at: studentTask.submitted_at
-        ? toDatetimeLocalValue(studentTask.submitted_at)
-        : "",
-    });
-  }, [open, maxGrade, reset, schema, studentTask]);
 
   useActionStateSuccess(
     state,
@@ -189,7 +200,7 @@ export function EditStudentTaskSheet({
     : "—";
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{studentTask.full_name}</SheetTitle>
@@ -338,7 +349,7 @@ export function EditStudentTaskSheet({
             type="button"
             variant="outline"
             disabled={isPending}
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
           >
             {readOnly ? "Close" : "Cancel"}
           </Button>

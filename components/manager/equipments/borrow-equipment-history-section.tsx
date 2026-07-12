@@ -2,7 +2,6 @@
 
 import {
   useActionState,
-  useEffect,
   useMemo,
   useState,
   useTransition,
@@ -43,6 +42,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import {
   BORROW_EQUIPMENT_STATUSES,
@@ -200,37 +200,27 @@ export function BorrowEquipmentHistorySection({
     Record<string, boolean>
   >({});
 
-  useEffect(() => {
-    if (isToggleActionPending || !pendingToggleId) {
-      return;
-    }
-
-    if (toggleState.success) {
-      setOptimisticReturnedById((current) => {
-        const next = { ...current };
-        delete next[pendingToggleId];
-        return next;
-      });
-      setPendingToggleId(null);
-      onRecordsChanged();
-      return;
-    }
-
-    if (toggleState.error) {
-      setOptimisticReturnedById((current) => {
-        const next = { ...current };
-        delete next[pendingToggleId];
-        return next;
-      });
-      setPendingToggleId(null);
-    }
-  }, [
+  useActionStateSuccess(
+    toggleState,
     isToggleActionPending,
-    onRecordsChanged,
-    pendingToggleId,
-    toggleState.error,
-    toggleState.success,
-  ]);
+    (nextState) => {
+      if (!pendingToggleId) {
+        return;
+      }
+
+      setOptimisticReturnedById((current) => {
+        const next = { ...current };
+        delete next[pendingToggleId];
+        return next;
+      });
+      setPendingToggleId(null);
+
+      if (nextState.success) {
+        onRecordsChanged();
+      }
+    },
+    (nextState) => Boolean(nextState.success || nextState.error)
+  );
 
   const getRowIsReturned = (row: ManagerBorrowEquipmentListRow) => {
     if (row.id in optimisticReturnedById) {

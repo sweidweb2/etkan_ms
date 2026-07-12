@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { updateStudentFinalExamGradeAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -64,6 +64,17 @@ function toDatetimeLocalValue(value: string | Date | null) {
   return local.toISOString().slice(0, 16);
 }
 
+function getStudentFinalExamFormDefaults(
+  studentGrade: ManagerStudentFinalExamGradeRow
+) {
+  return {
+    status: studentGrade.status,
+    grade: studentGrade.grade === null ? "" : studentGrade.grade,
+    notes: studentGrade.notes ?? "",
+    submitted_at: toDatetimeLocalValue(studentGrade.submitted_at),
+  };
+}
+
 export function EditStudentFinalExamGradeSheet({
   open,
   onOpenChange,
@@ -80,20 +91,14 @@ export function EditStudentFinalExamGradeSheet({
   );
   const isPending = isActionPending || isTransitionPending;
   const isFormDisabled = isPending || readOnly;
-  const [gradedAtPreview, setGradedAtPreview] = useState("");
+  const [gradedAtPreview, setGradedAtPreview] = useState(() =>
+    toDatetimeLocalValue(new Date())
+  );
 
   const schema = useMemo(
     () => createEditStudentFinalExamGradeSchema(maxGrade, dueDate),
     [dueDate, maxGrade]
   );
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && isPending) {
-      return;
-    }
-
-    onOpenChange(nextOpen);
-  }
 
   useActionStateToast(state, isPending);
 
@@ -107,13 +112,28 @@ export function EditStudentFinalExamGradeSheet({
   } = useZodForm({
     schema,
     mode: "onBlur",
-    defaultValues: {
-      status: "pending",
-      grade: "",
-      notes: "",
-      submitted_at: "",
-    },
+    defaultValues: studentGrade
+      ? getStudentFinalExamFormDefaults(studentGrade)
+      : {
+          status: "pending",
+          grade: "",
+          notes: "",
+          submitted_at: "",
+        },
   });
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && isPending) {
+      return;
+    }
+
+    if (nextOpen && studentGrade) {
+      setGradedAtPreview(toDatetimeLocalValue(new Date()));
+      reset(getStudentFinalExamFormDefaults(studentGrade));
+    }
+
+    onOpenChange(nextOpen);
+  }
 
   const selectedStatus = watch("status");
   const gradeValue = watch("grade");
@@ -127,21 +147,6 @@ export function EditStudentFinalExamGradeSheet({
     selectedStatus !== STUDENT_TASK_STATUSES.LATE &&
     selectedStatus !== STUDENT_TASK_STATUSES.PENDING &&
     selectedStatus !== STUDENT_TASK_STATUSES.MISSING;
-
-  useEffect(() => {
-    if (!open || !studentGrade) {
-      return;
-    }
-
-    setGradedAtPreview(toDatetimeLocalValue(new Date()));
-
-    reset({
-      status: studentGrade.status,
-      grade: studentGrade.grade === null ? "" : studentGrade.grade,
-      notes: studentGrade.notes ?? "",
-      submitted_at: toDatetimeLocalValue(studentGrade.submitted_at),
-    });
-  }, [open, reset, schema, studentGrade]);
 
   useActionStateSuccess(
     state,

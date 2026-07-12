@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -126,8 +126,7 @@ export function ManageEquipmentsPanel({
   initialEquipments: ManagerEquipmentRow[];
 }) {
   const router = useRouter();
-  const [equipments, setEquipments] =
-    useState<ManagerEquipmentRow[]>(initialEquipments);
+  const equipments = initialEquipments;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] =
     useState<ManagerEquipmentRow | null>(null);
@@ -136,10 +135,6 @@ export function ManageEquipmentsPanel({
     10
   );
   const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    setEquipments(initialEquipments);
-  }, [initialEquipments]);
 
   const stats = useMemo(() => {
     const totalStock = equipments.reduce(

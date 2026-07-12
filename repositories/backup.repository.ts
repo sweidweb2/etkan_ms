@@ -1,18 +1,11 @@
 import type { BackupTableName } from "@/lib/constants/backup-tables";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 
-type BackupQueryResult = Promise<{
-  data: unknown[] | null;
-  error: { message: string } | null;
-}>;
-
-type BackupClient = {
-  from: (tableName: string) => {
-    select: (columns: string) => BackupQueryResult;
-  };
-};
+type Supabase = SupabaseClient<Database>;
 
 export async function exportTableRows(
-  client: BackupClient,
+  client: Supabase,
   tableName: BackupTableName
 ) {
   return client.from(tableName).select("*");

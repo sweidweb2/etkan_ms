@@ -71,12 +71,15 @@ export function StudentDetailsPanel({
 }: StudentDetailsPanelProps) {
   const router = useRouter();
   const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
+  const [prevStudent, setPrevStudent] =
+    useState<ManagerStudentRow>(initialStudent);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const studentProfileId = student.student_profile_id;
 
-  useEffect(() => {
+  if (initialStudent !== prevStudent) {
+    setPrevStudent(initialStudent);
     setStudent(initialStudent);
-  }, [initialStudent]);
+  }
 
   useEffect(() => {
     const hash = window.location.hash.slice(1);

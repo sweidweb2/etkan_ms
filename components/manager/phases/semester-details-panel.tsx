@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
@@ -58,12 +58,15 @@ export function SemesterDetailsPanel({
 }: SemesterDetailsPanelProps) {
   const router = useRouter();
   const [semester, setSemester] = useState<ManagerSemesterRow>(initialSemester);
+  const [prevSemester, setPrevSemester] =
+    useState<ManagerSemesterRow>(initialSemester);
   const [editOpen, setEditOpen] = useState(false);
   const [exportedAt, setExportedAt] = useState<Date | null>(null);
 
-  useEffect(() => {
+  if (initialSemester !== prevSemester) {
+    setPrevSemester(initialSemester);
     setSemester(initialSemester);
-  }, [initialSemester]);
+  }
 
   const createdText = useMemo(
     () => format(new Date(semester.created_at), "MMM d, yyyy 'at' h:mm a"),
