@@ -86,7 +86,7 @@ export function SemesterDetailsPanel({
       <Breadcrumb className="print:hidden">
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_PHASES}>
+            <BreadcrumbLink href={ROUTES.MANAGER_SEMESTERS}>
               Manage semesters
             </BreadcrumbLink>
           </BreadcrumbItem>

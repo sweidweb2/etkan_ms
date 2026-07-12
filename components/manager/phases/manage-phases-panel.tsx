@@ -137,7 +137,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
-            render={<Link href={ROUTES.MANAGER_PHASES_PROGRESS} />}
+            render={<Link href={ROUTES.MANAGER_SEMESTERS_PROGRESS} />}
             nativeButton={false}
             variant="outline"
           >

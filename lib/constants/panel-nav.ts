@@ -63,7 +63,7 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
         },
         {
           title: "Manage semesters",
-          href: ROUTES.MANAGER_PHASES,
+          href: ROUTES.MANAGER_SEMESTERS,
           icon: "layers",
         },
         {

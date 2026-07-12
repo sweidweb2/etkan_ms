@@ -71,7 +71,7 @@ begin
       else 'Semesters started'
     end,
     v_body,
-    '/manager/phases',
+    '/manager/semesters',
     null
   );
 end;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useTransition } from "react";
-import { addStudentToSemesterAction } from "@/app/manager/phases/actions";
+import { addStudentToSemesterAction } from "@/app/manager/semesters/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";

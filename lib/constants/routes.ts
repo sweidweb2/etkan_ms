@@ -32,8 +32,8 @@ export const ROUTES = {
   MANAGER_EQUIPMENT_DETAIL: "/manager/equipments/[id]",
   MANAGER_EQUIPMENT_BORROW: "/manager/equipments/borrow",
   MANAGER_RELATIONSHIPS: "/manager/relationships",
-  MANAGER_PHASES: "/manager/phases",
-  MANAGER_PHASES_PROGRESS: "/manager/phases/progress",
+  MANAGER_SEMESTERS: "/manager/semesters",
+  MANAGER_SEMESTERS_PROGRESS: "/manager/semesters/progress",
   MANAGER_SETTINGS: "/manager/settings",
   MANAGER_REPORTS: "/manager/reports",
   MANAGER_ANALYTICS: "/manager/analytics",
@@ -112,7 +112,7 @@ export function getManagerEquipmentDetailRoute(equipmentId: string): string {
 }
 
 export function getManagerSemesterDetailRoute(semesterId: string): string {
-  return `/manager/phases/${semesterId}`;
+  return `/manager/semesters/${semesterId}`;
 }
 
 export function getManagerClassDetailRoute(classId: string): string {

@@ -78,7 +78,7 @@ In three days since the July 9 readiness audit, the **manager panel moved from m
 | Students | `app/manager/students/actions.ts` |
 | Subjects | `app/manager/subjects/actions.ts` |
 | Classes + grades | `app/manager/classes/actions.ts`, `classes/grades/actions.ts` |
-| Phases / semesters | `app/manager/phases/actions.ts` |
+| Phases / semesters | `app/manager/semesters/actions.ts` |
 | Equipment | `app/manager/equipments/actions.ts` |
 | Accounting | `app/manager/accounting/actions.ts` |
 | Schedule | `app/manager/schedule/actions.ts` |

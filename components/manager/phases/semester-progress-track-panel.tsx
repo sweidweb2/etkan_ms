@@ -24,7 +24,7 @@ export function SemesterProgressTrackPanel({
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_PHASES}>
+            <BreadcrumbLink href={ROUTES.MANAGER_SEMESTERS}>
               Manage semesters
             </BreadcrumbLink>
           </BreadcrumbItem>
