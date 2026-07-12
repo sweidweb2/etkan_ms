@@ -11,6 +11,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { AccountingPaymentAlertBadge } from "@/components/manager/accounting/accounting-payment-alert-badge";
+import { AccountingSpecialCaseAlertBadge } from "@/components/manager/accounting/accounting-special-case-alert-badge";
 import { AccountingPaymentAlertLegendCard } from "@/components/manager/accounting/accounting-payment-alert-legend-card";
 import { StudentSemesterStatusBadge } from "@/components/manager/students/student-semester-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -435,9 +436,17 @@ export function ManageAccountingPanel({
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <AccountingPaymentAlertBadge
-                            reasons={row.payment_alert_reasons}
-                          />
+                          <div className="flex flex-col gap-1.5">
+                            <AccountingPaymentAlertBadge
+                              reasons={row.payment_alert_reasons}
+                            />
+                            {row.special_case_type ? (
+                              <AccountingSpecialCaseAlertBadge
+                                caseType={row.special_case_type}
+                                noMoney={row.special_case_no_money}
+                              />
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           {row.enrollment_status ? (

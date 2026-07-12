@@ -1,4 +1,5 @@
 import { SCHEDULED_PAYMENT_STATUSES } from "@/lib/constants/manager-scheduled-payment-status";
+import { getSubscriptionBillingGate } from "@/lib/manager/subscribed-semester-billing";
 import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
 import type {
   ManagerStudentPaymentRow,
@@ -21,15 +22,24 @@ export type SubscribedSemesterFinancialStats = {
 export function getSubscribedSemesterFinancialStats(
   subscription: ManagerSubscribedSemesterRow,
   payments: ManagerStudentPaymentRow[],
-  scheduledPayments: ManagerScheduledPaymentRow[]
+  scheduledPayments: ManagerScheduledPaymentRow[],
+  activeSpecialCaseTotalAmount?: number | null
 ): SubscribedSemesterFinancialStats {
-  const totalSubscribed = subscription.amount;
-  const totalPaid = subscription.paid_amount;
-  const totalDue = Math.max(totalSubscribed - totalPaid, 0);
+  const gate = getSubscriptionBillingGate({
+    status: subscription.status,
+    subscriptionAmount: subscription.amount,
+    totalPaid: subscription.paid_amount,
+    activeSpecialCaseTotalAmount,
+  });
+  const totalSubscribed = gate.owedAmount;
+  const totalPaid = gate.totalPaid;
+  const totalDue = gate.remainingDue;
   const paidProgressPercent =
     totalSubscribed > 0
       ? Math.min(100, Math.round((totalPaid / totalSubscribed) * 100))
-      : 0;
+      : totalPaid >= 0
+        ? 100
+        : 0;
 
   const upcomingReminders = scheduledPayments.filter(
     (row) =>

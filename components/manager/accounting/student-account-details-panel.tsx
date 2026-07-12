@@ -45,6 +45,7 @@ import {
 import {
   formatAccountCurrency,
 } from "@/lib/constants/manager-subscribed-semester-display";
+import { SUBSCRIBED_SEMESTER_STATUSES } from "@/lib/constants/manager-subscribed-semester-status";
 import {
   getManagerStudentDetailRoute,
   ROUTES,
@@ -83,11 +84,68 @@ function DetailField({
 
 function SubscriptionPaymentAlertBox({
   reasons,
+  paymentAlert,
 }: {
   reasons: ManagerAccountingPaymentAlertReason[];
+  paymentAlert: boolean;
 }) {
   if (reasons.length === 0) {
     return null;
+  }
+
+  const attentionReasons = reasons.filter(
+    (reason) => reason !== "done" && reason !== "scheduled"
+  );
+  const hasDone = reasons.includes("done");
+  const hasScheduled = reasons.includes("scheduled");
+  const isInformationalOnly = attentionReasons.length === 0 && !paymentAlert;
+
+  if (isInformationalOnly || (hasDone && attentionReasons.length === 0 && !hasScheduled)) {
+    return (
+      <div
+        role="status"
+        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3"
+      >
+        <div className="flex gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+              Billing status
+            </p>
+            <ul className="list-disc space-y-0.5 pl-4 text-xs text-emerald-900/90 dark:text-emerald-100/90">
+              {reasons.map((reason) => (
+                <li key={reason}>
+                  {ACCOUNTING_PAYMENT_ALERT_REASON_LABELS[reason]}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasScheduled && attentionReasons.length === 0) {
+    return (
+      <div
+        role="status"
+        className="rounded-xl border border-slate-500/30 bg-slate-500/10 px-4 py-3"
+      >
+        <div className="flex gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+              Scheduled reminders
+            </p>
+            <ul className="list-disc space-y-0.5 pl-4 text-xs text-slate-900/90 dark:text-slate-100/90">
+              {reasons.map((reason) => (
+                <li key={reason}>
+                  {ACCOUNTING_PAYMENT_ALERT_REASON_LABELS[reason]}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -124,18 +182,19 @@ function SubscribedSemesterTabPanel({
   payments,
   scheduledPayments,
   specialCase,
+  openBillingCount,
+  isFocusOpenSubscription,
   onMutationSuccess,
 }: {
   subscription: ManagerStudentAccountDetails["subscriptions"][number];
   payments: ManagerStudentPaymentRow[];
   scheduledPayments: ManagerScheduledPaymentRow[];
   specialCase: ManagerAccountSpecialCaseRow | null;
+  openBillingCount: number;
+  isFocusOpenSubscription: boolean;
   onMutationSuccess: () => void;
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const openBillingCount = isOpenBillingSubscriptionStatus(subscription.status)
-    ? 1
-    : 0;
   const activeSpecial =
     specialCase?.status === ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE
       ? specialCase
@@ -153,7 +212,7 @@ function SubscribedSemesterTabPanel({
   );
   const paymentAlert = resolveManageAccountingAlert({
     openBillingCount,
-    isFocusOpenSubscription: true,
+    isFocusOpenSubscription,
     totalPaid: subscription.paid_amount,
     paidAts: payments.map((payment) => payment.paid_at),
     semesterAmount: subscription.amount,
@@ -175,12 +234,16 @@ function SubscribedSemesterTabPanel({
 
       <SubscriptionPaymentAlertBox
         reasons={paymentAlert.payment_alert_reasons}
+        paymentAlert={paymentAlert.payment_alert}
       />
 
       <SubscribedSemesterFinancialSection
         subscription={subscription}
         payments={payments}
         scheduledPayments={scheduledPayments}
+        activeSpecialCaseTotalAmount={
+          activeSpecial ? activeSpecial.total_amount : null
+        }
       />
 
       <Card className="gap-0 py-0">
@@ -280,6 +343,21 @@ export function StudentAccountDetailsPanel({
     subscriptions.find((row) => row.id === resolvedActiveTab) ??
     subscriptions[0] ??
     null;
+
+  const openBillingSubscriptions = useMemo(
+    () =>
+      subscriptions.filter((row) =>
+        isOpenBillingSubscriptionStatus(row.status)
+      ),
+    [subscriptions]
+  );
+  const openBillingCount = openBillingSubscriptions.length;
+  const singleOpenSubscription =
+    openBillingCount === 1 ? openBillingSubscriptions[0] : undefined;
+  const isFocusOpenSubscription =
+    !activeSubscription ||
+    openBillingCount !== 1 ||
+    singleOpenSubscription?.id === activeSubscription.id;
 
   const paymentsBySubscription = useMemo(() => {
     const grouped = new Map<string, ManagerStudentPaymentRow[]>();
@@ -434,13 +512,19 @@ export function StudentAccountDetailsPanel({
                         <span
                           className={cn(
                             "size-2 shrink-0 rounded-full",
-                            subscription.status === "active"
-                              ? "bg-emerald-500"
-                              : subscription.status === "pending"
-                                ? "bg-amber-500"
-                                : subscription.status === "overdue"
-                                  ? "bg-rose-500"
-                                  : "bg-muted-foreground"
+                            subscription.status ===
+                              SUBSCRIBED_SEMESTER_STATUSES.PENDING
+                              ? "bg-amber-500"
+                              : subscription.status ===
+                                  SUBSCRIBED_SEMESTER_STATUSES.PAID
+                                ? "bg-emerald-500"
+                                : subscription.status ===
+                                    SUBSCRIBED_SEMESTER_STATUSES.PAUSED
+                                  ? "bg-sky-500"
+                                  : subscription.status ===
+                                      SUBSCRIBED_SEMESTER_STATUSES.REFUNDED
+                                    ? "bg-rose-500"
+                                    : "bg-muted-foreground"
                           )}
                           aria-hidden="true"
                         />
@@ -474,6 +558,8 @@ export function StudentAccountDetailsPanel({
                         (row) => row.semester_id === activeSubscription.semester_id
                       ) ?? null
                     }
+                    openBillingCount={openBillingCount}
+                    isFocusOpenSubscription={isFocusOpenSubscription}
                     onMutationSuccess={handleMutationSuccess}
                   />
                 </div>

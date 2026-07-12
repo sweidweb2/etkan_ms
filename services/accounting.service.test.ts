@@ -222,14 +222,55 @@ describe("createPaymentForManager", () => {
   });
 
   it("marks subscription paid when payment reaches owed amount", async () => {
+    const newPaymentId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
     vi.mocked(subscribedSemesterRepository.findSubscribedSemesterById).mockResolvedValue({
       data: pendingSubscription(),
       error: null,
     });
-    mockBillingLookups({ payments: [{ id: paymentId, amount: 400 }] });
+    vi.mocked(paymentRepository.listPaymentsBySubscribedSemesterIds)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: paymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 400,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-01T00:00:00.000Z",
+          },
+        ],
+        error: null,
+      } as never)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: paymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 400,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-01T00:00:00.000Z",
+          },
+          {
+            id: newPaymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 100,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-09T09:00:00.000Z",
+          },
+        ],
+        error: null,
+      } as never);
+    vi.mocked(
+      accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
     vi.mocked(paymentRepository.createPayment).mockResolvedValue({
       data: {
-        id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        id: newPaymentId,
         subscribed_semester_id: subscriptionId,
         amount: 100,
         currency: "USD",
@@ -266,6 +307,204 @@ describe("createPaymentForManager", () => {
         status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
       }
     );
+  });
+
+  it("rolls back payment when status sync fails", async () => {
+    const newPaymentId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    vi.mocked(subscribedSemesterRepository.findSubscribedSemesterById).mockResolvedValue({
+      data: pendingSubscription(),
+      error: null,
+    });
+    vi.mocked(paymentRepository.listPaymentsBySubscribedSemesterIds)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: paymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 400,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-01T00:00:00.000Z",
+          },
+        ],
+        error: null,
+      } as never)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: paymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 400,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-01T00:00:00.000Z",
+          },
+          {
+            id: newPaymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 100,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-09T09:00:00.000Z",
+          },
+        ],
+        error: null,
+      } as never);
+    vi.mocked(
+      accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(paymentRepository.createPayment).mockResolvedValue({
+      data: {
+        id: newPaymentId,
+        subscribed_semester_id: subscriptionId,
+        amount: 100,
+        currency: "USD",
+        method: "bank_transfer",
+        paid_at: "2026-07-09T09:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 201,
+      statusText: "Created",
+    });
+    vi.mocked(subscribedSemesterRepository.updateSubscribedSemester).mockResolvedValue({
+      data: null,
+      error: { message: "status sync failed" } as never,
+      count: null,
+      status: 500,
+      statusText: "Error",
+    });
+    vi.mocked(paymentRepository.deletePayment).mockResolvedValue({
+      data: { id: newPaymentId } as never,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await createPaymentForManager(adminClient, ROLES.MANAGER, actor, {
+      subscribed_semester_id: subscriptionId,
+      amount: 100,
+      currency: "USD",
+      method: "bank_transfer",
+      paid_at: "2026-07-09T12:00",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "status sync failed",
+    });
+    expect(paymentRepository.deletePayment).toHaveBeenCalledWith(
+      adminClient,
+      newPaymentId
+    );
+    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("rolls back payment when concurrent overshoot is detected", async () => {
+    const newPaymentId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const concurrentPaymentId = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+    vi.mocked(subscribedSemesterRepository.findSubscribedSemesterById).mockResolvedValue({
+      data: pendingSubscription(),
+      error: null,
+    });
+    // Gate sees 400 paid (100 remaining). After insert, re-sum finds concurrent overshoot.
+    vi.mocked(paymentRepository.listPaymentsBySubscribedSemesterIds)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: paymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 400,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-01T00:00:00.000Z",
+          },
+        ],
+        error: null,
+      } as never)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: paymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 400,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-01T00:00:00.000Z",
+          },
+          {
+            id: concurrentPaymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 100,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-01T00:00:00.000Z",
+          },
+          {
+            id: newPaymentId,
+            subscribed_semester_id: subscriptionId,
+            amount: 100,
+            currency: "USD",
+            method: "bank_transfer",
+            paid_at: "2026-07-09T09:00:00.000Z",
+          },
+        ],
+        error: null,
+      } as never);
+    vi.mocked(
+      accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(paymentRepository.createPayment).mockResolvedValue({
+      data: {
+        id: newPaymentId,
+        subscribed_semester_id: subscriptionId,
+        amount: 100,
+        currency: "USD",
+        method: "bank_transfer",
+        paid_at: "2026-07-09T09:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 201,
+      statusText: "Created",
+    });
+    vi.mocked(paymentRepository.deletePayment).mockResolvedValue({
+      data: { id: newPaymentId } as never,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await createPaymentForManager(adminClient, ROLES.MANAGER, actor, {
+      subscribed_semester_id: subscriptionId,
+      amount: 100,
+      currency: "USD",
+      method: "bank_transfer",
+      paid_at: "2026-07-09T12:00",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: [
+          "Amount exceeds the remaining due after a concurrent update (100).",
+        ],
+      },
+    });
+    expect(paymentRepository.deletePayment).toHaveBeenCalledWith(
+      adminClient,
+      newPaymentId
+    );
+    expect(subscribedSemesterRepository.updateSubscribedSemester).not.toHaveBeenCalled();
   });
 });
 
@@ -556,6 +795,35 @@ describe("createScheduledPaymentForManager", () => {
     });
     expect(scheduledPaymentRepository.createScheduledPayment).not.toHaveBeenCalled();
   });
+
+  it("rejects schedule amount greater than remaining due", async () => {
+    vi.mocked(subscribedSemesterRepository.findSubscribedSemesterById).mockResolvedValue({
+      data: pendingSubscription(),
+      error: null,
+    });
+    mockBillingLookups({ payments: [{ id: paymentId, amount: 400 }] });
+
+    const result = await createScheduledPaymentForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        subscribed_semester_id: subscriptionId,
+        payment_date: "2026-08-01T12:00",
+        amount: 150,
+        status: SCHEDULED_PAYMENT_STATUSES.SCHEDULED,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: ["Amount cannot exceed the remaining due (100)."],
+      },
+    });
+    expect(scheduledPaymentRepository.createScheduledPayment).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateScheduledPaymentForManager", () => {
@@ -634,6 +902,7 @@ describe("updateSubscribedSemesterForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    mockBillingLookups({ payments: [] });
 
     const result = await updateSubscribedSemesterForManager(
       adminClient,
@@ -700,6 +969,59 @@ describe("updateSubscribedSemesterForManager", () => {
       error: "Paid subscriptions cannot change status.",
     });
     expect(subscribedSemesterRepository.updateSubscribedSemester).not.toHaveBeenCalled();
+  });
+
+  it("reopens paid subscription to pending when amount rises above paid total", async () => {
+    vi.mocked(subscribedSemesterRepository.findSubscribedSemesterById).mockResolvedValue({
+      data: pendingSubscription({ status: SUBSCRIBED_SEMESTER_STATUSES.PAID }),
+      error: null,
+    });
+    vi.mocked(subscribedSemesterRepository.updateSubscribedSemester)
+      .mockResolvedValueOnce({
+        data: pendingSubscription({
+          amount: 800,
+          status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
+        }),
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      })
+      .mockResolvedValueOnce({
+        data: pendingSubscription({
+          amount: 800,
+          status: SUBSCRIBED_SEMESTER_STATUSES.PENDING,
+        }),
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      });
+    mockBillingLookups({ payments: [{ id: paymentId, amount: 500 }] });
+
+    const result = await updateSubscribedSemesterForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: subscriptionId,
+        amount: 800,
+        status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
+      }
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "Subscribed semester updated.",
+    });
+    expect(subscribedSemesterRepository.updateSubscribedSemester).toHaveBeenCalledWith(
+      adminClient,
+      subscriptionId,
+      {
+        amount: 800,
+        status: SUBSCRIBED_SEMESTER_STATUSES.PENDING,
+      }
+    );
   });
 });
 describe("getStudentAccountForManager", () => {
@@ -812,12 +1134,25 @@ describe("createAccountSpecialCaseForManager", () => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
     vi.mocked(
-      subscribedSemesterService.markSubscribedSemesterPaidForAccount
-    ).mockResolvedValue(undefined);
+      subscribedSemesterService.ensureSubscribedSemesterForAccount
+    ).mockResolvedValue(pendingSubscription() as never);
   });
 
-  it("marks subscribed semester paid when total_amount is 0", async () => {
+  it("syncs subscription to paid when active special total_amount is 0", async () => {
     const specialCaseId = "11111111-2222-4333-8444-555555555555";
+    const createdSpecial = {
+      id: specialCaseId,
+      account_id: accountId,
+      semester_id: semesterId,
+      total_amount: 0,
+      percentage_discount: 100,
+      explanation: "Full scholarship",
+      approved_by: actor.userId,
+      case_type: ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP,
+      status: ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    };
     vi.mocked(accountRepository.findAccountById).mockResolvedValue({
       data: {
         id: accountId,
@@ -836,27 +1171,23 @@ describe("createAccountSpecialCaseForManager", () => {
       },
       error: null,
     });
-    vi.mocked(
-      accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-    });
+    vi.mocked(accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester)
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: createdSpecial, error: null } as never);
     vi.mocked(accountSpecialCaseRepository.createSpecialCase).mockResolvedValue({
-      data: {
-        id: specialCaseId,
-        account_id: accountId,
-        semester_id: semesterId,
-        total_amount: 0,
-        percentage_discount: 100,
-        explanation: "Full scholarship",
-        approved_by: actor.userId,
-        case_type: ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP,
-        status: ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE,
-        created_at: "2026-01-01T00:00:00.000Z",
-        updated_at: "2026-01-01T00:00:00.000Z",
-      },
+      data: createdSpecial,
       error: null,
+    } as never);
+    vi.mocked(paymentRepository.listPaymentsBySubscribedSemesterIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(subscribedSemesterRepository.updateSubscribedSemester).mockResolvedValue({
+      data: pendingSubscription({ status: SUBSCRIBED_SEMESTER_STATUSES.PAID }),
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
     });
 
     const result = await createAccountSpecialCaseForManager(
@@ -877,13 +1208,31 @@ describe("createAccountSpecialCaseForManager", () => {
       success: true,
       message: "Special case created.",
     });
-    expect(
-      subscribedSemesterService.markSubscribedSemesterPaidForAccount
-    ).toHaveBeenCalledWith(adminClient, accountId, semesterId);
+    expect(subscribedSemesterRepository.updateSubscribedSemester).toHaveBeenCalledWith(
+      adminClient,
+      subscriptionId,
+      {
+        amount: 500,
+        status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
+      }
+    );
   });
 
-  it("does not mark paid when total_amount is greater than 0", async () => {
+  it("marks paid when payments already cover special owed amount", async () => {
     const specialCaseId = "11111111-2222-4333-8444-555555555555";
+    const createdSpecial = {
+      id: specialCaseId,
+      account_id: accountId,
+      semester_id: semesterId,
+      total_amount: 200,
+      percentage_discount: 60,
+      explanation: "Partial scholarship",
+      approved_by: actor.userId,
+      case_type: ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP,
+      status: ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    };
     vi.mocked(accountRepository.findAccountById).mockResolvedValue({
       data: {
         id: accountId,
@@ -902,27 +1251,32 @@ describe("createAccountSpecialCaseForManager", () => {
       },
       error: null,
     });
-    vi.mocked(
-      accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-    });
+    vi.mocked(accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester)
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: createdSpecial, error: null } as never);
     vi.mocked(accountSpecialCaseRepository.createSpecialCase).mockResolvedValue({
-      data: {
-        id: specialCaseId,
-        account_id: accountId,
-        semester_id: semesterId,
-        total_amount: 100,
-        percentage_discount: 80,
-        explanation: "Partial discount",
-        approved_by: actor.userId,
-        case_type: ACCOUNT_SPECIAL_CASE_TYPES.DONE,
-        status: ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE,
-        created_at: "2026-01-01T00:00:00.000Z",
-        updated_at: "2026-01-01T00:00:00.000Z",
-      },
+      data: createdSpecial,
       error: null,
+    } as never);
+    vi.mocked(paymentRepository.listPaymentsBySubscribedSemesterIds).mockResolvedValue({
+      data: [
+        {
+          id: paymentId,
+          subscribed_semester_id: subscriptionId,
+          amount: 200,
+          currency: "USD",
+          method: "bank_transfer",
+          paid_at: "2026-07-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(subscribedSemesterRepository.updateSubscribedSemester).mockResolvedValue({
+      data: pendingSubscription({ status: SUBSCRIBED_SEMESTER_STATUSES.PAID }),
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
     });
 
     const result = await createAccountSpecialCaseForManager(
@@ -932,16 +1286,89 @@ describe("createAccountSpecialCaseForManager", () => {
       {
         account_id: accountId,
         semester_id: semesterId,
-        total_amount: 100,
-        explanation: "Partial discount",
-        case_type: ACCOUNT_SPECIAL_CASE_TYPES.DONE,
+        total_amount: 200,
+        explanation: "Partial scholarship",
+        case_type: ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP,
         status: ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE,
       }
     );
 
     expect(result.success).toBe(true);
-    expect(
-      subscribedSemesterService.markSubscribedSemesterPaidForAccount
-    ).not.toHaveBeenCalled();
+    expect(subscribedSemesterRepository.updateSubscribedSemester).toHaveBeenCalledWith(
+      adminClient,
+      subscriptionId,
+      {
+        amount: 500,
+        status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
+      }
+    );
+  });
+
+  it("does not force paid when special is inactive with total_amount 0", async () => {
+    const specialCaseId = "11111111-2222-4333-8444-555555555555";
+    const createdSpecial = {
+      id: specialCaseId,
+      account_id: accountId,
+      semester_id: semesterId,
+      total_amount: 0,
+      percentage_discount: 100,
+      explanation: "Inactive zero",
+      approved_by: actor.userId,
+      case_type: ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP,
+      status: ACCOUNT_SPECIAL_CASE_STATUSES.INACTIVE,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    };
+    vi.mocked(
+      subscribedSemesterService.ensureSubscribedSemesterForAccount
+    ).mockResolvedValue(
+      pendingSubscription({ status: SUBSCRIBED_SEMESTER_STATUSES.PAUSED }) as never
+    );
+    vi.mocked(accountRepository.findAccountById).mockResolvedValue({
+      data: {
+        id: accountId,
+        user_id: userId,
+        opened_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+    });
+    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
+      data: {
+        id: semesterId,
+        name: "Fall 2026",
+        nb_courses: 1,
+        amount: 500,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+    });
+    vi.mocked(accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester)
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: createdSpecial, error: null } as never);
+    vi.mocked(accountSpecialCaseRepository.createSpecialCase).mockResolvedValue({
+      data: createdSpecial,
+      error: null,
+    } as never);
+    vi.mocked(paymentRepository.listPaymentsBySubscribedSemesterIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    const result = await createAccountSpecialCaseForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        account_id: accountId,
+        semester_id: semesterId,
+        total_amount: 0,
+        explanation: "Inactive zero",
+        case_type: ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP,
+        status: ACCOUNT_SPECIAL_CASE_STATUSES.INACTIVE,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(subscribedSemesterRepository.updateSubscribedSemester).not.toHaveBeenCalled();
   });
 });

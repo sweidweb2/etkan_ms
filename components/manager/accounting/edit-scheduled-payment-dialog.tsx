@@ -45,6 +45,7 @@ type EditScheduledPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   scheduledPayment: ManagerScheduledPaymentRow | null;
+  remainingDue: number;
   onScheduledPaymentSaved: () => void;
 };
 
@@ -52,6 +53,7 @@ export function EditScheduledPaymentDialog({
   open,
   onOpenChange,
   scheduledPayment,
+  remainingDue,
   onScheduledPaymentSaved,
 }: EditScheduledPaymentDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -68,6 +70,7 @@ export function EditScheduledPaymentDialog({
     handleSubmit,
     reset,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useZodForm({
@@ -107,6 +110,17 @@ export function EditScheduledPaymentDialog({
 
   function onSubmit(values: Omit<UpdateScheduledPaymentInput, "id">) {
     if (!scheduledPayment) {
+      return;
+    }
+
+    if (
+      values.amount !== "" &&
+      typeof values.amount === "number" &&
+      values.amount > remainingDue
+    ) {
+      setError("amount", {
+        message: `Amount cannot exceed the remaining due (${remainingDue}).`,
+      });
       return;
     }
 
@@ -171,7 +185,9 @@ export function EditScheduledPaymentDialog({
               id="edit-scheduled-payment-amount"
               type="number"
               min="0"
+              max={remainingDue}
               step="0.01"
+              placeholder={`Up to ${remainingDue}`}
               {...register("amount")}
               aria-invalid={!!amountError}
             />

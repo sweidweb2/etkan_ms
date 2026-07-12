@@ -206,6 +206,7 @@ export function ScheduledPaymentsSection({
           }
         }}
         scheduledPayment={editingRow}
+        remainingDue={balanceDue}
         onScheduledPaymentSaved={onScheduledPaymentSaved}
       />
 
@@ -320,7 +321,9 @@ export function ScheduledPaymentsSection({
                       {scheduledPayments.length === 0
                         ? canSchedule
                           ? "No payment reminders scheduled yet."
-                          : "No scheduled reminders for a fully paid subscription."
+                          : !canMutate
+                            ? getBillingMutationLockMessage(lockReason, "schedules")
+                            : "No scheduled reminders for a fully paid subscription."
                         : "No scheduled payments match your filters."}
                     </td>
                   </tr>

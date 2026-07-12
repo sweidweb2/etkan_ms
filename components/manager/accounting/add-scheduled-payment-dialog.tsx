@@ -63,6 +63,7 @@ export function AddScheduledPaymentDialog({
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useZodForm({
     schema: scheduledPaymentFormSchema,
@@ -96,6 +97,17 @@ export function AddScheduledPaymentDialog({
   function onSubmit(
     values: Omit<CreateScheduledPaymentInput, "subscribed_semester_id" | "status">
   ) {
+    if (
+      values.amount !== "" &&
+      typeof values.amount === "number" &&
+      values.amount > balanceDue
+    ) {
+      setError("amount", {
+        message: `Amount cannot exceed the remaining due (${balanceDue}).`,
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.set("subscribed_semester_id", subscribedSemesterId);
     formData.set("payment_date", values.payment_date);
@@ -158,6 +170,7 @@ export function AddScheduledPaymentDialog({
               id="add-scheduled-payment-amount"
               type="number"
               min="0"
+              max={balanceDue}
               step="0.01"
               placeholder={`Up to ${balanceDue}`}
               {...register("amount")}

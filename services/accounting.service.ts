@@ -60,7 +60,6 @@ import {
 import { listStudentsForManager } from "@/services/student.service";
 import {
   ensureSubscribedSemesterForAccount,
-  markSubscribedSemesterPaidForAccount,
 } from "@/services/subscribed-semester.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerAccountSpecialCaseRow } from "@/types/manager-account-special-case";
@@ -267,40 +266,79 @@ async function buildBillingMaps(adminClient: Supabase, userIds: string[]) {
 
 function getSubscriptionBilling(
   subscription: SubscribedSemesterRecord | undefined,
-  payments: PaymentRecord[]
+  payments: PaymentRecord[],
+  activeSpecialCaseTotalAmount?: number | null
 ) {
   if (!subscription) {
     return null;
   }
 
   const paid = sumPayments(payments, subscription.id);
-  const amount = Number(subscription.amount ?? 0);
+  const gate = getSubscriptionBillingGate({
+    status: subscription.status,
+    subscriptionAmount: Number(subscription.amount ?? 0),
+    totalPaid: paid,
+    activeSpecialCaseTotalAmount,
+  });
 
   return {
-    total_amount: amount,
+    total_amount: gate.owedAmount,
     total_paid: paid,
-    balance_due: Math.max(amount - paid, 0),
+    balance_due: gate.remainingDue,
   };
+}
+
+function getActiveSpecialCaseTotal(
+  specialCase: { status: string; total_amount: number | null } | null | undefined
+): number | null {
+  return resolveActiveSpecialCaseOwedAmount(
+    specialCase
+      ? {
+          status: specialCase.status,
+          total_amount: Number(specialCase.total_amount ?? 0),
+        }
+      : null
+  );
 }
 
 function getAccountBillingTotals(
   subscriptions: SubscribedSemesterRecord[],
-  payments: PaymentRecord[]
+  payments: PaymentRecord[],
+  specialCaseByAccountSemester?: Map<
+    string,
+    { status: string; total_amount: number | null }
+  >
 ) {
-  const totalSubscribed = roundCurrency(
-    subscriptions.reduce(
-      (total, subscription) => total + Number(subscription.amount ?? 0),
-      0
-    )
-  );
-  const totalPaid = roundCurrency(
-    payments.reduce((total, payment) => total + Number(payment.amount ?? 0), 0)
-  );
+  let totalOwed = 0;
+  let totalPaid = 0;
+  let totalDue = 0;
+
+  for (const subscription of subscriptions) {
+    const special =
+      subscription.semester_id && specialCaseByAccountSemester
+        ? specialCaseByAccountSemester.get(
+            specialCaseKey(subscription.account_id, subscription.semester_id)
+          )
+        : undefined;
+    const billing = getSubscriptionBilling(
+      subscription,
+      payments,
+      getActiveSpecialCaseTotal(special)
+    );
+
+    if (!billing) {
+      continue;
+    }
+
+    totalOwed += billing.total_amount;
+    totalPaid += billing.total_paid;
+    totalDue += billing.balance_due;
+  }
 
   return {
-    total_amount: totalSubscribed,
-    total_paid: totalPaid,
-    balance_due: Math.max(totalSubscribed - totalPaid, 0),
+    total_amount: roundCurrency(totalOwed),
+    total_paid: roundCurrency(totalPaid),
+    balance_due: roundCurrency(totalDue),
   };
 }
 
@@ -368,12 +406,6 @@ export async function listAccountingStudentsForManager(
 
   const semesterNameById = new Map(
     (semestersResult.data ?? []).map((semester) => [semester.id, semester.name])
-  );
-  const semesterAmountById = new Map(
-    (semestersResult.data ?? []).map((semester) => [
-      semester.id,
-      Number(semester.amount ?? 0),
-    ])
   );
   const studentsByProfileId = new Map(
     students.map((student) => [student.student_profile_id, student])
@@ -478,7 +510,6 @@ export async function listAccountingStudentsForManager(
     const isFocusOpenSubscription =
       openBillingSubscriptions.length !== 1 ||
       singleOpenSubscription?.semester_id === enrollment.semester_id;
-    const billing = getSubscriptionBilling(subscription, payments);
     const specialCase = account
       ? specialCaseByAccountSemester.get(
           specialCaseKey(account.id, enrollment.semester_id)
@@ -493,6 +524,13 @@ export async function listAccountingStudentsForManager(
       isActiveSpecialCase && specialCase
         ? mapSpecialCaseType(specialCase.case_type)
         : null;
+    const billing = getSubscriptionBilling(
+      subscription,
+      payments,
+      isActiveSpecialCase && specialCase
+        ? Number(specialCase.total_amount ?? 0)
+        : null
+    );
     const totalPaid = billing?.total_paid ?? 0;
 
     const focusSubscription = singleOpenSubscription;
@@ -510,14 +548,19 @@ export async function listAccountingStudentsForManager(
       openBillingCount: openBillingSubscriptions.length,
       isFocusOpenSubscription,
       totalPaid: focusSubscription
-        ? (getSubscriptionBilling(focusSubscription, payments)?.total_paid ?? 0)
+        ? (getSubscriptionBilling(
+            focusSubscription,
+            payments,
+            focusSpecialActive && focusSpecial
+              ? Number(focusSpecial.total_amount ?? 0)
+              : null
+          )?.total_paid ?? 0)
         : totalPaid,
       paidAts: focusSubscription
         ? listPaidAtsForSubscription(payments, focusSubscription.id)
         : [],
-      semesterAmount: focusSubscription?.semester_id
-        ? (semesterAmountById.get(focusSubscription.semester_id) ??
-          Number(focusSubscription.amount ?? 0))
+      semesterAmount: focusSubscription
+        ? Number(focusSubscription.amount ?? 0)
         : null,
       activeSpecialCaseTotalAmount:
         focusSpecialActive && focusSpecial
@@ -570,7 +613,11 @@ export async function listAccountingStudentsForManager(
     const openBillingSubscriptions = subscriptions.filter((row) =>
       isOpenBillingSubscriptionStatus(row.status)
     );
-    const billing = getAccountBillingTotals(subscriptions, payments);
+    const billing = getAccountBillingTotals(
+      subscriptions,
+      payments,
+      specialCaseByAccountSemester
+    );
     const focusSubscription =
       openBillingSubscriptions.length === 1
         ? openBillingSubscriptions[0]
@@ -590,14 +637,19 @@ export async function listAccountingStudentsForManager(
       openBillingCount: openBillingSubscriptions.length,
       isFocusOpenSubscription: true,
       totalPaid: focusSubscription
-        ? (getSubscriptionBilling(focusSubscription, payments)?.total_paid ?? 0)
+        ? (getSubscriptionBilling(
+            focusSubscription,
+            payments,
+            isActiveFocusSpecial && focusSpecial
+              ? Number(focusSpecial.total_amount ?? 0)
+              : null
+          )?.total_paid ?? 0)
         : billing.total_paid,
       paidAts: focusSubscription
         ? listPaidAtsForSubscription(payments, focusSubscription.id)
         : [],
-      semesterAmount: focusSubscription?.semester_id
-        ? (semesterAmountById.get(focusSubscription.semester_id) ??
-          Number(focusSubscription.amount ?? 0))
+      semesterAmount: focusSubscription
+        ? Number(focusSubscription.amount ?? 0)
         : null,
       activeSpecialCaseTotalAmount:
         isActiveFocusSpecial && focusSpecial
@@ -816,7 +868,17 @@ export async function getStudentAccountForManager(
     ];
   });
 
-  const totals = getAccountBillingTotals(subscriptions, payments);
+  const specialCaseByAccountSemester = new Map(
+    (specialCasesResult.data ?? []).map((row) => [
+      specialCaseKey(row.account_id, row.semester_id),
+      row,
+    ])
+  );
+  const totals = getAccountBillingTotals(
+    subscriptions,
+    payments,
+    specialCaseByAccountSemester
+  );
   const overview: ManagerStudentAccountOverview = {
     account_id: accountResult.data.id,
     student_profile_id: student.student_profile_id,
@@ -958,6 +1020,38 @@ async function syncSubscriptionPaidStatus(
   }
 }
 
+async function syncSubscriptionStatusForAccountSemester(
+  adminClient: Supabase,
+  accountId: string,
+  semesterId: string
+) {
+  const subscription = await ensureSubscribedSemesterForAccount(
+    adminClient,
+    accountId,
+    semesterId
+  );
+
+  if (!subscription) {
+    return;
+  }
+
+  const billingContext = await loadSubscriptionBillingContext(
+    adminClient,
+    subscription
+  );
+
+  if (!billingContext.success) {
+    throw new Error(billingContext.error);
+  }
+
+  await syncSubscriptionPaidStatus(
+    adminClient,
+    subscription,
+    billingContext.gate.totalPaid,
+    billingContext.gate.owedAmount
+  );
+}
+
 export async function createPaymentForManager(
   adminClient: Supabase,
   actorRole: RoleValue | null,
@@ -1036,9 +1130,38 @@ export async function createPaymentForManager(
     return { success: false, error: "Unable to record payment. Please try again." };
   }
 
+  const paymentsAfterResult =
+    await paymentRepository.listPaymentsBySubscribedSemesterIds(adminClient, [
+      parsed.data.subscribed_semester_id,
+    ]);
+
+  if (paymentsAfterResult.error) {
+    await paymentRepository.deletePayment(adminClient, data.id);
+    return {
+      success: false,
+      error: paymentsAfterResult.error.message,
+    };
+  }
+
   const totalPaidAfter = roundCurrency(
-    billingContext.gate.totalPaid + Number(data.amount ?? 0)
+    (paymentsAfterResult.data ?? []).reduce(
+      (sum, payment) => sum + Number(payment.amount ?? 0),
+      0
+    )
   );
+
+  if (totalPaidAfter > billingContext.gate.owedAmount) {
+    await paymentRepository.deletePayment(adminClient, data.id);
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: [
+          `Amount exceeds the remaining due after a concurrent update (${billingContext.gate.remainingDue}).`,
+        ],
+      },
+    };
+  }
 
   try {
     await syncSubscriptionPaidStatus(
@@ -1048,12 +1171,13 @@ export async function createPaymentForManager(
       billingContext.gate.owedAmount
     );
   } catch (err) {
+    await paymentRepository.deletePayment(adminClient, data.id);
     return {
       success: false,
       error:
         err instanceof Error
           ? err.message
-          : "Payment recorded, but subscription status could not be updated.",
+          : "Unable to update subscription status. Payment was not kept.",
     };
   }
 
@@ -1192,12 +1316,19 @@ export async function updatePaymentForManager(
       billingContext.gate.owedAmount
     );
   } catch (err) {
+    await paymentRepository.updatePayment(adminClient, input.id, {
+      subscribed_semester_id: existing.data.subscribed_semester_id,
+      amount: Number(existing.data.amount ?? 0),
+      currency: existing.data.currency ?? "USD",
+      method: existing.data.method ?? "bank_transfer",
+      paid_at: existing.data.paid_at ?? new Date().toISOString(),
+    });
     return {
       success: false,
       error:
         err instanceof Error
           ? err.message
-          : "Payment updated, but subscription status could not be updated.",
+          : "Unable to update subscription status. Payment changes were reverted.",
     };
   }
 
@@ -1302,12 +1433,19 @@ export async function deletePaymentForManager(
       billingContext.gate.owedAmount
     );
   } catch (err) {
+    await paymentRepository.createPayment(adminClient, {
+      subscribed_semester_id: existing.data.subscribed_semester_id,
+      amount: Number(existing.data.amount ?? 0),
+      currency: existing.data.currency ?? "USD",
+      method: existing.data.method ?? "bank_transfer",
+      paid_at: existing.data.paid_at ?? new Date().toISOString(),
+    });
     return {
       success: false,
       error:
         err instanceof Error
           ? err.message
-          : "Payment deleted, but subscription status could not be updated.",
+          : "Unable to update subscription status. Payment deletion was reverted.",
     };
   }
 
@@ -1402,6 +1540,29 @@ export async function updateSubscribedSemesterForManager(
     };
   }
 
+  const billingContext = await loadSubscriptionBillingContext(adminClient, data);
+
+  if (!billingContext.success) {
+    return { success: false, error: billingContext.error };
+  }
+
+  try {
+    await syncSubscriptionPaidStatus(
+      adminClient,
+      data,
+      billingContext.gate.totalPaid,
+      billingContext.gate.owedAmount
+    );
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Subscription updated, but paid status could not be synced.",
+    };
+  }
+
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "warning",
@@ -1478,12 +1639,29 @@ export async function createScheduledPaymentForManager(
     };
   }
 
+  const scheduleAmount = parseScheduledPaymentAmount(parsed.data.amount);
+
+  if (
+    scheduleAmount !== null &&
+    scheduleAmount > billingContext.gate.remainingDue
+  ) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: [
+          `Amount cannot exceed the remaining due (${billingContext.gate.remainingDue}).`,
+        ],
+      },
+    };
+  }
+
   const { data, error } = await scheduledPaymentRepository.createScheduledPayment(
     adminClient,
     {
       subscribed_semester_id: parsed.data.subscribed_semester_id,
       payment_date: new Date(parsed.data.payment_date).toISOString(),
-      amount: parseScheduledPaymentAmount(parsed.data.amount),
+      amount: scheduleAmount,
       status: parsed.data.status,
       note: parsed.data.note?.trim() || null,
     }
@@ -1581,12 +1759,29 @@ export async function updateScheduledPaymentForManager(
     };
   }
 
+  const scheduleAmount = parseScheduledPaymentAmount(parsed.data.amount);
+
+  if (
+    scheduleAmount !== null &&
+    scheduleAmount > billingContext.gate.remainingDue
+  ) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: [
+          `Amount cannot exceed the remaining due (${billingContext.gate.remainingDue}).`,
+        ],
+      },
+    };
+  }
+
   const { data, error } = await scheduledPaymentRepository.updateScheduledPayment(
     adminClient,
     input.id,
     {
       payment_date: new Date(parsed.data.payment_date).toISOString(),
-      amount: parseScheduledPaymentAmount(parsed.data.amount),
+      amount: scheduleAmount,
       status: parsed.data.status,
       note: parsed.data.note?.trim() || null,
     }
@@ -1689,8 +1884,16 @@ export async function createAccountSpecialCaseForManager(
     };
   }
 
+  const subscription = await ensureSubscribedSemesterForAccount(
+    adminClient,
+    parsed.data.account_id,
+    parsed.data.semester_id
+  );
+  const discountBaseAmount = subscription
+    ? Number(subscription.amount ?? 0)
+    : Number(semesterResult.data.amount ?? 0);
   const percentageDiscount = computeSpecialCasePercentageDiscount(
-    Number(semesterResult.data.amount ?? 0),
+    discountBaseAmount,
     parsed.data.total_amount
   );
 
@@ -1732,12 +1935,20 @@ export async function createAccountSpecialCaseForManager(
     metadata: { note: "Account special case created." },
   });
 
-  if (parsed.data.total_amount === 0) {
-    await markSubscribedSemesterPaidForAccount(
+  try {
+    await syncSubscriptionStatusForAccountSemester(
       adminClient,
       data.account_id,
       data.semester_id
     );
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Special case created, but subscription status could not be synced.",
+    };
   }
 
   return { success: true, message: "Special case created." };
@@ -1795,8 +2006,16 @@ export async function updateAccountSpecialCaseForManager(
     return { success: false, error: "Semester not found." };
   }
 
+  const subscription = await ensureSubscribedSemesterForAccount(
+    adminClient,
+    existing.data.account_id,
+    existing.data.semester_id
+  );
+  const discountBaseAmount = subscription
+    ? Number(subscription.amount ?? 0)
+    : Number(semesterResult.data.amount ?? 0);
   const percentageDiscount = computeSpecialCasePercentageDiscount(
-    Number(semesterResult.data.amount ?? 0),
+    discountBaseAmount,
     parsed.data.total_amount
   );
 
@@ -1850,12 +2069,20 @@ export async function updateAccountSpecialCaseForManager(
     },
   });
 
-  if (parsed.data.total_amount === 0) {
-    await markSubscribedSemesterPaidForAccount(
+  try {
+    await syncSubscriptionStatusForAccountSemester(
       adminClient,
       data.account_id,
       data.semester_id
     );
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Special case updated, but subscription status could not be synced.",
+    };
   }
 
   return { success: true, message: "Special case updated." };

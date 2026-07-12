@@ -1,5 +1,11 @@
+import {
+  getSubscriptionBillingGate,
+  resolveActiveSpecialCaseOwedAmount,
+} from "@/lib/manager/subscribed-semester-billing";
 import { SUBSCRIBED_SEMESTER_STATUSES } from "@/lib/constants/manager-subscribed-semester-status";
 import * as accountRepository from "@/repositories/account.repository";
+import * as accountSpecialCaseRepository from "@/repositories/account-special-case.repository";
+import * as paymentRepository from "@/repositories/payment.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -13,6 +19,98 @@ type Supabase = SupabaseClient<Database>;
 function isUniqueViolation(message: string | undefined): boolean {
   const normalized = (message ?? "").toLowerCase();
   return normalized.includes("unique") || normalized.includes("duplicate");
+}
+
+function roundCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * Load payments + special case, then sync paid/pending from totals.
+ * Does not change paused/stopped/refunded when underpaid.
+ */
+async function syncSubscriptionBillingStatus(
+  adminClient: Supabase,
+  subscription: SubscribedSemesterRecord
+): Promise<void> {
+  const [paymentsResult, specialCaseResult] = await Promise.all([
+    paymentRepository.listPaymentsBySubscribedSemesterIds(adminClient, [
+      subscription.id,
+    ]),
+    subscription.semester_id
+      ? accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester(
+          adminClient,
+          subscription.account_id,
+          subscription.semester_id
+        )
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  if (paymentsResult.error) {
+    throw new Error(paymentsResult.error.message);
+  }
+
+  if (specialCaseResult.error) {
+    throw new Error(specialCaseResult.error.message);
+  }
+
+  const totalPaid = roundCurrency(
+    (paymentsResult.data ?? []).reduce(
+      (sum, payment) => sum + Number(payment.amount ?? 0),
+      0
+    )
+  );
+  const gate = getSubscriptionBillingGate({
+    status: subscription.status,
+    subscriptionAmount: Number(subscription.amount ?? 0),
+    totalPaid,
+    activeSpecialCaseTotalAmount: resolveActiveSpecialCaseOwedAmount(
+      specialCaseResult.data
+        ? {
+            status: specialCaseResult.data.status,
+            total_amount: Number(specialCaseResult.data.total_amount ?? 0),
+          }
+        : null
+    ),
+  });
+
+  if (totalPaid >= gate.owedAmount) {
+    if (subscription.status === SUBSCRIBED_SEMESTER_STATUSES.PAID) {
+      return;
+    }
+
+    const { error } = await subscribedSemesterRepository.updateSubscribedSemester(
+      adminClient,
+      subscription.id,
+      {
+        amount: Number(subscription.amount ?? 0),
+        status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
+      }
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return;
+  }
+
+  if (subscription.status !== SUBSCRIBED_SEMESTER_STATUSES.PAID) {
+    return;
+  }
+
+  const { error } = await subscribedSemesterRepository.updateSubscribedSemester(
+    adminClient,
+    subscription.id,
+    {
+      amount: Number(subscription.amount ?? 0),
+      status: SUBSCRIBED_SEMESTER_STATUSES.PENDING,
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 /**
@@ -82,8 +180,8 @@ export async function ensureSubscribedSemesterForAccount(
 }
 
 /**
- * Resolves student → account, then ensures a subscribed_semesters row.
- * Returns null when the student or account is missing.
+ * Resolves student → account (creating the account if missing), then ensures
+ * a subscribed_semesters row. Returns null when the student profile is missing.
  */
 export async function ensureSubscribedSemesterForStudent(
   adminClient: Supabase,
@@ -112,19 +210,32 @@ export async function ensureSubscribedSemesterForStudent(
     throw new Error(accountResult.error.message);
   }
 
-  if (!accountResult.data) {
-    return null;
+  let accountId = accountResult.data?.id ?? null;
+
+  if (!accountId) {
+    const createResult = await accountRepository.createAccount(adminClient, {
+      user_id: profileResult.data.user_id,
+    });
+
+    if (createResult.error || !createResult.data) {
+      throw new Error(
+        createResult.error?.message ?? "Unable to create account for student."
+      );
+    }
+
+    accountId = createResult.data.id;
   }
 
   return ensureSubscribedSemesterForAccount(
     adminClient,
-    accountResult.data.id,
+    accountId,
     semesterId
   );
 }
 
 /**
  * Mark the account+semester subscription as paid (idempotent ensure first).
+ * Only promotes from pending — paused/stopped/refunded/paid are left alone.
  */
 export async function markSubscribedSemesterPaidForAccount(
   adminClient: Supabase,
@@ -141,7 +252,7 @@ export async function markSubscribedSemesterPaidForAccount(
     return;
   }
 
-  if (subscription.status === SUBSCRIBED_SEMESTER_STATUSES.PAID) {
+  if (subscription.status !== SUBSCRIBED_SEMESTER_STATUSES.PENDING) {
     return;
   }
 
@@ -151,6 +262,44 @@ export async function markSubscribedSemesterPaidForAccount(
     {
       amount: Number(subscription.amount ?? 0),
       status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function stopPendingPreviousSubscription(
+  adminClient: Supabase,
+  accountId: string,
+  previousSemesterId: string
+): Promise<void> {
+  const existingPrevious =
+    await subscribedSemesterRepository.findSubscribedSemesterByAccountAndSemester(
+      adminClient,
+      accountId,
+      previousSemesterId
+    );
+
+  if (existingPrevious.error) {
+    throw new Error(existingPrevious.error.message);
+  }
+
+  if (!existingPrevious.data) {
+    return;
+  }
+
+  if (existingPrevious.data.status !== SUBSCRIBED_SEMESTER_STATUSES.PENDING) {
+    return;
+  }
+
+  const { error } = await subscribedSemesterRepository.updateSubscribedSemester(
+    adminClient,
+    existingPrevious.data.id,
+    {
+      amount: Number(existingPrevious.data.amount ?? 0),
+      status: SUBSCRIBED_SEMESTER_STATUSES.STOPPED,
     }
   );
 
@@ -178,21 +327,43 @@ async function reassignAccountSubscribedSemester(
   }
 
   if (existingNext.data) {
-    if (Number(existingNext.data.amount ?? 0) !== nextAmount) {
-      const { error } =
+    let nextSubscription = existingNext.data as SubscribedSemesterRecord;
+
+    if (Number(nextSubscription.amount ?? 0) !== nextAmount) {
+      const { data, error } =
         await subscribedSemesterRepository.updateSubscribedSemester(
           adminClient,
-          existingNext.data.id,
+          nextSubscription.id,
           {
             amount: nextAmount,
-            status: existingNext.data.status,
+            status: nextSubscription.status,
           }
         );
 
       if (error) {
         throw new Error(error.message);
       }
+
+      if (data) {
+        nextSubscription = data as SubscribedSemesterRecord;
+      } else {
+        nextSubscription = {
+          ...nextSubscription,
+          amount: nextAmount,
+        };
+      }
     }
+
+    await syncSubscriptionBillingStatus(adminClient, nextSubscription);
+
+    if (previousSemesterId) {
+      await stopPendingPreviousSubscription(
+        adminClient,
+        accountId,
+        previousSemesterId
+      );
+    }
+
     return;
   }
 
@@ -209,7 +380,7 @@ async function reassignAccountSubscribedSemester(
     }
 
     if (existingPrevious.data) {
-      const { error } =
+      const { data, error } =
         await subscribedSemesterRepository.updateSubscribedSemesterSemesterAndAmount(
           adminClient,
           existingPrevious.data.id,
@@ -221,15 +392,26 @@ async function reassignAccountSubscribedSemester(
 
       if (error) {
         if (isUniqueViolation(error.message)) {
-          await ensureSubscribedSemesterForAccount(
+          const ensured = await ensureSubscribedSemesterForAccount(
             adminClient,
             accountId,
             nextSemesterId
           );
+          if (ensured) {
+            await syncSubscriptionBillingStatus(adminClient, ensured);
+          }
           return;
         }
         throw new Error(error.message);
       }
+
+      const repointed = (data ?? {
+        ...existingPrevious.data,
+        semester_id: nextSemesterId,
+        amount: nextAmount,
+      }) as SubscribedSemesterRecord;
+
+      await syncSubscriptionBillingStatus(adminClient, repointed);
       return;
     }
   }
@@ -244,6 +426,7 @@ async function reassignAccountSubscribedSemester(
 /**
  * When a class moves to a new semester, re-point each student’s billing row
  * to that semester and set amount from the new semester price.
+ * Special cases remain keyed by semester_id and are not migrated.
  */
 export async function reassignClassStudentsSubscribedSemesters(
   adminClient: Supabase,

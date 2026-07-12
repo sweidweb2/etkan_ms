@@ -17,21 +17,24 @@ type SubscribedSemesterFinancialSectionProps = {
   subscription: ManagerSubscribedSemesterRow;
   payments: ManagerStudentPaymentRow[];
   scheduledPayments: ManagerScheduledPaymentRow[];
+  activeSpecialCaseTotalAmount?: number | null;
 };
 
 export function SubscribedSemesterFinancialSection({
   subscription,
   payments,
   scheduledPayments,
+  activeSpecialCaseTotalAmount = null,
 }: SubscribedSemesterFinancialSectionProps) {
   const stats = useMemo(
     () =>
       getSubscribedSemesterFinancialStats(
         subscription,
         payments,
-        scheduledPayments
+        scheduledPayments,
+        activeSpecialCaseTotalAmount
       ),
-    [payments, scheduledPayments, subscription]
+    [activeSpecialCaseTotalAmount, payments, scheduledPayments, subscription]
   );
 
   const lastPaymentLabel = stats.lastPaymentAt
