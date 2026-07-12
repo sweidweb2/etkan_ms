@@ -1,6 +1,7 @@
 import type { StudentAttendanceStatusValue } from "@/lib/constants/manager-student-attendance-status";
 import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
 import type { ManagerStudentCourseGrade } from "@/types/manager-student-course-grade";
+import type { StudentSessionGroupGradeSlot } from "@/lib/manager/class-group-grade-analytics";
 
 /** Class session slot + student attendance (sessions implied by tasks.session_id). */
 export interface ManagerStudentSessionAttendanceRow {
@@ -43,6 +44,7 @@ export interface ManagerStudentTaskGradePoint {
 export interface ManagerStudentClassTabDetail {
   attendanceSlots: ManagerStudentSessionAttendanceRow[];
   attendanceTrend: ManagerStudentAttendanceTrendPoint[];
+  groupGradeSlots: StudentSessionGroupGradeSlot[];
   tasks: ManagerStudentClassTaskRow[];
   taskGradeTrend: ManagerStudentTaskGradePoint[];
   courseGrade: ManagerStudentCourseGrade | null;

@@ -3,17 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, MessageSquareTextIcon } from "lucide-react";
 import { CustomizeComputeAllDialog } from "@/components/manager/classes/customize-compute-all-dialog";
+import {
+  ComputeFactorWeightsFields,
+  type ComputeFactorWeightsValues,
+} from "@/components/manager/classes/compute-factor-weights-fields";
+import { StudentGradeMissingDataDialog } from "@/components/manager/classes/student-grade-missing-data-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -24,11 +22,18 @@ import {
 } from "@/components/ui/dialog";
 import {
   buildDefaultTaskWeights,
+  getComputeFactorWeightFormDefaults,
+  parseWeight,
   type FactorWeightsValues,
+  validateFactorWeights,
 } from "@/lib/compute/custom-compute-form-utils";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
 import { getManagerClassStudentGradesDetailRoute } from "@/lib/constants/routes";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
+import type {
+  ManagerClassFinalExamRow,
+  ManagerStudentFinalExamGradeRow,
+} from "@/types/manager-class-final-exam";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
 import {
@@ -42,6 +47,8 @@ type ClassStudentGradesSectionProps = {
   className: string;
   rows: ManagerClassStudentGradeRow[];
   classTasks: ManagerClassTaskForGradesRow[];
+  finalExam: ManagerClassFinalExamRow | null;
+  finalExamStudentGrades: ManagerStudentFinalExamGradeRow[];
 };
 
 type ComputeBatch = {
@@ -50,8 +57,6 @@ type ComputeBatch = {
   factorWeights: FactorWeightsValues;
   taskWeights: Record<string, string>;
 };
-
-type UnreadyReason = "tasks" | "final_exam";
 
 function formatGrade(value: number | null) {
   return value === null ? "—" : value.toFixed(1);
@@ -79,32 +84,6 @@ function buildBatchLabel(label: string, factorWeights: FactorWeightsValues) {
   return `${label} · T ${formatWeight(
     factorWeights.tasks_weight
   )} · F ${formatWeight(factorWeights.final_exam_weight)}`;
-}
-
-function getUnreadyReasons(
-  row: ManagerClassStudentGradeRow,
-  factorWeights: FactorWeightsValues
-): UnreadyReason[] {
-  const reasons: UnreadyReason[] = [];
-
-  if (factorWeights.tasks_weight > 0 && row.task_total_grade === null) {
-    reasons.push("tasks");
-  }
-
-  if (factorWeights.final_exam_weight > 0 && row.final_exam_grade === null) {
-    reasons.push("final_exam");
-  }
-
-  return reasons;
-}
-
-function formatUnreadyReason(reason: UnreadyReason) {
-  switch (reason) {
-    case "tasks":
-      return "Missing tasks grade";
-    case "final_exam":
-      return "Missing final exam grade";
-  }
 }
 
 function StudentGradeNameLink({
@@ -164,12 +143,18 @@ export function ClassStudentGradesSection({
   className,
   rows,
   classTasks,
+  finalExam,
+  finalExamStudentGrades,
 }: ClassStudentGradesSectionProps) {
   const router = useRouter();
   const defaultFactorWeights = DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS;
   const defaultTaskWeights = useMemo(
     () => buildDefaultTaskWeights(classTasks),
     [classTasks]
+  );
+  const finalExamGradeByUserId = useMemo(
+    () => new Map(finalExamStudentGrades.map((row) => [row.student_id, row])),
+    [finalExamStudentGrades]
   );
   const [gradeRows, setGradeRows] = useState(rows);
 
@@ -180,20 +165,16 @@ export function ClassStudentGradesSection({
   const unreadyRows = useMemo(
     () =>
       gradeRows.filter(
-        (row) =>
-          !row.is_computed &&
-          getUnreadyReasons(row, defaultFactorWeights).length > 0
+        (row) => !row.is_computed && row.missing_items.length > 0
       ),
-    [defaultFactorWeights, gradeRows]
+    [gradeRows]
   );
   const pendingRows = useMemo(
     () =>
       gradeRows.filter(
-        (row) =>
-          !row.is_computed &&
-          getUnreadyReasons(row, defaultFactorWeights).length === 0
+        (row) => !row.is_computed && row.missing_items.length === 0
       ),
-    [defaultFactorWeights, gradeRows]
+    [gradeRows]
   );
   const computedRows = useMemo(
     () => gradeRows.filter((row) => row.is_computed),
@@ -234,6 +215,48 @@ export function ClassStudentGradesSection({
   const [isComputeAllOpen, setIsComputeAllOpen] = useState(false);
   const [isCustomizeComputeAllOpen, setIsCustomizeComputeAllOpen] = useState(false);
   const [isDeleteGradeOpen, setIsDeleteGradeOpen] = useState(false);
+  const [selectedMissingRow, setSelectedMissingRow] =
+    useState<ManagerClassStudentGradeRow | null>(null);
+  const [isMissingDataOpen, setIsMissingDataOpen] = useState(false);
+  const [computeWeights, setComputeWeights] = useState<ComputeFactorWeightsValues>(
+    () =>
+      getComputeFactorWeightFormDefaults({
+        default_tasks_weight: DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.tasks_weight,
+        default_final_exam_weight:
+          DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.final_exam_weight,
+      })
+  );
+  const [computeWeightError, setComputeWeightError] = useState<string | null>(null);
+  const [isStudentComputePending, setIsStudentComputePending] = useState(false);
+
+  useEffect(() => {
+    if (!isComputeOpen || !selectedRow) {
+      return;
+    }
+
+    setComputeWeights(
+      getComputeFactorWeightFormDefaults({
+        stored_tasks_weight: selectedRow.stored_tasks_weight,
+        stored_final_exam_weight: selectedRow.stored_final_exam_weight,
+        default_tasks_weight: defaultFactorWeights.tasks_weight,
+        default_final_exam_weight: defaultFactorWeights.final_exam_weight,
+      })
+    );
+    setComputeWeightError(null);
+  }, [defaultFactorWeights, isComputeOpen, selectedRow]);
+
+  const computeFactorTotal = useMemo(
+    () =>
+      parseWeight(computeWeights.tasks_weight) +
+      parseWeight(computeWeights.final_exam_weight),
+    [computeWeights.final_exam_weight, computeWeights.tasks_weight]
+  );
+  const isComputeWeightTotalValid = Math.abs(computeFactorTotal - 100) <= 0.001;
+
+  function openMissingDataDialog(row: ManagerClassStudentGradeRow) {
+    setSelectedMissingRow(row);
+    setIsMissingDataOpen(true);
+  }
 
   function openComputeDialog(row: ManagerClassStudentGradeRow) {
     setSelectedRow(row);
@@ -254,17 +277,39 @@ export function ClassStudentGradesSection({
       return;
     }
 
-    const result = await computeStudentGradeAction(classId, selectedRow.user_id);
+    const validationError = validateFactorWeights({
+      ...computeWeights,
+      group_weight: "0",
+      attendee_weight: "0",
+    });
 
-    if (!result.success) {
-      showErrorToast(result.error ?? "Unable to compute grade.");
+    if (validationError) {
+      setComputeWeightError(validationError);
       return;
     }
 
-    showSuccessToast(result.message ?? `Computed ${selectedRow.full_name}.`);
-    setIsComputeOpen(false);
-    setSelectedRow(null);
-    router.refresh();
+    setIsStudentComputePending(true);
+    setComputeWeightError(null);
+
+    try {
+      const result = await computeStudentGradeAction(
+        classId,
+        selectedRow.user_id,
+        computeWeights
+      );
+
+      if (!result.success) {
+        showErrorToast(result.error ?? "Unable to compute grade.");
+        return;
+      }
+
+      showSuccessToast(result.message ?? `Computed ${selectedRow.full_name}.`);
+      setIsComputeOpen(false);
+      setSelectedRow(null);
+      router.refresh();
+    } finally {
+      setIsStudentComputePending(false);
+    }
   }
 
   async function handleConfirmComputeAll() {
@@ -326,7 +371,7 @@ export function ClassStudentGradesSection({
   }
 
   return (
-    <Card className="py-0">
+    <div className="flex flex-col gap-6">
       <Dialog open={isComputeOpen} onOpenChange={setIsComputeOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -334,7 +379,8 @@ export function ClassStudentGradesSection({
               {selectedRow ? `Compute ${selectedRow.full_name}` : "Compute student"}
             </DialogTitle>
             <DialogDescription>
-              Review this student&apos;s current grade totals and the class weights that will be applied.
+              Review this student&apos;s grade totals and set the weights to apply
+              for this compute.
             </DialogDescription>
           </DialogHeader>
 
@@ -367,23 +413,12 @@ export function ClassStudentGradesSection({
                 </div>
               </div>
 
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <h3 className="text-sm font-medium">Applied weights</h3>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border bg-background px-3 py-2">
-                    <p className="text-xs text-muted-foreground">Tasks weight</p>
-                    <p className="text-sm font-medium">
-                      {formatWeight(defaultFactorWeights.tasks_weight)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border bg-background px-3 py-2">
-                    <p className="text-xs text-muted-foreground">Final exam weight</p>
-                    <p className="text-sm font-medium">
-                      {formatWeight(defaultFactorWeights.final_exam_weight)}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <ComputeFactorWeightsFields
+                idPrefix="class-grades-compute"
+                values={computeWeights}
+                onChange={setComputeWeights}
+                error={computeWeightError}
+              />
             </div>
           ) : null}
 
@@ -391,6 +426,7 @@ export function ClassStudentGradesSection({
             <Button
               type="button"
               className="bg-orange-500 text-white hover:bg-orange-500/90"
+              disabled={isStudentComputePending || !isComputeWeightTotalValid}
               onClick={handleConfirmStudentCompute}
             >
               Confirm
@@ -461,6 +497,24 @@ export function ClassStudentGradesSection({
         onConfirm={handleCustomizeComputeAllConfirm}
       />
 
+      <StudentGradeMissingDataDialog
+        open={isMissingDataOpen}
+        onOpenChange={(open) => {
+          setIsMissingDataOpen(open);
+          if (!open) {
+            setSelectedMissingRow(null);
+          }
+        }}
+        classId={classId}
+        student={selectedMissingRow}
+        finalExam={finalExam}
+        finalExamStudentGrade={
+          selectedMissingRow
+            ? (finalExamGradeByUserId.get(selectedMissingRow.user_id) ?? null)
+            : null
+        }
+      />
+
       <Dialog
         open={isDeleteGradeOpen}
         onOpenChange={(open) => {
@@ -492,39 +546,37 @@ export function ClassStudentGradesSection({
         </DialogContent>
       </Dialog>
 
-      <CardHeader className="border-b bg-muted/40 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <CardTitle>Students grades</CardTitle>
+          <h2 className="text-lg font-semibold">Students grades</h2>
           <p className="text-sm text-muted-foreground">
             Current enrolled students in {className} with grade summaries from tasks and final exam data.
           </p>
         </div>
-        <CardAction className="self-center">
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pendingRows.length === 0}
-              onClick={() => setIsCustomizeComputeAllOpen(true)}
-            >
-              Customize compute all
-            </Button>
-            <Button
-              type="button"
-              className="bg-orange-500 text-white hover:bg-orange-500/90"
-              disabled={pendingRows.length === 0}
-              onClick={openComputeAllDialog}
-            >
-              Compute all
-            </Button>
-          </div>
-        </CardAction>
-      </CardHeader>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pendingRows.length === 0}
+            onClick={() => setIsCustomizeComputeAllOpen(true)}
+          >
+            Customize compute all
+          </Button>
+          <Button
+            type="button"
+            className="bg-orange-500 text-white hover:bg-orange-500/90"
+            disabled={pendingRows.length === 0}
+            onClick={openComputeAllDialog}
+          >
+            Compute all
+          </Button>
+        </div>
+      </div>
 
-      <CardContent className="space-y-4 px-4 pb-4 pt-2">
-        <ClassTabCollapsibleSection
+      <ClassTabCollapsibleSection
           title="Students ready to compute"
           description="Students with all weighted grade data present and ready for computation."
+          defaultOpen
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
@@ -786,41 +838,44 @@ export function ClassStudentGradesSection({
                     </td>
                   </tr>
                 ) : (
-                  unreadyRows.map((row) => {
-                    const missingReasons = getUnreadyReasons(row, defaultFactorWeights);
-
-                    return (
-                      <tr
-                        key={`unready-${row.student_profile_id}`}
-                        className="border-b last:border-b-0 hover:bg-muted/20"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col">
-                            <StudentGradeNameLink
-                              classId={classId}
-                              studentProfileId={row.student_profile_id}
-                              fullName={row.full_name}
-                            />
+                  unreadyRows.map((row) => (
+                    <tr
+                      key={`unready-${row.student_profile_id}`}
+                      className="border-b last:border-b-0 hover:bg-muted/20"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col">
+                          <StudentGradeNameLink
+                            classId={classId}
+                            studentProfileId={row.student_profile_id}
+                            fullName={row.full_name}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {row.enrollment_status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {row.email}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`View missing grade data for ${row.full_name}`}
+                            onClick={() => openMissingDataDialog(row)}
+                          >
+                            <MessageSquareTextIcon />
+                          </Button>
+                          {row.missing_items.length > 0 ? (
                             <span className="text-xs text-muted-foreground">
-                              {row.enrollment_status}
+                              ({row.missing_items.length})
                             </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {row.email}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            {missingReasons.map((reason) => (
-                              <span
-                                key={`${row.student_profile_id}-${reason}`}
-                                className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200"
-                              >
-                                {formatUnreadyReason(reason)}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
+                          ) : null}
+                        </div>
+                      </td>
                         <td className="px-4 py-3 tabular-nums">
                           {formatGrade(row.task_total_grade)}
                         </td>
@@ -845,14 +900,12 @@ export function ClassStudentGradesSection({
                           </div>
                         </td>
                       </tr>
-                    );
-                  })
+                  ))
                 )}
               </tbody>
             </table>
           </div>
         </ClassTabCollapsibleSection>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

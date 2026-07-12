@@ -177,4 +177,31 @@
     top: 0;
     width: 100%;
   }
+
+  body.etkan-print-section [data-print-root="student-grade-sheet"] {
+    width: 100%;
+  }
+
+  body.etkan-print-section [data-print-root="student-grade-sheet"] .student-grade-sheet {
+    aspect-ratio: auto;
+    min-height: auto;
+  }
+
+  body.etkan-print-section [data-print-root="student-grade-sheet"][data-sheet-orientation="horizontal"] {
+    page: grade-sheet-landscape;
+  }
+
+  body.etkan-print-section [data-print-root="student-grade-sheet"][data-sheet-orientation="vertical"] {
+    page: grade-sheet-portrait;
+  }
+
+  @page grade-sheet-landscape {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  @page grade-sheet-portrait {
+    size: A4 portrait;
+    margin: 10mm;
+  }
 }

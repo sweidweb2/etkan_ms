@@ -1,8 +1,14 @@
-import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
+import type { ClassStatusValue } from "@/lib/constants/manager-class-status";
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 
+export type ClassSessionProgressSource = {
+  subject_nb_sessions: number;
+  completed_sessions: number;
+  status: ClassStatusValue;
+};
+
 export function getClassSessionCompletionRate(
-  classRow: ManagerSemesterClassRow
+  classRow: ClassSessionProgressSource
 ): number {
   if (classRow.subject_nb_sessions <= 0) {
     return 0;
@@ -14,12 +20,12 @@ export function getClassSessionCompletionRate(
   return Math.min(100, Math.max(0, Math.round(rate)));
 }
 
-export function isActiveSemesterClass(classRow: ManagerSemesterClassRow): boolean {
+export function isActiveSemesterClass(classRow: ClassSessionProgressSource): boolean {
   return classRow.status === CLASS_STATUSES.IN_PROGRESS;
 }
 
 export function getSemesterSessionProgressSummary(
-  classes: ManagerSemesterClassRow[]
+  classes: ClassSessionProgressSource[]
 ) {
   const totalSessions = classes.reduce(
     (sum, classRow) => sum + classRow.subject_nb_sessions,
@@ -42,7 +48,7 @@ export function getSemesterSessionProgressSummary(
   };
 }
 
-export function getClassProgressTone(classRow: ManagerSemesterClassRow): {
+export function getClassProgressTone(classRow: ClassSessionProgressSource): {
   fillClassName: string;
   ringClassName: string;
   dotClassName: string;
@@ -119,7 +125,7 @@ export function getSessionProgressTone(rate: number): {
 }
 
 export function getSegmentProgressTone(
-  classRow: ManagerSemesterClassRow,
+  classRow: ClassSessionProgressSource,
   _segmentIndex?: number
 ): ReturnType<typeof getClassProgressTone> {
   return getClassProgressTone(classRow);

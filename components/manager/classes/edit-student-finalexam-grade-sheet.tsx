@@ -45,6 +45,7 @@ type EditStudentFinalExamGradeSheetProps = {
   studentGrade: ManagerStudentFinalExamGradeRow | null;
   maxGrade: number | null;
   dueDate?: string | null;
+  readOnly?: boolean;
   onStudentGradeUpdated: (row: ManagerStudentFinalExamGradeRow) => void;
 };
 
@@ -69,6 +70,7 @@ export function EditStudentFinalExamGradeSheet({
   studentGrade,
   maxGrade,
   dueDate = null,
+  readOnly = false,
   onStudentGradeUpdated,
 }: EditStudentFinalExamGradeSheetProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -77,6 +79,7 @@ export function EditStudentFinalExamGradeSheet({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const isFormDisabled = isPending || readOnly;
   const [gradedAtPreview, setGradedAtPreview] = useState("");
 
   const schema = useMemo(
@@ -159,7 +162,7 @@ export function EditStudentFinalExamGradeSheet({
   }
 
   function onSubmit(values: EditStudentFinalExamGradeInput) {
-    if (!studentGrade) {
+    if (!studentGrade || readOnly) {
       return;
     }
 
@@ -203,9 +206,18 @@ export function EditStudentFinalExamGradeSheet({
         <SheetHeader>
           <SheetTitle>{studentGrade.full_name}</SheetTitle>
           <SheetDescription>
-            Edit final exam grade for this student.
+            {readOnly
+              ? "View-only while the class status is Done. Change class status to edit."
+              : "Edit final exam grade for this student."}
           </SheetDescription>
         </SheetHeader>
+
+        {readOnly ? (
+          <p className="mx-4 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-100">
+            Grades are locked while the class is Done. Change the class status on
+            the class detail page before editing final exam grades.
+          </p>
+        ) : null}
 
         <form
           id="edit-student-finalexam-grade-form"
@@ -232,7 +244,7 @@ export function EditStudentFinalExamGradeSheet({
                   { shouldValidate: true }
                 );
               }}
-              disabled={isPending}
+              disabled={isFormDisabled}
             >
               <SelectTrigger
                 id="edit-student-finalexam-status"
@@ -267,7 +279,7 @@ export function EditStudentFinalExamGradeSheet({
               max={maxGrade ?? undefined}
               step={0.5}
               aria-invalid={!!gradeError}
-              disabled={isPending}
+              disabled={isFormDisabled}
               {...register("grade")}
             />
             {gradeError ? (
@@ -290,7 +302,7 @@ export function EditStudentFinalExamGradeSheet({
               id="edit-student-finalexam-notes"
               rows={4}
               aria-invalid={!!notesError}
-              disabled={isPending}
+              disabled={isFormDisabled}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
               )}
@@ -310,7 +322,7 @@ export function EditStudentFinalExamGradeSheet({
             <Input
               id="edit-student-finalexam-submitted-at"
               type="datetime-local"
-              disabled={isPending}
+              disabled={isFormDisabled}
               {...register("submitted_at")}
             />
           </div>
@@ -340,16 +352,18 @@ export function EditStudentFinalExamGradeSheet({
             onClick={() => handleOpenChange(false)}
             disabled={isPending}
           >
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </Button>
-          <Button
-            type="submit"
-            form="edit-student-finalexam-grade-form"
-            disabled={isPending}
-          >
-            {isPending ? <InlineSpinner /> : null}
-            Save changes
-          </Button>
+          {readOnly ? null : (
+            <Button
+              type="submit"
+              form="edit-student-finalexam-grade-form"
+              disabled={isPending}
+            >
+              {isPending ? <InlineSpinner /> : null}
+              Save changes
+            </Button>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>

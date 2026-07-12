@@ -113,6 +113,22 @@ export function toFactorWeightValues(values: FactorWeightsForm): FactorWeightsVa
   };
 }
 
+export function getComputeFactorWeightFormDefaults(input: {
+  stored_tasks_weight?: number | null;
+  stored_final_exam_weight?: number | null;
+  default_tasks_weight: number;
+  default_final_exam_weight: number;
+}): Pick<FactorWeightsForm, "tasks_weight" | "final_exam_weight"> {
+  return {
+    tasks_weight: String(
+      input.stored_tasks_weight ?? input.default_tasks_weight
+    ),
+    final_exam_weight: String(
+      input.stored_final_exam_weight ?? input.default_final_exam_weight
+    ),
+  };
+}
+
 function deriveTasksSubgrade(row: ManagerClassStudentGradeRow) {
   if (row.task_total_grade !== null) {
     return row.task_total_grade;

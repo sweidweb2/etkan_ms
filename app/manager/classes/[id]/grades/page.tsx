@@ -13,7 +13,7 @@ import { getSessionRole } from "@/lib/auth/session";
 import { getManagerClassDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassForManager } from "@/services/class.service";
+import { getClassForManager, getClassFinalExamForManager } from "@/services/class.service";
 import { listClassStudentGradesForManager } from "@/services/student-course-grade.service";
 
 type ManagerClassGradesPageProps = {
@@ -74,11 +74,10 @@ async function ManagerClassGradesContent({
 }) {
   const adminClient = createSupabaseAdminClient();
   const role = await getSessionRole();
-  const { rows, tasks } = await listClassStudentGradesForManager(
-    adminClient,
-    role,
-    classId
-  );
+  const [{ rows, tasks }, finalExamBundle] = await Promise.all([
+    listClassStudentGradesForManager(adminClient, role, classId),
+    getClassFinalExamForManager(adminClient, role, classId),
+  ]);
 
   return (
     <ClassStudentGradesSection
@@ -86,6 +85,8 @@ async function ManagerClassGradesContent({
       className={className}
       rows={rows}
       classTasks={tasks}
+      finalExam={finalExamBundle.finalExam}
+      finalExamStudentGrades={finalExamBundle.studentGrades}
     />
   );
 }

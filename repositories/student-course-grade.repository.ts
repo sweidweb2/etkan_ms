@@ -4,7 +4,7 @@ import type { Database, Json } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const STUDENT_COURSE_GRADE_COLUMNS =
-  "id, user_id, class_id, task_json_grade_weights, task_weight, task_total_grade, final_exam_grade, final_exam_weight, type, created_at";
+  "id, user_id, class_id, task_json_grade_weights, group_grades_json, attendee_grades_json, task_weight, task_total_grade, final_exam_grade, final_exam_weight, type, created_at";
 
 export type StudentCourseGradeRecord = {
   id: string;

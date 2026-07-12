@@ -6,9 +6,14 @@ import {
   DEFAULT_CLASS_GRADE_FINAL_EXAM_WEIGHT,
   DEFAULT_CLASS_GRADE_TASKS_WEIGHT,
 } from "@/lib/constants/manager-class-grade-defaults";
-import { getManagerClassGradesRoute } from "@/lib/constants/routes";
+import {
+  getManagerClassGradesRoute,
+  getManagerClassStudentGradesDetailRoute,
+} from "@/lib/constants/routes";
 import type { FactorWeightsValues } from "@/lib/compute/custom-compute-form-utils";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { updateClassWeightsSchema } from "@/lib/validators/manager/update-class-weights";
+import { listClassStudentsForManager } from "@/services/class.service";
 import {
   computeAllStudentCourseGradesForManager,
   computeStudentCourseGradeForManager,
@@ -28,10 +33,73 @@ function revalidateClassGrades(classId: string) {
   revalidatePath(getManagerClassGradesRoute(classId));
 }
 
+function revalidateStudentGradeDetail(
+  classId: string,
+  studentProfileId: string
+) {
+  revalidatePath(getManagerClassStudentGradesDetailRoute(classId, studentProfileId));
+}
+
+function resolveComputeFactorWeights(options?: {
+  tasks_weight: string;
+  final_exam_weight: string;
+}):
+  | {
+      ok: true;
+      factorWeights: FactorWeightsValues;
+      computeType: "final" | "custom";
+      computeLabel: string;
+    }
+  | { ok: false; error: string } {
+  const payload = {
+    tasks_weight:
+      options?.tasks_weight ?? String(DEFAULT_CLASS_GRADE_TASKS_WEIGHT),
+    final_exam_weight:
+      options?.final_exam_weight ?? String(DEFAULT_CLASS_GRADE_FINAL_EXAM_WEIGHT),
+  };
+
+  const parsed = updateClassWeightsSchema.safeParse(payload);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid factor weights.",
+    };
+  }
+
+  const tasks_weight = Number(payload.tasks_weight.trim());
+  const final_exam_weight = Number(payload.final_exam_weight.trim());
+  const usesDefaults =
+    tasks_weight === DEFAULT_CLASS_GRADE_TASKS_WEIGHT &&
+    final_exam_weight === DEFAULT_CLASS_GRADE_FINAL_EXAM_WEIGHT;
+
+  return {
+    ok: true,
+    factorWeights: {
+      group_weight: 0,
+      attendee_weight: 0,
+      tasks_weight,
+      final_exam_weight,
+    },
+    computeType: usesDefaults ? "final" : "custom",
+    computeLabel: usesDefaults ? "class weights" : "custom weights",
+  };
+}
+
 export async function computeStudentGradeAction(
   classId: string,
-  userId: string
+  userId: string,
+  options?: {
+    tasks_weight: string;
+    final_exam_weight: string;
+  }
 ): Promise<ClassGradesActionState> {
+  const resolved = resolveComputeFactorWeights(options);
+
+  if (!resolved.ok) {
+    return { success: false, error: resolved.error };
+  }
+
   const [actorRole, actor] = await Promise.all([
     getSessionRole(),
     getSessionAuditActor(),
@@ -44,14 +112,9 @@ export async function computeStudentGradeAction(
     classId,
     userId,
     {
-      factorWeights: {
-        group_weight: 0,
-        attendee_weight: 0,
-        tasks_weight: DEFAULT_CLASS_GRADE_TASKS_WEIGHT,
-        final_exam_weight: DEFAULT_CLASS_GRADE_FINAL_EXAM_WEIGHT,
-      },
-      computeType: "final",
-      computeLabel: "class weights",
+      factorWeights: resolved.factorWeights,
+      computeType: resolved.computeType,
+      computeLabel: resolved.computeLabel,
     }
   );
 
@@ -60,6 +123,7 @@ export async function computeStudentGradeAction(
   }
 
   revalidateClassGrades(classId);
+  revalidateStudentGradeDetail(classId, result.row.student_profile_id);
 
   return {
     success: true,
@@ -118,6 +182,8 @@ export async function deleteComputedGradeAction(
     getSessionAuditActor(),
   ]);
   const adminClient = createSupabaseAdminClient();
+  const students = await listClassStudentsForManager(adminClient, actorRole, classId);
+  const student = students.find((row) => row.user_id === userId);
   const result = await deleteStudentCourseGradeForManager(
     adminClient,
     actorRole,
@@ -131,6 +197,9 @@ export async function deleteComputedGradeAction(
   }
 
   revalidateClassGrades(classId);
+  if (student) {
+    revalidateStudentGradeDetail(classId, student.student_profile_id);
+  }
 
   return {
     success: true,
@@ -170,7 +239,7 @@ export async function computeStudentGradeAloneAction(
   }
 
   revalidateClassGrades(classId);
-  revalidatePath(getManagerClassGradesRoute(classId));
+  revalidateStudentGradeDetail(classId, result.row.student_profile_id);
 
   return {
     success: true,

@@ -1,6 +1,8 @@
 import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
 import type { StudentAttendanceStatusValue } from "@/lib/constants/manager-student-attendance-status";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
+import { buildStudentGroupGradeSlots } from "@/lib/manager/class-group-grade-analytics";
+import { SESSION_GROUP_GRADE_LEVELS } from "@/types/manager-session-group-grade";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
 import type { ManagerStudentCourseGrade } from "@/types/manager-student-course-grade";
 
@@ -88,6 +90,27 @@ const DEFAULT_COURSE_GRADE: ManagerStudentCourseGrade = {
   created_at: "2025-10-15T09:30:00.000Z",
 };
 
+const SARA_MATH_GROUP_GRADE_SESSIONS = [
+  {
+    id: "sess-01",
+    nb_order: 1,
+    starts_at: "2025-09-15T08:00:00.000Z",
+    group_grade_level: SESSION_GROUP_GRADE_LEVELS.LOW,
+  },
+  {
+    id: "sess-02",
+    nb_order: 2,
+    starts_at: "2025-09-22T08:00:00.000Z",
+    group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
+  },
+  {
+    id: "sess-03",
+    nb_order: 3,
+    starts_at: "2025-09-29T08:00:00.000Z",
+    group_grade_level: SESSION_GROUP_GRADE_LEVELS.HIGH,
+  },
+];
+
 const SARA_MATH: ManagerStudentClassTabDetail = {
   ...buildAttendanceDetail([
     {
@@ -151,6 +174,7 @@ const SARA_MATH: ManagerStudentClassTabDetail = {
       status: STUDENT_ATTENDANCE_STATUSES.PRESENT,
     },
   ]),
+  groupGradeSlots: buildStudentGroupGradeSlots(SARA_MATH_GROUP_GRADE_SESSIONS),
   tasks: [
     {
       student_task_id: "st-1",
@@ -281,6 +305,20 @@ const DEFAULT_DETAIL: ManagerStudentClassTabDetail = {
       status: STUDENT_ATTENDANCE_STATUSES.ABSENT,
     },
   ]),
+  groupGradeSlots: buildStudentGroupGradeSlots([
+    {
+      id: "sess-a",
+      nb_order: 1,
+      starts_at: "2025-09-20T09:00:00.000Z",
+      group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
+    },
+    {
+      id: "sess-b",
+      nb_order: 2,
+      starts_at: "2025-09-27T09:00:00.000Z",
+      group_grade_level: SESSION_GROUP_GRADE_LEVELS.HIGH,
+    },
+  ]),
   tasks: [
     {
       student_task_id: "st-d1",
@@ -348,6 +386,7 @@ export function getDefaultStudentClassTabDetail(): ManagerStudentClassTabDetail 
   return {
     attendanceSlots: DEFAULT_DETAIL.attendanceSlots.map((slot) => ({ ...slot })),
     attendanceTrend: DEFAULT_DETAIL.attendanceTrend.map((point) => ({ ...point })),
+    groupGradeSlots: DEFAULT_DETAIL.groupGradeSlots.map((slot) => ({ ...slot })),
     tasks: DEFAULT_DETAIL.tasks.map((task) => ({ ...task })),
     taskGradeTrend: DEFAULT_DETAIL.taskGradeTrend.map((point) => ({ ...point })),
     courseGrade: DEFAULT_DETAIL.courseGrade

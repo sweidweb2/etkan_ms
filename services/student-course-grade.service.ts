@@ -1,4 +1,8 @@
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
+import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
+import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
+import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
 import {
   DEFAULT_CLASS_GRADE_FINAL_EXAM_WEIGHT,
   DEFAULT_CLASS_GRADE_TASKS_WEIGHT,
@@ -10,34 +14,59 @@ import {
   computeWeightedCourseTotalGrade,
   normalizeStoredFinalExamGrade,
 } from "@/lib/manager/compute-student-course-grade";
+import { buildStudentGroupGradeSlots } from "@/lib/manager/class-group-grade-analytics";
+import {
+  buildStudentGradeMissingItems,
+  hasStudentGradeMissingItems,
+} from "@/lib/manager/student-grade-missing-items";
+import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
+import type {
+  FinalExamRecord,
+  StudentFinalExamGradeRecord,
+} from "@/repositories/final-exam.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import type { StudentCourseGradeRecord } from "@/repositories/student-course-grade.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
+import type { StudentTaskRecord } from "@/repositories/student-task.repository";
 import * as taskRepository from "@/repositories/task.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
-import { assertClassGradesUnlockedForManager, listClassStudentsForManager } from "@/services/class.service";
+import {
+  assertClassGradesUnlockedForManager,
+  getClassFinalExamForManager,
+  listClassStudentsForManager,
+} from "@/services/class.service";
+import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
-import type { ManagerStudentTaskGradeWeightRow } from "@/types/manager-student-course-grade";
+import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type {
+  ManagerStudentAttendeeGradeEntry,
+  ManagerStudentCourseGrade,
+  ManagerStudentGroupGradeEntry,
+  ManagerStudentTaskGradeWeightRow,
+} from "@/types/manager-student-course-grade";
+import type {
+  ManagerStudentClassTabDetail,
+  ManagerStudentClassTaskRow,
+} from "@/types/manager-student-class-detail";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
 type ClassGradeContext = {
+  sessions: SessionRecord[];
   classTasks: ManagerClassTaskForGradesRow[];
+  finalExam: FinalExamRecord | null;
   finalExamMaxGrade: number | null;
-  finalExamGradesByUserId: Map<string, number | null>;
-  studentTasksByUserId: Map<
-    string,
-    Array<{ task_id: string; grade: number | null; status: string }>
-  >;
+  finalExamGradesByUserId: Map<string, StudentFinalExamGradeRecord>;
+  studentTasksByUserId: Map<string, StudentTaskRecord[]>;
   storedGradesByUserId: Map<string, StudentCourseGradeRecord>;
 };
 
@@ -111,6 +140,7 @@ function buildClassTaskRows(
     session_id: string | null;
     title?: string;
     max_grade: number | null;
+    due_date?: string | null;
     created_at?: string | null;
   }>
 ): ManagerClassTaskForGradesRow[] {
@@ -134,6 +164,7 @@ function buildClassTaskRows(
       session_nb_order: session.nb_order,
       title: task.title ?? "Task",
       max_grade: task.max_grade,
+      due_date: task.due_date ?? null,
       created_at: task.created_at ?? null,
     });
   }
@@ -195,27 +226,30 @@ async function loadClassGradeContext(
       session_id: task.session_id,
       title: task.title,
       max_grade: task.max_grade,
+      due_date: task.due_date,
       created_at: task.created_at,
     }))
   );
 
   const taskIds = classTasks.map((task) => task.id);
-  const studentTasksResult = await studentTaskRepository.listStudentTasksByTaskIds(
-    adminClient,
-    taskIds
-  );
+  const studentTasksResult =
+    await studentTaskRepository.listStudentTasksForGradesByTaskIds(
+      adminClient,
+      taskIds
+    );
 
   if (studentTasksResult.error) {
     throw new Error(studentTasksResult.error.message);
   }
 
-  let finalExamGradesByUserId = new Map<string, number | null>();
+  const finalExam = (finalExamResult.data as FinalExamRecord | null) ?? null;
+  let finalExamGradesByUserId = new Map<string, StudentFinalExamGradeRecord>();
 
-  if (finalExamResult.data) {
+  if (finalExam) {
     const gradesResult =
       await finalExamRepository.listStudentFinalExamGradesByFinalExamId(
         adminClient,
-        finalExamResult.data.id
+        finalExam.id
       );
 
     if (gradesResult.error) {
@@ -223,22 +257,18 @@ async function loadClassGradeContext(
     }
 
     finalExamGradesByUserId = new Map(
-      (gradesResult.data ?? []).map((row) => [row.student_id, row.grade])
+      ((gradesResult.data ?? []) as StudentFinalExamGradeRecord[]).map((row) => [
+        row.student_id,
+        row,
+      ])
     );
   }
 
-  const studentTasksByUserId = new Map<
-    string,
-    Array<{ task_id: string; grade: number | null; status: string }>
-  >();
+  const studentTasksByUserId = new Map<string, StudentTaskRecord[]>();
 
   for (const row of studentTasksResult.data ?? []) {
     const list = studentTasksByUserId.get(row.student_id) ?? [];
-    list.push({
-      task_id: row.task_id,
-      grade: row.grade,
-      status: row.status,
-    });
+    list.push(row);
     studentTasksByUserId.set(row.student_id, list);
   }
 
@@ -249,8 +279,10 @@ async function loadClassGradeContext(
   );
 
   return {
+    sessions,
     classTasks,
-    finalExamMaxGrade: finalExamResult.data?.max_grade ?? null,
+    finalExam,
+    finalExamMaxGrade: finalExam?.max_grade ?? null,
     finalExamGradesByUserId,
     studentTasksByUserId,
     storedGradesByUserId,
@@ -297,6 +329,7 @@ function mapStoredGradeRow(
     stored_final_exam_weight:
       stored.final_exam_weight == null ? null : Number(stored.final_exam_weight),
     stored_task_weights: taskWeightsFromJson(taskWeightEntries),
+    missing_items: [],
   };
 }
 
@@ -309,12 +342,25 @@ function mapPendingGradeRow(
     context.classTasks,
     studentTasks
   );
-  const rawFinalExamGrade =
+  const finalExamGradeRecord =
     context.finalExamGradesByUserId.get(student.user_id) ?? null;
   const finalExamGrade = normalizeStoredFinalExamGrade(
-    rawFinalExamGrade,
+    finalExamGradeRecord?.grade ?? null,
     context.finalExamMaxGrade
   );
+  const missingItems = buildStudentGradeMissingItems({
+    classTasks: context.classTasks,
+    studentTasks,
+    finalExam: context.finalExam
+      ? {
+          id: context.finalExam.id,
+          title: context.finalExam.title,
+          max_grade: context.finalExam.max_grade,
+          due_date: context.finalExam.due_date,
+        }
+      : null,
+    finalExamGrade: finalExamGradeRecord,
+  });
 
   return {
     student_profile_id: student.student_profile_id,
@@ -328,6 +374,280 @@ function mapPendingGradeRow(
     total_grade: null,
     task_total_grade: taskTotalGrade,
     final_exam_grade: finalExamGrade,
+    missing_items: missingItems,
+  };
+}
+
+function parseGroupGradesJson(value: Json | null): ManagerStudentGroupGradeEntry[] {
+  if (!value || !Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return [];
+    }
+
+    const row = entry as Record<string, unknown>;
+    if (typeof row.session_id !== "string" || row.grade == null) {
+      return [];
+    }
+
+    return [
+      {
+        session_id: row.session_id,
+        session_label:
+          typeof row.session_label === "string" ? row.session_label : undefined,
+        grade: Number(row.grade),
+      },
+    ];
+  });
+}
+
+function parseAttendeeGradesJson(
+  value: Json | null
+): ManagerStudentAttendeeGradeEntry[] {
+  if (!value || !Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return [];
+    }
+
+    const row = entry as Record<string, unknown>;
+    if (typeof row.session_id !== "string") {
+      return [];
+    }
+
+    return [
+      {
+        session_id: row.session_id,
+        session_label:
+          typeof row.session_label === "string" ? row.session_label : undefined,
+        grade: row.grade == null ? null : Number(row.grade),
+        status: typeof row.status === "string" ? row.status : undefined,
+      },
+    ];
+  });
+}
+
+function mapStoredCourseGrade(
+  stored: StudentCourseGradeRecord
+): ManagerStudentCourseGrade {
+  return {
+    id: stored.id,
+    task_json_grade_weights: parseTaskJsonGradeWeights(
+      stored.task_json_grade_weights
+    ),
+    group_grades_json: parseGroupGradesJson(stored.group_grades_json),
+    attendee_grades_json: parseAttendeeGradesJson(stored.attendee_grades_json),
+    task_weight: stored.task_weight == null ? null : Number(stored.task_weight),
+    task_total_grade:
+      stored.task_total_grade == null ? null : Number(stored.task_total_grade),
+    final_exam_grade:
+      stored.final_exam_grade == null ? null : Number(stored.final_exam_grade),
+    final_exam_weight:
+      stored.final_exam_weight == null ? null : Number(stored.final_exam_weight),
+    type: stored.type,
+    created_at: stored.created_at ?? "",
+  };
+}
+
+function mapStudentTaskStatus(status: string): StudentTaskStatusValue {
+  if (
+    status === STUDENT_TASK_STATUSES.PENDING ||
+    status === STUDENT_TASK_STATUSES.SUBMITTED ||
+    status === STUDENT_TASK_STATUSES.GRADED ||
+    status === STUDENT_TASK_STATUSES.LATE ||
+    status === STUDENT_TASK_STATUSES.MISSING
+  ) {
+    return status;
+  }
+
+  return STUDENT_TASK_STATUSES.PENDING;
+}
+
+function buildStudentAttendanceDetail(
+  sessions: SessionRecord[],
+  attendeeStatusBySessionId: Map<string, string>
+): Pick<ManagerStudentClassTabDetail, "attendanceSlots" | "attendanceTrend"> {
+  const sortedSessions = [...sessions].sort(
+    (left, right) => left.nb_order - right.nb_order
+  );
+
+  let cumulativePresent = 0;
+  let streak = 0;
+
+  const attendanceSlots = sortedSessions.map((session) => {
+    const attendeeStatus = attendeeStatusBySessionId.get(session.id);
+    const isPresent = attendeeStatus
+      ? isAttendeePresentForRate(attendeeStatus)
+      : false;
+
+    return {
+      session_id: session.id,
+      session_label: `S${session.nb_order}`,
+      session_at: session.starts_at,
+      status: isPresent
+        ? STUDENT_ATTENDANCE_STATUSES.PRESENT
+        : STUDENT_ATTENDANCE_STATUSES.ABSENT,
+    };
+  });
+
+  const attendanceTrend = attendanceSlots.map((slot) => {
+    if (slot.status === STUDENT_ATTENDANCE_STATUSES.PRESENT) {
+      cumulativePresent += 1;
+      streak += 1;
+    } else {
+      streak = 0;
+    }
+
+    return {
+      session_label: slot.session_label,
+      cumulative_present: cumulativePresent,
+      cumulative_rate:
+        attendanceSlots.length === 0
+          ? 0
+          : Math.round((cumulativePresent / attendanceSlots.length) * 100),
+      streak,
+    };
+  });
+
+  return { attendanceSlots, attendanceTrend };
+}
+
+function buildStudentTaskDetail(
+  classTasks: ManagerClassTaskForGradesRow[],
+  studentTasks: StudentTaskRecord[]
+): Pick<ManagerStudentClassTabDetail, "tasks" | "taskGradeTrend"> {
+  const studentTaskByTaskId = new Map(
+    studentTasks.map((row) => [row.task_id, row])
+  );
+
+  const tasks: ManagerStudentClassTaskRow[] = classTasks.map((task) => {
+    const studentTask = studentTaskByTaskId.get(task.id);
+
+    return {
+      student_task_id: studentTask?.id ?? `pending-${task.id}`,
+      task_id: task.id,
+      session_id: task.session_id,
+      title: task.title,
+      due_date: task.due_date,
+      max_grade: task.max_grade ?? 0,
+      status: mapStudentTaskStatus(studentTask?.status ?? STUDENT_TASK_STATUSES.PENDING),
+      grade: studentTask?.grade ?? null,
+      submitted_at: studentTask?.submitted_at ?? null,
+      graded_at: studentTask?.graded_at ?? null,
+    };
+  });
+
+  const taskGradeTrend = tasks.flatMap((task) => {
+    if (task.grade == null || !task.graded_at) {
+      return [];
+    }
+
+    return [
+      {
+        task_label: task.title,
+        grade: task.grade,
+        max_grade: task.max_grade,
+        graded_at: task.graded_at,
+      },
+    ];
+  });
+
+  return { tasks, taskGradeTrend };
+}
+
+function buildStudentClassTabDetail(
+  context: ClassGradeContext,
+  userId: string,
+  attendeeStatusBySessionId: Map<string, string>
+): ManagerStudentClassTabDetail {
+  const stored = context.storedGradesByUserId.get(userId);
+  const studentTasks = context.studentTasksByUserId.get(userId) ?? [];
+
+  return {
+    ...buildStudentAttendanceDetail(context.sessions, attendeeStatusBySessionId),
+    groupGradeSlots: buildStudentGroupGradeSlots(context.sessions),
+    ...buildStudentTaskDetail(context.classTasks, studentTasks),
+    courseGrade: stored ? mapStoredCourseGrade(stored) : null,
+  };
+}
+
+export async function getStudentClassGradeDetailForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  classId: string,
+  studentProfileId: string
+): Promise<{
+  student: ManagerClassStudentRow;
+  gradeRow: ManagerClassStudentGradeRow;
+  detail: ManagerStudentClassTabDetail;
+  classTasks: ManagerClassTaskForGradesRow[];
+  finalExam: ManagerClassFinalExamRow | null;
+} | null> {
+  const guard = await assertClassGradesUnlockedForManager(
+    adminClient,
+    actorRole,
+    classId
+  );
+
+  if (!guard.ok) {
+    throw new Error(guard.error);
+  }
+
+  const [students, context, finalExamBundle] = await Promise.all([
+    listClassStudentsForManager(adminClient, actorRole, classId),
+    loadClassGradeContext(adminClient, classId),
+    getClassFinalExamForManager(adminClient, actorRole, classId),
+  ]);
+
+  const student = students.find(
+    (row) => row.student_profile_id === studentProfileId
+  );
+
+  if (!student) {
+    return null;
+  }
+
+  const sessionIds = context.sessions.map((session) => session.id);
+  const attendeesResult = await attendeeRepository.listAttendeesBySessionIds(
+    adminClient,
+    sessionIds
+  );
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
+
+  const attendeeStatusBySessionId = new Map<string, string>();
+
+  for (const row of attendeesResult.data ?? []) {
+    if (row.student_id !== student.user_id) {
+      continue;
+    }
+
+    attendeeStatusBySessionId.set(row.session_id, row.status);
+  }
+
+  const stored = context.storedGradesByUserId.get(student.user_id);
+  const gradeRow = stored
+    ? mapStoredGradeRow(student, stored)
+    : mapPendingGradeRow(student, context);
+
+  return {
+    student,
+    gradeRow,
+    detail: buildStudentClassTabDetail(
+      context,
+      student.user_id,
+      attendeeStatusBySessionId
+    ),
+    classTasks: context.classTasks,
+    finalExam: finalExamBundle.finalExam,
   };
 }
 
@@ -387,14 +707,36 @@ async function computeAndSaveStudentCourseGrade(
   const context = await loadClassGradeContext(adminClient, classId);
   const factorWeights = resolveFactorWeights(options);
   const studentTasks = context.studentTasksByUserId.get(userId) ?? [];
+  const finalExamGradeRecord =
+    context.finalExamGradesByUserId.get(userId) ?? null;
+  const missingItems = buildStudentGradeMissingItems({
+    classTasks: context.classTasks,
+    studentTasks,
+    finalExam: context.finalExam
+      ? {
+          id: context.finalExam.id,
+          title: context.finalExam.title,
+          max_grade: context.finalExam.max_grade,
+          due_date: context.finalExam.due_date,
+        }
+      : null,
+    finalExamGrade: finalExamGradeRecord,
+    factorWeights,
+  });
+
+  if (hasStudentGradeMissingItems(missingItems)) {
+    return {
+      success: false,
+      error: "This student is missing one or more required grade inputs.",
+    };
+  }
+
   const taskTotalGrade = computeStudentTaskTotalGrade(
     context.classTasks,
     studentTasks
   );
-  const rawFinalExamGrade =
-    context.finalExamGradesByUserId.get(userId) ?? null;
   const finalExamGrade = normalizeStoredFinalExamGrade(
-    rawFinalExamGrade,
+    finalExamGradeRecord?.grade ?? null,
     context.finalExamMaxGrade
   );
 

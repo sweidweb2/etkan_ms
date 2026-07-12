@@ -48,7 +48,7 @@ export async function listTasksForGradesBySessionIds(
 
   return client
     .from("tasks")
-    .select("id, session_id, title, max_grade, created_at")
+    .select("id, session_id, title, max_grade, due_date, created_at")
     .in("session_id", sessionIds)
     .order("created_at", { ascending: true });
 }

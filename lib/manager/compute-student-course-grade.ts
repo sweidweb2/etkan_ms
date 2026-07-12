@@ -1,7 +1,6 @@
-import {
-  buildGradesByTaskId,
-  type ClassAnalyticsStudentTaskRow,
-  type ClassAnalyticsTaskRef,
+import type {
+  ClassAnalyticsStudentTaskRow,
+  ClassAnalyticsTaskRef,
 } from "@/lib/manager/class-analytics";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import { roundGrade } from "@/lib/compute/custom-compute-form-utils";
@@ -18,35 +17,40 @@ function normalizeGradePercent(grade: number, maxGrade: number | null) {
   return (grade / cap) * 100;
 }
 
+/** Mean of this student's normalized per-task grades across every class task. */
 export function computeStudentTaskTotalGrade(
   classTasks: ClassAnalyticsTaskRef[],
   studentTasks: ClassAnalyticsStudentTaskRow[]
 ): number | null {
   if (classTasks.length === 0) {
-    return 0;
+    return null;
   }
 
-  const gradesByTaskId = buildGradesByTaskId(studentTasks);
-  const taskAverages: number[] = [];
+  const studentTaskByTaskId = new Map(
+    studentTasks.map((row) => [row.task_id, row])
+  );
+  const normalizedGrades: number[] = [];
 
-  for (const task of classTasks) {
-    const taskGrades = gradesByTaskId.get(task.id) ?? [];
-    if (taskGrades.length === 0) {
+  for (const classTask of classTasks) {
+    const studentTask = studentTaskByTaskId.get(classTask.id);
+
+    if (
+      !studentTask ||
+      studentTask.grade == null ||
+      !isGradedStudentTask(studentTask.status)
+    ) {
       return null;
     }
 
-    const normalized = taskGrades.map((grade) =>
-      normalizeGradePercent(grade, task.max_grade)
+    normalizedGrades.push(
+      normalizeGradePercent(Number(studentTask.grade), classTask.max_grade)
     );
-    const taskAverage =
-      normalized.reduce((sum, value) => sum + value, 0) / normalized.length;
-    taskAverages.push(taskAverage);
   }
 
-  const average =
-    taskAverages.reduce((sum, value) => sum + value, 0) / taskAverages.length;
-
-  return roundGrade(average);
+  return roundGrade(
+    normalizedGrades.reduce((sum, value) => sum + value, 0) /
+      normalizedGrades.length
+  );
 }
 
 export function normalizeStoredFinalExamGrade(

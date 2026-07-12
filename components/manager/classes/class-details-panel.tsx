@@ -9,6 +9,7 @@ import { ChangeClassStatusDialog } from "@/components/manager/classes/change-cla
 import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog";
 import { ClassAnalyticsSection } from "@/components/manager/classes/class-analytics-section";
 import { ClassFinalExamSection } from "@/components/manager/classes/class-final-exam-section";
+import { ClassSessionProgressTrack } from "@/components/manager/classes/class-session-progress-track";
 import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
 import { ClassStudentsSection } from "@/components/manager/classes/class-students-section";
 import {
@@ -51,7 +52,10 @@ import type {
   ManagerStudentFinalExamGradeRow,
 } from "@/types/manager-class-final-exam";
 import type { ManagerClassRow } from "@/types/manager-class-list";
-import type { ManagerClassSessionRow } from "@/types/manager-class-session";
+import {
+  sortClassSessionsNewestFirst,
+  type ManagerClassSessionRow,
+} from "@/types/manager-class-session";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type {
   ManagerClassSemesterOption,
@@ -109,6 +113,9 @@ export function ClassDetailsPanel({
   semesterOptions,
 }: ClassDetailsPanelProps) {
   const [classRow, setClassRow] = useState(initialClassRow);
+  const [sessions, setSessions] = useState(() =>
+    sortClassSessionsNewestFirst(initialSessions)
+  );
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false);
   const [finalExam, setFinalExam] = useState(initialFinalExam);
@@ -279,7 +286,8 @@ export function ClassDetailsPanel({
       <ClassSessionsSection
         classId={classRow.id}
         className={classRow.name}
-        initialSessions={initialSessions}
+        sessions={sessions}
+        onSessionsChange={setSessions}
         onClassUpdated={setClassRow}
       />
 
@@ -310,6 +318,8 @@ export function ClassDetailsPanel({
         onFinalExamChange={setFinalExam}
         onStudentGradesChange={setStudentGrades}
       />
+
+      <ClassSessionProgressTrack classRow={classRow} sessions={sessions} />
 
       <ClassAnalyticsSection
         className={classRow.name}

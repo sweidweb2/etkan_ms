@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildClassGroupGradeTrend } from "@/lib/manager/class-group-grade-analytics";
+import {
+  buildClassGroupGradeTrend,
+  buildStudentGroupGradeSlots,
+} from "@/lib/manager/class-group-grade-analytics";
 import { SESSION_GROUP_GRADE_LEVELS } from "@/types/manager-session-group-grade";
 
 describe("buildClassGroupGradeTrend", () => {
@@ -32,5 +35,38 @@ describe("buildClassGroupGradeTrend", () => {
         { nb_order: 2, group_grade_level: null },
       ])
     ).toEqual([]);
+  });
+});
+
+describe("buildStudentGroupGradeSlots", () => {
+  it("returns session metadata sorted by nb_order", () => {
+    const slots = buildStudentGroupGradeSlots([
+      {
+        id: "session-b",
+        nb_order: 2,
+        starts_at: "2026-07-17T10:00:00.000Z",
+        group_grade_level: SESSION_GROUP_GRADE_LEVELS.HIGH,
+      },
+      {
+        id: "session-a",
+        nb_order: 1,
+        starts_at: "2026-07-10T10:00:00.000Z",
+        group_grade_level: SESSION_GROUP_GRADE_LEVELS.LOW,
+      },
+    ]);
+
+    expect(slots).toEqual([
+      expect.objectContaining({
+        session_id: "session-a",
+        session_label: "S1",
+        session_at: "2026-07-10T10:00:00.000Z",
+        group_grade_label: "Low",
+      }),
+      expect.objectContaining({
+        session_id: "session-b",
+        session_label: "S2",
+        group_grade_label: "High",
+      }),
+    ]);
   });
 });

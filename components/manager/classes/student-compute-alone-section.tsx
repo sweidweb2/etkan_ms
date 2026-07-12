@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { CalculatorIcon } from "lucide-react";
@@ -25,23 +26,25 @@ import {
   validateTaskWeights,
 } from "@/lib/compute/custom-compute-form-utils";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
-import { getManagerClassTasksPreview } from "@/lib/manager/get-manager-class-tasks-preview";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
 import { computeStudentGradeAloneAction } from "@/app/manager/classes/grades/actions";
 
 type StudentComputeAloneSectionProps = {
   classId: string;
   userId: string;
   studentName: string;
+  classTasks: ManagerClassTaskForGradesRow[];
 };
 
 export function StudentComputeAloneSection({
   classId,
   userId,
   studentName,
+  classTasks,
 }: StudentComputeAloneSectionProps) {
-  const classTasks = useMemo(() => getManagerClassTasksPreview(classId), [classId]);
+  const router = useRouter();
   const defaultFactors = useMemo(
     () => ({
       class_id: classId,
@@ -132,6 +135,7 @@ export function StudentComputeAloneSection({
       guard.message ?? `Computed grade for ${studentName}.`
     );
     setIsConfirmOpen(false);
+    router.refresh();
   }
 
   return (

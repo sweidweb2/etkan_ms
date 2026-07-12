@@ -22,17 +22,18 @@ import type { ManagerClassRow } from "@/types/manager-class-list";
 type ClassSessionsSectionProps = {
   classId: string;
   className: string;
-  initialSessions: ManagerClassSessionRow[];
+  sessions: ManagerClassSessionRow[];
+  onSessionsChange: (sessions: ManagerClassSessionRow[]) => void;
   onClassUpdated: (classRow: ManagerClassRow) => void;
 };
 
 export function ClassSessionsSection({
   classId,
   className,
-  initialSessions,
+  sessions,
+  onSessionsChange,
   onClassUpdated,
 }: ClassSessionsSectionProps) {
-  const [sessions, setSessions] = useState(initialSessions);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   const sortedSessions = useMemo(
@@ -52,13 +53,12 @@ export function ClassSessionsSection({
     session: ManagerClassSessionRow,
     classRow: ManagerClassRow
   ) => {
-    setSessions((current) => {
-      if (current.some((row) => row.id === session.id)) {
-        return current;
-      }
+    if (sessions.some((row) => row.id === session.id)) {
+      onClassUpdated(classRow);
+      return;
+    }
 
-      return sortClassSessionsNewestFirst([session, ...current]);
-    });
+    onSessionsChange(sortClassSessionsNewestFirst([session, ...sessions]));
     onClassUpdated(classRow);
   };
 

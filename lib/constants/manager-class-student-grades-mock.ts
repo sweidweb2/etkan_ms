@@ -55,6 +55,30 @@ export function getManagerClassStudentGradesPreview(
       total_grade: totalGrade,
       task_total_grade: taskGradeValue,
       final_exam_grade: finalExamGradeValue,
+      missing_items: [
+        ...(taskGradeValue === null
+          ? [
+              {
+                kind: "task" as const,
+                reason: "not_graded" as const,
+                label: "Tasks — Not graded",
+                status: null,
+                grade: null,
+              },
+            ]
+          : []),
+        ...(finalExamGradeValue === null
+          ? [
+              {
+                kind: "final_exam" as const,
+                reason: "not_graded" as const,
+                label: "Final exam — Not graded",
+                status: null,
+                grade: null,
+              },
+            ]
+          : []),
+      ],
     };
   });
 }

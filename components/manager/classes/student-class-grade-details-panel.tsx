@@ -1,6 +1,16 @@
 "use client";
 
 import { format } from "date-fns";
+import { ExternalLinkIcon } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import {
+  ComputeFactorWeightsFields,
+  type ComputeFactorWeightsValues,
+} from "@/components/manager/classes/compute-factor-weights-fields";
+import { StudentClassGradeSheetDemo } from "@/components/manager/classes/student-class-grade-sheet-demo";
 import { StudentComputeAloneSection } from "@/components/manager/classes/student-compute-alone-section";
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
@@ -23,9 +33,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  averageGroupGradeFromJson,
-} from "@/types/manager-student-course-grade";
-import { getManagerClassFinalExamPreview } from "@/lib/constants/manager-class-final-exam-mock";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  formatGroupGradeLevelTick,
+  GROUP_GRADE_LEVEL_Y_TICKS,
+} from "@/lib/manager/class-group-grade-analytics";
+import { buildStudentClassGradeSheetModel } from "@/lib/manager/student-class-grade-sheet";
+import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
+import {
+  getComputeFactorWeightFormDefaults,
+  parseWeight,
+  validateFactorWeights,
+} from "@/lib/compute/custom-compute-form-utils";
 import {
   getAttendanceDisplayKey,
   MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES,
@@ -33,21 +58,39 @@ import {
 import {
   MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS,
 } from "@/lib/constants/manager-student-class-slots";
+import { SESSION_GROUP_GRADE_LEVEL_DOT_CLASSES } from "@/lib/constants/manager-session-group-grade-display";
 import { MANAGER_STUDENT_TASK_SLOT_CLASSES } from "@/lib/constants/manager-student-task-display";
 import {
   getManagerClassDetailRoute,
   getManagerClassGradesRoute,
+  getManagerStudentDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
-import { getManagerClassPreview } from "@/lib/manager/get-manager-class-preview";
-import { getManagerClassStudentsPreview } from "@/lib/manager/get-manager-class-students-preview";
-import { getManagerStudentClassDetailPreview } from "@/lib/manager/get-manager-student-class-detail-preview";
+import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
+import type { ManagerClassRow } from "@/types/manager-class-list";
+import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
+import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
+import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
+import {
+  computeStudentGradeAction,
+  deleteComputedGradeAction,
+} from "@/app/manager/classes/grades/actions";
+
+type StudentClassGradeDetailBundle = {
+  student: ManagerClassStudentRow;
+  gradeRow: ManagerClassStudentGradeRow;
+  detail: ManagerStudentClassTabDetail;
+  classTasks: ManagerClassTaskForGradesRow[];
+  finalExam: ManagerClassFinalExamRow | null;
+};
 
 type StudentClassGradeDetailsPanelProps = {
   classId: string;
-  studentId: string;
+  classRow: ManagerClassRow;
+  bundle: StudentClassGradeDetailBundle | null;
 };
 
 function DetailField({
@@ -77,93 +120,90 @@ function formatGrade(value: number | null | undefined) {
   return value === null || value === undefined ? "—" : value.toFixed(1);
 }
 
-function clampGrade(value: number) {
-  return Math.max(0, Math.min(100, Math.round(value * 10) / 10));
-}
-
-function buildGroupGradeSlots(detail: ManagerStudentClassTabDetail) {
-  const jsonEntries = detail.courseGrade?.group_grades_json ?? [];
-  const baseGrade = averageGroupGradeFromJson(jsonEntries) ?? 0;
-
-  if (jsonEntries.length > 0) {
-    return jsonEntries.map((entry) => ({
-      session_id: entry.session_id,
-      session_label: entry.session_label ?? entry.session_id,
-      session_at: detail.attendanceSlots.find(
-        (slot) => slot.session_id === entry.session_id
-      )?.session_at ?? "",
-      grade: entry.grade,
-    }));
-  }
-
-  return detail.attendanceSlots.map((slot, index) => {
-    const offsetPattern = [-4, 2, 5, -1, 3, -3];
-    return {
-      session_id: slot.session_id,
-      session_label: slot.session_label,
-      session_at: slot.session_at,
-      grade: clampGrade(baseGrade + offsetPattern[index % offsetPattern.length]!),
-    };
-  });
-}
-
 function GroupGradesSection({ detail }: { detail: ManagerStudentClassTabDetail }) {
-  const groupSlots = buildGroupGradeSlots(detail);
+  const groupSlots = detail.groupGradeSlots;
   const chartData = groupSlots.map((slot) => ({
     session_label: slot.session_label,
-    grade: slot.grade,
+    group_grade_index: slot.group_grade_index,
+    group_grade_label: slot.group_grade_label,
   }));
 
   return (
     <ClassTabCollapsibleSection
       title="Group grades"
-      description="Per-session group-grade slots with the combined line graph."
+      description="Per-session group grade levels from session settings, with a combined line graph."
     >
       <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Group grade slots
           </p>
-          <div
-            className={cn(
-              "grid h-full min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3"
-            )}
-          >
-            {groupSlots.map((slot) => (
-              <div
-                key={slot.session_id}
-                className="rounded-lg border border-violet-500/30 bg-violet-500/8 px-3 py-2"
-              >
-                <p className="text-xs font-semibold">{slot.session_label}</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {format(new Date(slot.session_at), "MMM d, yyyy")}
-                </p>
-                <p className="mt-2 text-sm font-medium text-violet-700 dark:text-violet-300">
-                  {formatGrade(slot.grade)}
-                </p>
-              </div>
-            ))}
-          </div>
+          {groupSlots.length === 0 ? (
+            <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              No group grades recorded for this class yet. Set a group grade level
+              on session settings to populate this section.
+            </p>
+          ) : (
+            <div
+              className={cn(
+                "grid h-full min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3"
+              )}
+            >
+              {groupSlots.map((slot) => (
+                <div
+                  key={slot.session_id}
+                  className="rounded-lg border border-violet-500/30 bg-violet-500/8 px-3 py-2"
+                >
+                  <p className="text-xs font-semibold">{slot.session_label}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {format(new Date(slot.session_at), "MMM d, yyyy")}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        SESSION_GROUP_GRADE_LEVEL_DOT_CLASSES[slot.group_grade_level]
+                      )}
+                    />
+                    <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
+                      {slot.group_grade_label}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex min-h-[20rem] min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Group grade trend
           </p>
-          <ClassLineChart
-            className="min-h-[18rem] flex-1"
-            data={chartData}
-            xKey="session_label"
-            yLabel="Grade"
-            yDomain={[0, 100]}
-            series={[
-              {
-                key: "grade",
-                label: "Group grade",
-                color: "#8b5cf6",
-              },
-            ]}
-          />
+          {groupSlots.length === 0 ? (
+            <p className="flex min-h-[18rem] flex-1 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
+              No group grade trend available yet.
+            </p>
+          ) : (
+            <ClassLineChart
+              className="min-h-[18rem] flex-1"
+              data={chartData}
+              xKey="session_label"
+              yDomain={[0, GROUP_GRADE_LEVEL_Y_TICKS.length - 1]}
+              yTicks={GROUP_GRADE_LEVEL_Y_TICKS}
+              yTickFormatter={formatGroupGradeLevelTick}
+              yLabel="Level"
+              formatTooltipSeriesValue={(_value, _seriesKey, point) =>
+                String(point.group_grade_label ?? "")
+              }
+              series={[
+                {
+                  key: "group_grade_index",
+                  label: "Group grade",
+                  color: "#f59e0b",
+                },
+              ]}
+            />
+          )}
         </div>
       </div>
     </ClassTabCollapsibleSection>
@@ -193,46 +233,54 @@ function TaskGradesSection({ detail }: { detail: ManagerStudentClassTabDetail })
               MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS
             )}
           >
-            {detail.tasks.map((task) => (
-              <div
-                key={task.student_task_id}
-                className={cn(
-                  "rounded-lg border px-3 py-2.5",
-                  MANAGER_STUDENT_TASK_SLOT_CLASSES[task.status]
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium leading-snug">{task.title}</p>
-                  <StudentTaskStatusBadge status={task.status} />
+            {detail.tasks.length === 0 ? (
+              <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                No tasks found for this class yet.
+              </p>
+            ) : (
+              detail.tasks.map((task) => (
+                <div
+                  key={task.student_task_id}
+                  className={cn(
+                    "rounded-lg border px-3 py-2.5",
+                    MANAGER_STUDENT_TASK_SLOT_CLASSES[task.status]
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium leading-snug">{task.title}</p>
+                    <StudentTaskStatusBadge status={task.status} />
+                  </div>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                    <div>
+                      <dt className="inline">Session: </dt>
+                      <dd className="inline text-foreground">
+                        {task.session_id ?? "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline">Grade: </dt>
+                      <dd className="inline text-foreground">
+                        {task.grade === null
+                          ? "Not done"
+                          : `${task.grade}/${task.max_grade}`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline">Due: </dt>
+                      <dd className="inline text-foreground">
+                        {task.due_date
+                          ? format(new Date(task.due_date), "MMM d, yyyy")
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline">Status: </dt>
+                      <dd className="inline text-foreground">{task.status}</dd>
+                    </div>
+                  </dl>
                 </div>
-                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                  <div>
-                    <dt className="inline">Session: </dt>
-                    <dd className="inline text-foreground">
-                      {task.session_id ?? "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="inline">Grade: </dt>
-                    <dd className="inline text-foreground">
-                      {task.grade === null ? "Not done" : `${task.grade}/${task.max_grade}`}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="inline">Due: </dt>
-                    <dd className="inline text-foreground">
-                      {task.due_date
-                        ? format(new Date(task.due_date), "MMM d, yyyy")
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="inline">Status: </dt>
-                    <dd className="inline text-foreground">{task.status}</dd>
-                  </div>
-                </dl>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -266,15 +314,14 @@ function TaskGradesSection({ detail }: { detail: ManagerStudentClassTabDetail })
 }
 
 function FinalExamSection({
-  classId,
-  detail,
+  finalExam,
+  finalExamGrade,
+  finalExamWeight,
 }: {
-  classId: string;
-  detail: ManagerStudentClassTabDetail;
+  finalExam: ManagerClassFinalExamRow | null;
+  finalExamGrade: number | null;
+  finalExamWeight: number | null;
 }) {
-  const finalExam = getManagerClassFinalExamPreview(classId);
-  const finalExamGrade = detail.courseGrade?.final_exam_grade ?? null;
-
   return (
     <ClassTabCollapsibleSection
       title="Final exam"
@@ -305,15 +352,16 @@ function FinalExamSection({
             />
             <DetailField
               label="Student grade"
-              value={finalExamGrade === null ? "Not graded yet" : formatGrade(finalExamGrade)}
+              value={
+                finalExamGrade === null
+                  ? "Not graded yet"
+                  : formatGrade(finalExamGrade)
+              }
             />
             <DetailField
               label="Weight"
               value={
-                detail.courseGrade?.final_exam_weight === null ||
-                detail.courseGrade?.final_exam_weight === undefined
-                  ? "—"
-                  : `${detail.courseGrade.final_exam_weight}%`
+                finalExamWeight === null ? "—" : `${finalExamWeight}%`
               }
             />
           </div>
@@ -345,23 +393,31 @@ function AttendanceGradesSection({ detail }: { detail: ManagerStudentClassTabDet
               "grid h-full min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3"
             )}
           >
-            {detail.attendanceSlots.map((slot) => (
-              <div
-                key={slot.session_id}
-                className={cn(
-                  "rounded-lg border px-3 py-2",
-                  MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[getAttendanceDisplayKey(slot.status)]
-                )}
-              >
-                <p className="text-xs font-semibold">{slot.session_label}</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {format(new Date(slot.session_at), "MMM d, yyyy")}
-                </p>
-                <div className="mt-2">
-                  <StudentAttendanceStatusBadge status={slot.status} />
+            {detail.attendanceSlots.length === 0 ? (
+              <p className="col-span-full rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                No sessions recorded for this class yet.
+              </p>
+            ) : (
+              detail.attendanceSlots.map((slot) => (
+                <div
+                  key={slot.session_id}
+                  className={cn(
+                    "rounded-lg border px-3 py-2",
+                    MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[
+                      getAttendanceDisplayKey(slot.status)
+                    ]
+                  )}
+                >
+                  <p className="text-xs font-semibold">{slot.session_label}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {format(new Date(slot.session_at), "MMM d, yyyy")}
+                  </p>
+                  <div className="mt-2">
+                    <StudentAttendanceStatusBadge status={slot.status} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -395,18 +451,50 @@ function AttendanceGradesSection({ detail }: { detail: ManagerStudentClassTabDet
 
 export function StudentClassGradeDetailsPanel({
   classId,
-  studentId,
+  classRow,
+  bundle,
 }: StudentClassGradeDetailsPanelProps) {
-  const classRow = getManagerClassPreview(classId);
-  const student =
-    getManagerClassStudentsPreview(classId).find(
-      (row) => row.student_profile_id === studentId
-    ) ?? null;
-  const detail = student
-    ? getManagerStudentClassDetailPreview(student.user_id, classId)
-    : null;
+  const router = useRouter();
+  const [isComputeDialogOpen, setIsComputeDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isComputing, setIsComputing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [computeWeights, setComputeWeights] = useState<ComputeFactorWeightsValues>(
+    () =>
+      getComputeFactorWeightFormDefaults({
+        default_tasks_weight: DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.tasks_weight,
+        default_final_exam_weight:
+          DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.final_exam_weight,
+      })
+  );
+  const [computeWeightError, setComputeWeightError] = useState<string | null>(null);
 
-  if (!student) {
+  useEffect(() => {
+    if (!isComputeDialogOpen || !bundle) {
+      return;
+    }
+
+    setComputeWeights(
+      getComputeFactorWeightFormDefaults({
+        stored_tasks_weight: bundle.gradeRow.stored_tasks_weight,
+        stored_final_exam_weight: bundle.gradeRow.stored_final_exam_weight,
+        default_tasks_weight: DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.tasks_weight,
+        default_final_exam_weight:
+          DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS.final_exam_weight,
+      })
+    );
+    setComputeWeightError(null);
+  }, [isComputeDialogOpen, bundle]);
+
+  const computeFactorTotal = useMemo(
+    () =>
+      parseWeight(computeWeights.tasks_weight) +
+      parseWeight(computeWeights.final_exam_weight),
+    [computeWeights.final_exam_weight, computeWeights.tasks_weight]
+  );
+  const isComputeWeightTotalValid = Math.abs(computeFactorTotal - 100) <= 0.001;
+
+  if (!bundle) {
     return (
       <div className="flex flex-col gap-6">
         <Breadcrumb>
@@ -447,8 +535,171 @@ export function StudentClassGradeDetailsPanel({
     );
   }
 
+  const { student, gradeRow, detail, classTasks, finalExam } = bundle;
+  const finalExamGrade =
+    gradeRow.final_exam_grade ?? detail.courseGrade?.final_exam_grade ?? null;
+  const finalExamWeight =
+    detail.courseGrade?.final_exam_weight ??
+    gradeRow.stored_final_exam_weight ??
+    null;
+  const hasComputedGrade = gradeRow.is_computed;
+
+  async function handleConfirmCompute() {
+    const validationError = validateFactorWeights({
+      ...computeWeights,
+      group_weight: "0",
+      attendee_weight: "0",
+    });
+
+    if (validationError) {
+      setComputeWeightError(validationError);
+      return;
+    }
+
+    setIsComputing(true);
+    setComputeWeightError(null);
+
+    try {
+      const result = await computeStudentGradeAction(
+        classId,
+        student.user_id,
+        computeWeights
+      );
+
+      if (!result.success) {
+        showErrorToast(result.error ?? "Unable to compute grade.");
+        return;
+      }
+
+      showSuccessToast(
+        result.message ??
+          `${hasComputedGrade ? "Recomputed" : "Computed"} ${student.full_name}.`
+      );
+      setIsComputeDialogOpen(false);
+      router.refresh();
+    } finally {
+      setIsComputing(false);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    setIsDeleting(true);
+
+    try {
+      const result = await deleteComputedGradeAction(classId, student.user_id);
+
+      if (!result.success) {
+        showErrorToast(result.error ?? "Unable to delete computed grade.");
+        return;
+      }
+
+      showSuccessToast(
+        result.message ?? `Deleted computed grade for ${student.full_name}.`
+      );
+      setIsDeleteDialogOpen(false);
+      router.refresh();
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
+      <Dialog open={isComputeDialogOpen} onOpenChange={setIsComputeDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {hasComputedGrade
+                ? `Recompute ${student.full_name}`
+                : `Compute ${student.full_name}`}
+            </DialogTitle>
+            <DialogDescription>
+              {hasComputedGrade
+                ? "This will replace the existing student_course_grade record using the weights below."
+                : "Review this student's grade totals and set the weights to apply for this compute."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4">
+            <div className="grid gap-3 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Total grade
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {formatGrade(gradeRow.total_grade)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Tasks grade
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {formatGrade(gradeRow.task_total_grade)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Final exam grade
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {formatGrade(gradeRow.final_exam_grade)}
+                </p>
+              </div>
+            </div>
+
+            <ComputeFactorWeightsFields
+              idPrefix="student-grade-detail-compute"
+              values={computeWeights}
+              onChange={setComputeWeights}
+              error={computeWeightError}
+            />
+          </div>
+
+          <DialogFooter showCloseButton>
+            <Button
+              type="button"
+              className="bg-orange-500 text-white hover:bg-orange-500/90"
+              disabled={isComputing || !isComputeWeightTotalValid}
+              onClick={handleConfirmCompute}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) {
+            setIsDeleteDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete computed grade</DialogTitle>
+            <DialogDescription>
+              Remove the computed grade for {student.full_name}? This will move
+              the student back to the pending grades list.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter showCloseButton>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
+            >
+              {isDeleting ? <InlineSpinner className="mr-2" /> : null}
+              Delete grade
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -475,14 +726,58 @@ export function StudentClassGradeDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {student.full_name}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Course grade breakdown for this student in {classRow.name}.
+          </p>
+        </div>
+        <Button
+          render={
+            <Link
+              href={getManagerStudentDetailRoute(student.student_profile_id)}
+            />
+          }
+          nativeButton={false}
+          variant="outline"
+        >
+          <ExternalLinkIcon data-icon="inline-start" />
+          View student profile
+        </Button>
+      </div>
+
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{student.full_name}</CardTitle>
           <CardAction className="self-center">
-            <Button type="button">Recompute</Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                disabled={isComputing || isDeleting}
+                onClick={() => setIsComputeDialogOpen(true)}
+              >
+                {hasComputedGrade ? "Recompute" : "Compute"}
+              </Button>
+              {hasComputedGrade ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={isComputing || isDeleting}
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  Delete grade
+                </Button>
+              ) : null}
+            </div>
           </CardAction>
           <p className="text-sm text-muted-foreground">
-            Main student info for this class-grade view. Detailed grade breakdown will be added later.
+            Course grade breakdown for this student in {classRow.name}.
+            {gradeRow.is_computed && gradeRow.total_grade != null
+              ? ` Current total: ${gradeRow.total_grade.toFixed(1)}.`
+              : " Grade not computed yet."}
           </p>
         </CardHeader>
         <CardContent className="py-6">
@@ -511,19 +806,31 @@ export function StudentClassGradeDetailsPanel({
         </CardContent>
       </Card>
 
-      {detail ? (
-        <>
-          <GroupGradesSection detail={detail} />
-          <TaskGradesSection detail={detail} />
-          <FinalExamSection classId={classId} detail={detail} />
-          <AttendanceGradesSection detail={detail} />
-          <StudentComputeAloneSection
-            classId={classId}
-            userId={student.user_id}
-            studentName={student.full_name}
-          />
-        </>
-      ) : null}
+      <StudentClassGradeSheetDemo
+        isLocked={!hasComputedGrade}
+        model={buildStudentClassGradeSheetModel({
+          student,
+          classRow,
+          gradeRow,
+          detail,
+          finalExam,
+        })}
+      />
+
+      <GroupGradesSection detail={detail} />
+      <TaskGradesSection detail={detail} />
+      <FinalExamSection
+        finalExam={finalExam}
+        finalExamGrade={finalExamGrade}
+        finalExamWeight={finalExamWeight}
+      />
+      <AttendanceGradesSection detail={detail} />
+      <StudentComputeAloneSection
+        classId={classId}
+        userId={student.user_id}
+        studentName={student.full_name}
+        classTasks={classTasks}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
 import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClassForManager } from "@/services/class.service";
+import { getStudentClassGradeDetailForManager } from "@/services/student-course-grade.service";
 
 type ManagerClassStudentGradesDetailPageProps = {
   params: Promise<{ id: string; studentId: string }>;
@@ -71,5 +72,18 @@ export default async function ManagerClassStudentGradesDetailPage({
     );
   }
 
-  return <StudentClassGradeDetailsPanel classId={id} studentId={studentId} />;
+  const bundle = await getStudentClassGradeDetailForManager(
+    adminClient,
+    role,
+    id,
+    studentId
+  );
+
+  return (
+    <StudentClassGradeDetailsPanel
+      classId={id}
+      classRow={classRow}
+      bundle={bundle}
+    />
+  );
 }

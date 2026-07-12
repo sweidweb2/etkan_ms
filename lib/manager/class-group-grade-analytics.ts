@@ -15,6 +15,11 @@ export type ClassSessionGroupGradePoint = {
   group_grade_index: number;
 };
 
+export type StudentSessionGroupGradeSlot = ClassSessionGroupGradePoint & {
+  session_id: string;
+  session_at: string;
+};
+
 export function mapSessionGroupGradeLevel(
   value: string | null | undefined
 ): SessionGroupGradeLevelValue | null {
@@ -33,6 +38,38 @@ export function mapSessionGroupGradeLevel(
 
 export function getGroupGradeLevelIndex(level: SessionGroupGradeLevelValue) {
   return SESSION_GROUP_GRADE_LEVEL_ORDER.indexOf(level);
+}
+
+export function buildStudentGroupGradeSlots(
+  sessions: Array<{
+    id: string;
+    nb_order: number;
+    starts_at: string;
+    group_grade_level: string | null;
+  }>
+): StudentSessionGroupGradeSlot[] {
+  const points: StudentSessionGroupGradeSlot[] = [];
+
+  for (const session of [...sessions].sort(
+    (left, right) => left.nb_order - right.nb_order
+  )) {
+    const level = mapSessionGroupGradeLevel(session.group_grade_level);
+    if (!level) {
+      continue;
+    }
+
+    points.push({
+      session_id: session.id,
+      session_label: `S${session.nb_order}`,
+      session_at: session.starts_at,
+      nb_order: session.nb_order,
+      group_grade_level: level,
+      group_grade_label: SESSION_GROUP_GRADE_LEVEL_LABELS[level],
+      group_grade_index: getGroupGradeLevelIndex(level),
+    });
+  }
+
+  return points;
 }
 
 export function buildClassGroupGradeTrend(

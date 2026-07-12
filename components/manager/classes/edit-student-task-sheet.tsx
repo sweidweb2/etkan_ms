@@ -47,6 +47,7 @@ type EditStudentTaskSheetProps = {
   studentTask: ManagerStudentTaskRow | null;
   maxGrade: number | null;
   dueDate?: string | null;
+  readOnly?: boolean;
   onUpdateStudentTask: (studentTask: ManagerStudentTaskRow) => void;
 };
 
@@ -67,6 +68,7 @@ export function EditStudentTaskSheet({
   studentTask,
   maxGrade,
   dueDate = null,
+  readOnly = false,
   onUpdateStudentTask,
 }: EditStudentTaskSheetProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -75,6 +77,7 @@ export function EditStudentTaskSheet({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const isFormDisabled = isPending || readOnly;
   const [gradedAtPreview, setGradedAtPreview] = useState("");
 
   const schema = useMemo(
@@ -126,7 +129,9 @@ export function EditStudentTaskSheet({
       status: studentTask.status,
       grade: studentTask.grade === null ? "" : studentTask.grade,
       notes: studentTask.notes ?? "",
-      submitted_at: toDatetimeLocalValue(studentTask.submitted_at),
+      submitted_at: studentTask.submitted_at
+        ? toDatetimeLocalValue(studentTask.submitted_at)
+        : "",
     });
   }, [open, maxGrade, reset, schema, studentTask]);
 
@@ -149,7 +154,7 @@ export function EditStudentTaskSheet({
   }
 
   function onSubmit(values: EditStudentTaskInput) {
-    if (!studentTask) {
+    if (!studentTask || readOnly) {
       return;
     }
 
@@ -189,9 +194,18 @@ export function EditStudentTaskSheet({
         <SheetHeader>
           <SheetTitle>{studentTask.full_name}</SheetTitle>
           <SheetDescription>
-            Edit student_tasks fields for this assignment.
+            {readOnly
+              ? "View-only while the class status is Done. Change class status to edit."
+              : "Edit student_tasks fields for this assignment."}
           </SheetDescription>
         </SheetHeader>
+
+        {readOnly ? (
+          <p className="mx-4 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-100">
+            Grades are locked while the class is Done. Change the class status on
+            the class detail page before editing task grades.
+          </p>
+        ) : null}
 
         <form
           id="edit-student-task-form"
@@ -207,7 +221,7 @@ export function EditStudentTaskSheet({
             />
             <Select
               value={selectedStatus || null}
-              disabled={isPending}
+              disabled={isFormDisabled}
               onValueChange={(value) => {
                 if (!value) {
                   return;
@@ -251,7 +265,7 @@ export function EditStudentTaskSheet({
               max={maxGrade ?? undefined}
               step={0.5}
               aria-invalid={!!gradeError}
-              disabled={isPending}
+              disabled={isFormDisabled}
               {...register("grade")}
             />
             {gradeError ? (
@@ -275,7 +289,7 @@ export function EditStudentTaskSheet({
               id="edit-student-task-notes"
               rows={4}
               aria-invalid={!!notesError}
-              disabled={isPending}
+              disabled={isFormDisabled}
               className={cn(
                 "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
@@ -296,7 +310,7 @@ export function EditStudentTaskSheet({
               id="edit-student-task-submitted-at"
               type="datetime-local"
               aria-invalid={!!errors.submitted_at}
-              disabled={isPending}
+              disabled={isFormDisabled}
               {...register("submitted_at")}
             />
           </div>
@@ -326,16 +340,18 @@ export function EditStudentTaskSheet({
             disabled={isPending}
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </Button>
-          <Button
-            type="submit"
-            form="edit-student-task-form"
-            disabled={isPending}
-          >
-            {isPending ? <InlineSpinner /> : null}
-            Save changes
-          </Button>
+          {readOnly ? null : (
+            <Button
+              type="submit"
+              form="edit-student-task-form"
+              disabled={isPending}
+            >
+              {isPending ? <InlineSpinner /> : null}
+              Save changes
+            </Button>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>
