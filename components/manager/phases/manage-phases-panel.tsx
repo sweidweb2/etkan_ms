@@ -11,22 +11,16 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { AddPhaseDialog } from "@/components/manager/phases/add-phase-dialog";
+import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
 import { PhaseCard } from "@/components/manager/phases/phase-card";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ROUTES } from "@/lib/constants/routes";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 
-const PAGE_SIZE_OPTIONS = [4, 8, 12] as const;
+const PAGE_SIZE = 6;
 
 function getPageNumbers(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
@@ -81,8 +75,9 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
   const router = useRouter();
   const phases = initialSemesters;
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingSemester, setEditingSemester] =
+    useState<ManagerSemesterRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(4);
   const [currentPage, setCurrentPage] = useState(1);
 
   const stats = useMemo(
@@ -108,21 +103,26 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
     return phases.filter((phase) => matchesSearch(phase, searchQuery));
   }, [phases, searchQuery]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPhases.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredPhases.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedPhases = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredPhases.slice(startIndex, startIndex + pageSize);
-  }, [filteredPhases, pageSize, safeCurrentPage]);
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredPhases.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredPhases, safeCurrentPage]);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredPhases.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredPhases.length);
+    filteredPhases.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredPhases.length);
 
   const handleSemesterCreated = () => {
     setCurrentPage(1);
+    router.refresh();
+  };
+
+  const handleSemesterUpdated = () => {
+    setEditingSemester(null);
     router.refresh();
   };
 
@@ -156,6 +156,19 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
         onOpenChange={setIsAddOpen}
         onSemesterCreated={handleSemesterCreated}
       />
+
+      {editingSemester ? (
+        <EditPhaseDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingSemester(null);
+            }
+          }}
+          semester={editingSemester}
+          onSemesterUpdated={handleSemesterUpdated}
+        />
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <UserStatCard
@@ -206,47 +219,19 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {paginatedPhases.map((phase) => (
-                <PhaseCard key={phase.id} phase={phase} />
+                <PhaseCard
+                  key={phase.id}
+                  phase={phase}
+                  onEdit={setEditingSemester}
+                />
               ))}
             </div>
           )}
 
           <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Showing {rangeStart}–{rangeEnd} of {filteredPhases.length}
-              </span>
-              <span aria-hidden="true">·</span>
-              <div className="flex items-center gap-2">
-                <span>Cards</span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(value) => {
-                    if (!value) {
-                      return;
-                    }
-
-                    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-16"
-                    aria-label="Cards per page"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={String(option)}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Showing {rangeStart}–{rangeEnd} of {filteredPhases.length}
+            </p>
 
             <div className="flex items-center gap-1">
               <Button

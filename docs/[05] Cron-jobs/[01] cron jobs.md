@@ -27,6 +27,31 @@ select * from cron.job_run_details order by start_time desc limit 20;
 select public.mark_overdue_pending_work_missing();
 ```
 
+## start-scheduled-semesters
+
+- **Schedule:** daily at **00:00 UTC** (`0 0 * * *`)
+- **Function:** `public.start_scheduled_semesters()`
+- **What it does:** Finds semesters that are still `scheduled` with a `start_date` on or before today (UTC), sets their status to `in_progress`, and creates an academic manager notification listing each started semester.
+- **Tables:**
+  - `semesters`
+  - `notifications`
+- **Leaves unchanged:** `paused`, `stopped`, `done`, already-`in_progress`, and rows with a null `start_date`.
+- **Migration:** `supabase/migrations/20260723000000_cron_start_scheduled_semesters.sql`
+
+### Verify
+
+- Dashboard → Integrations → Cron, or:
+
+```sql
+select * from cron.job_run_details order by start_time desc limit 20;
+```
+
+### Manual run
+
+```sql
+select public.start_scheduled_semesters();
+```
+
 ## Removed (temporarily)
 
 ### notify-manager-payment-alerts

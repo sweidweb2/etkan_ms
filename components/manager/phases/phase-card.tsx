@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { BookOpenIcon, CalendarIcon, CircleDollarSignIcon } from "lucide-react";
+import {
+  BookOpenIcon,
+  CalendarIcon,
+  CircleDollarSignIcon,
+  PencilIcon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Tooltip,
@@ -44,7 +50,12 @@ function TruncatedText({
   );
 }
 
-export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
+type PhaseCardProps = {
+  phase: ManagerSemesterRow;
+  onEdit?: (phase: ManagerSemesterRow) => void;
+};
+
+export function PhaseCard({ phase, onEdit }: PhaseCardProps) {
   const href = getManagerSemesterDetailRoute(phase.id);
   const startDateLabel = phase.start_date
     ? format(new Date(`${phase.start_date}T00:00:00`), "MMM d, yyyy")
@@ -60,14 +71,32 @@ export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
         <Card className="h-full py-0 transition-shadow hover:shadow-[0_0_0_3px_rgba(147,197,253,0.35),0_12px_28px_rgba(59,130,246,0.22)]">
           <CardHeader className="border-b bg-muted/30 py-3">
             <div className="flex items-start justify-between gap-2">
-              <CardTitle className="text-base">
+              <CardTitle className="min-w-0 flex-1 text-base">
                 <TruncatedText
                   value={phase.name}
                   maxLength={PHASE_CARD_LIMITS.name}
                   className="block"
                 />
               </CardTitle>
-              <SemesterStatusBadge status={phase.status} className="shrink-0" />
+              <div className="flex shrink-0 items-center gap-1.5">
+                {onEdit ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-8"
+                    aria-label={`Edit semester ${phase.name}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onEdit(phase);
+                    }}
+                  >
+                    <PencilIcon className="size-4" />
+                  </Button>
+                ) : null}
+                <SemesterStatusBadge status={phase.status} className="shrink-0" />
+              </div>
             </div>
           </CardHeader>
 

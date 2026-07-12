@@ -1216,6 +1216,7 @@ export type Database = {
     }
     Functions: {
       mark_overdue_pending_work_missing: { Args: never; Returns: undefined }
+      start_scheduled_semesters: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
