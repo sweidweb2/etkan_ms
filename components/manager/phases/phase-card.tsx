@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenIcon, CircleDollarSignIcon } from "lucide-react";
+import { format } from "date-fns";
+import { BookOpenIcon, CalendarIcon, CircleDollarSignIcon } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Tooltip,
@@ -45,6 +46,9 @@ function TruncatedText({
 
 export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
   const href = getManagerSemesterDetailRoute(phase.id);
+  const startDateLabel = phase.start_date
+    ? format(new Date(`${phase.start_date}T00:00:00`), "MMM d, yyyy")
+    : "—";
 
   return (
     <Link
@@ -77,6 +81,10 @@ export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
                 <p className="text-xs text-muted-foreground">Courses</p>
                 <p className="mt-1 font-semibold">{phase.nb_courses}</p>
               </div>
+              <div className="rounded-lg border bg-muted/20 p-3 sm:col-span-2">
+                <p className="text-xs text-muted-foreground">Start date</p>
+                <p className="mt-1 font-semibold">{startDateLabel}</p>
+              </div>
             </div>
           </CardContent>
 
@@ -89,6 +97,10 @@ export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
             <div className="inline-flex items-center gap-1.5">
               <CircleDollarSignIcon className="size-3.5" />
               ${phase.amount} semester amount
+            </div>
+            <div className="inline-flex items-center gap-1.5">
+              <CalendarIcon className="size-3.5" />
+              Starts {startDateLabel}
             </div>
           </CardFooter>
         </Card>

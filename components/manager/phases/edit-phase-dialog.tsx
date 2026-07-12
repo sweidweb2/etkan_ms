@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-phase-display";
@@ -74,6 +75,7 @@ export function EditPhaseDialog({
       nb_courses: semester.nb_courses,
       amount: semester.amount,
       status: semester.status,
+      start_date: semester.start_date ?? "",
     },
   });
 
@@ -87,18 +89,24 @@ export function EditPhaseDialog({
         nb_courses: semester.nb_courses,
         amount: semester.amount,
         status: semester.status,
+        start_date: semester.start_date ?? "",
       });
     }
   }, [open, reset, semester]);
 
-  useEffect(() => {
-    if (!state.success || !state.semester) {
-      return;
-    }
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.semester) {
+        return;
+      }
 
-    onOpenChange(false);
-    onSemesterUpdated(state.semester);
-  }, [state.success, state.semester, onOpenChange, onSemesterUpdated]);
+      onOpenChange(false);
+      onSemesterUpdated(nextState.semester);
+    },
+    (nextState) => Boolean(nextState.success && nextState.semester)
+  );
 
   function onSubmit(values: UpdatePhaseInput) {
     const formData = new FormData();
@@ -107,6 +115,7 @@ export function EditPhaseDialog({
     formData.set("nb_courses", String(values.nb_courses));
     formData.set("amount", String(values.amount));
     formData.set("status", values.status);
+    formData.set("start_date", values.start_date ?? "");
 
     startTransition(() => {
       formAction(formData);
@@ -118,6 +127,8 @@ export function EditPhaseDialog({
     errors.nb_courses?.message ?? state.fieldErrors?.nb_courses?.[0];
   const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
+  const startDateError =
+    errors.start_date?.message ?? state.fieldErrors?.start_date?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,7 +136,7 @@ export function EditPhaseDialog({
         <DialogHeader>
           <DialogTitle>Edit semester</DialogTitle>
           <DialogDescription>
-            Update name, courses, amount, and lifecycle status.
+            Update name, courses, amount, start date, and lifecycle status.
           </DialogDescription>
         </DialogHeader>
 
@@ -194,7 +205,25 @@ export function EditPhaseDialog({
               ) : null}
             </div>
 
-            <div className="flex flex-col gap-2 sm:col-span-2">
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="edit-semester-start-date"
+                label="Start date"
+                hint="Optional"
+              />
+              <Input
+                id="edit-semester-start-date"
+                type="date"
+                aria-invalid={!!startDateError}
+                disabled={isPending}
+                {...register("start_date")}
+              />
+              {startDateError ? (
+                <p className="text-sm text-destructive">{startDateError}</p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="edit-semester-status"
                 label="Status"

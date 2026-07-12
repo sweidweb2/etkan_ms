@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-phase-display";
@@ -71,6 +72,7 @@ export function AddPhaseDialog({
       nb_courses: 0,
       amount: 0,
       status: SEMESTER_STATUSES.SCHEDULED,
+      start_date: "",
     },
   });
 
@@ -83,18 +85,15 @@ export function AddPhaseDialog({
         nb_courses: 0,
         amount: 0,
         status: SEMESTER_STATUSES.SCHEDULED,
+        start_date: "",
       });
     }
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onSemesterCreated();
-  }, [state.success, onOpenChange, onSemesterCreated]);
+  });
 
   function onSubmit(values: CreatePhaseInput) {
     const formData = new FormData();
@@ -102,6 +101,7 @@ export function AddPhaseDialog({
     formData.set("nb_courses", String(values.nb_courses));
     formData.set("amount", String(values.amount));
     formData.set("status", values.status);
+    formData.set("start_date", values.start_date ?? "");
 
     startTransition(() => {
       formAction(formData);
@@ -113,6 +113,8 @@ export function AddPhaseDialog({
     errors.nb_courses?.message ?? state.fieldErrors?.nb_courses?.[0];
   const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
+  const startDateError =
+    errors.start_date?.message ?? state.fieldErrors?.start_date?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -120,7 +122,8 @@ export function AddPhaseDialog({
         <DialogHeader>
           <DialogTitle>Add semester</DialogTitle>
           <DialogDescription>
-            Create a semester with name, courses, amount, and lifecycle status.
+            Create a semester with name, courses, amount, start date, and
+            lifecycle status.
           </DialogDescription>
         </DialogHeader>
 
@@ -183,7 +186,25 @@ export function AddPhaseDialog({
               ) : null}
             </div>
 
-            <div className="flex flex-col gap-2 sm:col-span-2">
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="add-semester-start-date"
+                label="Start date"
+                hint="Optional"
+              />
+              <Input
+                id="add-semester-start-date"
+                type="date"
+                aria-invalid={!!startDateError}
+                disabled={isPending}
+                {...register("start_date")}
+              />
+              {startDateError ? (
+                <p className="text-sm text-destructive">{startDateError}</p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="add-semester-status"
                 label="Status"

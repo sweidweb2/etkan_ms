@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { SCHEDULED_PAYMENT_STATUSES } from "@/lib/constants/manager-scheduled-payment-status";
@@ -85,14 +86,10 @@ export function AddScheduledPaymentDialog({
     }
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onScheduledPaymentSaved();
-  }, [state.success, onOpenChange, onScheduledPaymentSaved]);
+  });
 
   function onSubmit(
     values: Omit<CreateScheduledPaymentInput, "subscribed_semester_id" | "status">

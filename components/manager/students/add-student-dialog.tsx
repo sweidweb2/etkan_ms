@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
@@ -81,14 +82,10 @@ export function AddStudentDialog({
     }
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onStudentCreated();
-  }, [state.success, onOpenChange, onStudentCreated]);
+  });
 
   function onSubmit(values: CreateStudentInput) {
     const formData = new FormData();

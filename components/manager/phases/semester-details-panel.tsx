@@ -73,6 +73,14 @@ export function SemesterDetailsPanel({
     [semester.created_at]
   );
 
+  const startDateText = useMemo(
+    () =>
+      semester.start_date
+        ? format(new Date(`${semester.start_date}T00:00:00`), "MMM d, yyyy")
+        : null,
+    [semester.start_date]
+  );
+
   return (
     <div className="flex flex-col gap-6" data-print-root="semester-details">
       <Breadcrumb className="print:hidden">
@@ -113,9 +121,10 @@ export function SemesterDetailsPanel({
           </Button>
         </CardHeader>
         <CardContent className="pt-2 pb-4">
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
             <DetailField label="Number of courses" value={semester.nb_courses} />
             <DetailField label="Amount" value={`$${semester.amount}`} />
+            <DetailField label="Start date" value={startDateText} />
             <DetailField
               label="Status"
               value={<SemesterStatusBadge status={semester.status} />}

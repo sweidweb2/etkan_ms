@@ -17,6 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
@@ -86,14 +87,10 @@ function RelationshipDetailForm({
     });
   }, [relationship, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onRelationshipUpdated();
-  }, [state.success, onOpenChange, onRelationshipUpdated]);
+  });
 
   function onSubmit(values: UpdateRelationshipInput) {
     const formData = new FormData();

@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
@@ -99,14 +100,19 @@ export function EditStudentDialog({
     }
   }, [open, reset, student]);
 
-  useEffect(() => {
-    if (!state.success || !state.student) {
-      return;
-    }
+  useActionStateSuccess(
+    state,
+    isPending,
+    (nextState) => {
+      if (!nextState.student) {
+        return;
+      }
 
-    onOpenChange(false);
-    onStudentUpdated(state.student);
-  }, [state.success, state.student, onOpenChange, onStudentUpdated]);
+      onOpenChange(false);
+      onStudentUpdated(nextState.student);
+    },
+    (nextState) => Boolean(nextState.success && nextState.student)
+  );
 
   function onSubmit(values: UpdateStudentInput) {
     const formData = new FormData();

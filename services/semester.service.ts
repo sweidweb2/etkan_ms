@@ -91,6 +91,7 @@ function mapSemesterRecordToRow(record: SemesterRecord): ManagerSemesterRow {
     nb_courses: record.nb_courses,
     amount: Number(record.amount),
     status: mapSemesterStatus(record.status),
+    start_date: record.start_date ?? null,
     created_at: record.created_at ?? "",
   };
 }
@@ -275,6 +276,7 @@ export async function createSemesterForManager(
     nb_courses: number;
     amount: number;
     status: string;
+    start_date?: string | null;
   }
 ): Promise<CreateSemesterResult> {
   if (actorRole !== ROLES.MANAGER) {
@@ -291,7 +293,7 @@ export async function createSemesterForManager(
     };
   }
 
-  const { name, nb_courses, amount, status } = parsed.data;
+  const { name, nb_courses, amount, status, start_date } = parsed.data;
   const normalizedName = name.trim();
 
   const existing = await semesterRepository.findSemesterByName(
@@ -319,6 +321,7 @@ export async function createSemesterForManager(
     nb_courses,
     amount,
     status,
+    start_date,
   });
 
   if (error || !data) {
@@ -338,6 +341,7 @@ export async function createSemesterForManager(
       nb_courses: data.nb_courses,
       amount: data.amount,
       status: data.status,
+      start_date: data.start_date,
     },
     metadata: { note: "Semester created." },
   });
@@ -359,6 +363,7 @@ export async function updateSemesterForManager(
     nb_courses: number;
     amount: number;
     status: string;
+    start_date?: string | null;
   }
 ): Promise<UpdateSemesterResult> {
   if (actorRole !== ROLES.MANAGER) {
@@ -420,6 +425,7 @@ export async function updateSemesterForManager(
       nb_courses: parsed.data.nb_courses,
       amount: parsed.data.amount,
       status: parsed.data.status,
+      start_date: parsed.data.start_date,
     }
   );
 
@@ -440,16 +446,18 @@ export async function updateSemesterForManager(
       nb_courses: existing.data.nb_courses,
       amount: existing.data.amount,
       status: existing.data.status,
+      start_date: existing.data.start_date,
     },
     new_data: {
       name: data.name,
       nb_courses: data.nb_courses,
       amount: data.amount,
       status: data.status,
+      start_date: data.start_date,
     },
     metadata: {
       note: "Semester updated.",
-      changed_fields: ["name", "nb_courses", "amount", "status"],
+      changed_fields: ["name", "nb_courses", "amount", "status", "start_date"],
     },
   });
 

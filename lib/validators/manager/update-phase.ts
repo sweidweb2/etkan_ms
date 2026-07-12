@@ -3,6 +3,27 @@ import { SEMESTER_STATUS_VALUES } from "@/lib/constants/manager-semester-status"
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 
+const optionalStartDateSchema = z.preprocess(
+  (value) => {
+    if (value == null) {
+      return null;
+    }
+
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
+  },
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, {
+      message: "Start date must be a valid date.",
+    })
+    .nullable()
+);
+
 export const updatePhaseSchema = z.object({
   id: z.string().trim().uuid({ message: "Semester is required." }),
   name: z
@@ -22,6 +43,7 @@ export const updatePhaseSchema = z.object({
   status: z.enum(SEMESTER_STATUS_VALUES, {
     message: "Status is required.",
   }),
+  start_date: optionalStartDateSchema,
 });
 
 export type UpdatePhaseInput = z.infer<typeof updatePhaseSchema>;
@@ -35,6 +57,7 @@ export function parseUpdatePhaseFormData(formData: FormData):
     nb_courses: formData.get("nb_courses"),
     amount: formData.get("amount"),
     status: formData.get("status"),
+    start_date: formData.get("start_date"),
   });
 
   if (!parsed.success) {

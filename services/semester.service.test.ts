@@ -30,6 +30,7 @@ const semesterRecord = {
   nb_courses: 6,
   amount: 450,
   status: SEMESTER_STATUSES.SCHEDULED,
+  start_date: "2026-09-01",
   created_at: "2026-01-01T00:00:00.000Z",
 };
 
@@ -38,6 +39,7 @@ const validCreateInput = {
   nb_courses: 6,
   amount: 450,
   status: SEMESTER_STATUSES.SCHEDULED,
+  start_date: "2026-09-01",
 };
 
 describe("listSemestersForManager", () => {
@@ -69,6 +71,7 @@ describe("listSemestersForManager", () => {
         nb_courses: 6,
         amount: 450,
         status: SEMESTER_STATUSES.SCHEDULED,
+        start_date: "2026-09-01",
         created_at: "2026-01-01T00:00:00.000Z",
       },
     ]);
@@ -139,6 +142,7 @@ describe("getSemesterForManager", () => {
       nb_courses: 6,
       amount: 450,
       status: SEMESTER_STATUSES.SCHEDULED,
+      start_date: "2026-09-01",
       created_at: "2026-01-01T00:00:00.000Z",
     });
   });
@@ -234,6 +238,7 @@ describe("createSemesterForManager", () => {
         nb_courses: 6,
         amount: 450,
         status: SEMESTER_STATUSES.SCHEDULED,
+        start_date: "2026-09-01",
         created_at: "2026-01-01T00:00:00.000Z",
       },
       message: "Semester created.",
@@ -261,6 +266,7 @@ describe("updateSemesterForManager", () => {
         ...semesterRecord,
         amount: 500,
         status: SEMESTER_STATUSES.IN_PROGRESS,
+        start_date: "2026-09-15",
       },
       error: null,
     });
@@ -275,6 +281,7 @@ describe("updateSemesterForManager", () => {
         nb_courses: 6,
         amount: 500,
         status: SEMESTER_STATUSES.IN_PROGRESS,
+        start_date: "2026-09-15",
       }
     );
 
@@ -286,6 +293,7 @@ describe("updateSemesterForManager", () => {
         nb_courses: 6,
         amount: 500,
         status: SEMESTER_STATUSES.IN_PROGRESS,
+        start_date: "2026-09-15",
         created_at: "2026-01-01T00:00:00.000Z",
       },
       message: "Semester updated.",

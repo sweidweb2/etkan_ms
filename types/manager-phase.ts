@@ -9,6 +9,7 @@ export interface ManagerSemesterRow {
   nb_courses: number;
   amount: number;
   status: SemesterStatusValue;
+  start_date: string | null;
   created_at: string;
 }
 

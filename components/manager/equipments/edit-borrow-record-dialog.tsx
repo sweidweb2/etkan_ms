@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
@@ -129,14 +130,10 @@ export function EditBorrowRecordDialog({
     });
   }, [borrowRow, open, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onSaved();
-  }, [state.success, onOpenChange, onSaved]);
+  });
 
   function onSubmit(values: UpdateBorrowEquipmentInput) {
     if (!borrowRow || quantityExceedsStock) {

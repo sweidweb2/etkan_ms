@@ -185,6 +185,29 @@ describe("parseCreatePhaseFormData", () => {
         nb_courses: 6,
         amount: 450.5,
         status: "scheduled",
+        start_date: null,
+      },
+    });
+  });
+
+  it("parses optional start date", () => {
+    const formData = new FormData();
+    formData.set("name", "Fall 2026 Core Semester");
+    formData.set("nb_courses", "6");
+    formData.set("amount", "450.5");
+    formData.set("status", "scheduled");
+    formData.set("start_date", "2026-09-01");
+
+    const result = parseCreatePhaseFormData(formData);
+
+    expect(result).toEqual({
+      success: true,
+      data: {
+        name: "Fall 2026 Core Semester",
+        nb_courses: 6,
+        amount: 450.5,
+        status: "scheduled",
+        start_date: "2026-09-01",
       },
     });
   });

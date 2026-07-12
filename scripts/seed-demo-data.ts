@@ -40,7 +40,7 @@ type SeedStudent = {
 
 async function findOrCreateSemester(
   client: Supabase,
-  input: { name: string; amount: number; nbCourses: number }
+  input: { name: string; amount: number; nbCourses: number; startDate?: string }
 ) {
   const existing = await semesterRepository.findSemesterByName(client, input.name);
   if (existing.error) throw new Error(existing.error.message);
@@ -50,6 +50,7 @@ async function findOrCreateSemester(
     name: input.name,
     amount: input.amount,
     nb_courses: input.nbCourses,
+    start_date: input.startDate ?? null,
   });
 
   if (error || !data) {
@@ -425,12 +426,14 @@ async function seedDemoData(): Promise<void> {
         name: DEMO_MARKER,
         amount: 500,
         nbCourses: 1,
+        startDate: "2026-09-01",
       });
 
   const springSemesterId = await findOrCreateSemester(client, {
     name: "Demo Spring 2027",
     amount: 550,
     nbCourses: 1,
+    startDate: "2027-02-01",
   });
 
   const mathSubjectId = await findOrCreateSubject(client, {

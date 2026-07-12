@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
@@ -82,14 +83,10 @@ export function AddRelationshipDialog({
     }
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onRelationshipCreated();
-  }, [state.success, onOpenChange, onRelationshipCreated]);
+  });
 
   function onSubmit(values: CreateRelationshipInput) {
     const formData = new FormData();

@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { cn } from "@/lib/utils";
@@ -81,14 +82,10 @@ export function EditEquipmentDialog({
     });
   }, [equipment, open, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onEquipmentUpdated();
-  }, [state.success, onOpenChange, onEquipmentUpdated]);
+  });
 
   function onSubmit(values: UpdateEquipmentInput) {
     const formData = new FormData();

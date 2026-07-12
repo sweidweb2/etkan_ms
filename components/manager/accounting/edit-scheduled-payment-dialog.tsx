@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_SCHEDULED_PAYMENT_STATUS_LABELS } from "@/lib/constants/manager-scheduled-payment-display";
@@ -99,14 +100,10 @@ export function EditScheduledPaymentDialog({
     });
   }, [open, reset, scheduledPayment]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onScheduledPaymentSaved();
-  }, [state.success, onOpenChange, onScheduledPaymentSaved]);
+  });
 
   function onSubmit(values: Omit<UpdateScheduledPaymentInput, "id">) {
     if (!scheduledPayment) {

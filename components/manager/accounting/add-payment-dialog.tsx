@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
@@ -101,14 +102,10 @@ export function AddPaymentDialog({
     }
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
+  useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
     onPaymentSaved();
-  }, [state.success, onOpenChange, onPaymentSaved]);
+  });
 
   function onSubmit(values: AddPaymentInput) {
     if (values.amount > remainingDue) {
