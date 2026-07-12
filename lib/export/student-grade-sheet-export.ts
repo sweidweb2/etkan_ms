@@ -472,11 +472,11 @@ function appendPdfSummaryTable(
   });
 }
 
-export function downloadStudentGradeSheetPdf(
+export function buildStudentGradeSheetPdfDocument(
   model: StudentClassGradeSheetModel,
   totalLabel: string,
   orientation: StudentGradeSheetOrientation = "horizontal"
-): void {
+): GradeSheetPdfDocument {
   const doc = new jsPDF({
     orientation: getJsPdfOrientation(orientation),
     unit: "mm",
@@ -535,6 +535,24 @@ export function downloadStudentGradeSheetPdf(
   startY = getNextPdfStartY(doc, startY);
   appendPdfSummaryTable(doc, model, totalLabel, startY);
 
+  return doc;
+}
+
+export function buildStudentGradeSheetPdfBlob(
+  model: StudentClassGradeSheetModel,
+  totalLabel: string,
+  orientation: StudentGradeSheetOrientation = "horizontal"
+): Blob {
+  const doc = buildStudentGradeSheetPdfDocument(model, totalLabel, orientation);
+  return doc.output("blob");
+}
+
+export function downloadStudentGradeSheetPdf(
+  model: StudentClassGradeSheetModel,
+  totalLabel: string,
+  orientation: StudentGradeSheetOrientation = "horizontal"
+): void {
+  const doc = buildStudentGradeSheetPdfDocument(model, totalLabel, orientation);
   doc.save(getStudentGradeSheetFilename(model.studentName, "pdf"));
 }
 

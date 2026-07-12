@@ -12,7 +12,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
+import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import {
   sortClassSessionsNewestFirst,
   type ManagerClassSessionRow,
@@ -25,6 +32,7 @@ type ClassSessionsSectionProps = {
   sessions: ManagerClassSessionRow[];
   onSessionsChange: (sessions: ManagerClassSessionRow[]) => void;
   onClassUpdated: (classRow: ManagerClassRow) => void;
+  hasComputedGrades?: boolean;
 };
 
 export function ClassSessionsSection({
@@ -33,6 +41,7 @@ export function ClassSessionsSection({
   sessions,
   onSessionsChange,
   onClassUpdated,
+  hasComputedGrades = false,
 }: ClassSessionsSectionProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
 
@@ -83,10 +92,30 @@ export function ClassSessionsSection({
             {sortedSessions.length === 1 ? "" : "s"} for {className}.
           </p>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add session
-            </Button>
+            {hasComputedGrades ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <span className="inline-flex" tabIndex={0} />
+                    }
+                  >
+                    <Button type="button" disabled>
+                      <PlusIcon data-icon="inline-start" />
+                      Add session
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add session
+              </Button>
+            )}
           </CardAction>
         </CardHeader>
         <CardContent className="py-3">

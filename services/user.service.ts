@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -116,7 +117,35 @@ async function fetchUsersForManager(
     profiles.map((profile) => mapProfileToManagerUserRow(adminClient, profile))
   );
 
-  return users.filter((user): user is ManagerUserRow => user !== null);
+  const mappedUsers = users.filter((user): user is ManagerUserRow => user !== null);
+  const studentUserIds = mappedUsers
+    .filter((user) => user.role === ROLES.STUDENT)
+    .map((user) => user.id);
+
+  const studentProfilesResult =
+    await studentProfileRepository.listStudentProfilesByUserIds(
+      adminClient,
+      studentUserIds
+    );
+
+  if (studentProfilesResult.error) {
+    throw new Error(studentProfilesResult.error.message);
+  }
+
+  const studentProfileIdByUserId = new Map(
+    (studentProfilesResult.data ?? []).map((row) => [row.user_id, row.id])
+  );
+
+  return mappedUsers.map((user) => {
+    if (user.role !== ROLES.STUDENT) {
+      return user;
+    }
+
+    return {
+      ...user,
+      student_profile_id: studentProfileIdByUserId.get(user.id) ?? null,
+    };
+  });
 }
 
 const listUsersForManagerCached = unstable_cache(

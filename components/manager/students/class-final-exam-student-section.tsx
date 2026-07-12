@@ -1,0 +1,95 @@
+"use client";
+
+import { format } from "date-fns";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
+import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
+import type {
+  ManagerClassFinalExamRow,
+  ManagerStudentFinalExamGradeRow,
+} from "@/types/manager-class-final-exam";
+
+type ClassFinalExamStudentSectionProps = {
+  finalExam: ManagerClassFinalExamRow | null;
+  studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
+};
+
+function DetailField({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="text-sm text-foreground">{children ?? value ?? "—"}</dd>
+    </div>
+  );
+}
+
+function formatGrade(value: number | null | undefined) {
+  return value === null || value === undefined ? "—" : value.toFixed(1);
+}
+
+export function ClassFinalExamStudentSection({
+  finalExam,
+  studentFinalExamGrade,
+}: ClassFinalExamStudentSectionProps) {
+  return (
+    <ClassTabCollapsibleSection
+      title="Final exam"
+      description="Final exam details and this student's grade."
+    >
+      <div className="p-5">
+        {!finalExam ? (
+          <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+            No final exam created for this class yet.
+          </p>
+        ) : (
+          <div className="rounded-xl border bg-background">
+            <div className="border-b bg-muted/40 px-4 py-3">
+              <h4 className="text-sm font-semibold">{finalExam.title}</h4>
+              <p className="text-xs text-muted-foreground">
+                {finalExam.description ?? "No description available."}
+              </p>
+            </div>
+            <dl className="grid gap-4 px-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
+              <DetailField
+                label="Max grade"
+                value={finalExam.max_grade?.toString() ?? "—"}
+              />
+              <DetailField
+                label="Due date"
+                value={
+                  finalExam.due_date
+                    ? format(new Date(finalExam.due_date), "MMM d, yyyy 'at' h:mm a")
+                    : "—"
+                }
+              />
+              <DetailField
+                label="Student grade"
+                value={
+                  studentFinalExamGrade?.grade == null
+                    ? "Not graded yet"
+                    : formatGrade(studentFinalExamGrade.grade)
+                }
+              />
+              <DetailField label="Status">
+                {studentFinalExamGrade ? (
+                  <StudentTaskStatusBadge status={studentFinalExamGrade.status} />
+                ) : (
+                  "—"
+                )}
+              </DetailField>
+            </dl>
+          </div>
+        )}
+      </div>
+    </ClassTabCollapsibleSection>
+  );
+}

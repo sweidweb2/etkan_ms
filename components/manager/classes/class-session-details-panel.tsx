@@ -28,6 +28,7 @@ import {
   SESSION_TIMING_LABELS,
 } from "@/lib/constants/manager-class-session-display";
 import { SESSION_GROUP_GRADE_LEVEL_LABELS } from "@/lib/constants/manager-session-group-grade-display";
+import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import {
   getManagerClassDetailRoute,
   getManagerSemesterDetailRoute,
@@ -56,6 +57,8 @@ type ClassSessionDetailsPanelProps = {
   phaseOptions: ManagerSessionPhaseLink[];
   initialTasks: ManagerSessionTaskRow[];
   initialAttendees: ManagerSessionAttendeeRow[];
+  hasComputedGrades?: boolean;
+  lockedUserIds?: string[];
 };
 
 function DetailField({
@@ -88,6 +91,8 @@ export function ClassSessionDetailsPanel({
   phaseOptions,
   initialTasks,
   initialAttendees,
+  hasComputedGrades = false,
+  lockedUserIds = [],
 }: ClassSessionDetailsPanelProps) {
   const [session, setSession] = useState(initialSession);
   const [linkedPhase, setLinkedPhase] =
@@ -140,7 +145,16 @@ export function ClassSessionDetailsPanel({
             S{session.nb_order} · {session.topic}
           </CardTitle>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsEditOpen(true)}>
+            <Button
+              type="button"
+              disabled={hasComputedGrades}
+              title={
+                hasComputedGrades
+                  ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+                  : undefined
+              }
+              onClick={() => setIsEditOpen(true)}
+            >
               <PencilIcon data-icon="inline-start" />
               Edit session
             </Button>
@@ -214,6 +228,7 @@ export function ClassSessionDetailsPanel({
         phaseOptions={phaseOptions}
         defaultPhaseId={classRow.semester_id}
         groupGradeLevel={groupGradeLevel}
+        hasComputedGrades={hasComputedGrades}
         onSettingsUpdated={(nextSession, nextLinkedPhase) => {
           setSession(nextSession);
           if (nextLinkedPhase !== undefined) {
@@ -229,6 +244,8 @@ export function ClassSessionDetailsPanel({
         sessionStartsAt={session.starts_at}
         initialTasks={initialTasks}
         initialAttendees={initialAttendees}
+        hasComputedGrades={hasComputedGrades}
+        lockedUserIds={lockedUserIds}
       />
     </div>
   );

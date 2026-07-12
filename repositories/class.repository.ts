@@ -99,6 +99,28 @@ export async function listClassesWithSubjectBySemesterId(
     .order("created_at", { ascending: false });
 }
 
+export async function listClassesWithSubjectByIds(
+  client: Supabase,
+  classIds: string[]
+) {
+  if (classIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("classes")
+    .select(CLASS_WITH_SUBJECT_SELECT)
+    .in("id", classIds);
+}
+
+export async function listLinkedClassesWithSubject(client: Supabase) {
+  return client
+    .from("classes")
+    .select(CLASS_WITH_SUBJECT_SELECT)
+    .not("semester_id", "is", null)
+    .order("created_at", { ascending: false });
+}
+
 export async function listUnlinkedClassesWithSubject(client: Supabase) {
   return client
     .from("classes")

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { EyeIcon, MessageSquareTextIcon } from "lucide-react";
+import { EyeIcon, DownloadIcon, MessageSquareTextIcon } from "lucide-react";
+import { ClassFastCertificatePanel } from "@/components/manager/classes/class-fast-certificate-panel";
 import { CustomizeComputeAllDialog } from "@/components/manager/classes/customize-compute-all-dialog";
 import {
   ComputeFactorWeightsFields,
@@ -11,7 +12,9 @@ import {
 } from "@/components/manager/classes/compute-factor-weights-fields";
 import { StudentGradeMissingDataDialog } from "@/components/manager/classes/student-grade-missing-data-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button, buttonVariants } from "@/components/ui/button";
+
 import {
   Dialog,
   DialogContent,
@@ -29,7 +32,9 @@ import {
 } from "@/lib/compute/custom-compute-form-utils";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
 import { getManagerClassStudentGradesDetailRoute } from "@/lib/constants/routes";
+import { downloadComputedGradeCertificatesZip } from "@/lib/export/student-grade-certificates-zip-export";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
+import type { ManagerClassRow } from "@/types/manager-class-list";
 import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
@@ -40,11 +45,12 @@ import {
   computeAllStudentGradesAction,
   computeStudentGradeAction,
   deleteComputedGradeAction,
+  fetchComputedGradeSheetBundlesAction,
 } from "@/app/manager/classes/grades/actions";
 
 type ClassStudentGradesSectionProps = {
   classId: string;
-  className: string;
+  classRow: ManagerClassRow;
   rows: ManagerClassStudentGradeRow[];
   classTasks: ManagerClassTaskForGradesRow[];
   finalExam: ManagerClassFinalExamRow | null;
@@ -140,7 +146,7 @@ function buildRowComputeBatch(
 
 export function ClassStudentGradesSection({
   classId,
-  className,
+  classRow,
   rows,
   classTasks,
   finalExam,
@@ -228,6 +234,11 @@ export function ClassStudentGradesSection({
   );
   const [computeWeightError, setComputeWeightError] = useState<string | null>(null);
   const [isStudentComputePending, setIsStudentComputePending] = useState(false);
+  const [isComputeAllPending, setIsComputeAllPending] = useState(false);
+  const [isCustomizeComputeAllPending, setIsCustomizeComputeAllPending] =
+    useState(false);
+  const [isDeleteGradePending, setIsDeleteGradePending] = useState(false);
+  const [isExportingCertificates, setIsExportingCertificates] = useState(false);
 
   useEffect(() => {
     if (!isComputeOpen || !selectedRow) {
@@ -313,17 +324,23 @@ export function ClassStudentGradesSection({
   }
 
   async function handleConfirmComputeAll() {
-    const pendingUserIds = pendingRows.map((row) => row.user_id);
-    const result = await computeAllStudentGradesAction(classId, pendingUserIds);
+    setIsComputeAllPending(true);
 
-    if (!result.success) {
-      showErrorToast(result.error ?? "Unable to compute grades.");
-      return;
+    try {
+      const pendingUserIds = pendingRows.map((row) => row.user_id);
+      const result = await computeAllStudentGradesAction(classId, pendingUserIds);
+
+      if (!result.success) {
+        showErrorToast(result.error ?? "Unable to compute grades.");
+        return;
+      }
+
+      showSuccessToast(result.message ?? "Students computed.");
+      setIsComputeAllOpen(false);
+      router.refresh();
+    } finally {
+      setIsComputeAllPending(false);
     }
-
-    showSuccessToast(result.message ?? "Students computed.");
-    setIsComputeAllOpen(false);
-    router.refresh();
   }
 
   async function handleCustomizeComputeAllConfirm({
@@ -333,21 +350,27 @@ export function ClassStudentGradesSection({
     factorWeights: FactorWeightsValues;
     taskWeights: Record<string, string>;
   }) {
-    const pendingUserIds = pendingRows.map((row) => row.user_id);
-    const result = await computeAllStudentGradesAction(classId, pendingUserIds, {
-      factorWeights,
-      taskWeights,
-      computeLabel: "customized weights",
-    });
+    setIsCustomizeComputeAllPending(true);
 
-    if (!result.success) {
-      showErrorToast(result.error ?? "Unable to compute grades.");
-      return;
+    try {
+      const pendingUserIds = pendingRows.map((row) => row.user_id);
+      const result = await computeAllStudentGradesAction(classId, pendingUserIds, {
+        factorWeights,
+        taskWeights,
+        computeLabel: "customized weights",
+      });
+
+      if (!result.success) {
+        showErrorToast(result.error ?? "Unable to compute grades.");
+        return;
+      }
+
+      showSuccessToast(result.message ?? "Students computed.");
+      setIsCustomizeComputeAllOpen(false);
+      router.refresh();
+    } finally {
+      setIsCustomizeComputeAllPending(false);
     }
-
-    showSuccessToast(result.message ?? "Students computed.");
-    setIsCustomizeComputeAllOpen(false);
-    router.refresh();
   }
 
   async function handleDeleteComputedGrade() {
@@ -355,24 +378,61 @@ export function ClassStudentGradesSection({
       return;
     }
 
-    const result = await deleteComputedGradeAction(classId, rowToDelete.user_id);
+    setIsDeleteGradePending(true);
 
-    if (!result.success) {
-      showErrorToast(result.error ?? "Unable to delete computed grade.");
-      return;
+    try {
+      const result = await deleteComputedGradeAction(classId, rowToDelete.user_id);
+
+      if (!result.success) {
+        showErrorToast(result.error ?? "Unable to delete computed grade.");
+        return;
+      }
+
+      showSuccessToast(
+        result.message ?? `Deleted computed grade for ${rowToDelete.full_name}.`
+      );
+      setIsDeleteGradeOpen(false);
+      setRowToDelete(null);
+      router.refresh();
+    } finally {
+      setIsDeleteGradePending(false);
     }
+  }
 
-    showSuccessToast(
-      result.message ?? `Deleted computed grade for ${rowToDelete.full_name}.`
-    );
-    setIsDeleteGradeOpen(false);
-    setRowToDelete(null);
-    router.refresh();
+  async function handleExportAllCertificates() {
+    setIsExportingCertificates(true);
+
+    try {
+      const result = await fetchComputedGradeSheetBundlesAction(classId);
+
+      if (!result.success || !result.classRow || !result.bundles) {
+        showErrorToast(result.error ?? "Unable to export grade certificates.");
+        return;
+      }
+
+      const count = await downloadComputedGradeCertificatesZip({
+        classRow: result.classRow,
+        bundles: result.bundles,
+      });
+
+      showSuccessToast(`Exported ${count} grade certificate${count === 1 ? "" : "s"}.`);
+    } catch {
+      showErrorToast("Unable to export grade certificates.");
+    } finally {
+      setIsExportingCertificates(false);
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <Dialog open={isComputeOpen} onOpenChange={setIsComputeOpen}>
+      <Dialog
+        open={isComputeOpen}
+        onOpenChange={(open) => {
+          if (!isStudentComputePending) {
+            setIsComputeOpen(open);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -429,13 +489,21 @@ export function ClassStudentGradesSection({
               disabled={isStudentComputePending || !isComputeWeightTotalValid}
               onClick={handleConfirmStudentCompute}
             >
+              {isStudentComputePending ? <InlineSpinner className="mr-2" /> : null}
               Confirm
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isComputeAllOpen} onOpenChange={setIsComputeAllOpen}>
+      <Dialog
+        open={isComputeAllOpen}
+        onOpenChange={(open) => {
+          if (!isComputeAllPending) {
+            setIsComputeAllOpen(open);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Compute all students</DialogTitle>
@@ -480,8 +548,10 @@ export function ClassStudentGradesSection({
             <Button
               type="button"
               className="bg-orange-500 text-white hover:bg-orange-500/90"
+              disabled={isComputeAllPending}
               onClick={handleConfirmComputeAll}
             >
+              {isComputeAllPending ? <InlineSpinner className="mr-2" /> : null}
               Confirm
             </Button>
           </DialogFooter>
@@ -491,9 +561,10 @@ export function ClassStudentGradesSection({
       <CustomizeComputeAllDialog
         open={isCustomizeComputeAllOpen}
         onOpenChange={setIsCustomizeComputeAllOpen}
-        className={className}
+        className={classRow.name}
         classTasks={classTasks}
         pendingCount={pendingRows.length}
+        isConfirmPending={isCustomizeComputeAllPending}
         onConfirm={handleCustomizeComputeAllConfirm}
       />
 
@@ -518,6 +589,10 @@ export function ClassStudentGradesSection({
       <Dialog
         open={isDeleteGradeOpen}
         onOpenChange={(open) => {
+          if (isDeleteGradePending) {
+            return;
+          }
+
           setIsDeleteGradeOpen(open);
           if (!open) {
             setRowToDelete(null);
@@ -538,8 +613,10 @@ export function ClassStudentGradesSection({
             <Button
               type="button"
               variant="destructive"
+              disabled={isDeleteGradePending}
               onClick={handleDeleteComputedGrade}
             >
+              {isDeleteGradePending ? <InlineSpinner className="mr-2" /> : null}
               Delete grade
             </Button>
           </DialogFooter>
@@ -550,7 +627,7 @@ export function ClassStudentGradesSection({
         <div>
           <h2 className="text-lg font-semibold">Students grades</h2>
           <p className="text-sm text-muted-foreground">
-            Current enrolled students in {className} with grade summaries from tasks and final exam data.
+            Current enrolled students in {classRow.name} with grade summaries from tasks and final exam data.
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
@@ -678,6 +755,24 @@ export function ClassStudentGradesSection({
               </div>
             ) : (
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isExportingCertificates}
+                    onClick={() => {
+                      void handleExportAllCertificates();
+                    }}
+                  >
+                    {isExportingCertificates ? (
+                      <InlineSpinner />
+                    ) : (
+                      <DownloadIcon data-icon="inline-start" />
+                    )}
+                    Export all certificates
+                  </Button>
+                </div>
               {groupedComputedRows.map(({ batch, rows: batchRows }) => (
                 <div
                   key={batch.id}
@@ -906,6 +1001,12 @@ export function ClassStudentGradesSection({
             </table>
           </div>
         </ClassTabCollapsibleSection>
+
+      <ClassFastCertificatePanel
+        classId={classId}
+        classRow={classRow}
+        studentRows={gradeRows}
+      />
     </div>
   );
 }

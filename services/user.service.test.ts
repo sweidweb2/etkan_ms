@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { ROLES } from "@/lib/constants/roles";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import * as roleService from "@/services/role.service";
@@ -10,6 +11,7 @@ import { createStaffUser, listUsersForManager } from "@/services/user.service";
 
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
+vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -73,6 +75,14 @@ describe("listUsersForManager", () => {
     vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
       data: { user: authUser },
       error: null,
+    });
+
+    vi.mocked(studentProfileRepository.listStudentProfilesByUserIds).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
     });
 
     const users = await listUsersForManager(adminClient, ROLES.MANAGER);

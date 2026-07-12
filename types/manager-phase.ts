@@ -10,6 +10,11 @@ export interface ManagerSemesterRow {
   created_at: string;
 }
 
+export interface ManagerSemesterProgressRow {
+  semester: ManagerSemesterRow;
+  classes: ManagerSemesterClassRow[];
+}
+
 export type CreateSemesterActionState = {
   success?: boolean;
   error?: string;

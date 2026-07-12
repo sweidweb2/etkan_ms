@@ -11,6 +11,7 @@ import {
   listClassStudentsForManager,
   listClassTeacherOptionsForManager,
 } from "@/services/class.service";
+import { getClassComputedGradeLockStateForManager } from "@/services/class-computed-grade-lock.service";
 import { listSemestersForManager } from "@/services/semester.service";
 import { listSubjectsForManager } from "@/services/subject.service";
 
@@ -39,6 +40,7 @@ export default async function ManagerClassDetailPage({
     teachers,
     subjects,
     semesters,
+    computedGradeLock,
   ] = await Promise.all([
     listClassSessionsForManager(adminClient, role, id),
     listClassStudentsForManager(adminClient, role, id),
@@ -48,6 +50,7 @@ export default async function ManagerClassDetailPage({
     listClassTeacherOptionsForManager(adminClient, role, id),
     listSubjectsForManager(adminClient, role),
     listSemestersForManager(adminClient, role),
+    getClassComputedGradeLockStateForManager(adminClient, role, id),
   ]);
 
   return (
@@ -69,6 +72,8 @@ export default async function ManagerClassDetailPage({
         id: semester.id,
         name: semester.name,
       }))}
+      hasComputedGrades={computedGradeLock.hasComputedGrades}
+      lockedUserIds={computedGradeLock.lockedUserIds}
     />
   );
 }

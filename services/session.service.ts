@@ -30,6 +30,10 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
+import {
+  assertClassStructureUnlockedForComputedGrades,
+  assertStudentGradeInputsUnlockedForComputedGrade,
+} from "@/services/class-computed-grade-lock.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
@@ -591,6 +595,15 @@ export async function updateSessionSettingsForManager(
     };
   }
 
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    input.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
+  }
+
   if (patch.semester_id) {
     const semesterResult = await semesterRepository.findSemesterById(
       adminClient,
@@ -716,6 +729,15 @@ export async function updateClassSessionForManager(
     return { success: false, error: "Session not found." };
   }
 
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    input.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
+  }
+
   const startsAt = toIsoOrNull(parsed.data.starts_at);
   const endsAt = toIsoOrNull(parsed.data.ends_at);
 
@@ -825,6 +847,15 @@ export async function createSessionTaskForManager(
 
   if (!sessionResult.data || sessionResult.data.class_id !== input.class_id) {
     return { success: false, error: "Session not found." };
+  }
+
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    input.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
   }
 
   const maxGrade =
@@ -966,6 +997,16 @@ export async function updateAttendeeForManager(
     return { success: false, error: "Session not found." };
   }
 
+  const studentGuard = await assertStudentGradeInputsUnlockedForComputedGrade(
+    adminClient,
+    input.class_id,
+    existing.data.student_id
+  );
+
+  if (!studentGuard.ok) {
+    return { success: false, error: studentGuard.error };
+  }
+
   const { data, error } = await attendeeRepository.updateAttendee(
     adminClient,
     input.id,
@@ -1075,6 +1116,36 @@ export async function updateStudentTaskForManager(
     return { success: false, error: "Task not found." };
   }
 
+  let classId: string | null = null;
+  const sessionId = taskResult.data.session_id;
+
+  if (sessionId) {
+    const sessionResult = await sessionRepository.findSessionById(
+      adminClient,
+      sessionId
+    );
+
+    if (sessionResult.error) {
+      return { success: false, error: sessionResult.error.message };
+    }
+
+    if (sessionResult.data) {
+      classId = sessionResult.data.class_id;
+    }
+  }
+
+  if (classId) {
+    const studentGuard = await assertStudentGradeInputsUnlockedForComputedGrade(
+      adminClient,
+      classId,
+      existing.data.student_id
+    );
+
+    if (!studentGuard.ok) {
+      return { success: false, error: studentGuard.error };
+    }
+  }
+
   const parsed = createEditStudentTaskSchema(
     taskResult.data.max_grade,
     taskResult.data.due_date
@@ -1133,20 +1204,6 @@ export async function updateStudentTaskForManager(
     data as StudentTaskRecord,
     displayByUserId
   );
-
-  let classId: string | null = null;
-  const sessionId = taskResult.data.session_id;
-
-  if (sessionId) {
-    const sessionResult = await sessionRepository.findSessionById(
-      adminClient,
-      sessionId
-    );
-
-    if (!sessionResult.error && sessionResult.data) {
-      classId = sessionResult.data.class_id;
-    }
-  }
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",

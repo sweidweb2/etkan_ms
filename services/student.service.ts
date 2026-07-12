@@ -8,6 +8,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStudentSchema } from "@/lib/validators/manager/create-student";
 import { updateStudentSchema } from "@/lib/validators/manager/update-student";
 import * as authRepository from "@/repositories/auth.repository";
+import * as classRepository from "@/repositories/class.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -23,6 +24,7 @@ import type {
   ManagerStudentDetailStats,
   ManagerStudentRow,
 } from "@/types/manager-student";
+import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -288,6 +290,72 @@ export async function getStudentDetailStatsForManager(
     tasksDone: tasksDoneResult.count ?? 0,
     tasksTotal: tasksTotalResult.count ?? 0,
   };
+}
+
+function mapStudentClassStatus(status: string | null): ManagerStudentClassRow["status"] {
+  if (
+    status === STUDENT_CLASS_STATUSES.ENROLLED ||
+    status === STUDENT_CLASS_STATUSES.PAUSED ||
+    status === STUDENT_CLASS_STATUSES.STOPPED
+  ) {
+    return status;
+  }
+
+  return STUDENT_CLASS_STATUSES.ENROLLED;
+}
+
+export async function listJoinedClassesForStudentManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  userId: string
+): Promise<ManagerStudentClassRow[]> {
+  assertManagerRole(actorRole);
+
+  const enrollmentsResult = await studentClassRepository.listStudentClassesByUserId(
+    adminClient,
+    userId
+  );
+
+  if (enrollmentsResult.error) {
+    throw new Error(enrollmentsResult.error.message);
+  }
+
+  const enrollments = enrollmentsResult.data ?? [];
+  if (enrollments.length === 0) {
+    return [];
+  }
+
+  const classIds = enrollments.map((row) => row.class_id);
+  const classesResult = await classRepository.listClassesWithSubjectByIds(
+    adminClient,
+    classIds
+  );
+
+  if (classesResult.error) {
+    throw new Error(classesResult.error.message);
+  }
+
+  const classById = new Map(
+    (classesResult.data ?? []).map((row) => [row.id, row])
+  );
+
+  return enrollments.flatMap((enrollment) => {
+    const classRow = classById.get(enrollment.class_id);
+    if (!classRow) {
+      return [];
+    }
+
+    return [
+      {
+        id: enrollment.id,
+        class_id: enrollment.class_id,
+        name: classRow.name,
+        subject_name: classRow.subjects?.name ?? "—",
+        status: mapStudentClassStatus(enrollment.status),
+        joined_at: enrollment.joined_at ?? "",
+      },
+    ];
+  });
 }
 
 export async function createStudent(

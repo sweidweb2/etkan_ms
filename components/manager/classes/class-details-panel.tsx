@@ -45,7 +45,10 @@ import {
   ROUTES,
 } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
+import {
+  CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+  isClassGradesUnlocked,
+} from "@/lib/manager/class-grades-access";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 import type {
   ManagerClassFinalExamRow,
@@ -75,6 +78,8 @@ type ClassDetailsPanelProps = {
   initialTeachers: ManagerClassTeacherOption[];
   subjectOptions: ManagerClassSubjectOption[];
   semesterOptions: ManagerClassSemesterOption[];
+  hasComputedGrades?: boolean;
+  lockedUserIds?: string[];
 };
 
 function DetailField({
@@ -111,6 +116,8 @@ export function ClassDetailsPanel({
   initialTeachers,
   subjectOptions,
   semesterOptions,
+  hasComputedGrades = false,
+  lockedUserIds = [],
 }: ClassDetailsPanelProps) {
   const [classRow, setClassRow] = useState(initialClassRow);
   const [sessions, setSessions] = useState(() =>
@@ -283,12 +290,21 @@ export function ClassDetailsPanel({
         </CardContent>
       </Card>
 
+      {hasComputedGrades ? (
+        <div className="rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-100">
+          {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR} Creating or editing
+          sessions, tasks, and final exams is disabled until computed grades are
+          deleted.
+        </div>
+      ) : null}
+
       <ClassSessionsSection
         classId={classRow.id}
         className={classRow.name}
         sessions={sessions}
         onSessionsChange={setSessions}
         onClassUpdated={setClassRow}
+        hasComputedGrades={hasComputedGrades}
       />
 
       <ClassStudentsSection
@@ -317,6 +333,8 @@ export function ClassDetailsPanel({
         studentGrades={studentGrades}
         onFinalExamChange={setFinalExam}
         onStudentGradesChange={setStudentGrades}
+        hasComputedGrades={hasComputedGrades}
+        lockedUserIds={lockedUserIds}
       />
 
       <ClassSessionProgressTrack classRow={classRow} sessions={sessions} />

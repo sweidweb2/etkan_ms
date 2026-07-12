@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,10 +33,11 @@ type CustomizeComputeAllDialogProps = {
   className: string;
   classTasks: ManagerClassTaskForGradesRow[];
   pendingCount: number;
+  isConfirmPending?: boolean;
   onConfirm: (values: {
     factorWeights: ReturnType<typeof toFactorWeightValues>;
     taskWeights: Record<string, string>;
-  }) => void;
+  }) => void | Promise<void>;
 };
 
 export function CustomizeComputeAllDialog({
@@ -44,6 +46,7 @@ export function CustomizeComputeAllDialog({
   className,
   classTasks,
   pendingCount,
+  isConfirmPending = false,
   onConfirm,
 }: CustomizeComputeAllDialogProps) {
   const defaultFactors = useMemo(
@@ -99,6 +102,10 @@ export function CustomizeComputeAllDialog({
   );
 
   function handleClose(nextOpen: boolean) {
+    if (isConfirmPending) {
+      return;
+    }
+
     if (!nextOpen) {
       setIsConfirmStep(false);
       setPendingFactorValues(null);
@@ -133,23 +140,22 @@ export function CustomizeComputeAllDialog({
     setIsConfirmStep(true);
   }
 
-  function handleConfirm() {
-    if (!pendingFactorValues) {
+  async function handleConfirm() {
+    if (!pendingFactorValues || isConfirmPending) {
       return;
     }
 
-    onConfirm({
+    await onConfirm({
       factorWeights: toFactorWeightValues(pendingFactorValues),
       taskWeights,
     });
-    handleClose(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex max-h-[min(90vh,48rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        <div className="flex flex-col gap-4 overflow-y-auto p-4">
-          <DialogHeader>
+      <DialogContent className="flex max-h-[min(90vh,48rem)] flex-col gap-0 overflow-hidden sm:max-w-2xl">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+          <DialogHeader className="pr-8">
             <DialogTitle>
               {isConfirmStep ? "Confirm customize compute all" : "Customize compute all"}
             </DialogTitle>
@@ -161,7 +167,7 @@ export function CustomizeComputeAllDialog({
           </DialogHeader>
 
           {isConfirmStep && pendingFactorValues ? (
-            <div className="grid gap-4">
+            <div className="mx-1 mt-1 grid gap-4">
               <div className="rounded-xl border bg-muted/20 p-4">
                 <h4 className="text-sm font-medium">Factor weights</h4>
                 <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
@@ -203,13 +209,13 @@ export function CustomizeComputeAllDialog({
             <form
               id="customize-compute-all-form"
               onSubmit={handleSubmit(handleReview)}
-              className="flex flex-col gap-6"
+              className="mx-1 mt-1 flex flex-col gap-6"
               noValidate
             >
               <input type="hidden" {...register("group_weight")} value="0" />
               <input type="hidden" {...register("attendee_weight")} value="0" />
 
-              <div className="space-y-4">
+              <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
                 <div>
                   <h4 className="text-sm font-semibold">Grade factor weights</h4>
                   <p className="text-xs text-muted-foreground">
@@ -217,7 +223,7 @@ export function CustomizeComputeAllDialog({
                   </p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
                     <FieldLabel
                       htmlFor="customize-tasks-weight"
@@ -267,7 +273,7 @@ export function CustomizeComputeAllDialog({
                 </p>
               </div>
 
-              <div className="space-y-4 border-t pt-4">
+              <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
                 <div>
                   <h4 className="text-sm font-semibold">Per-task weights</h4>
                   <p className="text-xs text-muted-foreground">
@@ -284,13 +290,13 @@ export function CustomizeComputeAllDialog({
                     {classTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="flex flex-col gap-2 rounded-xl border bg-muted/15 p-3"
+                        className="flex flex-col gap-2 rounded-xl border bg-background/60 p-3"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-medium leading-snug">
+                          <p className="truncate text-sm font-medium leading-snug">
                             {task.title}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="truncate text-xs text-muted-foreground">
                             {task.session_label} · max {task.max_grade ?? "—"}
                           </p>
                         </div>
@@ -337,12 +343,13 @@ export function CustomizeComputeAllDialog({
           )}
         </div>
 
-        <DialogFooter className="border-t bg-muted/30 p-4 sm:justify-end">
+        <DialogFooter className="mt-4 shrink-0 sm:justify-end">
           {isConfirmStep ? (
             <>
               <Button
                 type="button"
                 variant="outline"
+                disabled={isConfirmPending}
                 onClick={() => setIsConfirmStep(false)}
               >
                 Back
@@ -350,8 +357,10 @@ export function CustomizeComputeAllDialog({
               <Button
                 type="button"
                 className="bg-orange-500 text-white hover:bg-orange-500/90"
+                disabled={isConfirmPending}
                 onClick={handleConfirm}
               >
+                {isConfirmPending ? <InlineSpinner className="mr-2" /> : null}
                 Confirm
               </Button>
             </>

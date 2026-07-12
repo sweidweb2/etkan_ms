@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { CalculatorIcon } from "lucide-react";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +67,7 @@ export function StudentComputeAloneSection({
     defaultTaskWeights
   );
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isConfirmPending, setIsConfirmPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
@@ -117,25 +119,31 @@ export function StudentComputeAloneSection({
   }
 
   async function handleConfirmCompute() {
-    const guard = await computeStudentGradeAloneAction(classId, userId, {
-      factorWeights: toFactorWeightValues({
-        ...factorValues,
-        group_weight: "0",
-        attendee_weight: "0",
-      }),
-      taskWeights,
-    });
+    setIsConfirmPending(true);
 
-    if (!guard.success) {
-      showErrorToast(guard.error ?? "Unable to compute grade.");
-      return;
+    try {
+      const guard = await computeStudentGradeAloneAction(classId, userId, {
+        factorWeights: toFactorWeightValues({
+          ...factorValues,
+          group_weight: "0",
+          attendee_weight: "0",
+        }),
+        taskWeights,
+      });
+
+      if (!guard.success) {
+        showErrorToast(guard.error ?? "Unable to compute grade.");
+        return;
+      }
+
+      showSuccessToast(
+        guard.message ?? `Computed grade for ${studentName}.`
+      );
+      setIsConfirmOpen(false);
+      router.refresh();
+    } finally {
+      setIsConfirmPending(false);
     }
-
-    showSuccessToast(
-      guard.message ?? `Computed grade for ${studentName}.`
-    );
-    setIsConfirmOpen(false);
-    router.refresh();
   }
 
   return (
@@ -143,7 +151,14 @@ export function StudentComputeAloneSection({
       title="Compute alone"
       description="Temporary custom weights for a one-off grade calculation saved to student_course_grade."
     >
-      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+      <Dialog
+        open={isConfirmOpen}
+        onOpenChange={(open) => {
+          if (!isConfirmPending) {
+            setIsConfirmOpen(open);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Confirm compute alone</DialogTitle>
@@ -191,7 +206,12 @@ export function StudentComputeAloneSection({
           </div>
 
           <DialogFooter showCloseButton>
-            <Button type="button" onClick={handleConfirmCompute}>
+            <Button
+              type="button"
+              disabled={isConfirmPending}
+              onClick={handleConfirmCompute}
+            >
+              {isConfirmPending ? <InlineSpinner className="mr-2" /> : null}
               Confirm
             </Button>
           </DialogFooter>

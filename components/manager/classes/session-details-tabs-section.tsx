@@ -39,6 +39,10 @@ import {
   SESSION_ATTENDEE_TABLE_LIMITS,
   SESSION_TASK_TABLE_LIMITS,
 } from "@/lib/constants/manager-class-session-detail-display";
+import {
+  CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+  STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
+} from "@/lib/manager/class-grades-access";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { cn } from "@/lib/utils";
@@ -66,6 +70,8 @@ type SessionDetailsTabsSectionProps = {
   sessionStartsAt: string;
   initialTasks: ManagerSessionTaskRow[];
   initialAttendees: ManagerSessionAttendeeRow[];
+  hasComputedGrades?: boolean;
+  lockedUserIds?: string[];
 };
 
 function TruncatedCell({
@@ -205,11 +211,13 @@ function SessionAttendeesTable({
   classId,
   sessionId,
   attendees,
+  lockedUserIds,
   onAttendeeUpdated,
 }: {
   classId: string;
   sessionId: string;
   attendees: ManagerSessionAttendeeRow[];
+  lockedUserIds: string[];
   onAttendeeUpdated: (attendee: ManagerSessionAttendeeRow) => void;
 }) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -218,6 +226,10 @@ function SessionAttendeesTable({
     initialAttendeeState
   );
   const isPending = isActionPending || isTransitionPending;
+  const lockedUserIdSet = useMemo(
+    () => new Set(lockedUserIds),
+    [lockedUserIds]
+  );
 
   useActionStateToast(state, isPending);
 
@@ -312,7 +324,9 @@ function SessionAttendeesTable({
                   <Select
                     value={attendee.status}
                     items={ATTENDEE_STATUS_SELECT_ITEMS}
-                    disabled={isPending}
+                    disabled={
+                      isPending || lockedUserIdSet.has(attendee.student_id)
+                    }
                     onValueChange={(value) => {
                       if (!value) {
                         return;
@@ -327,6 +341,11 @@ function SessionAttendeesTable({
                     <SelectTrigger
                       className="w-[8.5rem]"
                       aria-label={`Attendance status for ${attendee.full_name}`}
+                      title={
+                        lockedUserIdSet.has(attendee.student_id)
+                          ? STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR
+                          : undefined
+                      }
                     >
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -358,6 +377,8 @@ export function SessionDetailsTabsSection({
   sessionStartsAt,
   initialTasks,
   initialAttendees,
+  hasComputedGrades = false,
+  lockedUserIds = [],
 }: SessionDetailsTabsSectionProps) {
   const [activeTab, setActiveTab] = useState<SessionDetailsTabValue>("tasks");
   const [tasks, setTasks] = useState(initialTasks);
@@ -428,10 +449,26 @@ export function SessionDetailsTabsSection({
               </TabsListPrimitive>
               <div className="flex justify-end">
                 {activeTab === "tasks" ? (
-                  <Button type="button" onClick={() => setIsAddOpen(true)}>
-                    <PlusIcon data-icon="inline-start" />
-                    Create task
-                  </Button>
+                  hasComputedGrades ? (
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={<span className="inline-flex" tabIndex={0} />}
+                      >
+                        <Button type="button" disabled>
+                          <PlusIcon data-icon="inline-start" />
+                          Create task
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Button type="button" onClick={() => setIsAddOpen(true)}>
+                      <PlusIcon data-icon="inline-start" />
+                      Create task
+                    </Button>
+                  )
                 ) : null}
               </div>
             </div>
@@ -449,6 +486,7 @@ export function SessionDetailsTabsSection({
                   classId={classId}
                   sessionId={sessionId}
                   attendees={attendees}
+                  lockedUserIds={lockedUserIds}
                   onAttendeeUpdated={(attendee) => {
                     setAttendees((current) =>
                       current.map((row) =>

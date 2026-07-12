@@ -4,23 +4,15 @@ import { format } from "date-fns";
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
-import {
-  MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS,
-  MANAGER_STUDENT_TASK_SLOTS_MAX_VISIBLE,
-} from "@/lib/constants/manager-student-class-slots";
-import { MANAGER_STUDENT_TASK_SLOT_CLASSES } from "@/lib/constants/manager-student-task-display";
-import { getManagerStudentClassDetailPreview } from "@/lib/manager/get-manager-student-class-detail-preview";
+import { MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS } from "@/lib/constants/manager-student-class-slots";
 import { cn } from "@/lib/utils";
+import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
 
 type ClassTasksSectionProps = {
-  userId: string;
-  classId: string;
+  detail: ManagerStudentClassTabDetail;
 };
 
-export function ClassTasksSection({ userId, classId }: ClassTasksSectionProps) {
-  const detail = getManagerStudentClassDetailPreview(userId, classId);
-  const taskOverflow = detail.tasks.length > MANAGER_STUDENT_TASK_SLOTS_MAX_VISIBLE;
-
+export function ClassTasksSection({ detail }: ClassTasksSectionProps) {
   const gradeChartData = detail.taskGradeTrend.map((point) => ({
     task_label: point.task_label,
     grade: point.grade,
@@ -30,94 +22,95 @@ export function ClassTasksSection({ userId, classId }: ClassTasksSectionProps) {
   return (
     <ClassTabCollapsibleSection
       title="Tasks"
-      description="Task slots from tasks + student_tasks with grade trend per assignment."
+      description="Task grades for this class with a grade trend chart."
     >
       <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Task slots
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Task grades
+          </p>
+          {detail.tasks.length === 0 ? (
+            <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              No tasks found for this class yet.
             </p>
-            {taskOverflow ? (
-              <p className="text-[11px] text-muted-foreground">
-                {detail.tasks.length} total · scroll
-              </p>
-            ) : null}
-          </div>
-          <div
-            className={cn(
-              "grid min-h-0 flex-1 content-start gap-2.5 overflow-y-auto overscroll-y-contain",
-              MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS
-            )}
-          >
-            {detail.tasks.map((task) => (
-              <div
-                key={task.student_task_id}
-                className={cn(
-                  "rounded-lg border px-3 py-2.5",
-                  MANAGER_STUDENT_TASK_SLOT_CLASSES[task.status]
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium leading-snug">{task.title}</p>
-                  <StudentTaskStatusBadge status={task.status} />
-                </div>
-                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                  <div>
-                    <dt className="inline">Due: </dt>
-                    <dd className="inline text-foreground">
-                      {task.due_date
-                        ? format(new Date(task.due_date), "MMM d, yyyy")
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="inline">Max: </dt>
-                    <dd className="inline text-foreground">{task.max_grade}</dd>
-                  </div>
-                  <div>
-                    <dt className="inline">Grade: </dt>
-                    <dd className="inline text-foreground">
-                      {task.grade ?? "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="inline">Session: </dt>
-                    <dd className="inline text-foreground">
-                      {task.session_id ?? "—"}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            ))}
-          </div>
+          ) : (
+            <div
+              className={cn(
+                "min-h-0 flex-1 overflow-auto overscroll-y-contain rounded-xl border",
+                MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS
+              )}
+            >
+              <table className="w-full min-w-[28rem] text-left text-sm">
+                <thead className="sticky top-0 bg-muted/80 backdrop-blur">
+                  <tr className="border-b text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Task</th>
+                    <th className="px-3 py-2 font-medium">Session</th>
+                    <th className="px-3 py-2 font-medium">Status</th>
+                    <th className="px-3 py-2 font-medium">Grade</th>
+                    <th className="px-3 py-2 font-medium">Due</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.tasks.map((task) => (
+                    <tr key={task.student_task_id} className="border-b last:border-b-0">
+                      <td className="max-w-[10rem] px-3 py-2.5 font-medium">
+                        <span className="line-clamp-2">{task.title}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">
+                        {task.session_label ?? "—"}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <StudentTaskStatusBadge status={task.status} />
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">
+                        {task.grade == null ? "—" : `${task.grade}/${task.max_grade}`}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">
+                        {task.due_date
+                          ? format(new Date(task.due_date), "MMM d, yyyy")
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="flex min-h-[20rem] min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Grade trend (line)
+            Grade trend
           </p>
-          <ClassLineChart
-            className="min-h-[18rem] flex-1"
-            data={gradeChartData}
-            xKey="task_label"
-            yLabel="Grade"
-            series={[
-              {
-                key: "grade",
-                label: "Student grade",
-                color: "#8b5cf6",
-              },
-              {
-                key: "max_grade",
-                label: "Max grade",
-                color: "#94a3b8",
-              },
-            ]}
-          />
-          <p className="text-xs text-muted-foreground">
-            Line chart of graded tasks only (student_tasks.grade vs tasks.max_grade).
-          </p>
+          {gradeChartData.length === 0 ? (
+            <p className="flex min-h-[18rem] flex-1 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
+              No graded tasks yet.
+            </p>
+          ) : (
+            <>
+              <ClassLineChart
+                className="min-h-[18rem] flex-1"
+                data={gradeChartData}
+                xKey="task_label"
+                yLabel="Grade"
+                series={[
+                  {
+                    key: "grade",
+                    label: "Student grade",
+                    color: "#8b5cf6",
+                  },
+                  {
+                    key: "max_grade",
+                    label: "Max grade",
+                    color: "#94a3b8",
+                  },
+                ]}
+              />
+              <p className="text-xs text-muted-foreground">
+                Line chart of graded tasks only (grade vs max grade).
+              </p>
+            </>
+          )}
         </div>
       </div>
     </ClassTabCollapsibleSection>

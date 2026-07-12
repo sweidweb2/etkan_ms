@@ -55,6 +55,10 @@ import {
   CLASS_GRADES_LOCKED_ERROR,
   isClassGradesUnlocked,
 } from "@/lib/manager/class-grades-access";
+import {
+  assertClassStructureUnlockedForComputedGrades,
+  assertStudentGradeInputsUnlockedForComputedGrade,
+} from "@/services/class-computed-grade-lock.service";
 import { ensureSessionAttendeesForEnrolledStudents, seedLateJoinAttendeesForStudent } from "@/services/session.service";
 import { listStudentsForManager } from "@/services/student.service";
 import type { FieldErrors } from "@/types/auth";
@@ -1521,6 +1525,15 @@ export async function createClassSessionForManager(
     return { success: false, error: "Class not found." };
   }
 
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    input.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
+  }
+
   const maxOrderResult = await sessionRepository.getMaxSessionNbOrderByClassId(
     adminClient,
     input.class_id
@@ -1673,6 +1686,15 @@ export async function createFinalExamForManager(
 
   if (!existingClass.data) {
     return { success: false, error: "Class not found." };
+  }
+
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    input.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
   }
 
   const existingExam = await finalExamRepository.findFinalExamByClassId(
@@ -1940,6 +1962,16 @@ export async function updateStudentFinalExamGradeForManager(
 
   if (!finalExamResult.data) {
     return { success: false, error: "Final exam not found." };
+  }
+
+  const studentGuard = await assertStudentGradeInputsUnlockedForComputedGrade(
+    adminClient,
+    finalExamResult.data.class_id,
+    existing.data.student_id
+  );
+
+  if (!studentGuard.ok) {
+    return { success: false, error: studentGuard.error };
   }
 
   const parsed = createEditStudentFinalExamGradeSchema(

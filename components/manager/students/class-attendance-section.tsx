@@ -12,19 +12,14 @@ import {
   MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_HEIGHT_CLASS,
   MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_VISIBLE,
 } from "@/lib/constants/manager-student-class-slots";
-import { getManagerStudentClassDetailPreview } from "@/lib/manager/get-manager-student-class-detail-preview";
 import { cn } from "@/lib/utils";
+import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
 
 type ClassAttendanceSectionProps = {
-  userId: string;
-  classId: string;
+  detail: ManagerStudentClassTabDetail;
 };
 
-export function ClassAttendanceSection({
-  userId,
-  classId,
-}: ClassAttendanceSectionProps) {
-  const detail = getManagerStudentClassDetailPreview(userId, classId);
+export function ClassAttendanceSection({ detail }: ClassAttendanceSectionProps) {
   const attendanceOverflow =
     detail.attendanceSlots.length > MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_VISIBLE;
   const chartData = detail.attendanceTrend.map((point) => ({
@@ -37,7 +32,7 @@ export function ClassAttendanceSection({
   return (
     <ClassTabCollapsibleSection
       title="Attendance"
-      description="Session slots (linked via tasks.session_id) and cumulative streak trend."
+      description="Session attendance slots and cumulative attendance trend."
     >
       <div className="grid min-h-[22rem] min-w-0 gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
         <div className="flex min-h-0 min-w-0 flex-col space-y-3">
@@ -51,57 +46,74 @@ export function ClassAttendanceSection({
               </p>
             ) : null}
           </div>
-          <div
-            className={cn(
-              "grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3",
-              MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_HEIGHT_CLASS
-            )}
-          >
-            {detail.attendanceSlots.map((slot) => (
-              <div
-                key={slot.session_id}
-                className={cn(
-                  "rounded-lg border px-3 py-2",
-                  MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[getAttendanceDisplayKey(slot.status)]
-                )}
-              >
-                <p className="text-xs font-semibold">{slot.session_label}</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {format(new Date(slot.session_at), "MMM d, yyyy")}
-                </p>
-                <div className="mt-2">
-                  <StudentAttendanceStatusBadge status={slot.status} />
+          {detail.attendanceSlots.length === 0 ? (
+            <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              No sessions recorded for this class yet.
+            </p>
+          ) : (
+            <div
+              className={cn(
+                "grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto overscroll-y-contain sm:grid-cols-3",
+                MANAGER_STUDENT_ATTENDANCE_SLOTS_MAX_HEIGHT_CLASS
+              )}
+            >
+              {detail.attendanceSlots.map((slot) => (
+                <div
+                  key={slot.session_id}
+                  className={cn(
+                    "rounded-lg border px-3 py-2",
+                    MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[
+                      getAttendanceDisplayKey(slot.status)
+                    ]
+                  )}
+                >
+                  <p className="text-xs font-semibold">{slot.session_label}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {format(new Date(slot.session_at), "MMM d, yyyy")}
+                  </p>
+                  <div className="mt-2">
+                    <StudentAttendanceStatusBadge status={slot.status} />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex min-h-[20rem] min-w-0 flex-col space-y-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Cumulative streak trend
           </p>
-          <ClassLineChart
-            className="min-h-[18rem] flex-1"
-            data={chartData}
-            xKey="session_label"
-            yLabel="Count"
-            series={[
-              {
-                key: "cumulative_present",
-                label: "Cumulative present",
-                color: "#10b981",
-              },
-              {
-                key: "streak",
-                label: "Current streak",
-                color: "#0ea5e9",
-              },
-            ]}
-          />
-          <p className="text-xs text-muted-foreground">
-            Present sessions increase cumulative attendance; absent sessions reset the streak.
-          </p>
+          {detail.attendanceTrend.length === 0 ? (
+            <p className="flex min-h-[18rem] flex-1 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
+              No attendance trend available yet.
+            </p>
+          ) : (
+            <>
+              <ClassLineChart
+                className="min-h-[18rem] flex-1"
+                data={chartData}
+                xKey="session_label"
+                yLabel="Count"
+                series={[
+                  {
+                    key: "cumulative_present",
+                    label: "Cumulative present",
+                    color: "#10b981",
+                  },
+                  {
+                    key: "streak",
+                    label: "Current streak",
+                    color: "#0ea5e9",
+                  },
+                ]}
+              />
+              <p className="text-xs text-muted-foreground">
+                Present sessions increase cumulative attendance; absent sessions
+                reset the streak.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </ClassTabCollapsibleSection>

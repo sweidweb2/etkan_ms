@@ -22,12 +22,11 @@ import {
   MANAGER_STUDENT_COURSE_GRADE_COMPONENT_ACCENT,
 } from "@/lib/constants/manager-student-course-grade-display";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
-import { getManagerStudentClassDetailPreview } from "@/lib/manager/get-manager-student-class-detail-preview";
 import { cn } from "@/lib/utils";
+import type { ManagerStudentCourseGrade } from "@/types/manager-student-course-grade";
 
 type ClassCourseGradeSectionProps = {
-  userId: string;
-  classId: string;
+  courseGrade: ManagerStudentCourseGrade | null;
 };
 
 function GradeComponentCard({
@@ -86,12 +85,8 @@ function GradeComponentCard({
 }
 
 export function ClassCourseGradeSection({
-  userId,
-  classId,
+  courseGrade,
 }: ClassCourseGradeSectionProps) {
-  const detail = getManagerStudentClassDetailPreview(userId, classId);
-  const courseGrade = detail.courseGrade;
-
   if (!courseGrade) {
     return (
       <ClassTabCollapsibleSection

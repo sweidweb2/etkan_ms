@@ -32,6 +32,7 @@ type SessionTaskStudentTasksSectionProps = {
   task: ManagerSessionTaskRow;
   studentTasks: ManagerStudentTaskRow[];
   onStudentTasksChange: (studentTasks: ManagerStudentTaskRow[]) => void;
+  lockedUserIds?: string[];
 };
 
 function TruncatedCell({
@@ -78,10 +79,18 @@ export function SessionTaskStudentTasksSection({
   task,
   studentTasks,
   onStudentTasksChange,
+  lockedUserIds = [],
 }: SessionTaskStudentTasksSectionProps) {
   const [selectedStudentTask, setSelectedStudentTask] =
     useState<ManagerStudentTaskRow | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const lockedUserIdSet = useMemo(
+    () => new Set(lockedUserIds),
+    [lockedUserIds]
+  );
+  const selectedTaskLocked = selectedStudentTask
+    ? lockedUserIdSet.has(selectedStudentTask.student_id)
+    : false;
 
   const sortedStudentTasks = useMemo(
     () =>
@@ -111,6 +120,7 @@ export function SessionTaskStudentTasksSection({
         maxGrade={task.max_grade}
         dueDate={task.due_date}
         onUpdateStudentTask={handleUpdateStudentTask}
+        readOnly={selectedTaskLocked}
       />
 
       <Card className="py-0">

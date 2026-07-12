@@ -94,6 +94,7 @@ export function StudentGradeMissingDataDialog({
   const [isFinalExamEditOpen, setIsFinalExamEditOpen] = useState(false);
 
   const missingItems = student?.missing_items ?? [];
+  const recordLocked = Boolean(student?.is_computed);
   const taskItems = useMemo(
     () => missingItems.filter((item) => item.kind === "task"),
     [missingItems]
@@ -270,6 +271,7 @@ export function StudentGradeMissingDataDialog({
           missingItems.find((item) => item.studentTaskId === taskEditTarget?.id)
             ?.dueDate ?? null
         }
+        readOnly={recordLocked}
         onUpdateStudentTask={() => {
           handleRefresh();
         }}
@@ -281,6 +283,7 @@ export function StudentGradeMissingDataDialog({
         studentGrade={finalExamStudentGrade}
         maxGrade={finalExam?.max_grade ?? null}
         dueDate={finalExam?.due_date ?? null}
+        readOnly={recordLocked}
         onStudentGradeUpdated={() => {
           handleRefresh();
         }}

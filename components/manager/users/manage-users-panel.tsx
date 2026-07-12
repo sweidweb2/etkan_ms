@@ -31,7 +31,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
-import { getManagerUserDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerStudentDetailRoute,
+  getManagerUserDetailRoute,
+} from "@/lib/constants/routes";
 import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -130,12 +133,20 @@ function CurrentUserBadge() {
   );
 }
 
+function getUserDetailsHref(user: ManagerUserRow) {
+  if (user.role === ROLES.STUDENT && user.student_profile_id) {
+    return getManagerStudentDetailRoute(user.student_profile_id);
+  }
+
+  return getManagerUserDetailRoute(user.id);
+}
+
 function UserDetailsLink({ user }: { user: ManagerUserRow }) {
   const label = user.username ?? user.email;
 
   return (
     <Link
-      href={getManagerUserDetailRoute(user.id)}
+      href={getUserDetailsHref(user)}
       aria-label={`View ${label}`}
       onClick={(event) => event.stopPropagation()}
       className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
@@ -224,7 +235,7 @@ export function ManageUsersPanel({
   };
 
   const openUserDetails = (user: ManagerUserRow) => {
-    router.push(getManagerUserDetailRoute(user.id));
+    router.push(getUserDetailsHref(user));
   };
 
   const handleUserRowKeyDown = (

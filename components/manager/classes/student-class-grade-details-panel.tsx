@@ -11,6 +11,7 @@ import {
   type ComputeFactorWeightsValues,
 } from "@/components/manager/classes/compute-factor-weights-fields";
 import { StudentClassGradeSheetDemo } from "@/components/manager/classes/student-class-grade-sheet-demo";
+import { StudentFastCertificateSection } from "@/components/manager/classes/student-fast-certificate-section";
 import { StudentComputeAloneSection } from "@/components/manager/classes/student-compute-alone-section";
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
@@ -605,7 +606,14 @@ export function StudentClassGradeDetailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <Dialog open={isComputeDialogOpen} onOpenChange={setIsComputeDialogOpen}>
+      <Dialog
+        open={isComputeDialogOpen}
+        onOpenChange={(open) => {
+          if (!isComputing) {
+            setIsComputeDialogOpen(open);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -663,6 +671,7 @@ export function StudentClassGradeDetailsPanel({
               disabled={isComputing || !isComputeWeightTotalValid}
               onClick={handleConfirmCompute}
             >
+              {isComputing ? <InlineSpinner className="mr-2" /> : null}
               Confirm
             </Button>
           </DialogFooter>
@@ -805,6 +814,16 @@ export function StudentClassGradeDetailsPanel({
           </dl>
         </CardContent>
       </Card>
+
+      <StudentFastCertificateSection
+        classRow={classRow}
+        student={student}
+        gradeRow={gradeRow}
+        detail={detail}
+        classTasks={classTasks}
+        finalExam={finalExam}
+        finalExamGrade={finalExamGrade}
+      />
 
       <StudentClassGradeSheetDemo
         isLocked={!hasComputedGrade}

@@ -26,6 +26,7 @@ import {
   SESSION_GROUP_GRADE_LEVEL_TOGGLE_OFF_CLASSES,
   SESSION_GROUP_GRADE_LEVEL_TOGGLE_ON_CLASSES,
 } from "@/lib/constants/manager-session-group-grade-display";
+import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ type SessionDetailsActionsProps = {
   phaseOptions: ManagerSessionPhaseLink[];
   defaultPhaseId?: string | null;
   groupGradeLevel: SessionGroupGradeLevelValue | null;
+  hasComputedGrades?: boolean;
   onSettingsUpdated: (
     session: ManagerClassSessionRow,
     linkedPhase?: ManagerSessionPhaseLink | null
@@ -78,6 +80,7 @@ export function SessionDetailsActions({
   phaseOptions,
   defaultPhaseId,
   groupGradeLevel,
+  hasComputedGrades = false,
   onSettingsUpdated,
   className,
 }: SessionDetailsActionsProps) {
@@ -204,7 +207,7 @@ export function SessionDetailsActions({
             <Select
               value={selectedPhaseId || null}
               items={phaseSelectItems}
-              disabled={isPending}
+              disabled={isPending || hasComputedGrades}
               onValueChange={(value) => {
                 if (value) {
                   setSelectedPhaseId(value);
@@ -227,12 +230,22 @@ export function SessionDetailsActions({
           <Button
             type="button"
             className="self-start"
-            disabled={isPending || !selectedPhaseId}
+            disabled={isPending || !selectedPhaseId || hasComputedGrades}
             onClick={handleSavePhase}
+            title={
+              hasComputedGrades
+                ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+                : undefined
+            }
           >
             {isPhasePending ? <InlineSpinner /> : null}
             Save phase link
           </Button>
+          {hasComputedGrades ? (
+            <p className="text-xs text-muted-foreground">
+              {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 ring-1 ring-foreground/8">
@@ -248,7 +261,10 @@ export function SessionDetailsActions({
             </div>
           </div>
 
-          <fieldset className="flex flex-col gap-2" disabled={isPending}>
+          <fieldset
+            className="flex flex-col gap-2"
+            disabled={isPending || hasComputedGrades}
+          >
             <legend className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-sm font-medium">
               <span>Level</span>
               <span className="text-xs font-normal text-muted-foreground">
@@ -297,12 +313,22 @@ export function SessionDetailsActions({
           <Button
             type="button"
             className="self-start"
-            disabled={isPending || !selectedGroupGrade}
+            disabled={isPending || !selectedGroupGrade || hasComputedGrades}
             onClick={handleSaveGroupGrade}
+            title={
+              hasComputedGrades
+                ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+                : undefined
+            }
           >
             {isGroupGradePending ? <InlineSpinner /> : null}
             Save group grade
           </Button>
+          {hasComputedGrades ? (
+            <p className="text-xs text-muted-foreground">
+              {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+            </p>
+          ) : null}
         </div>
       </CardContent>
     </Card>

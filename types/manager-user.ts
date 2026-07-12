@@ -7,6 +7,8 @@ export interface ManagerUserRow {
   role: RoleValue;
   created_at: string;
   email: string;
+  /** Present when role is student and a student_profiles row exists. */
+  student_profile_id?: string | null;
 }
 
 export type CreateStaffUserActionState = {

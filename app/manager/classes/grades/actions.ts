@@ -13,13 +13,21 @@ import {
 import type { FactorWeightsValues } from "@/lib/compute/custom-compute-form-utils";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { updateClassWeightsSchema } from "@/lib/validators/manager/update-class-weights";
-import { listClassStudentsForManager } from "@/services/class.service";
+import { getClassForManager, listClassStudentsForManager } from "@/services/class.service";
 import {
   computeAllStudentCourseGradesForManager,
   computeStudentCourseGradeForManager,
   deleteStudentCourseGradeForManager,
+  getStudentClassGradeDetailForManager,
+  listComputedStudentGradeSheetBundlesForManager,
 } from "@/services/student-course-grade.service";
+import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
+import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
+import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
+import type { ComputedStudentGradeSheetBundle } from "@/services/student-course-grade.service";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
+import type { ManagerClassRow } from "@/types/manager-class-list";
 
 export type ClassGradesActionState = {
   success: boolean;
@@ -246,4 +254,112 @@ export async function computeStudentGradeAloneAction(
     message: result.message,
     row: result.row,
   };
+}
+
+export type FetchComputedGradeSheetBundlesActionState = {
+  success: boolean;
+  error?: string;
+  classRow?: ManagerClassRow;
+  bundles?: ComputedStudentGradeSheetBundle[];
+};
+
+export type StudentFastCertificateBundle = {
+  student: ManagerClassStudentRow;
+  gradeRow: ManagerClassStudentGradeRow;
+  detail: ManagerStudentClassTabDetail;
+  classTasks: ManagerClassTaskForGradesRow[];
+  finalExam: ManagerClassFinalExamRow | null;
+  finalExamGrade: number | null;
+};
+
+export type FetchStudentFastCertificateBundleActionState = {
+  success: boolean;
+  error?: string;
+  classRow?: ManagerClassRow;
+  bundle?: StudentFastCertificateBundle;
+};
+
+export async function fetchStudentFastCertificateBundleAction(
+  classId: string,
+  studentProfileId: string
+): Promise<FetchStudentFastCertificateBundleActionState> {
+  const actorRole = await getSessionRole();
+  const adminClient = createSupabaseAdminClient();
+
+  try {
+    const [classRow, detailBundle] = await Promise.all([
+      getClassForManager(adminClient, actorRole, classId),
+      getStudentClassGradeDetailForManager(
+        adminClient,
+        actorRole,
+        classId,
+        studentProfileId
+      ),
+    ]);
+
+    if (!classRow) {
+      return { success: false, error: "Class not found." };
+    }
+
+    if (!detailBundle) {
+      return { success: false, error: "Student not found in this class." };
+    }
+
+    return {
+      success: true,
+      classRow,
+      bundle: {
+        student: detailBundle.student,
+        gradeRow: detailBundle.gradeRow,
+        detail: detailBundle.detail,
+        classTasks: detailBundle.classTasks,
+        finalExam: detailBundle.finalExam,
+        finalExamGrade: detailBundle.gradeRow.final_exam_grade,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load student certificate data.",
+    };
+  }
+}
+
+export async function fetchComputedGradeSheetBundlesAction(
+  classId: string
+): Promise<FetchComputedGradeSheetBundlesActionState> {
+  const actorRole = await getSessionRole();
+  const adminClient = createSupabaseAdminClient();
+
+  try {
+    const result = await listComputedStudentGradeSheetBundlesForManager(
+      adminClient,
+      actorRole,
+      classId
+    );
+
+    if (result.bundles.length === 0) {
+      return {
+        success: false,
+        error: "No computed students are available to export.",
+      };
+    }
+
+    return {
+      success: true,
+      classRow: result.classRow,
+      bundles: result.bundles,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load grade certificates.",
+    };
+  }
 }

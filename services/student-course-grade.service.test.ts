@@ -11,7 +11,10 @@ import * as studentCourseGradeRepository from "@/repositories/student-course-gra
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as taskRepository from "@/repositories/task.repository";
 import * as classService from "@/services/class.service";
-import { getStudentClassGradeDetailForManager } from "@/services/student-course-grade.service";
+import {
+  getStudentClassGradeDetailForManager,
+  listComputedStudentGradeSheetBundlesForManager,
+} from "@/services/student-course-grade.service";
 
 vi.mock("@/repositories/attendee.repository");
 vi.mock("@/repositories/final-exam.repository");
@@ -326,5 +329,98 @@ describe("getStudentClassGradeDetailForManager", () => {
         group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
       }),
     ]);
+  });
+});
+
+describe("listComputedStudentGradeSheetBundlesForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+
+    vi.mocked(classService.assertClassGradesUnlockedForManager).mockResolvedValue({
+      ok: true,
+      classRow: {
+        id: classId,
+        name: "Robotics A",
+        subject_id: "subject-1",
+        subject_name: "Robotics",
+        subject_nb_sessions: 2,
+        completed_sessions: 2,
+        status: "completed",
+        semester_id: "semester-1",
+        semester_name: "Fall 2026",
+        enrollment_count: 2,
+        teacher_count: 1,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+    });
+
+    vi.mocked(classService.getClassFinalExamForManager).mockResolvedValue({
+      finalExam: {
+        id: finalExamId,
+        class_id: classId,
+        title: "Final exam",
+        description: null,
+        due_date: "2026-08-01T00:00:00.000Z",
+        max_grade: 100,
+        created_at: "2026-07-10T00:00:00.000Z",
+      },
+      studentGrades: [],
+    });
+  });
+
+  it("returns only computed student bundles", async () => {
+    mockGradeContext({
+      storedGrade: {
+        id: "grade-1",
+        user_id: studentUserId,
+        class_id: classId,
+        task_json_grade_weights: [{ key: taskOneId, label: "Worksheet 1", weight: 100 }],
+        group_grades_json: [],
+        attendee_grades_json: [],
+        task_weight: 60,
+        task_total_grade: 18,
+        final_exam_grade: 85,
+        final_exam_weight: 40,
+        type: "final",
+        created_at: "2026-08-02T00:00:00.000Z",
+      },
+    });
+
+    vi.mocked(classService.listClassStudentsForManager).mockResolvedValue([
+      enrolledStudent,
+      {
+        ...enrolledStudent,
+        id: "enrollment-2",
+        student_profile_id: "99999999-9999-4999-8999-999999999999",
+        user_id: "88888888-8888-4888-8888-888888888888",
+        full_name: "Pending Student",
+      },
+    ]);
+
+    const result = await listComputedStudentGradeSheetBundlesForManager(
+      adminClient,
+      ROLES.MANAGER,
+      classId
+    );
+
+    expect(result.bundles).toHaveLength(1);
+    expect(result.bundles[0]?.student.full_name).toBe("Sara Ahmed");
+    expect(result.bundles[0]?.gradeRow.is_computed).toBe(true);
+    expect(result.classRow.name).toBe("Robotics A");
+  });
+
+  it("returns an empty bundle list when no students are computed", async () => {
+    mockGradeContext();
+    vi.mocked(classService.listClassStudentsForManager).mockResolvedValue([
+      enrolledStudent,
+    ]);
+
+    const result = await listComputedStudentGradeSheetBundlesForManager(
+      adminClient,
+      ROLES.MANAGER,
+      classId
+    );
+
+    expect(result.bundles).toEqual([]);
   });
 });

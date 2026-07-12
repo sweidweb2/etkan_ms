@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
+  ChartNoAxesColumnIncreasingIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
@@ -21,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ROUTES } from "@/lib/constants/routes";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 
 const PAGE_SIZE_OPTIONS = [4, 8, 12] as const;
@@ -132,10 +135,20 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
             Semesters with course counts and billing amounts.
           </p>
         </div>
-        <Button type="button" onClick={() => setIsAddOpen(true)}>
-          <PlusIcon data-icon="inline-start" />
-          Add semester
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            render={<Link href={ROUTES.MANAGER_PHASES_PROGRESS} />}
+            nativeButton={false}
+            variant="outline"
+          >
+            <ChartNoAxesColumnIncreasingIcon data-icon="inline-start" />
+            Progress track
+          </Button>
+          <Button type="button" onClick={() => setIsAddOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Add semester
+          </Button>
+        </div>
       </div>
 
       <AddPhaseDialog

@@ -16,7 +16,10 @@ import {
   type AuditActor,
 } from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import type {
+  ManagerSemesterProgressRow,
+  ManagerSemesterRow,
+} from "@/types/manager-phase";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -170,6 +173,52 @@ export async function listSemestersForManager(
   }
 
   return (data ?? []).map(mapSemesterRecordToRow);
+}
+
+export async function listSemesterProgressForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null
+): Promise<ManagerSemesterProgressRow[]> {
+  assertManagerRole(actorRole);
+
+  const [semestersResult, classesResult] = await Promise.all([
+    semesterRepository.listSemesters(adminClient),
+    classRepository.listLinkedClassesWithSubject(adminClient),
+  ]);
+
+  if (semestersResult.error) {
+    throw new Error(semestersResult.error.message);
+  }
+
+  if (classesResult.error) {
+    throw new Error(classesResult.error.message);
+  }
+
+  const classRows = await mapClassRecordsToSemesterClassRows(
+    adminClient,
+    classesResult.data ?? []
+  );
+
+  const classesBySemesterId = new Map<string, ManagerSemesterClassRow[]>();
+
+  for (const classRow of classRows) {
+    if (!classRow.semester_id) {
+      continue;
+    }
+
+    const existing = classesBySemesterId.get(classRow.semester_id) ?? [];
+    existing.push(classRow);
+    classesBySemesterId.set(classRow.semester_id, existing);
+  }
+
+  return (semestersResult.data ?? []).map((record) => {
+    const semester = mapSemesterRecordToRow(record);
+
+    return {
+      semester,
+      classes: classesBySemesterId.get(semester.id) ?? [],
+    };
+  });
 }
 
 export async function getSemesterForManager(

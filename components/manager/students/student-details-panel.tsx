@@ -29,10 +29,12 @@ import type {
   ManagerStudentDetailStats,
   ManagerStudentRow,
 } from "@/types/manager-student";
+import type { ManagerStudentClassAcademicBundle } from "@/types/manager-student-class-detail";
 
 type StudentDetailsPanelProps = {
   student: ManagerStudentRow;
   stats: ManagerStudentDetailStats;
+  classBundles: ManagerStudentClassAcademicBundle[];
 };
 
 function DetailField({
@@ -65,6 +67,7 @@ function formatBirthDate(value: string | null) {
 export function StudentDetailsPanel({
   student: initialStudent,
   stats,
+  classBundles,
 }: StudentDetailsPanelProps) {
   const router = useRouter();
   const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
@@ -179,7 +182,11 @@ export function StudentDetailsPanel({
         id={STUDENT_DETAILS_SECTION_IDS.classes}
         className="scroll-mt-6"
       >
-        <StudentJoinedClassesSection studentProfileId={studentProfileId} />
+        <StudentJoinedClassesSection
+          userId={student.user_id}
+          initialClasses={classBundles.map((bundle) => bundle.classRow)}
+          classBundles={classBundles}
+        />
       </div>
 
       <div

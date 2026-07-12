@@ -1,6 +1,11 @@
 import type { StudentAttendanceStatusValue } from "@/lib/constants/manager-student-attendance-status";
 import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
 import type { ManagerStudentCourseGrade } from "@/types/manager-student-course-grade";
+import type { ManagerStudentClassRow } from "@/types/manager-student-class";
+import type {
+  ManagerClassFinalExamRow,
+  ManagerStudentFinalExamGradeRow,
+} from "@/types/manager-class-final-exam";
 import type { StudentSessionGroupGradeSlot } from "@/lib/manager/class-group-grade-analytics";
 
 /** Class session slot + student attendance (sessions implied by tasks.session_id). */
@@ -24,6 +29,8 @@ export interface ManagerStudentClassTaskRow {
   student_task_id: string;
   task_id: string;
   session_id: string | null;
+  /** Present on live academic detail rows. */
+  session_label?: string;
   title: string;
   due_date: string | null;
   max_grade: number;
@@ -48,4 +55,12 @@ export interface ManagerStudentClassTabDetail {
   tasks: ManagerStudentClassTaskRow[];
   taskGradeTrend: ManagerStudentTaskGradePoint[];
   courseGrade: ManagerStudentCourseGrade | null;
+}
+
+/** Joined class tab academic bundle for student details (read-only). */
+export interface ManagerStudentClassAcademicBundle {
+  classRow: ManagerStudentClassRow;
+  detail: ManagerStudentClassTabDetail;
+  finalExam: ManagerClassFinalExamRow | null;
+  studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
 }

@@ -41,7 +41,12 @@ import {
   getClassFinalExamForManager,
   listClassStudentsForManager,
 } from "@/services/class.service";
-import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
+import * as studentClassRepository from "@/repositories/student-class.repository";
+import type {
+  ManagerClassFinalExamRow,
+  ManagerStudentFinalExamGradeRow,
+} from "@/types/manager-class-final-exam";
+import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
@@ -75,6 +80,14 @@ type ComputeGradeOptions = {
   taskWeights?: Record<string, string>;
   computeType?: string;
   computeLabel?: string;
+};
+
+export type ComputedStudentGradeSheetBundle = {
+  student: ManagerClassStudentRow;
+  gradeRow: ManagerClassStudentGradeRow;
+  detail: ManagerStudentClassTabDetail;
+  classTasks: ManagerClassTaskForGradesRow[];
+  finalExam: ManagerClassFinalExamRow | null;
 };
 
 function parseTaskJsonGradeWeights(
@@ -533,6 +546,7 @@ function buildStudentTaskDetail(
       student_task_id: studentTask?.id ?? `pending-${task.id}`,
       task_id: task.id,
       session_id: task.session_id,
+      session_label: task.session_label,
       title: task.title,
       due_date: task.due_date,
       max_grade: task.max_grade ?? 0,
@@ -648,6 +662,170 @@ export async function getStudentClassGradeDetailForManager(
     ),
     classTasks: context.classTasks,
     finalExam: finalExamBundle.finalExam,
+  };
+}
+
+function assertManagerRole(actorRole: RoleValue | null): void {
+  if (actorRole !== ROLES.MANAGER) {
+    throw new Error("Unauthorized.");
+  }
+}
+
+export async function getStudentClassAcademicDetailForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  classId: string,
+  userId: string
+): Promise<{
+  detail: ManagerStudentClassTabDetail;
+  finalExam: ManagerClassFinalExamRow | null;
+  studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
+}> {
+  assertManagerRole(actorRole);
+
+  const enrollmentResult = await studentClassRepository.findStudentClassByUserAndClass(
+    adminClient,
+    userId,
+    classId
+  );
+
+  if (enrollmentResult.error) {
+    throw new Error(enrollmentResult.error.message);
+  }
+
+  if (!enrollmentResult.data) {
+    throw new Error("Student is not enrolled in this class.");
+  }
+
+  const [context, finalExamBundle] = await Promise.all([
+    loadClassGradeContext(adminClient, classId),
+    getClassFinalExamForManager(adminClient, actorRole, classId),
+  ]);
+
+  const sessionIds = context.sessions.map((session) => session.id);
+  const attendeesResult = await attendeeRepository.listAttendeesBySessionIds(
+    adminClient,
+    sessionIds
+  );
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
+
+  const attendeeStatusBySessionId = new Map<string, string>();
+
+  for (const row of attendeesResult.data ?? []) {
+    if (row.student_id !== userId) {
+      continue;
+    }
+
+    attendeeStatusBySessionId.set(row.session_id, row.status);
+  }
+
+  const studentFinalExamGrade =
+    finalExamBundle.studentGrades.find((row) => row.student_id === userId) ??
+    null;
+
+  return {
+    detail: buildStudentClassTabDetail(
+      context,
+      userId,
+      attendeeStatusBySessionId
+    ),
+    finalExam: finalExamBundle.finalExam,
+    studentFinalExamGrade,
+  };
+}
+
+function buildAttendeeStatusMapsByUserId(
+  attendees: Array<{
+    session_id: string;
+    student_id: string;
+    status: string;
+  }>
+): Map<string, Map<string, string>> {
+  const byUserId = new Map<string, Map<string, string>>();
+
+  for (const row of attendees) {
+    const sessionMap =
+      byUserId.get(row.student_id) ?? new Map<string, string>();
+    sessionMap.set(row.session_id, row.status);
+    byUserId.set(row.student_id, sessionMap);
+  }
+
+  return byUserId;
+}
+
+export async function listComputedStudentGradeSheetBundlesForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  classId: string
+): Promise<{
+  classRow: ManagerClassRow;
+  bundles: ComputedStudentGradeSheetBundle[];
+}> {
+  const guard = await assertClassGradesUnlockedForManager(
+    adminClient,
+    actorRole,
+    classId
+  );
+
+  if (!guard.ok) {
+    throw new Error(guard.error);
+  }
+
+  const [students, context, finalExamBundle] = await Promise.all([
+    listClassStudentsForManager(adminClient, actorRole, classId),
+    loadClassGradeContext(adminClient, classId),
+    getClassFinalExamForManager(adminClient, actorRole, classId),
+  ]);
+
+  const sessionIds = context.sessions.map((session) => session.id);
+  const attendeesResult = await attendeeRepository.listAttendeesBySessionIds(
+    adminClient,
+    sessionIds
+  );
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
+
+  const attendeeStatusMapsByUserId = buildAttendeeStatusMapsByUserId(
+    attendeesResult.data ?? []
+  );
+
+  const bundles = students.flatMap((student) => {
+    const stored = context.storedGradesByUserId.get(student.user_id);
+
+    if (!stored) {
+      return [];
+    }
+
+    const attendeeStatusBySessionId =
+      attendeeStatusMapsByUserId.get(student.user_id) ?? new Map<string, string>();
+
+    return [
+      {
+        student,
+        gradeRow: mapStoredGradeRow(student, stored),
+        detail: buildStudentClassTabDetail(
+          context,
+          student.user_id,
+          attendeeStatusBySessionId
+        ),
+        classTasks: context.classTasks,
+        finalExam: finalExamBundle.finalExam,
+      },
+    ];
+  });
+
+  bundles.sort((left, right) =>
+    left.student.full_name.localeCompare(right.student.full_name)
+  );
+
+  return {
+    classRow: guard.classRow,
+    bundles,
   };
 }
 

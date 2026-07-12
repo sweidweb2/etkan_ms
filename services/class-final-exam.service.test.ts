@@ -3,6 +3,7 @@ import { ATTENDEE_STATUSES } from "@/lib/constants/manager-attendee-status";
 import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
 import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
+import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
@@ -11,6 +12,7 @@ import * as finalExamRepository from "@/repositories/final-exam.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
@@ -28,6 +30,7 @@ vi.mock("@/repositories/final-exam.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
+vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/services/student.service", () => ({
   listStudentsForManager: vi.fn(),
@@ -35,6 +38,15 @@ vi.mock("@/services/student.service", () => ({
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+
+function mockUnlockedComputedGrades() {
+  vi.mocked(
+    studentCourseGradeRepository.countStudentCourseGradesByClassId
+  ).mockResolvedValue({ count: 0, error: null } as never);
+  vi.mocked(
+    studentCourseGradeRepository.findStudentCourseGradeByClassAndUser
+  ).mockResolvedValue({ data: null, error: null } as never);
+}
 
 const adminClient = {} as never;
 const actor: AuditActor = {
@@ -79,6 +91,7 @@ describe("createFinalExamForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
   });
 
   it("rejects non-managers", async () => {
@@ -244,6 +257,33 @@ describe("createFinalExamForManager", () => {
       adminClient,
       examId
     );
+  });
+
+  it("blocks final exam creation when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+    vi.mocked(classRepository.findClassById).mockResolvedValue({
+      data: classRecord,
+      error: null,
+    } as never);
+    vi.mocked(finalExamRepository.findFinalExamByClassId).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+
+    const result = await createFinalExamForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      { class_id: classId, title: "Final exam" }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+    });
+    expect(finalExamRepository.createFinalExam).not.toHaveBeenCalled();
   });
 });
 

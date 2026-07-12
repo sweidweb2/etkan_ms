@@ -39,6 +39,7 @@ type SessionTaskDetailsPanelProps = {
     name: string;
   };
   initialStudentTasks: ManagerStudentTaskRow[];
+  lockedUserIds?: string[];
 };
 
 function DetailField({
@@ -77,6 +78,7 @@ export function SessionTaskDetailsPanel({
   session,
   classRow,
   initialStudentTasks,
+  lockedUserIds = [],
 }: SessionTaskDetailsPanelProps) {
   const [studentTasks, setStudentTasks] = useState(initialStudentTasks);
 
@@ -154,6 +156,7 @@ export function SessionTaskDetailsPanel({
         task={task}
         studentTasks={studentTasks}
         onStudentTasksChange={setStudentTasks}
+        lockedUserIds={lockedUserIds}
       />
 
       <SessionTaskAnalyticsSection

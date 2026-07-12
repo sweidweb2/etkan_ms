@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CLASS_FINAL_EXAM_TABLE_LIMITS } from "@/lib/constants/manager-class-final-exam-display";
+import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
@@ -36,6 +37,8 @@ type ClassFinalExamSectionProps = {
   studentGrades: ManagerStudentFinalExamGradeRow[];
   onFinalExamChange: (exam: ManagerClassFinalExamRow | null) => void;
   onStudentGradesChange: (grades: ManagerStudentFinalExamGradeRow[]) => void;
+  hasComputedGrades?: boolean;
+  lockedUserIds?: string[];
 };
 
 function TruncatedCell({
@@ -85,12 +88,18 @@ export function ClassFinalExamSection({
   studentGrades,
   onFinalExamChange,
   onStudentGradesChange,
+  hasComputedGrades = false,
+  lockedUserIds = [],
 }: ClassFinalExamSectionProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditExamOpen, setIsEditExamOpen] = useState(false);
   const [selectedStudentGrade, setSelectedStudentGrade] =
     useState<ManagerStudentFinalExamGradeRow | null>(null);
   const [isEditGradeOpen, setIsEditGradeOpen] = useState(false);
+  const lockedUserIdSet = useMemo(() => new Set(lockedUserIds), [lockedUserIds]);
+  const selectedGradeLocked = selectedStudentGrade
+    ? lockedUserIdSet.has(selectedStudentGrade.student_id)
+    : false;
 
   const sortedStudentGrades = useMemo(
     () =>
@@ -154,6 +163,7 @@ export function ClassFinalExamSection({
           maxGrade={finalExam?.max_grade ?? null}
           dueDate={finalExam?.due_date ?? null}
           onStudentGradeUpdated={handleUpdateStudentGrade}
+          readOnly={selectedGradeLocked}
         />
       ) : null}
 
@@ -165,10 +175,26 @@ export function ClassFinalExamSection({
           </p>
           <CardAction className="self-center">
             {!finalExam ? (
-              <Button type="button" onClick={() => setIsCreateOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Create final exam
-              </Button>
+              hasComputedGrades ? (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<span className="inline-flex" tabIndex={0} />}
+                  >
+                    <Button type="button" disabled>
+                      <PlusIcon data-icon="inline-start" />
+                      Create final exam
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button type="button" onClick={() => setIsCreateOpen(true)}>
+                  <PlusIcon data-icon="inline-start" />
+                  Create final exam
+                </Button>
+              )
             ) : (
               <Button
                 type="button"

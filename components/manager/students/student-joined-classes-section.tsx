@@ -11,6 +11,8 @@ import {
 import { AssignStudentClassDialog } from "@/components/manager/students/assign-student-class-dialog";
 import { ClassAttendanceSection } from "@/components/manager/students/class-attendance-section";
 import { ClassCourseGradeSection } from "@/components/manager/students/class-course-grade-section";
+import { ClassFinalExamStudentSection } from "@/components/manager/students/class-final-exam-student-section";
+import { ClassGroupGradesSection } from "@/components/manager/students/class-group-grades-section";
 import { ClassTasksSection } from "@/components/manager/students/class-tasks-section";
 import { StudentClassStatusBadge } from "@/components/manager/students/student-class-status-badge";
 import { Button } from "@/components/ui/button";
@@ -23,14 +25,15 @@ import {
   MANAGER_STUDENT_CLASS_STATUS_LABELS,
 } from "@/lib/constants/manager-student-class-display";
 import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
-import { getManagerStudentClassesPreview } from "@/lib/manager/get-manager-student-classes-preview";
-import { getManagerStudentPreview } from "@/lib/manager/get-manager-student-preview";
 import { showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
+import type { ManagerStudentClassAcademicBundle } from "@/types/manager-student-class-detail";
 
 type StudentJoinedClassesSectionProps = {
-  studentProfileId: string;
+  userId: string;
+  initialClasses: ManagerStudentClassRow[];
+  classBundles: ManagerStudentClassAcademicBundle[];
 };
 
 function ClassDetailField({
@@ -53,12 +56,12 @@ function ClassDetailField({
 }
 
 function ClassTabPanel({
-  classRow,
-  userId,
+  bundle,
 }: {
-  classRow: ManagerStudentClassRow;
-  userId: string;
+  bundle: ManagerStudentClassAcademicBundle;
 }) {
+  const { classRow, detail, finalExam, studentFinalExamGrade } = bundle;
+
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <dl className="grid gap-4 rounded-lg bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -73,20 +76,26 @@ function ClassTabPanel({
         />
       </dl>
 
-      <ClassAttendanceSection userId={userId} classId={classRow.class_id} />
-      <ClassTasksSection userId={userId} classId={classRow.class_id} />
-      <ClassCourseGradeSection userId={userId} classId={classRow.class_id} />
+      <ClassAttendanceSection detail={detail} />
+      <ClassGroupGradesSection groupGradeSlots={detail.groupGradeSlots} />
+      <ClassFinalExamStudentSection
+        finalExam={finalExam}
+        studentFinalExamGrade={studentFinalExamGrade}
+      />
+      <ClassTasksSection detail={detail} />
+      <ClassCourseGradeSection courseGrade={detail.courseGrade} />
     </div>
   );
 }
 
 export function StudentJoinedClassesSection({
-  studentProfileId,
+  userId: _userId,
+  initialClasses,
+  classBundles,
 }: StudentJoinedClassesSectionProps) {
-  const student = getManagerStudentPreview(studentProfileId);
-  const [classes, setClasses] = useState<ManagerStudentClassRow[]>(() =>
-    getManagerStudentClassesPreview(studentProfileId)
-  );
+  const [classes, setClasses] = useState<ManagerStudentClassRow[]>(initialClasses);
+  const [bundles, setBundles] =
+    useState<ManagerStudentClassAcademicBundle[]>(classBundles);
   const [isAssignClassOpen, setIsAssignClassOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string | null>(
     () => classes[0]?.id ?? null
@@ -98,6 +107,11 @@ export function StudentJoinedClassesSection({
         ? activeTab
         : classes[0]!.id;
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    setClasses(initialClasses);
+    setBundles(classBundles);
+  }, [initialClasses, classBundles]);
 
   const enrolledClassIds = useMemo(
     () => new Set(classes.map((classRow) => classRow.class_id)),
@@ -112,9 +126,9 @@ export function StudentJoinedClassesSection({
     [enrolledClassIds]
   );
 
-  const activeClass =
-    classes.find((classRow) => classRow.id === resolvedActiveTab) ??
-    classes[0] ??
+  const activeBundle =
+    bundles.find((bundle) => bundle.classRow.id === resolvedActiveTab) ??
+    bundles[0] ??
     null;
 
   useEffect(() => {
@@ -169,7 +183,7 @@ export function StudentJoinedClassesSection({
         </CardHeader>
         <CardContent className="min-w-0 max-w-full overflow-hidden px-0 pb-0">
           {classes.length === 0 ? (
-            <div className="min-w-0 max-w-full overflow-hidden border-b bg-muted/25 px-4 py-3">
+            <div className="min-w-0 max-w-full border-b bg-muted/25 px-4 py-3">
               <p className="rounded-xl bg-muted/60 px-4 py-8 text-center text-sm text-muted-foreground ring-1 ring-foreground/8">
                 No classes assigned yet. Use Assign class to enroll this student.
               </p>
@@ -180,13 +194,14 @@ export function StudentJoinedClassesSection({
               onValueChange={setActiveTab}
               className="flex min-w-0 max-w-full flex-col gap-0"
             >
-              <div className="min-w-0 max-w-full overflow-hidden border-b bg-muted/25 px-4 py-3">
+              <div className="min-w-0 max-w-full border-b bg-muted/25 px-4 py-3 sm:px-5">
                 <HorizontalScrollCarousel
                   ariaLabel="Student class tabs"
-                  className="rounded-xl bg-muted/60 p-2 ring-1 ring-foreground/8"
+                  className="rounded-xl bg-muted/60 px-1 py-2 ring-1 ring-foreground/8 sm:px-2"
+                  contentClassName="px-1 py-1"
                   navButtonClassName="size-8 rounded-full text-muted-foreground hover:bg-background/80 hover:text-foreground disabled:opacity-30"
                 >
-                  <TabsListPrimitive className="my-1 inline-flex h-auto w-max max-w-none flex-nowrap items-center gap-2 bg-transparent p-0">
+                  <TabsListPrimitive className="mx-1 my-1 inline-flex h-auto w-max max-w-none flex-nowrap items-center gap-2 bg-transparent p-0">
                     {classes.map((classRow) => (
                       <TabsTriggerPrimitive
                         key={classRow.id}
@@ -223,12 +238,9 @@ export function StudentJoinedClassesSection({
                 </HorizontalScrollCarousel>
               </div>
 
-              {activeClass ? (
+              {activeBundle ? (
                 <div className="min-w-0 px-4 py-6">
-                  <ClassTabPanel
-                    classRow={activeClass}
-                    userId={student.user_id}
-                  />
+                  <ClassTabPanel bundle={activeBundle} />
                 </div>
               ) : null}
             </TabsPrimitive>

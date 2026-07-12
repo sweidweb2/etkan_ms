@@ -195,15 +195,15 @@ export function EditStudentTaskSheet({
           <SheetTitle>{studentTask.full_name}</SheetTitle>
           <SheetDescription>
             {readOnly
-              ? "View-only while the class status is Done. Change class status to edit."
+              ? "View-only while a computed course grade exists for this student. Delete the computed grade to edit."
               : "Edit student_tasks fields for this assignment."}
           </SheetDescription>
         </SheetHeader>
 
         {readOnly ? (
           <p className="mx-4 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-100">
-            Grades are locked while the class is Done. Change the class status on
-            the class detail page before editing task grades.
+            Cannot change this student&apos;s grade inputs while a computed
+            course grade exists. Delete the computed grade first.
           </p>
         ) : null}
 

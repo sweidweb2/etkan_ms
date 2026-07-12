@@ -33,6 +33,7 @@ export const ROUTES = {
   MANAGER_EQUIPMENT_BORROW: "/manager/equipments/borrow",
   MANAGER_RELATIONSHIPS: "/manager/relationships",
   MANAGER_PHASES: "/manager/phases",
+  MANAGER_PHASES_PROGRESS: "/manager/phases/progress",
   MANAGER_SETTINGS: "/manager/settings",
   MANAGER_REPORTS: "/manager/reports",
   MANAGER_ANALYTICS: "/manager/analytics",

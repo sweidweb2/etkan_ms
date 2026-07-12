@@ -3,12 +3,17 @@ import { ATTENDEE_STATUSES } from "@/lib/constants/manager-attendee-status";
 import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
 import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
+import {
+  CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+  STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
+} from "@/lib/manager/class-grades-access";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as taskRepository from "@/repositories/task.repository";
@@ -19,6 +24,7 @@ import {
   getSessionDetailForManager,
   seedLateJoinAttendeesForStudent,
   updateAttendeeForManager,
+  updateClassSessionForManager,
   updateSessionSettingsForManager,
   updateStudentTaskForManager,
 } from "@/services/session.service";
@@ -30,12 +36,22 @@ vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/semester.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
+vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/task.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+
+function mockUnlockedComputedGrades() {
+  vi.mocked(
+    studentCourseGradeRepository.countStudentCourseGradesByClassId
+  ).mockResolvedValue({ count: 0, error: null } as never);
+  vi.mocked(
+    studentCourseGradeRepository.findStudentCourseGradeByClassAndUser
+  ).mockResolvedValue({ data: null, error: null } as never);
+}
 
 const adminClient = {} as never;
 const actor: AuditActor = {
@@ -226,6 +242,7 @@ describe("updateSessionSettingsForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
   });
 
   it("rejects non-managers", async () => {
@@ -318,12 +335,104 @@ describe("updateSessionSettingsForManager", () => {
     );
     expect(result.success).toBe(true);
   });
+
+  it("blocks group grade updates when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await updateSessionSettingsForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        session_id: sessionId,
+        class_id: classId,
+        group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+    });
+    expect(sessionRepository.updateSessionSettings).not.toHaveBeenCalled();
+  });
+
+  it("blocks phase updates when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await updateSessionSettingsForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        session_id: sessionId,
+        class_id: classId,
+        semester_id: semesterId,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+    });
+    expect(sessionRepository.updateSessionSettings).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateClassSessionForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
+  });
+
+  it("blocks session detail edits when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await updateClassSessionForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        session_id: sessionId,
+        class_id: classId,
+        topic: "Updated topic",
+        starts_at: "2026-07-10T10:00",
+        ends_at: "2026-07-10T12:00",
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+    });
+    expect(sessionRepository.updateSessionDetails).not.toHaveBeenCalled();
+  });
 });
 
 describe("createSessionTaskForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
   });
 
   it("creates pending student_tasks for enrolled students", async () => {
@@ -424,12 +533,41 @@ describe("createSessionTaskForManager", () => {
       );
     }
   });
+
+  it("blocks task creation when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await createSessionTaskForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        class_id: classId,
+        session_id: sessionId,
+        title: "Homework 1",
+        max_grade: 20,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+    });
+    expect(taskRepository.createTask).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateAttendeeForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
   });
 
   it("updates attendance status and preserves note when omitted", async () => {
@@ -486,12 +624,55 @@ describe("updateAttendeeForManager", () => {
     );
     expect(result.success).toBe(true);
   });
+
+  it("blocks attendance updates only for students with a computed grade", async () => {
+    vi.mocked(attendeeRepository.findAttendeeById).mockResolvedValue({
+      data: {
+        id: attendeeId,
+        session_id: sessionId,
+        student_id: studentA,
+        status: ATTENDEE_STATUSES.PRESENT,
+        note: null,
+        created_at: "2026-07-10T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+    vi.mocked(
+      studentCourseGradeRepository.findStudentCourseGradeByClassAndUser
+    ).mockResolvedValue({
+      data: { id: "grade-1", user_id: studentA, class_id: classId },
+      error: null,
+    } as never);
+
+    const result = await updateAttendeeForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: attendeeId,
+        class_id: classId,
+        session_id: sessionId,
+        status: ATTENDEE_STATUSES.ABSENT,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
+    });
+    expect(attendeeRepository.updateAttendee).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateStudentTaskForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
   });
 
   it("updates student task fields", async () => {
@@ -895,6 +1076,10 @@ describe("updateStudentTaskForManager", () => {
       },
       error: null,
     } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
 
     const result = await updateStudentTaskForManager(
       adminClient,
@@ -911,6 +1096,61 @@ describe("updateStudentTaskForManager", () => {
     if (!result.success) {
       expect(result.fieldErrors?.grade?.[0]).toContain("20");
     }
+  });
+
+  it("blocks student task edits when that student has a computed grade", async () => {
+    vi.mocked(studentTaskRepository.findStudentTaskById).mockResolvedValue({
+      data: {
+        id: studentTaskId,
+        task_id: taskId,
+        student_id: studentA,
+        status: STUDENT_TASK_STATUSES.PENDING,
+        submitted_at: null,
+        grade: null,
+        notes: null,
+        graded_at: null,
+      },
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+      data: {
+        id: taskId,
+        session_id: sessionId,
+        title: "Homework",
+        description: null,
+        due_date: "2099-01-01T00:00:00.000Z",
+        max_grade: 20,
+        created_at: "2026-07-01T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+    vi.mocked(
+      studentCourseGradeRepository.findStudentCourseGradeByClassAndUser
+    ).mockResolvedValue({
+      data: { id: "grade-1", user_id: studentA, class_id: classId },
+      error: null,
+    } as never);
+
+    const result = await updateStudentTaskForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: studentTaskId,
+        status: STUDENT_TASK_STATUSES.GRADED,
+        grade: 18,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
+    });
+    expect(studentTaskRepository.updateStudentTask).not.toHaveBeenCalled();
   });
 });
 

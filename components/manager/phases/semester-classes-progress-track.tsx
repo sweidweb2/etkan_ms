@@ -23,7 +23,7 @@ import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 type SemesterClassesProgressTrackProps = {
   classes: ManagerSemesterClassRow[];
   semesterName: string;
-  onExportPdf: () => void;
+  onExportPdf?: () => void;
   isExportingPdf?: boolean;
 };
 
@@ -165,28 +165,30 @@ export function SemesterClassesProgressTrack({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    disabled={isExportingPdf}
-                    onClick={onExportPdf}
-                    aria-label={`Export ${semesterName} page as PDF`}
-                    className="print:hidden"
-                  />
-                }
-              >
-                {isExportingPdf ? (
-                  <InlineSpinner />
-                ) : (
-                  <FileDownIcon />
-                )}
-              </TooltipTrigger>
-              <TooltipContent>Export page as PDF</TooltipContent>
-            </Tooltip>
+            {onExportPdf ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={isExportingPdf}
+                      onClick={onExportPdf}
+                      aria-label={`Export ${semesterName} page as PDF`}
+                      className="print:hidden"
+                    />
+                  }
+                >
+                  {isExportingPdf ? (
+                    <InlineSpinner />
+                  ) : (
+                    <FileDownIcon />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>Export page as PDF</TooltipContent>
+              </Tooltip>
+            ) : null}
             <div className="text-right">
               <p className="text-2xl font-semibold tabular-nums tracking-tight">
                 {summary.overallRate}%

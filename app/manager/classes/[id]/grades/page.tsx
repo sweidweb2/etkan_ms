@@ -57,7 +57,7 @@ export default async function ManagerClassGradesPage({
       </Breadcrumb>
 
       {gradesUnlocked ? (
-        <ManagerClassGradesContent classId={id} className={classRow.name} />
+        <ManagerClassGradesContent classId={id} classRow={classRow} />
       ) : (
         <ClassGradesLockedSection status={classRow.status} />
       )}
@@ -67,10 +67,10 @@ export default async function ManagerClassGradesPage({
 
 async function ManagerClassGradesContent({
   classId,
-  className,
+  classRow,
 }: {
   classId: string;
-  className: string;
+  classRow: Awaited<ReturnType<typeof getClassForManager>>;
 }) {
   const adminClient = createSupabaseAdminClient();
   const role = await getSessionRole();
@@ -79,10 +79,14 @@ async function ManagerClassGradesContent({
     getClassFinalExamForManager(adminClient, role, classId),
   ]);
 
+  if (!classRow) {
+    return null;
+  }
+
   return (
     <ClassStudentGradesSection
       classId={classId}
-      className={className}
+      classRow={classRow}
       rows={rows}
       classTasks={tasks}
       finalExam={finalExamBundle.finalExam}

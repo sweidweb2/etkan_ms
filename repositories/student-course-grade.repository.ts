@@ -42,6 +42,26 @@ export async function listStudentCourseGradesByClassId(
     .eq("class_id", classId);
 }
 
+export async function countStudentCourseGradesByClassId(
+  client: Supabase,
+  classId: string
+) {
+  return client
+    .from("student_course_grade")
+    .select("id", { count: "exact", head: true })
+    .eq("class_id", classId);
+}
+
+export async function listStudentCourseGradeUserIdsByClassId(
+  client: Supabase,
+  classId: string
+) {
+  return client
+    .from("student_course_grade")
+    .select("user_id")
+    .eq("class_id", classId);
+}
+
 export async function findStudentCourseGradeByClassAndUser(
   client: Supabase,
   classId: string,

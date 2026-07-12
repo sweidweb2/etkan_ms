@@ -68,6 +68,17 @@ export async function listStudentClassesByClassId(
     .order("joined_at", { ascending: false });
 }
 
+export async function listStudentClassesByUserId(
+  client: Supabase,
+  userId: string
+) {
+  return client
+    .from("student_class")
+    .select(STUDENT_CLASS_COLUMNS)
+    .eq("user_id", userId)
+    .order("joined_at", { ascending: false });
+}
+
 export async function listEnrolledUserIdsByClassId(
   client: Supabase,
   classId: string
