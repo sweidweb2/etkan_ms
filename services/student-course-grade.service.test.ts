@@ -330,6 +330,78 @@ describe("getStudentClassGradeDetailForManager", () => {
       }),
     ]);
   });
+
+  it("includes orphan tasks without a session as Unassigned", async () => {
+    const orphanTaskId = "22222222-2222-4222-8222-222222222222";
+
+    mockGradeContext();
+    vi.mocked(taskRepository.listTasksForGradesBySessionIds).mockResolvedValue({
+      data: [
+        {
+          id: taskOneId,
+          session_id: sessionOneId,
+          title: "Worksheet 1",
+          max_grade: 20,
+          due_date: "2026-07-11T00:00:00.000Z",
+          created_at: "2026-07-01T00:00:00.000Z",
+        },
+        {
+          id: orphanTaskId,
+          session_id: null,
+          title: "Legacy orphan",
+          max_grade: 100,
+          due_date: null,
+          created_at: "2026-07-03T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    } as never);
+
+    vi.mocked(studentTaskRepository.listStudentTasksForGradesByTaskIds).mockResolvedValue({
+      data: [
+        {
+          id: "student-task-1",
+          task_id: taskOneId,
+          student_id: studentUserId,
+          status: STUDENT_TASK_STATUSES.GRADED,
+          submitted_at: "2026-07-11T10:00:00.000Z",
+          grade: 18,
+          notes: null,
+          graded_at: "2026-07-11T12:00:00.000Z",
+        },
+        {
+          id: "student-task-orphan",
+          task_id: orphanTaskId,
+          student_id: studentUserId,
+          status: STUDENT_TASK_STATUSES.MISSING,
+          submitted_at: null,
+          grade: 0,
+          notes: null,
+          graded_at: null,
+        },
+      ],
+      error: null,
+    } as never);
+
+    const result = await getStudentClassGradeDetailForManager(
+      adminClient,
+      ROLES.MANAGER,
+      classId,
+      studentProfileId
+    );
+
+    expect(result?.classTasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: orphanTaskId,
+          session_id: null,
+          session_label: "Unassigned",
+        }),
+      ])
+    );
+    expect(result?.gradeRow.missing_items).toEqual([]);
+    expect(result?.gradeRow.task_total_grade).toBe(45);
+  });
 });
 
 describe("listComputedStudentGradeSheetBundlesForManager", () => {

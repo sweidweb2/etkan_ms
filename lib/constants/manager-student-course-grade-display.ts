@@ -12,23 +12,19 @@ export const MANAGER_STUDENT_COURSE_GRADE_COMPONENT_LABELS: Record<
   ManagerStudentCourseGradeComponentKey,
   string
 > = {
-  attendance: "Attendee",
   tasks: "Total tasks",
-  group: "Group grade",
   final_exam: "Final exams",
 };
 
-/** Display order for the four weight rules. */
+/** Display order for course-grade weight rules (matches official two-factor compute). */
 export const MANAGER_STUDENT_COURSE_GRADE_WEIGHT_RULE_ORDER: ManagerStudentCourseGradeComponentKey[] =
-  ["group", "final_exam", "tasks", "attendance"];
+  ["tasks", "final_exam"];
 
 export const MANAGER_STUDENT_COURSE_GRADE_COMPONENT_COLORS: Record<
   ManagerStudentCourseGradeComponentKey,
   string
 > = {
-  attendance: "#0ea5e9",
   tasks: "#8b5cf6",
-  group: "#10b981",
   final_exam: "#f59e0b",
 };
 
@@ -36,9 +32,7 @@ export const MANAGER_STUDENT_COURSE_GRADE_COMPONENT_ACCENT: Record<
   ManagerStudentCourseGradeComponentKey,
   string
 > = {
-  attendance: "border-l-sky-500",
   tasks: "border-l-violet-500",
-  group: "border-l-emerald-500",
   final_exam: "border-l-amber-500",
 };
 
@@ -86,19 +80,9 @@ export function getManagerStudentCourseGradeComponents(
     weight: number | null;
   }> = [
     {
-      key: "attendance",
-      grade: averageAttendeeGradeFromJson(courseGrade.attendee_grades_json),
-      weight: null,
-    },
-    {
       key: "tasks",
       grade: courseGrade.task_total_grade,
       weight: courseGrade.task_weight,
-    },
-    {
-      key: "group",
-      grade: averageGroupGradeFromJson(courseGrade.group_grades_json),
-      weight: null,
     },
     {
       key: "final_exam",

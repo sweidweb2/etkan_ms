@@ -1,6 +1,6 @@
 export type ManagerClassTaskForGradesRow = {
   id: string;
-  session_id: string;
+  session_id: string | null;
   session_label: string;
   session_nb_order: number;
   title: string;

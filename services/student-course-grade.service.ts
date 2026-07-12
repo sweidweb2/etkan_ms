@@ -1,6 +1,7 @@
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
+import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
 import {
@@ -12,7 +13,7 @@ import type { FactorWeightsValues } from "@/lib/compute/custom-compute-form-util
 import {
   computeStudentTaskTotalGrade,
   computeWeightedCourseTotalGrade,
-  normalizeStoredFinalExamGrade,
+  normalizeFinalExamGradeForCompute,
 } from "@/lib/manager/compute-student-course-grade";
 import { buildStudentGroupGradeSlots } from "@/lib/manager/class-group-grade-analytics";
 import {
@@ -161,12 +162,21 @@ function buildClassTaskRows(
   const rows: ManagerClassTaskForGradesRow[] = [];
 
   for (const task of tasks) {
-    if (!task.session_id) {
-      continue;
-    }
+    const session = task.session_id
+      ? sessionById.get(task.session_id)
+      : undefined;
 
-    const session = sessionById.get(task.session_id);
     if (!session) {
+      rows.push({
+        id: task.id,
+        session_id: task.session_id,
+        session_label: "Unassigned",
+        session_nb_order: Number.MAX_SAFE_INTEGER,
+        title: task.title ?? "Task",
+        max_grade: task.max_grade,
+        due_date: task.due_date ?? null,
+        created_at: task.created_at ?? null,
+      });
       continue;
     }
 
@@ -353,12 +363,14 @@ function mapPendingGradeRow(
   const studentTasks = context.studentTasksByUserId.get(student.user_id) ?? [];
   const taskTotalGrade = computeStudentTaskTotalGrade(
     context.classTasks,
-    studentTasks
+    studentTasks,
+    buildDefaultTaskWeightsForClass(context.classTasks)
   );
   const finalExamGradeRecord =
     context.finalExamGradesByUserId.get(student.user_id) ?? null;
-  const finalExamGrade = normalizeStoredFinalExamGrade(
+  const finalExamGrade = normalizeFinalExamGradeForCompute(
     finalExamGradeRecord?.grade ?? null,
+    finalExamGradeRecord?.status,
     context.finalExamMaxGrade
   );
   const missingItems = buildStudentGradeMissingItems({
@@ -909,12 +921,18 @@ async function computeAndSaveStudentCourseGrade(
     };
   }
 
+  const taskWeights =
+    options?.taskWeights ??
+    buildDefaultTaskWeightsForClass(context.classTasks);
+
   const taskTotalGrade = computeStudentTaskTotalGrade(
     context.classTasks,
-    studentTasks
+    studentTasks,
+    taskWeights
   );
-  const finalExamGrade = normalizeStoredFinalExamGrade(
+  const finalExamGrade = normalizeFinalExamGradeForCompute(
     finalExamGradeRecord?.grade ?? null,
+    finalExamGradeRecord?.status,
     context.finalExamMaxGrade
   );
 
@@ -942,10 +960,6 @@ async function computeAndSaveStudentCourseGrade(
   if (existing.error) {
     return { success: false, error: existing.error.message };
   }
-
-  const taskWeights =
-    options?.taskWeights ??
-    buildDefaultTaskWeightsForClass(context.classTasks);
 
   const saveResult = await studentCourseGradeRepository.saveStudentCourseGrade(
     adminClient,
@@ -1043,10 +1057,32 @@ export async function computeAllStudentCourseGradesForManager(
     return { success: false as const, error: guard.error };
   }
 
+  const enrollmentsResult =
+    await studentClassRepository.listStudentClassesByClassId(
+      adminClient,
+      classId
+    );
+
+  if (enrollmentsResult.error) {
+    return { success: false as const, error: enrollmentsResult.error.message };
+  }
+
+  const enrolledUserIds = new Set(
+    (enrollmentsResult.data ?? [])
+      .filter((row) => row.status === STUDENT_CLASS_STATUSES.ENROLLED)
+      .map((row) => row.user_id)
+  );
+
   const computedRows: ManagerClassStudentGradeRow[] = [];
   const failures: string[] = [];
+  let skippedNonEnrolled = 0;
 
   for (const userId of studentUserIds) {
+    if (!enrolledUserIds.has(userId)) {
+      skippedNonEnrolled += 1;
+      continue;
+    }
+
     const result = await computeAndSaveStudentCourseGrade(
       adminClient,
       actor,
@@ -1070,13 +1106,19 @@ export async function computeAllStudentCourseGradesForManager(
     };
   }
 
+  const skippedTotal = failures.length + skippedNonEnrolled;
+  const skippedNote =
+    skippedNonEnrolled > 0
+      ? ` Skipped ${skippedNonEnrolled} paused/stopped.`
+      : "";
+
   return {
     success: true as const,
     rows: computedRows,
     message: `Computed ${computedRows.length} student${
       computedRows.length === 1 ? "" : "s"
-    }.`,
-    skippedCount: failures.length,
+    }.${skippedNote}`,
+    skippedCount: skippedTotal,
   };
 }
 

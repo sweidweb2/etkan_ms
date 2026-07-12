@@ -107,13 +107,48 @@ export async function saveStudentCourseGrade(
       .single();
   }
 
-  return client
+  const inserted = await client
     .from("student_course_grade")
     .insert({
       user_id: input.user_id,
       class_id: input.class_id,
       ...payload,
     })
+    .select(STUDENT_COURSE_GRADE_COLUMNS)
+    .single();
+
+  if (!inserted.error) {
+    return inserted;
+  }
+
+  const normalized = (inserted.error.message ?? "").toLowerCase();
+  const isUniqueViolation =
+    normalized.includes("unique") ||
+    normalized.includes("duplicate") ||
+    inserted.error.code === "23505";
+
+  if (!isUniqueViolation) {
+    return inserted;
+  }
+
+  // Race: another request inserted first — update that row.
+  const raced = await findStudentCourseGradeByClassAndUser(
+    client,
+    input.class_id,
+    input.user_id
+  );
+
+  if (raced.error || !raced.data) {
+    return {
+      data: null,
+      error: raced.error ?? inserted.error,
+    };
+  }
+
+  return client
+    .from("student_course_grade")
+    .update(payload)
+    .eq("id", raced.data.id)
     .select(STUDENT_COURSE_GRADE_COLUMNS)
     .single();
 }

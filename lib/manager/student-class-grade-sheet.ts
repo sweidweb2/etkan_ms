@@ -122,9 +122,11 @@ function buildTaskRows(
 
   return detail.tasks.map((task) => ({
     title: task.title,
-    sessionLabel: task.session_id
-      ? (sessionLabelById.get(task.session_id) ?? task.session_id)
-      : null,
+    sessionLabel:
+      task.session_label ??
+      (task.session_id
+        ? (sessionLabelById.get(task.session_id) ?? task.session_id)
+        : null),
     grade: task.grade,
     maxGrade: task.max_grade,
     status: task.status,

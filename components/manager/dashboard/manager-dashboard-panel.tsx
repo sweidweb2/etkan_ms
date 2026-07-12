@@ -20,19 +20,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  MANAGER_DASHBOARD_ACTIVITY_MOCK,
-  MANAGER_DASHBOARD_ALERTS_MOCK,
-  MANAGER_DASHBOARD_QUICK_ACTIONS_MOCK,
-  MANAGER_DASHBOARD_SCHEDULE_MOCK,
-  MANAGER_DASHBOARD_STATS_MOCK,
-} from "@/lib/constants/manager-dashboard-mock";
+import { MANAGER_DASHBOARD_QUICK_ACTIONS } from "@/lib/constants/manager-dashboard";
+import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
+import type {
+  ManagerDashboardData,
+  ManagerDashboardGlanceItem,
+} from "@/types/manager-dashboard";
 
 const SCHEDULE_STATUS_STYLES = {
   upcoming: "bg-sky-500",
   in_progress: "bg-emerald-500",
   completed: "bg-muted-foreground/60",
+} as const;
+
+const GLANCE_TONE_STYLES: Record<
+  ManagerDashboardGlanceItem["tone"],
+  string
+> = {
+  sky: "bg-sky-500/10 text-sky-600",
+  violet: "bg-violet-500/10 text-violet-600",
+  emerald: "bg-emerald-500/10 text-emerald-600",
+  amber: "bg-amber-500/10 text-amber-600",
+};
+
+const GLANCE_ICONS = {
+  sky: UsersIcon,
+  violet: BookOpenIcon,
+  emerald: CalendarDaysIcon,
+  amber: CircleAlertIcon,
 } as const;
 
 function DashboardSectionHeader({
@@ -50,7 +66,11 @@ function DashboardSectionHeader({
   );
 }
 
-export function ManagerDashboardPanel() {
+type ManagerDashboardPanelProps = {
+  data: ManagerDashboardData;
+};
+
+export function ManagerDashboardPanel({ data }: ManagerDashboardPanelProps) {
   return (
     <div className="flex flex-col gap-6">
       <DashboardSectionHeader
@@ -59,7 +79,7 @@ export function ManagerDashboardPanel() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {MANAGER_DASHBOARD_STATS_MOCK.map((stat) => (
+        {data.stats.map((stat) => (
           <div key={stat.label} className="flex flex-col gap-2">
             <UserStatCard
               label={stat.label}
@@ -80,7 +100,7 @@ export function ManagerDashboardPanel() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 px-4 pt-2 pb-3 sm:grid-cols-2">
-            {MANAGER_DASHBOARD_QUICK_ACTIONS_MOCK.map((action) => (
+            {MANAGER_DASHBOARD_QUICK_ACTIONS.map((action) => (
               <Link
                 key={action.href}
                 href={action.href}
@@ -108,11 +128,8 @@ export function ManagerDashboardPanel() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 px-4 pt-2 pb-3">
-            {MANAGER_DASHBOARD_ALERTS_MOCK.map((alert) => (
-              <div
-                key={alert.id}
-                className="rounded-xl border bg-card p-4"
-              >
+            {data.alerts.map((alert) => (
+              <div key={alert.id} className="rounded-xl border bg-card p-4">
                 <div className="flex items-start gap-3">
                   <div className="rounded-full bg-amber-500/10 p-2 text-amber-600">
                     <CircleAlertIcon className="size-4" />
@@ -144,34 +161,40 @@ export function ManagerDashboardPanel() {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 pt-2 pb-3">
-            <div className="space-y-3">
-              {MANAGER_DASHBOARD_SCHEDULE_MOCK.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-4 rounded-xl border p-4"
-                >
+            {data.schedule.length === 0 ? (
+              <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                No weekly schedule slots for today.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {data.schedule.map((item) => (
                   <div
-                    className={cn(
-                      "mt-1 size-2.5 shrink-0 rounded-full",
-                      SCHEDULE_STATUS_STYLES[item.status]
-                    )}
-                    aria-hidden="true"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="font-medium">{item.title}</p>
-                      <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                        <Clock3Icon className="size-3.5" />
-                        {item.time}
-                      </span>
+                    key={item.id}
+                    className="flex items-start gap-4 rounded-xl border p-4"
+                  >
+                    <div
+                      className={cn(
+                        "mt-1 size-2.5 shrink-0 rounded-full",
+                        SCHEDULE_STATUS_STYLES[item.status]
+                      )}
+                      aria-hidden="true"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="font-medium">{item.title}</p>
+                        <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                          <Clock3Icon className="size-3.5" />
+                          {item.time}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {item.meta}
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {item.meta}
-                    </p>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -183,45 +206,30 @@ export function ManagerDashboardPanel() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 px-4 pt-2 pb-3">
-            <div className="rounded-xl border p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-sky-500/10 p-2 text-sky-600">
-                  <UsersIcon className="size-4" />
+            {data.glance.map((item) => {
+              const Icon = GLANCE_ICONS[item.tone];
+
+              return (
+                <div key={item.id} className="rounded-xl border p-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "rounded-full p-2",
+                        GLANCE_TONE_STYLES[item.tone]
+                      )}
+                    >
+                      <Icon className="size-4" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">Enrollment trend</p>
-                  <p className="text-sm text-muted-foreground">
-                    18 new student applications in the last 7 days.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-violet-500/10 p-2 text-violet-600">
-                  <BookOpenIcon className="size-4" />
-                </div>
-                <div>
-                  <p className="font-medium">Academic coverage</p>
-                  <p className="text-sm text-muted-foreground">
-                    11 subjects have at least one active class this week.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-emerald-500/10 p-2 text-emerald-600">
-                  <CalendarDaysIcon className="size-4" />
-                </div>
-                <div>
-                  <p className="font-medium">Schedule health</p>
-                  <p className="text-sm text-muted-foreground">
-                    No room conflicts detected for today&apos;s classes.
-                  </p>
-                </div>
-              </div>
-            </div>
+              );
+            })}
           </CardContent>
         </Card>
       </div>
@@ -231,30 +239,36 @@ export function ManagerDashboardPanel() {
           <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Recent activity</CardTitle>
             <CardDescription>
-              Latest updates from students, subjects, payments, and relationships.
+              Latest updates from manager operations and audit history.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 pt-2 pb-3">
-            <div className="space-y-4">
-              {MANAGER_DASHBOARD_ACTIVITY_MOCK.map((item) => (
-                <div key={item.id} className="flex gap-3">
-                  <div className="mt-1 rounded-full bg-muted p-2 text-muted-foreground">
-                    <CircleCheckIcon className="size-4" />
-                  </div>
-                  <div className="min-w-0 flex-1 border-b pb-4 last:border-b-0 last:pb-0">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium">{item.title}</p>
-                      <span className="text-xs text-muted-foreground">
-                        {item.time}
-                      </span>
+            {data.activity.length === 0 ? (
+              <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                No recent audit activity yet.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {data.activity.map((item) => (
+                  <div key={item.id} className="flex gap-3">
+                    <div className="mt-1 rounded-full bg-muted p-2 text-muted-foreground">
+                      <CircleCheckIcon className="size-4" />
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {item.description}
-                    </p>
+                    <div className="min-w-0 flex-1 border-b pb-4 last:border-b-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium">{item.title}</p>
+                        <span className="text-xs text-muted-foreground">
+                          {item.time}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -267,7 +281,7 @@ export function ManagerDashboardPanel() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 px-4 pt-2 pb-3">
             <Link
-              href="/manager/notifications"
+              href={ROUTES.MANAGER_NOTIFICATIONS}
               className={cn(
                 buttonVariants({ variant: "outline", size: "default" }),
                 "justify-start"
@@ -277,7 +291,7 @@ export function ManagerDashboardPanel() {
               Open notifications
             </Link>
             <Link
-              href="/manager/reports"
+              href={ROUTES.MANAGER_REPORTS}
               className={cn(
                 buttonVariants({ variant: "outline", size: "default" }),
                 "justify-start"
@@ -287,7 +301,7 @@ export function ManagerDashboardPanel() {
               View reports
             </Link>
             <Link
-              href="/manager/settings"
+              href={ROUTES.MANAGER_SETTINGS}
               className={cn(
                 buttonVariants({ variant: "outline", size: "default" }),
                 "justify-start"

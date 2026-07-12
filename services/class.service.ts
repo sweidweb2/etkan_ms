@@ -50,6 +50,7 @@ import {
   type AuditActor,
 } from "@/services/audit-log.service";
 import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
+import { isDueDatePast } from "@/lib/manager/late-enrollment";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import {
   CLASS_GRADES_LOCKED_ERROR,
@@ -59,7 +60,7 @@ import {
   assertClassStructureUnlockedForComputedGrades,
   assertStudentGradeInputsUnlockedForComputedGrade,
 } from "@/services/class-computed-grade-lock.service";
-import { ensureSessionAttendeesForEnrolledStudents, seedLateJoinAttendeesForStudent } from "@/services/session.service";
+import { ensureSessionAttendeesForEnrolledStudents, seedLateJoinAttendeesForStudent, seedLateJoinStudentTasksForStudent } from "@/services/session.service";
 import { listStudentsForManager } from "@/services/student.service";
 import { ensureSubscribedSemesterForStudent, reassignClassStudentsSubscribedSemesters } from "@/services/subscribed-semester.service";
 import type { FieldErrors } from "@/types/auth";
@@ -370,22 +371,6 @@ async function buildFullNameByUserId(
   return map;
 }
 
-function isFinalExamDueDatePast(
-  dueDate: string | null,
-  now: Date = new Date()
-): boolean {
-  if (!dueDate) {
-    return false;
-  }
-
-  const dueMs = new Date(dueDate).getTime();
-  if (Number.isNaN(dueMs)) {
-    return false;
-  }
-
-  return dueMs < now.getTime();
-}
-
 function buildEnrollmentFinalExamGradeInput(
   finalExamId: string,
   studentId: string,
@@ -397,7 +382,7 @@ function buildEnrollmentFinalExamGradeInput(
   grade?: number | null;
   notes?: string | null;
 } {
-  if (isFinalExamDueDatePast(dueDate)) {
+  if (isDueDatePast(dueDate)) {
     return {
       final_exam_id: finalExamId,
       student_id: studentId,
@@ -1051,20 +1036,20 @@ export async function listAvailableStudentsForClass(
 ): Promise<ManagerStudentRow[]> {
   assertManagerRole(actorRole);
 
-  const [enrolledResult, students] = await Promise.all([
-    studentClassRepository.listEnrolledUserIdsByClassId(adminClient, classId),
+  const [membershipResult, students] = await Promise.all([
+    studentClassRepository.listStudentUserIdsByClassId(adminClient, classId),
     listStudentsForManager(adminClient, actorRole),
   ]);
 
-  if (enrolledResult.error) {
-    throw new Error(enrolledResult.error.message);
+  if (membershipResult.error) {
+    throw new Error(membershipResult.error.message);
   }
 
-  const enrolledIds = new Set(
-    (enrolledResult.data ?? []).map((row) => row.user_id)
+  const memberIds = new Set(
+    (membershipResult.data ?? []).map((row) => row.user_id)
   );
 
-  return students.filter((student) => !enrolledIds.has(student.user_id));
+  return students.filter((student) => !memberIds.has(student.user_id));
 }
 
 export async function getClassFinalExamForManager(
@@ -1872,6 +1857,15 @@ export async function updateFinalExamForManager(
     return { success: false, error: "Final exam not found." };
   }
 
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    existing.data.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
+  }
+
   const maxGrade =
     parsed.data.max_grade === "" || parsed.data.max_grade === undefined
       ? null
@@ -2247,6 +2241,22 @@ export async function addStudentToClassForManager(
         err instanceof Error
           ? err.message
           : "Student enrolled, but attendance rows could not be created.",
+    };
+  }
+
+  try {
+    await seedLateJoinStudentTasksForStudent(
+      adminClient,
+      input.class_id,
+      userId
+    );
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Student enrolled, but task grade rows could not be created.",
     };
   }
 

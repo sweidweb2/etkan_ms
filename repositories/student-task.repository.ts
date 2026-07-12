@@ -28,6 +28,9 @@ export type CreateStudentTaskInput = {
   task_id: string;
   student_id: string;
   status?: string;
+  grade?: number | null;
+  notes?: string | null;
+  graded_at?: string | null;
 };
 
 export type UpdateStudentTaskInput = {
@@ -180,9 +183,9 @@ export async function createStudentTasks(
         student_id: row.student_id,
         status: row.status ?? STUDENT_TASK_STATUSES.PENDING,
         submitted_at: null,
-        grade: null,
-        notes: null,
-        graded_at: null,
+        grade: row.grade ?? null,
+        notes: row.notes ?? null,
+        graded_at: row.graded_at ?? null,
       }))
     )
     .select(STUDENT_TASK_COLUMNS);

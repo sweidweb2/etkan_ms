@@ -14,6 +14,8 @@ import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as studentTaskRepository from "@/repositories/student-task.repository";
+import * as taskRepository from "@/repositories/task.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
@@ -32,6 +34,8 @@ vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/student-task.repository");
+vi.mock("@/repositories/task.repository");
 vi.mock("@/services/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));
@@ -65,6 +69,8 @@ const studentB = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const studentProfileId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const sessionOneId = "f1f1f1f1-f1f1-4f1f-8f1f-f1f1f1f1f1f1";
 const sessionTwoId = "f2f2f2f2-f2f2-4f2f-8f2f-f2f2f2f2f2f2";
+const taskOneId = "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1";
+const taskTwoId = "a2a2a2a2-a2a2-4a2a-8a2a-a2a2a2a2a2a2";
 
 const classRecord = {
   id: classId,
@@ -183,6 +189,9 @@ describe("createFinalExamForManager", () => {
     );
 
     expect(result.success).toBe(true);
+    expect(
+      studentClassRepository.listEnrolledUserIdsByClassId
+    ).toHaveBeenCalledWith(adminClient, classId);
     expect(finalExamRepository.createStudentFinalExamGrades).toHaveBeenCalledWith(
       adminClient,
       [
@@ -362,6 +371,18 @@ describe("addStudentToClassForManager final exam grade", () => {
       error: null,
     } as never);
     vi.mocked(attendeeRepository.createAttendees).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.listStudentTasksByTaskIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
       data: [],
       error: null,
     } as never);
@@ -554,12 +575,86 @@ describe("addStudentToClassForManager final exam grade", () => {
       ]
     );
   });
+
+  it("seeds student_task rows for existing class tasks on late enroll", async () => {
+    const pastDue = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const futureDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    vi.mocked(finalExamRepository.findFinalExamByClassId).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
+      data: [{ id: sessionOneId, nb_order: 1, topic: "Intro" }],
+      error: null,
+    } as never);
+    vi.mocked(attendeeRepository.listAttendeesBySessionIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(attendeeRepository.createAttendees).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
+      data: [
+        {
+          id: taskOneId,
+          session_id: sessionOneId,
+          max_grade: 100,
+          due_date: pastDue,
+        },
+        {
+          id: taskTwoId,
+          session_id: sessionOneId,
+          max_grade: 50,
+          due_date: futureDue,
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.listStudentTasksByTaskIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    const result = await addStudentToClassForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      { class_id: classId, studentProfileId }
+    );
+
+    expect(result.success).toBe(true);
+    expect(studentTaskRepository.createStudentTasks).toHaveBeenCalledWith(
+      adminClient,
+      [
+        {
+          task_id: taskOneId,
+          student_id: studentA,
+          status: STUDENT_TASK_STATUSES.MISSING,
+          grade: 0,
+          notes: LATE_ENROLLMENT_NOTE,
+        },
+        {
+          task_id: taskTwoId,
+          student_id: studentA,
+          status: STUDENT_TASK_STATUSES.PENDING,
+        },
+      ]
+    );
+  });
 });
 
 describe("updateFinalExamForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
   });
 
   it("rejects non-managers", async () => {
@@ -617,6 +712,29 @@ describe("updateFinalExamForManager", () => {
       expect(result.finalExam.title).toBe("Midterm final");
       expect(result.message).toBe("Final exam updated.");
     }
+  });
+
+  it("blocks updates when computed course grades exist", async () => {
+    vi.mocked(finalExamRepository.findFinalExamById).mockResolvedValue({
+      data: examRecord,
+      error: null,
+    } as never);
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+
+    const result = await updateFinalExamForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      { id: examId, title: "Cannot update", max_grade: 50 }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe(CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR);
+    }
+    expect(finalExamRepository.updateFinalExam).not.toHaveBeenCalled();
   });
 
   it("rejects empty title", async () => {

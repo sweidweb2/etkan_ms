@@ -34,11 +34,7 @@ export interface ManagerStudentCourseGrade {
   created_at: string;
 }
 
-export type ManagerStudentCourseGradeComponentKey =
-  | "attendance"
-  | "tasks"
-  | "group"
-  | "final_exam";
+export type ManagerStudentCourseGradeComponentKey = "tasks" | "final_exam";
 
 export interface ManagerStudentCourseGradeComponent {
   key: ManagerStudentCourseGradeComponentKey;

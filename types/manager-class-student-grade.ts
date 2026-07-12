@@ -12,7 +12,7 @@ export type ManagerClassStudentGradeMissingItem = {
   status: string | null;
   grade: number | null;
   taskId?: string;
-  sessionId?: string;
+  sessionId?: string | null;
   studentTaskId?: string | null;
   finalExamGradeId?: string | null;
   maxGrade?: number | null;

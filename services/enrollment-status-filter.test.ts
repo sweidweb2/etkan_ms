@@ -1,0 +1,149 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
+import { ROLES } from "@/lib/constants/roles";
+import * as studentClassRepository from "@/repositories/student-class.repository";
+import type { AuditActor } from "@/services/audit-log.service";
+import { listAvailableStudentsForClass } from "@/services/class.service";
+import { computeAllStudentCourseGradesForManager } from "@/services/student-course-grade.service";
+import * as classService from "@/services/class.service";
+import * as studentService from "@/services/student.service";
+
+vi.mock("@/repositories/student-class.repository");
+vi.mock("@/repositories/student-course-grade.repository");
+vi.mock("@/repositories/attendee.repository");
+vi.mock("@/repositories/final-exam.repository");
+vi.mock("@/repositories/session.repository");
+vi.mock("@/repositories/student-task.repository");
+vi.mock("@/repositories/task.repository");
+vi.mock("@/services/student.service", () => ({
+  listStudentsForManager: vi.fn(),
+}));
+vi.mock("@/services/audit-log.service", () => ({
+  recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("@/services/class.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/class.service")>();
+  return {
+    ...actual,
+    assertClassGradesUnlockedForManager: vi
+      .fn()
+      .mockResolvedValue({ ok: true }),
+    listClassStudentsForManager: vi.fn(),
+    getClassFinalExamForManager: vi.fn(),
+  };
+});
+
+const adminClient = {} as never;
+const actor: AuditActor = {
+  userId: "11111111-1111-4111-8111-111111111111",
+  userLabel: "Manager",
+};
+
+const classId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const enrolledUserId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const pausedUserId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const outsideUserId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+describe("listAvailableStudentsForClass enrollment membership", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("excludes paused and stopped members via all-status helper", async () => {
+    vi.mocked(
+      studentClassRepository.listStudentUserIdsByClassId
+    ).mockResolvedValue({
+      data: [{ user_id: enrolledUserId }, { user_id: pausedUserId }],
+      error: null,
+    } as never);
+    vi.mocked(studentService.listStudentsForManager).mockResolvedValue([
+      {
+        id: "sp-1",
+        user_id: enrolledUserId,
+        full_name: "Enrolled",
+        username: "enrolled",
+        email: "e@example.com",
+        phone: null,
+      },
+      {
+        id: "sp-2",
+        user_id: pausedUserId,
+        full_name: "Paused",
+        username: "paused",
+        email: "p@example.com",
+        phone: null,
+      },
+      {
+        id: "sp-3",
+        user_id: outsideUserId,
+        full_name: "Outside",
+        username: "outside",
+        email: "o@example.com",
+        phone: null,
+      },
+    ] as never);
+
+    const result = await listAvailableStudentsForClass(
+      adminClient,
+      ROLES.MANAGER,
+      classId
+    );
+
+    expect(
+      studentClassRepository.listStudentUserIdsByClassId
+    ).toHaveBeenCalledWith(adminClient, classId);
+    expect(
+      studentClassRepository.listEnrolledUserIdsByClassId
+    ).not.toHaveBeenCalled();
+    expect(result.map((row) => row.user_id)).toEqual([outsideUserId]);
+  });
+});
+
+describe("computeAllStudentCourseGradesForManager enrollment filter", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(classService.assertClassGradesUnlockedForManager).mockResolvedValue(
+      { ok: true } as never
+    );
+  });
+
+  it("skips paused/stopped ids and does not attempt compute for them", async () => {
+    vi.mocked(
+      studentClassRepository.listStudentClassesByClassId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "enrollment-1",
+          user_id: enrolledUserId,
+          class_id: classId,
+          status: STUDENT_CLASS_STATUSES.ENROLLED,
+          joined_at: "2026-02-01T00:00:00.000Z",
+        },
+        {
+          id: "enrollment-2",
+          user_id: pausedUserId,
+          class_id: classId,
+          status: STUDENT_CLASS_STATUSES.PAUSED,
+          joined_at: "2026-02-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    } as never);
+
+    const result = await computeAllStudentCourseGradesForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      classId,
+      [pausedUserId],
+      undefined
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("No students could be computed.");
+    }
+    expect(classService.listClassStudentsForManager).not.toHaveBeenCalled();
+  });
+});

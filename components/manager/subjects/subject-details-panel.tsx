@@ -4,10 +4,8 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon } from "lucide-react";
 import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
-import { SubjectClassStudentGradesSection } from "@/components/manager/subjects/subject-class-student-grades-section";
 import { SubjectClassesSection } from "@/components/manager/subjects/subject-classes-section";
 import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject-collapsible-section";
-import { SubjectGradesSection } from "@/components/manager/subjects/subject-grades-section";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -146,28 +144,6 @@ export function SubjectDetailsPanel({
         defaultOpen
       >
         <SubjectClassesSection classes={classes} subjectName={subject.name} />
-      </SubjectCollapsibleSection>
-
-      <SubjectCollapsibleSection
-        title="Grades overview"
-        description="Class averages and subject-wide performance."
-        defaultOpen={false}
-      >
-        {(open) => <SubjectGradesSection classes={classes} visible={open} />}
-      </SubjectCollapsibleSection>
-
-      <SubjectCollapsibleSection
-        title="Student grades"
-        description="Per-student grades by class."
-        defaultOpen={false}
-      >
-        {(open) => (
-          <SubjectClassStudentGradesSection
-            classes={classes}
-            subjectName={subject.name}
-            visible={open}
-          />
-        )}
       </SubjectCollapsibleSection>
     </div>
   );

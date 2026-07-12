@@ -4,7 +4,6 @@ import { MANAGER_CLASSES_MOCK } from "@/lib/constants/manager-classes-mock";
 import { getPreviewClassStatus } from "@/lib/constants/manager-class-status";
 import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import { MANAGER_RELATIONSHIPS_MOCK } from "@/lib/constants/manager-relationships-mock";
-import { MANAGER_CLASS_STUDENT_GRADES_MOCK } from "@/lib/constants/manager-subject-student-grades-data";
 import { MANAGER_SUBJECTS_MOCK } from "@/lib/constants/manager-subjects-mock";
 import { BORROW_EQUIPMENT_STATUSES } from "@/lib/constants/manager-borrow-equipment-status";
 import {
@@ -64,11 +63,19 @@ function withMockFallback<T>(filtered: T[], fallback: T[]): T[] {
   return filtered.length > 0 ? filtered : fallback;
 }
 
-function getClassGrades(classId: string) {
-  const direct = MANAGER_CLASS_STUDENT_GRADES_MOCK[classId];
-  if (direct?.length) return direct;
-  const firstKey = Object.keys(MANAGER_CLASS_STUDENT_GRADES_MOCK)[0];
-  return firstKey ? MANAGER_CLASS_STUDENT_GRADES_MOCK[firstKey] : [];
+const REPORTS_CLASS_STUDENT_GRADES_STUB: Array<{
+  studentId: string;
+  studentName: string;
+  finalGrade: number;
+}> = [
+  { studentId: "stu-report-1", studentName: "Ahmed Hassan", finalGrade: 94 },
+  { studentId: "stu-report-2", studentName: "Sara Ali", finalGrade: 88 },
+  { studentId: "stu-report-3", studentName: "Omar Mahmoud", finalGrade: 82 },
+  { studentId: "stu-report-4", studentName: "Layla Ibrahim", finalGrade: 79 },
+];
+
+function getClassGrades(_classId: string) {
+  return REPORTS_CLASS_STUDENT_GRADES_STUB;
 }
 
 function getStudentNameByUserId(userId: string): string {

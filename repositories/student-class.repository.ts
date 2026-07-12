@@ -1,3 +1,4 @@
+import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -79,11 +80,22 @@ export async function listStudentClassesByUserId(
     .order("joined_at", { ascending: false });
 }
 
-export async function listEnrolledUserIdsByClassId(
+export async function listStudentUserIdsByClassId(
   client: Supabase,
   classId: string
 ) {
   return client.from("student_class").select("user_id").eq("class_id", classId);
+}
+
+export async function listEnrolledUserIdsByClassId(
+  client: Supabase,
+  classId: string
+) {
+  return client
+    .from("student_class")
+    .select("user_id")
+    .eq("class_id", classId)
+    .eq("status", STUDENT_CLASS_STATUSES.ENROLLED);
 }
 
 export async function findStudentClassByUserAndClass(

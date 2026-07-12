@@ -3,7 +3,7 @@ import {
   DEFAULT_CLASS_GRADE_TASKS_WEIGHT,
 } from "@/lib/constants/manager-class-grade-defaults";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
-import { isStudentTaskGraded } from "@/lib/manager/compute-student-course-grade";
+import { isStudentTaskScoredForCompute } from "@/lib/manager/compute-student-course-grade";
 import type { FactorWeightsValues } from "@/lib/compute/custom-compute-form-utils";
 import type {
   ManagerClassStudentGradeMissingItem,
@@ -32,7 +32,7 @@ function resolveTaskMissingReason(
     return "pending";
   }
 
-  if (!isStudentTaskGraded(studentTask.grade, studentTask.status)) {
+  if (!isStudentTaskScoredForCompute(studentTask.grade, studentTask.status)) {
     return "not_graded";
   }
 
@@ -63,11 +63,15 @@ function buildTaskMissingItems(
 
   for (const task of classTasks) {
     const studentTask = tasksByTaskId.get(task.id);
-    const reason = resolveTaskMissingReason(studentTask);
 
-    if (studentTask && isStudentTaskGraded(studentTask.grade, studentTask.status)) {
+    if (
+      studentTask &&
+      isStudentTaskScoredForCompute(studentTask.grade, studentTask.status)
+    ) {
       continue;
     }
+
+    const reason = resolveTaskMissingReason(studentTask);
 
     items.push({
       kind: "task",
@@ -116,6 +120,12 @@ function buildFinalExamMissingItems(
     ];
   }
 
+  if (
+    isStudentTaskScoredForCompute(finalExamGrade.grade, finalExamGrade.status)
+  ) {
+    return [];
+  }
+
   if (finalExamGrade.status === STUDENT_TASK_STATUSES.PENDING) {
     return [
       {
@@ -131,22 +141,18 @@ function buildFinalExamMissingItems(
     ];
   }
 
-  if (!isStudentTaskGraded(finalExamGrade.grade, finalExamGrade.status)) {
-    return [
-      {
-        kind: "final_exam",
-        reason: "not_graded",
-        label: `${finalExam.title} — Not graded`,
-        status: finalExamGrade.status,
-        grade: finalExamGrade.grade,
-        finalExamGradeId: finalExamGrade.id,
-        maxGrade: finalExam.max_grade,
-        dueDate: finalExam.due_date,
-      },
-    ];
-  }
-
-  return [];
+  return [
+    {
+      kind: "final_exam",
+      reason: "not_graded",
+      label: `${finalExam.title} — Not graded`,
+      status: finalExamGrade.status,
+      grade: finalExamGrade.grade,
+      finalExamGradeId: finalExamGrade.id,
+      maxGrade: finalExam.max_grade,
+      dueDate: finalExam.due_date,
+    },
+  ];
 }
 
 export function buildStudentGradeMissingItems(
@@ -162,8 +168,18 @@ export function buildStudentGradeMissingItems(
 
   const items: ManagerClassStudentGradeMissingItem[] = [];
 
-  if (factorWeights.tasks_weight > 0 && input.classTasks.length > 0) {
-    items.push(...buildTaskMissingItems(input.classTasks, input.studentTasks));
+  if (factorWeights.tasks_weight > 0) {
+    if (input.classTasks.length === 0) {
+      items.push({
+        kind: "task",
+        reason: "missing_record",
+        label: "Tasks — No tasks in class",
+        status: null,
+        grade: null,
+      });
+    } else {
+      items.push(...buildTaskMissingItems(input.classTasks, input.studentTasks));
+    }
   }
 
   if (factorWeights.final_exam_weight > 0) {

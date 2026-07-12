@@ -23,6 +23,7 @@ import {
   createSessionTaskForManager,
   getSessionDetailForManager,
   seedLateJoinAttendeesForStudent,
+  seedLateJoinStudentTasksForStudent,
   updateAttendeeForManager,
   updateClassSessionForManager,
   updateSessionSettingsForManager,
@@ -524,6 +525,9 @@ describe("createSessionTaskForManager", () => {
         },
       ]
     );
+    expect(
+      studentClassRepository.listEnrolledUserIdsByClassId
+    ).toHaveBeenCalledWith(adminClient, classId);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.task.title).toBe("Homework 1");
@@ -1240,5 +1244,190 @@ describe("seedLateJoinAttendeesForStudent", () => {
     await seedLateJoinAttendeesForStudent(adminClient, classId, studentA);
 
     expect(attendeeRepository.createAttendees).not.toHaveBeenCalled();
+  });
+});
+
+describe("seedLateJoinStudentTasksForStudent", () => {
+  const taskTwoId = "c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3";
+  const pastDue = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const futureDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("seeds missing+0+note for past-due tasks and pending for upcoming", async () => {
+    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
+      data: [{ id: sessionId, nb_order: 1, topic: "Intro" }],
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
+      data: [
+        {
+          id: taskId,
+          session_id: sessionId,
+          max_grade: 100,
+          due_date: pastDue,
+        },
+        {
+          id: taskTwoId,
+          session_id: sessionId,
+          max_grade: 50,
+          due_date: futureDue,
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.listStudentTasksByTaskIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+
+    expect(studentTaskRepository.createStudentTasks).toHaveBeenCalledWith(
+      adminClient,
+      [
+        {
+          task_id: taskId,
+          student_id: studentA,
+          status: STUDENT_TASK_STATUSES.MISSING,
+          grade: 0,
+          notes: LATE_ENROLLMENT_NOTE,
+        },
+        {
+          task_id: taskTwoId,
+          student_id: studentA,
+          status: STUDENT_TASK_STATUSES.PENDING,
+        },
+      ]
+    );
+  });
+
+  it("treats null due date as pending", async () => {
+    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
+      data: [{ id: sessionId, nb_order: 1, topic: "Intro" }],
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
+      data: [
+        {
+          id: taskId,
+          session_id: sessionId,
+          max_grade: 100,
+          due_date: null,
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.listStudentTasksByTaskIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+
+    expect(studentTaskRepository.createStudentTasks).toHaveBeenCalledWith(
+      adminClient,
+      [
+        {
+          task_id: taskId,
+          student_id: studentA,
+          status: STUDENT_TASK_STATUSES.PENDING,
+        },
+      ]
+    );
+  });
+
+  it("skips tasks that already have a student_task for the student", async () => {
+    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
+      data: [{ id: sessionId, nb_order: 1, topic: "Intro" }],
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
+      data: [
+        {
+          id: taskId,
+          session_id: sessionId,
+          max_grade: 100,
+          due_date: futureDue,
+        },
+        {
+          id: taskTwoId,
+          session_id: sessionId,
+          max_grade: 50,
+          due_date: futureDue,
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.listStudentTasksByTaskIds).mockResolvedValue({
+      data: [
+        {
+          id: studentTaskId,
+          task_id: taskId,
+          student_id: studentA,
+          status: STUDENT_TASK_STATUSES.PENDING,
+          submitted_at: null,
+          grade: null,
+          notes: null,
+          graded_at: null,
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+
+    expect(studentTaskRepository.createStudentTasks).toHaveBeenCalledWith(
+      adminClient,
+      [
+        {
+          task_id: taskTwoId,
+          student_id: studentA,
+          status: STUDENT_TASK_STATUSES.PENDING,
+        },
+      ]
+    );
+  });
+
+  it("does nothing when the class has no sessions", async () => {
+    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+
+    expect(taskRepository.listTasksBySessionIds).not.toHaveBeenCalled();
+    expect(studentTaskRepository.createStudentTasks).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when sessions have no tasks", async () => {
+    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
+      data: [{ id: sessionId, nb_order: 1, topic: "Intro" }],
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+
+    expect(studentTaskRepository.listStudentTasksByTaskIds).not.toHaveBeenCalled();
+    expect(studentTaskRepository.createStudentTasks).not.toHaveBeenCalled();
   });
 });

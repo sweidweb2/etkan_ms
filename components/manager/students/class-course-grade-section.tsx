@@ -115,7 +115,7 @@ export function ClassCourseGradeSection({
   return (
     <ClassTabCollapsibleSection
       title="Course grade"
-      description="Weighted breakdown from student_course_grade (attendee, total tasks, group grade, final exams)."
+      description="Weighted breakdown from student_course_grade (tasks + final exam)."
     >
       <div className="space-y-5 p-5">
         <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl bg-muted/25 px-4 pt-2 pb-3 ring-1 ring-foreground/8">
@@ -253,8 +253,8 @@ export function ClassCourseGradeSection({
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Four grading weights: group grade, final exams, total tasks, and
-                attendee (from task_json_grade_weights / weight columns).
+                Two grading weights: total tasks and final exams (from
+                task_weight / final_exam_weight).
               </p>
             </div>
           </div>

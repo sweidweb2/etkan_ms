@@ -5,6 +5,7 @@ import {
 import {
   isStudentTaskGraded,
   normalizeStoredFinalExamGrade,
+  computeWeightedNormalizedTaskTotal,
 } from "@/lib/manager/compute-student-course-grade";
 import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
@@ -161,25 +162,12 @@ export function computeWeightedAvailableTaskTotalGrade(
     return null;
   }
 
-  let weightedSum = 0;
-  let hasPositiveWeight = false;
-
-  for (const task of gradedTasks) {
-    const weight = parseWeight(taskWeights[task.taskId] ?? "0");
-    if (weight <= 0) {
-      continue;
-    }
-
-    hasPositiveWeight = true;
-    weightedSum +=
-      normalizeTaskGradePercent(task.grade, task.maxGrade) * (weight / 100);
-  }
-
-  if (!hasPositiveWeight) {
-    return null;
-  }
-
-  return roundGrade(weightedSum);
+  return computeWeightedNormalizedTaskTotal(
+    gradedTasks.map((task) => ({
+      normalizedPercent: normalizeTaskGradePercent(task.grade, task.maxGrade),
+      weightPercent: parseWeight(taskWeights[task.taskId] ?? "0"),
+    }))
+  );
 }
 
 export function computeFastCertificatePartialTotal(input: {

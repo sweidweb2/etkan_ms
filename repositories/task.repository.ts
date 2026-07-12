@@ -34,7 +34,7 @@ export async function listTasksBySessionIds(
 
   return client
     .from("tasks")
-    .select("id, session_id, max_grade")
+    .select("id, session_id, max_grade, due_date")
     .in("session_id", sessionIds);
 }
 

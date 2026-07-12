@@ -1,4 +1,3 @@
-import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassWeightsRow } from "@/types/manager-class-weights";
 
 export type FactorWeightsForm = {
@@ -14,16 +13,6 @@ export type FactorWeightsValues = {
   tasks_weight: number;
   attendee_weight: number;
 };
-
-function hashString(value: string) {
-  let hash = 0;
-
-  for (const character of value) {
-    hash = (hash * 31 + character.charCodeAt(0)) % 10_000;
-  }
-
-  return hash;
-}
 
 export function buildFactorWeightsFormFromClassWeights(
   weights: ManagerClassWeightsRow
@@ -126,25 +115,4 @@ export function getComputeFactorWeightFormDefaults(input: {
       input.stored_final_exam_weight ?? input.default_final_exam_weight
     ),
   };
-}
-
-function deriveTasksSubgrade(row: ManagerClassStudentGradeRow) {
-  if (row.task_total_grade !== null) {
-    return row.task_total_grade;
-  }
-
-  const seed = hashString(row.student_profile_id);
-  return roundGrade(55 + (seed % 41));
-}
-
-export function computePreviewTotalGrade(
-  row: ManagerClassStudentGradeRow,
-  factorWeights: FactorWeightsValues
-) {
-  const tasksSubgrade = deriveTasksSubgrade(row);
-
-  return roundGrade(
-    tasksSubgrade * (factorWeights.tasks_weight / 100) +
-      (row.final_exam_grade ?? 0) * (factorWeights.final_exam_weight / 100)
-  );
 }
