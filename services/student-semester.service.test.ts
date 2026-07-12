@@ -14,10 +14,21 @@ import * as studentService from "@/services/student.service";
 
 vi.mock("@/repositories/student-semester.repository");
 vi.mock("@/repositories/semester.repository");
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: vi.fn(),
+}));
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}));
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/student.service");
+vi.mock("@/services/student.service", () => ({
+  listStudentsForManager: vi.fn(),
+}));
+vi.mock("@/services/subscribed-semester.service", () => ({
+  ensureSubscribedSemesterForStudent: vi.fn().mockResolvedValue(null),
+}));
 
 const adminClient = {} as never;
 const actor: AuditActor = {

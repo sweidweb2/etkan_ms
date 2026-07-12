@@ -11,6 +11,14 @@ export async function findAccountByUserId(client: Supabase, userId: string) {
     .maybeSingle();
 }
 
+export async function findAccountById(client: Supabase, id: string) {
+  return client
+    .from("accounts")
+    .select("id, user_id, opened_at")
+    .eq("id", id)
+    .maybeSingle();
+}
+
 export async function createAccount(
   client: Supabase,
   input: {

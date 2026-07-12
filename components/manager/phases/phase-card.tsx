@@ -14,6 +14,7 @@ import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 import { getManagerSemesterDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
+import { SemesterStatusBadge } from "@/components/manager/phases/semester-status-badge";
 
 function TruncatedText({
   value,
@@ -54,13 +55,16 @@ export function PhaseCard({ phase }: { phase: ManagerSemesterRow }) {
       <TooltipProvider>
         <Card className="h-full py-0 transition-shadow hover:shadow-[0_0_0_3px_rgba(147,197,253,0.35),0_12px_28px_rgba(59,130,246,0.22)]">
           <CardHeader className="border-b bg-muted/30 py-3">
-            <CardTitle className="text-base">
-              <TruncatedText
-                value={phase.name}
-                maxLength={PHASE_CARD_LIMITS.name}
-                className="block"
-              />
-            </CardTitle>
+            <div className="flex items-start justify-between gap-2">
+              <CardTitle className="text-base">
+                <TruncatedText
+                  value={phase.name}
+                  maxLength={PHASE_CARD_LIMITS.name}
+                  className="block"
+                />
+              </CardTitle>
+              <SemesterStatusBadge status={phase.status} className="shrink-0" />
+            </div>
           </CardHeader>
 
           <CardContent className="flex flex-col gap-4 px-4 pt-2 pb-3">

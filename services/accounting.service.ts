@@ -1,5 +1,21 @@
-import { SCHEDULED_PAYMENT_STATUS_VALUES } from "@/lib/constants/manager-scheduled-payment-status";
-import type { ScheduledPaymentStatusValue } from "@/lib/constants/manager-scheduled-payment-status";
+import {
+  isOpenBillingSubscriptionStatus,
+  resolveManageAccountingAlert,
+} from "@/lib/constants/manager-accounting-payment-alert";
+import {
+  ACCOUNT_SPECIAL_CASE_STATUSES,
+  ACCOUNT_SPECIAL_CASE_STATUS_VALUES,
+  ACCOUNT_SPECIAL_CASE_TYPES,
+  ACCOUNT_SPECIAL_CASE_TYPE_VALUES,
+  computeSpecialCasePercentageDiscount,
+  type AccountSpecialCaseStatusValue,
+  type AccountSpecialCaseTypeValue,
+} from "@/lib/constants/manager-account-special-case";
+import {
+  SCHEDULED_PAYMENT_STATUSES,
+  SCHEDULED_PAYMENT_STATUS_VALUES,
+  type ScheduledPaymentStatusValue,
+} from "@/lib/constants/manager-scheduled-payment-status";
 import {
   SUBSCRIBED_SEMESTER_STATUSES,
   SUBSCRIBED_SEMESTER_STATUS_VALUES,
@@ -12,13 +28,23 @@ import {
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { createPaymentSchema } from "@/lib/validators/manager/add-payment";
 import {
+  createAccountSpecialCaseSchema,
+  updateAccountSpecialCaseSchema,
+} from "@/lib/validators/manager/account-special-case";
+import {
   createScheduledPaymentSchema,
   parseScheduledPaymentAmount,
   updateScheduledPaymentSchema,
 } from "@/lib/validators/manager/scheduled-payment";
 import { updatePaymentSchema } from "@/lib/validators/manager/update-payment";
 import { updateSubscribedSemesterSchema } from "@/lib/validators/manager/update-subscribed-semester";
+import {
+  getBillingMutationLockMessage,
+  getSubscriptionBillingGate,
+  resolveActiveSpecialCaseOwedAmount,
+} from "@/lib/manager/subscribed-semester-billing";
 import * as accountRepository from "@/repositories/account.repository";
+import * as accountSpecialCaseRepository from "@/repositories/account-special-case.repository";
 import * as paymentRepository from "@/repositories/payment.repository";
 import type { PaymentRecord } from "@/repositories/payment.repository";
 import * as scheduledPaymentRepository from "@/repositories/scheduled-payment.repository";
@@ -32,7 +58,12 @@ import {
   type AuditActor,
 } from "@/services/audit-log.service";
 import { listStudentsForManager } from "@/services/student.service";
+import {
+  ensureSubscribedSemesterForAccount,
+  markSubscribedSemesterPaidForAccount,
+} from "@/services/subscribed-semester.service";
 import type { FieldErrors } from "@/types/auth";
+import type { ManagerAccountSpecialCaseRow } from "@/types/manager-account-special-case";
 import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
 import type {
   ManagerStudentAccountDetails,
@@ -108,6 +139,36 @@ function mapScheduledStatus(status: string | null): ScheduledPaymentStatusValue 
   return "scheduled";
 }
 
+function mapSpecialCaseType(value: string): AccountSpecialCaseTypeValue | null {
+  if (
+    ACCOUNT_SPECIAL_CASE_TYPE_VALUES.includes(
+      value as AccountSpecialCaseTypeValue
+    )
+  ) {
+    return value as AccountSpecialCaseTypeValue;
+  }
+
+  return null;
+}
+
+function mapSpecialCaseStatus(
+  value: string
+): AccountSpecialCaseStatusValue | null {
+  if (
+    ACCOUNT_SPECIAL_CASE_STATUS_VALUES.includes(
+      value as AccountSpecialCaseStatusValue
+    )
+  ) {
+    return value as AccountSpecialCaseStatusValue;
+  }
+
+  return null;
+}
+
+function specialCaseKey(accountId: string, semesterId: string) {
+  return `${accountId}:${semesterId}`;
+}
+
 function sumPayments(
   payments: PaymentRecord[],
   subscribedSemesterId: string
@@ -117,6 +178,15 @@ function sumPayments(
       .filter((payment) => payment.subscribed_semester_id === subscribedSemesterId)
       .reduce((total, payment) => total + Number(payment.amount ?? 0), 0)
   );
+}
+
+function listPaidAtsForSubscription(
+  payments: PaymentRecord[],
+  subscribedSemesterId: string
+): Array<string | null> {
+  return payments
+    .filter((payment) => payment.subscribed_semester_id === subscribedSemesterId)
+    .map((payment) => payment.paid_at);
 }
 
 async function buildBillingMaps(adminClient: Supabase, userIds: string[]) {
@@ -155,7 +225,26 @@ async function buildBillingMaps(adminClient: Supabase, userIds: string[]) {
     throw new Error(paymentsResult.error.message);
   }
 
+  const scheduledPaymentsResult =
+    await scheduledPaymentRepository.listScheduledPaymentsBySubscribedSemesterIds(
+      adminClient,
+      subscriptionIds
+    );
+
+  if (scheduledPaymentsResult.error) {
+    throw new Error(scheduledPaymentsResult.error.message);
+  }
+
   const payments = paymentsResult.data ?? [];
+  const scheduledPayments = scheduledPaymentsResult.data ?? [];
+  const subscriptionIdsWithMissedSchedule = new Set(
+    scheduledPayments
+      .filter((row) => row.status === SCHEDULED_PAYMENT_STATUSES.MISSED)
+      .map((row) => row.subscribed_semester_id)
+  );
+  const subscriptionIdsWithSchedule = new Set(
+    scheduledPayments.map((row) => row.subscribed_semester_id)
+  );
   const accountByUserId = new Map(
     accounts.map((account) => [account.user_id, account])
   );
@@ -171,6 +260,8 @@ async function buildBillingMaps(adminClient: Supabase, userIds: string[]) {
     accountByUserId,
     subscriptionsByAccountId,
     payments,
+    subscriptionIdsWithMissedSchedule,
+    subscriptionIdsWithSchedule,
   };
 }
 
@@ -218,63 +309,22 @@ async function ensureBillingSubscriptionsForStudent(
   accountId: string,
   studentProfileId: string
 ) {
-  const [enrollmentsResult, subscriptionsResult, semestersResult] =
-    await Promise.all([
-      studentSemesterRepository.listEnrollmentsByStudentProfileId(
-        adminClient,
-        studentProfileId
-      ),
-      subscribedSemesterRepository.listSubscribedSemestersByAccountId(
-        adminClient,
-        accountId
-      ),
-      semesterRepository.listSemesters(adminClient),
-    ]);
+  const enrollmentsResult =
+    await studentSemesterRepository.listEnrollmentsByStudentProfileId(
+      adminClient,
+      studentProfileId
+    );
 
   if (enrollmentsResult.error) {
     throw new Error(enrollmentsResult.error.message);
   }
 
-  if (subscriptionsResult.error) {
-    throw new Error(subscriptionsResult.error.message);
-  }
-
-  if (semestersResult.error) {
-    throw new Error(semestersResult.error.message);
-  }
-
-  const semesterAmountById = new Map(
-    (semestersResult.data ?? []).map((semester) => [
-      semester.id,
-      Number(semester.amount ?? 0),
-    ])
-  );
-  const existingSemesterIds = new Set(
-    (subscriptionsResult.data ?? [])
-      .map((subscription) => subscription.semester_id)
-      .filter((semesterId): semesterId is string => Boolean(semesterId))
-  );
-
   for (const enrollment of enrollmentsResult.data ?? []) {
-    if (existingSemesterIds.has(enrollment.semester_id)) {
-      continue;
-    }
-
-    const createResult = await subscribedSemesterRepository.createSubscribedSemester(
+    await ensureSubscribedSemesterForAccount(
       adminClient,
-      {
-        account_id: accountId,
-        semester_id: enrollment.semester_id,
-        amount: semesterAmountById.get(enrollment.semester_id) ?? 0,
-        status: SUBSCRIBED_SEMESTER_STATUSES.ACTIVE,
-      }
+      accountId,
+      enrollment.semester_id
     );
-
-    if (createResult.error) {
-      throw new Error(createResult.error.message);
-    }
-
-    existingSemesterIds.add(enrollment.semester_id);
   }
 }
 
@@ -319,14 +369,87 @@ export async function listAccountingStudentsForManager(
   const semesterNameById = new Map(
     (semestersResult.data ?? []).map((semester) => [semester.id, semester.name])
   );
+  const semesterAmountById = new Map(
+    (semestersResult.data ?? []).map((semester) => [
+      semester.id,
+      Number(semester.amount ?? 0),
+    ])
+  );
   const studentsByProfileId = new Map(
     students.map((student) => [student.student_profile_id, student])
   );
-  const { accountByUserId, subscriptionsByAccountId, payments } =
-    await buildBillingMaps(
+  let {
+    accountByUserId,
+    subscriptionsByAccountId,
+    payments,
+    subscriptionIdsWithMissedSchedule,
+    subscriptionIdsWithSchedule,
+  } = await buildBillingMaps(
+    adminClient,
+    students.map((student) => student.user_id)
+  );
+
+  let createdMissingSubscriptions = false;
+  for (const enrollment of enrollmentsResult.data ?? []) {
+    const student = studentsByProfileId.get(enrollment.student_profile_id);
+    if (!student) {
+      continue;
+    }
+
+    const account = accountByUserId.get(student.user_id);
+    if (!account) {
+      continue;
+    }
+
+    const hasSubscription = (subscriptionsByAccountId.get(account.id) ?? []).some(
+      (row) => row.semester_id === enrollment.semester_id
+    );
+    if (hasSubscription) {
+      continue;
+    }
+
+    const created = await ensureSubscribedSemesterForAccount(
+      adminClient,
+      account.id,
+      enrollment.semester_id
+    );
+    if (created) {
+      createdMissingSubscriptions = true;
+    }
+  }
+
+  if (createdMissingSubscriptions) {
+    ({
+      accountByUserId,
+      subscriptionsByAccountId,
+      payments,
+      subscriptionIdsWithMissedSchedule,
+      subscriptionIdsWithSchedule,
+    } = await buildBillingMaps(
       adminClient,
       students.map((student) => student.user_id)
+    ));
+  }
+
+  const accountIds = Array.from(accountByUserId.values()).map(
+    (account) => account.id
+  );
+  const specialCasesResult =
+    await accountSpecialCaseRepository.listSpecialCasesByAccountIds(
+      adminClient,
+      accountIds
     );
+
+  if (specialCasesResult.error) {
+    throw new Error(specialCasesResult.error.message);
+  }
+
+  const specialCaseByAccountSemester = new Map(
+    (specialCasesResult.data ?? []).map((row) => [
+      specialCaseKey(row.account_id, row.semester_id),
+      row,
+    ])
+  );
 
   const rows: ManagerAccountingStudentRow[] = [];
   const enrolledStudentIds = new Set<string>();
@@ -342,10 +465,71 @@ export async function listAccountingStudentsForManager(
     const subscriptions = account
       ? (subscriptionsByAccountId.get(account.id) ?? [])
       : [];
+    const openBillingSubscriptions = subscriptions.filter((row) =>
+      isOpenBillingSubscriptionStatus(row.status)
+    );
     const subscription = subscriptions.find(
       (row) => row.semester_id === enrollment.semester_id
     );
+    const singleOpenSubscription =
+      openBillingSubscriptions.length === 1
+        ? openBillingSubscriptions[0]
+        : undefined;
+    const isFocusOpenSubscription =
+      openBillingSubscriptions.length !== 1 ||
+      singleOpenSubscription?.semester_id === enrollment.semester_id;
     const billing = getSubscriptionBilling(subscription, payments);
+    const specialCase = account
+      ? specialCaseByAccountSemester.get(
+          specialCaseKey(account.id, enrollment.semester_id)
+        )
+      : undefined;
+    const specialCaseStatus = specialCase
+      ? mapSpecialCaseStatus(specialCase.status)
+      : null;
+    const isActiveSpecialCase =
+      specialCaseStatus === ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE;
+    const specialCaseType =
+      isActiveSpecialCase && specialCase
+        ? mapSpecialCaseType(specialCase.case_type)
+        : null;
+    const totalPaid = billing?.total_paid ?? 0;
+
+    const focusSubscription = singleOpenSubscription;
+    const focusSpecial =
+      account && focusSubscription?.semester_id
+        ? specialCaseByAccountSemester.get(
+            specialCaseKey(account.id, focusSubscription.semester_id)
+          )
+        : undefined;
+    const focusSpecialActive =
+      mapSpecialCaseStatus(focusSpecial?.status ?? "") ===
+      ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE;
+
+    const paymentAlert = resolveManageAccountingAlert({
+      openBillingCount: openBillingSubscriptions.length,
+      isFocusOpenSubscription,
+      totalPaid: focusSubscription
+        ? (getSubscriptionBilling(focusSubscription, payments)?.total_paid ?? 0)
+        : totalPaid,
+      paidAts: focusSubscription
+        ? listPaidAtsForSubscription(payments, focusSubscription.id)
+        : [],
+      semesterAmount: focusSubscription?.semester_id
+        ? (semesterAmountById.get(focusSubscription.semester_id) ??
+          Number(focusSubscription.amount ?? 0))
+        : null,
+      activeSpecialCaseTotalAmount:
+        focusSpecialActive && focusSpecial
+          ? Number(focusSpecial.total_amount ?? 0)
+          : null,
+      hasScheduledPayments: focusSubscription
+        ? subscriptionIdsWithSchedule.has(focusSubscription.id)
+        : false,
+      hasMissedScheduledPayment: focusSubscription
+        ? subscriptionIdsWithMissedSchedule.has(focusSubscription.id)
+        : false,
+    });
 
     rows.push({
       student_profile_id: student.student_profile_id,
@@ -360,6 +544,17 @@ export async function listAccountingStudentsForManager(
       total_amount: billing?.total_amount ?? null,
       total_paid: billing?.total_paid ?? null,
       balance_due: billing?.balance_due ?? null,
+      payment_alert: paymentAlert.payment_alert,
+      low_payment: paymentAlert.low_payment,
+      payment_missed_months: paymentAlert.payment_missed_months,
+      payment_alert_reasons: paymentAlert.payment_alert_reasons,
+      special_case_type: specialCaseType,
+      special_case_no_money:
+        specialCaseType === ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP &&
+        totalPaid === 0,
+      has_missed_scheduled_payment: subscription
+        ? subscriptionIdsWithMissedSchedule.has(subscription.id)
+        : false,
     });
   }
 
@@ -372,7 +567,49 @@ export async function listAccountingStudentsForManager(
     const subscriptions = account
       ? (subscriptionsByAccountId.get(account.id) ?? [])
       : [];
+    const openBillingSubscriptions = subscriptions.filter((row) =>
+      isOpenBillingSubscriptionStatus(row.status)
+    );
     const billing = getAccountBillingTotals(subscriptions, payments);
+    const focusSubscription =
+      openBillingSubscriptions.length === 1
+        ? openBillingSubscriptions[0]
+        : undefined;
+    const focusSpecial =
+      account && focusSubscription?.semester_id
+        ? specialCaseByAccountSemester.get(
+            specialCaseKey(account.id, focusSubscription.semester_id)
+          )
+        : undefined;
+    const focusSpecialStatus = focusSpecial
+      ? mapSpecialCaseStatus(focusSpecial.status)
+      : null;
+    const isActiveFocusSpecial =
+      focusSpecialStatus === ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE;
+    const paymentAlert = resolveManageAccountingAlert({
+      openBillingCount: openBillingSubscriptions.length,
+      isFocusOpenSubscription: true,
+      totalPaid: focusSubscription
+        ? (getSubscriptionBilling(focusSubscription, payments)?.total_paid ?? 0)
+        : billing.total_paid,
+      paidAts: focusSubscription
+        ? listPaidAtsForSubscription(payments, focusSubscription.id)
+        : [],
+      semesterAmount: focusSubscription?.semester_id
+        ? (semesterAmountById.get(focusSubscription.semester_id) ??
+          Number(focusSubscription.amount ?? 0))
+        : null,
+      activeSpecialCaseTotalAmount:
+        isActiveFocusSpecial && focusSpecial
+          ? Number(focusSpecial.total_amount ?? 0)
+          : null,
+      hasScheduledPayments: focusSubscription
+        ? subscriptionIdsWithSchedule.has(focusSubscription.id)
+        : false,
+      hasMissedScheduledPayment: focusSubscription
+        ? subscriptionIdsWithMissedSchedule.has(focusSubscription.id)
+        : false,
+    });
 
     rows.push({
       student_profile_id: student.student_profile_id,
@@ -387,6 +624,15 @@ export async function listAccountingStudentsForManager(
       total_amount: billing.total_amount,
       total_paid: billing.total_paid,
       balance_due: billing.balance_due,
+      payment_alert: paymentAlert.payment_alert,
+      low_payment: paymentAlert.low_payment,
+      payment_missed_months: paymentAlert.payment_missed_months,
+      payment_alert_reasons: paymentAlert.payment_alert_reasons,
+      special_case_type: null,
+      special_case_no_money: false,
+      has_missed_scheduled_payment: subscriptions.some((subscription) =>
+        subscriptionIdsWithMissedSchedule.has(subscription.id)
+      ),
     });
   }
 
@@ -470,16 +716,21 @@ export async function getStudentAccountForManager(
   const subscriptions = subscriptionsResult.data ?? [];
   const subscriptionIds = subscriptions.map((subscription) => subscription.id);
 
-  const [paymentsResult, scheduledPaymentsResult] = await Promise.all([
-    paymentRepository.listPaymentsBySubscribedSemesterIds(
-      adminClient,
-      subscriptionIds
-    ),
-    scheduledPaymentRepository.listScheduledPaymentsBySubscribedSemesterIds(
-      adminClient,
-      subscriptionIds
-    ),
-  ]);
+  const [paymentsResult, scheduledPaymentsResult, specialCasesResult] =
+    await Promise.all([
+      paymentRepository.listPaymentsBySubscribedSemesterIds(
+        adminClient,
+        subscriptionIds
+      ),
+      scheduledPaymentRepository.listScheduledPaymentsBySubscribedSemesterIds(
+        adminClient,
+        subscriptionIds
+      ),
+      accountSpecialCaseRepository.listSpecialCasesByAccountId(
+        adminClient,
+        accountResult.data.id
+      ),
+    ]);
 
   if (paymentsResult.error) {
     throw new Error(paymentsResult.error.message);
@@ -487,6 +738,10 @@ export async function getStudentAccountForManager(
 
   if (scheduledPaymentsResult.error) {
     throw new Error(scheduledPaymentsResult.error.message);
+  }
+
+  if (specialCasesResult.error) {
+    throw new Error(specialCasesResult.error.message);
   }
 
   const payments = paymentsResult.data ?? [];
@@ -534,6 +789,33 @@ export async function getStudentAccountForManager(
     updated_at: row.updated_at,
   }));
 
+  const specialCaseRows: ManagerAccountSpecialCaseRow[] = (
+    specialCasesResult.data ?? []
+  ).flatMap((row) => {
+    const caseType = mapSpecialCaseType(row.case_type);
+    const status = mapSpecialCaseStatus(row.status);
+    if (!caseType || !status) {
+      return [];
+    }
+
+    return [
+      {
+        id: row.id,
+        account_id: row.account_id,
+        semester_id: row.semester_id,
+        semester_name: semesterNameById.get(row.semester_id) ?? "—",
+        total_amount: Number(row.total_amount ?? 0),
+        percentage_discount: Number(row.percentage_discount ?? 0),
+        explanation: row.explanation,
+        approved_by: row.approved_by,
+        case_type: caseType,
+        status,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      },
+    ];
+  });
+
   const totals = getAccountBillingTotals(subscriptions, payments);
   const overview: ManagerStudentAccountOverview = {
     account_id: accountResult.data.id,
@@ -547,7 +829,9 @@ export async function getStudentAccountForManager(
     total_paid: totals.total_paid,
     balance_due: totals.balance_due,
     active_subscriptions: subscriptionRows.filter(
-      (row) => row.status === SUBSCRIBED_SEMESTER_STATUSES.ACTIVE
+      (row) =>
+        row.status === SUBSCRIBED_SEMESTER_STATUSES.PENDING ||
+        row.status === SUBSCRIBED_SEMESTER_STATUSES.PAUSED
     ).length,
   };
 
@@ -556,6 +840,7 @@ export async function getStudentAccountForManager(
     subscriptions: subscriptionRows,
     payments: paymentRows,
     scheduledPayments: scheduledPaymentRows,
+    specialCases: specialCaseRows,
   };
 }
 
@@ -577,6 +862,100 @@ async function assertSubscribedSemesterExists(
   }
 
   return { success: true as const, data };
+}
+
+async function loadSubscriptionBillingContext(
+  adminClient: Supabase,
+  subscription: SubscribedSemesterRecord,
+  options?: { excludePaymentId?: string }
+) {
+  const [paymentsResult, specialCaseResult] = await Promise.all([
+    paymentRepository.listPaymentsBySubscribedSemesterIds(adminClient, [
+      subscription.id,
+    ]),
+    subscription.semester_id
+      ? accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester(
+          adminClient,
+          subscription.account_id,
+          subscription.semester_id
+        )
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  if (paymentsResult.error) {
+    return { success: false as const, error: paymentsResult.error.message };
+  }
+
+  if (specialCaseResult.error) {
+    return { success: false as const, error: specialCaseResult.error.message };
+  }
+
+  const payments = (paymentsResult.data ?? []).filter(
+    (payment) => payment.id !== options?.excludePaymentId
+  );
+  const totalPaid = roundCurrency(
+    payments.reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0)
+  );
+  const gate = getSubscriptionBillingGate({
+    status: subscription.status,
+    subscriptionAmount: Number(subscription.amount ?? 0),
+    totalPaid,
+    activeSpecialCaseTotalAmount: resolveActiveSpecialCaseOwedAmount(
+      specialCaseResult.data
+        ? {
+            status: specialCaseResult.data.status,
+            total_amount: Number(specialCaseResult.data.total_amount ?? 0),
+          }
+        : null
+    ),
+  });
+
+  return { success: true as const, payments, gate };
+}
+
+async function syncSubscriptionPaidStatus(
+  adminClient: Supabase,
+  subscription: SubscribedSemesterRecord,
+  totalPaidAfter: number,
+  owedAmount: number
+) {
+  if (totalPaidAfter >= owedAmount) {
+    if (subscription.status === SUBSCRIBED_SEMESTER_STATUSES.PAID) {
+      return;
+    }
+
+    const { error } = await subscribedSemesterRepository.updateSubscribedSemester(
+      adminClient,
+      subscription.id,
+      {
+        amount: Number(subscription.amount ?? 0),
+        status: SUBSCRIBED_SEMESTER_STATUSES.PAID,
+      }
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return;
+  }
+
+  if (subscription.status !== SUBSCRIBED_SEMESTER_STATUSES.PAID) {
+    return;
+  }
+
+  const { error } = await subscribedSemesterRepository.updateSubscribedSemester(
+    adminClient,
+    subscription.id,
+    {
+      amount: Number(subscription.amount ?? 0),
+      status: SUBSCRIBED_SEMESTER_STATUSES.PENDING,
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function createPaymentForManager(
@@ -614,6 +993,37 @@ export async function createPaymentForManager(
     return { success: false, error: subscriptionCheck.error };
   }
 
+  const billingContext = await loadSubscriptionBillingContext(
+    adminClient,
+    subscriptionCheck.data
+  );
+
+  if (!billingContext.success) {
+    return { success: false, error: billingContext.error };
+  }
+
+  if (!billingContext.gate.canCreatePayments) {
+    return {
+      success: false,
+      error: getBillingMutationLockMessage(
+        billingContext.gate.createLockReason,
+        "create_payment"
+      ),
+    };
+  }
+
+  if (parsed.data.amount > billingContext.gate.remainingDue) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: [
+          `Amount cannot exceed the remaining due (${billingContext.gate.remainingDue}).`,
+        ],
+      },
+    };
+  }
+
   const { data, error } = await paymentRepository.createPayment(adminClient, {
     subscribed_semester_id: parsed.data.subscribed_semester_id,
     amount: parsed.data.amount,
@@ -624,6 +1034,27 @@ export async function createPaymentForManager(
 
   if (error || !data) {
     return { success: false, error: "Unable to record payment. Please try again." };
+  }
+
+  const totalPaidAfter = roundCurrency(
+    billingContext.gate.totalPaid + Number(data.amount ?? 0)
+  );
+
+  try {
+    await syncSubscriptionPaidStatus(
+      adminClient,
+      subscriptionCheck.data,
+      totalPaidAfter,
+      billingContext.gate.owedAmount
+    );
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Payment recorded, but subscription status could not be updated.",
+    };
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -683,6 +1114,56 @@ export async function updatePaymentForManager(
     return { success: false, error: "Payment not found." };
   }
 
+  const subscriptionCheck = await assertSubscribedSemesterExists(
+    adminClient,
+    existing.data.subscribed_semester_id
+  );
+
+  if (!subscriptionCheck.success) {
+    return { success: false, error: subscriptionCheck.error };
+  }
+
+  const lockContext = await loadSubscriptionBillingContext(
+    adminClient,
+    subscriptionCheck.data
+  );
+
+  if (!lockContext.success) {
+    return { success: false, error: lockContext.error };
+  }
+
+  if (!lockContext.gate.canEditPayments) {
+    return {
+      success: false,
+      error: getBillingMutationLockMessage(
+        lockContext.gate.editLockReason,
+        "edit_payment"
+      ),
+    };
+  }
+
+  const billingContext = await loadSubscriptionBillingContext(
+    adminClient,
+    subscriptionCheck.data,
+    { excludePaymentId: existing.data.id }
+  );
+
+  if (!billingContext.success) {
+    return { success: false, error: billingContext.error };
+  }
+
+  if (parsed.data.amount > billingContext.gate.remainingDue) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: [
+          `Amount cannot exceed the remaining due (${billingContext.gate.remainingDue}).`,
+        ],
+      },
+    };
+  }
+
   const { data, error } = await paymentRepository.updatePayment(
     adminClient,
     input.id,
@@ -697,6 +1178,27 @@ export async function updatePaymentForManager(
 
   if (error || !data) {
     return { success: false, error: "Unable to update payment. Please try again." };
+  }
+
+  const totalPaidAfter = roundCurrency(
+    billingContext.gate.totalPaid + Number(data.amount ?? 0)
+  );
+
+  try {
+    await syncSubscriptionPaidStatus(
+      adminClient,
+      subscriptionCheck.data,
+      totalPaidAfter,
+      billingContext.gate.owedAmount
+    );
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Payment updated, but subscription status could not be updated.",
+    };
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -723,6 +1225,108 @@ export async function updatePaymentForManager(
   });
 
   return { success: true, message: "Payment updated." };
+}
+
+export async function deletePaymentForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: { id: string }
+): Promise<AccountingMutationResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const paymentId = typeof input.id === "string" ? input.id.trim() : "";
+
+  if (!paymentId) {
+    return { success: false, error: "Payment is required." };
+  }
+
+  const existing = await paymentRepository.findPaymentById(adminClient, paymentId);
+
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Payment not found." };
+  }
+
+  const subscriptionCheck = await assertSubscribedSemesterExists(
+    adminClient,
+    existing.data.subscribed_semester_id
+  );
+
+  if (!subscriptionCheck.success) {
+    return { success: false, error: subscriptionCheck.error };
+  }
+
+  const billingContext = await loadSubscriptionBillingContext(
+    adminClient,
+    subscriptionCheck.data
+  );
+
+  if (!billingContext.success) {
+    return { success: false, error: billingContext.error };
+  }
+
+  if (!billingContext.gate.canDeletePayments) {
+    return {
+      success: false,
+      error: getBillingMutationLockMessage(
+        billingContext.gate.editLockReason,
+        "delete_payment"
+      ),
+    };
+  }
+
+  const { data, error } = await paymentRepository.deletePayment(
+    adminClient,
+    paymentId
+  );
+
+  if (error || !data) {
+    return { success: false, error: "Unable to delete payment. Please try again." };
+  }
+
+  const totalPaidAfter = roundCurrency(
+    billingContext.gate.totalPaid - Number(existing.data.amount ?? 0)
+  );
+
+  try {
+    await syncSubscriptionPaidStatus(
+      adminClient,
+      subscriptionCheck.data,
+      Math.max(totalPaidAfter, 0),
+      billingContext.gate.owedAmount
+    );
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Payment deleted, but subscription status could not be updated.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "critical",
+    table_name: "payments",
+    record_id: data.id,
+    old_data: {
+      subscribed_semester_id: existing.data.subscribed_semester_id,
+      amount: existing.data.amount,
+      currency: existing.data.currency,
+      method: existing.data.method,
+      paid_at: existing.data.paid_at,
+    },
+    metadata: { note: "Payment deleted." },
+  });
+
+  return { success: true, message: "Payment deleted." };
 }
 
 export async function updateSubscribedSemesterForManager(
@@ -756,6 +1360,30 @@ export async function updateSubscribedSemesterForManager(
 
   if (!subscriptionCheck.success) {
     return { success: false, error: subscriptionCheck.error };
+  }
+
+  const existingStatus = subscriptionCheck.data.status;
+  const nextStatus = parsed.data.status;
+
+  if (
+    existingStatus === SUBSCRIBED_SEMESTER_STATUSES.PAID &&
+    nextStatus !== SUBSCRIBED_SEMESTER_STATUSES.PAID
+  ) {
+    return {
+      success: false,
+      error: "Paid subscriptions cannot change status.",
+    };
+  }
+
+  if (
+    existingStatus !== SUBSCRIBED_SEMESTER_STATUSES.PAID &&
+    nextStatus === SUBSCRIBED_SEMESTER_STATUSES.PAID
+  ) {
+    return {
+      success: false,
+      error:
+        "Paid status is set automatically when payments cover the amount owed.",
+    };
   }
 
   const { data, error } = await subscribedSemesterRepository.updateSubscribedSemester(
@@ -829,6 +1457,25 @@ export async function createScheduledPaymentForManager(
 
   if (!subscriptionCheck.success) {
     return { success: false, error: subscriptionCheck.error };
+  }
+
+  const billingContext = await loadSubscriptionBillingContext(
+    adminClient,
+    subscriptionCheck.data
+  );
+
+  if (!billingContext.success) {
+    return { success: false, error: billingContext.error };
+  }
+
+  if (!billingContext.gate.canMutateSchedules) {
+    return {
+      success: false,
+      error: getBillingMutationLockMessage(
+        billingContext.gate.lockReason,
+        "schedules"
+      ),
+    };
   }
 
   const { data, error } = await scheduledPaymentRepository.createScheduledPayment(
@@ -906,6 +1553,34 @@ export async function updateScheduledPaymentForManager(
     return { success: false, error: "Scheduled payment not found." };
   }
 
+  const subscriptionCheck = await assertSubscribedSemesterExists(
+    adminClient,
+    existing.data.subscribed_semester_id
+  );
+
+  if (!subscriptionCheck.success) {
+    return { success: false, error: subscriptionCheck.error };
+  }
+
+  const billingContext = await loadSubscriptionBillingContext(
+    adminClient,
+    subscriptionCheck.data
+  );
+
+  if (!billingContext.success) {
+    return { success: false, error: billingContext.error };
+  }
+
+  if (!billingContext.gate.canMutateSchedules) {
+    return {
+      success: false,
+      error: getBillingMutationLockMessage(
+        billingContext.gate.lockReason,
+        "schedules"
+      ),
+    };
+  }
+
   const { data, error } = await scheduledPaymentRepository.updateScheduledPayment(
     adminClient,
     input.id,
@@ -948,4 +1623,240 @@ export async function updateScheduledPaymentForManager(
   });
 
   return { success: true, message: "Scheduled payment updated." };
+}
+
+export async function createAccountSpecialCaseForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    account_id: string;
+    semester_id: string;
+    total_amount: number;
+    explanation: string;
+    case_type: string;
+    status: string;
+  }
+): Promise<AccountingMutationResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = createAccountSpecialCaseSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const [accountResult, semesterResult, existingResult] = await Promise.all([
+    accountRepository.findAccountById(adminClient, parsed.data.account_id),
+    semesterRepository.findSemesterById(adminClient, parsed.data.semester_id),
+    accountSpecialCaseRepository.findSpecialCaseByAccountAndSemester(
+      adminClient,
+      parsed.data.account_id,
+      parsed.data.semester_id
+    ),
+  ]);
+
+  if (accountResult.error) {
+    return { success: false, error: accountResult.error.message };
+  }
+
+  if (!accountResult.data) {
+    return { success: false, error: "Account not found." };
+  }
+
+  if (semesterResult.error) {
+    return { success: false, error: semesterResult.error.message };
+  }
+
+  if (!semesterResult.data) {
+    return { success: false, error: "Semester not found." };
+  }
+
+  if (existingResult.error) {
+    return { success: false, error: existingResult.error.message };
+  }
+
+  if (existingResult.data) {
+    return {
+      success: false,
+      error: "A special case already exists for this account and semester.",
+    };
+  }
+
+  const percentageDiscount = computeSpecialCasePercentageDiscount(
+    Number(semesterResult.data.amount ?? 0),
+    parsed.data.total_amount
+  );
+
+  const { data, error } = await accountSpecialCaseRepository.createSpecialCase(
+    adminClient,
+    {
+      account_id: parsed.data.account_id,
+      semester_id: parsed.data.semester_id,
+      total_amount: parsed.data.total_amount,
+      percentage_discount: percentageDiscount,
+      explanation: parsed.data.explanation,
+      approved_by: actor.userId,
+      case_type: parsed.data.case_type,
+      status: parsed.data.status,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: "Unable to create special case. Please try again.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "warning",
+    table_name: "account_special_cases",
+    record_id: data.id,
+    new_data: {
+      account_id: data.account_id,
+      semester_id: data.semester_id,
+      total_amount: data.total_amount,
+      percentage_discount: data.percentage_discount,
+      case_type: data.case_type,
+      status: data.status,
+      approved_by: data.approved_by,
+    },
+    metadata: { note: "Account special case created." },
+  });
+
+  if (parsed.data.total_amount === 0) {
+    await markSubscribedSemesterPaidForAccount(
+      adminClient,
+      data.account_id,
+      data.semester_id
+    );
+  }
+
+  return { success: true, message: "Special case created." };
+}
+
+export async function updateAccountSpecialCaseForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    total_amount: number;
+    explanation: string;
+    case_type: string;
+    status: string;
+  }
+): Promise<AccountingMutationResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = updateAccountSpecialCaseSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existing = await accountSpecialCaseRepository.findSpecialCaseById(
+    adminClient,
+    parsed.data.id
+  );
+
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Special case not found." };
+  }
+
+  const semesterResult = await semesterRepository.findSemesterById(
+    adminClient,
+    existing.data.semester_id
+  );
+
+  if (semesterResult.error) {
+    return { success: false, error: semesterResult.error.message };
+  }
+
+  if (!semesterResult.data) {
+    return { success: false, error: "Semester not found." };
+  }
+
+  const percentageDiscount = computeSpecialCasePercentageDiscount(
+    Number(semesterResult.data.amount ?? 0),
+    parsed.data.total_amount
+  );
+
+  const { data, error } = await accountSpecialCaseRepository.updateSpecialCase(
+    adminClient,
+    parsed.data.id,
+    {
+      total_amount: parsed.data.total_amount,
+      percentage_discount: percentageDiscount,
+      explanation: parsed.data.explanation,
+      case_type: parsed.data.case_type,
+      status: parsed.data.status,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: "Unable to update special case. Please try again.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "warning",
+    table_name: "account_special_cases",
+    record_id: data.id,
+    old_data: {
+      total_amount: existing.data.total_amount,
+      percentage_discount: existing.data.percentage_discount,
+      explanation: existing.data.explanation,
+      case_type: existing.data.case_type,
+      status: existing.data.status,
+    },
+    new_data: {
+      total_amount: data.total_amount,
+      percentage_discount: data.percentage_discount,
+      explanation: data.explanation,
+      case_type: data.case_type,
+      status: data.status,
+    },
+    metadata: {
+      note: "Account special case updated.",
+      changed_fields: [
+        "total_amount",
+        "percentage_discount",
+        "explanation",
+        "case_type",
+        "status",
+      ],
+    },
+  });
+
+  if (parsed.data.total_amount === 0) {
+    await markSubscribedSemesterPaidForAccount(
+      adminClient,
+      data.account_id,
+      data.semester_id
+    );
+  }
+
+  return { success: true, message: "Special case updated." };
 }

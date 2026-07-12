@@ -90,3 +90,7 @@ export async function updatePayment(
     .select(PAYMENT_COLUMNS)
     .single();
 }
+
+export async function deletePayment(client: Supabase, id: string) {
+  return client.from("payments").delete().eq("id", id).select(PAYMENT_COLUMNS).single();
+}

@@ -174,6 +174,7 @@ describe("parseCreatePhaseFormData", () => {
     formData.set("name", "Fall 2026 Core Semester");
     formData.set("nb_courses", "6");
     formData.set("amount", "450.5");
+    formData.set("status", "scheduled");
 
     const result = parseCreatePhaseFormData(formData);
 
@@ -183,6 +184,7 @@ describe("parseCreatePhaseFormData", () => {
         name: "Fall 2026 Core Semester",
         nb_courses: 6,
         amount: 450.5,
+        status: "scheduled",
       },
     });
   });
@@ -192,6 +194,7 @@ describe("parseCreatePhaseFormData", () => {
     formData.set("name", "Fall 2026");
     formData.set("nb_courses", "6");
     formData.set("amount", "-1");
+    formData.set("status", "scheduled");
 
     const result = parseCreatePhaseFormData(formData);
 
@@ -206,6 +209,7 @@ describe("parseCreatePhaseFormData", () => {
     formData.set("name", "Fall 2026");
     formData.set("nb_courses", "6.5");
     formData.set("amount", "100");
+    formData.set("status", "scheduled");
 
     const result = parseCreatePhaseFormData(formData);
 

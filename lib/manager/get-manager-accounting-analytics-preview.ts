@@ -320,10 +320,12 @@ function summarizeSubscriptions(
     totalDue: roundCurrency(totalDue),
     collectionRate: computeCollectionRate(totalPaid, totalExpected),
     activeSubscriptions: subscriptions.filter(
-      (row) => row.status === SUBSCRIBED_SEMESTER_STATUSES.ACTIVE
+      (row) =>
+        row.status === SUBSCRIBED_SEMESTER_STATUSES.PENDING ||
+        row.status === SUBSCRIBED_SEMESTER_STATUSES.PAUSED
     ).length,
     overdueCount: subscriptions.filter(
-      (row) => row.status === SUBSCRIBED_SEMESTER_STATUSES.OVERDUE
+      (row) => row.status === SUBSCRIBED_SEMESTER_STATUSES.PAUSED
     ).length,
     scheduledRemindersDue,
     averagePaymentSize:

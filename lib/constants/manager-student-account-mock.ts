@@ -26,11 +26,11 @@ function mapEnrollmentStatusToSubscriptionStatus(
   index: number
 ) {
   if (enrollmentStatus === "withdrawn") {
-    return SUBSCRIBED_SEMESTER_STATUSES.CANCELLED;
+    return SUBSCRIBED_SEMESTER_STATUSES.STOPPED;
   }
 
   if (enrollmentStatus === "inactive") {
-    return SUBSCRIBED_SEMESTER_STATUSES.OVERDUE;
+    return SUBSCRIBED_SEMESTER_STATUSES.PAUSED;
   }
 
   if (enrollmentStatus === "pending") {
@@ -38,8 +38,8 @@ function mapEnrollmentStatusToSubscriptionStatus(
   }
 
   return index % 5 === 0
-    ? SUBSCRIBED_SEMESTER_STATUSES.OVERDUE
-    : SUBSCRIBED_SEMESTER_STATUSES.ACTIVE;
+    ? SUBSCRIBED_SEMESTER_STATUSES.PAUSED
+    : SUBSCRIBED_SEMESTER_STATUSES.PAID;
 }
 
 function buildSubscriptionsForStudent(studentProfileId: string) {
@@ -57,11 +57,11 @@ function buildSubscriptionsForStudent(studentProfileId: string) {
       index
     );
     const paidRatio =
-      status === SUBSCRIBED_SEMESTER_STATUSES.ACTIVE
+      status === SUBSCRIBED_SEMESTER_STATUSES.PAID
         ? 1
         : status === SUBSCRIBED_SEMESTER_STATUSES.PENDING
           ? 0
-          : status === SUBSCRIBED_SEMESTER_STATUSES.OVERDUE
+          : status === SUBSCRIBED_SEMESTER_STATUSES.PAUSED
             ? 0.45
             : 0.2;
 
@@ -156,11 +156,14 @@ export function getManagerStudentAccountMock(
       total_paid: totalPaid,
       balance_due: Math.max(totalSubscribed - totalPaid, 0),
       active_subscriptions: subscriptions.filter(
-        (row) => row.status === SUBSCRIBED_SEMESTER_STATUSES.ACTIVE
+        (row) =>
+          row.status === SUBSCRIBED_SEMESTER_STATUSES.PENDING ||
+          row.status === SUBSCRIBED_SEMESTER_STATUSES.PAUSED
       ).length,
     },
     subscriptions,
     payments,
     scheduledPayments,
+    specialCases: [],
   };
 }

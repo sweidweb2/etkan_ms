@@ -1,5 +1,6 @@
 import type { SubscribedSemesterStatusValue } from "@/lib/constants/manager-subscribed-semester-status";
 
+import type { ManagerAccountSpecialCaseRow } from "@/types/manager-account-special-case";
 import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
 
 export interface ManagerStudentAccountOverview {
@@ -42,4 +43,5 @@ export interface ManagerStudentAccountDetails {
   subscriptions: ManagerSubscribedSemesterRow[];
   payments: ManagerStudentPaymentRow[];
   scheduledPayments: ManagerScheduledPaymentRow[];
+  specialCases: ManagerAccountSpecialCaseRow[];
 }

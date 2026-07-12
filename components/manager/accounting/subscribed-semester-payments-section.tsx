@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -9,12 +9,23 @@ import {
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  Trash2Icon,
 } from "lucide-react";
+import { deletePaymentAction } from "@/app/manager/accounting/actions";
 import { AddPaymentDialog } from "@/components/manager/accounting/add-payment-dialog";
 import { EditPaymentDialog } from "@/components/manager/accounting/edit-payment-dialog";
 import { PaymentDetailsDialog } from "@/components/manager/accounting/payment-details-dialog";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -29,6 +40,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import {
   formatPaymentMethodLabel,
   MANAGER_PAYMENT_TABLE_LIMITS,
@@ -39,17 +51,30 @@ import {
   type PaymentMethodValue,
 } from "@/lib/constants/manager-payment-methods";
 import { formatAccountCurrency } from "@/lib/constants/manager-subscribed-semester-display";
+import {
+  getBillingMutationLockMessage,
+  type SubscriptionBillingGate,
+} from "@/lib/manager/subscribed-semester-billing";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
+import type { AccountingMutationActionState } from "@/types/manager-accounting";
 import type { ManagerStudentPaymentRow } from "@/types/manager-student-account";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const PAGE_SIZE = 5;
 const METHOD_FILTER_ALL = "all";
+const initialDeleteState: AccountingMutationActionState = {};
 
 type SubscribedSemesterPaymentsSectionProps = {
   subscribedSemesterId: string;
   semesterName: string;
   payments: ManagerStudentPaymentRow[];
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  remainingDue: number;
+  owedAmount: number;
+  createLockReason: SubscriptionBillingGate["createLockReason"];
+  editLockReason: SubscriptionBillingGate["editLockReason"];
   onPaymentSaved: () => void;
 };
 
@@ -134,6 +159,13 @@ export function SubscribedSemesterPaymentsSection({
   subscribedSemesterId,
   semesterName,
   payments,
+  canCreate,
+  canEdit,
+  canDelete,
+  remainingDue,
+  owedAmount,
+  createLockReason,
+  editLockReason,
   onPaymentSaved,
 }: SubscribedSemesterPaymentsSectionProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -143,10 +175,28 @@ export function SubscribedSemesterPaymentsSection({
     useState<ManagerStudentPaymentRow | null>(null);
   const [viewingPayment, setViewingPayment] =
     useState<ManagerStudentPaymentRow | null>(null);
+  const [deleteTarget, setDeleteTarget] =
+    useState<ManagerStudentPaymentRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [methodFilter, setMethodFilter] = useState<string>(METHOD_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(5);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
+  const [deleteState, deleteAction, isDeleteActionPending] = useActionState(
+    deletePaymentAction,
+    initialDeleteState
+  );
+  const isDeletePending = isDeleteActionPending || isDeleteTransitionPending;
+
+  useActionStateToast(deleteState, isDeletePending);
+
+  useEffect(() => {
+    if (!deleteState.success) {
+      return;
+    }
+
+    setDeleteTarget(null);
+    onPaymentSaved();
+  }, [deleteState.success, onPaymentSaved]);
 
   const filteredPayments = useMemo(() => {
     return payments.filter((payment) => {
@@ -157,18 +207,37 @@ export function SubscribedSemesterPaymentsSection({
     });
   }, [methodFilter, payments, searchQuery]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedPayments = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredPayments.slice(startIndex, startIndex + pageSize);
-  }, [filteredPayments, pageSize, safeCurrentPage]);
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredPayments.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredPayments, safeCurrentPage]);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredPayments.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredPayments.length);
+    filteredPayments.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredPayments.length);
+
+  const helperMessage = !canCreate
+    ? getBillingMutationLockMessage(createLockReason, "create_payment")
+    : !canEdit
+      ? getBillingMutationLockMessage(editLockReason, "edit_payment")
+      : null;
+
+  function handleConfirmDelete() {
+    if (!deleteTarget) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("id", deleteTarget.id);
+
+    startDeleteTransition(() => {
+      deleteAction(formData);
+    });
+  }
 
   return (
     <TooltipProvider>
@@ -177,6 +246,8 @@ export function SubscribedSemesterPaymentsSection({
         onOpenChange={setIsAddOpen}
         subscribedSemesterId={subscribedSemesterId}
         semesterName={semesterName}
+        remainingDue={remainingDue}
+        owedAmount={owedAmount}
         onPaymentSaved={onPaymentSaved}
       />
 
@@ -189,6 +260,7 @@ export function SubscribedSemesterPaymentsSection({
           }
         }}
         payment={editingPayment}
+        remainingDue={remainingDue}
         onPaymentSaved={onPaymentSaved}
       />
 
@@ -203,17 +275,67 @@ export function SubscribedSemesterPaymentsSection({
         payment={viewingPayment}
       />
 
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete payment</DialogTitle>
+            <DialogDescription>
+              This will permanently remove the{" "}
+              {deleteTarget
+                ? formatAccountCurrency(deleteTarget.amount, deleteTarget.currency)
+                : "payment"}{" "}
+              record. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeletePending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeletePending}
+            >
+              {isDeletePending ? <InlineSpinner /> : null}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Payments</CardTitle>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
+            <Button
+              type="button"
+              disabled={!canCreate}
+              onClick={() => setIsAddOpen(true)}
+            >
               <PlusIcon data-icon="inline-start" />
               Add payment
             </Button>
           </CardAction>
         </CardHeader>
         <CardContent className="px-0 pb-0">
+          {helperMessage ? (
+            <div className="border-b px-4 pt-2 pb-3">
+              <p className="text-sm text-muted-foreground">{helperMessage}</p>
+            </div>
+          ) : null}
           <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -317,6 +439,7 @@ export function SubscribedSemesterPaymentsSection({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
+                            disabled={!canEdit}
                             aria-label={`Edit payment of ${formatAccountCurrency(payment.amount, payment.currency)}`}
                             onClick={() => {
                               setEditingPayment(payment);
@@ -324,6 +447,16 @@ export function SubscribedSemesterPaymentsSection({
                             }}
                           >
                             <PencilIcon />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={!canDelete}
+                            aria-label={`Delete payment of ${formatAccountCurrency(payment.amount, payment.currency)}`}
+                            onClick={() => setDeleteTarget(payment)}
+                          >
+                            <Trash2Icon />
                           </Button>
                         </div>
                       </td>
@@ -335,41 +468,9 @@ export function SubscribedSemesterPaymentsSection({
           </div>
 
           <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Showing {rangeStart}–{rangeEnd} of {filteredPayments.length}
-              </span>
-              <span aria-hidden="true">·</span>
-              <div className="flex items-center gap-2">
-                <span>Rows</span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(value) => {
-                    if (!value) {
-                      return;
-                    }
-
-                    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-16"
-                    aria-label="Rows per page"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={String(option)}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Showing {rangeStart}–{rangeEnd} of {filteredPayments.length}
+            </p>
 
             <div className="flex items-center gap-1">
               <Button

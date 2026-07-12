@@ -41,6 +41,7 @@ type EditPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payment: ManagerStudentPaymentRow | null;
+  remainingDue: number;
   onPaymentSaved: () => void;
 };
 
@@ -48,6 +49,7 @@ export function EditPaymentDialog({
   open,
   onOpenChange,
   payment,
+  remainingDue,
   onPaymentSaved,
 }: EditPaymentDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -56,6 +58,7 @@ export function EditPaymentDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const maxAmount = Math.round((remainingDue + (payment?.amount ?? 0)) * 100) / 100;
 
   useActionStateToast(state, isPending);
 
@@ -64,6 +67,7 @@ export function EditPaymentDialog({
     handleSubmit,
     reset,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useZodForm({
@@ -103,6 +107,13 @@ export function EditPaymentDialog({
 
   function onSubmit(values: AddPaymentInput) {
     if (!payment) {
+      return;
+    }
+
+    if (values.amount > maxAmount) {
+      setError("amount", {
+        message: `Amount cannot exceed the remaining due (${maxAmount}).`,
+      });
       return;
     }
 
@@ -146,6 +157,7 @@ export function EditPaymentDialog({
               id="edit-payment-amount"
               type="number"
               min="0"
+              max={maxAmount}
               step="0.01"
               {...register("amount")}
               aria-invalid={!!amountError}

@@ -1,3 +1,7 @@
+import {
+  isOpenBillingSubscriptionStatus,
+  resolveManageAccountingAlert,
+} from "@/lib/constants/manager-accounting-payment-alert";
 import { getManagerStudentAccountMock } from "@/lib/constants/manager-student-account-mock";
 import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import { MANAGER_STUDENTS_MOCK } from "@/lib/constants/manager-students-mock";
@@ -18,11 +22,16 @@ function getBillingForEnrollment(
   }
 
   const balanceDue = Math.max(subscription.amount - subscription.paid_amount, 0);
+  const paidAts = account.payments
+    .filter((payment) => payment.subscribed_semester_id === subscription.id)
+    .map((payment) => payment.paid_at);
 
   return {
     total_amount: subscription.amount,
     total_paid: subscription.paid_amount,
     balance_due: balanceDue,
+    paidAts,
+    status: subscription.status,
   };
 }
 
@@ -33,6 +42,9 @@ function getAccountBilling(studentProfileId: string) {
     total_amount: account.overview.total_subscribed,
     total_paid: account.overview.total_paid,
     balance_due: account.overview.balance_due,
+    openCount: account.subscriptions.filter((row) =>
+      isOpenBillingSubscriptionStatus(row.status)
+    ).length,
   };
 }
 
@@ -42,10 +54,29 @@ export function getManagerAccountingStudentsPreview(): ManagerAccountingStudentR
     enrollments.map((row) => row.student_profile_id)
   );
   const rows: ManagerAccountingStudentRow[] = enrollments.map((row) => {
+    const account = getManagerStudentAccountMock(row.student_profile_id);
+    const openBillingSubscriptions = account.subscriptions.filter((sub) =>
+      isOpenBillingSubscriptionStatus(sub.status)
+    );
     const billing = getBillingForEnrollment(
       row.student_profile_id,
       row.semester_id
     );
+    const singleOpen =
+      openBillingSubscriptions.length === 1
+        ? openBillingSubscriptions[0]
+        : undefined;
+    const paymentAlert = resolveManageAccountingAlert({
+      openBillingCount: openBillingSubscriptions.length,
+      isFocusOpenSubscription:
+        openBillingSubscriptions.length !== 1 ||
+        singleOpen?.semester_id === row.semester_id,
+      totalPaid: singleOpen?.paid_amount ?? billing?.total_paid ?? 0,
+      paidAts: billing?.paidAts ?? [],
+      semesterAmount: singleOpen?.amount ?? billing?.total_amount ?? null,
+      hasScheduledPayments: false,
+      hasMissedScheduledPayment: false,
+    });
 
     return {
       student_profile_id: row.student_profile_id,
@@ -60,6 +91,13 @@ export function getManagerAccountingStudentsPreview(): ManagerAccountingStudentR
       total_amount: billing?.total_amount ?? null,
       total_paid: billing?.total_paid ?? null,
       balance_due: billing?.balance_due ?? null,
+      payment_alert: paymentAlert.payment_alert,
+      low_payment: paymentAlert.low_payment,
+      payment_missed_months: paymentAlert.payment_missed_months,
+      payment_alert_reasons: paymentAlert.payment_alert_reasons,
+      special_case_type: null,
+      special_case_no_money: false,
+      has_missed_scheduled_payment: false,
     };
   });
 
@@ -69,6 +107,14 @@ export function getManagerAccountingStudentsPreview(): ManagerAccountingStudentR
     }
 
     const billing = getAccountBilling(student.student_profile_id);
+    const paymentAlert = resolveManageAccountingAlert({
+      openBillingCount: billing.openCount,
+      isFocusOpenSubscription: true,
+      totalPaid: billing.total_paid,
+      paidAts: [],
+      hasScheduledPayments: false,
+      hasMissedScheduledPayment: false,
+    });
 
     rows.push({
       student_profile_id: student.student_profile_id,
@@ -83,6 +129,13 @@ export function getManagerAccountingStudentsPreview(): ManagerAccountingStudentR
       total_amount: billing.total_amount,
       total_paid: billing.total_paid,
       balance_due: billing.balance_due,
+      payment_alert: paymentAlert.payment_alert,
+      low_payment: paymentAlert.low_payment,
+      payment_missed_months: paymentAlert.payment_missed_months,
+      payment_alert_reasons: paymentAlert.payment_alert_reasons,
+      special_case_type: null,
+      special_case_no_money: false,
+      has_missed_scheduled_payment: false,
     });
   }
 

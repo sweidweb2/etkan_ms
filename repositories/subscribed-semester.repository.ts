@@ -11,7 +11,7 @@ export type SubscribedSemesterRecord = {
   account_id: string;
   semester_id: string | null;
   amount: number;
-  status: string | null;
+  status: string;
   created_at: string | null;
 };
 
@@ -25,6 +25,11 @@ export type CreateSubscribedSemesterInput = {
 export type UpdateSubscribedSemesterInput = {
   amount: number;
   status: string;
+};
+
+export type UpdateSubscribedSemesterSemesterAndAmountInput = {
+  semester_id: string;
+  amount: number;
 };
 
 export async function listSubscribedSemestersByAccountId(
@@ -61,6 +66,19 @@ export async function findSubscribedSemesterById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function findSubscribedSemesterByAccountAndSemester(
+  client: Supabase,
+  accountId: string,
+  semesterId: string
+) {
+  return client
+    .from("subscribed_semesters")
+    .select(SUBSCRIBED_SEMESTER_COLUMNS)
+    .eq("account_id", accountId)
+    .eq("semester_id", semesterId)
+    .maybeSingle();
+}
+
 export async function createSubscribedSemester(
   client: Supabase,
   input: CreateSubscribedSemesterInput
@@ -71,7 +89,7 @@ export async function createSubscribedSemester(
       account_id: input.account_id,
       semester_id: input.semester_id,
       amount: input.amount,
-      status: input.status ?? "active",
+      status: input.status ?? "pending",
     })
     .select(SUBSCRIBED_SEMESTER_COLUMNS)
     .single();
@@ -87,6 +105,22 @@ export async function updateSubscribedSemester(
     .update({
       amount: input.amount,
       status: input.status,
+    })
+    .eq("id", id)
+    .select(SUBSCRIBED_SEMESTER_COLUMNS)
+    .single();
+}
+
+export async function updateSubscribedSemesterSemesterAndAmount(
+  client: Supabase,
+  id: string,
+  input: UpdateSubscribedSemesterSemesterAndAmountInput
+) {
+  return client
+    .from("subscribed_semesters")
+    .update({
+      semester_id: input.semester_id,
+      amount: input.amount,
     })
     .eq("id", id)
     .select(SUBSCRIBED_SEMESTER_COLUMNS)

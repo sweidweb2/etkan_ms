@@ -26,3 +26,12 @@ select * from cron.job_run_details order by start_time desc limit 20;
 ```sql
 select public.mark_overdue_pending_work_missing();
 ```
+
+## Removed (temporarily)
+
+### notify-manager-payment-alerts
+
+Accounting / payment-alert weekly digest was dropped so the billing flow can be finished first.
+
+- **Dropped by:** `supabase/migrations/20260717000000_drop_cron_notify_manager_payment_alerts.sql`
+- **Previously defined in:** `20260714000000_cron_notify_manager_payment_alerts.sql` (and later replaced in special-case migrations)

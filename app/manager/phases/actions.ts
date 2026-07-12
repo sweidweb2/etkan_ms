@@ -5,15 +5,18 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddStudentToSemesterFormData } from "@/lib/validators/manager/add-student-to-semester";
 import { parseConnectSemesterClassFormData } from "@/lib/validators/manager/connect-semester-class";
 import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
+import { parseUpdatePhaseFormData } from "@/lib/validators/manager/update-phase";
 import {
   connectClassToSemesterForManager,
   createSemesterForManager,
+  updateSemesterForManager,
 } from "@/services/semester.service";
 import { addStudentToSemesterForManager } from "@/services/student-semester.service";
 import type {
   AddStudentToSemesterActionState,
   ConnectSemesterClassActionState,
   CreateSemesterActionState,
+  UpdateSemesterActionState,
 } from "@/types/manager-phase";
 
 export async function createSemesterAction(
@@ -37,6 +40,48 @@ export async function createSemesterAction(
 
   const adminClient = createSupabaseAdminClient();
   const result = await createSemesterForManager(
+    adminClient,
+    actorRole,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    semester: result.semester,
+  };
+}
+
+export async function updateSemesterAction(
+  _prevState: UpdateSemesterActionState,
+  formData: FormData
+): Promise<UpdateSemesterActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const parsed = parseUpdatePhaseFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateSemesterForManager(
     adminClient,
     actorRole,
     actor,

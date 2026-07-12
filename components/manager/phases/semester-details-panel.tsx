@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { PencilIcon } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,8 +12,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
 import { SemesterClassesSection } from "@/components/manager/phases/semester-classes-section";
+import { SemesterStatusBadge } from "@/components/manager/phases/semester-status-badge";
 import { SemesterStudentsSection } from "@/components/manager/phases/semester-students-section";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
@@ -33,7 +37,7 @@ function DetailField({
   value,
 }: {
   label: string;
-  value?: string | number | null;
+  value?: string | number | null | ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -54,6 +58,7 @@ export function SemesterDetailsPanel({
 }: SemesterDetailsPanelProps) {
   const router = useRouter();
   const [semester, setSemester] = useState<ManagerSemesterRow>(initialSemester);
+  const [editOpen, setEditOpen] = useState(false);
   const [exportedAt, setExportedAt] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -88,13 +93,30 @@ export function SemesterDetailsPanel({
       ) : null}
 
       <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-xl">{semester.name}</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b bg-muted/50 py-3">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <CardTitle className="text-xl">{semester.name}</CardTitle>
+            <SemesterStatusBadge status={semester.status} />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="print:hidden"
+            onClick={() => setEditOpen(true)}
+          >
+            <PencilIcon className="size-4" />
+            Edit
+          </Button>
         </CardHeader>
         <CardContent className="pt-2 pb-4">
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <DetailField label="Number of courses" value={semester.nb_courses} />
             <DetailField label="Amount" value={`$${semester.amount}`} />
+            <DetailField
+              label="Status"
+              value={<SemesterStatusBadge status={semester.status} />}
+            />
             <DetailField label="Created" value={createdText} />
           </dl>
         </CardContent>
@@ -115,6 +137,16 @@ export function SemesterDetailsPanel({
         initialAvailableClasses={initialAvailableClasses}
         onExportPdf={() => setExportedAt(new Date())}
         onClassesChanged={() => router.refresh()}
+      />
+
+      <EditPhaseDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        semester={semester}
+        onSemesterUpdated={(updated) => {
+          setSemester(updated);
+          router.refresh();
+        }}
       />
     </div>
   );

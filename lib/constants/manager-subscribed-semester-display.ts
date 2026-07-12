@@ -4,20 +4,22 @@ export const MANAGER_SUBSCRIBED_SEMESTER_STATUS_LABELS: Record<
   SubscribedSemesterStatusValue,
   string
 > = {
-  active: "Active",
   pending: "Pending",
-  cancelled: "Cancelled",
-  overdue: "Overdue",
+  paid: "Paid",
+  paused: "Paused",
+  stopped: "Stopped",
+  refunded: "Refunded",
 };
 
 export const MANAGER_SUBSCRIBED_SEMESTER_STATUS_BADGE_CLASSES: Record<
   SubscribedSemesterStatusValue,
   string
 > = {
-  active: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
   pending: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  cancelled: "bg-muted text-muted-foreground",
-  overdue: "bg-rose-500/15 text-rose-700 dark:text-rose-400",
+  paid: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  paused: "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+  stopped: "bg-muted text-muted-foreground",
+  refunded: "bg-rose-500/15 text-rose-700 dark:text-rose-400",
 };
 
 export function formatAccountCurrency(amount: number, currency = "USD") {

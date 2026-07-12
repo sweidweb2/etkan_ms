@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { SCHEDULED_PAYMENT_STATUS_VALUES } from "@/lib/constants/manager-scheduled-payment-status";
+import {
+  SCHEDULED_PAYMENT_STATUSES,
+  SCHEDULED_PAYMENT_STATUS_VALUES,
+} from "@/lib/constants/manager-scheduled-payment-status";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 
@@ -61,7 +64,7 @@ export function parseCreateScheduledPaymentFormData(formData: FormData):
     subscribed_semester_id: formData.get("subscribed_semester_id"),
     payment_date: formData.get("payment_date"),
     amount: formData.get("amount"),
-    status: formData.get("status"),
+    status: SCHEDULED_PAYMENT_STATUSES.SCHEDULED,
     note: formData.get("note"),
   });
 

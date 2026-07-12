@@ -3,7 +3,13 @@ import {
   CLASS_STATUSES,
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
+import {
+  SEMESTER_STATUSES,
+  SEMESTER_STATUS_VALUES,
+  type SemesterStatusValue,
+} from "@/lib/constants/manager-semester-status";
 import { createPhaseSchema } from "@/lib/validators/manager/create-phase";
+import { updatePhaseSchema } from "@/lib/validators/manager/update-phase";
 import { connectSemesterClassSchema } from "@/lib/validators/manager/connect-semester-class";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassWithSubjectRecord } from "@/repositories/class.repository";
@@ -11,10 +17,12 @@ import * as semesterRepository from "@/repositories/semester.repository";
 import type { SemesterRecord } from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
+import { ensureSubscribedSemesterForStudent } from "@/services/subscribed-semester.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerSemesterProgressRow,
@@ -40,6 +48,8 @@ export type CreateSemesterFailure = {
 
 export type CreateSemesterResult = CreateSemesterSuccess | CreateSemesterFailure;
 
+export type UpdateSemesterResult = CreateSemesterResult;
+
 export type ConnectSemesterClassSuccess = {
   success: true;
   classRow: ManagerSemesterClassRow;
@@ -63,12 +73,24 @@ function assertManagerRole(actorRole: RoleValue | null): void {
   }
 }
 
+function mapSemesterStatus(status: string | null | undefined): SemesterStatusValue {
+  if (
+    status &&
+    SEMESTER_STATUS_VALUES.includes(status as SemesterStatusValue)
+  ) {
+    return status as SemesterStatusValue;
+  }
+
+  return SEMESTER_STATUSES.SCHEDULED;
+}
+
 function mapSemesterRecordToRow(record: SemesterRecord): ManagerSemesterRow {
   return {
     id: record.id,
     name: record.name,
     nb_courses: record.nb_courses,
     amount: Number(record.amount),
+    status: mapSemesterStatus(record.status),
     created_at: record.created_at ?? "",
   };
 }
@@ -252,6 +274,7 @@ export async function createSemesterForManager(
     name: string;
     nb_courses: number;
     amount: number;
+    status: string;
   }
 ): Promise<CreateSemesterResult> {
   if (actorRole !== ROLES.MANAGER) {
@@ -268,7 +291,7 @@ export async function createSemesterForManager(
     };
   }
 
-  const { name, nb_courses, amount } = parsed.data;
+  const { name, nb_courses, amount, status } = parsed.data;
   const normalizedName = name.trim();
 
   const existing = await semesterRepository.findSemesterByName(
@@ -295,6 +318,7 @@ export async function createSemesterForManager(
     name: normalizedName,
     nb_courses,
     amount,
+    status,
   });
 
   if (error || !data) {
@@ -313,6 +337,7 @@ export async function createSemesterForManager(
       name: data.name,
       nb_courses: data.nb_courses,
       amount: data.amount,
+      status: data.status,
     },
     metadata: { note: "Semester created." },
   });
@@ -321,6 +346,117 @@ export async function createSemesterForManager(
     success: true,
     semester: mapSemesterRecordToRow(data),
     message: "Semester created.",
+  };
+}
+
+export async function updateSemesterForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    name: string;
+    nb_courses: number;
+    amount: number;
+    status: string;
+  }
+): Promise<UpdateSemesterResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = updatePhaseSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existing = await semesterRepository.findSemesterById(
+    adminClient,
+    parsed.data.id
+  );
+
+  if (existing.error) {
+    return {
+      success: false,
+      error: mapCreateSemesterError(existing.error.message),
+    };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Semester not found." };
+  }
+
+  const normalizedName = parsed.data.name.trim();
+  const nameConflict = await semesterRepository.findSemesterByName(
+    adminClient,
+    normalizedName
+  );
+
+  if (nameConflict.error) {
+    return {
+      success: false,
+      error: mapCreateSemesterError(nameConflict.error.message),
+    };
+  }
+
+  if (nameConflict.data && nameConflict.data.id !== parsed.data.id) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { name: ["A semester with this name already exists."] },
+    };
+  }
+
+  const { data, error } = await semesterRepository.updateSemester(
+    adminClient,
+    parsed.data.id,
+    {
+      name: normalizedName,
+      nb_courses: parsed.data.nb_courses,
+      amount: parsed.data.amount,
+      status: parsed.data.status,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: mapCreateSemesterError(error?.message ?? "Unknown error"),
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "semesters",
+    record_id: data.id,
+    old_data: {
+      name: existing.data.name,
+      nb_courses: existing.data.nb_courses,
+      amount: existing.data.amount,
+      status: existing.data.status,
+    },
+    new_data: {
+      name: data.name,
+      nb_courses: data.nb_courses,
+      amount: data.amount,
+      status: data.status,
+    },
+    metadata: {
+      note: "Semester updated.",
+      changed_fields: ["name", "nb_courses", "amount", "status"],
+    },
+  });
+
+  return {
+    success: true,
+    semester: mapSemesterRecordToRow(data),
+    message: "Semester updated.",
   };
 }
 
@@ -492,6 +628,43 @@ export async function connectClassToSemesterForManager(
       changed_fields: ["semester_id"],
     },
   });
+
+  const classStudentsResult =
+    await studentClassRepository.listStudentClassesByClassId(
+      adminClient,
+      parsed.data.classId
+    );
+
+  if (classStudentsResult.error) {
+    return {
+      success: false,
+      error: mapConnectSemesterClassError(classStudentsResult.error.message),
+    };
+  }
+
+  const userIds = (classStudentsResult.data ?? []).map((row) => row.user_id);
+  if (userIds.length > 0) {
+    const profilesResult =
+      await studentProfileRepository.listStudentProfilesByUserIds(
+        adminClient,
+        userIds
+      );
+
+    if (profilesResult.error) {
+      return {
+        success: false,
+        error: mapConnectSemesterClassError(profilesResult.error.message),
+      };
+    }
+
+    for (const profile of profilesResult.data ?? []) {
+      await ensureSubscribedSemesterForStudent(
+        adminClient,
+        profile.id,
+        input.semester_id
+      );
+    }
+  }
 
   return {
     success: true,

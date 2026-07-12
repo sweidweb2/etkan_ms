@@ -14,16 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
-import { MANAGER_SCHEDULED_PAYMENT_STATUS_LABELS } from "@/lib/constants/manager-scheduled-payment-display";
 import { SCHEDULED_PAYMENT_STATUSES } from "@/lib/constants/manager-scheduled-payment-status";
 import { formatAccountCurrency } from "@/lib/constants/manager-subscribed-semester-display";
 import { cn } from "@/lib/utils";
@@ -38,6 +30,7 @@ const initialState: AccountingMutationActionState = {};
 
 const scheduledPaymentFormSchema = createScheduledPaymentSchema.omit({
   subscribed_semester_id: true,
+  status: true,
 });
 
 type AddScheduledPaymentDialogProps = {
@@ -70,8 +63,6 @@ export function AddScheduledPaymentDialog({
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
     formState: { errors },
   } = useZodForm({
     schema: scheduledPaymentFormSchema,
@@ -79,19 +70,15 @@ export function AddScheduledPaymentDialog({
     defaultValues: {
       payment_date: toDateTimeLocalValue(new Date()),
       amount: "",
-      status: SCHEDULED_PAYMENT_STATUSES.SCHEDULED,
       note: "",
     },
   });
-
-  const selectedStatus = watch("status");
 
   useEffect(() => {
     if (!open) {
       reset({
         payment_date: toDateTimeLocalValue(new Date()),
         amount: "",
-        status: SCHEDULED_PAYMENT_STATUSES.SCHEDULED,
         note: "",
       });
     }
@@ -106,12 +93,14 @@ export function AddScheduledPaymentDialog({
     onScheduledPaymentSaved();
   }, [state.success, onOpenChange, onScheduledPaymentSaved]);
 
-  function onSubmit(values: Omit<CreateScheduledPaymentInput, "subscribed_semester_id">) {
+  function onSubmit(
+    values: Omit<CreateScheduledPaymentInput, "subscribed_semester_id" | "status">
+  ) {
     const formData = new FormData();
     formData.set("subscribed_semester_id", subscribedSemesterId);
     formData.set("payment_date", values.payment_date);
     formData.set("amount", values.amount === "" ? "" : String(values.amount));
-    formData.set("status", values.status);
+    formData.set("status", SCHEDULED_PAYMENT_STATUSES.SCHEDULED);
     formData.set("note", values.note?.trim() ?? "");
 
     startTransition(() => {
@@ -122,7 +111,6 @@ export function AddScheduledPaymentDialog({
   const paymentDateError =
     errors.payment_date?.message ?? state.fieldErrors?.payment_date?.[0];
   const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
-  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
   const noteError = errors.note?.message ?? state.fieldErrors?.note?.[0];
 
   return (
@@ -133,7 +121,7 @@ export function AddScheduledPaymentDialog({
           <DialogDescription>
             Create a reminder checkpoint for {semesterName}. Outstanding balance:{" "}
             {formatAccountCurrency(balanceDue)}. This is informational only and
-            does not record an actual payment.
+            does not record an actual payment. Status starts as scheduled.
           </DialogDescription>
         </DialogHeader>
 
@@ -177,46 +165,6 @@ export function AddScheduledPaymentDialog({
             />
             {amountError ? (
               <p className="text-sm text-destructive">{amountError}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-scheduled-payment-status"
-              label="Status"
-              hint="Required"
-            />
-            <Select
-              value={selectedStatus || null}
-              onValueChange={(value) => {
-                if (!value) {
-                  return;
-                }
-
-                setValue("status", value as CreateScheduledPaymentInput["status"], {
-                  shouldValidate: true,
-                });
-              }}
-            >
-              <SelectTrigger
-                id="add-scheduled-payment-status"
-                className="w-full"
-                aria-invalid={!!statusError}
-              >
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent align="start">
-                {Object.entries(MANAGER_SCHEDULED_PAYMENT_STATUS_LABELS).map(
-                  ([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  )
-                )}
-              </SelectContent>
-            </Select>
-            {statusError ? (
-              <p className="text-sm text-destructive">{statusError}</p>
             ) : null}
           </div>
 

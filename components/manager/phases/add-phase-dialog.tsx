@@ -14,8 +14,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
+import { MANAGER_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-phase-display";
+import {
+  SEMESTER_STATUSES,
+  type SemesterStatusValue,
+} from "@/lib/constants/manager-semester-status";
 import {
   createPhaseSchema,
   type CreatePhaseInput,
@@ -48,6 +60,8 @@ export function AddPhaseDialog({
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useZodForm({
     schema: createPhaseSchema,
@@ -56,8 +70,11 @@ export function AddPhaseDialog({
       name: "",
       nb_courses: 0,
       amount: 0,
+      status: SEMESTER_STATUSES.SCHEDULED,
     },
   });
+
+  const selectedStatus = watch("status");
 
   useEffect(() => {
     if (!open) {
@@ -65,6 +82,7 @@ export function AddPhaseDialog({
         name: "",
         nb_courses: 0,
         amount: 0,
+        status: SEMESTER_STATUSES.SCHEDULED,
       });
     }
   }, [open, reset]);
@@ -83,6 +101,7 @@ export function AddPhaseDialog({
     formData.set("name", values.name.trim());
     formData.set("nb_courses", String(values.nb_courses));
     formData.set("amount", String(values.amount));
+    formData.set("status", values.status);
 
     startTransition(() => {
       formAction(formData);
@@ -93,6 +112,7 @@ export function AddPhaseDialog({
   const coursesError =
     errors.nb_courses?.message ?? state.fieldErrors?.nb_courses?.[0];
   const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
+  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,7 +120,7 @@ export function AddPhaseDialog({
         <DialogHeader>
           <DialogTitle>Add semester</DialogTitle>
           <DialogDescription>
-            Create a semester with name, number of courses, and amount.
+            Create a semester with name, courses, amount, and lifecycle status.
           </DialogDescription>
         </DialogHeader>
 
@@ -160,6 +180,47 @@ export function AddPhaseDialog({
               />
               {amountError ? (
                 <p className="text-sm text-destructive">{amountError}</p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <FieldLabel
+                htmlFor="add-semester-status"
+                label="Status"
+                hint="Required"
+              />
+              <Select
+                value={selectedStatus}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  setValue("status", value as SemesterStatusValue, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  });
+                }}
+                disabled={isPending}
+              >
+                <SelectTrigger
+                  id="add-semester-status"
+                  aria-invalid={!!statusError}
+                  className="w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(MANAGER_SEMESTER_STATUS_LABELS).map(
+                    ([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+              {statusError ? (
+                <p className="text-sm text-destructive">{statusError}</p>
               ) : null}
             </div>
           </div>

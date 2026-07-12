@@ -40,17 +40,23 @@ import {
   type ScheduledPaymentStatusValue,
 } from "@/lib/constants/manager-scheduled-payment-status";
 import { formatAccountCurrency } from "@/lib/constants/manager-subscribed-semester-display";
+import {
+  getBillingMutationLockMessage,
+  type SubscriptionBillingGate,
+} from "@/lib/manager/subscribed-semester-billing";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const PAGE_SIZE = 5;
 const STATUS_FILTER_ALL = "all";
 
 type ScheduledPaymentsSectionProps = {
   subscribedSemesterId: string;
   semesterName: string;
   balanceDue: number;
+  canMutate: boolean;
+  lockReason: SubscriptionBillingGate["lockReason"];
   scheduledPayments: ManagerScheduledPaymentRow[];
   onScheduledPaymentSaved: () => void;
 };
@@ -139,10 +145,12 @@ export function ScheduledPaymentsSection({
   subscribedSemesterId,
   semesterName,
   balanceDue,
+  canMutate,
+  lockReason,
   scheduledPayments,
   onScheduledPaymentSaved,
 }: ScheduledPaymentsSectionProps) {
-  const canSchedule = balanceDue > 0;
+  const canSchedule = canMutate && balanceDue > 0;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -154,7 +162,6 @@ export function ScheduledPaymentsSection({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(5);
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredRows = useMemo(() => {
@@ -166,18 +173,18 @@ export function ScheduledPaymentsSection({
     });
   }, [scheduledPayments, searchQuery, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedRows = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredRows.slice(startIndex, startIndex + pageSize);
-  }, [filteredRows, pageSize, safeCurrentPage]);
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredRows.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredRows, safeCurrentPage]);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredRows.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredRows.length);
+    filteredRows.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredRows.length);
 
   return (
     <TooltipProvider>
@@ -243,8 +250,9 @@ export function ScheduledPaymentsSection({
           {!canSchedule ? (
             <div className="border-b px-4 pt-2 pb-3">
               <p className="text-sm text-muted-foreground">
-                This subscription is fully paid. Scheduled reminders are only
-                available while there is an outstanding balance.
+                {!canMutate
+                  ? getBillingMutationLockMessage(lockReason, "schedules")
+                  : "This subscription is fully paid. Scheduled reminders are only available while there is an outstanding balance."}
               </p>
             </div>
           ) : null}
@@ -357,6 +365,7 @@ export function ScheduledPaymentsSection({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
+                            disabled={!canMutate}
                             aria-label="Edit scheduled payment"
                             onClick={() => {
                               setEditingRow(row);
@@ -375,41 +384,9 @@ export function ScheduledPaymentsSection({
           </div>
 
           <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Showing {rangeStart}–{rangeEnd} of {filteredRows.length}
-              </span>
-              <span aria-hidden="true">·</span>
-              <div className="flex items-center gap-2">
-                <span>Rows</span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(value) => {
-                    if (!value) {
-                      return;
-                    }
-
-                    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-16"
-                    aria-label="Rows per page"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={String(option)}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Showing {rangeStart}–{rangeEnd} of {filteredRows.length}
+            </p>
 
             <div className="flex items-center gap-1">
               <Button

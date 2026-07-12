@@ -10,6 +10,8 @@ import {
   ChevronRightIcon,
   SearchIcon,
 } from "lucide-react";
+import { AccountingPaymentAlertBadge } from "@/components/manager/accounting/accounting-payment-alert-badge";
+import { AccountingPaymentAlertLegendCard } from "@/components/manager/accounting/accounting-payment-alert-legend-card";
 import { StudentSemesterStatusBadge } from "@/components/manager/students/student-semester-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  ACCOUNT_SPECIAL_CASE_TYPE_LABELS,
+  ACCOUNT_SPECIAL_CASE_TYPES,
+} from "@/lib/constants/manager-account-special-case";
 import { MANAGER_STUDENT_SEMESTER_TABLE_LIMITS } from "@/lib/constants/manager-student-semester-display";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
 import { getManagerStudentAccountDetailRoute, ROUTES } from "@/lib/constants/routes";
@@ -40,6 +46,9 @@ const SEMESTER_FILTER_ALL = "all";
 const BALANCE_FILTER_ALL = "all";
 const BALANCE_FILTER_DUE = "balance_due";
 const BALANCE_FILTER_PAID = "paid_in_full";
+const SPECIAL_CASE_FILTER_ALL = "all";
+const SPECIAL_CASE_FILTER_NONE = "none";
+const SPECIAL_CASE_FILTER_MISSED_SCHEDULE = "missed_schedule";
 const ACCOUNTING_ROW_HOVER_CLASS =
   "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
@@ -128,6 +137,9 @@ export function ManageAccountingPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [semesterFilter, setSemesterFilter] = useState<string>(SEMESTER_FILTER_ALL);
   const [balanceFilter, setBalanceFilter] = useState<string>(BALANCE_FILTER_ALL);
+  const [specialCaseFilter, setSpecialCaseFilter] = useState<string>(
+    SPECIAL_CASE_FILTER_ALL
+  );
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -142,6 +154,7 @@ export function ManageAccountingPanel({
       ).length,
       unassigned: students.filter((row) => row.semester_id === null).length,
       balanceDue: students.filter((row) => (row.balance_due ?? 0) > 0).length,
+      paymentAlerts: students.filter((row) => row.payment_alert).length,
     }),
     [students]
   );
@@ -158,10 +171,22 @@ export function ManageAccountingPanel({
         (balanceFilter === BALANCE_FILTER_DUE
           ? (row.balance_due ?? 0) > 0
           : (row.balance_due ?? 0) <= 0);
+      const matchesSpecialCase =
+        specialCaseFilter === SPECIAL_CASE_FILTER_ALL ||
+        (specialCaseFilter === SPECIAL_CASE_FILTER_NONE
+          ? row.special_case_type === null
+          : specialCaseFilter === SPECIAL_CASE_FILTER_MISSED_SCHEDULE
+            ? row.has_missed_scheduled_payment
+            : row.special_case_type === specialCaseFilter);
 
-      return matchesSemester && matchesBalance && matchesSearch(row, searchQuery);
+      return (
+        matchesSemester &&
+        matchesBalance &&
+        matchesSpecialCase &&
+        matchesSearch(row, searchQuery)
+      );
     });
-  }, [balanceFilter, searchQuery, semesterFilter, students]);
+  }, [balanceFilter, searchQuery, semesterFilter, specialCaseFilter, students]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -188,6 +213,11 @@ export function ManageAccountingPanel({
 
   const handleBalanceFilterChange = (value: string | null) => {
     setBalanceFilter(value ?? BALANCE_FILTER_ALL);
+    setCurrentPage(1);
+  };
+
+  const handleSpecialCaseFilterChange = (value: string | null) => {
+    setSpecialCaseFilter(value ?? SPECIAL_CASE_FILTER_ALL);
     setCurrentPage(1);
   };
 
@@ -226,7 +256,7 @@ export function ManageAccountingPanel({
           </Button>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <UserStatCard
             label="Total students"
             value={stats.total}
@@ -248,11 +278,18 @@ export function ManageAccountingPanel({
             accentClassName="border-l-orange-500"
           />
           <UserStatCard
-            label="Unassigned"
-            value={stats.unassigned}
+            label="Payment alerts"
+            value={stats.paymentAlerts}
             accentClassName="border-l-rose-500"
           />
+          <UserStatCard
+            label="Unassigned"
+            value={stats.unassigned}
+            accentClassName="border-l-violet-500"
+          />
         </div>
+
+        <AccountingPaymentAlertLegendCard />
 
         <Card className="py-0">
           <CardHeader className="border-b py-3">
@@ -271,6 +308,34 @@ export function ManageAccountingPanel({
                 />
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
+                <Select
+                  value={specialCaseFilter}
+                  onValueChange={handleSpecialCaseFilterChange}
+                >
+                  <SelectTrigger
+                    className="w-full sm:w-48"
+                    aria-label="Filter by special case or missed schedule"
+                  >
+                    <SelectValue placeholder="All cases" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value={SPECIAL_CASE_FILTER_ALL}>
+                      All special cases
+                    </SelectItem>
+                    <SelectItem value={ACCOUNT_SPECIAL_CASE_TYPES.SCHOLARSHIP}>
+                      {ACCOUNT_SPECIAL_CASE_TYPE_LABELS.scholarship}
+                    </SelectItem>
+                    <SelectItem value={ACCOUNT_SPECIAL_CASE_TYPES.DONE}>
+                      {ACCOUNT_SPECIAL_CASE_TYPE_LABELS.done}
+                    </SelectItem>
+                    <SelectItem value={SPECIAL_CASE_FILTER_MISSED_SCHEDULE}>
+                      Missed schedule
+                    </SelectItem>
+                    <SelectItem value={SPECIAL_CASE_FILTER_NONE}>
+                      No special case
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select
                   value={balanceFilter}
                   onValueChange={handleBalanceFilterChange}
@@ -311,12 +376,13 @@ export function ManageAccountingPanel({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="px-4 py-3 font-medium">Student</th>
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Semester</th>
+                    <th className="px-4 py-3 font-medium">Alert</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Enrolled</th>
                   </tr>
@@ -325,7 +391,7 @@ export function ManageAccountingPanel({
                   {paginatedStudents.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         No students match your filters.
@@ -349,7 +415,7 @@ export function ManageAccountingPanel({
                         }}
                         aria-label={`View account for ${row.full_name}`}
                       >
-                        <td className="max-w-[12rem] px-4 py-3">
+                        <td className="max-w-[14rem] px-4 py-3">
                           <TruncatedCell
                             value={row.full_name}
                             maxLength={MANAGER_STUDENT_SEMESTER_TABLE_LIMITS.fullName}
@@ -366,6 +432,11 @@ export function ManageAccountingPanel({
                           <TruncatedCell
                             value={row.semester_name ?? "—"}
                             maxLength={24}
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <AccountingPaymentAlertBadge
+                            reasons={row.payment_alert_reasons}
                           />
                         </td>
                         <td className="px-4 py-3">

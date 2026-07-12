@@ -27,6 +27,7 @@ import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_VALUES,
 } from "@/lib/constants/manager-payment-methods";
+import { formatAccountCurrency } from "@/lib/constants/manager-subscribed-semester-display";
 import { toDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
 import {
   addPaymentSchema,
@@ -41,6 +42,8 @@ type AddPaymentDialogProps = {
   onOpenChange: (open: boolean) => void;
   subscribedSemesterId: string;
   semesterName: string;
+  remainingDue: number;
+  owedAmount: number;
   onPaymentSaved: () => void;
 };
 
@@ -49,6 +52,8 @@ export function AddPaymentDialog({
   onOpenChange,
   subscribedSemesterId,
   semesterName,
+  remainingDue,
+  owedAmount,
   onPaymentSaved,
 }: AddPaymentDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -65,6 +70,7 @@ export function AddPaymentDialog({
     handleSubmit,
     reset,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useZodForm({
@@ -79,6 +85,10 @@ export function AddPaymentDialog({
   });
 
   const selectedMethod = watch("method");
+  const totalPaid = Math.max(
+    Math.round((owedAmount - remainingDue) * 100) / 100,
+    0
+  );
 
   useEffect(() => {
     if (!open) {
@@ -101,6 +111,13 @@ export function AddPaymentDialog({
   }, [state.success, onOpenChange, onPaymentSaved]);
 
   function onSubmit(values: AddPaymentInput) {
+    if (values.amount > remainingDue) {
+      setError("amount", {
+        message: `Amount cannot exceed the remaining due (${remainingDue}).`,
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.set("subscribed_semester_id", subscribedSemesterId);
     formData.set("amount", String(values.amount));
@@ -129,6 +146,14 @@ export function AddPaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <p className="text-muted-foreground">
+            Owed {formatAccountCurrency(owedAmount)} · Paid{" "}
+            {formatAccountCurrency(totalPaid)} · Remaining{" "}
+            {formatAccountCurrency(remainingDue)}
+          </p>
+        </div>
+
         <form
           id="add-payment-form"
           onSubmit={handleSubmit(onSubmit)}
@@ -141,6 +166,7 @@ export function AddPaymentDialog({
               id="add-payment-amount"
               type="number"
               min="0"
+              max={remainingDue}
               step="0.01"
               {...register("amount")}
               aria-invalid={!!amountError}

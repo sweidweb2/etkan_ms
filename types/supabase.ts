@@ -65,6 +65,70 @@ export type Database = {
           },
         ]
       }
+      account_special_cases: {
+        Row: {
+          account_id: string
+          approved_by: string | null
+          case_type: string
+          created_at: string
+          explanation: string
+          id: string
+          percentage_discount: number
+          semester_id: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          approved_by?: string | null
+          case_type: string
+          created_at?: string
+          explanation: string
+          id?: string
+          percentage_discount: number
+          semester_id: string
+          status?: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          approved_by?: string | null
+          case_type?: string
+          created_at?: string
+          explanation?: string
+          id?: string
+          percentage_discount?: number
+          semester_id?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_special_cases_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_special_cases_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_special_cases_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           id: number
@@ -614,6 +678,7 @@ export type Database = {
           id: string
           name: string
           nb_courses: number
+          status: string
         }
         Insert: {
           amount?: number
@@ -621,6 +686,7 @@ export type Database = {
           id?: string
           name: string
           nb_courses?: number
+          status?: string
         }
         Update: {
           amount?: number
@@ -628,6 +694,7 @@ export type Database = {
           id?: string
           name?: string
           nb_courses?: number
+          status?: string
         }
         Relationships: []
       }
@@ -1026,7 +1093,7 @@ export type Database = {
           created_at: string | null
           id: string
           semester_id: string | null
-          status: string | null
+          status: string
         }
         Insert: {
           account_id: string
@@ -1034,7 +1101,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           semester_id?: string | null
-          status?: string | null
+          status?: string
         }
         Update: {
           account_id?: string
@@ -1042,7 +1109,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           semester_id?: string | null
-          status?: string | null
+          status?: string
         }
         Relationships: [
           {

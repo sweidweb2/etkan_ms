@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
+import { SEMESTER_STATUSES } from "@/lib/constants/manager-semester-status";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
@@ -7,6 +8,7 @@ import {
   createSemesterForManager,
   getSemesterForManager,
   listSemestersForManager,
+  updateSemesterForManager,
 } from "@/services/semester.service";
 
 vi.mock("@/repositories/semester.repository");
@@ -27,6 +29,7 @@ const semesterRecord = {
   name: "Fall 2026 Core Semester",
   nb_courses: 6,
   amount: 450,
+  status: SEMESTER_STATUSES.SCHEDULED,
   created_at: "2026-01-01T00:00:00.000Z",
 };
 
@@ -34,6 +37,7 @@ const validCreateInput = {
   name: "Fall 2026 Core Semester",
   nb_courses: 6,
   amount: 450,
+  status: SEMESTER_STATUSES.SCHEDULED,
 };
 
 describe("listSemestersForManager", () => {
@@ -64,6 +68,7 @@ describe("listSemestersForManager", () => {
         name: "Fall 2026 Core Semester",
         nb_courses: 6,
         amount: 450,
+        status: SEMESTER_STATUSES.SCHEDULED,
         created_at: "2026-01-01T00:00:00.000Z",
       },
     ]);
@@ -133,6 +138,7 @@ describe("getSemesterForManager", () => {
       name: "Fall 2026 Core Semester",
       nb_courses: 6,
       amount: 450,
+      status: SEMESTER_STATUSES.SCHEDULED,
       created_at: "2026-01-01T00:00:00.000Z",
     });
   });
@@ -227,9 +233,62 @@ describe("createSemesterForManager", () => {
         name: "Fall 2026 Core Semester",
         nb_courses: 6,
         amount: 450,
+        status: SEMESTER_STATUSES.SCHEDULED,
         created_at: "2026-01-01T00:00:00.000Z",
       },
       message: "Semester created.",
+    });
+  });
+});
+
+describe("updateSemesterForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("updates semester status and fields", async () => {
+    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
+      data: semesterRecord,
+      error: null,
+    });
+    vi.mocked(semesterRepository.findSemesterByName).mockResolvedValue({
+      data: { id: semesterId, name: semesterRecord.name },
+      error: null,
+    });
+    vi.mocked(semesterRepository.updateSemester).mockResolvedValue({
+      data: {
+        ...semesterRecord,
+        amount: 500,
+        status: SEMESTER_STATUSES.IN_PROGRESS,
+      },
+      error: null,
+    });
+
+    const result = await updateSemesterForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      {
+        id: semesterId,
+        name: "Fall 2026 Core Semester",
+        nb_courses: 6,
+        amount: 500,
+        status: SEMESTER_STATUSES.IN_PROGRESS,
+      }
+    );
+
+    expect(result).toEqual({
+      success: true,
+      semester: {
+        id: semesterId,
+        name: "Fall 2026 Core Semester",
+        nb_courses: 6,
+        amount: 500,
+        status: SEMESTER_STATUSES.IN_PROGRESS,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      message: "Semester updated.",
     });
   });
 });

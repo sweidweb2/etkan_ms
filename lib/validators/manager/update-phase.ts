@@ -1,0 +1,50 @@
+import { z } from "zod";
+import { SEMESTER_STATUS_VALUES } from "@/lib/constants/manager-semester-status";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
+
+export const updatePhaseSchema = z.object({
+  id: z.string().trim().uuid({ message: "Semester is required." }),
+  name: z
+    .string()
+    .trim()
+    .min(1, { message: "Semester name is required." })
+    .max(120, { message: "Semester name must be at most 120 characters." }),
+  nb_courses: z.coerce
+    .number()
+    .int({ message: "Number of courses must be a whole number." })
+    .min(0, { message: "Number of courses must be 0 or greater." })
+    .max(1000, { message: "Number of courses must be at most 1000." }),
+  amount: z.coerce
+    .number()
+    .min(0, { message: "Amount must be 0 or greater." })
+    .max(1000000, { message: "Amount must be at most 1,000,000." }),
+  status: z.enum(SEMESTER_STATUS_VALUES, {
+    message: "Status is required.",
+  }),
+});
+
+export type UpdatePhaseInput = z.infer<typeof updatePhaseSchema>;
+
+export function parseUpdatePhaseFormData(formData: FormData):
+  | { success: true; data: UpdatePhaseInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = updatePhaseSchema.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    nb_courses: formData.get("nb_courses"),
+    amount: formData.get("amount"),
+    status: formData.get("status"),
+  });
+
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(flattened),
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}

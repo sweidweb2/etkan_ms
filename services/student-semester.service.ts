@@ -12,6 +12,7 @@ import {
   type AuditActor,
 } from "@/services/audit-log.service";
 import { listStudentsForManager } from "@/services/student.service";
+import { ensureSubscribedSemesterForStudent } from "@/services/subscribed-semester.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerStudentRow } from "@/types/manager-student";
 import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
@@ -256,6 +257,12 @@ export async function addStudentToSemesterForManager(
       semester_name: semesterResult.data.name,
     },
   });
+
+  await ensureSubscribedSemesterForStudent(
+    adminClient,
+    parsed.data.student_profile_id,
+    input.semester_id
+  );
 
   return {
     success: true,

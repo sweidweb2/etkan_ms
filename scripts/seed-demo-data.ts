@@ -406,7 +406,7 @@ async function ensureSubscribedSemester(
       account_id: accountId,
       semester_id: semesterId,
       amount,
-      status: "active",
+      status: "pending",
     }
   );
 

@@ -1,8 +1,9 @@
 export const SUBSCRIBED_SEMESTER_STATUSES = {
-  ACTIVE: "active",
   PENDING: "pending",
-  CANCELLED: "cancelled",
-  OVERDUE: "overdue",
+  PAID: "paid",
+  PAUSED: "paused",
+  STOPPED: "stopped",
+  REFUNDED: "refunded",
 } as const;
 
 export type SubscribedSemesterStatusValue =

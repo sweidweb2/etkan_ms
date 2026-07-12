@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SEMESTER_STATUS_VALUES } from "@/lib/constants/manager-semester-status";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 
@@ -17,6 +18,9 @@ export const createPhaseSchema = z.object({
     .number()
     .min(0, { message: "Amount must be 0 or greater." })
     .max(1000000, { message: "Amount must be at most 1,000,000." }),
+  status: z.enum(SEMESTER_STATUS_VALUES, {
+    message: "Status is required.",
+  }),
 });
 
 export type CreatePhaseInput = z.infer<typeof createPhaseSchema>;
@@ -28,6 +32,7 @@ export function parseCreatePhaseFormData(formData: FormData):
     name: formData.get("name"),
     nb_courses: formData.get("nb_courses"),
     amount: formData.get("amount"),
+    status: formData.get("status"),
   });
 
   if (!parsed.success) {

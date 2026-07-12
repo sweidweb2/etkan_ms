@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { SemesterClassesProgressTrack } from "@/components/manager/phases/semester-classes-progress-track";
+import { SemesterStatusBadge } from "@/components/manager/phases/semester-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSemesterSessionProgressSummary } from "@/lib/constants/manager-semester-class-progress";
 import { getManagerSemesterDetailRoute } from "@/lib/constants/routes";
@@ -20,14 +21,17 @@ export function SemesterProgressRowCard({ row }: SemesterProgressRowCardProps) {
     <Card className="gap-0 overflow-hidden py-0">
       <CardHeader className="gap-3 border-b bg-muted/20 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
-          <CardTitle className="text-base leading-snug">
-            <Link
-              href={detailHref}
-              className="hover:underline focus-visible:underline focus-visible:outline-none"
-            >
-              {semester.name}
-            </Link>
-          </CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle className="text-base leading-snug">
+              <Link
+                href={detailHref}
+                className="hover:underline focus-visible:underline focus-visible:outline-none"
+              >
+                {semester.name}
+              </Link>
+            </CardTitle>
+            <SemesterStatusBadge status={semester.status} />
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {summary.classCount}{" "}
             {summary.classCount === 1 ? "linked class" : "linked classes"}

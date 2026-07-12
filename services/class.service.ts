@@ -61,6 +61,7 @@ import {
 } from "@/services/class-computed-grade-lock.service";
 import { ensureSessionAttendeesForEnrolledStudents, seedLateJoinAttendeesForStudent } from "@/services/session.service";
 import { listStudentsForManager } from "@/services/student.service";
+import { ensureSubscribedSemesterForStudent, reassignClassStudentsSubscribedSemesters } from "@/services/subscribed-semester.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 import type {
@@ -1370,6 +1371,15 @@ export async function updateClassForManager(
       syncSemesterNbCourses(adminClient, previousSemesterId),
       syncSemesterNbCourses(adminClient, nextSemesterId),
     ]);
+
+    if (nextSemesterId) {
+      await reassignClassStudentsSubscribedSemesters(
+        adminClient,
+        input.class_id,
+        previousSemesterId,
+        nextSemesterId
+      );
+    }
   }
 
   const classRow = await mapClassDetailToRow(
@@ -2255,6 +2265,15 @@ export async function addStudentToClassForManager(
       status: student.enrollment_status,
     },
   });
+
+  const classSemesterId = classResult.data.semester_id;
+  if (classSemesterId) {
+    await ensureSubscribedSemesterForStudent(
+      adminClient,
+      parsed.data.studentProfileId,
+      classSemesterId
+    );
+  }
 
   return {
     success: true,

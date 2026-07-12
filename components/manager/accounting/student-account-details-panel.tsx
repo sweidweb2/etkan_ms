@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ExternalLinkIcon, PencilIcon } from "lucide-react";
+import { ExternalLinkIcon, PencilIcon, TriangleAlertIcon } from "lucide-react";
 import {
   Tabs as TabsPrimitive,
   TabsList as TabsListPrimitive,
@@ -13,6 +13,7 @@ import {
 import { SubscribedSemesterPaymentsSection } from "@/components/manager/accounting/subscribed-semester-payments-section";
 import { ScheduledPaymentsSection } from "@/components/manager/accounting/scheduled-payments-section";
 import { SubscribedSemesterFinancialSection } from "@/components/manager/accounting/subscribed-semester-financial-section";
+import { AccountSpecialCaseSection } from "@/components/manager/accounting/account-special-case-section";
 import { EditSubscribedSemesterDialog } from "@/components/manager/accounting/edit-subscribed-semester-dialog";
 import { SubscribedSemesterStatusBadge } from "@/components/manager/accounting/subscribed-semester-status-badge";
 import {
@@ -27,6 +28,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import {
+  ACCOUNTING_PAYMENT_ALERT_MIN_AMOUNT,
+  ACCOUNTING_PAYMENT_ALERT_REASON_LABELS,
+  isOpenBillingSubscriptionStatus,
+  resolveManageAccountingAlert,
+} from "@/lib/constants/manager-accounting-payment-alert";
+import {
+  ACCOUNT_SPECIAL_CASE_STATUSES,
+} from "@/lib/constants/manager-account-special-case";
+import {
+  SCHEDULED_PAYMENT_STATUSES,
+} from "@/lib/constants/manager-scheduled-payment-status";
+import {
+  getSubscriptionBillingGate,
+} from "@/lib/manager/subscribed-semester-billing";
+import {
   formatAccountCurrency,
 } from "@/lib/constants/manager-subscribed-semester-display";
 import {
@@ -38,7 +54,9 @@ import type {
   ManagerStudentAccountDetails,
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-account";
+import type { ManagerAccountSpecialCaseRow } from "@/types/manager-account-special-case";
 import type { ManagerScheduledPaymentRow } from "@/types/manager-scheduled-payment";
+import type { ManagerAccountingPaymentAlertReason } from "@/types/manager-student-semester";
 
 type StudentAccountDetailsPanelProps = {
   accountDetails: ManagerStudentAccountDetails;
@@ -63,19 +81,88 @@ function DetailField({
   );
 }
 
+function SubscriptionPaymentAlertBox({
+  reasons,
+}: {
+  reasons: ManagerAccountingPaymentAlertReason[];
+}) {
+  if (reasons.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      role="status"
+      className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3"
+    >
+      <div className="flex gap-3">
+        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-300" />
+        <div className="min-w-0 space-y-1.5">
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            Payment alert
+          </p>
+          <p className="text-xs text-amber-900/80 dark:text-amber-100/80">
+            Manage accounting flags this subscription using open-billing status,
+            special cases, schedules, under-${ACCOUNTING_PAYMENT_ALERT_MIN_AMOUNT}
+            paid, and missed-month levels (L1–L6).
+          </p>
+          <ul className="list-disc space-y-0.5 pl-4 text-xs text-amber-900/90 dark:text-amber-100/90">
+            {reasons.map((reason) => (
+              <li key={reason}>
+                {ACCOUNTING_PAYMENT_ALERT_REASON_LABELS[reason]}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SubscribedSemesterTabPanel({
   subscription,
   payments,
   scheduledPayments,
+  specialCase,
   onMutationSuccess,
 }: {
   subscription: ManagerStudentAccountDetails["subscriptions"][number];
   payments: ManagerStudentPaymentRow[];
   scheduledPayments: ManagerScheduledPaymentRow[];
+  specialCase: ManagerAccountSpecialCaseRow | null;
   onMutationSuccess: () => void;
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const balanceDue = Math.max(subscription.amount - subscription.paid_amount, 0);
+  const openBillingCount = isOpenBillingSubscriptionStatus(subscription.status)
+    ? 1
+    : 0;
+  const activeSpecial =
+    specialCase?.status === ACCOUNT_SPECIAL_CASE_STATUSES.ACTIVE
+      ? specialCase
+      : null;
+  const billingGate = getSubscriptionBillingGate({
+    status: subscription.status,
+    subscriptionAmount: subscription.amount,
+    totalPaid: subscription.paid_amount,
+    activeSpecialCaseTotalAmount: activeSpecial
+      ? activeSpecial.total_amount
+      : null,
+  });
+  const hasMissedScheduledPayment = scheduledPayments.some(
+    (row) => row.status === SCHEDULED_PAYMENT_STATUSES.MISSED
+  );
+  const paymentAlert = resolveManageAccountingAlert({
+    openBillingCount,
+    isFocusOpenSubscription: true,
+    totalPaid: subscription.paid_amount,
+    paidAts: payments.map((payment) => payment.paid_at),
+    semesterAmount: subscription.amount,
+    activeSpecialCaseTotalAmount: activeSpecial
+      ? activeSpecial.total_amount
+      : null,
+    hasScheduledPayments: scheduledPayments.length > 0,
+    hasMissedScheduledPayment,
+  });
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -84,6 +171,10 @@ function SubscribedSemesterTabPanel({
         onOpenChange={setIsEditOpen}
         subscription={subscription}
         onSubscriptionSaved={onMutationSuccess}
+      />
+
+      <SubscriptionPaymentAlertBox
+        reasons={paymentAlert.payment_alert_reasons}
       />
 
       <SubscribedSemesterFinancialSection
@@ -123,19 +214,37 @@ function SubscribedSemesterTabPanel({
         </CardContent>
       </Card>
 
-      <ScheduledPaymentsSection
-        subscribedSemesterId={subscription.id}
+      <AccountSpecialCaseSection
+        accountId={subscription.account_id}
+        semesterId={subscription.semester_id}
         semesterName={subscription.semester_name}
-        balanceDue={balanceDue}
-        scheduledPayments={scheduledPayments}
-        onScheduledPaymentSaved={onMutationSuccess}
+        semesterAmount={subscription.amount}
+        specialCase={specialCase}
+        onSpecialCaseSaved={onMutationSuccess}
       />
 
       <SubscribedSemesterPaymentsSection
         subscribedSemesterId={subscription.id}
         semesterName={subscription.semester_name}
         payments={payments}
+        canCreate={billingGate.canCreatePayments}
+        canEdit={billingGate.canEditPayments}
+        canDelete={billingGate.canDeletePayments}
+        remainingDue={billingGate.remainingDue}
+        owedAmount={billingGate.owedAmount}
+        createLockReason={billingGate.createLockReason}
+        editLockReason={billingGate.editLockReason}
         onPaymentSaved={onMutationSuccess}
+      />
+
+      <ScheduledPaymentsSection
+        subscribedSemesterId={subscription.id}
+        semesterName={subscription.semester_name}
+        balanceDue={billingGate.remainingDue}
+        canMutate={billingGate.canMutateSchedules}
+        lockReason={billingGate.lockReason}
+        scheduledPayments={scheduledPayments}
+        onScheduledPaymentSaved={onMutationSuccess}
       />
     </div>
   );
@@ -145,7 +254,8 @@ export function StudentAccountDetailsPanel({
   accountDetails,
 }: StudentAccountDetailsPanelProps) {
   const router = useRouter();
-  const { overview, subscriptions, payments, scheduledPayments } = accountDetails;
+  const { overview, subscriptions, payments, scheduledPayments, specialCases } =
+    accountDetails;
   const [activeTab, setActiveTab] = useState<string | null>(
     () => subscriptions[0]?.id ?? null
   );
@@ -358,6 +468,11 @@ export function StudentAccountDetailsPanel({
                     scheduledPayments={
                       scheduledPaymentsBySubscription.get(activeSubscription.id) ??
                       []
+                    }
+                    specialCase={
+                      specialCases.find(
+                        (row) => row.semester_id === activeSubscription.semester_id
+                      ) ?? null
                     }
                     onMutationSuccess={handleMutationSuccess}
                   />
