@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateUserAction } from "@/app/manager/users/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,97 +21,128 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import { MANAGER_STUDENT_STATUS_LABELS } from "@/lib/constants/manager-student-display";
+import {
+  STUDENT_STATUS_VALUES,
+  STUDENT_STATUSES,
+  type StudentStatusValue,
+} from "@/lib/constants/manager-student-status";
 import {
   MANAGER_USER_EDITABLE_ROLES,
   MANAGER_USER_ROLE_LABELS,
 } from "@/lib/constants/manager-user-display";
-import { MANAGER_USERS_MOCK } from "@/lib/constants/manager-users-mock";
-import { showSuccessToast } from "@/lib/toast";
+import { ROLES } from "@/lib/constants/roles";
+import { getLocalIsoDate } from "@/lib/utils/local-iso-date";
 import {
   updateManagerUserSchema,
   type UpdateManagerUserInput,
 } from "@/lib/validators/manager/update-user";
-import type { ManagerUserRow } from "@/types/manager-user";
+import type {
+  ManagerUserRow,
+  UpdateManagerUserActionState,
+} from "@/types/manager-user";
+
+const initialState: UpdateManagerUserActionState = {};
 
 type EditUserDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: ManagerUserRow;
-  onUpdateUser: (user: ManagerUserRow) => void;
+  onUserUpdated: (user: ManagerUserRow) => void;
 };
+
+function getDefaultValues(user: ManagerUserRow): UpdateManagerUserInput {
+  return {
+    username: user.username ?? "",
+    email: user.email,
+    role: user.role,
+    fullName: user.student_full_name ?? "",
+    birthDate: user.student_birth_date ?? "",
+    phone: user.student_phone ?? "",
+    status: user.student_status ?? STUDENT_STATUSES.ACTIVE,
+  };
+}
 
 export function EditUserDialog({
   open,
   onOpenChange,
   user,
-  onUpdateUser,
+  onUserUpdated,
 }: EditUserDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateUserAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
     reset,
     setValue,
     watch,
-    setError,
     formState: { errors },
   } = useZodForm({
     schema: updateManagerUserSchema,
     mode: "onBlur",
-    defaultValues: {
-      username: user.username ?? "",
-      email: user.email,
-      role: user.role,
-    },
+    defaultValues: getDefaultValues(user),
   });
 
   const selectedRole = watch("role");
+  const selectedStatus = watch("status");
+  const isStudentRole = selectedRole === ROLES.STUDENT;
 
   useEffect(() => {
     if (open) {
-      reset({
-        username: user.username ?? "",
-        email: user.email,
-        role: user.role,
-      });
+      reset(getDefaultValues(user));
     }
   }, [open, reset, user]);
 
-  function onSubmit(values: UpdateManagerUserInput) {
-    const normalizedUsername = values.username.trim().toLowerCase();
-    const normalizedEmail = values.email.trim().toLowerCase();
-
-    const usernameTaken = MANAGER_USERS_MOCK.some(
-      (existingUser) =>
-        existingUser.id !== user.id &&
-        existingUser.username?.toLowerCase() === normalizedUsername
-    );
-    if (usernameTaken) {
-      setError("username", { message: "This username is already taken." });
-      return;
+  useActionStateSuccess(state, isPending, (nextState) => {
+    if (nextState.user) {
+      onUserUpdated(nextState.user);
     }
-
-    const emailTaken = MANAGER_USERS_MOCK.some(
-      (existingUser) =>
-        existingUser.id !== user.id &&
-        existingUser.email.toLowerCase() === normalizedEmail
-    );
-    if (emailTaken) {
-      setError("email", { message: "This email is already in use." });
-      return;
-    }
-
-    onUpdateUser({
-      ...user,
-      username: values.username.trim(),
-      email: values.email.trim(),
-      role: values.role,
-    });
-
-    showSuccessToast("User details updated in the preview.");
     onOpenChange(false);
+  });
+
+  function onSubmit(values: UpdateManagerUserInput) {
+    const formData = new FormData();
+    formData.set("userId", user.id);
+    formData.set("username", values.username.trim());
+    formData.set("email", values.email.trim());
+    formData.set("role", values.role);
+
+    if (values.role === ROLES.STUDENT) {
+      formData.set("fullName", values.fullName?.trim() ?? "");
+      formData.set("birthDate", values.birthDate?.trim() ?? "");
+      formData.set("phone", values.phone?.trim() ?? "");
+      formData.set("status", values.status ?? STUDENT_STATUSES.ACTIVE);
+    }
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const usernameError =
+    errors.username?.message ?? state.fieldErrors?.username?.[0];
+  const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
+  const roleError = errors.role?.message ?? state.fieldErrors?.role?.[0];
+  const fullNameError =
+    errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
+  const birthDateError =
+    errors.birthDate?.message ?? state.fieldErrors?.birthDate?.[0];
+  const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
+  const statusError =
+    errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,8 +150,8 @@ export function EditUserDialog({
         <DialogHeader>
           <DialogTitle>Edit user</DialogTitle>
           <DialogDescription>
-            Update account details. Changes are preview-only until backend is
-            connected.
+            Update account details
+            {isStudentRole ? " and student profile fields" : ""}.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,11 +173,12 @@ export function EditUserDialog({
               autoComplete="username"
               minLength={AUTH_LIMITS.username.min}
               maxLength={AUTH_LIMITS.username.max}
-              aria-invalid={!!errors.username}
+              aria-invalid={!!usernameError}
+              disabled={isPending}
               {...register("username")}
             />
-            {errors.username ? (
-              <p className="text-sm text-destructive">{errors.username.message}</p>
+            {usernameError ? (
+              <p className="text-sm text-destructive">{usernameError}</p>
             ) : null}
           </div>
 
@@ -161,11 +194,12 @@ export function EditUserDialog({
               autoComplete="email"
               minLength={AUTH_LIMITS.email.min}
               maxLength={AUTH_LIMITS.email.max}
-              aria-invalid={!!errors.email}
+              aria-invalid={!!emailError}
+              disabled={isPending}
               {...register("email")}
             />
-            {errors.email ? (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
+            {emailError ? (
+              <p className="text-sm text-destructive">{emailError}</p>
             ) : null}
           </div>
 
@@ -181,12 +215,22 @@ export function EditUserDialog({
                 setValue("role", value as UpdateManagerUserInput["role"], {
                   shouldValidate: true,
                 });
+
+                if (
+                  value === ROLES.STUDENT &&
+                  !watch("status")
+                ) {
+                  setValue("status", STUDENT_STATUSES.ACTIVE, {
+                    shouldValidate: true,
+                  });
+                }
               }}
+              disabled={isPending}
             >
               <SelectTrigger
                 id="edit-user-role"
                 className="w-full"
-                aria-invalid={!!errors.role}
+                aria-invalid={!!roleError}
               >
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
@@ -198,10 +242,113 @@ export function EditUserDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.role ? (
-              <p className="text-sm text-destructive">{errors.role.message}</p>
+            {roleError ? (
+              <p className="text-sm text-destructive">{roleError}</p>
             ) : null}
           </div>
+
+          {isStudentRole ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <FieldLabel
+                  htmlFor="edit-user-full-name"
+                  label="Full name"
+                  hint={AUTH_FIELD_HINTS.fullName}
+                />
+                <Input
+                  id="edit-user-full-name"
+                  type="text"
+                  autoComplete="name"
+                  minLength={AUTH_LIMITS.fullName.min}
+                  maxLength={AUTH_LIMITS.fullName.max}
+                  aria-invalid={!!fullNameError}
+                  disabled={isPending}
+                  {...register("fullName")}
+                />
+                {fullNameError ? (
+                  <p className="text-sm text-destructive">{fullNameError}</p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <FieldLabel
+                  htmlFor="edit-user-birth-date"
+                  label="Birth date"
+                  hint={AUTH_FIELD_HINTS.birthDate}
+                />
+                <Input
+                  id="edit-user-birth-date"
+                  type="date"
+                  max={getLocalIsoDate()}
+                  aria-invalid={!!birthDateError}
+                  disabled={isPending}
+                  {...register("birthDate")}
+                />
+                {birthDateError ? (
+                  <p className="text-sm text-destructive">{birthDateError}</p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <FieldLabel
+                  htmlFor="edit-user-phone"
+                  label="Phone"
+                  hint={AUTH_FIELD_HINTS.phone}
+                />
+                <Input
+                  id="edit-user-phone"
+                  type="tel"
+                  autoComplete="tel"
+                  maxLength={AUTH_LIMITS.phone.max}
+                  aria-invalid={!!phoneError}
+                  disabled={isPending}
+                  {...register("phone")}
+                />
+                {phoneError ? (
+                  <p className="text-sm text-destructive">{phoneError}</p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <FieldLabel
+                  htmlFor="edit-user-status"
+                  label="Student status"
+                  hint="Enrollment status"
+                />
+                <Select
+                  value={selectedStatus ?? STUDENT_STATUSES.ACTIVE}
+                  onValueChange={(value) => {
+                    if (!value) {
+                      return;
+                    }
+
+                    setValue("status", value as StudentStatusValue, {
+                      shouldValidate: true,
+                    });
+                  }}
+                  disabled={isPending}
+                >
+                  <SelectTrigger
+                    id="edit-user-status"
+                    className="w-full"
+                    aria-invalid={!!statusError}
+                  >
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STUDENT_STATUS_VALUES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {MANAGER_STUDENT_STATUS_LABELS[status]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {statusError ? (
+                  <p className="text-sm text-destructive">{statusError}</p>
+                ) : null}
+              </div>
+            </>
+          ) : null}
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">
@@ -209,10 +356,12 @@ export function EditUserDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="edit-user-form">
+          <Button type="submit" form="edit-user-form" disabled={isPending}>
+            {isPending ? <InlineSpinner data-icon="inline-start" /> : null}
             Save changes
           </Button>
         </DialogFooter>

@@ -52,11 +52,15 @@ export async function updateProfileById(
   id: string,
   input: {
     username: string;
+    role?: RoleValue;
   }
 ) {
   return client
     .from("profiles")
-    .update({ username: input.username })
+    .update({
+      username: input.username,
+      ...(input.role ? { role: input.role } : {}),
+    })
     .eq("id", id)
     .select("id, username, role, created_at")
     .single();

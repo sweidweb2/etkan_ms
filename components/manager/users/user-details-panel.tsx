@@ -72,7 +72,7 @@ export function UserDetailsPanel({ userId }: UserDetailsPanelProps) {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         user={user}
-        onUpdateUser={setUser}
+        onUserUpdated={setUser}
       />
 
       <Card>

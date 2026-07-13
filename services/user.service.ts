@@ -1,9 +1,14 @@
 import { unstable_cache } from "next/cache";
+import {
+  STUDENT_STATUSES,
+  type StudentStatusValue,
+} from "@/lib/constants/manager-student-status";
 import { MANAGER_CREATABLE_ROLES } from "@/lib/constants/manager-user-roles";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
+import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -11,6 +16,7 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
+import { ensureStudentRegistration } from "@/services/profile.service";
 import { syncAuthUserRole } from "@/services/role.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerUserRow } from "@/types/manager-user";
@@ -40,10 +46,58 @@ export type CreateStaffUserFailure = {
 
 export type CreateStaffUserResult = CreateStaffUserSuccess | CreateStaffUserFailure;
 
+export type UpdateManagerUserSuccess = {
+  success: true;
+  user: ManagerUserRow;
+  message: string;
+};
+
+export type UpdateManagerUserFailure = {
+  success: false;
+  error: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type UpdateManagerUserResult =
+  | UpdateManagerUserSuccess
+  | UpdateManagerUserFailure;
+
 function assertManagerRole(actorRole: RoleValue | null): void {
   if (actorRole !== ROLES.MANAGER) {
     throw new Error("Unauthorized.");
   }
+}
+
+function normalizeOptionalString(value?: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function mapStudentStatus(status: string | null | undefined): StudentStatusValue {
+  if (
+    status === STUDENT_STATUSES.ACTIVE ||
+    status === STUDENT_STATUSES.INACTIVE ||
+    status === STUDENT_STATUSES.GRADUATED ||
+    status === STUDENT_STATUSES.SUSPENDED
+  ) {
+    return status;
+  }
+
+  return STUDENT_STATUSES.ACTIVE;
+}
+
+function mapUpdateManagerUserError(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("already registered") ||
+    normalized.includes("already exists") ||
+    (normalized.includes("email") && normalized.includes("already"))
+  ) {
+    return "An account with this email already exists.";
+  }
+
+  return "Unable to update user. Please try again.";
 }
 
 function mapCreateStaffUserError(message: string): string {
@@ -124,7 +178,7 @@ async function fetchUsersForManager(
     .map((user) => user.id);
 
   const studentProfilesResult =
-    await studentProfileRepository.listStudentProfilesByUserIds(
+    await studentProfileRepository.listStudentProfileDetailsByUserIds(
       adminClient,
       studentUserIds
     );
@@ -133,8 +187,8 @@ async function fetchUsersForManager(
     throw new Error(studentProfilesResult.error.message);
   }
 
-  const studentProfileIdByUserId = new Map(
-    (studentProfilesResult.data ?? []).map((row) => [row.user_id, row.id])
+  const studentProfileByUserId = new Map(
+    (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
   );
 
   return mappedUsers.map((user) => {
@@ -142,9 +196,22 @@ async function fetchUsersForManager(
       return user;
     }
 
+    const studentProfile = studentProfileByUserId.get(user.id);
+
+    if (!studentProfile) {
+      return {
+        ...user,
+        student_profile_id: null,
+      };
+    }
+
     return {
       ...user,
-      student_profile_id: studentProfileIdByUserId.get(user.id) ?? null,
+      student_profile_id: studentProfile.id,
+      student_full_name: studentProfile.full_name,
+      student_birth_date: studentProfile.birth_date,
+      student_phone: studentProfile.phone,
+      student_status: studentProfile.status as ManagerUserRow["student_status"],
     };
   });
 }
@@ -337,4 +404,317 @@ export async function createStaffUser(
       error: message,
     };
   }
+}
+
+export async function updateManagerUser(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    userId: string;
+    username: string;
+    email: string;
+    role: string;
+    fullName?: string;
+    birthDate?: string | null;
+    phone?: string | null;
+    status?: string;
+  }
+): Promise<UpdateManagerUserResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = updateManagerUserSchema.safeParse({
+    username: input.username,
+    email: input.email,
+    role: input.role,
+    fullName: input.fullName,
+    birthDate: input.birthDate ?? "",
+    phone: input.phone ?? "",
+    status: input.status,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { userId } = input;
+  const { username, email, role } = parsed.data;
+  const normalizedUsername = username.trim();
+  const normalizedEmail = email.trim();
+  const normalizedFullName = normalizeOptionalString(parsed.data.fullName);
+  const normalizedBirthDate = normalizeOptionalString(parsed.data.birthDate);
+  const normalizedPhone = normalizeOptionalString(parsed.data.phone);
+  const studentStatus = mapStudentStatus(parsed.data.status);
+
+  const existingProfile = await profileRepository.findProfileById(
+    adminClient,
+    userId
+  );
+
+  if (existingProfile.error || !existingProfile.data) {
+    return { success: false, error: "User not found." };
+  }
+
+  const existingUsername = await profileRepository.findProfileByUsername(
+    adminClient,
+    normalizedUsername
+  );
+
+  if (existingUsername.data && existingUsername.data.id !== userId) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { username: ["This username is already taken."] },
+    };
+  }
+
+  const existingEmail = await authRepository.findAuthUserByEmail(
+    adminClient,
+    normalizedEmail
+  );
+
+  if (existingEmail.error) {
+    return {
+      success: false,
+      error: mapUpdateManagerUserError(existingEmail.error.message),
+    };
+  }
+
+  if (existingEmail.data?.user && existingEmail.data.user.id !== userId) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { email: ["This email is already in use."] },
+    };
+  }
+
+  const authUserResult = await authRepository.getAuthUserById(
+    adminClient,
+    userId
+  );
+
+  if (authUserResult.error || !authUserResult.data?.user) {
+    return { success: false, error: "User not found." };
+  }
+
+  const previousRole = existingProfile.data.role as RoleValue;
+  const previousEmail = authUserResult.data.user.email ?? null;
+
+  const { data: updatedProfile, error: profileError } =
+    await profileRepository.updateProfileById(adminClient, userId, {
+      username: normalizedUsername,
+      role,
+    });
+
+  if (profileError || !updatedProfile) {
+    return {
+      success: false,
+      error: mapUpdateManagerUserError(
+        profileError?.message ?? "Failed to update profile."
+      ),
+    };
+  }
+
+  const { error: authError } = await authRepository.updateAuthUserByAdmin(
+    adminClient,
+    userId,
+    {
+      email: normalizedEmail,
+      username: normalizedUsername,
+      ...(normalizedFullName ? { fullName: normalizedFullName } : {}),
+    }
+  );
+
+  if (authError) {
+    return {
+      success: false,
+      error: mapUpdateManagerUserError(authError.message),
+    };
+  }
+
+  if (previousRole !== role) {
+    try {
+      await syncAuthUserRole(adminClient, userId, role);
+    } catch (err) {
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(
+          err instanceof Error ? err.message : "Failed to sync role."
+        ),
+      };
+    }
+  }
+
+  let studentProfileId: string | null = null;
+  let studentFullName: string | null = null;
+  let studentBirthDate: string | null = null;
+  let studentPhone: string | null = null;
+  let studentStatusValue: StudentStatusValue | null = null;
+
+  if (role === ROLES.STUDENT) {
+    if (!normalizedFullName) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: { fullName: ["Full name is required."] },
+      };
+    }
+
+    const existingStudent =
+      await studentProfileRepository.findStudentProfileByUserId(
+        adminClient,
+        userId
+      );
+
+    if (existingStudent.error) {
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(existingStudent.error.message),
+      };
+    }
+
+    if (!existingStudent.data) {
+      try {
+        await ensureStudentRegistration(adminClient, {
+          authId: userId,
+          username: normalizedUsername,
+          email: normalizedEmail,
+          fullName: normalizedFullName,
+          birthDate: normalizedBirthDate,
+          phone: normalizedPhone,
+          role: ROLES.STUDENT,
+        });
+      } catch (err) {
+        return {
+          success: false,
+          error: mapUpdateManagerUserError(
+            err instanceof Error ? err.message : "Failed to create student profile."
+          ),
+        };
+      }
+
+      const createdStudent =
+        await studentProfileRepository.findStudentProfileByUserId(
+          adminClient,
+          userId
+        );
+
+      if (createdStudent.error || !createdStudent.data) {
+        return {
+          success: false,
+          error: mapUpdateManagerUserError(
+            createdStudent.error?.message ?? "Failed to create student profile."
+          ),
+        };
+      }
+
+      const { data: updatedStudent, error: updateCreatedError } =
+        await studentProfileRepository.updateStudentProfileById(
+          adminClient,
+          createdStudent.data.id,
+          {
+            full_name: normalizedFullName,
+            birth_date: normalizedBirthDate,
+            phone: normalizedPhone,
+            status: studentStatus,
+          }
+        );
+
+      if (updateCreatedError || !updatedStudent) {
+        return {
+          success: false,
+          error: mapUpdateManagerUserError(
+            updateCreatedError?.message ?? "Failed to update student profile."
+          ),
+        };
+      }
+
+      studentProfileId = updatedStudent.id;
+      studentFullName = updatedStudent.full_name;
+      studentBirthDate = updatedStudent.birth_date;
+      studentPhone = updatedStudent.phone;
+      studentStatusValue = mapStudentStatus(updatedStudent.status);
+    } else {
+      const { data: updatedStudent, error: studentProfileError } =
+        await studentProfileRepository.updateStudentProfileById(
+          adminClient,
+          existingStudent.data.id,
+          {
+            full_name: normalizedFullName,
+            birth_date: normalizedBirthDate,
+            phone: normalizedPhone,
+            status: studentStatus,
+          }
+        );
+
+      if (studentProfileError || !updatedStudent) {
+        return {
+          success: false,
+          error: mapUpdateManagerUserError(
+            studentProfileError?.message ?? "Failed to update student profile."
+          ),
+        };
+      }
+
+      studentProfileId = updatedStudent.id;
+      studentFullName = updatedStudent.full_name;
+      studentBirthDate = updatedStudent.birth_date;
+      studentPhone = updatedStudent.phone;
+      studentStatusValue = mapStudentStatus(updatedStudent.status);
+    }
+  }
+
+  const user: ManagerUserRow = {
+    id: userId,
+    username: updatedProfile.username,
+    role,
+    created_at:
+      updatedProfile.created_at ?? authUserResult.data.user.created_at,
+    email: normalizedEmail,
+    ...(role === ROLES.STUDENT
+      ? {
+          student_profile_id: studentProfileId,
+          student_full_name: studentFullName,
+          student_birth_date: studentBirthDate,
+          student_phone: studentPhone,
+          student_status: studentStatusValue,
+        }
+      : {}),
+  };
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "profiles",
+    record_id: userId,
+    old_data: {
+      username: existingProfile.data.username,
+      role: previousRole,
+      email: previousEmail,
+    },
+    new_data: {
+      username: normalizedUsername,
+      role,
+      email: normalizedEmail,
+      ...(role === ROLES.STUDENT
+        ? {
+            student_full_name: studentFullName,
+            student_status: studentStatusValue,
+          }
+        : {}),
+    },
+    metadata: { note: "User account updated." },
+  });
+
+  return {
+    success: true,
+    user,
+    message: "User updated.",
+  };
 }

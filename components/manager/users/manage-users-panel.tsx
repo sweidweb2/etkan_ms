@@ -8,10 +8,12 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
+  PencilIcon,
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
 import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
+import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
@@ -165,6 +167,7 @@ export function ManageUsersPanel({
 }) {
   const router = useRouter();
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<ManagerUserRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
@@ -234,6 +237,11 @@ export function ManageUsersPanel({
     router.refresh();
   };
 
+  const handleUserUpdated = () => {
+    setEditingUser(null);
+    router.refresh();
+  };
+
   const openUserDetails = (user: ManagerUserRow) => {
     router.push(getUserDetailsHref(user));
   };
@@ -286,6 +294,19 @@ export function ManageUsersPanel({
           onOpenChange={setIsAddUserOpen}
           onUserCreated={handleUserCreated}
         />
+
+        {editingUser ? (
+          <EditUserDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setEditingUser(null);
+              }
+            }}
+            user={editingUser}
+            onUserUpdated={handleUserUpdated}
+          />
+        ) : null}
 
         <Card className="py-0">
           <CardHeader className="border-b py-3">
@@ -387,7 +408,19 @@ export function ManageUsersPanel({
                           className="px-4 py-3 text-center"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <UserDetailsLink user={user} />
+                          <div className="inline-flex items-center justify-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+                              aria-label={`Edit ${user.username ?? user.email}`}
+                              onClick={() => setEditingUser(user)}
+                            >
+                              <PencilIcon className="size-4" />
+                            </Button>
+                            <UserDetailsLink user={user} />
+                          </div>
                         </td>
                       </tr>
                       );

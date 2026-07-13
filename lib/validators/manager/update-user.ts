@@ -1,13 +1,99 @@
 import { z } from "zod";
 import { MANAGER_USER_EDITABLE_ROLES } from "@/lib/constants/manager-user-display";
-import { emailField, usernameField } from "@/lib/validators/auth/fields";
+import { STUDENT_STATUS_VALUES } from "@/lib/constants/manager-student-status";
+import { ROLES } from "@/lib/constants/roles";
+import {
+  birthDateField,
+  emailField,
+  fullNameField,
+  phoneField,
+  usernameField,
+} from "@/lib/validators/auth/fields";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import type { FieldErrors } from "@/types/auth";
 
-export const updateManagerUserSchema = z.object({
-  username: usernameField,
-  email: emailField,
-  role: z.enum(MANAGER_USER_EDITABLE_ROLES, {
-    message: "Please select a role.",
-  }),
-});
+export const updateManagerUserSchema = z
+  .object({
+    username: usernameField,
+    email: emailField,
+    role: z.enum(MANAGER_USER_EDITABLE_ROLES, {
+      message: "Please select a role.",
+    }),
+    fullName: z.string().optional(),
+    birthDate: birthDateField,
+    phone: phoneField,
+    status: z
+      .enum(STUDENT_STATUS_VALUES, {
+        message: "Please select a status.",
+      })
+      .optional(),
+  })
+  .superRefine((values, ctx) => {
+    if (values.role !== ROLES.STUDENT) {
+      return;
+    }
+
+    const fullNameResult = fullNameField.safeParse(values.fullName ?? "");
+    if (!fullNameResult.success) {
+      for (const issue of fullNameResult.error.issues) {
+        ctx.addIssue({
+          code: "custom",
+          message: issue.message,
+          path: ["fullName"],
+        });
+      }
+    }
+
+    if (!values.status) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Please select a status.",
+        path: ["status"],
+      });
+    }
+  });
 
 export type UpdateManagerUserInput = z.infer<typeof updateManagerUserSchema>;
+
+export function parseUpdateManagerUserFormData(formData: FormData):
+  | {
+      success: true;
+      data: UpdateManagerUserInput & { userId: string };
+    }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const userId = String(formData.get("userId") ?? "").trim();
+
+  if (!userId) {
+    return {
+      success: false,
+      error: "Unable to update user. Please refresh and try again.",
+    };
+  }
+
+  const parsed = updateManagerUserSchema.safeParse({
+    username: formData.get("username"),
+    email: formData.get("email"),
+    role: formData.get("role"),
+    fullName: formData.get("fullName") ?? undefined,
+    birthDate: formData.get("birthDate") ?? "",
+    phone: formData.get("phone") ?? "",
+    status: formData.get("status") || undefined,
+  });
+
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(flattened),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      ...parsed.data,
+      userId,
+    },
+  };
+}
