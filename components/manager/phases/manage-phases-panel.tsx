@@ -17,10 +17,41 @@ import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ROUTES } from "@/lib/constants/routes";
+import { MANAGER_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-phase-display";
+import {
+  SEMESTER_STATUS_VALUES,
+  type SemesterStatusValue,
+} from "@/lib/constants/manager-semester-status";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 
 const PAGE_SIZE = 6;
+
+const STATUS_FILTER_ALL = "all";
+const SORT_BY_NAME = "name";
+const SORT_BY_CREATED = "created_at";
+const SORT_ORDER_ASC = "asc";
+const SORT_ORDER_DESC = "desc";
+
+const SORT_BY_LABELS = {
+  [SORT_BY_NAME]: "Name",
+  [SORT_BY_CREATED]: "Database order",
+} as const;
+
+const SORT_ORDER_LABELS = {
+  [SORT_ORDER_ASC]: "Ascending",
+  [SORT_ORDER_DESC]: "Descending",
+} as const;
+
+type SortByValue = keyof typeof SORT_BY_LABELS;
+type SortOrderValue = keyof typeof SORT_ORDER_LABELS;
 
 function getPageNumbers(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
@@ -67,6 +98,34 @@ function matchesSearch(phase: ManagerSemesterRow, query: string) {
   return haystack.includes(normalizedQuery);
 }
 
+function compareSemesters(
+  left: ManagerSemesterRow,
+  right: ManagerSemesterRow,
+  sortBy: SortByValue,
+  sortOrder: SortOrderValue
+) {
+  const direction = sortOrder === SORT_ORDER_ASC ? 1 : -1;
+
+  if (sortBy === SORT_BY_NAME) {
+    const byName = left.name.localeCompare(right.name, undefined, {
+      sensitivity: "base",
+      numeric: true,
+    });
+    if (byName !== 0) {
+      return byName * direction;
+    }
+  } else {
+    const leftTime = new Date(left.created_at).getTime();
+    const rightTime = new Date(right.created_at).getTime();
+    const byCreated = leftTime - rightTime;
+    if (byCreated !== 0) {
+      return byCreated * direction;
+    }
+  }
+
+  return left.id.localeCompare(right.id) * direction;
+}
+
 type ManagePhasesPanelProps = {
   initialSemesters: ManagerSemesterRow[];
 };
@@ -78,6 +137,9 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
   const [editingSemester, setEditingSemester] =
     useState<ManagerSemesterRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
+  const [sortBy, setSortBy] = useState<SortByValue>(SORT_BY_NAME);
+  const [sortOrder, setSortOrder] = useState<SortOrderValue>(SORT_ORDER_ASC);
   const [currentPage, setCurrentPage] = useState(1);
 
   const stats = useMemo(
@@ -100,8 +162,15 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
   );
 
   const filteredPhases = useMemo(() => {
-    return phases.filter((phase) => matchesSearch(phase, searchQuery));
-  }, [phases, searchQuery]);
+    const matched = phases.filter((phase) => {
+      const matchesStatus =
+        statusFilter === STATUS_FILTER_ALL || phase.status === statusFilter;
+      return matchesStatus && matchesSearch(phase, searchQuery);
+    });
+    return [...matched].sort((left, right) =>
+      compareSemesters(left, right, sortBy, sortOrder)
+    );
+  }, [phases, searchQuery, statusFilter, sortBy, sortOrder]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPhases.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -198,18 +267,105 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
           <CardTitle>Semesters</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
-          <div className="relative max-w-md">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => {
-                setSearchQuery(event.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search semester name, amount, or number of courses..."
-              className="pl-8"
-              aria-label="Search semesters"
-            />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="relative min-w-0 flex-1">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search semester name, amount, or number of courses..."
+                className="pl-8"
+                aria-label="Search semesters"
+              />
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  setStatusFilter(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger
+                  className="w-full sm:w-40"
+                  aria-label="Filter by status"
+                >
+                  <SelectValue placeholder="Status">
+                    {(value) =>
+                      !value || value === STATUS_FILTER_ALL
+                        ? "Status"
+                        : (MANAGER_SEMESTER_STATUS_LABELS[
+                            value as SemesterStatusValue
+                          ] ?? String(value))
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={STATUS_FILTER_ALL}>Status</SelectItem>
+                  {SEMESTER_STATUS_VALUES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {MANAGER_SEMESTER_STATUS_LABELS[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={sortBy}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  setSortBy(value as SortByValue);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger
+                  className="w-full sm:w-44"
+                  aria-label="Sort semesters by"
+                >
+                  <SelectValue placeholder="Sort by">
+                    {(value) =>
+                      SORT_BY_LABELS[value as SortByValue] ?? "Sort by"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={SORT_BY_NAME}>Name</SelectItem>
+                  <SelectItem value={SORT_BY_CREATED}>Database order</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={sortOrder}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  setSortOrder(value as SortOrderValue);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger
+                  className="w-full sm:w-40"
+                  aria-label="Sort order"
+                >
+                  <SelectValue placeholder="Order">
+                    {(value) =>
+                      SORT_ORDER_LABELS[value as SortOrderValue] ?? "Order"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={SORT_ORDER_ASC}>Ascending</SelectItem>
+                  <SelectItem value={SORT_ORDER_DESC}>Descending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {paginatedPhases.length === 0 ? (

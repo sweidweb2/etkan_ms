@@ -9,6 +9,7 @@ import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
 import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
+import * as accountRepository from "@/repositories/account.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -16,7 +17,6 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
-import { ensureStudentRegistration } from "@/services/profile.service";
 import { syncAuthUserRole } from "@/services/role.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerUserRow } from "@/types/manager-user";
@@ -84,6 +84,28 @@ function mapStudentStatus(status: string | null | undefined): StudentStatusValue
   }
 
   return STUDENT_STATUSES.ACTIVE;
+}
+
+async function ensureStudentAccountForUser(
+  adminClient: Supabase,
+  userId: string
+): Promise<void> {
+  const existingAccount = await accountRepository.findAccountByUserId(
+    adminClient,
+    userId
+  );
+
+  if (existingAccount.data) {
+    return;
+  }
+
+  const { error } = await accountRepository.createAccount(adminClient, {
+    user_id: userId,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 function mapUpdateManagerUserError(message: string): string {
@@ -173,14 +195,12 @@ async function fetchUsersForManager(
   );
 
   const mappedUsers = users.filter((user): user is ManagerUserRow => user !== null);
-  const studentUserIds = mappedUsers
-    .filter((user) => user.role === ROLES.STUDENT)
-    .map((user) => user.id);
+  const allUserIds = mappedUsers.map((user) => user.id);
 
   const studentProfilesResult =
     await studentProfileRepository.listStudentProfileDetailsByUserIds(
       adminClient,
-      studentUserIds
+      allUserIds
     );
 
   if (studentProfilesResult.error) {
@@ -192,19 +212,16 @@ async function fetchUsersForManager(
   );
 
   return mappedUsers.map((user) => {
-    if (user.role !== ROLES.STUDENT) {
-      return user;
-    }
-
     const studentProfile = studentProfileByUserId.get(user.id);
 
     if (!studentProfile) {
-      return {
-        ...user,
-        student_profile_id: null,
-      };
+      return user.role === ROLES.STUDENT
+        ? { ...user, student_profile_id: null }
+        : user;
     }
 
+    // Keep student_profiles attributes even when role is no longer student so
+    // demoted accounts can be switched back without losing profile data.
     return {
       ...user,
       student_profile_id: studentProfile.id,
@@ -579,68 +596,8 @@ export async function updateManagerUser(
       };
     }
 
-    if (!existingStudent.data) {
-      try {
-        await ensureStudentRegistration(adminClient, {
-          authId: userId,
-          username: normalizedUsername,
-          email: normalizedEmail,
-          fullName: normalizedFullName,
-          birthDate: normalizedBirthDate,
-          phone: normalizedPhone,
-          role: ROLES.STUDENT,
-        });
-      } catch (err) {
-        return {
-          success: false,
-          error: mapUpdateManagerUserError(
-            err instanceof Error ? err.message : "Failed to create student profile."
-          ),
-        };
-      }
-
-      const createdStudent =
-        await studentProfileRepository.findStudentProfileByUserId(
-          adminClient,
-          userId
-        );
-
-      if (createdStudent.error || !createdStudent.data) {
-        return {
-          success: false,
-          error: mapUpdateManagerUserError(
-            createdStudent.error?.message ?? "Failed to create student profile."
-          ),
-        };
-      }
-
-      const { data: updatedStudent, error: updateCreatedError } =
-        await studentProfileRepository.updateStudentProfileById(
-          adminClient,
-          createdStudent.data.id,
-          {
-            full_name: normalizedFullName,
-            birth_date: normalizedBirthDate,
-            phone: normalizedPhone,
-            status: studentStatus,
-          }
-        );
-
-      if (updateCreatedError || !updatedStudent) {
-        return {
-          success: false,
-          error: mapUpdateManagerUserError(
-            updateCreatedError?.message ?? "Failed to update student profile."
-          ),
-        };
-      }
-
-      studentProfileId = updatedStudent.id;
-      studentFullName = updatedStudent.full_name;
-      studentBirthDate = updatedStudent.birth_date;
-      studentPhone = updatedStudent.phone;
-      studentStatusValue = mapStudentStatus(updatedStudent.status);
-    } else {
+    if (existingStudent.data) {
+      // Existing student_profiles row: override with the submitted form data.
       const { data: updatedStudent, error: studentProfileError } =
         await studentProfileRepository.updateStudentProfileById(
           adminClient,
@@ -667,6 +624,73 @@ export async function updateManagerUser(
       studentBirthDate = updatedStudent.birth_date;
       studentPhone = updatedStudent.phone;
       studentStatusValue = mapStudentStatus(updatedStudent.status);
+    } else {
+      // No student_profiles row yet: create one from the submitted form data.
+      const { data: createdStudent, error: createStudentError } =
+        await studentProfileRepository.createStudentProfile(adminClient, {
+          user_id: userId,
+          full_name: normalizedFullName,
+          birth_date: normalizedBirthDate,
+          phone: normalizedPhone,
+          status: studentStatus,
+        });
+
+      if (createStudentError || !createdStudent) {
+        return {
+          success: false,
+          error: mapUpdateManagerUserError(
+            createStudentError?.message ?? "Failed to create student profile."
+          ),
+        };
+      }
+
+      const createdDetails =
+        await studentProfileRepository.findStudentProfileById(
+          adminClient,
+          createdStudent.id
+        );
+
+      if (createdDetails.error || !createdDetails.data) {
+        return {
+          success: false,
+          error: mapUpdateManagerUserError(
+            createdDetails.error?.message ?? "Failed to create student profile."
+          ),
+        };
+      }
+
+      studentProfileId = createdDetails.data.id;
+      studentFullName = createdDetails.data.full_name;
+      studentBirthDate = createdDetails.data.birth_date;
+      studentPhone = createdDetails.data.phone;
+      studentStatusValue = mapStudentStatus(createdDetails.data.status);
+    }
+
+    try {
+      await ensureStudentAccountForUser(adminClient, userId);
+    } catch (err) {
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(
+          err instanceof Error ? err.message : "Failed to create student account."
+        ),
+      };
+    }
+  } else {
+    // Intentionally leave student_profiles intact when demoting so the account
+    // can be switched back to student later without recreating profile data.
+    const retainedStudent =
+      await studentProfileRepository.findStudentProfileByUserId(
+        adminClient,
+        userId
+      );
+
+    if (retainedStudent.data) {
+      studentProfileId = retainedStudent.data.id;
+      studentFullName = retainedStudent.data.full_name;
+      studentBirthDate = retainedStudent.data.birth_date;
+      studentPhone = retainedStudent.data.phone;
+      studentStatusValue = mapStudentStatus(retainedStudent.data.status);
     }
   }
 
@@ -677,7 +701,7 @@ export async function updateManagerUser(
     created_at:
       updatedProfile.created_at ?? authUserResult.data.user.created_at,
     email: normalizedEmail,
-    ...(role === ROLES.STUDENT
+    ...(studentProfileId
       ? {
           student_profile_id: studentProfileId,
           student_full_name: studentFullName,
@@ -702,14 +726,20 @@ export async function updateManagerUser(
       username: normalizedUsername,
       role,
       email: normalizedEmail,
-      ...(role === ROLES.STUDENT
+      ...(studentProfileId
         ? {
+            student_profile_id: studentProfileId,
             student_full_name: studentFullName,
             student_status: studentStatusValue,
           }
         : {}),
     },
-    metadata: { note: "User account updated." },
+    metadata: {
+      note:
+        previousRole === ROLES.STUDENT && role !== ROLES.STUDENT
+          ? "User role updated; student profile retained."
+          : "User account updated.",
+    },
   });
 
   return {

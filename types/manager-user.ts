@@ -8,7 +8,7 @@ export interface ManagerUserRow {
   role: RoleValue;
   created_at: string;
   email: string;
-  /** Present when role is student and a student_profiles row exists. */
+  /** Present when a student_profiles row exists (kept even if role is no longer student). */
   student_profile_id?: string | null;
   /** Prefill for edit when a student_profiles row exists. */
   student_full_name?: string | null;
