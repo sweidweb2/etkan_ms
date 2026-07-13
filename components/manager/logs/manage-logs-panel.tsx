@@ -71,7 +71,6 @@ const THIRTY_DAYS_MS = 30 * TWENTY_FOUR_HOURS_MS;
 const COLUMN_LIMITS = {
   userLabel: 24,
   tableName: 20,
-  recordId: 12,
   changeSummary: 40,
 } as const;
 
@@ -174,14 +173,6 @@ function getChangeSummary(log: ManagerAuditLogRow): string {
   }
 
   return AUDIT_LOG_ACTION_LABELS[log.action];
-}
-
-function formatRecordId(recordId: string | null) {
-  if (!recordId) {
-    return "—";
-  }
-
-  return recordId;
 }
 
 function getTableLabel(tableName: string) {
@@ -460,8 +451,8 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
           <CardHeader className="border-b bg-muted/40 py-3">
             <CardTitle>Audit log</CardTitle>
             <CardDescription>
-              Filter by action, severity, table, actor, or time window, then open
-              a row for full change details.
+              Filter by action, severity, table, actor name, or time window, then
+              open a row for full change details.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-0">
@@ -560,19 +551,19 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
                 onValueChange={handleActorFilterChange}
               >
                 <SelectTrigger
-                  className="w-full sm:w-36"
-                  aria-label="Filter by actor"
+                  className="w-full sm:w-44"
+                  aria-label="Filter by actor name"
                 >
-                  <SelectValue placeholder="Actor">
+                  <SelectValue placeholder="Actor name">
                     {(value) =>
                       !value || value === ACTOR_FILTER_ALL
-                        ? "Actor"
+                        ? "Actor name"
                         : String(value)
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent align="start">
-                  <SelectItem value={ACTOR_FILTER_ALL}>Actor</SelectItem>
+                  <SelectItem value={ACTOR_FILTER_ALL}>Actor name</SelectItem>
                   {actorOptions.map((actor) => (
                     <SelectItem key={actor} value={actor}>
                       {actor}
@@ -619,7 +610,6 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
                     <th className="px-4 py-3 font-medium">Actor</th>
                     <th className="px-4 py-3 font-medium">Action</th>
                     <th className="px-4 py-3 font-medium">Table</th>
-                    <th className="px-4 py-3 font-medium">Record</th>
                     <th className="px-4 py-3 font-medium">Summary</th>
                     <th className="px-4 py-3 text-center font-medium">Details</th>
                   </tr>
@@ -628,7 +618,7 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
                   {paginatedLogs.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={6}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         {logs.length === 0
@@ -639,7 +629,6 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
                   ) : (
                     paginatedLogs.map((log) => {
                       const changeSummary = getChangeSummary(log);
-                      const recordIdDisplay = formatRecordId(log.record_id);
 
                       return (
                         <tr
@@ -669,12 +658,6 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
                                   : "—"
                               }
                               maxLength={COLUMN_LIMITS.tableName}
-                            />
-                          </td>
-                          <td className="max-w-[7rem] px-4 py-3 font-mono text-xs text-muted-foreground">
-                            <TruncatedCell
-                              value={recordIdDisplay}
-                              maxLength={COLUMN_LIMITS.recordId}
                             />
                           </td>
                           <td className="max-w-[12rem] px-4 py-3 text-muted-foreground">
