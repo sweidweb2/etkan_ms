@@ -27,7 +27,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MANAGER_CLASS_CARD_LIMITS } from "@/lib/constants/manager-class-display";
+import {
+  MANAGER_CLASS_CARD_LIMITS,
+  MANAGER_CLASS_STATUS_ICON_CLASSES,
+  MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES,
+} from "@/lib/constants/manager-class-display";
 import {
   CLASS_STATUS_BADGE_CLASSES,
   CLASS_STATUS_LABELS,
@@ -79,6 +83,12 @@ export function ClassCard({ classRow }: ClassCardProps) {
   const statusClassName =
     CLASS_STATUS_BADGE_CLASSES[classRow.status] ??
     "bg-muted text-muted-foreground";
+  const statusIconClassName =
+    MANAGER_CLASS_STATUS_ICON_CLASSES[classRow.status] ??
+    "bg-muted text-muted-foreground";
+  const statusSecondaryButtonClassName =
+    MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES[classRow.status] ??
+    "border-border bg-secondary text-secondary-foreground hover:bg-secondary/80";
   const sessionRate = getClassSessionCompletionRate(classRow);
   const sessionTone = getClassProgressTone(classRow);
 
@@ -93,7 +103,12 @@ export function ClassCard({ classRow }: ClassCardProps) {
         <CardHeader className="relative z-10 gap-2 border-b bg-muted/20 py-3 pointer-events-none">
           <div className="flex items-start justify-between gap-2">
             <div className="flex min-w-0 items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300">
+              <div
+                className={cn(
+                  "flex size-10 shrink-0 items-center justify-center rounded-lg",
+                  statusIconClassName
+                )}
+              >
                 <GraduationCapIcon className="size-5" />
               </div>
               <div className="min-w-0">
@@ -195,15 +210,6 @@ export function ClassCard({ classRow }: ClassCardProps) {
               classRow.semester_id ? "grid-cols-2" : "grid-cols-1"
             )}
           >
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 w-full min-w-0 bg-background px-2"
-              nativeButton={false}
-              render={<Link href={getManagerClassDetailRoute(classRow.id)} />}
-            >
-              <span className="truncate">View class</span>
-            </Button>
             {classRow.semester_id ? (
               <Button
                 variant="outline"
@@ -219,6 +225,18 @@ export function ClassCard({ classRow }: ClassCardProps) {
                 <span className="truncate">View semester</span>
               </Button>
             ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "h-8 w-full min-w-0 px-2",
+                statusSecondaryButtonClassName
+              )}
+              nativeButton={false}
+              render={<Link href={getManagerClassDetailRoute(classRow.id)} />}
+            >
+              <span className="truncate">View class</span>
+            </Button>
           </div>
         </CardFooter>
       </Card>

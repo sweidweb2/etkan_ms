@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { RouteTopLoader } from "@/components/loaders/route-top-loader";
 import { AppToasts } from "@/components/toast/app-toasts";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -47,6 +48,7 @@ export default function RootLayout({
             </Suspense>
             {children}
             <AppToasts />
+            <Analytics />
           </TooltipProvider>
         </ThemeProvider>
       </body>

@@ -30,3 +30,26 @@ export const MANAGER_CLASS_STATUS_DOT_CLASSES: Record<ClassStatusValue, string> 
   paused: "bg-amber-500",
   stopped: "bg-rose-500",
 };
+
+export const MANAGER_CLASS_STATUS_ICON_CLASSES: Record<ClassStatusValue, string> = {
+  scheduled: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  in_progress: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+  done: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  paused: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  stopped: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+};
+
+export const MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES: Record<
+  ClassStatusValue,
+  string
+> = {
+  scheduled:
+    "border-violet-500/30 bg-violet-500/10 text-violet-700 hover:bg-violet-500/15 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-200",
+  in_progress:
+    "border-sky-500/30 bg-sky-500/10 text-sky-700 hover:bg-sky-500/15 hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200",
+  done: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200",
+  paused:
+    "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200",
+  stopped:
+    "border-rose-500/30 bg-rose-500/10 text-rose-700 hover:bg-rose-500/15 hover:text-rose-800 dark:text-rose-300 dark:hover:text-rose-200",
+};

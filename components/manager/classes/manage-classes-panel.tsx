@@ -29,7 +29,7 @@ import type {
 } from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
-const PAGE_SIZE_OPTIONS = [6, 9, 12] as const;
+const PAGE_SIZE = 6;
 const STATUS_FILTER_ALL = "all";
 const SEMESTER_FILTER_ALL = "all";
 const SEMESTER_FILTER_UNLINKED = "unlinked";
@@ -99,9 +99,6 @@ export function ManageClassesPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [semesterFilter, setSemesterFilter] = useState(SEMESTER_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    6
-  );
   const [currentPage, setCurrentPage] = useState(1);
 
   const stats = useMemo(
@@ -133,18 +130,18 @@ export function ManageClassesPanel({
     });
   }, [classes, searchQuery, semesterFilter, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedClasses = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredClasses.slice(startIndex, startIndex + pageSize);
-  }, [filteredClasses, pageSize, safeCurrentPage]);
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredClasses.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredClasses, safeCurrentPage]);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredClasses.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredClasses.length);
+    filteredClasses.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredClasses.length);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -158,15 +155,6 @@ export function ManageClassesPanel({
 
   const handleSemesterFilterChange = (value: string | null) => {
     setSemesterFilter(value ?? SEMESTER_FILTER_ALL);
-    setCurrentPage(1);
-  };
-
-  const handlePageSizeChange = (value: string | null) => {
-    if (!value) {
-      return;
-    }
-
-    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
     setCurrentPage(1);
   };
 
@@ -258,10 +246,18 @@ export function ManageClassesPanel({
                 className="w-full lg:w-40"
                 aria-label="Filter by status"
               >
-                <SelectValue placeholder="All statuses" />
+                <SelectValue placeholder="Status">
+                  {(value) =>
+                    !value || value === STATUS_FILTER_ALL
+                      ? "Status"
+                      : (MANAGER_CLASS_STATUS_LABELS[
+                          value as (typeof CLASS_STATUS_VALUES)[number]
+                        ] ?? String(value))
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent align="end">
-                <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
+                <SelectItem value={STATUS_FILTER_ALL}>Status</SelectItem>
                 {CLASS_STATUS_VALUES.map((status) => (
                   <SelectItem key={status} value={status}>
                     {MANAGER_CLASS_STATUS_LABELS[status]}
@@ -277,12 +273,23 @@ export function ManageClassesPanel({
                 className="w-full lg:w-52"
                 aria-label="Filter by semester"
               >
-                <SelectValue placeholder="All semesters" />
+                <SelectValue placeholder="Semester">
+                  {(value) => {
+                    if (!value || value === SEMESTER_FILTER_ALL) {
+                      return "Semester";
+                    }
+                    if (value === SEMESTER_FILTER_UNLINKED) {
+                      return "Unlinked";
+                    }
+                    return (
+                      semesterOptions.find((semester) => semester.id === value)
+                        ?.name ?? String(value)
+                    );
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent align="end">
-                <SelectItem value={SEMESTER_FILTER_ALL}>
-                  All semesters
-                </SelectItem>
+                <SelectItem value={SEMESTER_FILTER_ALL}>Semester</SelectItem>
                 <SelectItem value={SEMESTER_FILTER_UNLINKED}>
                   Unlinked
                 </SelectItem>
@@ -311,34 +318,9 @@ export function ManageClassesPanel({
 
           {filteredClasses.length > 0 ? (
             <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  Showing {rangeStart}–{rangeEnd} of {filteredClasses.length}
-                </span>
-                <span aria-hidden="true">·</span>
-                <div className="flex items-center gap-2">
-                  <span>Cards</span>
-                  <Select
-                    value={String(pageSize)}
-                    onValueChange={handlePageSizeChange}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="w-16"
-                      aria-label="Cards per page"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="start">
-                      {PAGE_SIZE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={String(option)}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Showing {rangeStart}–{rangeEnd} of {filteredClasses.length}
+              </p>
 
               <div className="flex items-center gap-1">
                 <Button
