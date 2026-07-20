@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateSubjectAction } from "@/app/manager/subjects/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,26 +14,42 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   updateSubjectSchema,
   type UpdateSubjectInput,
 } from "@/lib/validators/manager/update-subject";
-import type { ManagerSubjectRow } from "@/types/manager-subject";
+import type {
+  ManagerSubjectRow,
+  UpdateSubjectActionState,
+} from "@/types/manager-subject";
+
+const initialState: UpdateSubjectActionState = {};
 
 type EditSubjectDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subject: ManagerSubjectRow;
-  onUpdateSubject: (subject: ManagerSubjectRow) => void;
+  onSubjectUpdated: (subject: ManagerSubjectRow) => void;
 };
 
 export function EditSubjectDialog({
   open,
   onOpenChange,
   subject,
-  onUpdateSubject,
+  onSubjectUpdated,
 }: EditSubjectDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateSubjectAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -60,18 +77,33 @@ export function EditSubjectDialog({
     }
   }, [open, reset, subject]);
 
-  function onSubmit(values: UpdateSubjectInput) {
-    onUpdateSubject({
-      ...subject,
-      name: values.name.trim(),
-      syllabus_link: values.syllabus_link?.trim() || null,
-      reference_link: values.reference_link?.trim() || null,
-      handout_link: values.handout_link?.trim() || null,
-    });
-
-    showSuccessToast("Subject updated in the preview.");
+  useActionStateSuccess(state, isPending, (nextState) => {
+    if (nextState.subject) {
+      onSubjectUpdated(nextState.subject);
+    }
     onOpenChange(false);
+  });
+
+  function onSubmit(values: UpdateSubjectInput) {
+    const formData = new FormData();
+    formData.set("id", subject.id);
+    formData.set("name", values.name.trim());
+    formData.set("syllabus_link", values.syllabus_link?.trim() ?? "");
+    formData.set("reference_link", values.reference_link?.trim() ?? "");
+    formData.set("handout_link", values.handout_link?.trim() ?? "");
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
+
+  const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const syllabusError =
+    errors.syllabus_link?.message ?? state.fieldErrors?.syllabus_link?.[0];
+  const referenceError =
+    errors.reference_link?.message ?? state.fieldErrors?.reference_link?.[0];
+  const handoutError =
+    errors.handout_link?.message ?? state.fieldErrors?.handout_link?.[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,8 +111,7 @@ export function EditSubjectDialog({
         <DialogHeader>
           <DialogTitle>Edit subject</DialogTitle>
           <DialogDescription>
-            Update subject details and resource links. Preview-only until backend
-            is connected.
+            Update subject details and resource links.
           </DialogDescription>
         </DialogHeader>
 
@@ -94,11 +125,12 @@ export function EditSubjectDialog({
             <FieldLabel htmlFor="edit-subject-name" label="Name" hint="Required" />
             <Input
               id="edit-subject-name"
-              aria-invalid={!!errors.name}
+              aria-invalid={!!nameError}
+              disabled={isPending}
               {...register("name")}
             />
-            {errors.name ? (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
           </div>
 
@@ -111,13 +143,12 @@ export function EditSubjectDialog({
             <Input
               id="edit-subject-syllabus"
               type="url"
-              aria-invalid={!!errors.syllabus_link}
+              aria-invalid={!!syllabusError}
+              disabled={isPending}
               {...register("syllabus_link")}
             />
-            {errors.syllabus_link ? (
-              <p className="text-sm text-destructive">
-                {errors.syllabus_link.message}
-              </p>
+            {syllabusError ? (
+              <p className="text-sm text-destructive">{syllabusError}</p>
             ) : null}
           </div>
 
@@ -130,13 +161,12 @@ export function EditSubjectDialog({
             <Input
               id="edit-subject-reference"
               type="url"
-              aria-invalid={!!errors.reference_link}
+              aria-invalid={!!referenceError}
+              disabled={isPending}
               {...register("reference_link")}
             />
-            {errors.reference_link ? (
-              <p className="text-sm text-destructive">
-                {errors.reference_link.message}
-              </p>
+            {referenceError ? (
+              <p className="text-sm text-destructive">{referenceError}</p>
             ) : null}
           </div>
 
@@ -149,13 +179,12 @@ export function EditSubjectDialog({
             <Input
               id="edit-subject-handout"
               type="url"
-              aria-invalid={!!errors.handout_link}
+              aria-invalid={!!handoutError}
+              disabled={isPending}
               {...register("handout_link")}
             />
-            {errors.handout_link ? (
-              <p className="text-sm text-destructive">
-                {errors.handout_link.message}
-              </p>
+            {handoutError ? (
+              <p className="text-sm text-destructive">{handoutError}</p>
             ) : null}
           </div>
         </form>
@@ -165,10 +194,12 @@ export function EditSubjectDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="edit-subject-form">
+          <Button type="submit" form="edit-subject-form" disabled={isPending}>
+            {isPending ? <InlineSpinner data-icon="inline-start" /> : null}
             Save changes
           </Button>
         </DialogFooter>

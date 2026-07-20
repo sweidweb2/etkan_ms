@@ -20,3 +20,11 @@ export type CreateSubjectActionState = {
   fieldErrors?: FieldErrors;
   subject?: ManagerSubjectRow;
 };
+
+export type UpdateSubjectActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  subject?: ManagerSubjectRow;
+};

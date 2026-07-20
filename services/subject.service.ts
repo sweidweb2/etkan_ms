@@ -4,6 +4,7 @@ import {
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
 import { createSubjectSchema } from "@/lib/validators/manager/create-subject";
+import { updateSubjectSchema } from "@/lib/validators/manager/update-subject";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassRecord } from "@/repositories/class.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
@@ -33,6 +34,20 @@ export type CreateSubjectFailure = {
 };
 
 export type CreateSubjectResult = CreateSubjectSuccess | CreateSubjectFailure;
+
+export type UpdateSubjectSuccess = {
+  success: true;
+  subject: ManagerSubjectRow;
+  message: string;
+};
+
+export type UpdateSubjectFailure = {
+  success: false;
+  error: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type UpdateSubjectResult = UpdateSubjectSuccess | UpdateSubjectFailure;
 
 function assertManagerRole(actorRole: RoleValue | null): void {
   if (actorRole !== ROLES.MANAGER) {
@@ -115,6 +130,16 @@ function mapCreateSubjectError(message: string): string {
   }
 
   return "Unable to create subject. Please try again.";
+}
+
+function mapUpdateSubjectError(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("duplicate") || normalized.includes("unique")) {
+    return "A subject with this name already exists.";
+  }
+
+  return "Unable to update subject. Please try again.";
 }
 
 export async function listSubjectsForManager(
@@ -219,6 +244,137 @@ export async function createSubjectForManager(
     success: true,
     subject: mapSubjectRecordToRow(data, 0),
     message: "Subject created.",
+  };
+}
+
+export async function updateSubjectForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    name: string;
+    syllabus_link?: string;
+    reference_link?: string;
+    handout_link?: string;
+  }
+): Promise<UpdateSubjectResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = updateSubjectSchema.safeParse({
+    name: input.name,
+    syllabus_link: input.syllabus_link,
+    reference_link: input.reference_link,
+    handout_link: input.handout_link,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { id } = input;
+  const { name, syllabus_link, reference_link, handout_link } = parsed.data;
+  const normalizedName = name.trim();
+  const normalizedSyllabus = normalizeOptionalString(syllabus_link);
+  const normalizedReference = normalizeOptionalString(reference_link);
+  const normalizedHandout = normalizeOptionalString(handout_link);
+
+  const existingSubject = await subjectRepository.findSubjectById(
+    adminClient,
+    id
+  );
+
+  if (existingSubject.error) {
+    return {
+      success: false,
+      error: mapUpdateSubjectError(existingSubject.error.message),
+    };
+  }
+
+  if (!existingSubject.data) {
+    return { success: false, error: "Subject not found." };
+  }
+
+  const existingByName = await subjectRepository.findSubjectByName(
+    adminClient,
+    normalizedName
+  );
+
+  if (existingByName.error) {
+    return {
+      success: false,
+      error: mapUpdateSubjectError(existingByName.error.message),
+    };
+  }
+
+  if (existingByName.data && existingByName.data.id !== id) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { name: ["A subject with this name already exists."] },
+    };
+  }
+
+  const classCountResult = await classRepository.countClassesBySubjectId(
+    adminClient,
+    id
+  );
+
+  if (classCountResult.error) {
+    return {
+      success: false,
+      error: mapUpdateSubjectError(classCountResult.error.message),
+    };
+  }
+
+  const { data, error } = await subjectRepository.updateSubjectById(
+    adminClient,
+    id,
+    {
+      name: normalizedName,
+      syllabus_link: normalizedSyllabus,
+      reference_link: normalizedReference,
+      handout_link: normalizedHandout,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: mapUpdateSubjectError(error?.message ?? "Unknown error"),
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "subjects",
+    record_id: data.id,
+    old_data: {
+      name: existingSubject.data.name,
+      syllabus_link: existingSubject.data.syllabus_link,
+      reference_link: existingSubject.data.reference_link,
+      handout_link: existingSubject.data.handout_link,
+    },
+    new_data: {
+      name: data.name,
+      syllabus_link: data.syllabus_link,
+      reference_link: data.reference_link,
+      handout_link: data.handout_link,
+    },
+    metadata: { note: "Subject updated." },
+  });
+
+  return {
+    success: true,
+    subject: mapSubjectRecordToRow(data, classCountResult.count ?? 0),
+    message: "Subject updated.",
   };
 }
 

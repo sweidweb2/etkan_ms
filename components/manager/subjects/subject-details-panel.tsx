@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon } from "lucide-react";
@@ -80,6 +81,7 @@ export function SubjectDetailsPanel({
   subject: initialSubject,
   classes,
 }: SubjectDetailsPanelProps) {
+  const router = useRouter();
   const [subject, setSubject] = useState<ManagerSubjectRow>(initialSubject);
   const [prevSubject, setPrevSubject] =
     useState<ManagerSubjectRow>(initialSubject);
@@ -89,6 +91,11 @@ export function SubjectDetailsPanel({
     setPrevSubject(initialSubject);
     setSubject(initialSubject);
   }
+
+  const handleSubjectUpdated = (updated: ManagerSubjectRow) => {
+    setSubject(updated);
+    router.refresh();
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -110,7 +117,7 @@ export function SubjectDetailsPanel({
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         subject={subject}
-        onUpdateSubject={setSubject}
+        onSubjectUpdated={handleSubjectUpdated}
       />
 
       <Card className="gap-0 py-0">

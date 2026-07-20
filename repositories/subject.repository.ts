@@ -24,6 +24,13 @@ export type CreateSubjectRecordInput = {
   nb_sessions?: number;
 };
 
+export type UpdateSubjectRecordInput = {
+  name: string;
+  syllabus_link: string | null;
+  reference_link: string | null;
+  handout_link: string | null;
+};
+
 export async function listSubjects(client: Supabase) {
   return client
     .from("subjects")
@@ -60,6 +67,24 @@ export async function createSubject(
       handout_link: input.handout_link ?? null,
       nb_sessions: input.nb_sessions ?? 0,
     })
+    .select(SUBJECT_COLUMNS)
+    .single();
+}
+
+export async function updateSubjectById(
+  client: Supabase,
+  id: string,
+  input: UpdateSubjectRecordInput
+) {
+  return client
+    .from("subjects")
+    .update({
+      name: input.name,
+      syllabus_link: input.syllabus_link,
+      reference_link: input.reference_link,
+      handout_link: input.handout_link,
+    })
+    .eq("id", id)
     .select(SUBJECT_COLUMNS)
     .single();
 }
