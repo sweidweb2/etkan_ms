@@ -1,9 +1,14 @@
 "use client";
 
+import { motion, useReducedMotion } from "motion/react";
 import { GravityStarsBackground } from "@/components/animate-ui/components/backgrounds/gravity-stars";
 import { SolutionCollage } from "@/components/public/solution-collage";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import type { MessageKey } from "@/lib/i18n/messages";
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+const VIEWPORT = { once: true, amount: 0.2, margin: "0px 0px -10% 0px" } as const;
 
 const PILLARS: Array<{
   index: string;
@@ -34,6 +39,9 @@ const PILLARS: Array<{
 
 export function HomeJourneySection() {
   const { t } = usePublicI18n();
+  const hydrated = useHydrated();
+  const reduceMotion = useReducedMotion();
+  const canAnimate = hydrated && !reduceMotion;
 
   return (
     <section className="relative isolate overflow-hidden px-4 py-8 sm:px-6 sm:py-10">
@@ -54,14 +62,30 @@ export function HomeJourneySection() {
       />
 
       <div className="relative z-10 mx-auto max-w-5xl">
-        <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+        <motion.p
+          className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase"
+          initial={canAnimate ? { opacity: 0, y: 24 } : false}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={VIEWPORT}
+          transition={{ duration: 0.9, ease: EASE }}
+        >
           {t("about.journey.eyebrow")}
-        </p>
+        </motion.p>
 
         <div className="mt-8 grid items-stretch gap-8 lg:grid-cols-2 lg:gap-10">
           <ol className="flex flex-col">
             {PILLARS.map((pillar, index) => (
-              <li key={pillar.index}>
+              <motion.li
+                key={pillar.index}
+                initial={canAnimate ? { opacity: 0, x: -32 } : false}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={VIEWPORT}
+                transition={{
+                  duration: 0.95,
+                  ease: EASE,
+                  delay: 0.12 + index * 0.12,
+                }}
+              >
                 <div className="flex items-start gap-4 py-4 sm:gap-5 sm:py-5">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[#3E3E75]/20 bg-background/80 text-xs font-semibold tracking-wide text-[#3E3E75] dark:border-[#C4C4E8]/25 dark:text-[#C4C4E8] sm:size-10 sm:text-sm">
                     {pillar.index}
@@ -78,11 +102,19 @@ export function HomeJourneySection() {
                 {index !== PILLARS.length - 1 ? (
                   <hr className="border-0 border-t border-border/70" />
                 ) : null}
-              </li>
+              </motion.li>
             ))}
           </ol>
 
-          <SolutionCollage className="h-full" />
+          <motion.div
+            initial={canAnimate ? { opacity: 0, x: 40, y: 16 } : false}
+            whileInView={{ opacity: 1, x: 0, y: 0 }}
+            viewport={VIEWPORT}
+            transition={{ duration: 1.05, ease: EASE, delay: 0.2 }}
+            className="h-full"
+          >
+            <SolutionCollage className="h-full" />
+          </motion.div>
         </div>
       </div>
     </section>

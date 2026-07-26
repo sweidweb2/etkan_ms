@@ -12,6 +12,8 @@ type TypewriterPointProps = {
   typeMs?: number;
   /** Deleting speed per character (ms). */
   deleteMs?: number;
+  /** Start with full text (skip empty flash on mount / slide enter). */
+  startFilled?: boolean;
 };
 
 export function TypewriterPoint({
@@ -20,16 +22,22 @@ export function TypewriterPoint({
   holdMs = 5000,
   typeMs = 42,
   deleteMs = 28,
+  startFilled = false,
 }: TypewriterPointProps) {
-  const [displayed, setDisplayed] = useState("");
+  const [displayed, setDisplayed] = useState(startFilled ? text : "");
   const [phase, setPhase] = useState<"typing" | "holding" | "deleting">(
-    "typing"
+    startFilled ? "holding" : "typing"
   );
 
   useEffect(() => {
+    if (startFilled) {
+      setDisplayed(text);
+      setPhase("holding");
+      return;
+    }
     setDisplayed("");
     setPhase("typing");
-  }, [text]);
+  }, [text, startFilled]);
 
   useEffect(() => {
     if (!text) return;
@@ -43,6 +51,11 @@ export function TypewriterPoint({
         setDisplayed(text.slice(0, displayed.length + 1));
       }, typeMs);
       return () => window.clearTimeout(timer);
+    }
+
+    if (phase === "holding") {
+      const holdTimer = window.setTimeout(() => setPhase("deleting"), holdMs);
+      return () => window.clearTimeout(holdTimer);
     }
 
     if (phase === "deleting") {

@@ -8,12 +8,14 @@ type CourseCardImageProps = {
   src: string;
   alt?: string;
   className?: string;
+  priority?: boolean;
 };
 
 export function CourseCardImage({
   src,
   alt = "",
   className,
+  priority = false,
 }: CourseCardImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -45,6 +47,7 @@ export function CourseCardImage({
         src={src}
         alt={alt}
         fill
+        priority={priority}
         className={cn(
           "object-cover transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]",
           isLoaded ? "opacity-100" : "opacity-0"

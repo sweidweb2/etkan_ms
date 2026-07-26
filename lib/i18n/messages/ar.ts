@@ -7,6 +7,7 @@ export const ar = {
   "nav.home": "الرئيسية",
   "nav.about": "من نحن",
   "nav.careers": "المسارات المهنية",
+  "nav.projects": "المشاريع",
   "nav.life": "الحياة",
   "nav.login": "تسجيل الدخول",
   "nav.register": "إنشاء حساب",

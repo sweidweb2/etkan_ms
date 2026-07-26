@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export type CareerStageOption = {
@@ -16,6 +17,9 @@ type CareerStagesWheelProps = {
   ariaLabel: string;
   className?: string;
 };
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+const VIEWPORT = { once: true, amount: 0.35 } as const;
 
 const SIZE = 320;
 const CENTER = SIZE / 2;
@@ -73,10 +77,12 @@ export function CareerStagesWheel({
   ariaLabel,
   className,
 }: CareerStagesWheelProps) {
+  const reduceMotion = useReducedMotion();
   const count = stages.length;
   const slice = round(360 / count, 6);
   const gap = 2.5;
   const active = stages.find((s) => s.id === activeId) ?? stages[0];
+  const origin = `${CENTER}px ${CENTER}px`;
 
   return (
     <div
@@ -90,13 +96,18 @@ export function CareerStagesWheel({
         className="size-full overflow-visible"
         aria-hidden="true"
       >
-        <circle
+        <motion.circle
           cx={CENTER}
           cy={CENTER}
           r={RING_R + 6}
           fill="none"
           className="stroke-white/15"
           strokeWidth={1.5}
+          initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={VIEWPORT}
+          transition={{ duration: 1, ease: EASE }}
+          style={{ transformOrigin: origin }}
         />
 
         {stages.map((stage, i) => {
@@ -107,7 +118,18 @@ export function CareerStagesWheel({
           const labelPos = polar(CENTER, CENTER, LABEL_R, mid);
 
           return (
-            <g key={stage.id}>
+            <motion.g
+              key={stage.id}
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.45 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={VIEWPORT}
+              transition={{
+                duration: 0.8,
+                ease: EASE,
+                delay: reduceMotion ? 0 : 0.12 + i * 0.1,
+              }}
+              style={{ transformOrigin: origin }}
+            >
               <path
                 d={segmentPath(
                   CENTER,
@@ -135,20 +157,39 @@ export function CareerStagesWheel({
               >
                 {stage.indexLabel}
               </text>
-            </g>
+            </motion.g>
           );
         })}
 
-        <circle
+        <motion.circle
           cx={CENTER}
           cy={CENTER}
           r={SEGMENT_INNER - 4}
           className="fill-[#3E3E75] stroke-white/20"
           strokeWidth={1.5}
+          initial={reduceMotion ? false : { opacity: 0, scale: 0.5 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={VIEWPORT}
+          transition={{
+            duration: 0.8,
+            ease: EASE,
+            delay: reduceMotion ? 0 : 0.3,
+          }}
+          style={{ transformOrigin: origin }}
         />
       </svg>
 
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <motion.div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        initial={reduceMotion ? false : { opacity: 0, scale: 0.85 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={VIEWPORT}
+        transition={{
+          duration: 0.8,
+          ease: EASE,
+          delay: reduceMotion ? 0 : 0.5,
+        }}
+      >
         <div className="flex max-w-[7.5rem] flex-col items-center px-2 text-center">
           <p className="text-[0.65rem] font-semibold tracking-[0.14em] text-white/50 uppercase">
             {hubLabel}
@@ -164,7 +205,7 @@ export function CareerStagesWheel({
             {active?.label}
           </p>
         </div>
-      </div>
+      </motion.div>
 
       {stages.map((stage, i) => {
         const mid = round(i * slice + slice / 2);
@@ -172,7 +213,7 @@ export function CareerStagesWheel({
         const isActive = stage.id === activeId;
 
         return (
-          <button
+          <motion.button
             key={stage.id}
             id={`career-stage-${stage.id}`}
             type="button"
@@ -181,17 +222,32 @@ export function CareerStagesWheel({
             aria-current={isActive ? "true" : undefined}
             aria-pressed={isActive}
             onClick={() => onSelect(stage.id)}
+            initial={
+              reduceMotion
+                ? false
+                : { opacity: 0, left: "50%", top: "50%" }
+            }
+            whileInView={{
+              opacity: 1,
+              left: `${fmt(pos.x)}%`,
+              top: `${fmt(pos.y)}%`,
+            }}
+            viewport={VIEWPORT}
+            transition={{
+              duration: 0.95,
+              ease: EASE,
+              delay: reduceMotion ? 0 : 0.4 + i * 0.09,
+            }}
             className={cn(
               "absolute z-10 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-[0.65rem] font-semibold tracking-wide outline-none transition-[transform,box-shadow,background-color,border-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-white/40",
               isActive
                 ? "scale-110 border-[#9A9AD0] bg-[#9A9AD0] text-[#2A2A52] shadow-lg shadow-black/30"
                 : "border-white/20 bg-[#3E3E75]/90 text-white/70 hover:scale-105 hover:border-white/40 hover:text-white"
             )}
-            style={{ left: `${fmt(pos.x)}%`, top: `${fmt(pos.y)}%` }}
             title={stage.label}
           >
             {stage.indexLabel}
-          </button>
+          </motion.button>
         );
       })}
     </div>

@@ -5,6 +5,7 @@ export const en = {
   "nav.home": "Home",
   "nav.about": "About us",
   "nav.careers": "Careers",
+  "nav.projects": "Projects",
   "nav.life": "Life",
   "nav.login": "Log in",
   "nav.register": "Register",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   CareerStagesWheel,
   type CareerStageOption,
@@ -23,6 +23,8 @@ import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 
 const CAROUSEL_THRESHOLD = 3;
+const EASE = [0.22, 1, 0.36, 1] as const;
+const SECTION_VIEWPORT = { once: true, amount: 0.2, margin: "0px 0px -10% 0px" } as const;
 
 type StageCourse = {
   titleKey: MessageKey;
@@ -280,6 +282,7 @@ function StageCourseCard({
 export function HomeCareerStagesSection() {
   const { t } = usePublicI18n();
   const hydrated = useHydrated();
+  const reduceMotion = useReducedMotion();
   const [activeId, setActiveId] = useState(STAGES[0]?.id ?? "1");
 
   const activeStage = STAGES.find((s) => s.id === activeId) ?? STAGES[0];
@@ -292,6 +295,7 @@ export function HomeCareerStagesSection() {
 
   const courseCount = activeStage?.courses.length ?? 0;
   const useCarousel = courseCount > CAROUSEL_THRESHOLD;
+  const canAnimate = hydrated && !reduceMotion;
 
   return (
     <section className="relative isolate overflow-hidden bg-[#3E3E75] px-4 py-10 text-white sm:px-6 sm:py-14">
@@ -301,26 +305,46 @@ export function HomeCareerStagesSection() {
       />
 
       <div className="relative z-10 mx-auto max-w-7xl">
-        <div className="mx-auto max-w-3xl text-center">
+        <motion.div
+          className="mx-auto max-w-3xl text-center"
+          initial={canAnimate ? { opacity: 0, y: 28 } : false}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={SECTION_VIEWPORT}
+          transition={{ duration: 0.9, ease: EASE }}
+        >
           <p className="text-xs font-semibold tracking-[0.18em] text-white/55 uppercase">
             {t("careerStages.eyebrow")}
           </p>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight text-balance text-white sm:text-3xl">
             {t("careerStages.title")}
           </h2>
-        </div>
+        </motion.div>
 
         <div className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-          <CareerStagesWheel
-            stages={wheelStages}
-            activeId={activeId}
-            onSelect={setActiveId}
-            hubLabel={t("careerStages.hubLabel")}
-            ariaLabel={t("careerStages.wheelLabel")}
+          <motion.div
+            initial={canAnimate ? { opacity: 0, scale: 0.82, x: -36 } : false}
+            whileInView={{ opacity: 1, scale: 1, x: 0 }}
+            viewport={SECTION_VIEWPORT}
+            transition={{ duration: 1.05, ease: EASE, delay: 0.12 }}
             className="lg:max-w-none"
-          />
+          >
+            <CareerStagesWheel
+              stages={wheelStages}
+              activeId={activeId}
+              onSelect={setActiveId}
+              hubLabel={t("careerStages.hubLabel")}
+              ariaLabel={t("careerStages.wheelLabel")}
+              className="lg:max-w-none"
+            />
+          </motion.div>
 
-          <div className="min-h-[22rem] min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-[#2F2F5A]/75 p-5 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.55)] backdrop-blur-sm sm:p-6">
+          <motion.div
+            initial={canAnimate ? { opacity: 0, x: 40, y: 20 } : false}
+            whileInView={{ opacity: 1, x: 0, y: 0 }}
+            viewport={SECTION_VIEWPORT}
+            transition={{ duration: 1, ease: EASE, delay: 0.28 }}
+            className="min-h-[22rem] min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-[#2F2F5A]/75 p-5 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.55)] backdrop-blur-sm sm:p-6"
+          >
             <AnimatePresence mode="wait">
               {activeStage ? (
                 <motion.div
@@ -328,7 +352,7 @@ export function HomeCareerStagesSection() {
                   initial={hydrated ? { opacity: 0, y: 10 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.45, ease: EASE }}
                 >
                   <p className="text-xs font-semibold tracking-[0.16em] text-[#C4C4E8] uppercase">
                     {t("careerStages.coursesLabel")}
@@ -385,7 +409,7 @@ export function HomeCareerStagesSection() {
                 </motion.div>
               ) : null}
             </AnimatePresence>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

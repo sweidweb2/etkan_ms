@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import CurvedInput from "@/components/CurvedInput";
 import { CourseCardImage } from "@/components/public/course-card-image";
@@ -22,6 +22,8 @@ import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 
 const AUTO_ADVANCE_MS = 10_000;
+const SLIDE_EASE = [0.22, 1, 0.36, 1] as const;
+const SLIDE_MS = 0.5;
 
 /** Shared indigo brand theme for all slides (#3E3E75). */
 const HERO_THEME = {
@@ -394,18 +396,28 @@ type HomeHeroProps = {
   initialDashboardHref: string | null;
 };
 
+function slideOffset(isActive: boolean, isExiting: boolean, direction: number, isRtl: boolean) {
+  if (isActive) return 0;
+  const sign = isRtl ? -1 : 1;
+  // Exiting slide drifts opposite to travel; idle slides sit offstage ready to enter.
+  if (isExiting) return -direction * 36 * sign;
+  return direction * 36 * sign;
+}
+
 export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
   const { t, dir } = usePublicI18n();
   const dashboardHref = useNavbarDashboardHref(initialDashboardHref);
   const [index, setIndex] = useState(0);
+  const [prevIndex, setPrevIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
 
-  const slide = SLIDES[index] ?? SLIDES[0];
   const isRtl = dir === "rtl";
 
   const goTo = (nextIndex: number, dirDelta: number) => {
     const normalized = (nextIndex + SLIDES.length) % SLIDES.length;
+    if (normalized === index) return;
+    setPrevIndex(index);
     setDirection(dirDelta);
     setIndex(normalized);
   };
@@ -416,18 +428,12 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
   useEffect(() => {
     if (isPaused) return;
     const timer = window.setInterval(() => {
+      setPrevIndex(index);
       setDirection(1);
-      setIndex((current) => (current + 1) % SLIDES.length);
+      setIndex((index + 1) % SLIDES.length);
     }, AUTO_ADVANCE_MS);
     return () => window.clearInterval(timer);
   }, [isPaused, index]);
-
-  const ctaHref =
-    dashboardHref ??
-    (slide.id === "teamwork" ? ROUTES.SIGNUP : ROUTES.CAREERS);
-  const ctaLabel = dashboardHref
-    ? t("hero.ctaDashboard")
-    : t(slide.ctaKey);
 
   const PrevIcon = isRtl ? ChevronRightIcon : ChevronLeftIcon;
   const NextIcon = isRtl ? ChevronLeftIcon : ChevronRightIcon;
@@ -443,120 +449,182 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
       <HeroAmbientBackground />
 
       <div className="relative z-10 mx-auto w-full px-12 py-8 sm:px-16 sm:py-10 lg:px-24 xl:px-32">
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={slide.id}
-            custom={direction}
-            initial={{ opacity: 0, x: direction * (isRtl ? -40 : 40) }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: direction * (isRtl ? 40 : -40) }}
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className="grid items-center gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-10 xl:gap-12"
-          >
-            <div className="min-w-0">
-              <p
-                className={cn(
-                  "text-sm font-semibold tracking-[0.18em] uppercase",
-                  HERO_THEME.eyebrow
-                )}
-                suppressHydrationWarning
-              >
-                {t("brand.name")}
-              </p>
-              <h1
-                className="mt-4 text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-4xl lg:text-[2.65rem] lg:leading-[1.2]"
-                suppressHydrationWarning
-              >
-                {t("hero.topic")}
-              </h1>
-              <p className="mt-6 min-h-[2.75lh] text-xl leading-snug sm:text-2xl lg:text-[1.7rem] lg:leading-snug">
-                <TypewriterPoint
-                  key={slide.pointTitleKey}
-                  text={t(slide.pointTitleKey)}
-                  holdMs={5000}
-                />
-              </p>
-              <p
-                className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg"
-                suppressHydrationWarning
-              >
-                {t(slide.pointDescKey)}
-              </p>
-              <Link
-                href={ctaHref}
-                suppressHydrationWarning
-                className={cn(
-                  buttonVariants({ size: "lg" }),
-                  "mt-8 border-transparent",
-                  HERO_THEME.cta
-                )}
-              >
-                {ctaLabel}
-              </Link>
-            </div>
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-10 xl:gap-12">
+          <div className="min-w-0">
+            <p
+              className={cn(
+                "text-sm font-semibold tracking-[0.18em] uppercase",
+                HERO_THEME.eyebrow
+              )}
+              suppressHydrationWarning
+            >
+              {t("brand.name")}
+            </p>
+            <h1
+              className="mt-4 text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-4xl lg:text-[2.65rem] lg:leading-[1.2]"
+              suppressHydrationWarning
+            >
+              {t("hero.topic")}
+            </h1>
 
-            <div className="flex min-w-0 flex-col gap-5">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {slide.cards.map((card) => (
-                  <Link
-                    key={card.titleKey}
-                    href={ROUTES.CAREERS}
-                    suppressHydrationWarning
-                    className="group block rounded-xl outline-none transition-transform duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.025] hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[#7B7BB8]/50"
+            {/* Stack keeps height = tallest slide; slides stay mounted (no remount flash). */}
+            <div className="relative mt-6 grid overflow-hidden [&>*]:col-start-1 [&>*]:row-start-1">
+              {SLIDES.map((item, i) => {
+                const isActive = i === index;
+                const isExiting = i === prevIndex && i !== index;
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={false}
+                    animate={{
+                      opacity: isActive ? 1 : 0,
+                      x: slideOffset(isActive, isExiting, direction, isRtl),
+                    }}
+                    transition={{
+                      duration: isActive || isExiting ? SLIDE_MS : 0,
+                      ease: SLIDE_EASE,
+                    }}
+                    className={cn(
+                      "min-w-0",
+                      isActive ? "relative z-10" : "pointer-events-none"
+                    )}
+                    aria-hidden={!isActive}
                   >
-                    <Card
-                      size="sm"
-                      className="h-full gap-3 overflow-hidden bg-white p-3 shadow-sm ring-foreground/8 transition-shadow duration-500 ease-out group-hover:shadow-lg group-hover:ring-foreground/12"
+                    <p className="min-h-[2.75lh] text-xl leading-snug sm:text-2xl lg:min-h-[3.3lh] lg:text-[1.7rem] lg:leading-snug">
+                      {isActive ? (
+                        <TypewriterPoint
+                          text={t(item.pointTitleKey)}
+                          holdMs={5000}
+                          startFilled
+                        />
+                      ) : (
+                        <span className="invisible" aria-hidden="true">
+                          {t(item.pointTitleKey)}
+                        </span>
+                      )}
+                    </p>
+                    <p
+                      className="mt-4 min-h-[3.25rem] max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty sm:min-h-[3.5rem] sm:text-lg"
+                      suppressHydrationWarning
                     >
-                      <CourseCardImage
-                        src={card.imageSrc}
-                        alt={t(card.titleKey)}
-                        className="bg-muted"
-                      />
-                      <CardHeader className="gap-1 p-0 px-0.5">
-                        <CardTitle suppressHydrationWarning>
-                          {t(card.titleKey)}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0 px-0.5 pb-0.5">
-                        <CardDescription
-                          className="line-clamp-3 text-pretty"
-                          suppressHydrationWarning
-                        >
-                          {t(card.bodyKey)}
-                        </CardDescription>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-
-              <div className="flex w-full justify-center xl:justify-start">
-                <CurvedInput
-                  placeholder={t("hero.curvedInput.placeholder")}
-                  buttonText={t("hero.curvedInput.button")}
-                  theme="light"
-                  bend={18}
-                  height={56}
-                  width="100%"
-                  showButton
-                  showIcon
-                  type="email"
-                  cornerRadius={18}
-                  borderWidth={1.5}
-                  fontSize={15}
-                  backgroundColor="#ffffff"
-                  textColor="#1e293b"
-                  borderColor="#cbd5e1"
-                  buttonColor="#1e293b"
-                  buttonTextColor="#ffffff"
-                  shadowSize="sm"
-                  onSubmit={() => {}}
-                />
-              </div>
+                      {t(item.pointDescKey)}
+                    </p>
+                    <Link
+                      href={
+                        dashboardHref ??
+                        (item.id === "teamwork"
+                          ? ROUTES.SIGNUP
+                          : ROUTES.CAREERS)
+                      }
+                      tabIndex={isActive ? undefined : -1}
+                      suppressHydrationWarning
+                      className={cn(
+                        buttonVariants({ size: "lg" }),
+                        "mt-8 border-transparent",
+                        HERO_THEME.cta,
+                        !isActive && "invisible"
+                      )}
+                    >
+                      {dashboardHref
+                        ? t("hero.ctaDashboard")
+                        : t(item.ctaKey)}
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-5">
+            <div className="relative grid overflow-hidden [&>*]:col-start-1 [&>*]:row-start-1">
+              {SLIDES.map((item, i) => {
+                const isActive = i === index;
+                const isExiting = i === prevIndex && i !== index;
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={false}
+                    animate={{
+                      opacity: isActive ? 1 : 0,
+                      x: slideOffset(isActive, isExiting, direction, isRtl),
+                    }}
+                    transition={{
+                      duration: isActive || isExiting ? SLIDE_MS : 0,
+                      ease: SLIDE_EASE,
+                    }}
+                    className={cn(
+                      "grid gap-4 sm:grid-cols-2",
+                      isActive ? "relative z-10" : "pointer-events-none"
+                    )}
+                    aria-hidden={!isActive}
+                  >
+                    {item.cards.map((card) => (
+                      <Link
+                        key={card.titleKey}
+                        href={ROUTES.CAREERS}
+                        tabIndex={isActive ? undefined : -1}
+                        suppressHydrationWarning
+                        className="group block rounded-xl outline-none transition-transform duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.025] hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[#7B7BB8]/50"
+                      >
+                        <Card
+                          size="sm"
+                          className="h-full gap-3 overflow-hidden bg-white p-3 shadow-sm ring-foreground/8 transition-shadow duration-500 ease-out group-hover:shadow-lg group-hover:ring-foreground/12"
+                        >
+                          <CourseCardImage
+                            src={card.imageSrc}
+                            alt={t(card.titleKey)}
+                            className="bg-muted"
+                            priority={i === 0}
+                          />
+                          <CardHeader className="gap-1 p-0 px-0.5">
+                            <CardTitle
+                              className="min-h-[1.5lh]"
+                              suppressHydrationWarning
+                            >
+                              {t(card.titleKey)}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-0 px-0.5 pb-0.5">
+                            <CardDescription
+                              className="line-clamp-3 min-h-[3.75em] text-pretty"
+                              suppressHydrationWarning
+                            >
+                              {t(card.bodyKey)}
+                            </CardDescription>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            <div className="flex w-full justify-center xl:justify-start">
+              <CurvedInput
+                placeholder={t("hero.curvedInput.placeholder")}
+                buttonText={t("hero.curvedInput.button")}
+                theme="light"
+                bend={18}
+                height={56}
+                width="100%"
+                showButton
+                showIcon
+                type="email"
+                cornerRadius={18}
+                borderWidth={1.5}
+                fontSize={15}
+                backgroundColor="#ffffff"
+                textColor="#1e293b"
+                borderColor="#cbd5e1"
+                buttonColor="#1e293b"
+                buttonTextColor="#ffffff"
+                shadowSize="sm"
+                onSubmit={() => {}}
+              />
+            </div>
+          </div>
+        </div>
 
         <div className="mt-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
