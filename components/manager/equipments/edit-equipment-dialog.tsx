@@ -214,8 +214,8 @@ export function EditEquipmentDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending} onClick={() => handleOpenChange(false)}
             disabled={isPending}
+            onClick={() => handleOpenChange(false)}
           >
             Cancel
           </Button>

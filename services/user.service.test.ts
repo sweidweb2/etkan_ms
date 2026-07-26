@@ -77,7 +77,9 @@ describe("listUsersForManager", () => {
       error: null,
     });
 
-    vi.mocked(studentProfileRepository.listStudentProfilesByUserIds).mockResolvedValue({
+    vi.mocked(
+      studentProfileRepository.listStudentProfileDetailsByUserIds
+    ).mockResolvedValue({
       data: [],
       error: null,
       count: null,

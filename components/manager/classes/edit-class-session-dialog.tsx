@@ -199,8 +199,8 @@ export function EditClassSessionDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending} onClick={() => handleOpenChange(false)}
             disabled={isPending}
+            onClick={() => handleOpenChange(false)}
           >
             Cancel
           </Button>

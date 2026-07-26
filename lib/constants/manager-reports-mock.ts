@@ -75,6 +75,7 @@ const REPORTS_CLASS_STUDENT_GRADES_STUB: Array<{
 ];
 
 function getClassGrades(_classId: string) {
+  void _classId;
   return REPORTS_CLASS_STUDENT_GRADES_STUB;
 }
 
