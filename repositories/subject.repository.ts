@@ -88,3 +88,7 @@ export async function updateSubjectById(
     .select(SUBJECT_COLUMNS)
     .single();
 }
+
+export async function deleteSubjectById(client: Supabase, id: string) {
+  return client.from("subjects").delete().eq("id", id);
+}

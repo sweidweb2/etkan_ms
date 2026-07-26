@@ -28,3 +28,9 @@ export type UpdateSubjectActionState = {
   fieldErrors?: FieldErrors;
   subject?: ManagerSubjectRow;
 };
+
+export type DeleteSubjectActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+};

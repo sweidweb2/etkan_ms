@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
-import { ExternalLinkIcon, PencilIcon } from "lucide-react";
+import { ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { deleteSubjectAction } from "@/app/manager/subjects/actions";
 import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
 import { SubjectClassesSection } from "@/components/manager/subjects/subject-classes-section";
 import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject-collapsible-section";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -23,14 +25,32 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ROUTES } from "@/lib/constants/routes";
-import type { ManagerSubjectRow } from "@/types/manager-subject";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import type {
+  DeleteSubjectActionState,
+  ManagerSubjectRow,
+} from "@/types/manager-subject";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
 
 type SubjectDetailsPanelProps = {
   subject: ManagerSubjectRow;
   classes: ManagerSubjectClassRow[];
 };
+
+const initialDeleteState: DeleteSubjectActionState = {};
+
+const SUBJECT_HAS_CLASSES_DELETE_ERROR =
+  "Remove or reassign linked classes before deleting this subject.";
 
 function DetailField({
   label,
@@ -86,16 +106,43 @@ export function SubjectDetailsPanel({
   const [prevSubject, setPrevSubject] =
     useState<ManagerSubjectRow>(initialSubject);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isTransitionPending, startTransition] = useTransition();
+  const [deleteState, deleteAction, isDeletePending] = useActionState(
+    deleteSubjectAction,
+    initialDeleteState
+  );
+  const isDeleteActionPending = isDeletePending || isTransitionPending;
+  const handleDeleteOpenChange = usePendingAwareOpenChange(
+    isDeleteActionPending,
+    setIsDeleteOpen
+  );
+
+  useActionStateToast(deleteState, isDeleteActionPending);
 
   if (initialSubject !== prevSubject) {
     setPrevSubject(initialSubject);
     setSubject(initialSubject);
   }
 
+  const hasLinkedClasses =
+    subject.class_count > 0 || classes.length > 0;
+  const deleteBlockedReason = hasLinkedClasses
+    ? SUBJECT_HAS_CLASSES_DELETE_ERROR
+    : undefined;
+
   const handleSubjectUpdated = (updated: ManagerSubjectRow) => {
     setSubject(updated);
     router.refresh();
   };
+
+  function handleConfirmDelete() {
+    const formData = new FormData();
+    formData.set("subject_id", subject.id);
+    startTransition(() => {
+      deleteAction(formData);
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -120,13 +167,63 @@ export function SubjectDetailsPanel({
         onSubjectUpdated={handleSubjectUpdated}
       />
 
+      <Dialog open={isDeleteOpen} onOpenChange={handleDeleteOpenChange}>
+        <DialogContent
+          className="sm:max-w-md"
+          showCloseButton={!isDeleteActionPending}
+        >
+          <DialogHeader>
+            <DialogTitle>Delete subject</DialogTitle>
+            <DialogDescription>
+              This will permanently delete {subject.name}. This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleDeleteOpenChange(false)}
+              disabled={isDeleteActionPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleteActionPending}
+            >
+              {isDeleteActionPending ? (
+                <>
+                  <InlineSpinner />
+                  Deleting subject
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{subject.name}</CardTitle>
-          <CardAction className="self-center">
+          <CardAction className="flex items-center gap-2 self-center">
             <Button type="button" onClick={() => setIsEditOpen(true)}>
               <PencilIcon data-icon="inline-start" />
               Edit subject
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={hasLinkedClasses || isDeleteActionPending}
+              title={deleteBlockedReason}
+              onClick={() => setIsDeleteOpen(true)}
+            >
+              <Trash2Icon data-icon="inline-start" />
+              Delete subject
             </Button>
           </CardAction>
         </CardHeader>

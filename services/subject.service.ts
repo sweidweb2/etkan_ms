@@ -49,6 +49,18 @@ export type UpdateSubjectFailure = {
 
 export type UpdateSubjectResult = UpdateSubjectSuccess | UpdateSubjectFailure;
 
+export type DeleteSubjectSuccess = {
+  success: true;
+  message: string;
+};
+
+export type DeleteSubjectFailure = {
+  success: false;
+  error: string;
+};
+
+export type DeleteSubjectResult = DeleteSubjectSuccess | DeleteSubjectFailure;
+
 function assertManagerRole(actorRole: RoleValue | null): void {
   if (actorRole !== ROLES.MANAGER) {
     throw new Error("Unauthorized.");
@@ -375,6 +387,84 @@ export async function updateSubjectForManager(
     success: true,
     subject: mapSubjectRecordToRow(data, classCountResult.count ?? 0),
     message: "Subject updated.",
+  };
+}
+
+export async function deleteSubjectForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  subjectId: string
+): Promise<DeleteSubjectResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const existingSubject = await subjectRepository.findSubjectById(
+    adminClient,
+    subjectId
+  );
+
+  if (existingSubject.error) {
+    return {
+      success: false,
+      error: "Unable to delete subject. Please try again.",
+    };
+  }
+
+  if (!existingSubject.data) {
+    return { success: false, error: "Subject not found." };
+  }
+
+  const classCountResult = await classRepository.countClassesBySubjectId(
+    adminClient,
+    subjectId
+  );
+
+  if (classCountResult.error) {
+    return {
+      success: false,
+      error: "Unable to delete subject. Please try again.",
+    };
+  }
+
+  if ((classCountResult.count ?? 0) > 0) {
+    return {
+      success: false,
+      error: "Remove or reassign linked classes before deleting this subject.",
+    };
+  }
+
+  const { error } = await subjectRepository.deleteSubjectById(
+    adminClient,
+    subjectId
+  );
+
+  if (error) {
+    return {
+      success: false,
+      error: "Unable to delete subject. Please try again.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "critical",
+    table_name: "subjects",
+    record_id: subjectId,
+    old_data: {
+      name: existingSubject.data.name,
+      syllabus_link: existingSubject.data.syllabus_link,
+      reference_link: existingSubject.data.reference_link,
+      handout_link: existingSubject.data.handout_link,
+      nb_sessions: existingSubject.data.nb_sessions,
+    },
+    metadata: { note: "Subject deleted." },
+  });
+
+  return {
+    success: true,
+    message: "Subject deleted.",
   };
 }
 

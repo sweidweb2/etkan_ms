@@ -13,6 +13,7 @@ export const TOAST_MESSAGES = {
     student_created: "Student account created.",
     student_updated: "Student details updated.",
     session_deleted: "Session deleted.",
+    subject_deleted: "Subject deleted.",
   },
   error: {
     auth_callback_failed:

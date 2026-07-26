@@ -6,6 +6,7 @@ import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
   createSubjectForManager,
+  deleteSubjectForManager,
   getSubjectForManager,
   listSubjectClassesForManager,
   listSubjectsForManager,
@@ -407,5 +408,105 @@ describe("listSubjectClassesForManager", () => {
         created_at: "",
       },
     ]);
+  });
+});
+
+describe("deleteSubjectForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("rejects non-managers", async () => {
+    const result = await deleteSubjectForManager(
+      adminClient,
+      ROLES.TEACHER,
+      actor,
+      subjectId
+    );
+
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+    expect(subjectRepository.deleteSubjectById).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the subject is missing", async () => {
+    vi.mocked(subjectRepository.findSubjectById).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+
+    const result = await deleteSubjectForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      subjectId
+    );
+
+    expect(result).toEqual({ success: false, error: "Subject not found." });
+    expect(subjectRepository.deleteSubjectById).not.toHaveBeenCalled();
+  });
+
+  it("rejects when linked classes exist", async () => {
+    vi.mocked(subjectRepository.findSubjectById).mockResolvedValue({
+      data: subjectRecord,
+      error: null,
+    } as never);
+    vi.mocked(classRepository.countClassesBySubjectId).mockResolvedValue({
+      count: 2,
+      error: null,
+    } as never);
+
+    const result = await deleteSubjectForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      subjectId
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Remove or reassign linked classes before deleting this subject.",
+    });
+    expect(subjectRepository.deleteSubjectById).not.toHaveBeenCalled();
+  });
+
+  it("deletes the subject and audits when no classes are linked", async () => {
+    vi.mocked(subjectRepository.findSubjectById).mockResolvedValue({
+      data: subjectRecord,
+      error: null,
+    } as never);
+    vi.mocked(classRepository.countClassesBySubjectId).mockResolvedValue({
+      count: 0,
+      error: null,
+    } as never);
+    vi.mocked(subjectRepository.deleteSubjectById).mockResolvedValue({
+      error: null,
+    } as never);
+
+    const result = await deleteSubjectForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      subjectId
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "Subject deleted.",
+    });
+    expect(subjectRepository.deleteSubjectById).toHaveBeenCalledWith(
+      adminClient,
+      subjectId
+    );
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "delete",
+        severity: "critical",
+        table_name: "subjects",
+        record_id: subjectId,
+      })
+    );
   });
 });
