@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowUpRightIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { GravityStarsBackground } from "@/components/animate-ui/components/backgrounds/gravity-stars";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
+import { ProjectsGalaxyBackground } from "@/components/public/projects-galaxy-background";
 import { useHydrated } from "@/hooks/use-hydrated";
 import {
   PROJECT_CATEGORIES,
@@ -217,25 +217,11 @@ export function ProjectsSection() {
   const canAnimate = hydrated && !reduceMotion;
 
   return (
-    <div className="dark relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,var(--background),color-mix(in_oklch,var(--muted)_40%,var(--background)))]"
-      />
-      <GravityStarsBackground
-        aria-hidden="true"
-        className="absolute inset-0 text-[#C4C4E8]"
-        starsCount={120}
-        starsSize={2.5}
-        starsOpacity={0.8}
-        glowIntensity={18}
-        movementSpeed={0.25}
-        mouseInfluence={120}
-        gravityStrength={70}
-      />
+    <div className="dark relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-[#070712] text-foreground">
+      <ProjectsGalaxyBackground />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col gap-16 px-4 pt-28 pb-20 sm:gap-20 sm:px-6 sm:pb-28">
-        <header>
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col gap-24 px-4 pt-32 pb-28 sm:gap-28 sm:px-6 sm:pt-36 sm:pb-36">
+        <header className="max-w-3xl space-y-6 sm:space-y-7">
           <motion.p
             className="text-sm font-semibold tracking-[0.2em] text-[#C4C4E8] uppercase"
             initial={canAnimate ? { opacity: 0, y: 16 } : false}
@@ -247,7 +233,7 @@ export function ProjectsSection() {
           </motion.p>
 
           <motion.h1
-            className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]"
+            className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]"
             initial={canAnimate ? { opacity: 0, y: 20 } : false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={VIEWPORT}
@@ -257,7 +243,7 @@ export function ProjectsSection() {
           </motion.h1>
 
           <motion.p
-            className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg"
+            className="max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg"
             initial={canAnimate ? { opacity: 0, y: 20 } : false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={VIEWPORT}
