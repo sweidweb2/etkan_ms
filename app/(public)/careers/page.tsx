@@ -1,3 +1,5 @@
+import { CareersSection } from "@/components/public/careers-section";
+
 export default function CareersPage() {
-  return <main className="flex-1 pt-14" />;
+  return <CareersSection />;
 }

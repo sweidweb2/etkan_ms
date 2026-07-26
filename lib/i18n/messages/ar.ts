@@ -171,6 +171,75 @@ export const ar = {
   "gallery.item.23.alt": "ملاحظات تخطيط مشروع ووثائق تسليم",
   "gallery.item.24.alt": "لوحة تحليلات على شاشة حاسوب محمول",
 
+  "careers.eyebrow": "تعلّم مع إتقان",
+  "careers.title": "المسارات والتعلّم",
+  "careers.lead":
+    "استكشف خارطة الطريق، انضم إلى ورش عملية، أو احجز جلسات أونلاين—فردية أو في لقاءات عامة.",
+  "careers.tabsLabel": "أقسام المسارات",
+  "careers.tab.roadmap": "خارطة الطريق",
+  "careers.tab.workshops": "ورش / دورات",
+  "careers.tab.online": "أونلاين · فردي",
+  "careers.roadmap.card1.title": "المسار التعليمي العام",
+  "careers.roadmap.card1.body":
+    "أساس مشترك يبني المهارات المحورية في البرمجة والعتاد والتصنيع—ليجهّز كل فريق للعمل الحقيقي على المشاريع.",
+  "careers.roadmap.card1.imageAlt": "طلاب يتعاونون على مشروع تقني",
+  "careers.roadmap.card2.title": "المسار التعليمي التخصصي",
+  "careers.roadmap.card2.body":
+    "مسارات أعمق يركّز فيها كل متعلّم على تخصصه—الويب، الإلكترونيات، التشغيل، وغيرها—مع الاستمرار نحو منتج قابل للاستخدام.",
+  "careers.roadmap.card2.imageAlt": "تدريب عملي وتصنيع في الورشة",
+  "careers.roadmap.note.label": "ملاحظة النموذج",
+  "careers.roadmap.note.title": "كيف تعمل خارطة طريق إتقان فعلًا",
+  "careers.roadmap.note.intro":
+    "إتقان نموذج تعليمي فريد يقوم على تشكيل فرق صغيرة من نحو 10 طلاب تتراوح أعمارهم بين 16 و21 عامًا، يعملون ضمن بيئة تحاكي الواقع الصناعي والتكنولوجي. لا يقتصر دور المشاركين على تلقي المعرفة، بل يمرّون برحلة متكاملة تبني المهارة والحكم المهني والقدرة على التسليم معًا.",
+  "careers.roadmap.note.journeyLabel": "وتشمل هذه الرحلة",
+  "careers.roadmap.note.point1":
+    "التدريب العملي وورش العمل الشمولية والمتخصصة التي تحوّل المفهوم إلى مهارة ممارسة.",
+  "careers.roadmap.note.point2":
+    "التخطيط للمشاريع وتنفيذها بعناية حتى الإنجاز—لا التوقف عند الفكرة.",
+  "careers.roadmap.note.point3":
+    "العمل الجماعي متعدد الاختصاصات، ليتعلّم الجميع البناء مع الآخرين عبر التخصصات.",
+  "careers.roadmap.note.point4":
+    "الوصول إلى إنتاج منتج تكنولوجي متكامل وقابل للاستخدام الفعلي—لا مجرد تمرين صفّي.",
+  "careers.roadmap.note.closing":
+    "وبذلك تتجاوز إتقان مفهوم التعليم التقليدي لتقدّم نموذجًا تربويًا إنتاجيًا من منطلق إسلامي: بناء الإنسان قبل المنتج، مع التركيز على الخبرة العملية والتفكير المنهجي والمسؤولية المهنية، ونقل حقيقي للتجارب الصناعية إلى الجيل الناشئ.",
+
+  "careers.workshop.badge.workshop": "ورشة",
+  "careers.workshop.badge.level1": "المستوى ١",
+  "careers.workshop.badge.level2": "المستوى ٢",
+  "careers.workshop.arduino1.title": "أردوينو · المستوى ١",
+  "careers.workshop.arduino1.body":
+    "ابدأ باللوحات والمستشعرات والدارات الأساسية—وابنِ أول نماذج تفاعلية.",
+  "careers.workshop.arduino2.title": "أردوينو · المستوى ٢",
+  "careers.workshop.arduino2.body":
+    "تعمّق في منطق التحكم والتواصل ومشاريع العتاد الأكثر تقدّمًا.",
+  "careers.workshop.web.title": "تطوير الويب",
+  "careers.workshop.web.body":
+    "أسس الواجهات وبناء عملي يحوّل الأفكار إلى واجهات ويب تعمل.",
+  "careers.workshop.solidworks.title": "SolidWorks",
+  "careers.workshop.solidworks.body":
+    "نمذجة CAD ثلاثية الأبعاد للأجزاء والتجميعات—تصميم بأدوات صناعية.",
+  "careers.workshop.printing.title": "الطباعة ثلاثية الأبعاد",
+  "careers.workshop.printing.body":
+    "من CAD إلى الطباعة: جهّز النماذج وشغّل المهام وحسّن النماذج المادية.",
+  "careers.online.format.oneOnOne": "فردي",
+  "careers.online.format.public": "لقاء عام",
+  "careers.online.arduino.title": "أردوينو",
+  "careers.online.arduino.body": "جلسات موجّهة حول اللوحات والمستشعرات والبناء المدمج.",
+  "careers.online.python.title": "بايثون",
+  "careers.online.python.body": "أساسيات البرمجة وممارسة السكربتات العملية.",
+  "careers.online.java.title": "جافا",
+  "careers.online.java.body": "برمجة كائنية مع حل منظّم للمشكلات.",
+  "careers.online.web.title": "تطوير الويب",
+  "careers.online.web.body": "واجهات وتخطيطات وسير عمل الواجهة الأمامية أونلاين.",
+  "careers.online.mobile.title": "تطوير الموبايل",
+  "careers.online.mobile.body": "أنماط واجهات التطبيقات وممارسة الواجهة الأمامية للموبايل.",
+  "careers.online.modeling.title": "النمذجة ثلاثية الأبعاد",
+  "careers.online.modeling.body": "تفكير CAD وجلسات نمذجة لصنّاع التقنية.",
+  "careers.online.electronics.title": "الإلكترونيات وPCB",
+  "careers.online.electronics.body": "دارات ومخططات وإرشاد تصميم على مستوى اللوحة.",
+  "careers.online.machining.title": "التشغيل وخط التجميع",
+  "careers.online.machining.body": "تفكير العمليات وممارسة التشغيل وتدفّق التجميع.",
+
   "contactCta.eyebrow": "تواصل معنا",
   "contactCta.title": "جاهز لبدء مسارك في إتقان؟",
   "contactCta.body":

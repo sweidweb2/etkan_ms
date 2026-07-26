@@ -170,6 +170,75 @@ export const en = {
   "gallery.item.23.alt": "Project planning notes and delivery documents",
   "gallery.item.24.alt": "Analytics dashboard on a laptop screen",
 
+  "careers.eyebrow": "Learn with Etkan",
+  "careers.title": "Careers & learning tracks",
+  "careers.lead":
+    "Explore the roadmap, join hands-on workshops, or book online sessions—one-on-one or in public meetings.",
+  "careers.tabsLabel": "Careers sections",
+  "careers.tab.roadmap": "Roadmap",
+  "careers.tab.workshops": "Workshops / Courses",
+  "careers.tab.online": "Online · 1-on-1",
+  "careers.roadmap.card1.title": "General learning path",
+  "careers.roadmap.card1.body":
+    "A shared foundation that builds core skills across coding, hardware, and fabrication—preparing every team for real project work.",
+  "careers.roadmap.card1.imageAlt": "Students collaborating on a technology project",
+  "careers.roadmap.card2.title": "Specialized learning path",
+  "careers.roadmap.card2.body":
+    "Deeper tracks where each learner focuses on a specialty—web, electronics, machining, and more—while still building toward a usable product.",
+  "careers.roadmap.card2.imageAlt": "Hands-on workshop and fabrication practice",
+  "careers.roadmap.note.label": "Model note",
+  "careers.roadmap.note.title": "How the Etkan roadmap actually works",
+  "careers.roadmap.note.intro":
+    "Etkan is built around small teams of about ten students, ages sixteen to twenty-one, working inside an environment that mirrors real industrial and technological practice. Learners are not only receiving lessons—they move through a full journey that trains skill, judgment, and delivery together.",
+  "careers.roadmap.note.journeyLabel": "That journey includes",
+  "careers.roadmap.note.point1":
+    "Hands-on training with comprehensive and specialized workshops that turn concepts into practiced skill.",
+  "careers.roadmap.note.point2":
+    "Planning projects carefully and carrying them through to real execution—not stopping at ideas.",
+  "careers.roadmap.note.point3":
+    "Cross-disciplinary teamwork, so people learn to build with others across specialties.",
+  "careers.roadmap.note.point4":
+    "Reaching a complete technology product that is usable in the real world—not only a classroom exercise.",
+  "careers.roadmap.note.closing":
+    "In this way Etkan goes beyond conventional schooling. It offers a productive educational model grounded in an Islamic outlook: shaping the person before the product, emphasizing practical experience, structured thinking, and professional responsibility, and bringing genuine industrial experience to the rising generation.",
+
+  "careers.workshop.badge.workshop": "Workshop",
+  "careers.workshop.badge.level1": "Level 1",
+  "careers.workshop.badge.level2": "Level 2",
+  "careers.workshop.arduino1.title": "Arduino · Level 1",
+  "careers.workshop.arduino1.body":
+    "Start with boards, sensors, and basic circuits—build your first interactive prototypes.",
+  "careers.workshop.arduino2.title": "Arduino · Level 2",
+  "careers.workshop.arduino2.body":
+    "Go deeper into control logic, communication, and more advanced hardware projects.",
+  "careers.workshop.web.title": "Web development",
+  "careers.workshop.web.body":
+    "Front-end foundations and practical builds that turn ideas into working web interfaces.",
+  "careers.workshop.solidworks.title": "SolidWorks",
+  "careers.workshop.solidworks.body":
+    "3D CAD modeling for parts and assemblies—design with industrial tools in mind.",
+  "careers.workshop.printing.title": "3D printing",
+  "careers.workshop.printing.body":
+    "From CAD to print: prepare models, run jobs, and refine physical prototypes.",
+  "careers.online.format.oneOnOne": "1-on-1",
+  "careers.online.format.public": "Public meeting",
+  "careers.online.arduino.title": "Arduino",
+  "careers.online.arduino.body": "Guided sessions on boards, sensors, and embedded builds.",
+  "careers.online.python.title": "Python",
+  "careers.online.python.body": "Programming fundamentals and practical scripting practice.",
+  "careers.online.java.title": "Java",
+  "careers.online.java.body": "Object-oriented coding with structured problem-solving.",
+  "careers.online.web.title": "Web development",
+  "careers.online.web.body": "Interfaces, layouts, and front-end workflows online.",
+  "careers.online.mobile.title": "Mobile development",
+  "careers.online.mobile.body": "App UI patterns and mobile front-end practice.",
+  "careers.online.modeling.title": "3D modeling",
+  "careers.online.modeling.body": "CAD thinking and modeling sessions for makers.",
+  "careers.online.electronics.title": "Electronics & PCB",
+  "careers.online.electronics.body": "Circuits, schematics, and board-level design guidance.",
+  "careers.online.machining.title": "Machining & assembly line",
+  "careers.online.machining.body": "Process thinking, machining practice, and assembly flow.",
+
   "contactCta.eyebrow": "Talk with us",
   "contactCta.title": "Ready to start your Etkan path?",
   "contactCta.body":
