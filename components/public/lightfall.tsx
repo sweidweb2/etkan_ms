@@ -31,6 +31,7 @@ export type LightfallProps = {
   color1?: string;
   color2?: string;
   color3?: string;
+  onReady?: () => void;
 };
 
 function hexToRGB(hex: string): [number, number, number] {
@@ -223,6 +224,7 @@ export function Lightfall({
   color1,
   color2,
   color3,
+  onReady,
 }: LightfallProps) {
   const resolvedColors = useMemo(() => {
     if (colors) {
@@ -335,6 +337,8 @@ export function Lightfall({
       canvas.addEventListener("pointermove", onPointerMove);
     }
 
+    let hasSignaledReady = false;
+
     const loop = (t: number) => {
       rafRef.current = requestAnimationFrame(loop);
       uniforms.iTime.value = t * 0.001;
@@ -355,6 +359,10 @@ export function Lightfall({
       if (!paused && programRef.current && meshRef.current) {
         try {
           renderer.render({ scene: meshRef.current });
+          if (!hasSignaledReady) {
+            hasSignaledReady = true;
+            onReady?.();
+          }
         } catch (e) {
           console.error(e);
         }
@@ -407,6 +415,7 @@ export function Lightfall({
     mouseStrength,
     mouseRadius,
     mouseDampening,
+    onReady,
   ]);
 
   return (

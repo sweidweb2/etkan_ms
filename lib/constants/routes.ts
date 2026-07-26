@@ -2,6 +2,9 @@ import { ROLES, type RoleValue } from "@/lib/constants/roles";
 
 export const ROUTES = {
   HOME: "/",
+  ABOUT: "/about",
+  COURSES: "/courses",
+  LIFE: "/life",
   LOGIN: "/auth/login",
   SIGNUP: "/auth/signup",
   CALLBACK: "/auth/callback",

@@ -1,3 +1,4 @@
+import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteNavbar } from "@/components/layout/site-navbar";
 import { getPublicLocale } from "@/lib/i18n/get-public-locale";
 import { getDir } from "@/lib/i18n/locales";
@@ -20,6 +21,7 @@ export default async function PublicLayout({
       >
         <SiteNavbar />
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        <SiteFooter />
       </div>
     </PublicI18nProvider>
   );
