@@ -9,6 +9,7 @@ const FOOTER_LINKS = [
   { href: ROUTES.ABOUT, labelKey: "nav.about" as const },
   { href: ROUTES.CAREERS, labelKey: "nav.careers" as const },
   { href: ROUTES.PROJECTS, labelKey: "nav.projects" as const },
+  { href: ROUTES.GALLERY, labelKey: "nav.gallery" as const },
   { href: ROUTES.LIFE, labelKey: "nav.life" as const },
 ];
 

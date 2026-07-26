@@ -8,7 +8,7 @@ export function AboutEtkanSection() {
   const { t } = usePublicI18n();
 
   return (
-    <section className="relative isolate overflow-hidden px-4 pt-28 pb-20 sm:px-6 sm:pb-28">
+    <section className="relative isolate overflow-hidden px-4 pt-16 pb-20 sm:px-6 sm:pt-20 sm:pb-28">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,var(--background),color-mix(in_oklch,var(--muted)_35%,var(--background)))]"
@@ -32,9 +32,9 @@ export function AboutEtkanSection() {
 
         <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-center">
           <div className="min-w-0">
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
+            <h2 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
               {t("about.title")}
-            </h1>
+            </h2>
             <p className="mt-8 max-w-3xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg">
               {t("about.lead")}
             </p>
