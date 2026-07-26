@@ -22,8 +22,10 @@ export const en = {
   "hero.carouselLabel": "Home highlights",
   "hero.prev": "Previous slide",
   "hero.next": "Next slide",
+  "hero.curvedInput.placeholder": "Enter your email",
+  "hero.curvedInput.button": "Get started",
 
-  "hero.topic": "Etkan is a productive educational learning path",
+  "hero.topic": "Etkan is a productive educational learning path that works on",
 
   "hero.point1.title":
     "Hands-on training and comprehensive specialized workshops",
@@ -39,34 +41,34 @@ export const en = {
     "Collaborate across specialties so the team learns to build together, not alone.",
 
   "hero.slide1.cta": "Explore careers",
-  "hero.slide1.card1.title": "Applied software",
+  "hero.slide1.card1.title": "Python course",
   "hero.slide1.card1.body":
-    "Core programming and systems practice inside collaborative delivery.",
-  "hero.slide1.card2.title": "Web products",
+    "Learn Python from foundations to real projects—practice-first coding for Etkan teams.",
+  "hero.slide1.card2.title": "Arduino course",
   "hero.slide1.card2.body":
-    "Ship usable interfaces with teammates across design and engineering.",
+    "Build electronics hands-on: circuits, sensors, and microcontroller projects in the workshop.",
   "hero.slide1.card3.title": "Systems practice",
   "hero.slide1.card3.body":
     "Build reliable foundations through guided labs and real delivery cycles.",
 
   "hero.slide2.cta": "See programs",
-  "hero.slide2.card1.title": "Embedded systems",
+  "hero.slide2.card1.title": "Backend course",
   "hero.slide2.card1.body":
-    "Hands-on electronics and control systems in specialized workshops.",
-  "hero.slide2.card2.title": "Robotics labs",
+    "Build server-side systems, APIs, and data flows that power real products.",
+  "hero.slide2.card2.title": "Frontend course",
   "hero.slide2.card2.body":
-    "Prototype, iterate, and test physical systems as a cross-skilled team.",
+    "Craft modern interfaces with HTML, CSS, and interactive web experiences.",
   "hero.slide2.card3.title": "Workshop craft",
   "hero.slide2.card3.body":
     "Practice industrial habits—measure, assemble, debug, and refine.",
 
   "hero.slide3.cta": "Join Etkan",
-  "hero.slide3.card1.title": "Project delivery",
+  "hero.slide3.card1.title": "3D printing course",
   "hero.slide3.card1.body":
-    "Plan milestones and finish with a complete, usable technology product.",
-  "hero.slide3.card2.title": "Team leadership",
+    "Design, slice, and print real parts—from prototype to usable workshop output.",
+  "hero.slide3.card2.title": "PCB design course",
   "hero.slide3.card2.body":
-    "Coordinate specialties and learn to build together, not in isolation.",
+    "Layout circuits and boards for hardware that moves from idea to fabrication.",
   "hero.slide3.card3.title": "Product release",
   "hero.slide3.card3.body":
     "Ship something people can use—not only a classroom exercise.",
@@ -92,6 +94,102 @@ export const en = {
     "Reaching a complete technology product that is ready for real-world use—not only a classroom exercise.",
   "about.closing":
     "In this way, Etkan goes beyond conventional schooling. It offers a productive educational model grounded in an Islamic outlook: shaping the person before the product, emphasizing practical experience, structured thinking, and professional responsibility, and bringing genuine industrial experience to the rising generation.",
+
+  "careerStages.eyebrow": "Career path",
+  "careerStages.title": "General career",
+  "careerStages.hubLabel": "Etkan career",
+  "careerStages.coursesLabel": "Courses in this stage",
+  "careerStages.wheelLabel": "Select a career stage",
+
+  "careerStages.stage1.title": "Intro to mechatronics",
+  "careerStages.stage1.desc":
+    "Start with the core tools that connect computing, coding, and physical systems.",
+  "careerStages.stage1.course1.title": "Python",
+  "careerStages.stage1.course1.body":
+    "Learn programming fundamentals used across mechatronics projects.",
+  "careerStages.stage1.course2.title": "Arduino",
+  "careerStages.stage1.course2.body":
+    "Wire boards, read sensors, and control simple hardware builds.",
+  "careerStages.stage1.course3.title": "Data and computer",
+  "careerStages.stage1.course3.body":
+    "Use computers and data skills as the base for every later stage.",
+
+  "careerStages.stage2.title": "Mechanic and power",
+  "careerStages.stage2.desc":
+    "Design mechanical parts and understand circuits, power, and machining.",
+  "careerStages.stage2.course1.title": "SolidWorks / 3D printing",
+  "careerStages.stage2.course1.body":
+    "Model parts in CAD and bring them to life with 3D printing.",
+  "careerStages.stage2.course2.title": "Circuit and power",
+  "careerStages.stage2.course2.body":
+    "Build and power circuits safely for mechanical and electronic systems.",
+  "careerStages.stage2.course3.title": "Machining",
+  "careerStages.stage2.course3.body":
+    "Practice workshop machining methods used in real product builds.",
+
+  "careerStages.stage3.title": "Development",
+  "careerStages.stage3.desc":
+    "Build software products across web, mobile, and backend systems.",
+  "careerStages.stage3.course1.title": "Web front-end development",
+  "careerStages.stage3.course1.body":
+    "Create interactive web interfaces for users and product demos.",
+  "careerStages.stage3.course2.title": "Mobile front-end development",
+  "careerStages.stage3.course2.body":
+    "Design and build mobile app interfaces for real devices.",
+  "careerStages.stage3.course3.title": "Backend",
+  "careerStages.stage3.course3.body":
+    "Create APIs, data layers, and services that power applications.",
+
+  "careerStages.stage4.title": "Project structure",
+  "careerStages.stage4.desc":
+    "Organize projects from planning and business model through assembly and machines.",
+  "careerStages.stage4.course1.title": "Project planning and structure",
+  "careerStages.stage4.course1.body":
+    "Define scope, milestones, and a clear structure for delivery.",
+  "careerStages.stage4.course2.title": "Business model",
+  "careerStages.stage4.course2.body":
+    "Connect product ideas to value, customers, and sustainable delivery.",
+  "careerStages.stage4.course3.title": "Assembly",
+  "careerStages.stage4.course3.body":
+    "Assemble subsystems into a working product with workshop discipline.",
+  "careerStages.stage4.course4.title": "Machines",
+  "careerStages.stage4.course4.body":
+    "Work with machines and tooling as part of structured project builds.",
+
+  "careerStages.stage5.title": "PCB design",
+  "careerStages.stage5.desc":
+    "Move from electronics theory to schematics, microcontrollers, and board design.",
+  "careerStages.stage5.course1.title": "Electronics",
+  "careerStages.stage5.course1.body":
+    "Core electronics foundations for reliable hardware products.",
+  "careerStages.stage5.course2.title": "Digital logic design",
+  "careerStages.stage5.course2.body":
+    "Design digital logic that drives controllers and embedded systems.",
+  "careerStages.stage5.course3.title": "Microcontroller",
+  "careerStages.stage5.course3.body":
+    "Program and integrate microcontrollers into product electronics.",
+  "careerStages.stage5.course4.title": "Transducer",
+  "careerStages.stage5.course4.body":
+    "Use sensors and transducers to bridge physical signals and electronics.",
+  "careerStages.stage5.course5.title": "Schematic design",
+  "careerStages.stage5.course5.body":
+    "Draw clear schematics ready for review and board layout.",
+  "careerStages.stage5.course6.title": "PCB design & connectors",
+  "careerStages.stage5.course6.body":
+    "Layout PCBs and connectors for fabrication and assembly.",
+
+  "careerStages.stage6.title": "Machining and DFM for product",
+  "careerStages.stage6.desc":
+    "Design for manufacture with machining, molds, and sheet metal.",
+  "careerStages.stage6.course1.title": "Machining and process",
+  "careerStages.stage6.course1.body":
+    "Apply machining processes that fit real production constraints.",
+  "careerStages.stage6.course2.title": "Mold design",
+  "careerStages.stage6.course2.body":
+    "Design molds with manufacturability and repeatability in mind.",
+  "careerStages.stage6.course3.title": "Sheet metal design",
+  "careerStages.stage6.course3.body":
+    "Design sheet-metal parts ready for fabrication and assembly.",
 
   "footer.tagline":
     "A productive learning model that shapes people first—and ships real technology.",

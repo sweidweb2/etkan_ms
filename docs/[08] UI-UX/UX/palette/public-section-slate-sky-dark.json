@@ -1,0 +1,55 @@
+{
+  "id": "public-section-slate-sky-dark",
+  "name": "Public section — slate + sky dark",
+  "description": "Dark public-home section theme used briefly on the career stages block (before switching to indigo #3E3E75). Navy slate base with sky accents.",
+  "usage": "HomeCareerStagesSection / CareerStagesWheel (reference for reuse)",
+  "colors": {
+    "sectionBg": "#020617",
+    "sectionBgMid": "#0f172a",
+    "sectionBgEnd": "#020617",
+    "panelBg": "rgba(15, 23, 42, 0.70)",
+    "cardBg": "rgba(30, 41, 59, 0.90)",
+    "cardBgHover": "#1e293b",
+    "border": "rgba(255, 255, 255, 0.10)",
+    "textPrimary": "#f8fafc",
+    "textSecondary": "#cbd5e1",
+    "textMuted": "#94a3b8",
+    "accent": "#38bdf8",
+    "accentStrong": "#0ea5e9",
+    "accentSoft": "rgba(14, 165, 233, 0.14)",
+    "wheelActive": "#0ea5e9",
+    "wheelInactive": "rgba(186, 230, 253, 0.10)",
+    "wheelHub": "#020617",
+    "wheelRing": "rgba(186, 230, 253, 0.15)",
+    "buttonActiveBg": "#0ea5e9",
+    "buttonActiveBorder": "#38bdf8",
+    "buttonInactiveBg": "rgba(2, 6, 23, 0.90)",
+    "buttonInactiveBorder": "rgba(255, 255, 255, 0.15)",
+    "focusRing": "rgba(56, 189, 248, 0.50)"
+  },
+  "gradients": {
+    "sectionOverlay": "radial-gradient(ellipse at top, rgba(14,165,233,0.14), transparent 55%), linear-gradient(180deg, #020617, #0f172a 55%, #020617)"
+  },
+  "tailwindHints": {
+    "section": "dark relative isolate overflow-hidden bg-slate-950 text-foreground",
+    "eyebrow": "text-sky-300/70",
+    "title": "text-slate-50",
+    "panel": "border-white/10 bg-slate-900/70",
+    "coursesLabel": "text-sky-300/80",
+    "stageTitle": "text-slate-50",
+    "stageDesc": "text-slate-300",
+    "card": "bg-slate-800/90 text-slate-50 ring-white/10",
+    "cardDesc": "text-slate-400",
+    "wheelActiveFill": "fill-sky-500",
+    "wheelInactiveFill": "fill-sky-200/10",
+    "wheelHubFill": "fill-slate-950",
+    "hubLabel": "text-slate-400",
+    "hubIndex": "text-sky-100",
+    "buttonActive": "border-sky-400 bg-sky-500 text-white",
+    "buttonInactive": "border-white/15 bg-slate-950/90 text-slate-400"
+  },
+  "shadow": {
+    "panel": "0 20px 50px -24px rgba(0,0,0,0.7)",
+    "buttonActive": "shadow-lg shadow-sky-950/40"
+  }
+}

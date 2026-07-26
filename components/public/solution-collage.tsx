@@ -1,12 +1,11 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** Temporary: same asset ×4 for collage layout testing. */
 const COLLAGE_IMAGES = [
-  "/public_images/solution-built-1.jpg",
-  "/public_images/solution-built-1.jpg",
-  "/public_images/solution-built-1.jpg",
-  "/public_images/solution-built-1.jpg",
+  "https://images.unsplash.com/photo-1690683789978-3cf73960d650?q=80&w=1509&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1621839673705-6617adf9e890?q=80&w=1332&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1704283860614-803aa8be7993?q=80&w=1170&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1592659762303-90081d34b277?q=80&w=1073&auto=format&fit=crop",
 ] as const;
 
 type SolutionCollageProps = {
@@ -23,9 +22,9 @@ export function SolutionCollage({ className }: SolutionCollageProps) {
       aria-hidden="true"
     >
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute top-[12%] left-[8%] size-[42%] border border-cyan-400/25" />
-        <div className="absolute top-[18%] right-[10%] size-[28%] border border-cyan-400/20" />
-        <div className="absolute right-[22%] bottom-[22%] size-[18%] border border-cyan-400/30" />
+        <div className="absolute top-[12%] left-[8%] size-[42%] border border-[#7B7BB8]/25" />
+        <div className="absolute top-[18%] right-[10%] size-[28%] border border-[#7B7BB8]/20" />
+        <div className="absolute right-[22%] bottom-[22%] size-[18%] border border-[#9A9AD0]/30" />
       </div>
 
       <div className="relative h-full min-h-[22rem] w-full sm:min-h-[26rem] lg:min-h-[28rem]">

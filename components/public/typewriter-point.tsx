@@ -60,8 +60,8 @@ export function TypewriterPoint({
   return (
     <span
       className={cn(
-        "relative inline bg-gradient-to-r from-sky-700/15 via-slate-700/10 to-transparent box-decoration-clone px-1.5 py-0.5",
-        "font-semibold text-slate-900 underline decoration-sky-600/50 decoration-2 underline-offset-4",
+        "relative inline bg-gradient-to-r from-[#3E3E75]/15 via-[#7B7BB8]/10 to-transparent box-decoration-clone px-1.5 py-0.5",
+        "font-semibold text-slate-900 underline decoration-[#3E3E75]/50 decoration-2 underline-offset-4",
         className
       )}
       aria-label={text}
@@ -69,7 +69,7 @@ export function TypewriterPoint({
       <span suppressHydrationWarning>{displayed}</span>
       <span
         aria-hidden="true"
-        className="ms-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.12em] animate-pulse bg-sky-700 align-baseline"
+        className="ms-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.12em] animate-pulse bg-[#3E3E75] align-baseline"
       />
     </span>
   );

@@ -1,10 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import CurvedInput from "@/components/CurvedInput";
+import { CourseCardImage } from "@/components/public/course-card-image";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -22,21 +23,18 @@ import { cn } from "@/lib/utils";
 
 const AUTO_ADVANCE_MS = 10_000;
 
-/** Placeholder course images — replace per card when assets are ready. */
-const PLACEHOLDER_IMAGE = "/public_images/solution-built-1.jpg";
-
-/** Shared grey-blue theme for all slides. */
+/** Shared indigo brand theme for all slides (#3E3E75). */
 const HERO_THEME = {
-  accent: "bg-zinc-400",
-  accentSoft: "bg-slate-400/40",
-  accentMid: "bg-zinc-300/55",
-  patternSquare: "border-zinc-400/35",
-  patternCircle: "border-slate-500/30",
-  cta: "bg-slate-800 text-white hover:bg-slate-900",
+  accent: "bg-[#7B7BB8]",
+  accentSoft: "bg-[#9A9AD0]/40",
+  accentMid: "bg-[#C4C4E8]/55",
+  patternSquare: "border-[#7B7BB8]/35",
+  patternCircle: "border-[#3E3E75]/30",
+  cta: "bg-[#3E3E75] text-white hover:bg-[#2F2F5A]",
   arrow: "border-border bg-white text-foreground hover:bg-muted",
-  dot: "bg-zinc-300",
-  dotActive: "bg-slate-800",
-  eyebrow: "text-slate-600",
+  dot: "bg-[#C4C4E8]",
+  dotActive: "bg-[#3E3E75]",
+  eyebrow: "text-[#3E3E75]",
 } as const;
 
 type HeroSlide = {
@@ -61,17 +59,14 @@ const SLIDES: HeroSlide[] = [
       {
         titleKey: "hero.slide1.card1.title",
         bodyKey: "hero.slide1.card1.body",
-        imageSrc: PLACEHOLDER_IMAGE,
+        imageSrc:
+          "https://images.unsplash.com/photo-1690683789978-3cf73960d650?q=80&w=1509&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       },
       {
         titleKey: "hero.slide1.card2.title",
         bodyKey: "hero.slide1.card2.body",
-        imageSrc: PLACEHOLDER_IMAGE,
-      },
-      {
-        titleKey: "hero.slide1.card3.title",
-        bodyKey: "hero.slide1.card3.body",
-        imageSrc: PLACEHOLDER_IMAGE,
+        imageSrc:
+          "https://media.istockphoto.com/id/2276854525/photo/electronic-components-and-hardware-engineering-tools-organized-on-a-dark-work-desk-close-up.jpg?s=2048x2048&w=is&k=20&c=vL9Xly7erRY2XdCOi8Wss3hhe5ZsY7i9jFRZe9JbZdQ=",
       },
     ],
   },
@@ -84,17 +79,14 @@ const SLIDES: HeroSlide[] = [
       {
         titleKey: "hero.slide2.card1.title",
         bodyKey: "hero.slide2.card1.body",
-        imageSrc: PLACEHOLDER_IMAGE,
+        imageSrc:
+          "https://images.unsplash.com/photo-1621839673705-6617adf9e890?q=80&w=1332&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       },
       {
         titleKey: "hero.slide2.card2.title",
         bodyKey: "hero.slide2.card2.body",
-        imageSrc: PLACEHOLDER_IMAGE,
-      },
-      {
-        titleKey: "hero.slide2.card3.title",
-        bodyKey: "hero.slide2.card3.body",
-        imageSrc: PLACEHOLDER_IMAGE,
+        imageSrc:
+          "https://media.istockphoto.com/id/1355140477/photo/top-view-of-laptop-with-text-html5.jpg?s=2048x2048&w=is&k=20&c=uSkopBhFAAajALqs8xZCXZODKXaOklYH_OikPcytYEI=",
       },
     ],
   },
@@ -107,79 +99,292 @@ const SLIDES: HeroSlide[] = [
       {
         titleKey: "hero.slide3.card1.title",
         bodyKey: "hero.slide3.card1.body",
-        imageSrc: PLACEHOLDER_IMAGE,
+        imageSrc:
+          "https://images.unsplash.com/photo-1704283860614-803aa8be7993?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       },
       {
         titleKey: "hero.slide3.card2.title",
         bodyKey: "hero.slide3.card2.body",
-        imageSrc: PLACEHOLDER_IMAGE,
-      },
-      {
-        titleKey: "hero.slide3.card3.title",
-        bodyKey: "hero.slide3.card3.body",
-        imageSrc: PLACEHOLDER_IMAGE,
+        imageSrc:
+          "https://images.unsplash.com/photo-1592659762303-90081d34b277?q=80&w=1073&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       },
     ],
   },
 ];
 
 function HeroAmbientBackground() {
+  const dots = [
+    { top: "68%", left: "28%", size: "size-2.5", duration: 7 },
+    { top: "18%", left: "58%", size: "size-2", duration: 8.5 },
+    { top: "62%", left: "60%", size: "size-3", duration: 10 },
+    { top: "42%", left: "15%", size: "size-2", duration: 6.5 },
+    { top: "78%", left: "78%", size: "size-2.5", duration: 9 },
+    { top: "30%", left: "78%", size: "size-2", duration: 7.5 },
+    { top: "52%", left: "48%", size: "size-1.5", duration: 6 },
+    { top: "8%", left: "32%", size: "size-2", duration: 8 },
+    { top: "88%", left: "40%", size: "size-2.5", duration: 11 },
+    { top: "36%", left: "88%", size: "size-2", duration: 9.5 },
+  ] as const;
+
   return (
     <div
       className="pointer-events-none absolute inset-0 overflow-hidden bg-zinc-100"
       aria-hidden="true"
     >
-      <div className="absolute inset-0 bg-zinc-50/80" />
+      <div className="absolute inset-0 bg-zinc-50/70" />
+
       <motion.div
         className={cn(
-          "absolute -top-24 -right-20 size-[22rem] rounded-full blur-3xl",
+          "absolute -top-24 -right-16 size-[24rem] rounded-full blur-3xl",
           HERO_THEME.accent
         )}
-        animate={{ x: [0, 18, -8, 0], y: [0, 12, -6, 0] }}
+        animate={{ x: [0, 28, -14, 0], y: [0, 18, -10, 0] }}
         transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-        style={{ opacity: 0.2 }}
+        style={{ opacity: 0.28 }}
       />
       <motion.div
         className={cn(
-          "absolute -bottom-28 -left-24 size-[24rem] rounded-full blur-3xl",
+          "absolute -bottom-24 -left-20 size-[28rem] rounded-full blur-3xl",
           HERO_THEME.accentSoft
         )}
-        animate={{ x: [0, -14, 10, 0], y: [0, -10, 8, 0] }}
+        animate={{ x: [0, -22, 16, 0], y: [0, -14, 12, 0] }}
         transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-        style={{ opacity: 0.4 }}
+        style={{ opacity: 0.48 }}
       />
       <motion.div
         className={cn(
-          "absolute top-[38%] -left-10 size-40 rotate-12 rounded-[1.5rem] blur-2xl",
+          "absolute top-[38%] left-[42%] size-[20rem] rounded-full blur-3xl",
           HERO_THEME.accentMid
         )}
-        animate={{ rotate: [12, 22, 8, 12], y: [0, -16, 8, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        animate={{ scale: [1, 1.2, 0.92, 1], x: [0, 24, -18, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+        style={{ opacity: 0.34 }}
       />
       <motion.div
         className={cn(
-          "absolute right-[12%] bottom-[18%] size-28 rounded-full blur-xl",
+          "absolute top-[8%] left-[8%] size-[16rem] rounded-full blur-3xl",
+          HERO_THEME.accentSoft
+        )}
+        animate={{ x: [0, 16, -10, 0], y: [0, 14, -8, 0] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        style={{ opacity: 0.3 }}
+      />
+      <motion.div
+        className={cn(
+          "absolute right-[5%] bottom-[8%] size-[14rem] rounded-full blur-3xl",
           HERO_THEME.accent
         )}
-        animate={{ scale: [1, 1.15, 0.95, 1], x: [0, 10, -6, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        style={{ opacity: 0.16 }}
+        animate={{ scale: [1, 1.15, 0.9, 1], y: [0, -12, 8, 0] }}
+        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+        style={{ opacity: 0.22 }}
+      />
+
+      <motion.div
+        className={cn(
+          "absolute top-[30%] -left-6 size-44 rotate-12 rounded-[1.75rem] blur-2xl",
+          HERO_THEME.accentMid
+        )}
+        animate={{ rotate: [12, 28, 6, 12], y: [0, -22, 10, 0], x: [0, 12, -8, 0] }}
+        transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className={cn(
-          "absolute top-[18%] left-[28%] size-16 rounded-lg border-2 opacity-30",
+          "absolute top-[55%] right-[2%] size-36 -rotate-6 rounded-[1.25rem] blur-2xl",
+          HERO_THEME.accent
+        )}
+        animate={{ rotate: [-6, 8, -14, -6], y: [0, 14, -10, 0] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+        style={{ opacity: 0.35 }}
+      />
+
+      <motion.div
+        className={cn(
+          "absolute top-[14%] left-[20%] size-[4.25rem] rounded-lg border-2 opacity-40",
           HERO_THEME.patternSquare
         )}
-        animate={{ rotate: [0, 12, -6, 0], y: [0, -8, 4, 0] }}
+        animate={{ rotate: [0, 18, -10, 0], y: [0, -14, 8, 0], x: [0, 10, -6, 0] }}
         transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className={cn(
-          "absolute right-[30%] top-[55%] size-10 rounded-full border opacity-25",
+          "absolute top-[40%] right-[22%] size-12 rounded-md border-2 opacity-35",
+          HERO_THEME.patternSquare
+        )}
+        animate={{ rotate: [8, -12, 16, 8], y: [0, 12, -8, 0] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className={cn(
+          "absolute bottom-[18%] left-[18%] size-9 rounded-sm border opacity-30",
+          HERO_THEME.patternSquare
+        )}
+        animate={{ rotate: [0, 25, -15, 0], x: [0, 10, -6, 0] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className={cn(
+          "absolute right-[26%] top-[48%] size-11 rounded-full border-2 opacity-35",
           HERO_THEME.patternCircle
         )}
-        animate={{ y: [0, 10, -4, 0], x: [0, -6, 4, 0] }}
+        animate={{ y: [0, 16, -8, 0], x: [0, -12, 8, 0], scale: [1, 1.12, 0.94, 1] }}
         transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className={cn(
+          "absolute top-[26%] left-[48%] size-8 rounded-full border-2 opacity-30",
+          HERO_THEME.patternCircle
+        )}
+        animate={{ y: [0, -12, 8, 0], x: [0, 14, -8, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className={cn(
+          "absolute bottom-[28%] right-[12%] size-7 rounded-full border opacity-30",
+          HERO_THEME.patternCircle
+        )}
+        animate={{ scale: [1, 1.25, 0.9, 1], y: [0, -10, 6, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className={cn(
+          "absolute top-[20%] right-[16%] size-9 border-2 opacity-35",
+          HERO_THEME.patternSquare
+        )}
+        animate={{ rotate: [45, 70, 35, 45], y: [0, -18, 10, 0], x: [0, 14, -8, 0] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className={cn(
+          "absolute bottom-[40%] left-[8%] size-7 border opacity-30",
+          HERO_THEME.patternSquare
+        )}
+        animate={{ rotate: [45, 20, 60, 45], y: [0, 14, -8, 0] }}
+        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className="absolute top-[56%] left-[10%] h-24 w-8 rounded-full border-2 border-zinc-400/35 opacity-45"
+        animate={{ y: [0, -20, 12, 0], rotate: [-8, 10, -4, -8] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute right-[7%] top-[24%] h-7 w-28 rounded-full border-2 border-slate-400/35 opacity-40"
+        animate={{ x: [0, -22, 14, 0], rotate: [0, -6, 4, 0] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-[72%] left-[52%] h-5 w-20 rounded-full border border-zinc-400/30 opacity-40"
+        animate={{ x: [0, 18, -12, 0], y: [0, -8, 6, 0] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-[12%] left-[62%] h-16 w-6 rounded-full border-2 border-slate-400/30 opacity-35"
+        animate={{ y: [0, 16, -10, 0], rotate: [6, -8, 4, 6] }}
+        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className="absolute bottom-[20%] right-[38%] size-20 rounded-full border-[3px] border-zinc-400/30 opacity-45"
+        animate={{ scale: [1, 1.18, 0.9, 1], rotate: [0, 40, -20, 0] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-[24%] right-[40.5%] size-12 rounded-full border border-slate-500/30 opacity-40"
+        animate={{ scale: [1, 0.85, 1.1, 1], rotate: [0, -50, 25, 0] }}
+        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-[34%] left-[68%] size-16 rounded-full border-2 border-zinc-400/25 opacity-40"
+        animate={{ scale: [1, 1.2, 0.88, 1], x: [0, -10, 8, 0] }}
+        transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className="absolute top-[46%] left-[34%] size-14 opacity-30"
+        style={{
+          clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
+          backgroundColor: "rgba(113,113,122,0.4)",
+        }}
+        animate={{ y: [0, -16, 8, 0], rotate: [0, 15, -8, 0], x: [0, 12, -6, 0] }}
+        transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-[18%] left-[38%] size-10 opacity-25"
+        style={{
+          clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
+          backgroundColor: "rgba(100,116,139,0.45)",
+        }}
+        animate={{ y: [0, 12, -8, 0], rotate: [180, 195, 170, 180] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className="absolute top-[10%] left-[52%] h-16 w-px bg-zinc-400/35"
+        animate={{ y: [0, 18, -8, 0], opacity: [0.3, 0.5, 0.25, 0.3] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-[16%] left-[49%] h-px w-16 bg-zinc-400/35"
+        animate={{ x: [0, 14, -10, 0], opacity: [0.25, 0.45, 0.2, 0.25] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-[32%] left-[72%] h-12 w-px bg-slate-400/30"
+        animate={{ y: [0, -14, 8, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-[36%] left-[69%] h-px w-12 bg-slate-400/30"
+        animate={{ x: [0, -10, 8, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {dots.map((dot, i) => (
+        <motion.div
+          key={`dot-${i}`}
+          className={cn("absolute rounded-full bg-slate-500/40", dot.size)}
+          style={{ top: dot.top, left: dot.left }}
+          animate={{
+            y: [0, i % 2 === 0 ? -22 : 18, i % 2 === 0 ? 10 : -10, 0],
+            x: [0, i % 2 === 0 ? 14 : -12, i % 2 === 0 ? -8 : 8, 0],
+            scale: [1, 1.25, 0.9, 1],
+          }}
+          transition={{
+            duration: dot.duration,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: i * 0.15,
+          }}
+        />
+      ))}
+
+      <motion.div
+        className="absolute bottom-[12%] left-[40%] size-14 rounded-md border-2 border-dashed border-zinc-400/35 opacity-45"
+        animate={{ rotate: [0, -20, 12, 0], y: [0, 12, -10, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-[58%] left-[78%] size-10 rounded-full border border-dashed border-slate-400/35 opacity-40"
+        animate={{ rotate: [0, 40, -20, 0], scale: [1, 1.1, 0.95, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.div
+        className="absolute top-[60%] right-[12%] h-20 w-20 rounded-full border-t-[3px] border-r-[3px] border-slate-400/30 opacity-45"
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
+      />
+      <motion.div
+        className="absolute top-[8%] right-[32%] h-14 w-14 rounded-full border-b-[2px] border-l-[2px] border-zinc-400/30 opacity-40"
+        animate={{ rotate: [360, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+      />
+      <motion.div
+        className="absolute bottom-[8%] left-[28%] h-16 w-16 rounded-full border-t-[2px] border-l-[2px] border-slate-500/25 opacity-35"
+        animate={{ rotate: [0, -360] }}
+        transition={{ duration: 26, repeat: Infinity, ease: "linear" }}
       />
     </div>
   );
@@ -237,7 +442,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
     >
       <HeroAmbientBackground />
 
-      <div className="relative z-10 mx-auto w-full px-10 py-8 sm:px-14 sm:py-10 lg:px-20 xl:px-28">
+      <div className="relative z-10 mx-auto w-full px-12 py-8 sm:px-16 sm:py-10 lg:px-24 xl:px-32">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={slide.id}
@@ -264,7 +469,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
               >
                 {t("hero.topic")}
               </h1>
-              <p className="mt-6 text-xl leading-snug sm:text-2xl lg:text-[1.7rem] lg:leading-snug">
+              <p className="mt-6 min-h-[2.75lh] text-xl leading-snug sm:text-2xl lg:text-[1.7rem] lg:leading-snug">
                 <TypewriterPoint
                   key={slide.pointTitleKey}
                   text={t(slide.pointTitleKey)}
@@ -290,37 +495,65 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
               </Link>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {slide.cards.map((card) => (
-                <Card
-                  key={card.titleKey}
-                  size="sm"
-                  className="gap-3 bg-white p-3 shadow-sm ring-foreground/8"
-                >
-                  <div className="relative aspect-[16/10] overflow-hidden rounded-lg bg-muted">
-                    <Image
-                      src={card.imageSrc}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 280px"
-                    />
-                  </div>
-                  <CardHeader className="gap-1 p-0 px-0.5">
-                    <CardTitle suppressHydrationWarning>
-                      {t(card.titleKey)}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0 px-0.5 pb-0.5">
-                    <CardDescription
-                      className="line-clamp-3 text-pretty"
-                      suppressHydrationWarning
+            <div className="flex min-w-0 flex-col gap-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {slide.cards.map((card) => (
+                  <Link
+                    key={card.titleKey}
+                    href={ROUTES.CAREERS}
+                    suppressHydrationWarning
+                    className="group block rounded-xl outline-none transition-transform duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.025] hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[#7B7BB8]/50"
+                  >
+                    <Card
+                      size="sm"
+                      className="h-full gap-3 overflow-hidden bg-white p-3 shadow-sm ring-foreground/8 transition-shadow duration-500 ease-out group-hover:shadow-lg group-hover:ring-foreground/12"
                     >
-                      {t(card.bodyKey)}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              ))}
+                      <CourseCardImage
+                        src={card.imageSrc}
+                        alt={t(card.titleKey)}
+                        className="bg-muted"
+                      />
+                      <CardHeader className="gap-1 p-0 px-0.5">
+                        <CardTitle suppressHydrationWarning>
+                          {t(card.titleKey)}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0 px-0.5 pb-0.5">
+                        <CardDescription
+                          className="line-clamp-3 text-pretty"
+                          suppressHydrationWarning
+                        >
+                          {t(card.bodyKey)}
+                        </CardDescription>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="flex w-full justify-center xl:justify-start">
+                <CurvedInput
+                  placeholder={t("hero.curvedInput.placeholder")}
+                  buttonText={t("hero.curvedInput.button")}
+                  theme="light"
+                  bend={18}
+                  height={56}
+                  width="100%"
+                  showButton
+                  showIcon
+                  type="email"
+                  cornerRadius={18}
+                  borderWidth={1.5}
+                  fontSize={15}
+                  backgroundColor="#ffffff"
+                  textColor="#1e293b"
+                  borderColor="#cbd5e1"
+                  buttonColor="#1e293b"
+                  buttonTextColor="#ffffff"
+                  shadowSize="sm"
+                  onSubmit={() => {}}
+                />
+              </div>
             </div>
           </motion.div>
         </AnimatePresence>

@@ -65,7 +65,7 @@ function BrandNavLink({
       className={cn(
         "rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
         isActive
-          ? "bg-sky-600/10 text-sky-800 dark:bg-sky-400/15 dark:text-sky-700"
+          ? "bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
@@ -95,7 +95,7 @@ function MobileNavLink({
       className={cn(
         "rounded-lg px-3 py-3 text-base font-medium transition-colors",
         isActive
-          ? "bg-sky-600/10 text-sky-800"
+          ? "bg-primary/10 text-primary"
           : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
       )}
     >

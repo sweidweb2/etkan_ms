@@ -15,7 +15,7 @@ export function AboutEtkanSection() {
       />
       <GravityStarsBackground
         aria-hidden="true"
-        className="absolute inset-0 text-sky-800/90 dark:text-sky-200"
+        className="absolute inset-0 text-[#3E3E75]/90 dark:text-[#C4C4E8]"
         starsCount={150}
         starsSize={2.5}
         starsOpacity={0.8}
@@ -26,7 +26,7 @@ export function AboutEtkanSection() {
       />
 
       <div className="relative z-10 mx-auto max-w-5xl">
-        <p className="text-sm font-semibold tracking-[0.2em] text-sky-800 uppercase dark:text-sky-300">
+        <p className="text-sm font-semibold tracking-[0.2em] text-[#3E3E75] uppercase dark:text-[#C4C4E8]">
           {t("about.eyebrow")}
         </p>
 
@@ -52,7 +52,7 @@ export function AboutEtkanSection() {
           </div>
         </div>
 
-        <blockquote className="relative mt-16 max-w-4xl border-y border-sky-700/15 py-10 dark:border-sky-300/15">
+        <blockquote className="relative mt-16 max-w-4xl border-y border-[#3E3E75]/15 py-10 dark:border-[#C4C4E8]/15">
           <p className="text-lg leading-relaxed text-foreground/90 text-pretty sm:text-xl sm:leading-relaxed">
             {t("about.closing")}
           </p>

@@ -43,8 +43,8 @@ export function HomeJourneySection() {
       />
       <GravityStarsBackground
         aria-hidden="true"
-        className="absolute inset-0 text-sky-800/90 dark:text-sky-200"
-        starsCount={100}
+        className="absolute inset-0 text-[#3E3E75]/90 dark:text-[#C4C4E8]"
+        starsCount={70}
         starsSize={2.5}
         starsOpacity={0.8}
         glowIntensity={18}
@@ -63,7 +63,7 @@ export function HomeJourneySection() {
             {PILLARS.map((pillar, index) => (
               <li key={pillar.index}>
                 <div className="flex items-start gap-4 py-4 sm:gap-5 sm:py-5">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-sky-700/20 bg-background/80 text-xs font-semibold tracking-wide text-sky-800 dark:border-sky-300/25 dark:text-sky-300 sm:size-10 sm:text-sm">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[#3E3E75]/20 bg-background/80 text-xs font-semibold tracking-wide text-[#3E3E75] dark:border-[#C4C4E8]/25 dark:text-[#C4C4E8] sm:size-10 sm:text-sm">
                     {pillar.index}
                   </div>
                   <div className="min-w-0 flex-1">
