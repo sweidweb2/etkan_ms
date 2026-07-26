@@ -30,16 +30,6 @@ export function TypewriterPoint({
   );
 
   useEffect(() => {
-    if (startFilled) {
-      setDisplayed(text);
-      setPhase("holding");
-      return;
-    }
-    setDisplayed("");
-    setPhase("typing");
-  }, [text, startFilled]);
-
-  useEffect(() => {
     if (!text) return;
 
     if (phase === "typing") {
@@ -60,8 +50,8 @@ export function TypewriterPoint({
 
     if (phase === "deleting") {
       if (displayed.length === 0) {
-        setPhase("typing");
-        return;
+        const timer = window.setTimeout(() => setPhase("typing"), 0);
+        return () => window.clearTimeout(timer);
       }
       const timer = window.setTimeout(() => {
         setDisplayed(text.slice(0, displayed.length - 1));

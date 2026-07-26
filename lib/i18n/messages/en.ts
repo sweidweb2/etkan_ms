@@ -82,7 +82,7 @@ export const en = {
   "about.image.alt":
     "Illustration of a collaborative tech team coding, building robotics, and developing ideas",
   "about.hero.eyebrow": "About Etkan",
-  "about.hero.title": "Etkan builds people—and real technology",
+  "about.hero.title": "Etkan builds people and real technology",
   "about.hero.lead":
     "A productive learning path shaped by workshops, projects, and industrial practice.",
   "about.hero.chip.course": "Course",
@@ -143,6 +143,41 @@ export const en = {
   "courseLogos.eyebrow": "What we teach",
   "courseLogos.title": "Courses across code, hardware, and making",
   "courseLogos.ariaLabel": "Etkan course topics",
+
+  "projects.eyebrow": "Build",
+  "projects.title": "Real technology from Etkan teams",
+  "projects.lead":
+    "Student and workshop projects that move from idea to working systems—hardware, software, and everything in between.",
+  "projects.section.students.title": "Student projects",
+  "projects.section.students.lead":
+    "Builds created by Etkan students along the learning path.",
+  "projects.section.teachers.title": "Teacher projects",
+  "projects.section.teachers.lead":
+    "Products and platforms built by Etkan teachers.",
+  "projects.section.etkan.title": "Etkan projects",
+  "projects.section.etkan.lead":
+    "Initiatives and systems developed under the Etkan umbrella.",
+  "projects.section.empty": "Projects in this section will appear soon.",
+  "projects.card.open": "Visit project",
+  "projects.filterLabel": "Filter projects by category",
+  "projects.filter.all": "All",
+  "projects.filter.webApp": "Web apps",
+  "projects.filter.mobileApps": "Mobile apps",
+  "projects.teachers.tap2eat.title": "Tap2Eat",
+  "projects.teachers.tap2eat.body":
+    "A restaurants directory at tap2eat.food—discover places to eat, browse venues, and explore food spots in one place.",
+  "projects.teachers.tap2eat.imageAlt":
+    "Restaurant interior representing the Tap2Eat food directory",
+  "projects.teachers.3dbey.title": "3DBey",
+  "projects.teachers.3dbey.body":
+    "A 3D printing ecommerce store at 3dbey.com—browse and order printed parts and products online.",
+  "projects.teachers.3dbey.imageAlt":
+    "3D printer producing a prototype part for the 3DBey store",
+  "projects.teachers.etkanMs.title": "Etkan MS",
+  "projects.teachers.etkanMs.body":
+    "This school management system—administration, students, and daily school operations in one platform.",
+  "projects.teachers.etkanMs.imageAlt":
+    "Analytics dashboard representing the Etkan management system",
 
   "gallery.eyebrow": "Moments",
   "gallery.title": "Workshop life in frames",

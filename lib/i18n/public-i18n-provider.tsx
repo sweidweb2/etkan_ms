@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  startTransition,
   type ReactNode,
 } from "react";
 import { getDir, type Locale, type TextDirection } from "@/lib/i18n/locales";
@@ -40,12 +41,11 @@ export function PublicI18nProvider({
 
   useEffect(() => {
     const fromCookie = readPublicLocaleCookie();
-    if (fromCookie !== locale) {
+    if (fromCookie === initialLocale) return;
+    startTransition(() => {
       setLocale(fromCookie);
-    }
-    // Sync once on mount so static SSR can hydrate from the cookie.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only cookie sync
-  }, []);
+    });
+  }, [initialLocale]);
 
   const messages = useMemo(() => getMessages(locale), [locale]);
   const dir = getDir(locale);

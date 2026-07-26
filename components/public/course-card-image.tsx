@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 type CourseCardImageProps = {
@@ -17,11 +17,8 @@ export function CourseCardImage({
   className,
   priority = false,
 }: CourseCardImageProps) {
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    setIsLoaded(false);
-  }, [src]);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const isLoaded = loadedSrc === src;
 
   return (
     <div
@@ -53,7 +50,7 @@ export function CourseCardImage({
           isLoaded ? "opacity-100" : "opacity-0"
         )}
         sizes="(max-width: 640px) 100vw, 280px"
-        onLoad={() => setIsLoaded(true)}
+        onLoad={() => setLoadedSrc(src)}
       />
     </div>
   );

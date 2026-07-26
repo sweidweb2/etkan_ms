@@ -284,6 +284,8 @@ function GravityStarsBackground({
     [dpr, glowIntensity, readColor],
   );
 
+  const animateRef = React.useRef<() => void>(() => {});
+
   const animate = React.useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -291,8 +293,12 @@ function GravityStarsBackground({
     if (!ctx) return;
     updateStars();
     drawStars(ctx);
-    animRef.current = requestAnimationFrame(animate);
+    animRef.current = requestAnimationFrame(() => animateRef.current());
   }, [updateStars, drawStars]);
+
+  React.useEffect(() => {
+    animateRef.current = animate;
+  }, [animate]);
 
   React.useEffect(() => {
     resizeCanvas();

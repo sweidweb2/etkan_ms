@@ -100,8 +100,15 @@ export default function LineSidebar({
   const activeIndex =
     controlledActive !== undefined ? controlledActive : uncontrolledActive;
 
-  activeRef.current = activeIndex;
-  smoothingRef.current = smoothing;
+  useEffect(() => {
+    activeRef.current = activeIndex;
+  }, [activeIndex]);
+
+  useEffect(() => {
+    smoothingRef.current = smoothing;
+  }, [smoothing]);
+
+  const runFrameRef = useRef<(now: number) => void>(() => {});
 
   const runFrame = useCallback((now: number) => {
     const dt = Math.min((now - lastRef.current) / 1000, 0.05);
@@ -127,14 +134,20 @@ export default function LineSidebar({
       if (!settled) moving = true;
     }
 
-    rafRef.current = moving ? requestAnimationFrame(runFrame) : null;
+    rafRef.current = moving
+      ? requestAnimationFrame((time) => runFrameRef.current(time))
+      : null;
   }, []);
+
+  useEffect(() => {
+    runFrameRef.current = runFrame;
+  }, [runFrame]);
 
   const startLoop = useCallback(() => {
     if (rafRef.current != null) return;
     lastRef.current = performance.now();
-    rafRef.current = requestAnimationFrame(runFrame);
-  }, [runFrame]);
+    rafRef.current = requestAnimationFrame((time) => runFrameRef.current(time));
+  }, []);
 
   const handlePointerMove = useCallback(
     (e: ReactPointerEvent<HTMLUListElement>) => {

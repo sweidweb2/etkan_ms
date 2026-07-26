@@ -493,6 +493,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                     <p className="min-h-[2.75lh] text-xl leading-snug sm:text-2xl lg:min-h-[3.3lh] lg:text-[1.7rem] lg:leading-snug">
                       {isActive ? (
                         <TypewriterPoint
+                          key={t(item.pointTitleKey)}
                           text={t(item.pointTitleKey)}
                           holdMs={5000}
                           startFilled

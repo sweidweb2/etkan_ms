@@ -83,7 +83,7 @@ export const ar = {
   "about.image.alt":
     "رسم توضيحي لفريق تقني متعاون يعمل على البرمجة والروبوتات وتطوير الأفكار",
   "about.hero.eyebrow": "عن إتقان",
-  "about.hero.title": "إتقان تبني الإنسان—وتقنية حقيقية",
+  "about.hero.title": "إتقان تبني الإنسان وتقنية حقيقية",
   "about.hero.lead":
     "مسار تعلّم منتج يتشكّل عبر الورش والمشاريع والممارسة الصناعية.",
   "about.hero.chip.course": "دورة",
@@ -144,6 +144,41 @@ export const ar = {
   "courseLogos.eyebrow": "ماذا نعلّم",
   "courseLogos.title": "دورات عبر البرمجة والعتاد والصناعة",
   "courseLogos.ariaLabel": "مواضيع دورات إتقان",
+
+  "projects.eyebrow": "نبني",
+  "projects.title": "تقنية حقيقية من فرق إتقان",
+  "projects.lead":
+    "مشاريع طلاب وورش تنتقل من الفكرة إلى أنظمة تعمل—عتاد وبرمجيات وكل ما بينهما.",
+  "projects.section.students.title": "مشاريع الطلاب",
+  "projects.section.students.lead":
+    "أعمال يبنيها طلاب إتقان على امتداد مسار التعلم.",
+  "projects.section.teachers.title": "مشاريع المعلمين",
+  "projects.section.teachers.lead":
+    "منتجات ومنصات بناها معلمو إتقان.",
+  "projects.section.etkan.title": "مشاريع إتقان",
+  "projects.section.etkan.lead":
+    "مبادرات وأنظمة طُوّرت تحت مظلة إتقان.",
+  "projects.section.empty": "ستظهر المشاريع في هذا القسم قريبًا.",
+  "projects.card.open": "زيارة المشروع",
+  "projects.filterLabel": "تصفية المشاريع حسب الفئة",
+  "projects.filter.all": "الكل",
+  "projects.filter.webApp": "تطبيقات ويب",
+  "projects.filter.mobileApps": "تطبيقات جوال",
+  "projects.teachers.tap2eat.title": "Tap2Eat",
+  "projects.teachers.tap2eat.body":
+    "دليل مطاعم على tap2eat.food—اكتشف أماكن الأكل وتصفح المطاعم في مكان واحد.",
+  "projects.teachers.tap2eat.imageAlt":
+    "داخل مطعم يمثل دليل Tap2Eat للمطاعم",
+  "projects.teachers.3dbey.title": "3DBey",
+  "projects.teachers.3dbey.body":
+    "متجر إلكتروني للطباعة ثلاثية الأبعاد على 3dbey.com—تصفح واطلب القطع والمنتجات المطبوعة.",
+  "projects.teachers.3dbey.imageAlt":
+    "طابعة ثلاثية الأبعاد تنتج جزءًا نموذجيًا لمتجر 3DBey",
+  "projects.teachers.etkanMs.title": "Etkan MS",
+  "projects.teachers.etkanMs.body":
+    "نظام إدارة المدارس هذا—الإدارة والطلاب وعمليات المدرسة اليومية في منصة واحدة.",
+  "projects.teachers.etkanMs.imageAlt":
+    "لوحة تحليلات تمثل نظام إدارة إتقان",
 
   "gallery.eyebrow": "لحظات",
   "gallery.title": "حياة الورشة في صور",
