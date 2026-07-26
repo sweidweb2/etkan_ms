@@ -3,7 +3,7 @@ import { ROLES, type RoleValue } from "@/lib/constants/roles";
 export const ROUTES = {
   HOME: "/",
   ABOUT: "/about",
-  COURSES: "/courses",
+  CAREERS: "/careers",
   LIFE: "/life",
   LOGIN: "/auth/login",
   SIGNUP: "/auth/signup",

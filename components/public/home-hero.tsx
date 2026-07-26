@@ -1,144 +1,370 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { Lightfall } from "@/components/public/lightfall";
-import { useHydrated } from "@/hooks/use-hydrated";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { TypewriterPoint } from "@/components/public/typewriter-point";
 import { useNavbarDashboardHref } from "@/hooks/use-navbar-dashboard-href";
+import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 
-type HomeHeroCopy = {
-  brandName: string;
-  title: string;
-  subtitle: string;
-  ctaLogin: string;
-  ctaRegister: string;
-  ctaDashboard: string;
+const AUTO_ADVANCE_MS = 10_000;
+
+/** Placeholder course images — replace per card when assets are ready. */
+const PLACEHOLDER_IMAGE = "/public_images/solution-built-1.jpg";
+
+/** Shared grey-blue theme for all slides. */
+const HERO_THEME = {
+  accent: "bg-zinc-400",
+  accentSoft: "bg-slate-400/40",
+  accentMid: "bg-zinc-300/55",
+  patternSquare: "border-zinc-400/35",
+  patternCircle: "border-slate-500/30",
+  cta: "bg-slate-800 text-white hover:bg-slate-900",
+  arrow: "border-border bg-white text-foreground hover:bg-muted",
+  dot: "bg-zinc-300",
+  dotActive: "bg-slate-800",
+  eyebrow: "text-slate-600",
+} as const;
+
+type HeroSlide = {
+  id: string;
+  pointTitleKey: MessageKey;
+  pointDescKey: MessageKey;
+  ctaKey: MessageKey;
+  cards: Array<{
+    titleKey: MessageKey;
+    bodyKey: MessageKey;
+    imageSrc: string;
+  }>;
 };
 
-type HomeHeroProps = {
-  initialDashboardHref: string | null;
-  copy: HomeHeroCopy;
-};
+const SLIDES: HeroSlide[] = [
+  {
+    id: "training",
+    pointTitleKey: "hero.point1.title",
+    pointDescKey: "hero.point1.desc",
+    ctaKey: "hero.slide1.cta",
+    cards: [
+      {
+        titleKey: "hero.slide1.card1.title",
+        bodyKey: "hero.slide1.card1.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+      {
+        titleKey: "hero.slide1.card2.title",
+        bodyKey: "hero.slide1.card2.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+      {
+        titleKey: "hero.slide1.card3.title",
+        bodyKey: "hero.slide1.card3.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+    ],
+  },
+  {
+    id: "planning",
+    pointTitleKey: "hero.point2.title",
+    pointDescKey: "hero.point2.desc",
+    ctaKey: "hero.slide2.cta",
+    cards: [
+      {
+        titleKey: "hero.slide2.card1.title",
+        bodyKey: "hero.slide2.card1.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+      {
+        titleKey: "hero.slide2.card2.title",
+        bodyKey: "hero.slide2.card2.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+      {
+        titleKey: "hero.slide2.card3.title",
+        bodyKey: "hero.slide2.card3.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+    ],
+  },
+  {
+    id: "teamwork",
+    pointTitleKey: "hero.point3.title",
+    pointDescKey: "hero.point3.desc",
+    ctaKey: "hero.slide3.cta",
+    cards: [
+      {
+        titleKey: "hero.slide3.card1.title",
+        bodyKey: "hero.slide3.card1.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+      {
+        titleKey: "hero.slide3.card2.title",
+        bodyKey: "hero.slide3.card2.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+      {
+        titleKey: "hero.slide3.card3.title",
+        bodyKey: "hero.slide3.card3.body",
+        imageSrc: PLACEHOLDER_IMAGE,
+      },
+    ],
+  },
+];
 
-const primaryCtaClassName = cn(
-  "inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-transparent px-4 text-sm font-medium",
-  "bg-white text-[#0A29FF] transition-colors hover:bg-white/90"
-);
-
-const secondaryCtaClassName = cn(
-  "inline-flex h-10 shrink-0 items-center justify-center rounded-lg border px-4 text-sm font-medium",
-  "border-white/40 bg-white/10 text-white backdrop-blur-sm transition-colors",
-  "hover:bg-white/20 hover:text-white"
-);
-
-function HeroBackgroundSkeleton() {
+function HeroAmbientBackground() {
   return (
     <div
-      className="absolute inset-0 overflow-hidden bg-[#0A29FF]"
+      className="pointer-events-none absolute inset-0 overflow-hidden bg-zinc-100"
       aria-hidden="true"
     >
-      <div className="absolute inset-0 animate-pulse bg-[radial-gradient(ellipse_at_top,_#5B7CFF_0%,_#0A29FF_55%,_#0718A8_100%)]" />
-      <div className="absolute inset-x-[8%] top-[12%] h-24 rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute inset-x-[20%] top-[28%] h-40 rounded-full bg-[#A6C8FF]/20 blur-3xl" />
-      <div className="absolute start-[12%] top-[42%] h-3 w-28 animate-pulse rounded-full bg-white/20" />
-      <div className="absolute start-[18%] top-[52%] h-3 w-44 animate-pulse rounded-full bg-white/15 [animation-delay:120ms]" />
-      <div className="absolute start-[15%] top-[62%] h-3 w-36 animate-pulse rounded-full bg-white/10 [animation-delay:240ms]" />
-      <div className="absolute end-[16%] top-[36%] size-24 animate-pulse rounded-full bg-[#FF9FFC]/15 blur-2xl" />
-      <div className="absolute end-[22%] top-[58%] h-20 w-32 animate-pulse rounded-2xl bg-white/10 [animation-delay:180ms]" />
+      <div className="absolute inset-0 bg-zinc-50/80" />
+      <motion.div
+        className={cn(
+          "absolute -top-24 -right-20 size-[22rem] rounded-full blur-3xl",
+          HERO_THEME.accent
+        )}
+        animate={{ x: [0, 18, -8, 0], y: [0, 12, -6, 0] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+        style={{ opacity: 0.2 }}
+      />
+      <motion.div
+        className={cn(
+          "absolute -bottom-28 -left-24 size-[24rem] rounded-full blur-3xl",
+          HERO_THEME.accentSoft
+        )}
+        animate={{ x: [0, -14, 10, 0], y: [0, -10, 8, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+        style={{ opacity: 0.4 }}
+      />
+      <motion.div
+        className={cn(
+          "absolute top-[38%] -left-10 size-40 rotate-12 rounded-[1.5rem] blur-2xl",
+          HERO_THEME.accentMid
+        )}
+        animate={{ rotate: [12, 22, 8, 12], y: [0, -16, 8, 0] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className={cn(
+          "absolute right-[12%] bottom-[18%] size-28 rounded-full blur-xl",
+          HERO_THEME.accent
+        )}
+        animate={{ scale: [1, 1.15, 0.95, 1], x: [0, 10, -6, 0] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        style={{ opacity: 0.16 }}
+      />
+      <motion.div
+        className={cn(
+          "absolute top-[18%] left-[28%] size-16 rounded-lg border-2 opacity-30",
+          HERO_THEME.patternSquare
+        )}
+        animate={{ rotate: [0, 12, -6, 0], y: [0, -8, 4, 0] }}
+        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className={cn(
+          "absolute right-[30%] top-[55%] size-10 rounded-full border opacity-25",
+          HERO_THEME.patternCircle
+        )}
+        animate={{ y: [0, 10, -4, 0], x: [0, -6, 4, 0] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+      />
     </div>
   );
 }
 
-export function HomeHero({ initialDashboardHref, copy }: HomeHeroProps) {
-  const mounted = useHydrated();
+type HomeHeroProps = {
+  initialDashboardHref: string | null;
+};
+
+export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
+  const { t, dir } = usePublicI18n();
   const dashboardHref = useNavbarDashboardHref(initialDashboardHref);
-  const [isBgReady, setIsBgReady] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const slide = SLIDES[index] ?? SLIDES[0];
+  const isRtl = dir === "rtl";
+
+  const goTo = (nextIndex: number, dirDelta: number) => {
+    const normalized = (nextIndex + SLIDES.length) % SLIDES.length;
+    setDirection(dirDelta);
+    setIndex(normalized);
+  };
+
+  const goPrev = () => goTo(index - 1, -1);
+  const goNext = () => goTo(index + 1, 1);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = window.setInterval(() => {
+      setDirection(1);
+      setIndex((current) => (current + 1) % SLIDES.length);
+    }, AUTO_ADVANCE_MS);
+    return () => window.clearInterval(timer);
+  }, [isPaused, index]);
+
+  const ctaHref =
+    dashboardHref ??
+    (slide.id === "teamwork" ? ROUTES.SIGNUP : ROUTES.CAREERS);
+  const ctaLabel = dashboardHref
+    ? t("hero.ctaDashboard")
+    : t(slide.ctaKey);
+
+  const PrevIcon = isRtl ? ChevronRightIcon : ChevronLeftIcon;
+  const NextIcon = isRtl ? ChevronLeftIcon : ChevronRightIcon;
 
   return (
-    <section className="relative flex min-h-[min(78dvh,42rem)] overflow-hidden bg-[#0A29FF]">
-      <div className="absolute inset-0 z-0">
-        {!isBgReady ? <HeroBackgroundSkeleton /> : null}
-        {mounted ? (
-          <div
-            className={cn(
-              "absolute inset-0 transition-opacity duration-500",
-              isBgReady ? "opacity-100" : "opacity-0"
-            )}
+    <section
+      className="relative overflow-hidden pt-16 sm:pt-20"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      aria-roledescription="carousel"
+      aria-label={t("hero.carouselLabel")}
+    >
+      <HeroAmbientBackground />
+
+      <div className="relative z-10 mx-auto w-full px-10 py-8 sm:px-14 sm:py-10 lg:px-20 xl:px-28">
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={slide.id}
+            custom={direction}
+            initial={{ opacity: 0, x: direction * (isRtl ? -40 : 40) }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: direction * (isRtl ? 40 : -40) }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="grid items-center gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-10 xl:gap-12"
           >
-            <Lightfall
-              colors={["#A6C8FF", "#5227FF", "#FF9FFC"]}
-              backgroundColor="#0A29FF"
-              speed={0.5}
-              streakCount={2}
-              streakWidth={1}
-              streakLength={1}
-              glow={1}
-              density={0.6}
-              twinkle={1}
-              zoom={3}
-              backgroundGlow={0.5}
-              opacity={1}
-              mouseInteraction
-              mouseStrength={0.5}
-              mouseRadius={1}
-              color1="#A6C8FF"
-              color2="#5227FF"
-              color3="#FF9FFC"
-              onReady={() => setIsBgReady(true)}
-            />
+            <div className="min-w-0">
+              <p
+                className={cn(
+                  "text-sm font-semibold tracking-[0.18em] uppercase",
+                  HERO_THEME.eyebrow
+                )}
+                suppressHydrationWarning
+              >
+                {t("brand.name")}
+              </p>
+              <h1
+                className="mt-4 text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-4xl lg:text-[2.65rem] lg:leading-[1.2]"
+                suppressHydrationWarning
+              >
+                {t("hero.topic")}
+              </h1>
+              <p className="mt-6 text-xl leading-snug sm:text-2xl lg:text-[1.7rem] lg:leading-snug">
+                <TypewriterPoint
+                  key={slide.pointTitleKey}
+                  text={t(slide.pointTitleKey)}
+                  holdMs={5000}
+                />
+              </p>
+              <p
+                className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg"
+                suppressHydrationWarning
+              >
+                {t(slide.pointDescKey)}
+              </p>
+              <Link
+                href={ctaHref}
+                suppressHydrationWarning
+                className={cn(
+                  buttonVariants({ size: "lg" }),
+                  "mt-8 border-transparent",
+                  HERO_THEME.cta
+                )}
+              >
+                {ctaLabel}
+              </Link>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {slide.cards.map((card) => (
+                <Card
+                  key={card.titleKey}
+                  size="sm"
+                  className="gap-3 bg-white p-3 shadow-sm ring-foreground/8"
+                >
+                  <div className="relative aspect-[16/10] overflow-hidden rounded-lg bg-muted">
+                    <Image
+                      src={card.imageSrc}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 280px"
+                    />
+                  </div>
+                  <CardHeader className="gap-1 p-0 px-0.5">
+                    <CardTitle suppressHydrationWarning>
+                      {t(card.titleKey)}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 px-0.5 pb-0.5">
+                    <CardDescription
+                      className="line-clamp-3 text-pretty"
+                      suppressHydrationWarning
+                    >
+                      {t(card.bodyKey)}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        <div className="mt-8 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            {SLIDES.map((item, i) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={`${t("hero.carouselLabel")} ${i + 1}`}
+                onClick={() => goTo(i, i > index ? 1 : -1)}
+                className={cn(
+                  "h-2 rounded-full transition-all",
+                  i === index
+                    ? cn("w-6", HERO_THEME.dotActive)
+                    : cn("w-2", HERO_THEME.dot)
+                )}
+              />
+            ))}
           </div>
-        ) : null}
-      </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 py-12 sm:py-16">
-        <p
-          className="text-sm font-semibold tracking-[0.18em] text-sky-100/90 uppercase"
-          suppressHydrationWarning
-        >
-          {copy.brandName}
-        </p>
-        <h1
-          className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-balance text-white sm:text-5xl lg:text-6xl"
-          suppressHydrationWarning
-        >
-          {copy.title}
-        </h1>
-        <p
-          className="mt-4 max-w-2xl text-base text-sky-100/85 text-pretty sm:text-lg"
-          suppressHydrationWarning
-        >
-          {copy.subtitle}
-        </p>
-
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-          {dashboardHref ? (
-            <Link
-              href={dashboardHref}
-              className={primaryCtaClassName}
-              suppressHydrationWarning
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={t("hero.prev")}
+              onClick={goPrev}
+              className={cn("rounded-full", HERO_THEME.arrow)}
             >
-              {copy.ctaDashboard}
-            </Link>
-          ) : (
-            <>
-              <Link
-                href={ROUTES.LOGIN}
-                className={primaryCtaClassName}
-                suppressHydrationWarning
-              >
-                {copy.ctaLogin}
-              </Link>
-              <Link
-                href={ROUTES.SIGNUP}
-                className={secondaryCtaClassName}
-                suppressHydrationWarning
-              >
-                {copy.ctaRegister}
-              </Link>
-            </>
-          )}
+              <PrevIcon />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={t("hero.next")}
+              onClick={goNext}
+              className={cn("rounded-full", HERO_THEME.arrow)}
+            >
+              <NextIcon />
+            </Button>
+          </div>
         </div>
       </div>
     </section>

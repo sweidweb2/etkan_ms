@@ -7,7 +7,7 @@ import { ROUTES } from "@/lib/constants/routes";
 const FOOTER_LINKS = [
   { href: ROUTES.HOME, labelKey: "nav.home" as const },
   { href: ROUTES.ABOUT, labelKey: "nav.about" as const },
-  { href: ROUTES.COURSES, labelKey: "nav.courses" as const },
+  { href: ROUTES.CAREERS, labelKey: "nav.careers" as const },
   { href: ROUTES.LIFE, labelKey: "nav.life" as const },
 ];
 

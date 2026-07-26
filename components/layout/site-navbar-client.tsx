@@ -111,7 +111,7 @@ function PrimaryNavLinks({ className }: { className?: string }) {
     <nav className={cn("flex items-center gap-1", className)} aria-label="Main">
       <BrandNavLink href={ROUTES.HOME}>{t("nav.home")}</BrandNavLink>
       <BrandNavLink href={ROUTES.ABOUT}>{t("nav.about")}</BrandNavLink>
-      <BrandNavLink href={ROUTES.COURSES}>{t("nav.courses")}</BrandNavLink>
+      <BrandNavLink href={ROUTES.CAREERS}>{t("nav.careers")}</BrandNavLink>
       <BrandNavLink href={ROUTES.LIFE}>{t("nav.life")}</BrandNavLink>
     </nav>
   );
@@ -251,10 +251,10 @@ export function SiteNavbarClient({
                     {t("nav.about")}
                   </MobileNavLink>
                   <MobileNavLink
-                    href={ROUTES.COURSES}
+                    href={ROUTES.CAREERS}
                     onNavigate={closeMobileMenu}
                   >
-                    {t("nav.courses")}
+                    {t("nav.careers")}
                   </MobileNavLink>
                   <MobileNavLink
                     href={ROUTES.LIFE}

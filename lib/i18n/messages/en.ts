@@ -4,7 +4,7 @@ export const en = {
 
   "nav.home": "Home",
   "nav.about": "About us",
-  "nav.courses": "Courses",
+  "nav.careers": "Careers",
   "nav.life": "Life",
   "nav.login": "Log in",
   "nav.register": "Register",
@@ -19,6 +19,57 @@ export const en = {
   "hero.ctaLogin": "Log in",
   "hero.ctaRegister": "Create account",
   "hero.ctaDashboard": "Go to dashboard",
+  "hero.carouselLabel": "Home highlights",
+  "hero.prev": "Previous slide",
+  "hero.next": "Next slide",
+
+  "hero.topic": "Etkan is a productive educational learning path",
+
+  "hero.point1.title":
+    "Hands-on training and comprehensive specialized workshops",
+  "hero.point1.desc":
+    "Turn concepts into skill through practical labs and focused workshop practice.",
+
+  "hero.point2.title": "Project planning and delivery",
+  "hero.point2.desc":
+    "Move from idea to execution—plan carefully and carry work through to completion.",
+
+  "hero.point3.title": "Cross-disciplinary teamwork",
+  "hero.point3.desc":
+    "Collaborate across specialties so the team learns to build together, not alone.",
+
+  "hero.slide1.cta": "Explore careers",
+  "hero.slide1.card1.title": "Applied software",
+  "hero.slide1.card1.body":
+    "Core programming and systems practice inside collaborative delivery.",
+  "hero.slide1.card2.title": "Web products",
+  "hero.slide1.card2.body":
+    "Ship usable interfaces with teammates across design and engineering.",
+  "hero.slide1.card3.title": "Systems practice",
+  "hero.slide1.card3.body":
+    "Build reliable foundations through guided labs and real delivery cycles.",
+
+  "hero.slide2.cta": "See programs",
+  "hero.slide2.card1.title": "Embedded systems",
+  "hero.slide2.card1.body":
+    "Hands-on electronics and control systems in specialized workshops.",
+  "hero.slide2.card2.title": "Robotics labs",
+  "hero.slide2.card2.body":
+    "Prototype, iterate, and test physical systems as a cross-skilled team.",
+  "hero.slide2.card3.title": "Workshop craft",
+  "hero.slide2.card3.body":
+    "Practice industrial habits—measure, assemble, debug, and refine.",
+
+  "hero.slide3.cta": "Join Etkan",
+  "hero.slide3.card1.title": "Project delivery",
+  "hero.slide3.card1.body":
+    "Plan milestones and finish with a complete, usable technology product.",
+  "hero.slide3.card2.title": "Team leadership",
+  "hero.slide3.card2.body":
+    "Coordinate specialties and learn to build together, not in isolation.",
+  "hero.slide3.card3.title": "Product release",
+  "hero.slide3.card3.body":
+    "Ship something people can use—not only a classroom exercise.",
 
   "about.eyebrow": "Our model",
   "about.title": "Learning that builds people—and real technology",
