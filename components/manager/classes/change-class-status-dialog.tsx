@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
@@ -60,6 +61,8 @@ export function ChangeClassStatusDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
 
@@ -119,8 +122,8 @@ export function ChangeClassStatusDialog({
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Change class status</DialogTitle>
           <DialogDescription>
@@ -178,7 +181,7 @@ export function ChangeClassStatusDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            disabled={isPending} onClick={() => handleOpenChange(false)}
             disabled={isPending}
           >
             Cancel

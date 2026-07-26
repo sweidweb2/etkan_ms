@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
@@ -120,17 +121,15 @@ export function EditStudentTaskSheet({
         },
   });
 
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && isPending) {
-      return;
-    }
+  const pendingAwareOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
+  function handleOpenChange(nextOpen: boolean) {
     if (nextOpen && studentTask) {
       setGradedAtPreview(toDatetimeLocalValue(new Date()));
       reset(getStudentTaskFormDefaults(studentTask));
     }
 
-    onOpenChange(nextOpen);
+    pendingAwareOpenChange(nextOpen);
   }
 
   const selectedStatus = watch("status");
@@ -201,7 +200,7 @@ export function EditStudentTaskSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md">
+      <SheetContent side="right" className="w-full sm:max-w-md" showCloseButton={!isPending}>
         <SheetHeader>
           <SheetTitle>{studentTask.full_name}</SheetTitle>
           <SheetDescription>

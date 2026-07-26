@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   updateFinalExamSchema,
@@ -63,6 +64,8 @@ export function EditFinalExamDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
 
@@ -132,8 +135,8 @@ export function EditFinalExamDialog({
     errors.max_grade?.message ?? state.fieldErrors?.max_grade?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Edit final exam</DialogTitle>
           <DialogDescription>
@@ -223,7 +226,7 @@ export function EditFinalExamDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            disabled={isPending} onClick={() => handleOpenChange(false)}
             disabled={isPending}
           >
             Cancel

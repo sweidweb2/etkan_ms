@@ -144,3 +144,20 @@ export async function updateSessionSettings(
 export async function listSessionIdsByClassId(client: Supabase, classId: string) {
   return client.from("sessions").select("id, nb_order, topic").eq("class_id", classId);
 }
+
+export async function updateSessionNbOrder(
+  client: Supabase,
+  id: string,
+  nb_order: number
+) {
+  return client
+    .from("sessions")
+    .update({ nb_order })
+    .eq("id", id)
+    .select(SESSION_COLUMNS)
+    .single();
+}
+
+export async function deleteSessionById(client: Supabase, id: string) {
+  return client.from("sessions").delete().eq("id", id);
+}

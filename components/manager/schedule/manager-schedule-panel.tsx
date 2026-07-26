@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import type {
   DeleteWeeklyScheduleSlotActionState,
   ManagerWeeklyScheduleClassOption,
@@ -189,6 +190,15 @@ export function ManagerSchedulePanel({
     handleScheduleChanged();
   });
 
+  const handleDeleteOpenChange = usePendingAwareOpenChange(
+    isDeleteActionPending,
+    (nextOpen) => {
+      if (!nextOpen) {
+        setDeleteTarget(null);
+      }
+    }
+  );
+
   function openSession(session: ManagerWeeklyScheduleSession) {
     setSelectedSession(session);
     setOpen(true);
@@ -239,13 +249,9 @@ export function ManagerSchedulePanel({
 
       <Dialog
         open={deleteTarget !== null}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) {
-            setDeleteTarget(null);
-          }
-        }}
+        onOpenChange={handleDeleteOpenChange}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" showCloseButton={!isDeleteActionPending}>
           <DialogHeader>
             <DialogTitle>Delete schedule slot</DialogTitle>
             <DialogDescription>
@@ -257,7 +263,7 @@ export function ManagerSchedulePanel({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setDeleteTarget(null)}
+              onClick={() => handleDeleteOpenChange(false)}
               disabled={isDeleteActionPending}
             >
               Cancel

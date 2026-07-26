@@ -32,6 +32,7 @@ import {
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -215,6 +216,15 @@ export function ManageNotificationsPanel({
     handleNotificationsChanged();
   });
 
+  const handleDeleteOpenChange = usePendingAwareOpenChange(
+    isDeleteActionPending,
+    (nextOpen) => {
+      if (!nextOpen) {
+        setDeleteTarget(null);
+      }
+    }
+  );
+
   const stats = useMemo(
     () => ({
       total: notifications.length,
@@ -366,13 +376,9 @@ export function ManageNotificationsPanel({
 
       <Dialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-          }
-        }}
+        onOpenChange={handleDeleteOpenChange}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" showCloseButton={!isDeleteActionPending}>
           <DialogHeader>
             <DialogTitle>Delete notification</DialogTitle>
             <DialogDescription>
@@ -384,7 +390,7 @@ export function ManageNotificationsPanel({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setDeleteTarget(null)}
+              onClick={() => handleDeleteOpenChange(false)}
               disabled={isDeleteActionPending}
             >
               Cancel

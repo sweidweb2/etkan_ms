@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
@@ -64,6 +65,8 @@ export function EditClassDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
 
@@ -163,8 +166,8 @@ export function EditClassDialog({
   const semesterError = state.fieldErrors?.semester_id?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Edit class</DialogTitle>
           <DialogDescription>
@@ -311,7 +314,7 @@ export function EditClassDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            disabled={isPending} onClick={() => handleOpenChange(false)}
             disabled={isPending}
           >
             Cancel

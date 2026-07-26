@@ -1,6 +1,6 @@
 export const SUBJECT_CARD_LIMITS = {
-  name: 32,
-  link: 24,
+  name: 24,
+  link: 16,
 } as const;
 
 export const CLASS_CARD_LIMITS = {

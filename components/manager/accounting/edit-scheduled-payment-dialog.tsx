@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_SCHEDULED_PAYMENT_STATUS_LABELS } from "@/lib/constants/manager-scheduled-payment-display";
 import {
@@ -63,6 +64,8 @@ export function EditScheduledPaymentDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
 
@@ -140,8 +143,8 @@ export function EditScheduledPaymentDialog({
   const noteError = errors.note?.message ?? state.fieldErrors?.note?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Edit scheduled payment</DialogTitle>
           <DialogDescription>
@@ -251,7 +254,7 @@ export function EditScheduledPaymentDialog({
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" disabled={isPending} onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button

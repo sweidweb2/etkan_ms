@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
 import {
   getManagerClassDetailRoute,
   getManagerClassSessionDetailRoute,
   getManagerClassSessionTaskDetailRoute,
 } from "@/lib/constants/routes";
+import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddStudentToClassFormData } from "@/lib/validators/manager/add-student-to-class";
 import {
@@ -43,6 +45,7 @@ import {
 } from "@/services/class.service";
 import {
   createSessionTaskForManager,
+  deleteClassSessionForManager,
   updateAttendeeForManager,
   updateClassSessionForManager,
   updateSessionSettingsForManager,
@@ -63,6 +66,7 @@ import type {
 } from "@/types/manager-class-detail";
 import type {
   CreateSessionTaskActionState,
+  DeleteClassSessionActionState,
   UpdateAttendeeActionState,
   UpdateClassSessionActionState,
   UpdateSessionSettingsActionState,
@@ -620,6 +624,49 @@ export async function updateClassSessionAction(
     message: result.message,
     session: result.session,
   };
+}
+
+export async function deleteClassSessionAction(
+  _prevState: DeleteClassSessionActionState,
+  formData: FormData
+): Promise<DeleteClassSessionActionState> {
+  const [actorRole, actor] = await Promise.all([
+    getSessionRole(),
+    getSessionAuditActor(),
+  ]);
+
+  const sessionId = String(formData.get("session_id") ?? "").trim();
+
+  if (!sessionId) {
+    return {
+      success: false,
+      error: "Session not found.",
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteClassSessionForManager(
+    adminClient,
+    actorRole,
+    actor,
+    sessionId
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  revalidatePath(getManagerClassDetailRoute(result.classId));
+  redirect(
+    appendQueryParam(
+      getManagerClassDetailRoute(result.classId),
+      "toast",
+      "session_deleted"
+    )
+  );
 }
 
 export async function createSessionTaskAction(

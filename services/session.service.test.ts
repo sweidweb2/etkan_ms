@@ -21,6 +21,7 @@ import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
   createSessionTaskForManager,
+  deleteClassSessionForManager,
   getSessionDetailForManager,
   seedLateJoinAttendeesForStudent,
   seedLateJoinStudentTasksForStudent,
@@ -1429,5 +1430,219 @@ describe("seedLateJoinStudentTasksForStudent", () => {
 
     expect(studentTaskRepository.listStudentTasksByTaskIds).not.toHaveBeenCalled();
     expect(studentTaskRepository.createStudentTasks).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteClassSessionForManager", () => {
+  const sessionTwoId = "c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3";
+  const sessionThreeId = "d4d4d4d4-d4d4-4d4d-8d4d-d4d4d4d4d4d4";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
+  });
+
+  it("rejects non-managers", async () => {
+    const result = await deleteClassSessionForManager(
+      adminClient,
+      ROLES.TEACHER,
+      actor,
+      sessionId
+    );
+
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+    expect(sessionRepository.deleteSessionById).not.toHaveBeenCalled();
+  });
+
+  it("blocks delete when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await deleteClassSessionForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      sessionId
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+    });
+    expect(sessionRepository.deleteSessionById).not.toHaveBeenCalled();
+  });
+
+  it("blocks delete when session difficulty is set", async () => {
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: {
+        ...sessionRecord,
+        group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
+      },
+      error: null,
+    } as never);
+
+    const result = await deleteClassSessionForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      sessionId
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Clear the session difficulty before deleting.",
+    });
+    expect(sessionRepository.deleteSessionById).not.toHaveBeenCalled();
+  });
+
+  it("blocks delete when the session has tasks", async () => {
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionId).mockResolvedValue({
+      data: [{ id: taskId, session_id: sessionId, title: "Homework" }],
+      error: null,
+    } as never);
+
+    const result = await deleteClassSessionForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      sessionId
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Delete or reassign session tasks before deleting the session.",
+    });
+    expect(sessionRepository.deleteSessionById).not.toHaveBeenCalled();
+  });
+
+  it("deletes the session, renumbers remaining sessions, and audits", async () => {
+    const sessionOneId = "e5e5e5e5-e5e5-4e5e-8e5e-e5e5e5e5e5e5";
+
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: { ...sessionRecord, nb_order: 2 },
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionId).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.deleteSessionById).mockResolvedValue({
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.listSessionsByClassId).mockResolvedValue({
+      data: [
+        { ...sessionRecord, id: sessionOneId, nb_order: 1, topic: "Intro" },
+        {
+          ...sessionRecord,
+          id: sessionThreeId,
+          nb_order: 3,
+          topic: "Advanced",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.updateSessionNbOrder).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await deleteClassSessionForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      sessionId
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "Session deleted.",
+      classId,
+    });
+    expect(sessionRepository.deleteSessionById).toHaveBeenCalledWith(
+      adminClient,
+      sessionId
+    );
+    expect(sessionRepository.updateSessionNbOrder).toHaveBeenCalledTimes(1);
+    expect(sessionRepository.updateSessionNbOrder).toHaveBeenCalledWith(
+      adminClient,
+      sessionThreeId,
+      2
+    );
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "delete",
+        severity: "critical",
+        table_name: "sessions",
+        record_id: sessionId,
+      })
+    );
+  });
+
+  it("renumbers later sessions when the first session is deleted", async () => {
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTasksBySessionId).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.deleteSessionById).mockResolvedValue({
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.listSessionsByClassId).mockResolvedValue({
+      data: [
+        {
+          ...sessionRecord,
+          id: sessionTwoId,
+          nb_order: 2,
+          topic: "Sensors",
+        },
+        {
+          ...sessionRecord,
+          id: sessionThreeId,
+          nb_order: 3,
+          topic: "Advanced",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.updateSessionNbOrder).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+
+    const result = await deleteClassSessionForManager(
+      adminClient,
+      ROLES.MANAGER,
+      actor,
+      sessionId
+    );
+
+    expect(result.success).toBe(true);
+    expect(sessionRepository.updateSessionNbOrder).toHaveBeenNthCalledWith(
+      1,
+      adminClient,
+      sessionTwoId,
+      1
+    );
+    expect(sessionRepository.updateSessionNbOrder).toHaveBeenNthCalledWith(
+      2,
+      adminClient,
+      sessionThreeId,
+      2
+    );
   });
 });

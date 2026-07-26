@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   createClassSessionSchema,
@@ -59,6 +60,8 @@ export function AddClassSessionDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
 
@@ -131,8 +134,8 @@ export function AddClassSessionDialog({
   const endsError = errors.ends_at?.message ?? state.fieldErrors?.ends_at?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Add session</DialogTitle>
           <DialogDescription>
@@ -204,7 +207,7 @@ export function AddClassSessionDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            disabled={isPending} onClick={() => handleOpenChange(false)}
             disabled={isPending}
           >
             Cancel

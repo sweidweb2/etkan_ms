@@ -884,6 +884,154 @@ export async function updateClassSessionForManager(
   };
 }
 
+export type DeleteClassSessionResult =
+  | {
+      success: true;
+      message: string;
+      classId: string;
+    }
+  | MutationFailure;
+
+export async function deleteClassSessionForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  actor: AuditActor,
+  sessionId: string
+): Promise<DeleteClassSessionResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  if (!isUuid(sessionId)) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const existing = await sessionRepository.findSessionById(
+    adminClient,
+    sessionId
+  );
+
+  if (existing.error) {
+    return {
+      success: false,
+      error: "Unable to delete session. Please try again.",
+    };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const session = existing.data;
+
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    session.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
+  }
+
+  if (session.group_grade_level) {
+    return {
+      success: false,
+      error: "Clear the session difficulty before deleting.",
+    };
+  }
+
+  const tasksResult = await taskRepository.listTasksBySessionId(
+    adminClient,
+    sessionId
+  );
+
+  if (tasksResult.error) {
+    return {
+      success: false,
+      error: "Unable to delete session. Please try again.",
+    };
+  }
+
+  if ((tasksResult.data ?? []).length > 0) {
+    return {
+      success: false,
+      error: "Delete or reassign session tasks before deleting the session.",
+    };
+  }
+
+  const { error: deleteError } = await sessionRepository.deleteSessionById(
+    adminClient,
+    sessionId
+  );
+
+  if (deleteError) {
+    return {
+      success: false,
+      error: "Unable to delete session. Please try again.",
+    };
+  }
+
+  const remainingResult = await sessionRepository.listSessionsByClassId(
+    adminClient,
+    session.class_id
+  );
+
+  if (remainingResult.error) {
+    return {
+      success: false,
+      error: "Session deleted, but unable to renumber remaining sessions.",
+    };
+  }
+
+  const remaining = (remainingResult.data ?? []) as SessionRecord[];
+
+  for (let index = 0; index < remaining.length; index += 1) {
+    const expectedOrder = index + 1;
+    const row = remaining[index];
+
+    if (row.nb_order === expectedOrder) {
+      continue;
+    }
+
+    const { error: renumberError } =
+      await sessionRepository.updateSessionNbOrder(
+        adminClient,
+        row.id,
+        expectedOrder
+      );
+
+    if (renumberError) {
+      return {
+        success: false,
+        error: "Session deleted, but unable to renumber remaining sessions.",
+      };
+    }
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "critical",
+    table_name: "sessions",
+    record_id: sessionId,
+    old_data: {
+      class_id: session.class_id,
+      nb_order: session.nb_order,
+      topic: session.topic,
+      starts_at: session.starts_at,
+      ends_at: session.ends_at,
+      semester_id: session.semester_id,
+      group_grade_level: session.group_grade_level,
+    },
+    metadata: { note: "Class session deleted." },
+  });
+
+  return {
+    success: true,
+    message: "Session deleted.",
+    classId: session.class_id,
+  };
+}
+
 export type CreateSessionTaskResult =
   | {
       success: true;

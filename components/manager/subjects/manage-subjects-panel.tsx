@@ -22,7 +22,17 @@ import {
 } from "@/components/ui/select";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
-const PAGE_SIZE_OPTIONS = [6, 9, 12] as const;
+const PAGE_SIZE = 15;
+
+const CLASS_SORT_MOST = "most";
+const CLASS_SORT_LEAST = "least";
+
+const CLASS_SORT_LABELS = {
+  [CLASS_SORT_MOST]: "Most classes first",
+  [CLASS_SORT_LEAST]: "Least classes first",
+} as const;
+
+type ClassSortValue = keyof typeof CLASS_SORT_LABELS;
 
 function getPageNumbers(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
@@ -70,6 +80,118 @@ function matchesSearch(subject: ManagerSubjectRow, query: string) {
   return haystack.includes(normalizedQuery);
 }
 
+function compareByClassCount(
+  left: ManagerSubjectRow,
+  right: ManagerSubjectRow,
+  sort: ClassSortValue
+) {
+  const classDiff =
+    sort === CLASS_SORT_MOST
+      ? right.class_count - left.class_count
+      : left.class_count - right.class_count;
+
+  if (classDiff !== 0) {
+    return classDiff;
+  }
+
+  return left.name.localeCompare(right.name);
+}
+
+type SubjectsPaginationProps = {
+  position: "top" | "bottom";
+  rangeStart: number;
+  rangeEnd: number;
+  totalCount: number;
+  safeCurrentPage: number;
+  totalPages: number;
+  pageNumbers: Array<number | "ellipsis">;
+  onPageChange: (page: number) => void;
+};
+
+function SubjectsPagination({
+  position,
+  rangeStart,
+  rangeEnd,
+  totalCount,
+  safeCurrentPage,
+  totalPages,
+  pageNumbers,
+  onPageChange,
+}: SubjectsPaginationProps) {
+  const rangeLabel = (
+    <p className="text-sm text-muted-foreground">
+      Showing {rangeStart}–{rangeEnd} of {totalCount}
+    </p>
+  );
+
+  const pageControls = (
+    <div className="flex items-center gap-1">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        disabled={safeCurrentPage <= 1}
+        onClick={() => onPageChange(safeCurrentPage - 1)}
+        aria-label="Previous page"
+      >
+        <ChevronLeftIcon />
+      </Button>
+
+      {pageNumbers.map((page, index) =>
+        page === "ellipsis" ? (
+          <span
+            key={`ellipsis-${index}`}
+            className="px-1 text-sm text-muted-foreground"
+          >
+            …
+          </span>
+        ) : (
+          <Button
+            key={page}
+            type="button"
+            variant={page === safeCurrentPage ? "default" : "outline"}
+            size="icon-sm"
+            className="min-w-7"
+            onClick={() => onPageChange(page)}
+            aria-label={`Page ${page}`}
+            aria-current={page === safeCurrentPage ? "page" : undefined}
+          >
+            {page}
+          </Button>
+        )
+      )}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        disabled={safeCurrentPage >= totalPages}
+        onClick={() => onPageChange(safeCurrentPage + 1)}
+        aria-label="Next page"
+      >
+        <ChevronRightIcon />
+      </Button>
+    </div>
+  );
+
+  if (position === "top") {
+    return (
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="min-w-0 justify-self-start">{rangeLabel}</div>
+        <div className="justify-self-center">{pageControls}</div>
+        <div aria-hidden="true" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-2 border-t pt-4">
+      {rangeLabel}
+      {pageControls}
+    </div>
+  );
+}
+
 type ManageSubjectsPanelProps = {
   initialSubjects: ManagerSubjectRow[];
 };
@@ -81,39 +203,39 @@ export function ManageSubjectsPanel({
   const subjects = initialSubjects;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    9
-  );
+  const [classSort, setClassSort] = useState<ClassSortValue>(CLASS_SORT_MOST);
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredSubjects = useMemo(() => {
-    return subjects.filter((subject) => matchesSearch(subject, searchQuery));
-  }, [subjects, searchQuery]);
+    return subjects
+      .filter((subject) => matchesSearch(subject, searchQuery))
+      .sort((left, right) => compareByClassCount(left, right, classSort));
+  }, [subjects, searchQuery, classSort]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredSubjects.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredSubjects.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedSubjects = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredSubjects.slice(startIndex, startIndex + pageSize);
-  }, [filteredSubjects, pageSize, safeCurrentPage]);
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredSubjects.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredSubjects, safeCurrentPage]);
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredSubjects.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredSubjects.length);
+    filteredSubjects.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredSubjects.length);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1);
   };
 
-  const handlePageSizeChange = (value: string | null) => {
+  const handleClassSortChange = (value: string | null) => {
     if (!value) {
       return;
     }
 
-    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
+    setClassSort(value as ClassSortValue);
     setCurrentPage(1);
   };
 
@@ -121,6 +243,16 @@ export function ManageSubjectsPanel({
     setCurrentPage(1);
     router.refresh();
   };
+
+  const paginationProps = {
+    rangeStart,
+    rangeEnd,
+    totalCount: filteredSubjects.length,
+    safeCurrentPage,
+    totalPages,
+    pageNumbers,
+    onPageChange: setCurrentPage,
+  } satisfies Omit<SubjectsPaginationProps, "position">;
 
   return (
     <div className="flex flex-col gap-6">
@@ -150,15 +282,40 @@ export function ManageSubjectsPanel({
           <CardTitle>Subjects</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
-          <div className="relative max-w-md">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => handleSearchChange(event.target.value)}
-              placeholder="Search subject name or links…"
-              className="pl-8"
-              aria-label="Search subjects"
-            />
+          <SubjectsPagination position="top" {...paginationProps} />
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                placeholder="Search subject name or links…"
+                className="pl-8"
+                aria-label="Search subjects"
+              />
+            </div>
+            <Select value={classSort} onValueChange={handleClassSortChange}>
+              <SelectTrigger
+                className="w-full sm:w-52"
+                aria-label="Sort by class count"
+              >
+                <SelectValue placeholder="Sort by classes">
+                  {(value) =>
+                    CLASS_SORT_LABELS[value as ClassSortValue] ??
+                    "Sort by classes"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value={CLASS_SORT_MOST}>
+                  {CLASS_SORT_LABELS[CLASS_SORT_MOST]}
+                </SelectItem>
+                <SelectItem value={CLASS_SORT_LEAST}>
+                  {CLASS_SORT_LABELS[CLASS_SORT_LEAST]}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {paginatedSubjects.length === 0 ? (
@@ -166,91 +323,14 @@ export function ManageSubjectsPanel({
               No subjects match your search.
             </p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {paginatedSubjects.map((subject) => (
                 <SubjectCard key={subject.id} subject={subject} />
               ))}
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Showing {rangeStart}–{rangeEnd} of {filteredSubjects.length}
-              </span>
-              <span aria-hidden="true">·</span>
-              <div className="flex items-center gap-2">
-                <span>Cards</span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={handlePageSizeChange}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-16"
-                    aria-label="Cards per page"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={String(option)}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={safeCurrentPage <= 1}
-                onClick={() => setCurrentPage((page) => page - 1)}
-                aria-label="Previous page"
-              >
-                <ChevronLeftIcon />
-              </Button>
-
-              {pageNumbers.map((page, index) =>
-                page === "ellipsis" ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="px-1 text-sm text-muted-foreground"
-                  >
-                    …
-                  </span>
-                ) : (
-                  <Button
-                    key={page}
-                    type="button"
-                    variant={page === safeCurrentPage ? "default" : "outline"}
-                    size="icon-sm"
-                    className="min-w-7"
-                    onClick={() => setCurrentPage(page)}
-                    aria-label={`Page ${page}`}
-                    aria-current={page === safeCurrentPage ? "page" : undefined}
-                  >
-                    {page}
-                  </Button>
-                )
-              )}
-
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={safeCurrentPage >= totalPages}
-                onClick={() => setCurrentPage((page) => page + 1)}
-                aria-label="Next page"
-              >
-                <ChevronRightIcon />
-              </Button>
-            </div>
-          </div>
+          <SubjectsPagination position="bottom" {...paginationProps} />
         </CardContent>
       </Card>
     </div>

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   ACCOUNT_SPECIAL_CASE_STATUS_LABELS,
@@ -67,6 +68,8 @@ export function AddAccountSpecialCaseDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
 
@@ -135,8 +138,8 @@ export function AddAccountSpecialCaseDialog({
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Add special case</DialogTitle>
           <DialogDescription>
@@ -277,7 +280,7 @@ export function AddAccountSpecialCaseDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            disabled={isPending} onClick={() => handleOpenChange(false)}
             disabled={isPending}
           >
             Cancel

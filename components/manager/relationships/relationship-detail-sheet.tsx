@@ -19,6 +19,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import {
@@ -33,12 +34,14 @@ import type {
 const initialState: UpdateRelationshipActionState = {};
 
 type RelationshipDetailFormProps = {
+  open: boolean;
   relationship: ManagerRelationshipRow;
   onOpenChange: (open: boolean) => void;
   onRelationshipUpdated: () => void;
 };
 
 function RelationshipDetailForm({
+  open,
   relationship,
   onOpenChange,
   onRelationshipUpdated,
@@ -49,6 +52,7 @@ function RelationshipDetailForm({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
 
@@ -88,7 +92,7 @@ function RelationshipDetailForm({
   }, [relationship, reset]);
 
   useActionStateSuccess(state, isPending, () => {
-    onOpenChange(false);
+    handleOpenChange(false);
     onRelationshipUpdated();
   });
 
@@ -116,7 +120,8 @@ function RelationshipDetailForm({
     errors.speciality?.message ?? state.fieldErrors?.speciality?.[0];
 
   return (
-    <>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-md" showCloseButton={!isPending}>
       <SheetHeader>
         <SheetTitle>{relationship.name}</SheetTitle>
         <SheetDescription>
@@ -251,7 +256,7 @@ function RelationshipDetailForm({
         <Button
           type="button"
           variant="outline"
-          onClick={() => onOpenChange(false)}
+          onClick={() => handleOpenChange(false)}
           disabled={isPending}
         >
           Cancel
@@ -271,7 +276,8 @@ function RelationshipDetailForm({
           )}
         </Button>
       </SheetFooter>
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -288,18 +294,17 @@ export function RelationshipDetailSheet({
   relationship,
   onRelationshipUpdated,
 }: RelationshipDetailSheetProps) {
+  if (!relationship) {
+    return null;
+  }
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md">
-        {open && relationship ? (
-          <RelationshipDetailForm
-            key={relationship.id}
-            relationship={relationship}
-            onOpenChange={onOpenChange}
-            onRelationshipUpdated={onRelationshipUpdated}
-          />
-        ) : null}
-      </SheetContent>
-    </Sheet>
+    <RelationshipDetailForm
+      key={relationship.id}
+      open={open}
+      relationship={relationship}
+      onOpenChange={onOpenChange}
+      onRelationshipUpdated={onRelationshipUpdated}
+    />
   );
 }

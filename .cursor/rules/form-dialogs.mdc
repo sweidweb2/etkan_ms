@@ -1,0 +1,76 @@
+---
+description: Mutation Dialog/Sheet dismiss rules while forms are pending
+alwaysApply: true
+---
+
+# Form dialogs and sheets
+
+Mutation modals (create/edit/delete Dialog or Sheet with `useActionState`) must not dismiss while a submit is in flight, and must auto-close on success.
+
+## Components and helpers
+
+| Piece | Location |
+|-------|----------|
+| Pending dismiss guard | `@/hooks/use-pending-aware-open-change` → `usePendingAwareOpenChange` |
+| Auto-close on success | `@/hooks/use-action-state-success` → `useActionStateSuccess` |
+| Toasts | `@/hooks/use-action-state-toast` → `useActionStateToast` |
+
+## When
+
+- **Apply** to every mutation Dialog/Sheet and panel delete-confirm dialog that submits via `useActionState` (or equivalent pending flag).
+- **Do not apply** to read-only details dialogs (view payment, log details, etc.).
+- **Do not apply** to inline non-modal panel/auth forms (nothing to close).
+
+## How
+
+```tsx
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+
+const isPending = isActionPending || isTransitionPending;
+const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+
+useActionStateToast(state, isPending);
+useActionStateSuccess(state, isPending, () => {
+  onOpenChange(false);
+});
+
+<Dialog open={open} onOpenChange={handleOpenChange}>
+  <DialogContent showCloseButton={!isPending}>
+    {/* ... */}
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => handleOpenChange(false)}
+      disabled={isPending}
+    >
+      Cancel
+    </Button>
+    <Button type="submit" disabled={isPending}>
+      {isPending ? <InlineSpinner /> : null}
+      Save
+    </Button>
+  </DialogContent>
+</Dialog>
+```
+
+Same pattern for `Sheet` / `SheetContent`.
+
+## Rules
+
+While `isPending`:
+
+- Block Escape, overlay click, X, and Cancel via `usePendingAwareOpenChange`.
+- Hide the header close control: `showCloseButton={!isPending}`.
+- Disable Cancel and submit buttons.
+
+On success: close only through `useActionStateSuccess` (or server `redirect`).
+
+On error: keep the modal open so field/form errors stay visible.
+
+## Do not
+
+- Wire `<Dialog open={open} onOpenChange={onOpenChange}>` on mutation forms — always use the pending-aware handler.
+- Allow dismiss mid-submit via Escape, backdrop, or X.
+- Auto-close on error.

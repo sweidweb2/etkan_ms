@@ -52,6 +52,13 @@ export type UpdateClassSessionActionState = {
   session?: ManagerClassSessionRow;
 };
 
+export type DeleteClassSessionActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  classId?: string;
+};
+
 export type UpdateSessionSettingsActionState = {
   success?: boolean;
   error?: string;

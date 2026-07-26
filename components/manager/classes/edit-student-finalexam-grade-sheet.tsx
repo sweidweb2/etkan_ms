@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
@@ -122,17 +123,15 @@ export function EditStudentFinalExamGradeSheet({
         },
   });
 
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && isPending) {
-      return;
-    }
+  const pendingAwareOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
+  function handleOpenChange(nextOpen: boolean) {
     if (nextOpen && studentGrade) {
       setGradedAtPreview(toDatetimeLocalValue(new Date()));
       reset(getStudentFinalExamFormDefaults(studentGrade));
     }
 
-    onOpenChange(nextOpen);
+    pendingAwareOpenChange(nextOpen);
   }
 
   const selectedStatus = watch("status");

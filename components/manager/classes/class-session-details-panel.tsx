@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { format, formatDistanceStrict } from "date-fns";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, Trash2Icon } from "lucide-react";
+import { deleteClassSessionAction } from "@/app/manager/classes/actions";
 import { EditClassSessionDialog } from "@/components/manager/classes/edit-class-session-dialog";
 import { SessionDetailsActions } from "@/components/manager/classes/session-details-actions";
 import { SessionDetailsTabsSection } from "@/components/manager/classes/session-details-tabs-section";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { PendingFlowChecklist } from "@/components/loaders/pending-flow-checklist";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -24,6 +27,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   SESSION_TIMING_BADGE_CLASSES,
   SESSION_TIMING_LABELS,
 } from "@/lib/constants/manager-class-session-display";
@@ -34,12 +45,16 @@ import {
   getManagerSemesterDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useStagedPendingProgress } from "@/hooks/use-staged-pending-progress";
 import { cn } from "@/lib/utils";
 import {
   getSessionTimingLabel,
   type ManagerClassSessionRow,
 } from "@/types/manager-class-session";
 import type {
+  DeleteClassSessionActionState,
   ManagerSessionAttendeeRow,
   ManagerSessionTaskRow,
 } from "@/types/manager-class-session-detail";
@@ -60,6 +75,27 @@ type ClassSessionDetailsPanelProps = {
   hasComputedGrades?: boolean;
   lockedUserIds?: string[];
 };
+
+const initialDeleteState: DeleteClassSessionActionState = {};
+
+const DELETE_SESSION_FLOW_STEPS = [
+  {
+    id: "group-grade",
+    label: "Checking group grade for this session…",
+  },
+  {
+    id: "attendees",
+    label: "Deleting attendees related to this session…",
+  },
+  {
+    id: "session",
+    label: "Deleting this session…",
+  },
+  {
+    id: "renumber",
+    label: "Renumbering remaining sessions…",
+  },
+] as const;
 
 function DetailField({
   label,
@@ -84,6 +120,30 @@ function DetailField({
   );
 }
 
+function getDeleteBlockedReason({
+  hasComputedGrades,
+  hasGroupGrade,
+  hasTasks,
+}: {
+  hasComputedGrades: boolean;
+  hasGroupGrade: boolean;
+  hasTasks: boolean;
+}): string | undefined {
+  if (hasComputedGrades) {
+    return CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR;
+  }
+
+  if (hasGroupGrade) {
+    return "Clear the session difficulty before deleting.";
+  }
+
+  if (hasTasks) {
+    return "Delete or reassign session tasks before deleting the session.";
+  }
+
+  return undefined;
+}
+
 export function ClassSessionDetailsPanel({
   session: initialSession,
   classRow,
@@ -98,6 +158,23 @@ export function ClassSessionDetailsPanel({
   const [linkedPhase, setLinkedPhase] =
     useState<ManagerSessionPhaseLink | null>(initialLinkedPhase);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isTransitionPending, startTransition] = useTransition();
+  const [deleteState, deleteAction, isDeletePending] = useActionState(
+    deleteClassSessionAction,
+    initialDeleteState
+  );
+  const isDeleteActionPending = isDeletePending || isTransitionPending;
+  const handleDeleteOpenChange = usePendingAwareOpenChange(
+    isDeleteActionPending,
+    setIsDeleteOpen
+  );
+  const deleteFlowActiveIndex = useStagedPendingProgress(
+    isDeleteActionPending,
+    DELETE_SESSION_FLOW_STEPS.length
+  );
+
+  useActionStateToast(deleteState, isDeleteActionPending);
 
   const timingLabel = getSessionTimingLabel(session);
   const timingText = SESSION_TIMING_LABELS[timingLabel];
@@ -114,6 +191,21 @@ export function ClassSessionDetailsPanel({
   );
   const durationText = formatDistanceStrict(startsAt, endsAt);
   const groupGradeLevel = session.group_grade_level;
+  const hasTasks = initialTasks.length > 0;
+  const deleteBlockedReason = getDeleteBlockedReason({
+    hasComputedGrades,
+    hasGroupGrade: groupGradeLevel != null,
+    hasTasks,
+  });
+  const isDeleteDisabled = deleteBlockedReason != null;
+
+  function handleConfirmDelete() {
+    const formData = new FormData();
+    formData.set("session_id", session.id);
+    startTransition(() => {
+      deleteAction(formData);
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,7 +236,7 @@ export function ClassSessionDetailsPanel({
           <CardTitle className="text-xl">
             S{session.nb_order} · {session.topic}
           </CardTitle>
-          <CardAction className="self-center">
+          <CardAction className="flex items-center gap-2 self-center">
             <Button
               type="button"
               disabled={hasComputedGrades}
@@ -157,6 +249,16 @@ export function ClassSessionDetailsPanel({
             >
               <PencilIcon data-icon="inline-start" />
               Edit session
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isDeleteDisabled || isDeleteActionPending}
+              title={deleteBlockedReason}
+              onClick={() => setIsDeleteOpen(true)}
+            >
+              <Trash2Icon data-icon="inline-start" />
+              Delete session
             </Button>
           </CardAction>
         </CardHeader>
@@ -220,6 +322,53 @@ export function ClassSessionDetailsPanel({
         className={classRow.name}
         onSessionUpdated={setSession}
       />
+
+      <Dialog
+        open={isDeleteOpen}
+        onOpenChange={handleDeleteOpenChange}
+      >
+        <DialogContent className="sm:max-w-md" showCloseButton={!isDeleteActionPending}>
+          <DialogHeader>
+            <DialogTitle>Delete session</DialogTitle>
+            <DialogDescription>
+              {isDeleteActionPending
+                ? "Please wait while this session is removed."
+                : `This will permanently delete S${session.nb_order} · ${session.topic} and its attendance records. Remaining sessions will be renumbered. This action cannot be undone.`}
+            </DialogDescription>
+          </DialogHeader>
+          {isDeleteActionPending ? (
+            <PendingFlowChecklist
+              steps={DELETE_SESSION_FLOW_STEPS}
+              activeIndex={deleteFlowActiveIndex}
+            />
+          ) : null}
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleDeleteOpenChange(false)}
+              disabled={isDeleteActionPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleteActionPending}
+            >
+              {isDeleteActionPending ? (
+                <>
+                  <InlineSpinner />
+                  Deleting session
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <SessionDetailsActions
         classId={classRow.id}

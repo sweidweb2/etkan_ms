@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MANAGER_SUBSCRIBED_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-subscribed-semester-display";
 import {
@@ -63,6 +64,8 @@ export function EditSubscribedSemesterDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
   const isPaidLocked = subscription.status === SUBSCRIBED_SEMESTER_STATUSES.PAID;
 
   useActionStateToast(state, isPending);
@@ -119,8 +122,8 @@ export function EditSubscribedSemesterDialog({
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Edit subscribed semester</DialogTitle>
           <DialogDescription>
@@ -208,7 +211,7 @@ export function EditSubscribedSemesterDialog({
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" disabled={isPending} onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button type="submit" form="edit-subscribed-semester-form" disabled={isPending}>

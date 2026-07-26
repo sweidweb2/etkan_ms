@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   PAYMENT_METHOD_LABELS,
@@ -59,6 +60,8 @@ export function EditPaymentDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
   const maxAmount = Math.round((remainingDue + (payment?.amount ?? 0)) * 100) / 100;
 
   useActionStateToast(state, isPending);
@@ -133,8 +136,8 @@ export function EditPaymentDialog({
   const paidAtError = errors.paid_at?.message ?? state.fieldErrors?.paid_at?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Edit payment</DialogTitle>
           <DialogDescription>
@@ -233,7 +236,7 @@ export function EditPaymentDialog({
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" disabled={isPending} onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button
