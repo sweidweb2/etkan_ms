@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { logoutDueToInactivityAction } from "@/app/auth/actions";
+import { logoutDueToInactivityAction } from "@/app/(public)/auth/actions";
 import { SESSION_INACTIVITY_MS } from "@/lib/constants/auth-limits";
 
 const ACTIVITY_EVENTS = [

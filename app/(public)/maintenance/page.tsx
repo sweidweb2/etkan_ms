@@ -1,28 +1,34 @@
+"use client";
+
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
+import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
+import { ROUTES } from "@/lib/constants/routes";
 
 export default function MaintenancePage() {
+  const { t } = usePublicI18n();
+
   return (
-    <div className="flex min-h-[60vh] items-center justify-center p-4">
+    <div className="flex flex-1 items-center justify-center p-4 pt-24">
       <Card className="w-full max-w-lg">
         <CardContent className="flex flex-col gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Maintenance mode
+              {t("maintenance.title")}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              The app is temporarily unavailable. Please try again later.
+              {t("maintenance.description")}
             </p>
           </div>
 
           <div className="text-sm" suppressHydrationWarning>
-            Manager can turn it off here:{" "}
+            {t("maintenance.managerHint")}{" "}
             <Link
               className="underline"
-              href="/manager/settings"
+              href={ROUTES.MANAGER_SETTINGS}
               suppressHydrationWarning
             >
-              Settings
+              {t("maintenance.settingsLink")}
             </Link>
           </div>
         </CardContent>
@@ -30,4 +36,3 @@ export default function MaintenancePage() {
     </div>
   );
 }
-

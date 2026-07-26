@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { LogOut } from "lucide-react";
-import { logoutAction } from "@/app/auth/actions";
+import { logoutAction } from "@/app/(public)/auth/actions";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import {

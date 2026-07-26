@@ -3,14 +3,14 @@
 import { useActionState, useTransition } from "react";
 import { useZodForm } from "@/hooks/use-zod-form";
 import Link from "next/link";
-import { signupAction } from "@/app/auth/signup/actions";
+import { signupAction } from "@/app/(public)/auth/signup/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "@/components/auth/field-label";
 import { PasswordInput } from "@/components/auth/password-input";
-import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import { ROUTES } from "@/lib/constants/routes";
+import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { getLocalIsoDate } from "@/lib/utils/local-iso-date";
 import { signupSchema, type SignupInput } from "@/lib/validators/auth/auth";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -19,6 +19,7 @@ import type { SignupActionState } from "@/types/auth";
 const initialState: SignupActionState = {};
 
 export function SignupForm() {
+  const { t } = usePublicI18n();
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
     signupAction,
@@ -78,14 +79,14 @@ export function SignupForm() {
       <div className="flex flex-col gap-2">
         <FieldLabel
           htmlFor="username"
-          label="Username"
-          hint={AUTH_FIELD_HINTS.username}
+          label={t("auth.field.username")}
+          hint={t("auth.hint.username")}
         />
         <Input
           id="username"
           type="text"
           autoComplete="username"
-          placeholder="student_username"
+          placeholder={t("auth.placeholder.username")}
           minLength={AUTH_LIMITS.username.min}
           maxLength={AUTH_LIMITS.username.max}
           aria-invalid={!!usernameError}
@@ -99,14 +100,14 @@ export function SignupForm() {
       <div className="flex flex-col gap-2">
         <FieldLabel
           htmlFor="fullName"
-          label="Full name"
-          hint={AUTH_FIELD_HINTS.fullName}
+          label={t("auth.field.fullName")}
+          hint={t("auth.hint.fullName")}
         />
         <Input
           id="fullName"
           type="text"
           autoComplete="name"
-          placeholder="Your full name"
+          placeholder={t("auth.placeholder.fullName")}
           minLength={AUTH_LIMITS.fullName.min}
           maxLength={AUTH_LIMITS.fullName.max}
           aria-invalid={!!fullNameError}
@@ -118,12 +119,16 @@ export function SignupForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <FieldLabel htmlFor="email" label="Email" hint={AUTH_FIELD_HINTS.email} />
+        <FieldLabel
+          htmlFor="email"
+          label={t("auth.field.email")}
+          hint={t("auth.hint.email")}
+        />
         <Input
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          placeholder={t("auth.placeholder.email")}
           maxLength={AUTH_LIMITS.email.max}
           aria-invalid={!!emailError}
           {...register("email")}
@@ -137,8 +142,8 @@ export function SignupForm() {
         <div className="flex flex-col gap-2">
           <FieldLabel
             htmlFor="birthDate"
-            label="Birth date"
-            hint={AUTH_FIELD_HINTS.birthDate}
+            label={t("auth.field.birthDate")}
+            hint={t("auth.hint.birthDate")}
           />
           <Input
             id="birthDate"
@@ -155,14 +160,14 @@ export function SignupForm() {
         <div className="flex flex-col gap-2">
           <FieldLabel
             htmlFor="phone"
-            label="Phone"
-            hint={AUTH_FIELD_HINTS.phone}
+            label={t("auth.field.phone")}
+            hint={t("auth.hint.phone")}
           />
           <Input
             id="phone"
             type="tel"
             autoComplete="tel"
-            placeholder="+961 ..."
+            placeholder={t("auth.placeholder.phone")}
             maxLength={AUTH_LIMITS.phone.max}
             aria-invalid={!!phoneError}
             {...register("phone")}
@@ -176,8 +181,8 @@ export function SignupForm() {
       <div className="flex flex-col gap-2">
         <FieldLabel
           htmlFor="password"
-          label="Password"
-          hint={AUTH_FIELD_HINTS.password}
+          label={t("auth.field.password")}
+          hint={t("auth.hint.password")}
         />
         <PasswordInput
           id="password"
@@ -195,8 +200,8 @@ export function SignupForm() {
       <div className="flex flex-col gap-2">
         <FieldLabel
           htmlFor="confirmPassword"
-          label="Confirm password"
-          hint={AUTH_FIELD_HINTS.confirmPassword}
+          label={t("auth.field.confirmPassword")}
+          hint={t("auth.hint.confirmPassword")}
         />
         <PasswordInput
           id="confirmPassword"
@@ -212,16 +217,16 @@ export function SignupForm() {
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Creating account…" : "Create account"}
+        {isPending ? t("auth.signup.submitting") : t("auth.signup.submit")}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
+        {t("auth.signup.hasAccount")}{" "}
         <Link
           href={ROUTES.LOGIN}
           className="font-medium text-foreground underline-offset-4 hover:underline"
         >
-          Sign in
+          {t("auth.signup.signInLink")}
         </Link>
       </p>
     </form>

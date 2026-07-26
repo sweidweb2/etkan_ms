@@ -2,13 +2,13 @@
 
 import { useActionState, useTransition } from "react";
 import { useZodForm } from "@/hooks/use-zod-form";
-import { loginAction } from "@/app/auth/login/actions";
+import { loginAction } from "@/app/(public)/auth/login/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "@/components/auth/field-label";
 import { PasswordInput } from "@/components/auth/password-input";
-import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { loginSchema, type LoginInput } from "@/lib/validators/auth/auth";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import type { LoginActionState } from "@/types/auth";
@@ -20,6 +20,7 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ next }: LoginFormProps) {
+  const { t } = usePublicI18n();
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
     loginAction,
@@ -61,12 +62,16 @@ export function LoginForm({ next }: LoginFormProps) {
       noValidate
     >
       <div className="flex flex-col gap-2">
-        <FieldLabel htmlFor="email" label="Email" hint={AUTH_FIELD_HINTS.email} />
+        <FieldLabel
+          htmlFor="email"
+          label={t("auth.field.email")}
+          hint={t("auth.hint.email")}
+        />
         <Input
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          placeholder={t("auth.placeholder.email")}
           maxLength={AUTH_LIMITS.email.max}
           aria-invalid={!!emailError}
           {...register("email")}
@@ -79,8 +84,8 @@ export function LoginForm({ next }: LoginFormProps) {
       <div className="flex flex-col gap-2">
         <FieldLabel
           htmlFor="password"
-          label="Password"
-          hint={AUTH_FIELD_HINTS.password}
+          label={t("auth.field.password")}
+          hint={t("auth.hint.password")}
         />
         <PasswordInput
           id="password"
@@ -96,7 +101,7 @@ export function LoginForm({ next }: LoginFormProps) {
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Signing in…" : "Sign in"}
+        {isPending ? t("auth.login.submitting") : t("auth.login.submit")}
       </Button>
     </form>
   );

@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { Home, LogOut } from "lucide-react";
-import { logoutAction } from "@/app/auth/actions";
+import { logoutAction } from "@/app/(public)/auth/actions";
 import {
   DropdownMenu,
   DropdownMenuContent,
