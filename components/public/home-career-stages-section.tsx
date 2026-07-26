@@ -22,7 +22,6 @@ import type { MessageKey } from "@/lib/i18n/messages";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 
-const CAROUSEL_THRESHOLD = 3;
 const EASE = [0.22, 1, 0.36, 1] as const;
 const SECTION_VIEWPORT = { once: true, amount: 0.2, margin: "0px 0px -10% 0px" } as const;
 
@@ -293,8 +292,6 @@ export function HomeCareerStagesSection() {
     indexLabel: String(i + 1).padStart(2, "0"),
   }));
 
-  const courseCount = activeStage?.courses.length ?? 0;
-  const useCarousel = courseCount > CAROUSEL_THRESHOLD;
   const canAnimate = hydrated && !reduceMotion;
 
   return (
@@ -364,48 +361,33 @@ export function HomeCareerStagesSection() {
                     {t(activeStage.descKey)}
                   </p>
 
-                  {useCarousel ? (
-                    <HorizontalScrollCarousel
-                      className="mt-5"
-                      resetScrollKey={activeStage.id}
-                      ariaLabel={t("careerStages.coursesLabel")}
-                      navButtonClassName="text-white/80 hover:bg-white/10 hover:text-white disabled:text-white/25"
-                      contentClassName="px-1 py-1"
-                    >
-                      <div className="flex w-max gap-3">
-                        {activeStage.courses.map((course) => (
-                          <div
-                            key={course.titleKey}
-                            className="w-[13rem] shrink-0 snap-start sm:w-[14.5rem]"
-                          >
-                            <StageCourseCard
-                              course={course}
-                              title={t(course.titleKey)}
-                              body={t(course.bodyKey)}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </HorizontalScrollCarousel>
-                  ) : (
+                  <HorizontalScrollCarousel
+                    className="mt-5"
+                    resetScrollKey={activeStage.id}
+                    ariaLabel={t("careerStages.coursesLabel")}
+                    navButtonClassName="text-white/80 hover:bg-white/10 hover:text-white disabled:text-white/25"
+                    contentClassName="px-1 py-1"
+                  >
                     <div
                       className={cn(
-                        "mt-5 grid grid-flow-col gap-3",
-                        courseCount === 1 && "grid-cols-1",
-                        courseCount === 2 && "grid-cols-2",
-                        courseCount >= 3 && "grid-cols-3"
+                        "flex w-max gap-3",
+                        activeStage.courses.length === 1 && "min-w-full justify-center"
                       )}
                     >
                       {activeStage.courses.map((course) => (
-                        <StageCourseCard
+                        <div
                           key={course.titleKey}
-                          course={course}
-                          title={t(course.titleKey)}
-                          body={t(course.bodyKey)}
-                        />
+                          className="w-[min(13rem,78vw)] shrink-0 snap-start sm:w-[14.5rem]"
+                        >
+                          <StageCourseCard
+                            course={course}
+                            title={t(course.titleKey)}
+                            body={t(course.bodyKey)}
+                          />
+                        </div>
                       ))}
                     </div>
-                  )}
+                  </HorizontalScrollCarousel>
                 </motion.div>
               ) : null}
             </AnimatePresence>

@@ -154,6 +154,14 @@
   html {
     @apply font-sans;
   }
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+  ::-moz-selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
 }
 
 @keyframes route-top-loader-progress {

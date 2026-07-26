@@ -1,7 +1,6 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { LOCALES, type Locale } from "@/lib/i18n/locales";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
@@ -13,8 +12,7 @@ type LanguageToggleProps = {
 };
 
 export function LanguageToggle({ className }: LanguageToggleProps) {
-  const router = useRouter();
-  const { locale, t } = usePublicI18n();
+  const { locale, t, setLocale } = usePublicI18n();
   const [isPending, startTransition] = useTransition();
 
   function selectLocale(next: Locale) {
@@ -22,9 +20,9 @@ export function LanguageToggle({ className }: LanguageToggleProps) {
       return;
     }
 
+    setLocale(next);
     startTransition(async () => {
       await setPublicLocaleAction(next);
-      router.refresh();
     });
   }
 

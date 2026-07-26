@@ -1,0 +1,30 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { SiteNavbarClient } from "@/components/layout/site-navbar-client";
+import { PublicSplashCursor } from "@/components/public/public-splash-cursor";
+import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
+
+type PublicShellProps = {
+  children: ReactNode;
+};
+
+/**
+ * Client shell so dir/lang update with locale without re-fetching the RSC tree.
+ * Navbar starts with null session; client refreshes auth via /api/auth/navbar-state.
+ */
+export function PublicShell({ children }: PublicShellProps) {
+  const { dir, locale } = usePublicI18n();
+
+  return (
+    <div dir={dir} lang={locale} className="relative flex min-h-dvh flex-col">
+      <PublicSplashCursor />
+      <div className="relative z-10 flex min-h-dvh flex-col">
+        <SiteNavbarClient initialDashboardHref={null} />
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        <SiteFooter />
+      </div>
+    </div>
+  );
+}

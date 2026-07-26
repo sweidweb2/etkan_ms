@@ -140,11 +140,24 @@ export const en = {
   "learningWays.card3.body":
     "An individual or group is tasked with accomplishing a specific technique within their general knowledge. They must build the experiment in the given context, research until they finish, and leave as someone who owns real experience.",
 
+  "courseLogos.eyebrow": "What we teach",
+  "courseLogos.title": "Courses across code, hardware, and making",
+  "courseLogos.ariaLabel": "Etkan course topics",
+
   "gallery.eyebrow": "Moments",
   "gallery.title": "Workshop life in frames",
   "gallery.lead":
     "A look at the spaces, tools, and hands-on work that shape the Etkan path—from code and circuits to fabrication and delivery.",
   "gallery.listLabel": "Etkan gallery images",
+  "gallery.filterLabel": "Filter gallery by category",
+  "gallery.filter.roadmap": "Roadmap",
+  "gallery.filter.workshop": "Workshop",
+  "gallery.filter.onlineCourses": "Online courses",
+  "gallery.filter.archive": "Archive",
+  "gallery.filter.projects": "Projects",
+  "gallery.filter.students": "Students",
+  "gallery.filter.teachers": "Teachers",
+  "gallery.empty": "No images in this category yet.",
   "gallery.item.1.alt": "Hands typing code during a focused workshop session",
   "gallery.item.2.alt": "Server and backend development workspace",
   "gallery.item.3.alt": "3D printer building a prototype part",
@@ -186,6 +199,72 @@ export const en = {
   "careers.roadmap.card2.body":
     "Deeper tracks where each learner focuses on a specialty—web, electronics, machining, and more—while still building toward a usable product.",
   "careers.roadmap.card2.imageAlt": "Hands-on workshop and fabrication practice",
+  "careers.roadmap.detail.back": "Back to careers",
+  "careers.roadmap.detail.outlineLabel": "Outline",
+  "careers.roadmap.detail.outline.main": "Roadmap main info",
+  "careers.roadmap.detail.outline.stages": "Stages",
+  "careers.roadmap.detail.outline.specialities": "Specialities",
+  "careers.roadmap.detail.outline.pricing": "Pricing & payments",
+  "careers.roadmap.detail.outline.qa": "Q&A",
+  "careers.roadmap.detail.stagesTitle": "Learning stages",
+  "careers.roadmap.detail.stagesLead":
+    "A staged path from foundations through product-ready skills—each stage builds on the last.",
+  "careers.roadmap.detail.specialitiesTitle": "Specialities",
+  "careers.roadmap.detail.specialitiesLead":
+    "After the general path, learners focus on one specialty track and go deeper toward real product work.",
+  "careerSpecialities.security.title": "Security",
+  "careerSpecialities.security.desc":
+    "Protect systems, data, and connected products—from basics to applied security practice.",
+  "careerSpecialities.communication.title": "Communication",
+  "careerSpecialities.communication.desc":
+    "Build reliable links between devices and systems—protocols, networks, and signal flow.",
+  "careerSpecialities.embeddedAi.title": "Embedded AI",
+  "careerSpecialities.embeddedAi.desc":
+    "Run intelligence on-device: sensors, models, and edge decisions inside real hardware.",
+  "careerSpecialities.iot.title": "IoT",
+  "careerSpecialities.iot.desc":
+    "Connect products to the physical world—sensing, actuation, and cloud-aware device systems.",
+  "careers.roadmap.detail.pricingTitle": "Pricing & payments",
+  "careers.roadmap.detail.pricingLead":
+    "The same payment terms apply to both the general and specialized roadmaps.",
+  "careers.roadmap.detail.pricing.costTitle": "Stage cost",
+  "careers.roadmap.detail.pricing.costAmount": "$300 per stage",
+  "careers.roadmap.detail.pricing.costDuration": "Each stage lasts 6 months.",
+  "careers.roadmap.detail.pricing.planTitle": "How payments work",
+  "careers.roadmap.detail.pricing.planUpfront":
+    "Upfront payment: $100 at the start of the stage.",
+  "careers.roadmap.detail.pricing.planSchedule":
+    "Remaining balance: scheduled in custom installments agreed with Etkan.",
+  "careers.roadmap.detail.pricing.progressTitle": "Moving forward",
+  "careers.roadmap.detail.pricing.progressBody":
+    "A student cannot move to the next stage or course until the full amount due from the previous course is paid, including any penalties.",
+  "careers.roadmap.detail.pricing.lateTitle": "Late or missed payments",
+  "careers.roadmap.detail.pricing.latePenalty":
+    "Missing a scheduled payment without notifying Etkan in advance adds a $5 penalty per missed schedule.",
+  "careers.roadmap.detail.pricing.workTitle": "Working with Etkan",
+  "careers.roadmap.detail.pricing.workBody":
+    "If a student works with Etkan, earnings are deducted from the amount still due.",
+  "careers.roadmap.detail.pricing.aidBody":
+    "If a student is late on payments while receiving financial aid, that aid may be affected.",
+  "careers.roadmap.detail.qaTitle": "Questions & answers",
+  "careers.roadmap.detail.qa.q1":
+    "Do all stages contain the same number of courses (3)?",
+  "careers.roadmap.detail.qa.a1":
+    "No. Each stage has its own number of courses:",
+  "careers.roadmap.detail.qa.a1.stage1": "Stage 1 — Intro to mechatronics: 3 courses",
+  "careers.roadmap.detail.qa.a1.stage2": "Stage 2 — Mechanic and power: 3 courses",
+  "careers.roadmap.detail.qa.a1.stage3": "Stage 3 — Development: 3 courses",
+  "careers.roadmap.detail.qa.a1.stage4": "Stage 4 — Project structure: 4 courses",
+  "careers.roadmap.detail.qa.a1.stage5": "Stage 5 — PCB design: 6 courses",
+  "careers.roadmap.detail.qa.a1.stage6": "Stage 6 — Machining and DFM for product: 3 courses",
+  "careers.roadmap.detail.qa.specialized.q1":
+    "What specialities can I choose in the specialized roadmap?",
+  "careers.roadmap.detail.qa.specialized.a1":
+    "For now the specialty tracks are Security, Communication, Embedded AI, and IoT. Course-level detail for each track will be published here next.",
+  "careers.roadmap.detail.qa.enterSpecialized.q":
+    "Can a student enter the specialization roadmap directly?",
+  "careers.roadmap.detail.qa.enterSpecialized.a":
+    "No. A student should first finish the general roadmap. If they completed an equivalent path alone—through another organization or self-learning—they should call Etkan management to complete the required steps before they can be allowed into the specialization roadmap.",
   "careers.roadmap.note.label": "Model note",
   "careers.roadmap.note.title": "How the Etkan roadmap actually works",
   "careers.roadmap.note.intro":
@@ -222,6 +301,9 @@ export const en = {
     "From CAD to print: prepare models, run jobs, and refine physical prototypes.",
   "careers.online.format.oneOnOne": "1-on-1",
   "careers.online.format.public": "Public meeting",
+  "careers.online.price.oneOnOne": "$20/hr",
+  "careers.online.price.oneOnOneWas": "$30",
+  "careers.online.discountBadge": "Was $30 · Now $20",
   "careers.online.arduino.title": "Arduino",
   "careers.online.arduino.body": "Guided sessions on boards, sensors, and embedded builds.",
   "careers.online.python.title": "Python",

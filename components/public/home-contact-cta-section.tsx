@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { MessageCircleIcon, PhoneIcon } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -18,10 +18,13 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { CONTACT } from "@/lib/constants/contact";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { showSuccessToast } from "@/lib/toast";
-import { cn } from "@/lib/utils";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, amount: 0.35, margin: "0px 0px -8% 0px" } as const;
+
+/** Stable single-line classes — avoid buttonVariants/cn on SSR CTAs (hydration). */
+const WHATSAPP_LINK_CLASS =
+  "group/button inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#3E3E75]/30 bg-white px-2.5 text-sm font-medium whitespace-nowrap text-[#3E3E75] transition-all outline-none select-none hover:bg-[#3E3E75]/8 hover:text-[#2F2F5A] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
 function isValidPhone(value: string) {
   const digits = value.replace(/[^\d+]/g, "");
@@ -97,13 +100,11 @@ export function HomeContactCtaSection() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={t("contactCta.whatsappAria")}
-              className={cn(
-                buttonVariants({ size: "lg", variant: "outline" }),
-                "border-[#3E3E75]/30 text-[#3E3E75] hover:bg-[#3E3E75]/8 hover:text-[#2F2F5A]"
-              )}
+              suppressHydrationWarning
+              className={WHATSAPP_LINK_CLASS}
             >
               <MessageCircleIcon className="size-4" />
-              {t("contactCta.whatsapp")}
+              <span suppressHydrationWarning>{t("contactCta.whatsapp")}</span>
             </a>
           </div>
         </div>
@@ -177,13 +178,11 @@ export function HomeContactCtaSection() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={t("contactCta.whatsappAria")}
-                className={cn(
-                  buttonVariants({ variant: "outline" }),
-                  "w-full"
-                )}
+                suppressHydrationWarning
+                className={`${WHATSAPP_LINK_CLASS} w-full`}
               >
                 <MessageCircleIcon className="size-4" />
-                {t("contactCta.whatsapp")}
+                <span suppressHydrationWarning>{t("contactCta.whatsapp")}</span>
                 <span className="text-muted-foreground">
                   {CONTACT.whatsappDisplay}
                 </span>

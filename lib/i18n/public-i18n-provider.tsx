@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
 import { getDir, type Locale, type TextDirection } from "@/lib/i18n/locales";
@@ -13,12 +15,14 @@ import {
   type MessageKey,
   type Messages,
 } from "@/lib/i18n/messages";
+import { readPublicLocaleCookie } from "@/lib/i18n/read-public-locale-cookie";
 
 type PublicI18nContextValue = {
   locale: Locale;
   dir: TextDirection;
   messages: Messages;
   t: (key: MessageKey) => string;
+  setLocale: (locale: Locale) => void;
 };
 
 const PublicI18nContext = createContext<PublicI18nContextValue | null>(null);
@@ -29,19 +33,27 @@ type PublicI18nProviderProps = {
 };
 
 export function PublicI18nProvider({
-  locale,
+  locale: initialLocale,
   children,
 }: PublicI18nProviderProps) {
+  const [locale, setLocale] = useState<Locale>(initialLocale);
+
+  useEffect(() => {
+    const fromCookie = readPublicLocaleCookie();
+    if (fromCookie !== locale) {
+      setLocale(fromCookie);
+    }
+    // Sync once on mount so static SSR can hydrate from the cookie.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only cookie sync
+  }, []);
+
   const messages = useMemo(() => getMessages(locale), [locale]);
   const dir = getDir(locale);
 
-  const t = useCallback(
-    (key: MessageKey) => messages[key],
-    [messages]
-  );
+  const t = useCallback((key: MessageKey) => messages[key], [messages]);
 
   const value = useMemo(
-    () => ({ locale, dir, messages, t }),
+    () => ({ locale, dir, messages, t, setLocale }),
     [locale, dir, messages, t]
   );
 

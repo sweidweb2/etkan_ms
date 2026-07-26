@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    // Public marketing pages are static — keep their UI in the client router
+    // cache so back/forward and repeat visits feel instant. Dynamic routes
+    // (auth/panels) stay at 0 so they always refetch.
+    staleTimes: {
+      dynamic: 0,
+      static: 300,
+    },
+  },
 };
 
 export default nextConfig;

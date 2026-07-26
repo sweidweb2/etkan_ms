@@ -1,3 +1,6 @@
+/** Auth routes need session checks — keep them dynamic under the static public shell. */
+export const dynamic = "force-dynamic";
+
 export default function AuthLayout({
   children,
 }: {

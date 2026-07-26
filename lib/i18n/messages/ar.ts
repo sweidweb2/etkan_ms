@@ -141,11 +141,24 @@ export const ar = {
   "learningWays.card3.body":
     "يُكلَّف الفرد أو المجموعة بإنجاز تقنية معيّنة تكون ضمن علمهم العام، وعليهم بناء التجربة ضمن الحالة المحدّدة والبحث للوصول إلى الإنجاز—فيصبح صاحب تجربة.",
 
+  "courseLogos.eyebrow": "ماذا نعلّم",
+  "courseLogos.title": "دورات عبر البرمجة والعتاد والصناعة",
+  "courseLogos.ariaLabel": "مواضيع دورات إتقان",
+
   "gallery.eyebrow": "لحظات",
   "gallery.title": "حياة الورشة في صور",
   "gallery.lead":
     "نظرة على المساحات والأدوات والعمل العملي الذي يشكّل مسار إتقان—من البرمجة والدارات إلى التصنيع والتسليم.",
   "gallery.listLabel": "صور معرض إتقان",
+  "gallery.filterLabel": "تصفية المعرض حسب الفئة",
+  "gallery.filter.roadmap": "خارطة الطريق",
+  "gallery.filter.workshop": "ورش",
+  "gallery.filter.onlineCourses": "دورات أونلاين",
+  "gallery.filter.archive": "الأرشيف",
+  "gallery.filter.projects": "المشاريع",
+  "gallery.filter.students": "الطلاب",
+  "gallery.filter.teachers": "المعلمون",
+  "gallery.empty": "لا توجد صور في هذه الفئة بعد.",
   "gallery.item.1.alt": "أيدٍ تكتب الشيفرة خلال ورشة عمل مركّزة",
   "gallery.item.2.alt": "مساحة عمل لتطوير الخوادم والخلفية",
   "gallery.item.3.alt": "طابعة ثلاثية الأبعاد تبني جزءًا نموذجيًا",
@@ -187,6 +200,72 @@ export const ar = {
   "careers.roadmap.card2.body":
     "مسارات أعمق يركّز فيها كل متعلّم على تخصصه—الويب، الإلكترونيات، التشغيل، وغيرها—مع الاستمرار نحو منتج قابل للاستخدام.",
   "careers.roadmap.card2.imageAlt": "تدريب عملي وتصنيع في الورشة",
+  "careers.roadmap.detail.back": "العودة إلى المسارات",
+  "careers.roadmap.detail.outlineLabel": "المخطط",
+  "careers.roadmap.detail.outline.main": "المعلومات الأساسية للمسار",
+  "careers.roadmap.detail.outline.stages": "المراحل",
+  "careers.roadmap.detail.outline.specialities": "التخصصات",
+  "careers.roadmap.detail.outline.pricing": "التسعير والدفع",
+  "careers.roadmap.detail.outline.qa": "الأسئلة والأجوبة",
+  "careers.roadmap.detail.stagesTitle": "مراحل التعلّم",
+  "careers.roadmap.detail.stagesLead":
+    "مسار مرحلي من الأساسيات إلى مهارات جاهزة للمنتج—كل مرحلة تبني على ما قبلها.",
+  "careers.roadmap.detail.specialitiesTitle": "التخصصات",
+  "careers.roadmap.detail.specialitiesLead":
+    "بعد المسار العام، يركّز المتعلّم على مسار تخصصي واحد ويتعمّق نحو عمل منتج حقيقي.",
+  "careerSpecialities.security.title": "الأمن (Security)",
+  "careerSpecialities.security.desc":
+    "حماية الأنظمة والبيانات والمنتجات المتصلة—من الأساسيات إلى الممارسة التطبيقية.",
+  "careerSpecialities.communication.title": "الاتصالات (Communication)",
+  "careerSpecialities.communication.desc":
+    "بناء روابط موثوقة بين الأجهزة والأنظمة—البروتوكولات والشبكات وتدفّق الإشارات.",
+  "careerSpecialities.embeddedAi.title": "الذكاء الاصطناعي المدمج (Embedded AI)",
+  "careerSpecialities.embeddedAi.desc":
+    "تشغيل الذكاء على الجهاز: مستشعرات ونماذج وقرارات طرفية داخل عتاد حقيقي.",
+  "careerSpecialities.iot.title": "إنترنت الأشياء (IoT)",
+  "careerSpecialities.iot.desc":
+    "ربط المنتجات بالعالم المادي—الاستشعار والتفعيل وأنظمة أجهزة متصلة بالسحابة.",
+  "careers.roadmap.detail.pricingTitle": "التسعير والدفع",
+  "careers.roadmap.detail.pricingLead":
+    "تنطبق شروط الدفع نفسها على المسار العام والمسار التخصصي.",
+  "careers.roadmap.detail.pricing.costTitle": "تكلفة المرحلة",
+  "careers.roadmap.detail.pricing.costAmount": "300$ لكل مرحلة",
+  "careers.roadmap.detail.pricing.costDuration": "مدة كل مرحلة 6 أشهر.",
+  "careers.roadmap.detail.pricing.planTitle": "آلية الدفع",
+  "careers.roadmap.detail.pricing.planUpfront":
+    "دفعة مقدّمة: 100$ في بداية المرحلة.",
+  "careers.roadmap.detail.pricing.planSchedule":
+    "المبلغ المتبقي: يُجدول على دفعات مخصّصة بالاتفاق مع إتقان.",
+  "careers.roadmap.detail.pricing.progressTitle": "الانتقال للمراحل والدورات التالية",
+  "careers.roadmap.detail.pricing.progressBody":
+    "لا يمكن للطالب الانتقال إلى المرحلة أو الدورة التالية قبل سداد كامل المبلغ المستحق من الدورة السابقة، بما في ذلك أي غرامات إن وُجدت.",
+  "careers.roadmap.detail.pricing.lateTitle": "التأخّر أو التخلّف عن الدفع",
+  "careers.roadmap.detail.pricing.latePenalty":
+    "التخلّف عن دفعة مجدولة دون إبلاغ إتقان مسبقًا يضيف غرامة 5$ عن كل موعد فائت.",
+  "careers.roadmap.detail.pricing.workTitle": "العمل مع إتقان",
+  "careers.roadmap.detail.pricing.workBody":
+    "إذا عمل الطالب مع إتقان، يُخصم الأجر من المبلغ المستحق عليه.",
+  "careers.roadmap.detail.pricing.aidBody":
+    "إذا تأخّر الطالب في الدفع وهو يستفيد من مساعدة مالية، فقد تتأثر تلك المساعدة.",
+  "careers.roadmap.detail.qaTitle": "الأسئلة والأجوبة",
+  "careers.roadmap.detail.qa.q1":
+    "هل جميع المراحل تحتوي على نفس عدد الدورات (3)؟",
+  "careers.roadmap.detail.qa.a1":
+    "لا. لكل مرحلة عدد دورات خاص بها:",
+  "careers.roadmap.detail.qa.a1.stage1": "المرحلة 1 — مقدمة في الميكاترونكس: 3 دورات",
+  "careers.roadmap.detail.qa.a1.stage2": "المرحلة 2 — الميكانيك والطاقة: 3 دورات",
+  "careers.roadmap.detail.qa.a1.stage3": "المرحلة 3 — التطوير: 3 دورات",
+  "careers.roadmap.detail.qa.a1.stage4": "المرحلة 4 — هيكلة المشاريع: 4 دورات",
+  "careers.roadmap.detail.qa.a1.stage5": "المرحلة 5 — تصميم الدارات المطبوعة (PCB): 6 دورات",
+  "careers.roadmap.detail.qa.a1.stage6": "المرحلة 6 — التشغيل وتصميم قابلية التصنيع (DFM): 3 دورات",
+  "careers.roadmap.detail.qa.specialized.q1":
+    "ما التخصصات التي يمكنني اختيارها في المسار التخصصي؟",
+  "careers.roadmap.detail.qa.specialized.a1":
+    "حاليًا مسارات التخصص هي الأمن، الاتصالات، الذكاء الاصطناعي المدمج، وإنترنت الأشياء. ستُنشر تفاصيل الدورات لكل مسار هنا لاحقًا.",
+  "careers.roadmap.detail.qa.enterSpecialized.q":
+    "هل يمكن للطالب دخول المسار التخصصي مباشرة؟",
+  "careers.roadmap.detail.qa.enterSpecialized.a":
+    "لا. على الطالب أولًا إنهاء المسار العام. وإذا أتمّ مسارًا مكافئًا بمفرده—عبر مؤسسة أخرى أو بالتعلّم الذاتي—فعليه الاتصال بإدارة إتقان لإكمال الخطوات المطلوبة قبل السماح له بدخول المسار التخصصي.",
   "careers.roadmap.note.label": "ملاحظة النموذج",
   "careers.roadmap.note.title": "كيف تعمل خارطة طريق إتقان فعلًا",
   "careers.roadmap.note.intro":
@@ -223,6 +302,9 @@ export const ar = {
     "من CAD إلى الطباعة: جهّز النماذج وشغّل المهام وحسّن النماذج المادية.",
   "careers.online.format.oneOnOne": "فردي",
   "careers.online.format.public": "لقاء عام",
+  "careers.online.price.oneOnOne": "20$/ساعة",
+  "careers.online.price.oneOnOneWas": "30$",
+  "careers.online.discountBadge": "كان 30$ · الآن 20$",
   "careers.online.arduino.title": "أردوينو",
   "careers.online.arduino.body": "جلسات موجّهة حول اللوحات والمستشعرات والبناء المدمج.",
   "careers.online.python.title": "بايثون",

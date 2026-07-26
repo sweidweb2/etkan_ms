@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import {
   Tabs,
@@ -9,19 +10,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/animate-ui/primitives/animate/tabs";
+import { CAREERS_ROADMAP_CARDS } from "@/lib/constants/careers-roadmaps";
+import { getCareersRoadmapDetailRoute } from "@/lib/constants/routes";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { cn } from "@/lib/utils";
 
 type CareersTab = "roadmap" | "workshops" | "online";
-
-type RoadmapCard = {
-  id: string;
-  titleKey: MessageKey;
-  bodyKey: MessageKey;
-  imageAltKey: MessageKey;
-  imageSrc: string;
-};
 
 type WorkshopCard = {
   id: string;
@@ -38,25 +33,6 @@ type OnlineCard = {
   format: "oneOnOne" | "public";
   imageSrc: string;
 };
-
-const ROADMAP_CARDS: RoadmapCard[] = [
-  {
-    id: "general",
-    titleKey: "careers.roadmap.card1.title",
-    bodyKey: "careers.roadmap.card1.body",
-    imageAltKey: "careers.roadmap.card1.imageAlt",
-    imageSrc:
-      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=900&auto=format&fit=crop",
-  },
-  {
-    id: "specialized",
-    titleKey: "careers.roadmap.card2.title",
-    bodyKey: "careers.roadmap.card2.body",
-    imageAltKey: "careers.roadmap.card2.imageAlt",
-    imageSrc: "/public_images/solution-built-1.jpg",
-  },
-];
-
 const WORKSHOP_CARDS: WorkshopCard[] = [
   {
     id: "arduino-1",
@@ -246,19 +222,20 @@ export function CareersSection() {
             <TabsContent value="roadmap" className="outline-none">
               <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-10">
                 <div className="flex flex-col gap-5 sm:gap-6">
-                  {ROADMAP_CARDS.map((card) => (
-                    <article
+                  {CAREERS_ROADMAP_CARDS.map((card) => (
+                    <Link
                       key={card.id}
-                      className="overflow-hidden rounded-2xl border border-[#3E3E75]/15 bg-background/90 shadow-[0_20px_50px_-36px_rgba(62,62,117,0.45)] dark:border-[#C4C4E8]/15"
+                      href={getCareersRoadmapDetailRoute(card.id)}
+                      className="group overflow-hidden rounded-2xl border border-[#3E3E75]/15 bg-background/90 shadow-[0_20px_50px_-36px_rgba(62,62,117,0.45)] transition-transform duration-300 hover:-translate-y-0.5 dark:border-[#C4C4E8]/15"
                     >
-                      <div className="grid sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]">
+                      <article className="grid sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]">
                         <div className="relative aspect-[16/11] sm:aspect-auto sm:min-h-[10.5rem]">
                           <Image
                             src={card.imageSrc}
                             alt={t(card.imageAltKey)}
                             fill
                             sizes="(max-width: 640px) 100vw, 220px"
-                            className="object-cover"
+                            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                           />
                         </div>
                         <div className="flex flex-col justify-center p-4 sm:p-5 lg:p-6">
@@ -269,8 +246,8 @@ export function CareersSection() {
                             {t(card.bodyKey)}
                           </p>
                         </div>
-                      </div>
-                    </article>
+                      </article>
+                    </Link>
                   ))}
                 </div>
 
@@ -387,22 +364,39 @@ export function CareersSection() {
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                       />
+                      {card.format === "oneOnOne" ? (
+                        <span className="absolute top-3 start-3 rounded-full bg-[#3E3E75] px-2.5 py-1 text-[0.65rem] font-semibold tracking-[0.08em] text-white uppercase shadow-sm">
+                          {t("careers.online.discountBadge")}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="flex flex-1 flex-col p-4">
-                      <span
-                        className={cn(
-                          "w-fit rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-[0.14em] uppercase",
-                          card.format === "oneOnOne"
-                            ? "bg-[#3E3E75]/12 text-[#3E3E75] dark:bg-[#C4C4E8]/15 dark:text-[#C4C4E8]"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {t(
-                          card.format === "oneOnOne"
-                            ? "careers.online.format.oneOnOne"
-                            : "careers.online.format.public"
-                        )}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            "w-fit rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-[0.14em] uppercase",
+                            card.format === "oneOnOne"
+                              ? "bg-[#3E3E75]/12 text-[#3E3E75] dark:bg-[#C4C4E8]/15 dark:text-[#C4C4E8]"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {t(
+                            card.format === "oneOnOne"
+                              ? "careers.online.format.oneOnOne"
+                              : "careers.online.format.public"
+                          )}
+                        </span>
+                        {card.format === "oneOnOne" ? (
+                          <span className="inline-flex items-baseline gap-1.5 tabular-nums">
+                            <span className="text-xs text-muted-foreground line-through">
+                              {t("careers.online.price.oneOnOneWas")}
+                            </span>
+                            <span className="text-sm font-semibold text-[#3E3E75] dark:text-[#C4C4E8]">
+                              {t("careers.online.price.oneOnOne")}
+                            </span>
+                          </span>
+                        ) : null}
+                      </div>
                       <h2 className="mt-2.5 text-base font-semibold tracking-tight">
                         {t(card.titleKey)}
                       </h2>

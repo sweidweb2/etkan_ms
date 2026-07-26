@@ -120,30 +120,40 @@ function PrimaryNavLinks({ className }: { className?: string }) {
 }
 
 function NavbarShell({
-  actions,
+  desktopActions,
+  mobileMenu,
 }: {
-  actions?: React.ReactNode;
+  desktopActions?: React.ReactNode;
+  mobileMenu?: React.ReactNode;
 }) {
   const { t } = usePublicI18n();
 
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center">
-      <div
-        className={cn(
-          "pointer-events-auto grid h-14 w-[70vw] min-w-0 max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden px-4",
-          "rounded-bl-[1.75rem] rounded-br-[1.75rem] border border-t-0 border-border bg-white shadow-sm",
-          "text-foreground dark:bg-white dark:text-foreground"
-        )}
-      >
-        <Link
-          href={ROUTES.HOME}
-          suppressHydrationWarning
-          className="min-w-0 justify-self-start truncate text-sm font-semibold"
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-50">
+      {/* Desktop / tablet bar */}
+      <div className="hidden justify-center sm:flex">
+        <div
+          className={cn(
+            "pointer-events-auto grid h-14 w-[70vw] min-w-0 max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden px-4",
+            "rounded-bl-[1.75rem] rounded-br-[1.75rem] border border-t-0 border-border bg-white shadow-sm",
+            "text-foreground dark:bg-white dark:text-foreground"
+          )}
         >
-          {t("brand.name")}
-        </Link>
-        <PrimaryNavLinks className="hidden justify-self-center sm:flex" />
-        <div className="justify-self-end">{actions}</div>
+          <Link
+            href={ROUTES.HOME}
+            suppressHydrationWarning
+            className="min-w-0 justify-self-start truncate text-sm font-semibold"
+          >
+            {t("brand.name")}
+          </Link>
+          <PrimaryNavLinks className="justify-self-center" />
+          <div className="justify-self-end">{desktopActions}</div>
+        </div>
+      </div>
+
+      {/* Mobile: menu icon only */}
+      <div className="pointer-events-auto flex justify-end px-3 pt-3 sm:hidden">
+        {mobileMenu}
       </div>
     </header>
   );
@@ -170,22 +180,9 @@ export function SiteNavbarClient({
     }
   }
 
-  if (!mounted) {
-    return (
-      <NavbarShell
-        actions={
-          <div className="flex items-center gap-2" aria-hidden="true">
-            <LanguageToggle />
-          </div>
-        }
-      />
-    );
-  }
-
   const isLoginPage = pathname === ROUTES.LOGIN;
   const isSignupPage = pathname === ROUTES.SIGNUP;
   const sheetSide = dir === "rtl" ? "left" : "right";
-
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const authButtons = dashboardHref ? (
@@ -203,112 +200,111 @@ export function SiteNavbarClient({
     </>
   );
 
+  const mobileMenu = (
+    <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+      <SheetTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={t("nav.openMenu")}
+            className="size-10 rounded-xl border-border bg-white shadow-sm dark:bg-white"
+          />
+        }
+      >
+        <MenuIcon />
+      </SheetTrigger>
+      <SheetContent
+        side={sheetSide}
+        className={cn(
+          "w-[min(100%,18rem)] gap-0 p-0",
+          "duration-500 data-open:duration-500 data-closed:duration-500",
+          "ease-[cubic-bezier(0.22,1,0.36,1)]"
+        )}
+      >
+        <SheetHeader className="border-b border-border px-4 py-4 text-start">
+          <SheetTitle>{t("brand.name")}</SheetTitle>
+          <SheetDescription>{t("nav.navigate")}</SheetDescription>
+        </SheetHeader>
+        <div className="border-b border-border px-4 py-3">
+          <LanguageToggle />
+        </div>
+        <nav className="flex flex-col gap-1 p-3" aria-label="Mobile">
+          <MobileNavLink href={ROUTES.HOME} onNavigate={closeMobileMenu}>
+            {t("nav.home")}
+          </MobileNavLink>
+          <MobileNavLink href={ROUTES.ABOUT} onNavigate={closeMobileMenu}>
+            {t("nav.about")}
+          </MobileNavLink>
+          <MobileNavLink href={ROUTES.CAREERS} onNavigate={closeMobileMenu}>
+            {t("nav.careers")}
+          </MobileNavLink>
+          <MobileNavLink href={ROUTES.PROJECTS} onNavigate={closeMobileMenu}>
+            {t("nav.projects")}
+          </MobileNavLink>
+          <MobileNavLink href={ROUTES.GALLERY} onNavigate={closeMobileMenu}>
+            {t("nav.gallery")}
+          </MobileNavLink>
+          <MobileNavLink href={ROUTES.LIFE} onNavigate={closeMobileMenu}>
+            {t("nav.life")}
+          </MobileNavLink>
+          {dashboardHref ? (
+            <MobileNavLink href={dashboardHref} onNavigate={closeMobileMenu}>
+              {t("nav.dashboard")}
+            </MobileNavLink>
+          ) : (
+            <>
+              {!isLoginPage ? (
+                <MobileNavLink href={ROUTES.LOGIN} onNavigate={closeMobileMenu}>
+                  {t("nav.login")}
+                </MobileNavLink>
+              ) : null}
+              {!isSignupPage ? (
+                <MobileNavLink href={ROUTES.SIGNUP} onNavigate={closeMobileMenu}>
+                  {t("nav.register")}
+                </MobileNavLink>
+              ) : null}
+            </>
+          )}
+        </nav>
+      </SheetContent>
+    </Sheet>
+  );
+
+  if (!mounted) {
+    return (
+      <NavbarShell
+        desktopActions={
+          <div className="flex items-center gap-2" aria-hidden="true">
+            <LanguageToggle />
+          </div>
+        }
+        mobileMenu={
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={t("nav.openMenu")}
+            className="size-10 rounded-xl border-border bg-white shadow-sm dark:bg-white"
+            disabled
+          >
+            <MenuIcon />
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
     <NavbarShell
-      actions={
-        <>
-          <div className="hidden items-center gap-2 sm:flex">
-            <LanguageToggle />
-            <div className="flex items-center gap-2">{authButtons}</div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:hidden">
-            <LanguageToggle />
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-              <SheetTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label={t("nav.openMenu")}
-                  />
-                }
-              >
-                <MenuIcon />
-              </SheetTrigger>
-              <SheetContent
-                side={sheetSide}
-                className={cn(
-                  "w-[min(100%,18rem)] gap-0 p-0",
-                  "duration-500 data-open:duration-500 data-closed:duration-500",
-                  "ease-[cubic-bezier(0.22,1,0.36,1)]"
-                )}
-              >
-                <SheetHeader className="border-b border-border px-4 py-4 text-start">
-                  <SheetTitle>{t("brand.name")}</SheetTitle>
-                  <SheetDescription>{t("nav.navigate")}</SheetDescription>
-                </SheetHeader>
-                <nav className="flex flex-col gap-1 p-3" aria-label="Mobile">
-                  <MobileNavLink
-                    href={ROUTES.HOME}
-                    onNavigate={closeMobileMenu}
-                  >
-                    {t("nav.home")}
-                  </MobileNavLink>
-                  <MobileNavLink
-                    href={ROUTES.ABOUT}
-                    onNavigate={closeMobileMenu}
-                  >
-                    {t("nav.about")}
-                  </MobileNavLink>
-                  <MobileNavLink
-                    href={ROUTES.CAREERS}
-                    onNavigate={closeMobileMenu}
-                  >
-                    {t("nav.careers")}
-                  </MobileNavLink>
-                  <MobileNavLink
-                    href={ROUTES.PROJECTS}
-                    onNavigate={closeMobileMenu}
-                  >
-                    {t("nav.projects")}
-                  </MobileNavLink>
-                  <MobileNavLink
-                    href={ROUTES.GALLERY}
-                    onNavigate={closeMobileMenu}
-                  >
-                    {t("nav.gallery")}
-                  </MobileNavLink>
-                  <MobileNavLink
-                    href={ROUTES.LIFE}
-                    onNavigate={closeMobileMenu}
-                  >
-                    {t("nav.life")}
-                  </MobileNavLink>
-                  {dashboardHref ? (
-                    <MobileNavLink
-                      href={dashboardHref}
-                      onNavigate={closeMobileMenu}
-                    >
-                      {t("nav.dashboard")}
-                    </MobileNavLink>
-                  ) : (
-                    <>
-                      {!isLoginPage ? (
-                        <MobileNavLink
-                          href={ROUTES.LOGIN}
-                          onNavigate={closeMobileMenu}
-                        >
-                          {t("nav.login")}
-                        </MobileNavLink>
-                      ) : null}
-                      {!isSignupPage ? (
-                        <MobileNavLink
-                          href={ROUTES.SIGNUP}
-                          onNavigate={closeMobileMenu}
-                        >
-                          {t("nav.register")}
-                        </MobileNavLink>
-                      ) : null}
-                    </>
-                  )}
-                </nav>
-              </SheetContent>
-            </Sheet>
-          </div>
-        </>
+      desktopActions={
+        <div className="flex items-center gap-2">
+          <LanguageToggle />
+          <div className="flex items-center gap-2">{authButtons}</div>
+        </div>
       }
+      mobileMenu={mobileMenu}
     />
   );
 }

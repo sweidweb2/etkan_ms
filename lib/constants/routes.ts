@@ -4,6 +4,7 @@ export const ROUTES = {
   HOME: "/",
   ABOUT: "/about",
   CAREERS: "/careers",
+  CAREERS_ROADMAP_DETAIL: "/careers/roadmap/[id]",
   PROJECTS: "/projects",
   GALLERY: "/gallery",
   LIFE: "/life",
@@ -94,6 +95,10 @@ export function getDashboardRouteForRole(role: RoleValue): string {
 
 export function getPanelRootForRole(role: RoleValue): string {
   return ROLE_PANEL_ROOTS[role];
+}
+
+export function getCareersRoadmapDetailRoute(roadmapId: string): string {
+  return `/careers/roadmap/${roadmapId}`;
 }
 
 export function getManagerUserDetailRoute(userId: string): string {
