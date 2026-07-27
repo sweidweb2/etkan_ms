@@ -10,6 +10,10 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/animate-ui/primitives/animate/tabs";
+import {
+  CareersAddToCartButton,
+  CareersCartDock,
+} from "@/components/public/careers-cart";
 import { CAREERS_ROADMAP_CARDS } from "@/lib/constants/careers-roadmaps";
 import { getCareersRoadmapDetailRoute } from "@/lib/constants/routes";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -157,6 +161,16 @@ const STICKY_NOTE_STYLES = [
   "rotate-[2deg] bg-[#FFE4D6] text-slate-800 shadow-[2px_4px_0_rgba(62,62,117,0.12)]",
 ] as const;
 
+/** Stable strings — avoid cn() on anchors (SSR/client class order mismatches). */
+const ROADMAP_CARD_LINK_CLASS =
+  "group overflow-hidden rounded-2xl border border-[#3E3E75]/15 bg-background/90 shadow-[0_20px_50px_-36px_rgba(62,62,117,0.45)] transition-transform duration-300 hover:-translate-y-0.5 dark:border-[#C4C4E8]/15";
+
+const WORKSHOP_CARD_CLASS =
+  "group relative flex flex-col overflow-hidden rounded-2xl border border-[#3E3E75]/15 bg-background shadow-[0_18px_44px_-34px_rgba(62,62,117,0.5)] transition-transform duration-300 hover:-translate-y-1 dark:border-[#C4C4E8]/15";
+
+const ONLINE_CARD_CLASS =
+  "group relative flex flex-col overflow-hidden rounded-2xl border border-[#3E3E75]/12 bg-background/95 shadow-[0_16px_40px_-32px_rgba(62,62,117,0.45)] transition-transform duration-300 hover:-translate-y-1 dark:border-[#C4C4E8]/12";
+
 const TAB_TRIGGER_CLASS = cn(
   "inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-all duration-300 sm:px-5",
   "text-muted-foreground hover:text-foreground",
@@ -226,7 +240,8 @@ export function CareersSection() {
                     <Link
                       key={card.id}
                       href={getCareersRoadmapDetailRoute(card.id)}
-                      className="group overflow-hidden rounded-2xl border border-[#3E3E75]/15 bg-background/90 shadow-[0_20px_50px_-36px_rgba(62,62,117,0.45)] transition-transform duration-300 hover:-translate-y-0.5 dark:border-[#C4C4E8]/15"
+                      suppressHydrationWarning
+                      className={ROADMAP_CARD_LINK_CLASS}
                     >
                       <article className="grid sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]">
                         <div className="relative aspect-[16/11] sm:aspect-auto sm:min-h-[10.5rem]">
@@ -320,10 +335,7 @@ export function CareersSection() {
             <TabsContent value="workshops" className="outline-none">
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {WORKSHOP_CARDS.map((card) => (
-                  <article
-                    key={card.id}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-[#3E3E75]/15 bg-background shadow-[0_18px_44px_-34px_rgba(62,62,117,0.5)] transition-transform duration-300 hover:-translate-y-1 dark:border-[#C4C4E8]/15"
-                  >
+                  <article key={card.id} className={WORKSHOP_CARD_CLASS}>
                     <div className="relative aspect-[16/11] overflow-hidden">
                       <Image
                         src={card.imageSrc}
@@ -336,7 +348,7 @@ export function CareersSection() {
                         {t(card.badgeKey)}
                       </span>
                     </div>
-                    <div className="flex flex-1 flex-col p-5">
+                    <div className="flex flex-1 flex-col p-5 pb-14">
                       <h2 className="text-lg font-semibold tracking-tight">
                         {t(card.titleKey)}
                       </h2>
@@ -344,6 +356,12 @@ export function CareersSection() {
                         {t(card.bodyKey)}
                       </p>
                     </div>
+                    <CareersAddToCartButton
+                      kind="workshop"
+                      courseId={card.id}
+                      titleKey={card.titleKey}
+                      imageSrc={card.imageSrc}
+                    />
                   </article>
                 ))}
               </div>
@@ -352,10 +370,7 @@ export function CareersSection() {
             <TabsContent value="online" className="outline-none">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {ONLINE_CARDS.map((card) => (
-                  <article
-                    key={card.id}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-[#3E3E75]/12 bg-background/95 shadow-[0_16px_40px_-32px_rgba(62,62,117,0.45)] transition-transform duration-300 hover:-translate-y-1 dark:border-[#C4C4E8]/12"
-                  >
+                  <article key={card.id} className={ONLINE_CARD_CLASS}>
                     <div className="relative aspect-[5/3] overflow-hidden">
                       <Image
                         src={card.imageSrc}
@@ -370,15 +385,14 @@ export function CareersSection() {
                         </span>
                       ) : null}
                     </div>
-                    <div className="flex flex-1 flex-col p-4">
+                    <div className="flex flex-1 flex-col p-4 pb-14">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
-                          className={cn(
-                            "w-fit rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-[0.14em] uppercase",
+                          className={
                             card.format === "oneOnOne"
-                              ? "bg-[#3E3E75]/12 text-[#3E3E75] dark:bg-[#C4C4E8]/15 dark:text-[#C4C4E8]"
-                              : "bg-muted text-muted-foreground"
-                          )}
+                              ? "w-fit rounded-full bg-[#3E3E75]/12 px-2 py-0.5 text-[0.65rem] font-semibold tracking-[0.14em] text-[#3E3E75] uppercase dark:bg-[#C4C4E8]/15 dark:text-[#C4C4E8]"
+                              : "w-fit rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
+                          }
                         >
                           {t(
                             card.format === "oneOnOne"
@@ -404,6 +418,12 @@ export function CareersSection() {
                         {t(card.bodyKey)}
                       </p>
                     </div>
+                    <CareersAddToCartButton
+                      kind="online"
+                      courseId={card.id}
+                      titleKey={card.titleKey}
+                      imageSrc={card.imageSrc}
+                    />
                   </article>
                 ))}
               </div>
@@ -411,6 +431,8 @@ export function CareersSection() {
           </TabsContents>
         </Tabs>
       </div>
+
+      <CareersCartDock />
     </section>
   );
 }
