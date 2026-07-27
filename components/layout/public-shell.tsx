@@ -19,11 +19,18 @@ export function PublicShell({ children }: PublicShellProps) {
 
   return (
     <div dir={dir} lang={locale} className="relative flex min-h-dvh flex-col">
-      <PublicSplashCursor />
-      <div className="relative z-10 flex min-h-dvh flex-col">
-        <SiteNavbarClient initialDashboardHref={null} />
+      <SiteNavbarClient initialDashboardHref={null} />
+      <div className="relative flex min-h-dvh flex-col">
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         <SiteFooter />
+      </div>
+      {/* Cursor effect last in DOM but z-0 so it never covers navbar/content. */}
+      <div
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{ zIndex: 0 }}
+        aria-hidden
+      >
+        <PublicSplashCursor />
       </div>
     </div>
   );

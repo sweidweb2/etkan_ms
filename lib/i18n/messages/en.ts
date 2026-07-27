@@ -179,6 +179,117 @@ export const en = {
   "projects.teachers.etkanMs.imageAlt":
     "Analytics dashboard representing the Etkan management system",
 
+  "life.carouselLabel": "Featured stories",
+  "life.prev": "Previous story",
+  "life.next": "Next story",
+  "life.writtenBy": "Written by",
+  "life.published": "Published",
+  "life.blogUnder": "Blog under",
+  "life.category.workshop": "Workshop",
+  "life.category.students": "Students",
+  "life.category.community": "Community",
+  "life.category.projects": "Projects",
+  "life.category.events": "Events",
+  "life.featured.1.title": "Inside the workshop: building before theory",
+  "life.featured.1.excerpt":
+    "How Etkan teams turn tools, circuits, and late-night debugging into real craft.",
+  "life.featured.1.author": "Sara Haddad",
+  "life.featured.1.imageAlt":
+    "Students collaborating around hardware on a workshop bench",
+  "life.featured.2.title": "From sketch to ship: a student build week",
+  "life.featured.2.excerpt":
+    "One week, one product goal, and a team learning to plan, fail fast, and deliver.",
+  "life.featured.2.author": "Omar Nasser",
+  "life.featured.2.imageAlt":
+    "Laptop open beside notes and prototype parts on a desk",
+  "life.featured.3.title": "Community night: demos, feedback, and next steps",
+  "life.featured.3.excerpt":
+    "Parents, mentors, and peers gather to see what students shipped—and what comes next.",
+  "life.featured.3.author": "Layla Faris",
+  "life.featured.3.imageAlt":
+    "Group presentation in a bright studio learning space",
+
+  "life.filterLabel": "Filter stories by category",
+  "life.filter.all": "All",
+  "life.listLabel": "Etkan life stories",
+  "life.empty": "No stories in this category yet.",
+
+  "life.post.1.title": "Soldering night: patience over speed",
+  "life.post.1.excerpt":
+    "A quiet evening in the lab where clean joints mattered more than finishing first.",
+  "life.post.1.author": "Sara Haddad",
+  "life.post.1.imageAlt": "Hands soldering a circuit board in the workshop",
+  "life.post.1.body1":
+    "The benches were quiet except for the soft hiss of irons and the occasional laugh when someone lifted a joint that looked more like a metal blob than a connection. Nobody was racing. That was the point.",
+  "life.post.1.body2":
+    "We started with a shared checklist—tip temperature, flux, tin, inspect. Mentors walked the row and asked one question over and over: does this joint look intentional? If not, rework it. Speed without care just means redoing the same board later.",
+  "life.post.1.body3":
+    "By the end of the night, every board on the table had at least one clean, shiny joint that the builder could defend. Patience won. And the next session started from a higher bar.",
+
+  "life.post.2.title": "Peer review that actually helps",
+  "life.post.2.excerpt":
+    "Students trade builds, give hard feedback, and leave with clearer next steps.",
+  "life.post.2.author": "Omar Nasser",
+  "life.post.2.imageAlt": "Students reviewing work together around a table",
+  "life.post.2.body1":
+    "Peer review only works when the room agrees that honesty is a gift. We set a simple rule: praise one thing that works, then name one thing that blocks the next step.",
+  "life.post.2.body2":
+    "Teams swapped laptops and prototypes for twenty minutes. No defending. Just listening, scribbling, and asking clarifying questions. The feedback that stuck was specific—file names, wire colors, missing edge cases.",
+  "life.post.2.body3":
+    "Everyone left with a short list, not a vague vibe. The next morning, half the builds already looked sharper. That is the kind of review worth scheduling again.",
+
+  "life.post.3.title": "Open doors: mentors meet makers",
+  "life.post.3.excerpt":
+    "An evening for families and mentors to walk the floor and ask real questions.",
+  "life.post.3.author": "Layla Faris",
+  "life.post.3.imageAlt": "Community gathering in a collaborative studio space",
+  "life.post.3.body1":
+    "Open doors night is not a performance. Tables stay messy on purpose. Mentors and families walk the floor and talk to the people who built the work—not to a slide deck.",
+  "life.post.3.body2":
+    "The best conversations started with simple questions: what broke first? what would you rebuild? why this approach? Students answered with the confidence that only comes from owning the process.",
+  "life.post.3.body3":
+    "We closed with sticky notes of next steps and a few new mentor connections. Community nights work when curiosity is louder than applause.",
+
+  "life.post.4.title": "Shipping a dashboard in two sprints",
+  "life.post.4.excerpt":
+    "How a small team scoped, built, and handed off a working admin view.",
+  "life.post.4.author": "Rami Khoury",
+  "life.post.4.imageAlt": "Laptop showing an analytics dashboard interface",
+  "life.post.4.body1":
+    "Two sprints. One admin dashboard. Zero room for feature fantasy. We cut the backlog to three screens and one happy path: see status, filter by semester, export a clean table.",
+  "life.post.4.body2":
+    "Sprint one locked layout and empty states. Sprint two wired real data and error handling. Daily standups were short—blockers only. Anything that did not serve the happy path waited.",
+  "life.post.4.body3":
+    "Hand-off day was a walkthrough, not a pitch. The receiving team clicked through the flows and filed two bugs we fixed before lunch. Shipping small beats promising large.",
+
+  "life.post.5.title": "Demo day energy, measured by questions",
+  "life.post.5.excerpt":
+    "Not applause—curiosity. The best demos sparked follow-up work the next morning.",
+  "life.post.5.author": "Nour Abboud",
+  "life.post.5.imageAlt": "Audience watching a stage presentation at an event",
+  "life.post.5.body1":
+    "We measure demo day by the questions that follow. Applause fades. A pointed question about latency, materials, or edge cases means someone was paying attention.",
+  "life.post.5.body2":
+    "Presenters had three minutes: problem, build, what broke. No marketing language. Mentors sat in the front row with pens ready. Students who stuttered still finished—and that mattered.",
+  "life.post.5.body3":
+    "By morning, three teams had already opened tickets from the Q&A. That is demo day done right: energy that turns into work.",
+
+  "life.post.6.title": "Calibration before creation",
+  "life.post.6.excerpt":
+    "Why every fabrication session starts with tools, tolerances, and a shared checklist.",
+  "life.post.6.author": "Maya Habib",
+  "life.post.6.imageAlt": "Precision tools arranged on a workshop bench",
+  "life.post.6.body1":
+    "Creation without calibration is guesswork. We start every fab session by zeroing tools, checking stock, and reading the tolerance line out loud so nobody invents their own standard mid-cut.",
+  "life.post.6.body2":
+    "The checklist is boring on purpose: measure twice, mark once, confirm units, clear the bed. New students roll their eyes until the first scrap pile appears—and then they ask for the list.",
+  "life.post.6.body3":
+    "When calibration is shared, the room moves faster later. Mistakes still happen, but they are instructive instead of chaotic. That is the craft we are trying to build.",
+
+  "life.detail.back": "Back to Life",
+  "life.detail.suggested": "Suggested stories",
+  "life.detail.suggestedListLabel": "Suggested life stories",
+
   "gallery.eyebrow": "Moments",
   "gallery.title": "Workshop life in frames",
   "gallery.lead":

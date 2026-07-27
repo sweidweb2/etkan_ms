@@ -8,6 +8,7 @@ export const ROUTES = {
   PROJECTS: "/projects",
   GALLERY: "/gallery",
   LIFE: "/life",
+  LIFE_BLOG_DETAIL: "/life/[id]",
   LOGIN: "/auth/login",
   SIGNUP: "/auth/signup",
   CALLBACK: "/auth/callback",
@@ -99,6 +100,10 @@ export function getPanelRootForRole(role: RoleValue): string {
 
 export function getCareersRoadmapDetailRoute(roadmapId: string): string {
   return `/careers/roadmap/${roadmapId}`;
+}
+
+export function getLifeBlogDetailRoute(blogId: string): string {
+  return `/life/${blogId}`;
 }
 
 export function getManagerUserDetailRoute(userId: string): string {

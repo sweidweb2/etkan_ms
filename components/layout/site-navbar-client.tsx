@@ -129,14 +129,17 @@ function NavbarShell({
   const { t } = usePublicI18n();
 
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-50">
+    <header
+      className="pointer-events-none fixed inset-x-0 top-0 z-50"
+      style={{ zIndex: 100 }}
+    >
       {/* Desktop / tablet bar */}
-      <div className="hidden justify-center sm:flex">
+      <div className="flex justify-center max-sm:hidden">
         <div
           className={cn(
-            "pointer-events-auto grid h-14 w-[70vw] min-w-0 max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden px-4",
-            "rounded-bl-[1.75rem] rounded-br-[1.75rem] border border-t-0 border-border bg-white shadow-sm",
-            "text-foreground dark:bg-white dark:text-foreground"
+            "pointer-events-auto grid h-14 w-[min(70vw,64rem)] min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:gap-3",
+            "rounded-bl-[1.75rem] rounded-br-[1.75rem] border border-t-0 border-border bg-white shadow-md",
+            "text-foreground"
           )}
         >
           <Link
@@ -146,7 +149,7 @@ function NavbarShell({
           >
             {t("brand.name")}
           </Link>
-          <PrimaryNavLinks className="justify-self-center" />
+          <PrimaryNavLinks className="min-w-0 justify-self-center" />
           <div className="justify-self-end">{desktopActions}</div>
         </div>
       </div>
