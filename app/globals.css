@@ -165,15 +165,24 @@
   }
 }
 
-@keyframes route-top-loader-progress {
+@keyframes route-top-loader-loading {
   0% {
-    transform: translateX(-100%);
+    transform: scaleX(0.08);
   }
   50% {
-    transform: translateX(-20%);
+    transform: scaleX(0.55);
   }
   100% {
-    transform: translateX(0);
+    transform: scaleX(0.85);
+  }
+}
+
+@keyframes route-top-loader-finish {
+  from {
+    transform: scaleX(0.85);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 
@@ -192,11 +201,16 @@
 
 .route-top-loader-bar {
   width: 100%;
-  transform: translateX(-100%);
+  transform: scaleX(0);
+  transform-origin: left center;
 }
 
 .route-top-loader-bar-active {
-  animation: route-top-loader-progress 0.5s ease-out forwards;
+  animation: route-top-loader-loading 1.1s ease-out forwards;
+}
+
+.route-top-loader-bar-finishing {
+  animation: route-top-loader-finish 0.3s ease-out forwards;
 }
 
 @media print {

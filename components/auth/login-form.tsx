@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "@/components/auth/field-label";
 import { PasswordInput } from "@/components/auth/password-input";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { loginSchema, type LoginInput } from "@/lib/validators/auth/auth";
@@ -101,7 +102,14 @@ export function LoginForm({ next }: LoginFormProps) {
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? t("auth.login.submitting") : t("auth.login.submit")}
+        {isPending ? (
+          <>
+            <InlineSpinner />
+            {t("auth.login.submitting")}
+          </>
+        ) : (
+          t("auth.login.submit")
+        )}
       </Button>
     </form>
   );

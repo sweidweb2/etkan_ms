@@ -7,6 +7,7 @@ export type PanelNavIconKey =
   | "library"
   | "calculator"
   | "bell"
+  | "mail"
   | "school"
   | "package"
   | "layers"

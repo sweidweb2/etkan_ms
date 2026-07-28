@@ -27,6 +27,7 @@ export const ROUTES = {
   MANAGER_STUDENT_ACCOUNT_DETAIL: "/manager/accounting/students/[id]",
   MANAGER_SCHEDULE: "/manager/schedule",
   MANAGER_NOTIFICATIONS: "/manager/notifications",
+  MANAGER_EMAILING: "/manager/emailing",
   MANAGER_CLASSES: "/manager/classes",
   MANAGER_CLASS_DETAIL: "/manager/classes/[id]",
   MANAGER_CLASS_GRADES: "/manager/classes/[id]/grades",
