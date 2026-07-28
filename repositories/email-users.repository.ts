@@ -16,6 +16,9 @@ export type UpsertEmailUserInput = {
   mailtrapMessageId?: string | null;
 };
 
+const EMAIL_USER_COLUMNS =
+  "id, email_sent_id, student_id, email_address, sent_at, delivery_status, opened_at, mailtrap_message_id, created_at";
+
 export async function upsertEmailUser(
   client: Supabase,
   input: UpsertEmailUserInput
@@ -52,4 +55,29 @@ export async function insertEmailUsers(
     })),
     { onConflict: "email_sent_id,email_address" }
   );
+}
+
+export async function listEmailUsersByEmailSentId(
+  client: Supabase,
+  emailSentId: string
+) {
+  return client
+    .from("email_users")
+    .select(EMAIL_USER_COLUMNS)
+    .eq("email_sent_id", emailSentId)
+    .order("created_at", { ascending: true });
+}
+
+export async function listEmailUserCountsByEmailSentIds(
+  client: Supabase,
+  emailSentIds: string[]
+) {
+  if (emailSentIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("email_users")
+    .select("email_sent_id, delivery_status")
+    .in("email_sent_id", emailSentIds);
 }

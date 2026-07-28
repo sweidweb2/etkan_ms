@@ -14,6 +14,9 @@ export type CreateEmailSentInput = {
   year?: number;
 };
 
+const EMAIL_SENT_COLUMNS =
+  "id, reference_number, year, reference_code, title, body, locale, template_id, created_by, created_at, updated_at";
+
 export async function createEmailSentWithReference(
   client: Supabase,
   input: CreateEmailSentInput
@@ -28,4 +31,19 @@ export async function createEmailSentWithReference(
   });
 
   return { data: data as EmailSentRecord | null, error };
+}
+
+export async function listEmailSent(client: Supabase) {
+  return client
+    .from("email_sent")
+    .select(EMAIL_SENT_COLUMNS)
+    .order("created_at", { ascending: false });
+}
+
+export async function findEmailSentById(client: Supabase, id: string) {
+  return client
+    .from("email_sent")
+    .select(EMAIL_SENT_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
 }

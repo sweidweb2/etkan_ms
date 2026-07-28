@@ -120,6 +120,7 @@ export function ComposeLetterPanel({ initialUsers }: ComposeLetterPanelProps) {
 
   const selectedLocale = (watch("locale") as EmailLocale | undefined) ?? "ar";
   const bodyHtml = watch("bodyHtml") ?? "<p></p>";
+  const textDirection = selectedLocale === "ar" ? "rtl" : "ltr";
 
   function syncRecipientsToForm(next: ComposeRecipient[] = recipients) {
     const userIds = next
@@ -267,6 +268,10 @@ export function ComposeLetterPanel({ initialUsers }: ComposeLetterPanelProps) {
                   maxLength={EMAIL_COMPOSE_LIMITS.subject}
                   disabled={isPending}
                   placeholder="Subject"
+                  dir={textDirection}
+                  className={cn(
+                    textDirection === "rtl" && "text-right"
+                  )}
                   aria-invalid={!!fieldError(errors, state, "subject")}
                   {...register("subject")}
                 />
@@ -313,6 +318,7 @@ export function ComposeLetterPanel({ initialUsers }: ComposeLetterPanelProps) {
               <TiptapEmailEditor
                 key={editorKey}
                 value={bodyHtml || "<p></p>"}
+                dir={textDirection}
                 disabled={isPending}
                 invalid={
                   !!(

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -23,6 +23,8 @@ type TiptapEmailEditorProps = {
   onBlur?: () => void;
   disabled?: boolean;
   invalid?: boolean;
+  /** Text direction for the editable surface. */
+  dir?: "ltr" | "rtl";
   className?: string;
 };
 
@@ -32,6 +34,7 @@ export function TiptapEmailEditor({
   onBlur,
   disabled = false,
   invalid = false,
+  dir = "ltr",
   className,
 }: TiptapEmailEditorProps) {
   const editor = useEditor({
@@ -53,6 +56,7 @@ export function TiptapEmailEditor({
     immediatelyRender: false,
     editorProps: {
       attributes: {
+        dir,
         class:
           "min-h-[220px] px-3 py-2 text-sm leading-relaxed focus:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-lg [&_h2]:font-semibold [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:ps-5 [&_p]:my-1.5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:ps-5 [&_a]:text-primary [&_a]:underline",
       },
@@ -65,6 +69,22 @@ export function TiptapEmailEditor({
     },
   });
 
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+    editor.setEditable(!disabled);
+  }, [disabled, editor]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+    const dom = editor.view.dom;
+    dom.setAttribute("dir", dir);
+    dom.style.textAlign = dir === "rtl" ? "right" : "left";
+  }, [dir, editor]);
+
   if (!editor) {
     return (
       <div
@@ -72,6 +92,7 @@ export function TiptapEmailEditor({
           "min-h-[280px] rounded-lg border border-input bg-transparent",
           className
         )}
+        dir={dir}
       />
     );
   }
@@ -103,6 +124,7 @@ export function TiptapEmailEditor({
         className
       )}
       aria-invalid={invalid || undefined}
+      dir={dir}
     >
       <div className="flex flex-wrap gap-1 border-b border-border/80 bg-muted/30 p-1.5">
         <ToolbarButton

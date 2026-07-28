@@ -29,6 +29,8 @@ export const ROUTES = {
   MANAGER_NOTIFICATIONS: "/manager/notifications",
   MANAGER_EMAILING: "/manager/emailing",
   MANAGER_EMAILING_COMPOSE: "/manager/emailing/compose",
+  MANAGER_SENT: "/manager/sent",
+  MANAGER_SENT_DETAIL: "/manager/sent/[id]",
   MANAGER_CLASSES: "/manager/classes",
   MANAGER_CLASS_DETAIL: "/manager/classes/[id]",
   MANAGER_CLASS_GRADES: "/manager/classes/[id]/grades",
@@ -134,6 +136,10 @@ export function getManagerSemesterDetailRoute(semesterId: string): string {
 
 export function getManagerClassDetailRoute(classId: string): string {
   return `/manager/classes/${classId}`;
+}
+
+export function getManagerEmailSentDetailRoute(emailSentId: string): string {
+  return `/manager/sent/${emailSentId}`;
 }
 
 export function getManagerClassGradesRoute(classId: string): string {

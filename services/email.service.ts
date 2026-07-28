@@ -5,6 +5,7 @@ import {
   EMAIL_CIRCULAR_CONTACT,
 } from "@/lib/email/templates/chrome";
 import {
+  EMAIL_TEMPLATES,
   renderEmailTemplate,
   type EmailTemplateId,
 } from "@/lib/email/templates";
@@ -17,11 +18,17 @@ import * as classRepository from "@/repositories/class.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as emailSentRepository from "@/repositories/email-sent.repository";
 import * as emailUsersRepository from "@/repositories/email-users.repository";
+import type { EmailDeliveryStatus } from "@/repositories/email-users.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import type { AuditActor } from "@/services/audit-log.service";
 import type { SendEmailInput as SendManagerEmailInput } from "@/lib/validators/manager/send-email";
 import type { FieldErrors } from "@/types/auth";
+import type {
+  ManagerEmailSentDetail,
+  ManagerEmailSentListRow,
+  ManagerEmailUserRow,
+} from "@/types/manager-emailing";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -507,7 +514,10 @@ export async function listEmailingTableFilterDataForManager(
 
   const classIdsByUser = new Map<string, Set<string>>();
 
-  const addMembership = (userId: string | null | undefined, classId: string | null | undefined) => {
+  const addMembership = (
+    userId: string | null | undefined,
+    classId: string | null | undefined
+  ) => {
     if (!userId || !classId) {
       return;
     }
@@ -536,4 +546,308 @@ export async function listEmailingTableFilterDataForManager(
     })),
     userClassIds,
   };
+}
+
+function getTemplateLabel(templateId: string): string {
+  return (
+    EMAIL_TEMPLATES.find((template) => template.id === templateId)?.label ??
+    templateId
+  );
+}
+
+function isEmailLocale(value: string): value is "en" | "ar" {
+  return value === "en" || value === "ar";
+}
+
+function isDeliveryStatus(value: string): value is EmailDeliveryStatus {
+  return (
+    value === "pending" ||
+    value === "sent" ||
+    value === "failed" ||
+    value === "skipped"
+  );
+}
+
+export async function listSentEmailsForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null
+): Promise<ManagerEmailSentListRow[]> {
+  if (actorRole !== ROLES.MANAGER) {
+    throw new Error("Unauthorized.");
+  }
+
+  const sentResult = await emailSentRepository.listEmailSent(adminClient);
+  if (sentResult.error) {
+    throw new Error(sentResult.error.message);
+  }
+
+  const rows = sentResult.data ?? [];
+  const ids = rows.map((row) => row.id);
+  const countsResult =
+    await emailUsersRepository.listEmailUserCountsByEmailSentIds(
+      adminClient,
+      ids
+    );
+
+  if (countsResult.error) {
+    throw new Error(countsResult.error.message);
+  }
+
+  const statsBySentId = new Map<
+    string,
+    { recipient_count: number; sent_count: number; failed_count: number }
+  >();
+
+  for (const row of countsResult.data ?? []) {
+    const current = statsBySentId.get(row.email_sent_id) ?? {
+      recipient_count: 0,
+      sent_count: 0,
+      failed_count: 0,
+    };
+    current.recipient_count += 1;
+    if (row.delivery_status === "sent") {
+      current.sent_count += 1;
+    }
+    if (row.delivery_status === "failed") {
+      current.failed_count += 1;
+    }
+    statsBySentId.set(row.email_sent_id, current);
+  }
+
+  return rows.map((row) => {
+    const stats = statsBySentId.get(row.id) ?? {
+      recipient_count: 0,
+      sent_count: 0,
+      failed_count: 0,
+    };
+
+    return {
+      id: row.id,
+      reference_code: row.reference_code,
+      title: row.title,
+      locale: isEmailLocale(row.locale) ? row.locale : "en",
+      template_id: row.template_id,
+      template_label: getTemplateLabel(row.template_id),
+      created_at: row.created_at,
+      recipient_count: stats.recipient_count,
+      sent_count: stats.sent_count,
+      failed_count: stats.failed_count,
+    };
+  });
+}
+
+export async function getSentEmailDetailForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  emailSentId: string
+): Promise<{
+  email: ManagerEmailSentDetail;
+  recipients: ManagerEmailUserRow[];
+} | null> {
+  if (actorRole !== ROLES.MANAGER) {
+    throw new Error("Unauthorized.");
+  }
+
+  const sentResult = await emailSentRepository.findEmailSentById(
+    adminClient,
+    emailSentId
+  );
+
+  if (sentResult.error) {
+    throw new Error(sentResult.error.message);
+  }
+
+  if (!sentResult.data) {
+    return null;
+  }
+
+  const usersResult = await emailUsersRepository.listEmailUsersByEmailSentId(
+    adminClient,
+    emailSentId
+  );
+
+  if (usersResult.error) {
+    throw new Error(usersResult.error.message);
+  }
+
+  const row = sentResult.data;
+
+  return {
+    email: {
+      id: row.id,
+      reference_code: row.reference_code,
+      reference_number: row.reference_number,
+      year: row.year,
+      title: row.title,
+      body: row.body,
+      locale: isEmailLocale(row.locale) ? row.locale : "en",
+      template_id: row.template_id,
+      template_label: getTemplateLabel(row.template_id),
+      created_by: row.created_by,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    },
+    recipients: (usersResult.data ?? []).map((recipient) => ({
+      id: recipient.id,
+      email_sent_id: recipient.email_sent_id,
+      student_id: recipient.student_id,
+      email_address: recipient.email_address,
+      sent_at: recipient.sent_at,
+      delivery_status: isDeliveryStatus(recipient.delivery_status)
+        ? recipient.delivery_status
+        : "pending",
+      opened_at: recipient.opened_at,
+      mailtrap_message_id: recipient.mailtrap_message_id,
+      created_at: recipient.created_at,
+    })),
+  };
+}
+
+export async function resendSentEmailForManager(
+  adminClient: Supabase,
+  actorRole: RoleValue | null,
+  input: {
+    emailSentId: string;
+    userIds: string[];
+    toEmails: string[];
+  }
+): Promise<SendEmailsForManagerResult> {
+  if (actorRole !== ROLES.MANAGER) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  try {
+    const sentResult = await emailSentRepository.findEmailSentById(
+      adminClient,
+      input.emailSentId
+    );
+
+    if (sentResult.error) {
+      return { success: false, error: sentResult.error.message };
+    }
+
+    if (!sentResult.data) {
+      return { success: false, error: "Sent email not found." };
+    }
+
+    const emailSent = sentResult.data;
+    const locale = isEmailLocale(emailSent.locale) ? emailSent.locale : "ar";
+
+    let recipients: ResolvedRecipient[] = [];
+    let skippedCount = 0;
+
+    if (input.userIds.length > 0) {
+      const resolved = await resolveRecipients(adminClient, input.userIds);
+      recipients = resolved.recipients;
+      skippedCount = resolved.skippedCount;
+    }
+
+    const knownEmails = new Set(
+      recipients.map((recipient) => recipient.email.toLowerCase())
+    );
+
+    for (const email of input.toEmails.map((value) => value.trim().toLowerCase())) {
+      if (!email || knownEmails.has(email)) {
+        continue;
+      }
+      recipients.push({
+        studentId: null,
+        email,
+        displayName: email.split("@")[0] || "there",
+      });
+      knownEmails.add(email);
+    }
+
+    if (recipients.length === 0) {
+      return {
+        success: false,
+        error:
+          skippedCount > 0
+            ? "None of the selected users have a deliverable email address."
+            : "Select at least one recipient.",
+        skippedCount,
+        sentCount: 0,
+        failedCount: 0,
+      };
+    }
+
+    let sentCount = 0;
+    let failedCount = 0;
+
+    for (const recipient of recipients) {
+      const rendered = renderEmailTemplate("custom", {
+        recipient_name: recipient.displayName,
+        school_name: SITE.name,
+        support_email: EMAIL_CIRCULAR_CONTACT,
+        login_url: getLoginUrl(),
+        locale,
+        reference_code: emailSent.reference_code,
+        subject: emailSent.title,
+        body: emailSent.body,
+      });
+
+      const result = await sendEmail({
+        to: recipient.email,
+        subject: rendered.subject,
+        text: rendered.text,
+        html: rendered.html,
+      });
+
+      if (result.success) {
+        sentCount += 1;
+        await emailUsersRepository.upsertEmailUser(adminClient, {
+          emailSentId: emailSent.id,
+          studentId: recipient.studentId,
+          emailAddress: recipient.email,
+          deliveryStatus: "sent",
+          sentAt: new Date().toISOString(),
+          mailtrapMessageId: result.messageIds[0] ?? null,
+        });
+      } else {
+        failedCount += 1;
+        await emailUsersRepository.upsertEmailUser(adminClient, {
+          emailSentId: emailSent.id,
+          studentId: recipient.studentId,
+          emailAddress: recipient.email,
+          deliveryStatus: "failed",
+          sentAt: null,
+          mailtrapMessageId: null,
+        });
+      }
+    }
+
+    if (sentCount === 0) {
+      return {
+        success: false,
+        error: "Unable to resend email. Please try again.",
+        sentCount,
+        skippedCount,
+        failedCount,
+        referenceCode: emailSent.reference_code,
+      };
+    }
+
+    const parts = [
+      `Resent ${sentCount} email${sentCount === 1 ? "" : "s"} (Ref.: ${emailSent.reference_code}).`,
+    ];
+    if (skippedCount > 0) {
+      parts.push(`Skipped ${skippedCount} without email.`);
+    }
+    if (failedCount > 0) {
+      parts.push(`Failed ${failedCount}.`);
+    }
+
+    return {
+      success: true,
+      message: parts.join(" "),
+      sentCount,
+      skippedCount,
+      failedCount,
+      referenceCode: emailSent.reference_code,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to resend email.";
+    return { success: false, error: message };
+  }
 }

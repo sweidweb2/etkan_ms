@@ -93,10 +93,22 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           href: ROUTES.MANAGER_NOTIFICATIONS,
           icon: "bell",
         },
+      ],
+    },
+    {
+      id: "email",
+      label: "Email",
+      defaultOpen: true,
+      items: [
         {
           title: "Emailing",
           href: ROUTES.MANAGER_EMAILING,
           icon: "mail",
+        },
+        {
+          title: "Sent",
+          href: ROUTES.MANAGER_SENT,
+          icon: "send",
         },
       ],
     },
