@@ -416,6 +416,107 @@ export type Database = {
           },
         ]
       }
+      email_sent: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          locale: string
+          reference_code: string
+          reference_number: number
+          template_id: string
+          title: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          locale?: string
+          reference_code: string
+          reference_number: number
+          template_id: string
+          title: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          locale?: string
+          reference_code?: string
+          reference_number?: number
+          template_id?: string
+          title?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sent_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_users: {
+        Row: {
+          created_at: string
+          delivery_status: string
+          email_address: string
+          email_sent_id: string
+          id: string
+          mailtrap_message_id: string | null
+          opened_at: string | null
+          sent_at: string | null
+          student_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          delivery_status?: string
+          email_address: string
+          email_sent_id: string
+          id?: string
+          mailtrap_message_id?: string | null
+          opened_at?: string | null
+          sent_at?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          delivery_status?: string
+          email_address?: string
+          email_sent_id?: string
+          id?: string
+          mailtrap_message_id?: string | null
+          opened_at?: string | null
+          sent_at?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_users_email_sent_id_fkey"
+            columns: ["email_sent_id"]
+            isOneToOne: false
+            referencedRelation: "email_sent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_users_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipments: {
         Row: {
           created_at: string | null
@@ -1215,6 +1316,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_email_sent_with_reference: {
+        Args: {
+          p_title: string
+          p_body: string
+          p_locale: string
+          p_template_id: string
+          p_created_by: string | null
+          p_year?: number | null
+        }
+        Returns: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          locale: string
+          reference_code: string
+          reference_number: number
+          template_id: string
+          title: string
+          updated_at: string
+          year: number
+        }
+      }
       mark_overdue_pending_work_missing: { Args: never; Returns: undefined }
       start_scheduled_semesters: { Args: never; Returns: undefined }
     }

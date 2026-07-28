@@ -467,8 +467,8 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
               {t("hero.topic")}
             </h1>
 
-            {/* Stack keeps height = tallest slide; slides stay mounted (no remount flash). */}
-            <div className="relative mt-6 grid overflow-hidden [&>*]:col-start-1 [&>*]:row-start-1">
+            {/* Stack keeps height = tallest slide; only the active slide is in flow for hit-testing. */}
+            <div className="relative mt-6 overflow-hidden">
               {SLIDES.map((item, i) => {
                 const isActive = i === index;
                 const isExiting = i === prevIndex && i !== index;
@@ -486,7 +486,9 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                     }}
                     className={cn(
                       "min-w-0",
-                      isActive ? "relative z-10" : "pointer-events-none"
+                      isActive
+                        ? "relative z-10"
+                        : "pointer-events-none absolute inset-x-0 top-0 z-0"
                     )}
                     aria-hidden={!isActive}
                   >
@@ -510,26 +512,28 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                     >
                       {t(item.pointDescKey)}
                     </p>
-                    <Link
-                      href={
-                        dashboardHref ??
-                        (item.id === "teamwork"
-                          ? ROUTES.SIGNUP
-                          : ROUTES.CAREERS)
-                      }
-                      tabIndex={isActive ? undefined : -1}
-                      suppressHydrationWarning
-                      className={cn(
-                        buttonVariants({ size: "lg" }),
-                        "mt-8 border-transparent",
-                        HERO_THEME.cta,
-                        !isActive && "invisible"
-                      )}
-                    >
-                      {dashboardHref
-                        ? t("hero.ctaDashboard")
-                        : t(item.ctaKey)}
-                    </Link>
+                    <div className="mt-8">
+                      <Link
+                        href={
+                          dashboardHref ??
+                          (item.id === "teamwork"
+                            ? ROUTES.SIGNUP
+                            : ROUTES.CAREERS)
+                        }
+                        tabIndex={isActive ? undefined : -1}
+                        suppressHydrationWarning
+                        className={cn(
+                          buttonVariants({ size: "lg" }),
+                          "relative z-20 inline-flex border-transparent",
+                          HERO_THEME.cta,
+                          !isActive && "invisible"
+                        )}
+                      >
+                        {dashboardHref
+                          ? t("hero.ctaDashboard")
+                          : t(item.ctaKey)}
+                      </Link>
+                    </div>
                   </motion.div>
                 );
               })}
@@ -537,7 +541,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
           </div>
 
           <div className="flex min-w-0 flex-col gap-5">
-            <div className="relative grid overflow-hidden [&>*]:col-start-1 [&>*]:row-start-1">
+          <div className="relative grid min-h-0 overflow-hidden [&>*]:col-start-1 [&>*]:row-start-1">
               {SLIDES.map((item, i) => {
                 const isActive = i === index;
                 const isExiting = i === prevIndex && i !== index;
@@ -555,7 +559,9 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                     }}
                     className={cn(
                       "grid gap-4 sm:grid-cols-2",
-                      isActive ? "relative z-10" : "pointer-events-none"
+                      isActive
+                        ? "relative z-10"
+                        : "pointer-events-none absolute inset-x-0 top-0 z-0"
                     )}
                     aria-hidden={!isActive}
                   >

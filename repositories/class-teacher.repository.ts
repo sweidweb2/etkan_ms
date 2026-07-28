@@ -81,3 +81,7 @@ export async function createClassTeacher(
 export async function deleteClassTeacherById(client: Supabase, id: string) {
   return client.from("class_teacher").delete().eq("id", id);
 }
+
+export async function listClassTeacherAssignments(client: Supabase) {
+  return client.from("class_teacher").select("class_id, teacher_id");
+}

@@ -1,19 +1,29 @@
 "use client";
 
 import { useMemo, useState, type MouseEvent } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  CreditCardIcon,
+  GraduationCapIcon,
   MailIcon,
   MegaphoneIcon,
   MessageSquareIcon,
   PenLineIcon,
+  SearchIcon,
   SendIcon,
+  SparklesIcon,
+  UserPlusIcon,
 } from "lucide-react";
+import {
+  ComposeEmailDialog,
+  type ComposeEmailTarget,
+} from "@/components/manager/emailing/compose-email-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -22,66 +32,62 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ROLES } from "@/lib/constants/roles";
+import { EMAIL_TEMPLATES, type EmailTemplateId } from "@/lib/email/templates";
+import { ROUTES } from "@/lib/constants/routes";
+import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
+import { EMAIL_REGEX } from "@/lib/validators/auth/fields";
+import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { EmailingClassOption } from "@/services/email.service";
 import type { ManagerUserRow } from "@/types/manager-user";
 
 type ManageEmailingPanelProps = {
   initialUsers: ManagerUserRow[];
+  classes: EmailingClassOption[];
+  userClassIds: Record<string, string[]>;
 };
 
 type ReadyAction = {
-  id: string;
+  id: EmailTemplateId;
   title: string;
   description: string;
   icon: typeof SendIcon;
 };
 
-type ComposeTarget =
-  | { mode: "single"; user: ManagerUserRow }
-  | { mode: "bulk"; users: ManagerUserRow[] };
-
 const PAGE_SIZE = 30;
 const MAX_PAGES = 1000;
+const ROLE_FILTER_ALL = "all";
+const CLASS_FILTER_ALL = "all";
 
-const READY_ACTIONS: ReadyAction[] = [
-  {
-    id: "announcement",
-    title: "Send announcement",
-    description: "Broadcast a message to the selected users.",
-    icon: MegaphoneIcon,
-  },
-  {
-    id: "reminder",
-    title: "Send reminder",
-    description: "Nudge selected users about an upcoming item.",
-    icon: SendIcon,
-  },
-  {
-    id: "custom",
-    title: "Custom campaign",
-    description: "Compose a custom email for the selected group.",
-    icon: PenLineIcon,
-  },
-];
+const READY_ACTION_ICONS: Record<EmailTemplateId, typeof SendIcon> = {
+  welcome: UserPlusIcon,
+  announcement: MegaphoneIcon,
+  reminder: SendIcon,
+  payment_reminder: CreditCardIcon,
+  enrollment: GraduationCapIcon,
+  custom: PenLineIcon,
+};
 
-const TEXTAREA_CLASS =
-  "min-h-32 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30";
+const READY_ACTIONS: ReadyAction[] = EMAIL_TEMPLATES.map((template) => ({
+  id: template.id,
+  title: template.label,
+  description: template.description,
+  icon: READY_ACTION_ICONS[template.id],
+}));
 
 function SelectionCheckbox({
   checked,
@@ -108,6 +114,26 @@ function SelectionCheckbox({
 
 function getUserDisplayName(user: ManagerUserRow) {
   return user.username ?? user.student_full_name ?? "—";
+}
+
+function matchesNameFilter(user: ManagerUserRow, query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+
+  const username = user.username?.toLowerCase() ?? "";
+  const fullName = user.student_full_name?.toLowerCase() ?? "";
+  return username.includes(normalized) || fullName.includes(normalized);
+}
+
+function matchesEmailFilter(user: ManagerUserRow, query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+
+  return user.email.toLowerCase().includes(normalized);
 }
 
 function getPageNumbers(currentPage: number, totalPages: number) {
@@ -138,93 +164,27 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function ComposeEmailDialog({
-  open,
-  onOpenChange,
-  target,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  target: ComposeTarget | null;
-}) {
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-
-  const isBulk = target?.mode === "bulk";
-  const recipientLabel = !target
-    ? ""
-    : target.mode === "single"
-      ? `${getUserDisplayName(target.user)} (${target.user.email || "no email"})`
-      : `${target.users.length} selected users`;
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      setSubject("");
-      setBody("");
-    }
-    onOpenChange(nextOpen);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {isBulk ? "Send email to selected" : "Send email"}
-          </DialogTitle>
-          <DialogDescription>
-            Compose a message for {recipientLabel}. Sending will be enabled
-            later.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-4 py-1">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email-subject">Title</Label>
-            <Input
-              id="email-subject"
-              value={subject}
-              onChange={(event) => setSubject(event.target.value)}
-              placeholder="Email subject"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email-body">Email body</Label>
-            <textarea
-              id="email-body"
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              placeholder="Write your message…"
-              className={TEXTAREA_CLASS}
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button type="button" disabled title="Sending will be enabled later">
-            <SendIcon data-icon="inline-start" />
-            Send
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) {
+export function ManageEmailingPanel({
+  initialUsers,
+  classes,
+  userClassIds,
+}: ManageEmailingPanelProps) {
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
     () => new Set()
   );
-  const [composeTarget, setComposeTarget] = useState<ComposeTarget | null>(
+  const [composeTarget, setComposeTarget] = useState<ComposeEmailTarget | null>(
     null
   );
+  const [composeTemplateId, setComposeTemplateId] =
+    useState<EmailTemplateId>("custom");
+  const [customToEmail, setCustomToEmail] = useState("");
+  const [customToEmailError, setCustomToEmailError] = useState<string | null>(
+    null
+  );
+  const [nameFilter, setNameFilter] = useState("");
+  const [emailFilter, setEmailFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState(ROLE_FILTER_ALL);
+  const [classFilter, setClassFilter] = useState(CLASS_FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(1);
 
   const stats = useMemo(() => {
@@ -246,8 +206,39 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
     [initialUsers, selectedUserIds]
   );
 
+  const selectedWithEmail = useMemo(
+    () => selectedUsers.filter((user) => Boolean(user.email)),
+    [selectedUsers]
+  );
+
+  const canUseReadyActions = selectedWithEmail.length > 0;
+
+  const filteredUsers = useMemo(() => {
+    return initialUsers.filter((user) => {
+      const matchesRole =
+        roleFilter === ROLE_FILTER_ALL || user.role === roleFilter;
+      const matchesClass =
+        classFilter === CLASS_FILTER_ALL ||
+        (userClassIds[user.id] ?? []).includes(classFilter);
+
+      return (
+        matchesNameFilter(user, nameFilter) &&
+        matchesEmailFilter(user, emailFilter) &&
+        matchesRole &&
+        matchesClass
+      );
+    });
+  }, [
+    classFilter,
+    emailFilter,
+    initialUsers,
+    nameFilter,
+    roleFilter,
+    userClassIds,
+  ]);
+
   const totalPages = Math.min(
-    Math.max(1, Math.ceil(initialUsers.length / PAGE_SIZE)),
+    Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE)),
     MAX_PAGES
   );
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -255,12 +246,14 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
 
   const paginatedUsers = useMemo(() => {
     const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
-    return initialUsers.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [initialUsers, safeCurrentPage]);
+    return filteredUsers.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredUsers, safeCurrentPage]);
 
   const rangeStart =
-    initialUsers.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, initialUsers.length);
+    filteredUsers.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredUsers.length);
+
+  const resetToFirstPage = () => setCurrentPage(1);
 
   const isBulkSelection = selectedUserIds.size > 1;
   const rowSendDisabled = isBulkSelection;
@@ -295,16 +288,116 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
     });
   };
 
+  const openCompose = (
+    templateId: EmailTemplateId,
+    target: ComposeEmailTarget
+  ) => {
+    setComposeTemplateId(templateId);
+    setComposeTarget(target);
+  };
+
+  const openReadyAction = (templateId: EmailTemplateId) => {
+    if (selectedWithEmail.length === 0) {
+      return;
+    }
+
+    openCompose(
+      templateId,
+      selectedWithEmail.length === 1
+        ? { mode: "single", user: selectedWithEmail[0] }
+        : { mode: "bulk", users: selectedWithEmail }
+    );
+  };
+
+  const openCustomToEmailCompose = () => {
+    const email = customToEmail.trim();
+
+    if (!email) {
+      setCustomToEmailError("Email is required.");
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      setCustomToEmailError("Please enter a valid email address.");
+      return;
+    }
+
+    setCustomToEmailError(null);
+    openCompose("custom", { mode: "external", email });
+  };
+
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Emailing</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Select users and prepare email actions. Sending will be enabled
-            later.
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Emailing</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Select users, pick a template, and send through Mailtrap.
+            </p>
+          </div>
+          <Link
+            href={ROUTES.MANAGER_EMAILING_COMPOSE}
+            className={cn(buttonVariants({ size: "default" }), "shrink-0")}
+          >
+            <SparklesIcon data-icon="inline-start" />
+            Full customization
+          </Link>
         </div>
+
+        <Card className="py-0">
+          <CardHeader className="border-b py-3">
+            <CardTitle className="flex items-center gap-2">
+              <PenLineIcon className="size-4 text-muted-foreground" />
+              Send custom email
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="custom-to-email">Recipient email</Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="custom-to-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  value={customToEmail}
+                  aria-invalid={!!customToEmailError}
+                  className="min-w-0 flex-1"
+                  onChange={(event) => {
+                    setCustomToEmail(event.target.value);
+                    if (customToEmailError) {
+                      setCustomToEmailError(null);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      openCustomToEmailCompose();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  className="shrink-0"
+                  onClick={openCustomToEmailCompose}
+                >
+                  <SendIcon data-icon="inline-start" />
+                  Compose
+                </Button>
+              </div>
+              {customToEmailError ? (
+                <p className="text-sm text-destructive">{customToEmailError}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Send a custom-template email to any address, without selecting
+                  a user.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <UserStatCard
@@ -360,10 +453,16 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
                   <Button
                     type="button"
                     variant="outline"
-                    disabled
+                    disabled={!canUseReadyActions}
                     className="w-full"
+                    onClick={() => openReadyAction(action.id)}
+                    title={
+                      canUseReadyActions
+                        ? undefined
+                        : "Select at least one user with an email address"
+                    }
                   >
-                    Coming soon
+                    Compose
                   </Button>
                 </div>
               );
@@ -377,14 +476,21 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
               <CardTitle>Users</CardTitle>
               <p className="text-sm text-muted-foreground">
                 {stats.selected} of {stats.total} selected
+                {selectedUsers.length > 0
+                  ? ` · ${selectedWithEmail.length} with email`
+                  : ""}
               </p>
             </div>
             {isBulkSelection ? (
               <CardAction className="self-center">
                 <Button
                   type="button"
+                  disabled={selectedWithEmail.length === 0}
                   onClick={() =>
-                    setComposeTarget({ mode: "bulk", users: selectedUsers })
+                    openCompose("custom", {
+                      mode: "bulk",
+                      users: selectedWithEmail,
+                    })
                   }
                 >
                   <SendIcon data-icon="inline-start" />
@@ -394,6 +500,86 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
             ) : null}
           </CardHeader>
           <CardContent className="px-0 pb-0">
+            <div className="grid gap-3 border-b px-4 pt-2 pb-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="relative min-w-0">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  value={nameFilter}
+                  onChange={(event) => {
+                    setNameFilter(event.target.value);
+                    resetToFirstPage();
+                  }}
+                  placeholder="Filter by name…"
+                  className="pl-8"
+                  aria-label="Filter by name"
+                />
+              </div>
+              <div className="relative min-w-0">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="email"
+                  inputMode="email"
+                  value={emailFilter}
+                  onChange={(event) => {
+                    setEmailFilter(event.target.value);
+                    resetToFirstPage();
+                  }}
+                  placeholder="Filter by email…"
+                  className="pl-8"
+                  aria-label="Filter by email"
+                />
+              </div>
+              <Select
+                value={roleFilter}
+                onValueChange={(value) => {
+                  setRoleFilter(value ?? ROLE_FILTER_ALL);
+                  resetToFirstPage();
+                }}
+              >
+                <SelectTrigger className="w-full" aria-label="Filter by role">
+                  <SelectValue placeholder="All roles" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ROLE_FILTER_ALL}>All roles</SelectItem>
+                  {ROLE_VALUES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {MANAGER_USER_ROLE_LABELS[role]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={classFilter}
+                onValueChange={(value) => {
+                  setClassFilter(value ?? CLASS_FILTER_ALL);
+                  resetToFirstPage();
+                }}
+              >
+                <SelectTrigger className="w-full" aria-label="Filter by class">
+                  <SelectValue placeholder="All classes">
+                    {(value) => {
+                      if (!value || value === CLASS_FILTER_ALL) {
+                        return "All classes";
+                      }
+                      return (
+                        classes.find((classOption) => classOption.id === value)
+                          ?.name ?? "All classes"
+                      );
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={CLASS_FILTER_ALL}>All classes</SelectItem>
+                  {classes.map((classOption) => (
+                    <SelectItem key={classOption.id} value={classOption.id}>
+                      {classOption.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
                 <thead className="border-b bg-muted/40 text-left text-muted-foreground">
@@ -421,13 +607,16 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
                         colSpan={6}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
-                        No users available.
+                        {initialUsers.length === 0
+                          ? "No users available."
+                          : "No users match your filters."}
                       </td>
                     </tr>
                   ) : (
                     paginatedUsers.map((user) => {
                       const isSelected = selectedUserIds.has(user.id);
                       const displayName = getUserDisplayName(user);
+                      const hasEmail = Boolean(user.email);
 
                       return (
                         <tr
@@ -482,11 +671,11 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
                                     type="button"
                                     variant="ghost"
                                     size="icon-sm"
-                                    disabled={rowSendDisabled}
+                                    disabled={rowSendDisabled || !hasEmail}
                                     aria-label={`Message ${displayName}`}
                                     onClick={(event) => {
                                       event.stopPropagation();
-                                      setComposeTarget({
+                                      openCompose("custom", {
                                         mode: "single",
                                         user,
                                       });
@@ -499,7 +688,9 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
                               <TooltipContent>
                                 {rowSendDisabled
                                   ? "Use Send all for multiple recipients"
-                                  : "Compose message"}
+                                  : !hasEmail
+                                    ? "User has no email address"
+                                    : "Compose message"}
                               </TooltipContent>
                             </Tooltip>
                           </td>
@@ -513,7 +704,10 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {rangeStart}–{rangeEnd} of {initialUsers.length}
+                Showing {rangeStart}–{rangeEnd} of {filteredUsers.length}
+                {filteredUsers.length !== initialUsers.length
+                  ? ` (filtered from ${initialUsers.length})`
+                  : ""}
                 <span aria-hidden="true"> · </span>
                 {PAGE_SIZE} rows per page
               </p>
@@ -579,6 +773,7 @@ export function ManageEmailingPanel({ initialUsers }: ManageEmailingPanelProps) 
             if (!open) setComposeTarget(null);
           }}
           target={composeTarget}
+          initialTemplateId={composeTemplateId}
         />
       </div>
     </TooltipProvider>

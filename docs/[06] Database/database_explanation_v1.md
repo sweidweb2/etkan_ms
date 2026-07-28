@@ -24,7 +24,7 @@ The initial migration defines the Etkan MS data model:
 | Billing | `accounts`, `subscribed_semesters`, `payments` |
 | Academics | `subjects`, `classes`, `class_teacher`, `student_class`, `tasks`, `student_tasks`, `student_course_grade` |
 | Equipment | `equipments`, `borrow_equipment` |
-| Other | `student_takeouts`, `audit_logs` |
+| Other | `student_takeouts`, `audit_logs`, `email_sent`, `email_users` |
 
 Canonical SQL is in `supabase/migrations/`. Regenerate `types/supabase.ts` after schema changes.
 
