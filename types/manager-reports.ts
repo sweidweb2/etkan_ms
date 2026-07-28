@@ -3,7 +3,6 @@ import type { AnalyticsPeriod } from "@/types/manager-analytics";
 export type ReportCategory =
   | "student"
   | "class"
-  | "financial"
   | "equipment"
   | "operations";
 
@@ -18,11 +17,6 @@ export type ReportId =
   | "teacher_assignments"
   | "subject_catalog"
   | "semester_class_list"
-  | "payment_ledger"
-  | "outstanding_balances"
-  | "subscription_register"
-  | "account_statement"
-  | "revenue_summary"
   | "inventory_list"
   | "borrow_log"
   | "open_borrows"

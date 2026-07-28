@@ -110,7 +110,7 @@ export function StudentDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <StudentDetailsSectionNav studentProfileId={studentProfileId} />
+      <StudentDetailsSectionNav />
 
       <EditStudentDialog
         open={isEditOpen}

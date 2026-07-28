@@ -95,113 +95,6 @@ function getStudentById(studentId: string) {
   );
 }
 
-const PAYMENT_LEDGER_MOCK: ReportRow[] = [
-  {
-    paid_at: "2026-07-05T10:00:00.000Z",
-    student_name: "Sara Ahmad",
-    amount: 450,
-    currency: "USD",
-    method: "Bank transfer",
-  },
-  {
-    paid_at: "2026-06-28T14:30:00.000Z",
-    student_name: "Omar Khalil",
-    amount: 620,
-    currency: "USD",
-    method: "Cash",
-  },
-  {
-    paid_at: "2026-06-20T09:15:00.000Z",
-    student_name: "Fatima Zahra",
-    amount: 380,
-    currency: "USD",
-    method: "Card",
-  },
-  {
-    paid_at: "2026-06-12T11:00:00.000Z",
-    student_name: "Hassan Ali",
-    amount: 700,
-    currency: "USD",
-    method: "Online",
-  },
-  {
-    paid_at: "2026-05-30T16:45:00.000Z",
-    student_name: "Rana Mohammed",
-    amount: 450,
-    currency: "USD",
-    method: "Bank transfer",
-  },
-  {
-    paid_at: "2026-05-18T08:30:00.000Z",
-    student_name: "Maya Ibrahim",
-    amount: 540,
-    currency: "USD",
-    method: "Cash",
-  },
-  {
-    paid_at: "2026-04-22T13:20:00.000Z",
-    student_name: "Youssef Nasser",
-    amount: 240,
-    currency: "EUR",
-    method: "Bank transfer",
-  },
-  {
-    paid_at: "2025-11-28T10:00:00.000Z",
-    student_name: "Sara Ahmad",
-    amount: 320,
-    currency: "USD",
-    method: "Bank transfer",
-  },
-];
-
-const OUTSTANDING_BALANCES_MOCK: ReportRow[] = [
-  {
-    student_name: "Maya Ibrahim",
-    semester_name: "Fall 2025 Core Semester",
-    subscribed: 450,
-    paid: 200,
-    balance: 250,
-  },
-  {
-    student_name: "Rana Mohammed",
-    semester_name: "STEM Focus Semester",
-    subscribed: 620,
-    paid: 400,
-    balance: 220,
-  },
-  {
-    student_name: "Youssef Nasser",
-    semester_name: "Language Bridge Semester",
-    subscribed: 380,
-    paid: 100,
-    balance: 280,
-  },
-];
-
-const SUBSCRIPTION_REGISTER_MOCK: ReportRow[] = [
-  {
-    student_name: "Sara Ahmad",
-    semester_name: "Fall 2025 Core Semester",
-    amount: 450,
-    status: "active",
-    created_at: "2025-09-12T08:15:00.000Z",
-  },
-  {
-    student_name: "Omar Khalil",
-    semester_name: "STEM Focus Semester",
-    amount: 620,
-    status: "active",
-    created_at: "2025-09-14T10:30:00.000Z",
-  },
-  {
-    student_name: "Rana Mohammed",
-    semester_name: "Fall 2025 Core Semester",
-    amount: 450,
-    status: "inactive",
-    created_at: "2025-11-10T15:25:00.000Z",
-  },
-];
-
 const INVENTORY_MOCK: ReportRow[] = [
   {
     name: "Student laptop",
@@ -292,8 +185,8 @@ const AUDIT_TRAIL_MOCK: ReportRow[] = [
     created_at: "2026-07-07T15:40:00.000Z",
     user_name: "Layla Hassan",
     action: "insert",
-    table_name: "payments",
-    record_id: "pay-014",
+    table_name: "sessions",
+    record_id: "ses-014",
   },
   {
     created_at: "2026-07-06T09:05:00.000Z",
@@ -346,8 +239,8 @@ const BACKUP_HISTORY_MOCK: ReportRow[] = [
     created_at: "2026-06-20T10:15:00.000Z",
     created_by_label: "Manager Admin",
     scope: "table",
-    table_name: "payments",
-    file_name: "backup-payments-2026-06-20.json",
+    table_name: "subjects",
+    file_name: "backup-subjects-2026-06-20.json",
     row_count: 186,
   },
   {
@@ -660,130 +553,6 @@ function buildSemesterClassList(filters: ReportFilters): ReportRow[] {
   });
 }
 
-function buildPaymentLedger(filters: ReportFilters): ReportRow[] {
-  const allRows = PAYMENT_LEDGER_MOCK.map((row) => ({
-    ...row,
-    paid_at: formatDate(row.paid_at as string),
-  }));
-
-  const filtered = PAYMENT_LEDGER_MOCK.filter((row) =>
-    isWithinPeriod(row.paid_at as string, filters.period)
-  ).map((row) => ({
-    ...row,
-    paid_at: formatDate(row.paid_at as string),
-  }));
-
-  return withMockFallback(filtered, allRows);
-}
-
-function buildOutstandingBalances(filters: ReportFilters): ReportRow[] {
-  if (filters.semesterId === "all") {
-    return OUTSTANDING_BALANCES_MOCK;
-  }
-  const semester = MANAGER_PHASES_MOCK.find((s) => s.id === filters.semesterId);
-  if (!semester) return OUTSTANDING_BALANCES_MOCK;
-  return OUTSTANDING_BALANCES_MOCK.filter(
-    (row) => row.semester_name === semester.name
-  );
-}
-
-function buildSubscriptionRegister(filters: ReportFilters): ReportRow[] {
-  return SUBSCRIPTION_REGISTER_MOCK.filter((row) => {
-    const matchesStatus =
-      filters.status === "all" || row.status === filters.status;
-    const semester = MANAGER_PHASES_MOCK.find(
-      (s) => s.id === filters.semesterId
-    );
-    const matchesSemester =
-      filters.semesterId === "all" ||
-      !semester ||
-      row.semester_name === semester.name;
-    return matchesStatus && matchesSemester;
-  }).map((row) => ({
-    ...row,
-    created_at: formatDate(row.created_at as string),
-  }));
-}
-
-function buildAccountStatement(filters: ReportFilters): ReportRow[] {
-  const student = getStudentById(filters.studentId);
-  const rawRows = [
-    {
-      date: "2026-06-12T08:15:00.000Z",
-      type: "Subscription",
-      description: "Fall 2025 Core Semester",
-      amount: 450,
-      balance: 450,
-    },
-    {
-      date: "2026-06-20T10:00:00.000Z",
-      type: "Payment",
-      description: "Bank transfer",
-      amount: -200,
-      balance: 250,
-    },
-    {
-      date: "2026-07-01T14:00:00.000Z",
-      type: "Takeout",
-      description: "Lab materials fee",
-      amount: 35,
-      balance: 285,
-    },
-    {
-      date: "2026-07-05T09:00:00.000Z",
-      type: "Payment",
-      description: "Cash",
-      amount: -150,
-      balance: 135,
-    },
-  ];
-
-  const mapped = rawRows.map((row) => ({
-    date: formatDate(row.date),
-    type: row.type,
-    description:
-      filters.studentId !== "all" && student.full_name !== "Sara Ahmad"
-        ? `${row.description} — ${student.full_name}`
-        : row.description,
-    amount: row.amount,
-    balance: row.balance,
-  }));
-
-  const filtered = rawRows
-    .filter((row) => isWithinPeriod(row.date, filters.period))
-    .map((row, index) => mapped[index]!);
-
-  return withMockFallback(filtered, mapped);
-}
-
-function buildRevenueSummary(filters: ReportFilters): ReportRow[] {
-  const weekly: ReportRow[] = [
-    { period_label: "Week 1", payment_count: 8, total_revenue: 4200, currency: "USD" },
-    { period_label: "Week 2", payment_count: 12, total_revenue: 5100, currency: "USD" },
-    { period_label: "Week 3", payment_count: 10, total_revenue: 4800, currency: "USD" },
-    { period_label: "Week 4", payment_count: 14, total_revenue: 6200, currency: "USD" },
-  ];
-  const monthly: ReportRow[] = [
-    { period_label: "September 2025", payment_count: 42, total_revenue: 18400, currency: "USD" },
-    { period_label: "October 2025", payment_count: 38, total_revenue: 16200, currency: "USD" },
-    { period_label: "November 2025", payment_count: 44, total_revenue: 19800, currency: "USD" },
-  ];
-  const semester: ReportRow[] = MANAGER_PHASES_MOCK.slice(0, 4).map((sem) => ({
-    period_label: sem.name,
-    payment_count: 28 + sem.nb_courses * 2,
-    total_revenue: sem.amount * 40,
-    currency: "USD",
-  }));
-
-  if (filters.granularity === "week") {
-    return filters.period === "7d" ? weekly.slice(0, 1) : weekly;
-  }
-  if (filters.granularity === "semester") {
-    return semester;
-  }
-  return monthly;
-}
-
 function buildBorrowLog(filters: ReportFilters): ReportRow[] {
   const allBorrows = [
     ...Object.entries(MANAGER_STUDENT_BORROW_EQUIPMENT_MOCK).flatMap(
@@ -934,16 +703,6 @@ export function getReportRows(
       return buildSubjectCatalog();
     case "semester_class_list":
       return buildSemesterClassList(filters);
-    case "payment_ledger":
-      return buildPaymentLedger(filters);
-    case "outstanding_balances":
-      return buildOutstandingBalances(filters);
-    case "subscription_register":
-      return buildSubscriptionRegister(filters);
-    case "account_statement":
-      return buildAccountStatement(filters);
-    case "revenue_summary":
-      return buildRevenueSummary(filters);
     case "inventory_list":
       return INVENTORY_MOCK;
     case "borrow_log":
@@ -976,7 +735,7 @@ function buildTeacherAssignments(filters: ReportFilters): ReportRow[] {
 
 export const AUDIT_TABLE_OPTIONS = [
   "student_tasks",
-  "payments",
+  "sessions",
   "student_class",
   "profiles",
   "borrow_equipment",

@@ -4,6 +4,12 @@ import { useMemo, useState } from "react";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { EMAIL_REGEX } from "@/lib/validators/auth/fields";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
@@ -119,6 +125,11 @@ export function RecipientToField({
     onChange(recipients.filter((recipient) => recipientKey(recipient) !== key));
   };
 
+  const clearRecipients = () => {
+    onChange([]);
+    setQuery("");
+  };
+
   const applyBulk = (roles?: RoleValue[]) => {
     const pool = roles
       ? usersWithEmail.filter((user) => roles.includes(user.role))
@@ -143,73 +154,101 @@ export function RecipientToField({
     <div className="flex flex-col gap-2">
       <div
         className={cn(
-          "flex min-h-11 flex-wrap items-center gap-1.5 rounded-lg border border-input bg-transparent px-2 py-1.5",
+          "flex min-h-11 items-start gap-1 rounded-lg border border-input bg-transparent px-2 py-1.5",
           isFocused && !invalid && "border-ring ring-3 ring-ring/50",
           invalid && "border-destructive ring-3 ring-destructive/20"
         )}
         aria-invalid={invalid || undefined}
       >
-        {recipients.map((recipient) => {
-          const key = recipientKey(recipient);
-          const label =
-            recipient.kind === "user"
-              ? `${getUserDisplayName(recipient.user)} <${recipient.user.email}>`
-              : recipient.email;
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          {recipients.map((recipient) => {
+            const key = recipientKey(recipient);
+            const label =
+              recipient.kind === "user"
+                ? `${getUserDisplayName(recipient.user)} <${recipient.user.email}>`
+                : recipient.email;
 
-          return (
-            <span
-              key={key}
-              className="inline-flex max-w-full items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs text-foreground"
-            >
-              <span className="truncate">{label}</span>
-              <button
-                type="button"
-                disabled={disabled}
-                aria-label={`Remove ${label}`}
-                className="rounded-sm p-0.5 hover:bg-primary/15"
-                onClick={() => removeRecipient(key)}
+            return (
+              <span
+                key={key}
+                className="inline-flex max-w-full items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs text-foreground"
               >
-                <XIcon className="size-3" />
-              </button>
-            </span>
-          );
-        })}
-        <Input
-          id="compose-to"
-          type="text"
-          inputMode="email"
-          autoComplete="email"
-          value={query}
-          disabled={disabled}
-          placeholder={
-            recipients.length === 0
-              ? "Type a name or email…"
-              : "Add another…"
-          }
-          className="h-8 min-w-[10rem] flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => {
-            window.setTimeout(() => setIsFocused(false), 150);
-          }}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === "," || event.key === ";") {
-              event.preventDefault();
-              if (suggestions[0]) {
-                addUser(suggestions[0]);
-              } else {
-                addExternal(query);
+                <span className="truncate">{label}</span>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  aria-label={`Remove ${label}`}
+                  className="rounded-sm p-0.5 hover:bg-primary/15"
+                  onClick={() => removeRecipient(key)}
+                >
+                  <XIcon className="size-3" />
+                </button>
+              </span>
+            );
+          })}
+          <Input
+            id="compose-to"
+            type="text"
+            inputMode="email"
+            autoComplete="email"
+            value={query}
+            disabled={disabled}
+            placeholder={
+              recipients.length === 0
+                ? "Type a name or email…"
+                : "Add another…"
+            }
+            className="h-8 min-w-[10rem] flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              window.setTimeout(() => setIsFocused(false), 150);
+            }}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" ||
+                event.key === "," ||
+                event.key === ";"
+              ) {
+                event.preventDefault();
+                if (suggestions[0]) {
+                  addUser(suggestions[0]);
+                } else {
+                  addExternal(query);
+                }
               }
-            }
-            if (
-              event.key === "Backspace" &&
-              query === "" &&
-              recipients.length > 0
-            ) {
-              removeRecipient(recipientKey(recipients[recipients.length - 1]));
-            }
-          }}
-        />
+              if (
+                event.key === "Backspace" &&
+                query === "" &&
+                recipients.length > 0
+              ) {
+                removeRecipient(recipientKey(recipients[recipients.length - 1]));
+              }
+            }}
+          />
+        </div>
+        {recipients.length > 0 ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={disabled}
+                    aria-label="Clear all recipients"
+                    className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={clearRecipients}
+                  />
+                }
+              >
+                <XIcon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="top">Clear all</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : null}
       </div>
 
       {isFocused && (suggestions.length > 0 || EMAIL_REGEX.test(query.trim())) ? (

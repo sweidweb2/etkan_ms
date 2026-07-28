@@ -23,8 +23,6 @@ export const ROUTES = {
   MANAGER_SUBJECTS: "/manager/subjects",
   MANAGER_SUBJECT_DETAIL: "/manager/subjects/[id]",
   MANAGER_ACCOUNTING: "/manager/accounting",
-  MANAGER_ACCOUNTING_ANALYSIS: "/manager/accounting/analysis",
-  MANAGER_STUDENT_ACCOUNT_DETAIL: "/manager/accounting/students/[id]",
   MANAGER_SCHEDULE: "/manager/schedule",
   MANAGER_NOTIFICATIONS: "/manager/notifications",
   MANAGER_EMAILING: "/manager/emailing",
@@ -116,10 +114,6 @@ export function getManagerUserDetailRoute(userId: string): string {
 
 export function getManagerStudentDetailRoute(studentProfileId: string): string {
   return `/manager/students/${studentProfileId}`;
-}
-
-export function getManagerStudentAccountDetailRoute(studentProfileId: string): string {
-  return `/manager/accounting/students/${studentProfileId}`;
 }
 
 export function getManagerSubjectDetailRoute(subjectId: string): string {

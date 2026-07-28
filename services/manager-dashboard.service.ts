@@ -2,10 +2,8 @@ import { formatDistanceToNow } from "date-fns";
 import { AUDIT_LOG_ACTION_LABELS } from "@/lib/constants/manager-audit-log-display";
 import { BORROW_EQUIPMENT_STATUSES } from "@/lib/constants/manager-borrow-equipment-status";
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
-import { formatAccountCurrency } from "@/lib/constants/manager-subscribed-semester-display";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
-import { listAccountingStudentsForManager } from "@/services/accounting.service";
 import { listAuditLogsForManager } from "@/services/audit-log.service";
 import { listAllBorrowsForManager } from "@/services/borrow-equipment.service";
 import { listClassesForManager } from "@/services/class.service";
@@ -108,8 +106,6 @@ function buildStats(input: {
   classesStartingThisWeek: number;
   subjectsCount: number;
   subjectsNeedingLinks: number;
-  pendingDueTotal: number;
-  overdueAccounts: number;
 }): ManagerDashboardStat[] {
   return [
     {
@@ -139,42 +135,13 @@ function buildStats(input: {
           ? `${input.subjectsNeedingLinks} need link updates`
           : "All subjects have links",
     },
-    {
-      label: "Pending dues",
-      value: formatAccountCurrency(input.pendingDueTotal),
-      accentClassName: "border-l-amber-500",
-      change:
-        input.overdueAccounts > 0
-          ? `${input.overdueAccounts} accounts with balance due`
-          : "No outstanding balances",
-    },
   ];
 }
 
 function buildAlerts(input: {
-  paymentAlerts: number;
-  overdueAccounts: number;
   openBorrows: number;
 }): ManagerDashboardAlertItem[] {
   return [
-    {
-      id: "payment-alerts",
-      title: "Payment follow-up",
-      value: `${input.paymentAlerts}`,
-      description:
-        input.paymentAlerts === 1
-          ? "Account with an open payment alert."
-          : "Accounts with open payment alerts.",
-    },
-    {
-      id: "balance-due",
-      title: "Balance due",
-      value: `${input.overdueAccounts}`,
-      description:
-        input.overdueAccounts === 1
-          ? "Student account still has an unpaid balance."
-          : "Student accounts still have unpaid balances.",
-    },
     {
       id: "open-borrows",
       title: "Equipment on loan",
@@ -274,7 +241,6 @@ export async function getManagerDashboardForManager(
     students,
     classes,
     subjects,
-    accountingStudents,
     scheduleSlots,
     borrows,
     auditLogs,
@@ -282,7 +248,6 @@ export async function getManagerDashboardForManager(
     listStudentsForManager(adminClient, actorRole),
     listClassesForManager(adminClient, actorRole),
     listSubjectsForManager(adminClient, actorRole),
-    listAccountingStudentsForManager(adminClient, actorRole),
     listWeeklyScheduleSlotsForManager(adminClient, actorRole),
     listAllBorrowsForManager(adminClient, actorRole),
     listAuditLogsForManager(adminClient, actorRole),
@@ -327,16 +292,6 @@ export async function getManagerDashboardForManager(
       .filter(Boolean)
   );
 
-  const pendingDueTotal = accountingStudents.reduce(
-    (sum, row) => sum + Math.max(Number(row.balance_due ?? 0), 0),
-    0
-  );
-  const overdueAccounts = accountingStudents.filter(
-    (row) => Number(row.balance_due ?? 0) > 0
-  ).length;
-  const paymentAlerts = accountingStudents.filter((row) => row.payment_alert)
-    .length;
-
   const openBorrows = borrows.filter(
     (row) => row.status === BORROW_EQUIPMENT_STATUSES.BORROWED
   ).length;
@@ -354,12 +309,8 @@ export async function getManagerDashboardForManager(
       classesStartingThisWeek,
       subjectsCount: subjects.length,
       subjectsNeedingLinks,
-      pendingDueTotal,
-      overdueAccounts,
     }),
     alerts: buildAlerts({
-      paymentAlerts,
-      overdueAccounts,
       openBorrows,
     }),
     schedule,

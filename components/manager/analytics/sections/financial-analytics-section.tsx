@@ -10,7 +10,6 @@ import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { StudentDetailStatCard } from "@/components/manager/students/student-detail-stat-card";
 import { ANALYTICS_COLORS } from "@/lib/constants/manager-analytics-mock";
 import { getFinancialAnalytics } from "@/lib/constants/manager-analytics-mock";
-import { ROUTES } from "@/lib/constants/routes";
 import type { AnalyticsFilters } from "@/types/manager-analytics";
 
 type FinancialAnalyticsSectionProps = {
@@ -27,8 +26,6 @@ export function FinancialAnalyticsSection({
       title="Financial overview"
       description="Revenue trends, collection rates, and subscription activity."
       icon={CalculatorIcon}
-      drillDownHref={ROUTES.MANAGER_ACCOUNTING}
-      drillDownLabel="View accounting"
     >
       {(open) => (
         <>

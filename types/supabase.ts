@@ -39,96 +39,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      accounts: {
-        Row: {
-          id: string
-          opened_at: string | null
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          opened_at?: string | null
-          user_id: string
-        }
-        Update: {
-          id?: string
-          opened_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "accounts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      account_special_cases: {
-        Row: {
-          account_id: string
-          approved_by: string | null
-          case_type: string
-          created_at: string
-          explanation: string
-          id: string
-          percentage_discount: number
-          semester_id: string
-          status: string
-          total_amount: number
-          updated_at: string
-        }
-        Insert: {
-          account_id: string
-          approved_by?: string | null
-          case_type: string
-          created_at?: string
-          explanation: string
-          id?: string
-          percentage_discount: number
-          semester_id: string
-          status?: string
-          total_amount: number
-          updated_at?: string
-        }
-        Update: {
-          account_id?: string
-          approved_by?: string | null
-          case_type?: string
-          created_at?: string
-          explanation?: string
-          id?: string
-          percentage_discount?: number
-          semester_id?: string
-          status?: string
-          total_amount?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "account_special_cases_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "account_special_cases_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "account_special_cases_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "semesters"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       app_settings: {
         Row: {
           id: number
@@ -642,41 +552,6 @@ export type Database = {
           },
         ]
       }
-      payments: {
-        Row: {
-          amount: number
-          currency: string | null
-          id: string
-          method: string | null
-          paid_at: string | null
-          subscribed_semester_id: string
-        }
-        Insert: {
-          amount: number
-          currency?: string | null
-          id?: string
-          method?: string | null
-          paid_at?: string | null
-          subscribed_semester_id: string
-        }
-        Update: {
-          amount?: number
-          currency?: string | null
-          id?: string
-          method?: string | null
-          paid_at?: string | null
-          subscribed_semester_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_subscribed_semester_id_fkey"
-            columns: ["subscribed_semester_id"]
-            isOneToOne: false
-            referencedRelation: "subscribed_semesters"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           created_at: string | null
@@ -730,47 +605,6 @@ export type Database = {
           speciality?: string | null
         }
         Relationships: []
-      }
-      scheduled_payments: {
-        Row: {
-          amount: number | null
-          created_at: string
-          id: string
-          note: string | null
-          payment_date: string
-          status: string
-          subscribed_semester_id: string
-          updated_at: string
-        }
-        Insert: {
-          amount?: number | null
-          created_at?: string
-          id?: string
-          note?: string | null
-          payment_date: string
-          status?: string
-          subscribed_semester_id: string
-          updated_at?: string
-        }
-        Update: {
-          amount?: number | null
-          created_at?: string
-          id?: string
-          note?: string | null
-          payment_date?: string
-          status?: string
-          subscribed_semester_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "scheduled_payments_subscribed_semester_id_fkey"
-            columns: ["subscribed_semester_id"]
-            isOneToOne: false
-            referencedRelation: "subscribed_semesters"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       semesters: {
         Row: {
@@ -1189,48 +1023,6 @@ export type Database = {
           syllabus_link?: string | null
         }
         Relationships: []
-      }
-      subscribed_semesters: {
-        Row: {
-          account_id: string
-          amount: number
-          created_at: string | null
-          id: string
-          semester_id: string | null
-          status: string
-        }
-        Insert: {
-          account_id: string
-          amount: number
-          created_at?: string | null
-          id?: string
-          semester_id?: string | null
-          status?: string
-        }
-        Update: {
-          account_id?: string
-          amount?: number
-          created_at?: string | null
-          id?: string
-          semester_id?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subscribed_semesters_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscribed_semesters_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "semesters"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       tasks: {
         Row: {

@@ -3,7 +3,6 @@ import type { ReportCategory, ReportDefinition, ReportId } from "@/types/manager
 export const REPORT_CATEGORY_LABELS: Record<ReportCategory, string> = {
   student: "Student",
   class: "Class & academic",
-  financial: "Financial",
   equipment: "Equipment",
   operations: "Contacts & operations",
 };
@@ -11,7 +10,6 @@ export const REPORT_CATEGORY_LABELS: Record<ReportCategory, string> = {
 export const REPORT_CATEGORY_ORDER: ReportCategory[] = [
   "student",
   "class",
-  "financial",
   "equipment",
   "operations",
 ];
@@ -158,75 +156,6 @@ export const MANAGER_REPORT_DEFINITIONS: ReportDefinition[] = [
       { key: "semester_name", label: "Semester" },
     ],
     filters: ["semester"],
-  },
-  {
-    id: "payment_ledger",
-    category: "financial",
-    label: "Payment ledger",
-    description: "Payment transactions with date, amount, method, and currency.",
-    columns: [
-      { key: "paid_at", label: "Date" },
-      { key: "student_name", label: "Student" },
-      { key: "amount", label: "Amount", align: "right" },
-      { key: "currency", label: "Currency" },
-      { key: "method", label: "Method" },
-    ],
-    filters: ["period"],
-  },
-  {
-    id: "outstanding_balances",
-    category: "financial",
-    label: "Outstanding balances",
-    description: "Unpaid subscription balances per account.",
-    columns: [
-      { key: "student_name", label: "Student" },
-      { key: "semester_name", label: "Semester" },
-      { key: "subscribed", label: "Subscribed", align: "right" },
-      { key: "paid", label: "Paid", align: "right" },
-      { key: "balance", label: "Balance", align: "right" },
-    ],
-    filters: ["semester"],
-  },
-  {
-    id: "subscription_register",
-    category: "financial",
-    label: "Subscription register",
-    description: "Semester subscriptions by status.",
-    columns: [
-      { key: "student_name", label: "Student" },
-      { key: "semester_name", label: "Semester" },
-      { key: "amount", label: "Amount", align: "right" },
-      { key: "status", label: "Status" },
-      { key: "created_at", label: "Created" },
-    ],
-    filters: ["semester", "status"],
-  },
-  {
-    id: "account_statement",
-    category: "financial",
-    label: "Account statement",
-    description: "Per-student subscriptions, payments, and takeouts.",
-    columns: [
-      { key: "date", label: "Date" },
-      { key: "type", label: "Type" },
-      { key: "description", label: "Description" },
-      { key: "amount", label: "Amount", align: "right" },
-      { key: "balance", label: "Balance", align: "right" },
-    ],
-    filters: ["student", "period"],
-  },
-  {
-    id: "revenue_summary",
-    category: "financial",
-    label: "Revenue summary",
-    description: "Aggregated revenue totals by period granularity.",
-    columns: [
-      { key: "period_label", label: "Period" },
-      { key: "payment_count", label: "Payments", align: "right" },
-      { key: "total_revenue", label: "Revenue", align: "right" },
-      { key: "currency", label: "Currency" },
-    ],
-    filters: ["period", "granularity"],
   },
   {
     id: "inventory_list",

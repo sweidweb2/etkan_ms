@@ -42,10 +42,6 @@ vi.mock("@/services/student.service", () => ({
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/subscribed-semester.service", () => ({
-  ensureSubscribedSemesterForStudent: vi.fn().mockResolvedValue(null),
-  reassignClassStudentsSubscribedSemesters: vi.fn().mockResolvedValue(undefined),
-}));
 
 function mockUnlockedComputedGrades() {
   vi.mocked(

@@ -1,6 +1,5 @@
 import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
-import * as accountRepository from "@/repositories/account.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
@@ -10,7 +9,6 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
-import * as subscribedSemesterRepository from "@/repositories/subscribed-semester.repository";
 import { createSeedAdminClient } from "@/scripts/lib/create-seed-admin-client";
 import { ensureStudentRegistration } from "@/services/profile.service";
 import { syncAuthUserRole } from "@/services/role.service";
@@ -193,7 +191,7 @@ async function findOrCreateTeacher(
 async function findOrCreateStudent(
   client: Supabase,
   input: SeedStudent
-): Promise<{ userId: string; studentProfileId: string; accountId: string }> {
+): Promise<{ userId: string; studentProfileId: string }> {
   const existingProfile = await profileRepository.findProfileByUsername(
     client,
     input.username
@@ -213,21 +211,9 @@ async function findOrCreateStudent(
       );
     }
 
-    const account = await accountRepository.findAccountByUserId(
-      client,
-      existingProfile.data.id
-    );
-    if (account.error) throw new Error(account.error.message);
-    if (!account.data) {
-      throw new Error(
-        `Profile exists for ${input.username} but accounts row is missing.`
-      );
-    }
-
     return {
       userId: existingProfile.data.id,
       studentProfileId: studentProfile.data.id,
-      accountId: account.data.id,
     };
   }
 
@@ -241,9 +227,8 @@ async function findOrCreateStudent(
     const userId = existingEmail.data.user.id;
     const studentProfile =
       await studentProfileRepository.findStudentProfileByUserId(client, userId);
-    const account = await accountRepository.findAccountByUserId(client, userId);
 
-    if (!studentProfile.data || !account.data) {
+    if (!studentProfile.data) {
       throw new Error(
         `Auth user exists for ${input.email} but related rows are incomplete.`
       );
@@ -252,7 +237,6 @@ async function findOrCreateStudent(
     return {
       userId,
       studentProfileId: studentProfile.data.id,
-      accountId: account.data.id,
     };
   }
 
@@ -287,18 +271,15 @@ async function findOrCreateStudent(
 
     const studentProfile =
       await studentProfileRepository.findStudentProfileByUserId(client, authUserId);
-    const account = await accountRepository.findAccountByUserId(client, authUserId);
 
     if (studentProfile.error) throw new Error(studentProfile.error.message);
-    if (account.error) throw new Error(account.error.message);
-    if (!studentProfile.data || !account.data) {
+    if (!studentProfile.data) {
       throw new Error(`Student registration incomplete for ${input.username}.`);
     }
 
     return {
       userId: authUserId,
       studentProfileId: studentProfile.data.id,
-      accountId: account.data.id,
     };
   } catch (error) {
     await authRepository.deleteAuthUser(client, authUserId);
@@ -376,38 +357,6 @@ async function ensureStudentClassEnrollment(
       user_id: userId,
       class_id: classId,
       status: STUDENT_CLASS_STATUSES.ENROLLED,
-    }
-  );
-
-  if (error) throw new Error(error.message);
-}
-
-async function ensureSubscribedSemester(
-  client: Supabase,
-  accountId: string,
-  semesterId: string,
-  amount: number
-) {
-  const subscriptions =
-    await subscribedSemesterRepository.listSubscribedSemestersByAccountId(
-      client,
-      accountId
-    );
-
-  if (subscriptions.error) throw new Error(subscriptions.error.message);
-
-  const existing = (subscriptions.data ?? []).find(
-    (row) => row.semester_id === semesterId
-  );
-  if (existing) return;
-
-  const { error } = await subscribedSemesterRepository.createSubscribedSemester(
-    client,
-    {
-      account_id: accountId,
-      semester_id: semesterId,
-      amount,
-      status: "pending",
     }
   );
 
@@ -530,7 +479,6 @@ async function seedDemoData(): Promise<void> {
       created.studentProfileId,
       fallSemesterId
     );
-    await ensureSubscribedSemester(client, created.accountId, fallSemesterId, 500);
     await ensureStudentClassEnrollment(client, created.userId, mathClassId);
   }
 
@@ -540,12 +488,6 @@ async function seedDemoData(): Promise<void> {
       client,
       created.studentProfileId,
       springSemesterId
-    );
-    await ensureSubscribedSemester(
-      client,
-      created.accountId,
-      springSemesterId,
-      550
     );
     await ensureStudentClassEnrollment(client, created.userId, physicsClassId);
   }

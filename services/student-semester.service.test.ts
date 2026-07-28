@@ -26,9 +26,6 @@ vi.mock("@/services/audit-log.service", () => ({
 vi.mock("@/services/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));
-vi.mock("@/services/subscribed-semester.service", () => ({
-  ensureSubscribedSemesterForStudent: vi.fn().mockResolvedValue(null),
-}));
 
 const adminClient = {} as never;
 const actor: AuditActor = {

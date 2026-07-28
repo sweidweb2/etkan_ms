@@ -3,35 +3,12 @@ import {
   usernameWithSuffix,
 } from "@/lib/auth/username";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
-import * as accountRepository from "@/repositories/account.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
-
-async function ensureStudentAccount(
-  client: Supabase,
-  userId: string
-): Promise<void> {
-  const existingAccount = await accountRepository.findAccountByUserId(
-    client,
-    userId
-  );
-
-  if (existingAccount.data) {
-    return;
-  }
-
-  const { error } = await accountRepository.createAccount(client, {
-    user_id: userId,
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-}
 
 export async function generateUniqueUsername(
   client: Supabase,
@@ -93,10 +70,6 @@ export async function ensureStudentRegistration(
       }
     }
 
-    if (existingProfile.data.role === ROLES.STUDENT) {
-      await ensureStudentAccount(client, input.authId);
-    }
-
     return { profileId: existingProfile.data.id };
   }
 
@@ -133,15 +106,6 @@ export async function ensureStudentRegistration(
     if (studentError) {
       await profileRepository.deleteProfileById(client, input.authId);
       throw new Error(studentError.message);
-    }
-  }
-
-  if (role === ROLES.STUDENT) {
-    try {
-      await ensureStudentAccount(client, input.authId);
-    } catch (error) {
-      await profileRepository.deleteProfileById(client, input.authId);
-      throw error;
     }
   }
 

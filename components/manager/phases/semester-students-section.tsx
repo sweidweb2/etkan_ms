@@ -129,7 +129,7 @@ export function SemesterStudentsSection({
           <div>
             <CardTitle>Semester students</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Students enrolled in {semesterName} for accounting and access
+              Students enrolled in {semesterName} for access tracking
               tracking.
             </p>
           </div>

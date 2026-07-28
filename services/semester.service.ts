@@ -17,12 +17,10 @@ import * as semesterRepository from "@/repositories/semester.repository";
 import type { SemesterRecord } from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
-import { ensureSubscribedSemesterForStudent } from "@/services/subscribed-semester.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerSemesterProgressRow,
@@ -636,43 +634,6 @@ export async function connectClassToSemesterForManager(
       changed_fields: ["semester_id"],
     },
   });
-
-  const classStudentsResult =
-    await studentClassRepository.listStudentClassesByClassId(
-      adminClient,
-      parsed.data.classId
-    );
-
-  if (classStudentsResult.error) {
-    return {
-      success: false,
-      error: mapConnectSemesterClassError(classStudentsResult.error.message),
-    };
-  }
-
-  const userIds = (classStudentsResult.data ?? []).map((row) => row.user_id);
-  if (userIds.length > 0) {
-    const profilesResult =
-      await studentProfileRepository.listStudentProfilesByUserIds(
-        adminClient,
-        userIds
-      );
-
-    if (profilesResult.error) {
-      return {
-        success: false,
-        error: mapConnectSemesterClassError(profilesResult.error.message),
-      };
-    }
-
-    for (const profile of profilesResult.data ?? []) {
-      await ensureSubscribedSemesterForStudent(
-        adminClient,
-        profile.id,
-        input.semester_id
-      );
-    }
-  }
 
   return {
     success: true,

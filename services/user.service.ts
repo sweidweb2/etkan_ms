@@ -9,7 +9,6 @@ import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
 import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
-import * as accountRepository from "@/repositories/account.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -84,28 +83,6 @@ function mapStudentStatus(status: string | null | undefined): StudentStatusValue
   }
 
   return STUDENT_STATUSES.ACTIVE;
-}
-
-async function ensureStudentAccountForUser(
-  adminClient: Supabase,
-  userId: string
-): Promise<void> {
-  const existingAccount = await accountRepository.findAccountByUserId(
-    adminClient,
-    userId
-  );
-
-  if (existingAccount.data) {
-    return;
-  }
-
-  const { error } = await accountRepository.createAccount(adminClient, {
-    user_id: userId,
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
 }
 
 function mapUpdateManagerUserError(message: string): string {
@@ -664,17 +641,6 @@ export async function updateManagerUser(
       studentBirthDate = createdDetails.data.birth_date;
       studentPhone = createdDetails.data.phone;
       studentStatusValue = mapStudentStatus(createdDetails.data.status);
-    }
-
-    try {
-      await ensureStudentAccountForUser(adminClient, userId);
-    } catch (err) {
-      return {
-        success: false,
-        error: mapUpdateManagerUserError(
-          err instanceof Error ? err.message : "Failed to create student account."
-        ),
-      };
     }
   } else {
     // Intentionally leave student_profiles intact when demoting so the account

@@ -52,11 +52,12 @@ select * from cron.job_run_details order by start_time desc limit 20;
 select public.start_scheduled_semesters();
 ```
 
-## Removed (temporarily)
+## Removed
 
 ### notify-manager-payment-alerts
 
-Accounting / payment-alert weekly digest was dropped so the billing flow can be finished first.
+Accounting / payment-alert weekly digest and related billing tables were removed with the accounting feature wipe.
 
-- **Dropped by:** `supabase/migrations/20260717000000_drop_cron_notify_manager_payment_alerts.sql`
+- **Cron + function dropped by:** `supabase/migrations/20260717000000_drop_cron_notify_manager_payment_alerts.sql` (and again idempotently in `20260728130000_drop_notify_manager_payment_alerts.sql`)
+- **Tables dropped by:** `supabase/migrations/20260728120000_drop_accounting_tables.sql`
 - **Previously defined in:** `20260714000000_cron_notify_manager_payment_alerts.sql` (and later replaced in special-case migrations)
