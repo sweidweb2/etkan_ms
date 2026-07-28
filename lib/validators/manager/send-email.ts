@@ -49,7 +49,6 @@ const optionalUrlField = optionalTrimmed.refine(
     }
     try {
       // Absolute URL only when provided
-      // eslint-disable-next-line no-new
       new URL(value);
       return true;
     } catch {

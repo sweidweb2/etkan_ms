@@ -60,6 +60,7 @@ export function ResendEmailDialog({
 
   useActionStateToast(state, isPending);
 
+  const emailId = email?.id ?? "";
   const {
     handleSubmit,
     reset,
@@ -69,23 +70,36 @@ export function ResendEmailDialog({
     schema: resendEmailSchema,
     mode: "onSubmit",
     defaultValues: {
-      emailSentId: email?.id ?? "",
+      emailSentId: emailId,
       userIds: [],
       toEmails: [],
     },
   });
 
+  const [syncedOpenEmail, setSyncedOpenEmail] = useState({
+    open: false,
+    emailId: "",
+  });
+  if (
+    open !== syncedOpenEmail.open ||
+    (open && emailId !== syncedOpenEmail.emailId)
+  ) {
+    setSyncedOpenEmail({ open, emailId });
+    if (open) {
+      setRecipients([]);
+    }
+  }
+
   useEffect(() => {
     if (!open) {
       return;
     }
-    setRecipients([]);
     reset({
-      emailSentId: email?.id ?? "",
+      emailSentId: emailId,
       userIds: [],
       toEmails: [],
     });
-  }, [open, email?.id, reset]);
+  }, [open, emailId, reset]);
 
   useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);

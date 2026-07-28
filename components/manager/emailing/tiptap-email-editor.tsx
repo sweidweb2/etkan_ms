@@ -76,20 +76,12 @@ export function TiptapEmailEditor({
     editor.setEditable(!disabled);
   }, [disabled, editor]);
 
-  useEffect(() => {
-    if (!editor) {
-      return;
-    }
-    const dom = editor.view.dom;
-    dom.setAttribute("dir", dir);
-    dom.style.textAlign = dir === "rtl" ? "right" : "left";
-  }, [dir, editor]);
-
   if (!editor) {
     return (
       <div
         className={cn(
           "min-h-[280px] rounded-lg border border-input bg-transparent",
+          dir === "rtl" ? "text-right" : "text-left",
           className
         )}
         dir={dir}
@@ -119,6 +111,9 @@ export function TiptapEmailEditor({
     <div
       className={cn(
         "overflow-hidden rounded-lg border border-input bg-transparent",
+        dir === "rtl"
+          ? "[&_.ProseMirror]:text-right"
+          : "[&_.ProseMirror]:text-left",
         invalid &&
           "border-destructive ring-3 ring-destructive/20 aria-invalid:border-destructive",
         className
