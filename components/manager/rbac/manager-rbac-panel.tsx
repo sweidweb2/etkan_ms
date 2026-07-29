@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import {
   updateRolePermissionsAction,
   type UpdateRolePermissionsActionState,
@@ -58,25 +58,16 @@ export function ManagerRbacPanel({
   initialGrantsByRole,
   catalog,
 }: ManagerRbacPanelProps) {
-  const [grantsByRole, setGrantsByRole] = useState(initialGrantsByRole);
   const [selectedRole, setSelectedRole] = useState<RoleValue>(ROLES.MANAGER);
-  const [draftKeys, setDraftKeys] = useState<PermissionKey[]>(
-    () => initialGrantsByRole[ROLES.MANAGER] ?? []
-  );
+  const [editsByRole, setEditsByRole] = useState<
+    Partial<Record<RoleValue, PermissionKey[]>>
+  >({});
 
   const [state, formAction, isActionPending] = useActionState(
     updateRolePermissionsAction,
     initialActionState
   );
   useActionStateToast(state, isActionPending);
-
-  useEffect(() => {
-    setGrantsByRole(initialGrantsByRole);
-  }, [initialGrantsByRole]);
-
-  useEffect(() => {
-    setDraftKeys(grantsByRole[selectedRole] ?? []);
-  }, [selectedRole, grantsByRole]);
 
   const grouped = useMemo(() => {
     return PERMISSION_FEATURES.map((feature) => ({
@@ -87,7 +78,8 @@ export function ManagerRbacPanel({
     })).filter((group) => group.definitions.length > 0);
   }, [catalog]);
 
-  const savedKeys = grantsByRole[selectedRole] ?? [];
+  const savedKeys = initialGrantsByRole[selectedRole] ?? [];
+  const draftKeys = editsByRole[selectedRole] ?? savedKeys;
   const isDirty = !sameKeySet(draftKeys, savedKeys);
   const draftSet = useMemo(() => new Set(draftKeys), [draftKeys]);
 
@@ -98,33 +90,44 @@ export function ManagerRbacPanel({
     setSelectedRole(role as RoleValue);
   }
 
-  function toggleKey(key: PermissionKey, checked: boolean) {
-    setDraftKeys((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        next.add(key);
-      } else {
-        next.delete(key);
-      }
-      return sortedKeys(next);
+  function setDraftKeys(keys: PermissionKey[]) {
+    setEditsByRole((prev) => ({
+      ...prev,
+      [selectedRole]: keys,
+    }));
+  }
+
+  function resetDraft() {
+    setEditsByRole((prev) => {
+      const next = { ...prev };
+      delete next[selectedRole];
+      return next;
     });
+  }
+
+  function toggleKey(key: PermissionKey, checked: boolean) {
+    const next = new Set(draftKeys);
+    if (checked) {
+      next.add(key);
+    } else {
+      next.delete(key);
+    }
+    setDraftKeys(sortedKeys(next));
   }
 
   function setFeatureKeys(feature: PermissionFeature, checked: boolean) {
     const featureKeys = catalog
       .filter((definition) => definition.feature === feature)
       .map((definition) => definition.key);
-    setDraftKeys((prev) => {
-      const next = new Set(prev);
-      for (const key of featureKeys) {
-        if (checked) {
-          next.add(key);
-        } else {
-          next.delete(key);
-        }
+    const next = new Set(draftKeys);
+    for (const key of featureKeys) {
+      if (checked) {
+        next.add(key);
+      } else {
+        next.delete(key);
       }
-      return sortedKeys(next);
-    });
+    }
+    setDraftKeys(sortedKeys(next));
   }
 
   return (
@@ -179,7 +182,7 @@ export function ManagerRbacPanel({
                   type="button"
                   variant="outline"
                   disabled={isActionPending || !isDirty}
-                  onClick={() => setDraftKeys(savedKeys)}
+                  onClick={resetDraft}
                 >
                   Reset
                 </Button>
@@ -223,7 +226,9 @@ export function ManagerRbacPanel({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        disabled={(!allChecked && !someChecked) || isActionPending}
+                        disabled={
+                          (!allChecked && !someChecked) || isActionPending
+                        }
                         onClick={() => setFeatureKeys(feature, false)}
                       >
                         Clear

@@ -4,7 +4,6 @@ import {
   hasAllPermissionsInSet,
   hasAnyPermissionInSet,
   hasPermissionInSet,
-  requirePermissionInSet,
 } from "@/lib/auth/permission-checks";
 import {
   isPermissionKey,

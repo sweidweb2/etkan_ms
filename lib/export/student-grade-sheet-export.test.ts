@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 import {
   buildStudentGradeSheetDocHtml,
   downloadStudentGradeSheetPdf,
@@ -40,6 +42,23 @@ const model: StudentClassGradeSheetModel = {
   generatedAt: "2026-07-12T00:00:00.000Z",
 };
 
+const generatedPdfPaths = new Set<string>();
+
+afterEach(async () => {
+  const paths = [...generatedPdfPaths];
+  generatedPdfPaths.clear();
+
+  await Promise.all(
+    paths.map(async (filePath) => {
+      try {
+        await unlink(filePath);
+      } catch {
+        // File may already be gone or never written in some environments.
+      }
+    })
+  );
+});
+
 describe("student grade sheet export", () => {
   it("builds a safe doc filename slug", () => {
     expect(getStudentGradeSheetFilename("Sara Ahmed", "pdf")).toMatch(
@@ -76,6 +95,9 @@ describe("student grade sheet export", () => {
   });
 
   it("builds a pdf document from the grade sheet model", () => {
+    const filename = getStudentGradeSheetFilename(model.studentName, "pdf");
+    generatedPdfPaths.add(path.join(process.cwd(), filename));
+
     expect(() =>
       downloadStudentGradeSheetPdf(model, "86.5 (preview)", "horizontal")
     ).not.toThrow();

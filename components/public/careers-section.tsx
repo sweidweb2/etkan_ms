@@ -2,8 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Tabs,
   TabsContent,
@@ -187,14 +186,20 @@ const TAB_TRIGGER_CLASS = cn(
 export function CareersSection() {
   const { t } = usePublicI18n();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<CareersTab>("roadmap");
+  const router = useRouter();
+  const pathname = usePathname();
+  const tabParam = searchParams.get("tab");
+  const tab: CareersTab =
+    tabParam && isCareersTabId(tabParam) ? tabParam : "roadmap";
 
-  useEffect(() => {
-    const next = searchParams.get("tab");
-    if (next && isCareersTabId(next)) {
-      setTab(next);
+  function handleTabChange(value: string | null) {
+    if (!value || !isCareersTabId(value)) {
+      return;
     }
-  }, [searchParams]);
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("tab", value);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
 
   return (
     <section className="relative isolate overflow-hidden px-4 pt-20 pb-16 sm:px-6 sm:pt-24 sm:pb-20">
@@ -218,7 +223,7 @@ export function CareersSection() {
 
         <Tabs
           value={tab}
-          onValueChange={(value) => setTab(value as CareersTab)}
+          onValueChange={handleTabChange}
           className="mt-10 flex flex-col gap-8 sm:mt-12"
         >
           <div className="flex justify-center">

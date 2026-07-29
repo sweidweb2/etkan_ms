@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+# jsPDF doc.save() leftovers from export unit tests (also cleaned in afterEach)
+*-grade-sheet-*.pdf
 
 # next.js
 /.next/

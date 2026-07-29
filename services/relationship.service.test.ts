@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { ROLES } from "@/lib/constants/roles";
 import * as relationshipRepository from "@/repositories/relationship.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
