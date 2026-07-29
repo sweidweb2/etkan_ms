@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { SessionTaskDetailsPanel } from "@/components/manager/classes/session-task-details-panel";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClassComputedGradeLockStateForManager } from "@/services/class-computed-grade-lock.service";
 import { getSessionTaskDetailForManager } from "@/services/session.service";
@@ -14,16 +14,15 @@ export default async function ManagerClassSessionTaskDetailPage({
 }: ManagerClassSessionTaskDetailPageProps) {
   const { id, sessionId, taskId } = await params;
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
+  const user = await getSessionUser();
   const [detail, computedGradeLock] = await Promise.all([
     getSessionTaskDetailForManager(
-      adminClient,
-      role,
+      adminClient, user?.id ?? null,
       id,
       sessionId,
       taskId
     ),
-    getClassComputedGradeLockStateForManager(adminClient, role, id),
+    getClassComputedGradeLockStateForManager(adminClient, user?.id ?? null, id),
   ]);
 
   if (!detail) {

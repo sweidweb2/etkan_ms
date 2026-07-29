@@ -1,5 +1,5 @@
 import { ManageClassesPanel } from "@/components/manager/classes/manage-classes-panel";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   listClassesForManager,
@@ -10,13 +10,13 @@ import { listSubjectsForManager } from "@/services/subject.service";
 
 export default async function ManagerClassesPage() {
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
+  const user = await getSessionUser();
 
   const [classes, subjects, semesters, teachers] = await Promise.all([
-    listClassesForManager(adminClient, role),
-    listSubjectsForManager(adminClient, role),
-    listSemestersForManager(adminClient, role),
-    listTeacherOptionsForManager(adminClient, role),
+    listClassesForManager(adminClient, user?.id ?? null),
+    listSubjectsForManager(adminClient, user?.id ?? null),
+    listSemestersForManager(adminClient, user?.id ?? null),
+    listTeacherOptionsForManager(adminClient, user?.id ?? null),
   ]);
 
   return (

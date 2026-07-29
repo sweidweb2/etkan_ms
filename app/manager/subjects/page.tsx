@@ -1,12 +1,12 @@
 import { ManageSubjectsPanel } from "@/components/manager/subjects/manage-subjects-panel";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listSubjectsForManager } from "@/services/subject.service";
 
 export default async function ManagerSubjectsPage() {
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
-  const subjects = await listSubjectsForManager(adminClient, role);
+  const user = await getSessionUser();
+  const subjects = await listSubjectsForManager(adminClient, user?.id ?? null);
 
   return <ManageSubjectsPanel initialSubjects={subjects} />;
 }

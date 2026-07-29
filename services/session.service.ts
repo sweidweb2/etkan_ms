@@ -1,4 +1,8 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import {
   ATTENDEE_STATUSES,
   type AttendeeStatusValue,
@@ -59,12 +63,6 @@ type MutationFailure = {
   error: string;
   fieldErrors?: FieldErrors;
 };
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function isUuid(value: string): boolean {
   return z.string().uuid().safeParse(value).success;
@@ -431,11 +429,11 @@ export type ManagerSessionDetailBundle = {
 
 export async function getSessionDetailForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string,
   sessionId: string
 ): Promise<ManagerSessionDetailBundle | null> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SESSIONS_VIEW);
 
   if (!isUuid(classId) || !isUuid(sessionId)) {
     return null;
@@ -539,12 +537,12 @@ export type ManagerSessionTaskDetailBundle = {
 
 export async function getSessionTaskDetailForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string,
   sessionId: string,
   taskId: string
 ): Promise<ManagerSessionTaskDetailBundle | null> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
 
   if (!isUuid(classId) || !isUuid(sessionId) || !isUuid(taskId)) {
     return null;
@@ -618,7 +616,7 @@ export type UpdateSessionSettingsResult =
 
 export async function updateSessionSettingsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     session_id: string;
@@ -627,8 +625,9 @@ export async function updateSessionSettingsForManager(
     group_grade_level?: string;
   }
 ): Promise<UpdateSessionSettingsResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SESSIONS_UPDATE_SETTINGS);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateSessionSettingsSchema.safeParse({
@@ -773,7 +772,7 @@ export type UpdateClassSessionResult =
 
 export async function updateClassSessionForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     session_id: string;
@@ -783,8 +782,9 @@ export async function updateClassSessionForManager(
     ends_at: string;
   }
 ): Promise<UpdateClassSessionResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SESSIONS_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   if (!isUuid(input.session_id) || !isUuid(input.class_id)) {
@@ -894,12 +894,13 @@ export type DeleteClassSessionResult =
 
 export async function deleteClassSessionForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   sessionId: string
 ): Promise<DeleteClassSessionResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SESSIONS_DELETE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   if (!isUuid(sessionId)) {
@@ -1043,7 +1044,7 @@ export type CreateSessionTaskResult =
 
 export async function createSessionTaskForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     class_id: string;
@@ -1054,8 +1055,9 @@ export async function createSessionTaskForManager(
     max_grade?: string | number;
   }
 ): Promise<CreateSessionTaskResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.TASKS_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createSessionTaskSchema.safeParse({
@@ -1181,7 +1183,7 @@ export type UpdateAttendeeResult =
 
 export async function updateAttendeeForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -1191,8 +1193,9 @@ export async function updateAttendeeForManager(
     note?: string;
   }
 ): Promise<UpdateAttendeeResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.ATTENDANCE_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateAttendeeSchema.safeParse({
@@ -1313,7 +1316,7 @@ export type UpdateStudentTaskResult =
 
 export async function updateStudentTaskForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -1323,8 +1326,9 @@ export async function updateStudentTaskForManager(
     submitted_at?: string;
   }
 ): Promise<UpdateStudentTaskResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.TASKS_UPDATE_STUDENT);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const existing = await studentTaskRepository.findStudentTaskById(

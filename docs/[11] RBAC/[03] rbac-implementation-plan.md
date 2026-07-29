@@ -139,67 +139,69 @@ Wire the engine into real mutations for **one feature group**, prove the pattern
 
 ### 4A — Pattern (pick Subjects as first slice)
 
-- [ ] Replace manager-only check in subject services with `requirePermission`
-- [ ] Map actions:
+- [x] Replace manager-only check in subject services with `requirePermission`
+- [x] Map actions:
   - view list/detail → `subjects.view`
   - create → `subjects.create`
   - edit → `subjects.update`
   - delete → `subjects.delete`
-- [ ] Keep server actions calling services (no permission checks in actions if service already checks)
-- [ ] Return the same unauthorized shape the UI/toasts already understand
+- [x] Keep server actions calling services (no permission checks in actions if service already checks)
+- [x] Return the same unauthorized shape the UI/toasts already understand
 
 ### 4A Testing
 
-- [ ] Manager still can CRUD subjects
-- [ ] User without subject permissions cannot create/update/delete (direct action call)
-- [ ] View-only grant can list but not mutate (once a non-manager test user exists)
-- [ ] Unauthorized does not leak data or partial writes
+- [x] Manager still can CRUD subjects
+- [x] User without subject permissions cannot create/update/delete (direct action call)
+- [x] View-only grant can list but not mutate (once a non-manager test user exists)
+- [x] Unauthorized does not leak data or partial writes
 
 ### 4B — Roll out remaining features (same pattern)
 
 Do one feature group per pass. Check off when service checks are permission-based:
 
-- [ ] Users
-- [ ] Students
-- [ ] Relationships
-- [ ] Classes
-- [ ] Sessions
-- [ ] Attendance
-- [ ] Tasks
-- [ ] Final exams
-- [ ] Grades
-- [ ] Semesters
-- [ ] Equipment / borrows
-- [ ] Schedule
-- [ ] Notifications
-- [ ] Emailing / sent
-- [ ] Reports
-- [ ] Analytics
-- [ ] Backup
-- [ ] Logs
-- [ ] Cron jobs (view)
-- [ ] Settings / maintenance
-- [ ] Dashboard reads (if gated)
+- [x] Users
+- [x] Students
+- [x] Relationships
+- [x] Classes
+- [x] Sessions
+- [x] Attendance
+- [x] Tasks
+- [x] Final exams
+- [x] Grades
+- [x] Semesters
+- [x] Equipment / borrows
+- [x] Schedule
+- [x] Notifications
+- [x] Emailing / sent
+- [x] Reports
+- [x] Analytics
+- [x] Backup
+- [x] Logs
+- [x] Cron jobs (view)
+- [x] Settings / maintenance
+- [x] Dashboard reads (if gated)
 
 ### 4B Testing (per feature)
 
-- [ ] Manager happy path still works
-- [ ] Denied user cannot complete the write (and sensitive reads where applicable)
-- [ ] Existing toasts / error handling still correct
-- [ ] No service left with only `=== manager` for that feature
+- [x] Manager happy path still works
+- [x] Denied user cannot complete the write (and sensitive reads where applicable)
+- [x] Existing toasts / error handling still correct
+- [x] No service left with only `=== manager` for that feature
 
 ### 4C — Cleanup
 
-- [ ] Remove obsolete manager-only helpers where fully replaced
-- [ ] Shared helper: `assertPermission(actor, key)` used everywhere
-- [ ] Document the service-layer rule in a short RBAC note
+- [x] Remove obsolete manager-only helpers where fully replaced
+- [x] Shared helper: `assertPermission(actor, key)` used everywhere
+- [x] Document the service-layer rule in a short RBAC note
 
 ### 4C Testing
 
-- [ ] Grep: no stray `actorRole !== ROLES.MANAGER` on finished features
-- [ ] Regression pass on manager panel critical flows (students, classes, grades, schedule)
+- [x] Grep: no stray `actorRole !== ROLES.MANAGER` on finished features
+- [x] Regression pass on manager panel critical flows (students, classes, grades, schedule)
 
-**Done when:** every manager service gate uses permissions; manager still has full access via seed.
+**Done when:** every manager service gate uses permissions; manager still has full access via seed. ✅
+
+**Result:** Services use `assertPermission` / `getUnauthorizedError` + `PERMISSIONS.*`. Admin seeded with `backup.*`. See `[04] service-authorization.md`.
 
 ---
 

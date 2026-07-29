@@ -1,6 +1,10 @@
 import { SITE, getSiteUrl } from "@/lib/config/site";
 import { ROUTES } from "@/lib/constants/routes";
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import {
   EMAIL_CIRCULAR_CONTACT,
 } from "@/lib/email/templates/chrome";
@@ -323,12 +327,13 @@ function buildTemplateVars(
 /** Manager-authorized multi-recipient send using the administrative circular layout. */
 export async function sendEmailsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: SendManagerEmailInput
 ): Promise<SendEmailsForManagerResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.EMAILING_SEND);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   try {
@@ -490,11 +495,9 @@ export type EmailingTableFilterData = {
 
 export async function listEmailingTableFilterDataForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<EmailingTableFilterData> {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
 
   const [classesResult, enrollmentsResult, teachersResult] = await Promise.all([
     classRepository.listClasses(adminClient),
@@ -570,11 +573,9 @@ function isDeliveryStatus(value: string): value is EmailDeliveryStatus {
 
 export async function listSentEmailsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerEmailSentListRow[]> {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
 
   const sentResult = await emailSentRepository.listEmailSent(adminClient);
   if (sentResult.error) {
@@ -638,15 +639,13 @@ export async function listSentEmailsForManager(
 
 export async function getSentEmailDetailForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   emailSentId: string
 ): Promise<{
   email: ManagerEmailSentDetail;
   recipients: ManagerEmailUserRow[];
 } | null> {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
 
   const sentResult = await emailSentRepository.findEmailSentById(
     adminClient,
@@ -705,15 +704,16 @@ export async function getSentEmailDetailForManager(
 
 export async function resendSentEmailForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   input: {
     emailSentId: string;
     userIds: string[];
     toEmails: string[];
   }
 ): Promise<SendEmailsForManagerResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.EMAILING_RESEND);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   try {

@@ -52,6 +52,17 @@ function mockUnlockedComputedGrades() {
   ).mockResolvedValue({ data: null, error: null } as never);
 }
 
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
+}));
+
 const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
@@ -103,7 +114,7 @@ describe("createFinalExamForManager", () => {
   it("rejects non-managers", async () => {
     const result = await createFinalExamForManager(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       { class_id: classId, title: "Final exam" }
     );
@@ -656,7 +667,7 @@ describe("updateFinalExamForManager", () => {
   it("rejects non-managers", async () => {
     const result = await updateFinalExamForManager(
       adminClient,
-      ROLES.STUDENT,
+      null,
       actor,
       { id: examId, title: "Updated" }
     );

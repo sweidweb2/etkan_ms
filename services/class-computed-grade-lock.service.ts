@@ -2,7 +2,8 @@
   CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
   STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
 } from "@/lib/manager/class-grades-access";
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { assertPermission } from "@/services/authorization.service";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -84,12 +85,10 @@ export async function getClassComputedGradeLockState(
 
 export async function getClassComputedGradeLockStateForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<ComputedGradeLockState> {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
 
   return getClassComputedGradeLockState(adminClient, classId);
 }

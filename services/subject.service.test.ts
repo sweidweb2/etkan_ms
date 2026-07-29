@@ -18,6 +18,17 @@ vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
+}));
+
 const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
@@ -50,7 +61,7 @@ describe("listSubjectsForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      listSubjectsForManager(adminClient, ROLES.TEACHER)
+      listSubjectsForManager(adminClient, null)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -75,7 +86,7 @@ describe("listSubjectsForManager", () => {
       statusText: "OK",
     });
 
-    const subjects = await listSubjectsForManager(adminClient, ROLES.MANAGER);
+    const subjects = await listSubjectsForManager(adminClient, actor.userId);
 
     expect(subjects).toEqual([
       {
@@ -108,7 +119,7 @@ describe("listSubjectsForManager", () => {
       statusText: "OK",
     });
 
-    const subjects = await listSubjectsForManager(adminClient, ROLES.MANAGER);
+    const subjects = await listSubjectsForManager(adminClient, actor.userId);
 
     expect(subjects).toEqual([]);
   });
@@ -123,7 +134,7 @@ describe("createSubjectForManager", () => {
   it("returns unauthorized when actor is not a manager", async () => {
     const result = await createSubjectForManager(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       validCreateInput
     );
@@ -228,7 +239,7 @@ describe("getSubjectForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      getSubjectForManager(adminClient, ROLES.TEACHER, subjectId)
+      getSubjectForManager(adminClient, null, subjectId)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -301,7 +312,7 @@ describe("listSubjectClassesForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      listSubjectClassesForManager(adminClient, ROLES.TEACHER, subjectId)
+      listSubjectClassesForManager(adminClient, null, subjectId)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -420,7 +431,7 @@ describe("deleteSubjectForManager", () => {
   it("rejects non-managers", async () => {
     const result = await deleteSubjectForManager(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       subjectId
     );

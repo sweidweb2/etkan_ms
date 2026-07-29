@@ -20,6 +20,17 @@ vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => adminClient,
 }));
 
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
+}));
+
 const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
@@ -61,7 +72,7 @@ describe("listRelationshipsForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      listRelationshipsForManager(adminClient, ROLES.TEACHER)
+      listRelationshipsForManager(adminClient, null)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -159,7 +170,7 @@ describe("createRelationshipForManager", () => {
   it("returns unauthorized when actor is not a manager", async () => {
     const result = await createRelationshipForManager(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       validCreateInput
     );
@@ -249,7 +260,7 @@ describe("updateRelationshipForManager", () => {
   it("returns unauthorized when actor is not a manager", async () => {
     const result = await updateRelationshipForManager(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       validUpdateInput
     );

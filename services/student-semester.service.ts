@@ -2,7 +2,11 @@ import {
   STUDENT_SEMESTER_STATUSES,
   type StudentSemesterStatusValue,
 } from "@/lib/constants/manager-student-semester-status";
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import { addStudentToSemesterSchema } from "@/lib/validators/manager/add-student-to-semester";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
@@ -35,12 +39,6 @@ export type AddStudentToSemesterFailure = {
 export type AddStudentToSemesterResult =
   | AddStudentToSemesterSuccess
   | AddStudentToSemesterFailure;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function mapStudentSemesterStatus(status: string): StudentSemesterStatusValue {
   if (
@@ -86,11 +84,11 @@ function mapAddStudentToSemesterError(message: string): string {
 
 export async function listSemesterStudentsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   semesterId: string,
   semesterName: string
 ): Promise<ManagerStudentSemesterRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_VIEW);
 
   const { data: enrollments, error } =
     await studentSemesterRepository.listEnrollmentsBySemesterId(
@@ -106,7 +104,7 @@ export async function listSemesterStudentsForManager(
     return [];
   }
 
-  const students = await listStudentsForManager(adminClient, actorRole);
+  const students = await listStudentsForManager(adminClient, actorUserId);
   const studentByProfileId = new Map(
     students.map((student) => [student.student_profile_id, student])
   );
@@ -125,17 +123,17 @@ export async function listSemesterStudentsForManager(
 
 export async function listAvailableStudentsForSemester(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   semesterId: string
 ): Promise<ManagerStudentRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_ADD_STUDENT);
 
   const [enrolledResult, students] = await Promise.all([
     studentSemesterRepository.listEnrolledStudentProfileIds(
       adminClient,
       semesterId
     ),
-    listStudentsForManager(adminClient, actorRole),
+    listStudentsForManager(adminClient, actorUserId),
   ]);
 
   if (enrolledResult.error) {
@@ -153,7 +151,7 @@ export async function listAvailableStudentsForSemester(
 
 export async function addStudentToSemesterForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     semester_id: string;
@@ -161,8 +159,9 @@ export async function addStudentToSemesterForManager(
     status: string;
   }
 ): Promise<AddStudentToSemesterResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_ADD_STUDENT);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = addStudentToSemesterSchema.safeParse({
@@ -231,7 +230,7 @@ export async function addStudentToSemesterForManager(
     };
   }
 
-  const students = await listStudentsForManager(adminClient, actorRole);
+  const students = await listStudentsForManager(adminClient, actorUserId);
   const student = students.find(
     (row) => row.student_profile_id === parsed.data.student_profile_id
   );

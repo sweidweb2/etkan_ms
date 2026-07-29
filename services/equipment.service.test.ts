@@ -17,6 +17,17 @@ vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
+}));
+
 const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
@@ -47,7 +58,7 @@ describe("listEquipmentsForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      listEquipmentsForManager(adminClient, ROLES.TEACHER)
+      listEquipmentsForManager(adminClient, null)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -69,7 +80,7 @@ describe("listEquipmentsForManager", () => {
       statusText: "OK",
     });
 
-    const rows = await listEquipmentsForManager(adminClient, ROLES.MANAGER);
+    const rows = await listEquipmentsForManager(adminClient, actor.userId);
 
     expect(rows).toEqual([
       {
@@ -115,7 +126,7 @@ describe("createEquipmentForManager", () => {
   it("returns unauthorized for non-manager", async () => {
     const result = await createEquipmentForManager(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       validCreateInput
     );
@@ -196,7 +207,7 @@ describe("updateEquipmentForManager", () => {
       statusText: "OK",
     });
 
-    const result = await updateEquipmentForManager(adminClient, ROLES.MANAGER, actor, {
+    const result = await updateEquipmentForManager(adminClient, actor.userId, actor, {
       id: equipmentId,
       ...validCreateInput,
       quantity: 2,
@@ -232,7 +243,7 @@ describe("updateEquipmentForManager", () => {
       statusText: "OK",
     });
 
-    const result = await updateEquipmentForManager(adminClient, ROLES.MANAGER, actor, {
+    const result = await updateEquipmentForManager(adminClient, actor.userId, actor, {
       id: equipmentId,
       ...validCreateInput,
       name: "Updated Microscope",

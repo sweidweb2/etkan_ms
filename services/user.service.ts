@@ -5,6 +5,11 @@ import {
 } from "@/lib/constants/manager-student-status";
 import { MANAGER_CREATABLE_ROLES } from "@/lib/constants/manager-user-roles";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
@@ -60,12 +65,6 @@ export type UpdateManagerUserFailure = {
 export type UpdateManagerUserResult =
   | UpdateManagerUserSuccess
   | UpdateManagerUserFailure;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function normalizeOptionalString(value?: string | null): string | null {
   const trimmed = value?.trim();
@@ -226,16 +225,16 @@ const listUsersForManagerCached = unstable_cache(
  * path creates its own admin client inside `unstable_cache`.
  */
 export async function listUsersForManager(
-  _adminClient: Supabase,
-  actorRole: RoleValue | null
+  adminClient: Supabase,
+  actorUserId: string | null
 ): Promise<ManagerUserRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.USERS_VIEW);
   return listUsersForManagerCached();
 }
 
 export async function createStaffUser(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     username: string;
@@ -244,8 +243,9 @@ export async function createStaffUser(
     role: string;
   }
 ): Promise<CreateStaffUserResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.USERS_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createStaffUserSchema.safeParse(input);
@@ -402,7 +402,7 @@ export async function createStaffUser(
 
 export async function updateManagerUser(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     userId: string;
@@ -415,8 +415,9 @@ export async function updateManagerUser(
     status?: string;
   }
 ): Promise<UpdateManagerUserResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.USERS_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateManagerUserSchema.safeParse({

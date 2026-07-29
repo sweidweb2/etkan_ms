@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { StudentDetailsPanel } from "@/components/manager/students/student-details-panel";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getStudentClassAcademicDetailForManager } from "@/services/student-course-grade.service";
 import {
@@ -19,24 +19,23 @@ export default async function ManagerStudentDetailPage({
 }: ManagerStudentDetailPageProps) {
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
+  const user = await getSessionUser();
 
-  const student = await getStudentForManager(adminClient, role, id);
+  const student = await getStudentForManager(adminClient, user?.id ?? null, id);
 
   if (!student) {
     notFound();
   }
 
   const [stats, joinedClasses] = await Promise.all([
-    getStudentDetailStatsForManager(adminClient, role, student.user_id),
-    listJoinedClassesForStudentManager(adminClient, role, student.user_id),
+    getStudentDetailStatsForManager(adminClient, user?.id ?? null, student.user_id),
+    listJoinedClassesForStudentManager(adminClient, user?.id ?? null, student.user_id),
   ]);
 
   const academicResults = await Promise.all(
     joinedClasses.map(async (classRow) => {
       const academic = await getStudentClassAcademicDetailForManager(
-        adminClient,
-        role,
+        adminClient, user?.id ?? null,
         classRow.class_id,
         student.user_id
       );

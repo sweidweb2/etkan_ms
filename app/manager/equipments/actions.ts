@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateEquipmentFormData } from "@/lib/validators/manager/create-equipment";
 import { parseCreateBorrowsFormData } from "@/lib/validators/manager/create-borrows";
@@ -32,10 +32,7 @@ export async function createEquipmentAction(
   _prevState: CreateEquipmentActionState,
   formData: FormData
 ): Promise<CreateEquipmentActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseCreateEquipmentFormData(formData);
 
   if (!parsed.success) {
@@ -49,7 +46,7 @@ export async function createEquipmentAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createEquipmentForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -73,10 +70,7 @@ export async function updateEquipmentAction(
   _prevState: UpdateEquipmentActionState,
   formData: FormData
 ): Promise<UpdateEquipmentActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseUpdateEquipmentFormData(formData);
 
   if (!parsed.success) {
@@ -90,7 +84,7 @@ export async function updateEquipmentAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateEquipmentForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -114,10 +108,7 @@ export async function createBorrowsAction(
   _prevState: CreateBorrowsActionState,
   formData: FormData
 ): Promise<CreateBorrowsActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseCreateBorrowsFormData(formData);
 
   if (!parsed.success) {
@@ -131,7 +122,7 @@ export async function createBorrowsAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createBorrowsForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -155,10 +146,7 @@ export async function updateBorrowRecordAction(
   _prevState: UpdateBorrowRecordActionState,
   formData: FormData
 ): Promise<UpdateBorrowRecordActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseUpdateBorrowRecordFormData(formData);
 
   if (!parsed.success) {
@@ -172,7 +160,7 @@ export async function updateBorrowRecordAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateBorrowRecordForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -195,10 +183,7 @@ export async function toggleBorrowReturnedAction(
   _prevState: ToggleBorrowReturnedActionState,
   formData: FormData
 ): Promise<ToggleBorrowReturnedActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseToggleBorrowReturnedFormData(formData);
 
   if (!parsed.success) {
@@ -212,7 +197,7 @@ export async function toggleBorrowReturnedAction(
   const adminClient = createSupabaseAdminClient();
   const result = await toggleBorrowReturnedForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );

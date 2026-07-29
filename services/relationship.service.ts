@@ -1,5 +1,9 @@
 import { unstable_cache } from "next/cache";
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createRelationshipSchema } from "@/lib/validators/manager/create-relationship";
@@ -48,12 +52,6 @@ export type UpdateRelationshipFailure = {
 export type UpdateRelationshipResult =
   | UpdateRelationshipSuccess
   | UpdateRelationshipFailure;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function normalizeOptionalString(value?: string | null): string | null {
   const trimmed = value?.trim();
@@ -125,16 +123,16 @@ const listRelationshipsForManagerCached = unstable_cache(
  * The `adminClient` argument is kept for call-site compatibility.
  */
 export async function listRelationshipsForManager(
-  _adminClient: Supabase,
-  actorRole: RoleValue | null
+  adminClient: Supabase,
+  actorUserId: string | null
 ): Promise<ManagerRelationshipRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.RELATIONSHIPS_VIEW);
   return listRelationshipsForManagerCached();
 }
 
 export async function createRelationshipForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     name: string;
@@ -145,8 +143,9 @@ export async function createRelationshipForManager(
     is_useful: boolean;
   }
 ): Promise<CreateRelationshipResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.RELATIONSHIPS_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createRelationshipSchema.safeParse(input);
@@ -206,7 +205,7 @@ export async function createRelationshipForManager(
 
 export async function updateRelationshipForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -218,8 +217,9 @@ export async function updateRelationshipForManager(
     is_useful: boolean;
   }
 ): Promise<UpdateRelationshipResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.RELATIONSHIPS_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateRelationshipSchema.safeParse(input);

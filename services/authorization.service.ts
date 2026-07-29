@@ -162,3 +162,32 @@ export async function requirePermission(
     throw new Error(UNAUTHORIZED_MESSAGE);
   }
 }
+
+/**
+ * Service-layer gate: throws `Unauthorized.` when user id is missing or permission is denied.
+ */
+export async function assertPermission(
+  client: Supabase,
+  userId: string | null | undefined,
+  permission: PermissionKey
+): Promise<void> {
+  if (!userId) {
+    throw new Error(UNAUTHORIZED_MESSAGE);
+  }
+  await requirePermission(client, userId, permission);
+}
+
+/**
+ * For `{ success: false, error }` mutation paths. Returns error message or null when allowed.
+ */
+export async function getUnauthorizedError(
+  client: Supabase,
+  userId: string | null | undefined,
+  permission: PermissionKey
+): Promise<string | null> {
+  if (!userId) {
+    return UNAUTHORIZED_MESSAGE;
+  }
+  const allowed = await hasPermission(client, userId, permission);
+  return allowed ? null : UNAUTHORIZED_MESSAGE;
+}

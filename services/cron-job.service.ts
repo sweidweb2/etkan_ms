@@ -1,16 +1,20 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerCronJobsCatalog } from "@/lib/constants/manager-cron-jobs";
+import { assertPermission } from "@/services/authorization.service";
 import type { ManagerCronJobRow } from "@/types/manager-cron-job";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
+type Supabase = SupabaseClient<Database>;
 
 export async function listCronJobsForManager(
-  actorRole: RoleValue | null
+  adminClient: Supabase,
+  actorUserId: string | null
 ): Promise<ManagerCronJobRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.CRON_JOBS_VIEW
+  );
   return getManagerCronJobsCatalog();
 }

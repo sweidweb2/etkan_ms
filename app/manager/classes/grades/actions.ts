@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   DEFAULT_CLASS_GRADE_FINAL_EXAM_WEIGHT,
   DEFAULT_CLASS_GRADE_TASKS_WEIGHT,
@@ -12,7 +12,9 @@ import {
 } from "@/lib/constants/routes";
 import type { FactorWeightsValues } from "@/lib/compute/custom-compute-form-utils";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { updateClassWeightsSchema } from "@/lib/validators/manager/update-class-weights";
+import { getUnauthorizedError } from "@/services/authorization.service";
 import { getClassForManager, listClassStudentsForManager } from "@/services/class.service";
 import {
   computeAllStudentCourseGradesForManager,
@@ -108,14 +110,11 @@ export async function computeStudentGradeAction(
     return { success: false, error: resolved.error };
   }
 
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
   const result = await computeStudentCourseGradeForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     classId,
     userId,
@@ -149,14 +148,11 @@ export async function computeAllStudentGradesAction(
     computeLabel?: string;
   }
 ): Promise<ClassGradesActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
   const result = await computeAllStudentCourseGradesForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     classId,
     studentUserIds,
@@ -185,16 +181,13 @@ export async function deleteComputedGradeAction(
   classId: string,
   userId: string
 ): Promise<ClassGradesActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
-  const students = await listClassStudentsForManager(adminClient, actorRole, classId);
+  const students = await listClassStudentsForManager(adminClient, actor.userId, classId);
   const student = students.find((row) => row.user_id === userId);
   const result = await deleteStudentCourseGradeForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     classId,
     userId
@@ -223,14 +216,11 @@ export async function computeStudentGradeAloneAction(
     taskWeights: Record<string, string>;
   }
 ): Promise<ClassGradesActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
   const result = await computeStudentCourseGradeForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     classId,
     userId,
@@ -283,15 +273,24 @@ export async function fetchStudentFastCertificateBundleAction(
   classId: string,
   studentProfileId: string
 ): Promise<FetchStudentFastCertificateBundleActionState> {
-  const actorRole = await getSessionRole();
+  const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
+
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actor.userId,
+    PERMISSIONS.GRADES_EXPORT_FAST_CERTIFICATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
 
   try {
     const [classRow, detailBundle] = await Promise.all([
-      getClassForManager(adminClient, actorRole, classId),
+      getClassForManager(adminClient, actor.userId, classId),
       getStudentClassGradeDetailForManager(
         adminClient,
-        actorRole,
+        actor.userId,
         classId,
         studentProfileId
       ),
@@ -331,13 +330,13 @@ export async function fetchStudentFastCertificateBundleAction(
 export async function fetchComputedGradeSheetBundlesAction(
   classId: string
 ): Promise<FetchComputedGradeSheetBundlesActionState> {
-  const actorRole = await getSessionRole();
+  const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
 
   try {
     const result = await listComputedStudentGradeSheetBundlesForManager(
       adminClient,
-      actorRole,
+      actor.userId,
       classId
     );
 

@@ -37,6 +37,17 @@ vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => adminClient,
 }));
 
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
+}));
+
 const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
@@ -99,7 +110,7 @@ describe("listStudentsForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      listStudentsForManager(adminClient, ROLES.TEACHER)
+      listStudentsForManager(adminClient, null)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -114,7 +125,7 @@ describe("listStudentsForManager", () => {
 
     mockStudentLookups();
 
-    const students = await listStudentsForManager(adminClient, ROLES.MANAGER);
+    const students = await listStudentsForManager(adminClient, actor.userId);
 
     expect(students).toEqual([
       {
@@ -246,7 +257,7 @@ describe("createStudent", () => {
   it("rejects non-manager actors", async () => {
     const result = await createStudent(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       validStudentInput
     );
@@ -258,7 +269,7 @@ describe("createStudent", () => {
   });
 
   it("returns field errors for invalid input", async () => {
-    const result = await createStudent(adminClient, ROLES.MANAGER, actor, {
+    const result = await createStudent(adminClient, actor.userId, actor, {
       ...validStudentInput,
       email: "not-an-email",
     });
@@ -447,7 +458,7 @@ describe("updateStudent", () => {
   it("rejects non-manager actors", async () => {
     const result = await updateStudent(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       updateInput
     );

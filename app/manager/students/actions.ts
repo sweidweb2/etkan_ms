@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import { revalidateManagerPeopleLists } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStudentFormData } from "@/lib/validators/manager/create-student";
@@ -15,10 +15,7 @@ export async function createStudentAction(
   _prevState: CreateStudentActionState,
   formData: FormData
 ): Promise<CreateStudentActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseCreateStudentFormData(formData);
 
@@ -33,7 +30,7 @@ export async function createStudentAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createStudent(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -59,10 +56,7 @@ export async function updateStudentAction(
   _prevState: UpdateStudentActionState,
   formData: FormData
 ): Promise<UpdateStudentActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateStudentFormData(formData);
 
@@ -77,7 +71,7 @@ export async function updateStudentAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateStudent(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );

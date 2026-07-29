@@ -1,4 +1,8 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import { NOTIFICATION_ACTION_NONE_VALUE } from "@/lib/validators/manager/create-notification";
 import { createNotificationSchema } from "@/lib/validators/manager/create-notification";
 import { updateNotificationSchema } from "@/lib/validators/manager/update-notification";
@@ -80,12 +84,6 @@ export type DeleteNotificationResult =
   | DeleteNotificationSuccess
   | DeleteNotificationFailure;
 
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
-
 function normalizeActionHref(actionHref?: string | null): string | null {
   if (!actionHref || actionHref === NOTIFICATION_ACTION_NONE_VALUE) {
     return null;
@@ -135,9 +133,9 @@ function mapUpdateNotificationError(message: string): string {
 
 export async function listNotificationsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerNotificationRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.NOTIFICATIONS_VIEW);
 
   const { data, error } = await notificationRepository.listNotifications(
     adminClient
@@ -152,7 +150,7 @@ export async function listNotificationsForManager(
 
 export async function createNotificationForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     title: string;
@@ -163,8 +161,9 @@ export async function createNotificationForManager(
     action_href?: string | null;
   }
 ): Promise<CreateNotificationResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.NOTIFICATIONS_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createNotificationSchema.safeParse(input);
@@ -224,7 +223,7 @@ export async function createNotificationForManager(
 
 export async function updateNotificationForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -236,8 +235,9 @@ export async function updateNotificationForManager(
     action_href?: string | null;
   }
 ): Promise<UpdateNotificationResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.NOTIFICATIONS_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateNotificationSchema.safeParse(input);
@@ -323,12 +323,13 @@ export async function updateNotificationForManager(
 
 export async function markNotificationReadForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: { id?: string; mark_all?: boolean }
 ): Promise<MarkNotificationReadResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.NOTIFICATIONS_MARK_READ);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   if (input.mark_all) {
@@ -404,12 +405,13 @@ export async function markNotificationReadForManager(
 
 export async function deleteNotificationForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   notificationId: string
 ): Promise<DeleteNotificationResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.NOTIFICATIONS_DELETE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const existing = await notificationRepository.findNotificationById(

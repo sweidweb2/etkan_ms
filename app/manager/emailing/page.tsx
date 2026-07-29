@@ -1,15 +1,15 @@
 import { ManageEmailingPanel } from "@/components/manager/emailing/manage-emailing-panel";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listEmailingTableFilterDataForManager } from "@/services/email.service";
 import { listUsersForManager } from "@/services/user.service";
 
 export default async function ManagerEmailingPage() {
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
+  const user = await getSessionUser();
   const [users, filterData] = await Promise.all([
-    listUsersForManager(adminClient, role),
-    listEmailingTableFilterDataForManager(adminClient, role),
+    listUsersForManager(adminClient, user?.id ?? null),
+    listEmailingTableFilterDataForManager(adminClient, user?.id ?? null),
   ]);
 
   return (

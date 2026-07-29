@@ -1,4 +1,8 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import {
   CLASS_STATUSES,
   type ClassStatusValue,
@@ -64,12 +68,6 @@ export type ConnectSemesterClassFailure = {
 export type ConnectSemesterClassResult =
   | ConnectSemesterClassSuccess
   | ConnectSemesterClassFailure;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function mapSemesterStatus(status: string | null | undefined): SemesterStatusValue {
   if (
@@ -183,9 +181,9 @@ function mapConnectSemesterClassError(message: string): string {
 
 export async function listSemestersForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerSemesterRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_VIEW);
 
   const { data, error } = await semesterRepository.listSemesters(adminClient);
 
@@ -198,9 +196,9 @@ export async function listSemestersForManager(
 
 export async function listSemesterProgressForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerSemesterProgressRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_VIEW);
 
   const [semestersResult, classesResult] = await Promise.all([
     semesterRepository.listSemesters(adminClient),
@@ -244,10 +242,10 @@ export async function listSemesterProgressForManager(
 
 export async function getSemesterForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   semesterId: string
 ): Promise<ManagerSemesterRow | null> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_VIEW);
 
   const { data, error } = await semesterRepository.findSemesterById(
     adminClient,
@@ -267,7 +265,7 @@ export async function getSemesterForManager(
 
 export async function createSemesterForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     name: string;
@@ -277,8 +275,9 @@ export async function createSemesterForManager(
     start_date?: string | null;
   }
 ): Promise<CreateSemesterResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createPhaseSchema.safeParse(input);
@@ -353,7 +352,7 @@ export async function createSemesterForManager(
 
 export async function updateSemesterForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -364,8 +363,9 @@ export async function updateSemesterForManager(
     start_date?: string | null;
   }
 ): Promise<UpdateSemesterResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updatePhaseSchema.safeParse(input);
@@ -468,10 +468,10 @@ export async function updateSemesterForManager(
 
 export async function listSemesterClassesForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   semesterId: string
 ): Promise<ManagerSemesterClassRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_VIEW);
 
   const { data, error } =
     await classRepository.listClassesWithSubjectBySemesterId(
@@ -488,9 +488,9 @@ export async function listSemesterClassesForManager(
 
 export async function listUnlinkedClassesForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerSemesterClassRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_CONNECT_CLASS);
 
   const { data, error } =
     await classRepository.listUnlinkedClassesWithSubject(adminClient);
@@ -504,15 +504,16 @@ export async function listUnlinkedClassesForManager(
 
 export async function connectClassToSemesterForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     semester_id: string;
     classId: string;
   }
 ): Promise<ConnectSemesterClassResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_CONNECT_CLASS);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = connectSemesterClassSchema.safeParse({

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   getManagerSubjectDetailRoute,
   ROUTES,
@@ -26,10 +26,7 @@ export async function createSubjectAction(
   _prevState: CreateSubjectActionState,
   formData: FormData
 ): Promise<CreateSubjectActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseCreateSubjectFormData(formData);
 
@@ -44,7 +41,7 @@ export async function createSubjectAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createSubjectForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -70,10 +67,7 @@ export async function updateSubjectAction(
   _prevState: UpdateSubjectActionState,
   formData: FormData
 ): Promise<UpdateSubjectActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateSubjectFormData(formData);
 
@@ -88,7 +82,7 @@ export async function updateSubjectAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateSubjectForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -115,10 +109,7 @@ export async function deleteSubjectAction(
   _prevState: DeleteSubjectActionState,
   formData: FormData
 ): Promise<DeleteSubjectActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const subjectId = String(formData.get("subject_id") ?? "").trim();
 
@@ -132,7 +123,7 @@ export async function deleteSubjectAction(
   const adminClient = createSupabaseAdminClient();
   const result = await deleteSubjectForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     subjectId
   );

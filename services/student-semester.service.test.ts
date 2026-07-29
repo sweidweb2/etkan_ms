@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
@@ -25,6 +24,17 @@ vi.mock("@/services/audit-log.service", () => ({
 }));
 vi.mock("@/services/student.service", () => ({
   listStudentsForManager: vi.fn(),
+}));
+
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
 }));
 
 const adminClient = {} as never;
@@ -57,14 +67,14 @@ const enrollmentRecord = {
 
 describe("listSemesterStudentsForManager", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   it("throws when actor is not a manager", async () => {
     await expect(
       listSemesterStudentsForManager(
         adminClient,
-        ROLES.TEACHER,
+        null,
         semesterId,
         "Fall 2026"
       )
@@ -85,7 +95,7 @@ describe("listSemesterStudentsForManager", () => {
 
     const rows = await listSemesterStudentsForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       semesterId,
       "Fall 2026"
     );
@@ -109,7 +119,7 @@ describe("listSemesterStudentsForManager", () => {
 
 describe("listAvailableStudentsForSemester", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   it("excludes already enrolled students", async () => {
@@ -134,7 +144,7 @@ describe("listAvailableStudentsForSemester", () => {
 
     const available = await listAvailableStudentsForSemester(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       semesterId
     );
 
@@ -145,14 +155,14 @@ describe("listAvailableStudentsForSemester", () => {
 
 describe("addStudentToSemesterForManager", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
   it("returns unauthorized for non-manager", async () => {
     const result = await addStudentToSemesterForManager(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       {
         semester_id: semesterId,
@@ -193,7 +203,7 @@ describe("addStudentToSemesterForManager", () => {
 
     const result = await addStudentToSemesterForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         semester_id: semesterId,
@@ -229,7 +239,7 @@ describe("addStudentToSemesterForManager", () => {
 
     const result = await addStudentToSemesterForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         semester_id: semesterId,

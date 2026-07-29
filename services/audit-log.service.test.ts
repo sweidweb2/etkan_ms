@@ -12,7 +12,19 @@ vi.mock("@/repositories/audit-log.repository", () => ({
   listAuditLogs: vi.fn(),
 }));
 
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
+}));
+
 const adminClient = {} as SupabaseClient<Database>;
+const actorUserId = "11111111-1111-4111-8111-111111111111";
 const actor = { userId: "user-1", userLabel: "Manager One" };
 
 describe("createAuditLogForManager", () => {

@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddStudentToSemesterFormData } from "@/lib/validators/manager/add-student-to-semester";
 import { parseConnectSemesterClassFormData } from "@/lib/validators/manager/connect-semester-class";
@@ -23,10 +23,7 @@ export async function createSemesterAction(
   _prevState: CreateSemesterActionState,
   formData: FormData
 ): Promise<CreateSemesterActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseCreatePhaseFormData(formData);
 
@@ -41,7 +38,7 @@ export async function createSemesterAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createSemesterForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -65,10 +62,7 @@ export async function updateSemesterAction(
   _prevState: UpdateSemesterActionState,
   formData: FormData
 ): Promise<UpdateSemesterActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdatePhaseFormData(formData);
 
@@ -83,7 +77,7 @@ export async function updateSemesterAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateSemesterForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -107,10 +101,7 @@ export async function addStudentToSemesterAction(
   _prevState: AddStudentToSemesterActionState,
   formData: FormData
 ): Promise<AddStudentToSemesterActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseAddStudentToSemesterFormData(formData);
 
   if (!parsed.success) {
@@ -124,7 +115,7 @@ export async function addStudentToSemesterAction(
   const adminClient = createSupabaseAdminClient();
   const result = await addStudentToSemesterForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -148,10 +139,7 @@ export async function connectClassToSemesterAction(
   _prevState: ConnectSemesterClassActionState,
   formData: FormData
 ): Promise<ConnectSemesterClassActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseConnectSemesterClassFormData(formData);
 
   if (!parsed.success) {
@@ -165,7 +153,7 @@ export async function connectClassToSemesterAction(
   const adminClient = createSupabaseAdminClient();
   const result = await connectClassToSemesterForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );

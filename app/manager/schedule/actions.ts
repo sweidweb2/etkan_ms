@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   parseCreateWeeklyScheduleSlotFormData,
@@ -22,10 +22,7 @@ export async function createWeeklyScheduleSlotAction(
   _prevState: CreateWeeklyScheduleSlotActionState,
   formData: FormData
 ): Promise<CreateWeeklyScheduleSlotActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseCreateWeeklyScheduleSlotFormData(formData);
 
   if (!parsed.success) {
@@ -39,7 +36,7 @@ export async function createWeeklyScheduleSlotAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createWeeklyScheduleSlotForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -63,10 +60,7 @@ export async function updateWeeklyScheduleSlotAction(
   _prevState: UpdateWeeklyScheduleSlotActionState,
   formData: FormData
 ): Promise<UpdateWeeklyScheduleSlotActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseUpdateWeeklyScheduleSlotFormData(formData);
 
   if (!parsed.success) {
@@ -80,7 +74,7 @@ export async function updateWeeklyScheduleSlotAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateWeeklyScheduleSlotForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -104,10 +98,7 @@ export async function deleteWeeklyScheduleSlotAction(
   _prevState: DeleteWeeklyScheduleSlotActionState,
   formData: FormData
 ): Promise<DeleteWeeklyScheduleSlotActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseWeeklyScheduleSlotIdFormData(formData);
 
   if (!parsed.success) {
@@ -120,7 +111,7 @@ export async function deleteWeeklyScheduleSlotAction(
   const adminClient = createSupabaseAdminClient();
   const result = await deleteWeeklyScheduleSlotForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data.id
   );

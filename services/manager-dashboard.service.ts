@@ -3,7 +3,8 @@ import { AUDIT_LOG_ACTION_LABELS } from "@/lib/constants/manager-audit-log-displ
 import { BORROW_EQUIPMENT_STATUSES } from "@/lib/constants/manager-borrow-equipment-status";
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { assertPermission } from "@/services/authorization.service";
 import { listAuditLogsForManager } from "@/services/audit-log.service";
 import { listAllBorrowsForManager } from "@/services/borrow-equipment.service";
 import { listClassesForManager } from "@/services/class.service";
@@ -35,12 +36,6 @@ const WEEKDAY_NAMES = [
   "Friday",
   "Saturday",
 ] as const;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function toMinutes(timeHhMm: string): number {
   const [hours, minutes] = timeHhMm.split(":").map(Number);
@@ -232,10 +227,10 @@ function buildActivity(logs: ManagerAuditLogRow[]): ManagerDashboardActivityItem
 
 export async function getManagerDashboardForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   now: Date = new Date()
 ): Promise<ManagerDashboardData> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.DASHBOARD_VIEW);
 
   const [
     students,
@@ -245,12 +240,12 @@ export async function getManagerDashboardForManager(
     borrows,
     auditLogs,
   ] = await Promise.all([
-    listStudentsForManager(adminClient, actorRole),
-    listClassesForManager(adminClient, actorRole),
-    listSubjectsForManager(adminClient, actorRole),
-    listWeeklyScheduleSlotsForManager(adminClient, actorRole),
-    listAllBorrowsForManager(adminClient, actorRole),
-    listAuditLogsForManager(adminClient, actorRole),
+    listStudentsForManager(adminClient, actorUserId),
+    listClassesForManager(adminClient, actorUserId),
+    listSubjectsForManager(adminClient, actorUserId),
+    listWeeklyScheduleSlotsForManager(adminClient, actorUserId),
+    listAllBorrowsForManager(adminClient, actorUserId),
+    listAuditLogsForManager(adminClient, actorUserId),
   ]);
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

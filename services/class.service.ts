@@ -1,4 +1,9 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { ROLES } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import {
   CLASS_STATUSES,
   type ClassStatusValue,
@@ -89,12 +94,6 @@ type MutationFailure = {
   error: string;
   fieldErrors?: FieldErrors;
 };
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function mapClassStatus(status: string | null): ClassStatusValue {
   if (
@@ -412,9 +411,9 @@ function isInvalidUuidError(message: string): boolean {
 
 export async function listClassesForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerClassRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
   const { data, error } = await classRepository.listClassDetails(adminClient);
 
@@ -434,7 +433,7 @@ export type CreateClassResult =
 
 export async function createClassForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     name: string;
@@ -444,8 +443,9 @@ export async function createClassForManager(
     teacher_id?: string;
   }
 ): Promise<CreateClassResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createClassSchema.safeParse({
@@ -616,10 +616,10 @@ export async function createClassForManager(
 
 export async function getClassForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<ManagerClassRow | null> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
   if (!isUuid(classId)) {
     return null;
@@ -647,19 +647,19 @@ export async function getClassForManager(
 
 export async function assertClassGradesUnlockedForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<
   | { ok: true; classRow: ManagerClassRow }
   | { ok: false; error: string }
 > {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
 
   if (!isUuid(classId)) {
     return { ok: false, error: "Class not found." };
   }
 
-  const classRow = await getClassForManager(adminClient, actorRole, classId);
+  const classRow = await getClassForManager(adminClient, actorUserId, classId);
 
   if (!classRow) {
     return { ok: false, error: "Class not found." };
@@ -674,9 +674,9 @@ export async function assertClassGradesUnlockedForManager(
 
 export async function listTeacherOptionsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerClassTeacherSelectOption[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
   const teachersResult = await profileRepository.listProfiles(adminClient, {
     roles: [ROLES.TEACHER],
@@ -694,17 +694,17 @@ export async function listTeacherOptionsForManager(
 
 export async function listClassTeacherOptionsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<ManagerClassTeacherOption[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
   if (!isUuid(classId)) {
     return [];
   }
 
   const [teachers, assignmentsResult] = await Promise.all([
-    listTeacherOptionsForManager(adminClient, actorRole),
+    listTeacherOptionsForManager(adminClient, actorUserId),
     classTeacherRepository.listClassTeachersByClassId(adminClient, classId),
   ]);
 
@@ -735,12 +735,13 @@ export type AssignClassTeacherResult =
 
 export async function assignTeacherToClassForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: { class_id: string; teacher_id: string }
 ): Promise<AssignClassTeacherResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_ASSIGN_TEACHER);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = assignClassTeacherSchema.safeParse(input);
@@ -855,12 +856,13 @@ export type UnassignClassTeacherResult =
 
 export async function unassignTeacherFromClassForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: { class_id: string; teacher_id: string }
 ): Promise<UnassignClassTeacherResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_UNASSIGN_TEACHER);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = assignClassTeacherSchema.safeParse(input);
@@ -934,10 +936,10 @@ export async function unassignTeacherFromClassForManager(
 
 export async function listClassSessionsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<ManagerClassSessionRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SESSIONS_VIEW);
 
   const { data, error } = await sessionRepository.listSessionsByClassId(
     adminClient,
@@ -953,10 +955,10 @@ export async function listClassSessionsForManager(
 
 export async function listClassStudentsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<ManagerClassStudentRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
   const { data: enrollments, error } =
     await studentClassRepository.listStudentClassesByClassId(
@@ -1030,14 +1032,14 @@ export async function listClassStudentsForManager(
 
 export async function listAvailableStudentsForClass(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<ManagerStudentRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_ADD_STUDENT);
 
   const [membershipResult, students] = await Promise.all([
     studentClassRepository.listStudentUserIdsByClassId(adminClient, classId),
-    listStudentsForManager(adminClient, actorRole),
+    listStudentsForManager(adminClient, actorUserId),
   ]);
 
   if (membershipResult.error) {
@@ -1053,13 +1055,13 @@ export async function listAvailableStudentsForClass(
 
 export async function getClassFinalExamForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<{
   finalExam: ManagerClassFinalExamRow | null;
   studentGrades: ManagerStudentFinalExamGradeRow[];
 }> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_VIEW);
 
   const { data: exam, error } = await finalExamRepository.findFinalExamByClassId(
     adminClient,
@@ -1103,10 +1105,10 @@ export async function getClassFinalExamForManager(
 
 export async function getClassAnalyticsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<ManagerClassAnalyticsPreview> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW_ANALYTICS);
 
   const [sessionsResult, enrollmentResult] = await Promise.all([
     sessionRepository.listSessionsByClassId(adminClient, classId),
@@ -1247,7 +1249,7 @@ export type UpdateClassResult =
 
 export async function updateClassForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     class_id: string;
@@ -1257,8 +1259,9 @@ export async function updateClassForManager(
     semester_id?: string;
   }
 ): Promise<UpdateClassResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateClassSchema.safeParse({
@@ -1393,12 +1396,13 @@ export type UpdateClassStatusResult =
 
 export async function updateClassStatusForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: { class_id: string; status: string }
 ): Promise<UpdateClassStatusResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_CHANGE_STATUS);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateClassSchema
@@ -1470,7 +1474,7 @@ export type CreateClassSessionResult =
 
 export async function createClassSessionForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     class_id: string;
@@ -1479,8 +1483,9 @@ export async function createClassSessionForManager(
     ends_at: string;
   }
 ): Promise<CreateClassSessionResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SESSIONS_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createClassSessionSchema.safeParse({
@@ -1631,7 +1636,7 @@ export type CreateFinalExamResult =
 
 export async function createFinalExamForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     class_id: string;
@@ -1641,8 +1646,9 @@ export async function createFinalExamForManager(
     max_grade?: string | number;
   }
 ): Promise<CreateFinalExamResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createFinalExamSchema.safeParse({
@@ -1801,7 +1807,7 @@ export type UpdateFinalExamResult =
 
 export async function updateFinalExamForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -1811,8 +1817,9 @@ export async function updateFinalExamForManager(
     max_grade?: string | number;
   }
 ): Promise<UpdateFinalExamResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   if (!isUuid(input.id)) {
@@ -1918,7 +1925,7 @@ export type UpdateStudentFinalExamGradeResult =
 
 export async function updateStudentFinalExamGradeForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -1928,8 +1935,9 @@ export async function updateStudentFinalExamGradeForManager(
     submitted_at?: string;
   }
 ): Promise<UpdateStudentFinalExamGradeResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_UPDATE_STUDENT);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const existing = await finalExamRepository.findStudentFinalExamGradeById(
@@ -2058,15 +2066,16 @@ export type AddStudentToClassResult =
 
 export async function addStudentToClassForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     class_id: string;
     studentProfileId: string;
   }
 ): Promise<AddStudentToClassResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_ADD_STUDENT);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = addStudentToClassSchema.safeParse({
@@ -2285,7 +2294,7 @@ export type UpdateClassStudentStatusResult =
 
 export async function updateClassStudentStatusForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -2293,8 +2302,9 @@ export async function updateClassStudentStatusForManager(
     status: string;
   }
 ): Promise<UpdateClassStudentStatusResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_CHANGE_ENROLLMENT);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateStudentClassStatusSchema.safeParse({

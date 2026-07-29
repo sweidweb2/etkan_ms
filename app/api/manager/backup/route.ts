@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { ROLES } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/services/auth.service";
+import { getUnauthorizedError } from "@/services/authorization.service";
 import { recordBackupHistory } from "@/services/backup-history.service";
 import {
   exportFullDatabaseBackup,
@@ -10,7 +11,6 @@ import {
   isBackupTableName,
 } from "@/services/backup.service";
 import { resolveDisplayName } from "@/services/user-display.service";
-import { resolveUserRole } from "@/services/role.service";
 
 function createBackupFilename(scope: "all" | "table", tableName?: string) {
   const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -30,15 +30,33 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
-  const role = await resolveUserRole(sessionClient, user);
-
-  if (role !== ROLES.MANAGER && role !== ROLES.ADMIN) {
-    return NextResponse.json({ message: "Forbidden." }, { status: 403 });
-  }
-
   const { searchParams } = new URL(request.url);
   const tableName = searchParams.get("table");
   const adminClient = createSupabaseAdminClient();
+
+  const exportPermission = tableName
+    ? PERMISSIONS.BACKUP_EXPORT_TABLE
+    : PERMISSIONS.BACKUP_EXPORT_FULL;
+
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    user.id,
+    exportPermission
+  );
+  if (unauthorized) {
+    return NextResponse.json({ message: "Forbidden." }, { status: 403 });
+  }
+
+  // Download is part of the same GET response attachment flow.
+  const downloadUnauthorized = await getUnauthorizedError(
+    adminClient,
+    user.id,
+    PERMISSIONS.BACKUP_DOWNLOAD
+  );
+  if (downloadUnauthorized) {
+    return NextResponse.json({ message: "Forbidden." }, { status: 403 });
+  }
+
   const createdByLabel = await resolveDisplayName(sessionClient, user);
 
   try {

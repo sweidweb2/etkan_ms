@@ -9,7 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import {
   getManagerClassDetailRoute,
   getManagerClassGradesRoute,
@@ -29,8 +29,8 @@ export default async function ManagerClassStudentGradesDetailPage({
 }: ManagerClassStudentGradesDetailPageProps) {
   const { id, studentId } = await params;
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
-  const classRow = await getClassForManager(adminClient, role, id);
+  const user = await getSessionUser();
+  const classRow = await getClassForManager(adminClient, user?.id ?? null, id);
 
   if (!classRow) {
     notFound();
@@ -73,8 +73,7 @@ export default async function ManagerClassStudentGradesDetailPage({
   }
 
   const bundle = await getStudentClassGradeDetailForManager(
-    adminClient,
-    role,
+    adminClient, user?.id ?? null,
     id,
     studentId
   );

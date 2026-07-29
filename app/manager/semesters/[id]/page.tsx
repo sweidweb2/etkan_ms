@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { SemesterDetailsPanel } from "@/components/manager/phases/semester-details-panel";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getSemesterForManager,
@@ -21,8 +21,8 @@ export default async function ManagerSemesterDetailPage({
 }: ManagerSemesterDetailPageProps) {
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
-  const semester = await getSemesterForManager(adminClient, role, id);
+  const user = await getSessionUser();
+  const semester = await getSemesterForManager(adminClient, user?.id ?? null, id);
 
   if (!semester) {
     notFound();
@@ -30,10 +30,10 @@ export default async function ManagerSemesterDetailPage({
 
   const [students, availableStudents, classes, availableClasses] =
     await Promise.all([
-      listSemesterStudentsForManager(adminClient, role, id, semester.name),
-      listAvailableStudentsForSemester(adminClient, role, id),
-      listSemesterClassesForManager(adminClient, role, id),
-      listUnlinkedClassesForManager(adminClient, role),
+      listSemesterStudentsForManager(adminClient, user?.id ?? null, id, semester.name),
+      listAvailableStudentsForSemester(adminClient, user?.id ?? null, id),
+      listSemesterClassesForManager(adminClient, user?.id ?? null, id),
+      listUnlinkedClassesForManager(adminClient, user?.id ?? null),
     ]);
 
   return (

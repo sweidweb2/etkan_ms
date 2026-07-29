@@ -9,7 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { getManagerClassDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -25,8 +25,8 @@ export default async function ManagerClassGradesPage({
 }: ManagerClassGradesPageProps) {
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
-  const classRow = await getClassForManager(adminClient, role, id);
+  const user = await getSessionUser();
+  const classRow = await getClassForManager(adminClient, user?.id ?? null, id);
 
   if (!classRow) {
     notFound();
@@ -73,10 +73,10 @@ async function ManagerClassGradesContent({
   classRow: Awaited<ReturnType<typeof getClassForManager>>;
 }) {
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
+  const user = await getSessionUser();
   const [{ rows, tasks }, finalExamBundle] = await Promise.all([
-    listClassStudentGradesForManager(adminClient, role, classId),
-    getClassFinalExamForManager(adminClient, role, classId),
+    listClassStudentGradesForManager(adminClient, user?.id ?? null, classId),
+    getClassFinalExamForManager(adminClient, user?.id ?? null, classId),
   ]);
 
   if (!classRow) {

@@ -1,10 +1,12 @@
 import { ManageCronJobsPanel } from "@/components/manager/cron-jobs/manage-cron-jobs-panel";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listCronJobsForManager } from "@/services/cron-job.service";
 
 export default async function ManagerCronJobsPage() {
-  const role = await getSessionRole();
-  const jobs = await listCronJobsForManager(role);
+  const adminClient = createSupabaseAdminClient();
+  const user = await getSessionUser();
+  const jobs = await listCronJobsForManager(adminClient, user?.id ?? null);
 
   return <ManageCronJobsPanel initialJobs={jobs} />;
 }

@@ -3,6 +3,11 @@ import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-st
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStudentSchema } from "@/lib/validators/manager/create-student";
@@ -64,12 +69,6 @@ export type UpdateStudentFailure = {
 };
 
 export type UpdateStudentResult = UpdateStudentSuccess | UpdateStudentFailure;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function mapCreateStudentError(message: string): string {
   const normalized = message.toLowerCase();
@@ -211,19 +210,19 @@ const listStudentsForManagerCached = unstable_cache(
  * path creates its own admin client inside `unstable_cache`.
  */
 export async function listStudentsForManager(
-  _adminClient: Supabase,
-  actorRole: RoleValue | null
+  adminClient: Supabase,
+  actorUserId: string | null
 ): Promise<ManagerStudentRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
   return listStudentsForManagerCached();
 }
 
 export async function getStudentForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   studentProfileId: string
 ): Promise<ManagerStudentRow | null> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
 
   const { data: studentProfile, error } =
     await studentProfileRepository.findStudentProfileById(
@@ -244,10 +243,10 @@ export async function getStudentForManager(
 
 export async function getStudentDetailStatsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   userId: string
 ): Promise<ManagerStudentDetailStats> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
 
   const [
     classesRegisteredResult,
@@ -307,10 +306,10 @@ function mapStudentClassStatus(status: string | null): ManagerStudentClassRow["s
 
 export async function listJoinedClassesForStudentManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   userId: string
 ): Promise<ManagerStudentClassRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
 
   const enrollmentsResult = await studentClassRepository.listStudentClassesByUserId(
     adminClient,
@@ -361,7 +360,7 @@ export async function listJoinedClassesForStudentManager(
 
 export async function createStudent(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     username: string;
@@ -373,8 +372,9 @@ export async function createStudent(
     phone?: string | null;
   }
 ): Promise<CreateStudentResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.STUDENTS_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createStudentSchema.safeParse(input);
@@ -539,7 +539,7 @@ export async function createStudent(
 
 export async function updateStudent(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     studentProfileId: string;
@@ -552,8 +552,9 @@ export async function updateStudent(
     status: string;
   }
 ): Promise<UpdateStudentResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.STUDENTS_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateStudentSchema.safeParse({

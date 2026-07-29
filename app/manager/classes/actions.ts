@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   getManagerClassDetailRoute,
   getManagerClassSessionDetailRoute,
@@ -77,10 +77,7 @@ export async function createClassAction(
   _prevState: CreateClassActionState,
   formData: FormData
 ): Promise<CreateClassActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseCreateClassFormData(formData);
 
@@ -95,7 +92,7 @@ export async function createClassAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createClassForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -119,10 +116,7 @@ export async function updateClassAction(
   _prevState: UpdateClassActionState,
   formData: FormData
 ): Promise<UpdateClassActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateClassFormData(formData);
 
@@ -137,7 +131,7 @@ export async function updateClassAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateClassForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -161,10 +155,7 @@ export async function updateClassStatusAction(
   _prevState: UpdateClassStatusActionState,
   formData: FormData
 ): Promise<UpdateClassStatusActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseChangeClassStatusFormData(formData);
 
@@ -179,7 +170,7 @@ export async function updateClassStatusAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateClassStatusForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -203,10 +194,7 @@ export async function createClassSessionAction(
   _prevState: CreateClassSessionActionState,
   formData: FormData
 ): Promise<CreateClassSessionActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseCreateClassSessionFormData(formData);
 
@@ -221,7 +209,7 @@ export async function createClassSessionAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createClassSessionForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -246,10 +234,7 @@ export async function createFinalExamAction(
   _prevState: CreateFinalExamActionState,
   formData: FormData
 ): Promise<CreateFinalExamActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseCreateFinalExamFormData(formData);
 
@@ -264,7 +249,7 @@ export async function createFinalExamAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createFinalExamForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -289,10 +274,7 @@ export async function updateFinalExamAction(
   _prevState: UpdateFinalExamActionState,
   formData: FormData
 ): Promise<UpdateFinalExamActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateFinalExamFormData(formData);
 
@@ -307,7 +289,7 @@ export async function updateFinalExamAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateFinalExamForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -331,10 +313,7 @@ export async function updateStudentFinalExamGradeAction(
   _prevState: UpdateStudentFinalExamGradeActionState,
   formData: FormData
 ): Promise<UpdateStudentFinalExamGradeActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseEditStudentFinalExamGradeFormData(formData);
 
@@ -349,7 +328,7 @@ export async function updateStudentFinalExamGradeAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateStudentFinalExamGradeForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -373,10 +352,7 @@ export async function addStudentToClassAction(
   _prevState: AddStudentToClassActionState,
   formData: FormData
 ): Promise<AddStudentToClassActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseAddStudentToClassFormData(formData);
 
@@ -391,7 +367,7 @@ export async function addStudentToClassAction(
   const adminClient = createSupabaseAdminClient();
   const result = await addStudentToClassForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -417,10 +393,7 @@ export async function updateClassStudentStatusAction(
   _prevState: UpdateClassStudentStatusActionState,
   formData: FormData
 ): Promise<UpdateClassStudentStatusActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateStudentClassStatusFormData(formData);
 
@@ -435,7 +408,7 @@ export async function updateClassStudentStatusAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateClassStudentStatusForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -459,10 +432,7 @@ export async function assignClassTeacherAction(
   _prevState: AssignClassTeacherActionState,
   formData: FormData
 ): Promise<AssignClassTeacherActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseAssignClassTeacherFormData(formData);
 
@@ -477,7 +447,7 @@ export async function assignClassTeacherAction(
   const adminClient = createSupabaseAdminClient();
   const result = await assignTeacherToClassForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -502,10 +472,7 @@ export async function unassignClassTeacherAction(
   _prevState: UnassignClassTeacherActionState,
   formData: FormData
 ): Promise<UnassignClassTeacherActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUnassignClassTeacherFormData(formData);
 
@@ -520,7 +487,7 @@ export async function unassignClassTeacherAction(
   const adminClient = createSupabaseAdminClient();
   const result = await unassignTeacherFromClassForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -545,10 +512,7 @@ export async function updateSessionSettingsAction(
   _prevState: UpdateSessionSettingsActionState,
   formData: FormData
 ): Promise<UpdateSessionSettingsActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateSessionSettingsFormData(formData);
 
@@ -563,7 +527,7 @@ export async function updateSessionSettingsAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateSessionSettingsForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -588,10 +552,7 @@ export async function updateClassSessionAction(
   _prevState: UpdateClassSessionActionState,
   formData: FormData
 ): Promise<UpdateClassSessionActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateClassSessionFormData(formData);
 
@@ -606,7 +567,7 @@ export async function updateClassSessionAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateClassSessionForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -630,10 +591,7 @@ export async function deleteClassSessionAction(
   _prevState: DeleteClassSessionActionState,
   formData: FormData
 ): Promise<DeleteClassSessionActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const sessionId = String(formData.get("session_id") ?? "").trim();
 
@@ -647,7 +605,7 @@ export async function deleteClassSessionAction(
   const adminClient = createSupabaseAdminClient();
   const result = await deleteClassSessionForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     sessionId
   );
@@ -673,10 +631,7 @@ export async function createSessionTaskAction(
   _prevState: CreateSessionTaskActionState,
   formData: FormData
 ): Promise<CreateSessionTaskActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseCreateSessionTaskFormData(formData);
 
@@ -691,7 +646,7 @@ export async function createSessionTaskAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createSessionTaskForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -720,10 +675,7 @@ export async function updateAttendeeAction(
   _prevState: UpdateAttendeeActionState,
   formData: FormData
 ): Promise<UpdateAttendeeActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateAttendeeFormData(formData);
 
@@ -738,7 +690,7 @@ export async function updateAttendeeAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateAttendeeForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -762,10 +714,7 @@ export async function updateStudentTaskAction(
   _prevState: UpdateStudentTaskActionState,
   formData: FormData
 ): Promise<UpdateStudentTaskActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseEditStudentTaskFormData(formData);
 
@@ -780,7 +729,7 @@ export async function updateStudentTaskAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateStudentTaskForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );

@@ -1,4 +1,5 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { assertPermission } from "@/services/authorization.service";
 import {
   AUDIT_LOG_ACTION_VALUES,
   AUDIT_LOG_SEVERITY_VALUES,
@@ -30,12 +31,6 @@ export type AuditLogEntry = {
   new_data?: AuditLogJsonValue | null;
   metadata?: AuditLogJsonValue | null;
 };
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function isAuditLogAction(value: string): value is AuditLogActionValue {
   return (AUDIT_LOG_ACTION_VALUES as readonly string[]).includes(value);
@@ -71,9 +66,9 @@ function mapAuditLogRecordToRow(record: AuditLogRecord): ManagerAuditLogRow {
 
 export async function listAuditLogsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerAuditLogRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.LOGS_VIEW);
 
   const { data, error } = await auditLogRepository.listAuditLogs(adminClient);
 

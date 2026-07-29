@@ -2,13 +2,14 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { getSessionRole } from "@/lib/auth/session";
-import { ROLES } from "@/lib/constants/roles";
+import { getSessionUser } from "@/lib/auth/session";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { changePasswordSchema } from "@/lib/validators/auth/auth";
 import { emailField } from "@/lib/validators/auth/fields";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
+import { getUnauthorizedError } from "@/services/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 
 export type UpdateMaintenanceModeActionState = {
@@ -46,16 +47,21 @@ export async function updateMaintenanceModeAction(
   _prevState: UpdateMaintenanceModeActionState,
   formData: FormData
 ): Promise<UpdateMaintenanceModeActionState> {
-  const role = await getSessionRole();
-  if (role !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const user = await getSessionUser();
+  const adminClient = createSupabaseAdminClient();
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    user?.id ?? null,
+    PERMISSIONS.SETTINGS_MAINTENANCE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const raw = formData.get("maintenanceMode");
   const enabled = raw === "true" || raw === "1";
 
   try {
-    const adminClient = createSupabaseAdminClient();
     await appSettingsRepository.setMaintenanceMode(adminClient, enabled);
 
     return {
@@ -74,9 +80,15 @@ export async function updateSelfCredentialsAction(
   _prevState: ChangeSelfCredentialsActionState,
   formData: FormData
 ): Promise<ChangeSelfCredentialsActionState> {
-  const role = await getSessionRole();
-  if (role !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const user = await getSessionUser();
+  const adminClient = createSupabaseAdminClient();
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    user?.id ?? null,
+    PERMISSIONS.SETTINGS_UPDATE_CREDENTIALS
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const rawNewEmail = formData.get("newEmail");
@@ -150,4 +162,3 @@ export async function updateSelfCredentialsAction(
 
   return { success: true, message };
 }
-

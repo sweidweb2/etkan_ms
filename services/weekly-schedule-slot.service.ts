@@ -1,4 +1,8 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import {
   createWeeklyScheduleSlotSchema,
   timeToMinutes,
@@ -67,12 +71,6 @@ export type DeleteWeeklyScheduleSlotFailure = {
 export type DeleteWeeklyScheduleSlotResult =
   | DeleteWeeklyScheduleSlotSuccess
   | DeleteWeeklyScheduleSlotFailure;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function formatTimeForDisplay(value: string): string {
   return value.slice(0, 5);
@@ -168,9 +166,9 @@ function mapMutationError(message: string): string {
 
 export async function listWeeklyScheduleClassOptionsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerWeeklyScheduleClassOption[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SCHEDULE_VIEW);
 
   const { data, error } =
     await classRepository.listClassesWithSubjectForPicker(adminClient);
@@ -184,9 +182,9 @@ export async function listWeeklyScheduleClassOptionsForManager(
 
 export async function listWeeklyScheduleSlotsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerWeeklyScheduleSession[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SCHEDULE_VIEW);
 
   const { data, error } =
     await weeklyScheduleSlotRepository.listWeeklyScheduleSlots(adminClient);
@@ -202,7 +200,7 @@ export async function listWeeklyScheduleSlotsForManager(
 
 export async function createWeeklyScheduleSlotForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     class_id: string;
@@ -212,8 +210,9 @@ export async function createWeeklyScheduleSlotForManager(
     room: string;
   }
 ): Promise<CreateWeeklyScheduleSlotResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SCHEDULE_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createWeeklyScheduleSlotSchema.safeParse(input);
@@ -306,7 +305,7 @@ export async function createWeeklyScheduleSlotForManager(
 
 export async function updateWeeklyScheduleSlotForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -317,8 +316,9 @@ export async function updateWeeklyScheduleSlotForManager(
     room: string;
   }
 ): Promise<UpdateWeeklyScheduleSlotResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SCHEDULE_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateWeeklyScheduleSlotSchema.safeParse(input);
@@ -447,12 +447,13 @@ export async function updateWeeklyScheduleSlotForManager(
 
 export async function deleteWeeklyScheduleSlotForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   slotId: string
 ): Promise<DeleteWeeklyScheduleSlotResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SCHEDULE_DELETE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const existingSlot = await weeklyScheduleSlotRepository.findWeeklyScheduleSlotById(

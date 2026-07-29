@@ -23,6 +23,17 @@ vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => adminClient,
 }));
 
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
+}));
+
 const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
@@ -52,7 +63,7 @@ describe("listUsersForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      listUsersForManager(adminClient, ROLES.TEACHER)
+      listUsersForManager(adminClient, null)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -87,7 +98,7 @@ describe("listUsersForManager", () => {
       statusText: "OK",
     });
 
-    const users = await listUsersForManager(adminClient, ROLES.MANAGER);
+    const users = await listUsersForManager(adminClient, actor.userId);
 
     expect(users).toEqual([
       {
@@ -110,7 +121,7 @@ describe("createStaffUser", () => {
   it("rejects non-manager actors", async () => {
     const result = await createStaffUser(
       adminClient,
-      ROLES.TEACHER,
+      null,
       actor,
       validStaffInput
     );
@@ -122,7 +133,7 @@ describe("createStaffUser", () => {
   });
 
   it("returns field errors for invalid input", async () => {
-    const result = await createStaffUser(adminClient, ROLES.MANAGER, actor, {
+    const result = await createStaffUser(adminClient, actor.userId, actor, {
       ...validStaffInput,
       email: "not-an-email",
     });
@@ -135,7 +146,7 @@ describe("createStaffUser", () => {
   });
 
   it("rejects student role", async () => {
-    const result = await createStaffUser(adminClient, ROLES.MANAGER, actor, {
+    const result = await createStaffUser(adminClient, actor.userId, actor, {
       ...validStaffInput,
       role: ROLES.STUDENT,
     });

@@ -1,4 +1,8 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import { createEquipmentSchema } from "@/lib/validators/manager/create-equipment";
 import { updateEquipmentSchema } from "@/lib/validators/manager/update-equipment";
 import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
@@ -42,12 +46,6 @@ export type UpdateEquipmentFailure = {
 };
 
 export type UpdateEquipmentResult = UpdateEquipmentSuccess | UpdateEquipmentFailure;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function normalizeOptionalString(value?: string | null): string | null {
   const trimmed = value?.trim();
@@ -117,9 +115,9 @@ function mapUpdateEquipmentError(message: string): string {
 
 export async function listEquipmentsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerEquipmentRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW);
 
   const { data, error } = await equipmentRepository.listEquipments(adminClient);
 
@@ -148,10 +146,10 @@ export async function listEquipmentsForManager(
 
 export async function getEquipmentForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   equipmentId: string
 ): Promise<ManagerEquipmentRow | null> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW);
 
   const { data, error } = await equipmentRepository.findEquipmentById(
     adminClient,
@@ -179,7 +177,7 @@ export async function getEquipmentForManager(
 
 export async function createEquipmentForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     name: string;
@@ -188,8 +186,9 @@ export async function createEquipmentForManager(
     unit_price: number;
   }
 ): Promise<CreateEquipmentResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createEquipmentSchema.safeParse(input);
@@ -244,7 +243,7 @@ export async function createEquipmentForManager(
 
 export async function updateEquipmentForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -254,8 +253,9 @@ export async function updateEquipmentForManager(
     unit_price: number;
   }
 ): Promise<UpdateEquipmentResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateEquipmentSchema.safeParse(input);

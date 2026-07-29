@@ -27,6 +27,17 @@ vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => adminClient,
 }));
 
+
+vi.mock("@/services/authorization.service", () => ({
+  UNAUTHORIZED_MESSAGE: "Unauthorized.",
+  assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  getUnauthorizedError: vi.fn(async (_c, userId) =>
+    userId ? null : "Unauthorized."
+  ),
+}));
+
 const adminClient = {} as never;
 const actor: AuditActor = {
   userId: "11111111-1111-4111-8111-111111111111",
@@ -42,7 +53,7 @@ describe("listEquipmentBorrowsForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      listEquipmentBorrowsForManager(adminClient, ROLES.TEACHER, equipmentId)
+      listEquipmentBorrowsForManager(adminClient, null, equipmentId)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -124,7 +135,7 @@ describe("listAllBorrowsForManager", () => {
 
   it("throws when actor is not a manager", async () => {
     await expect(
-      listAllBorrowsForManager(adminClient, ROLES.TEACHER)
+      listAllBorrowsForManager(adminClient, null)
     ).rejects.toThrow("Unauthorized.");
   });
 
@@ -170,7 +181,7 @@ describe("listAllBorrowsForManager", () => {
       statusText: "OK",
     });
 
-    const rows = await listAllBorrowsForManager(adminClient, ROLES.MANAGER);
+    const rows = await listAllBorrowsForManager(adminClient, actor.userId);
 
     expect(rows).toEqual([
       {
@@ -197,7 +208,7 @@ describe("createBorrowsForManager", () => {
   });
 
   it("returns unauthorized for non-manager", async () => {
-    const result = await createBorrowsForManager(adminClient, ROLES.TEACHER, actor, {
+    const result = await createBorrowsForManager(adminClient, null, actor, {
       items: [
         {
           user_id: userId,
@@ -237,7 +248,7 @@ describe("createBorrowsForManager", () => {
       statusText: "OK",
     });
 
-    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, actor, {
+    const result = await createBorrowsForManager(adminClient, actor.userId, actor, {
       items: [
         {
           user_id: userId,
@@ -284,7 +295,7 @@ describe("createBorrowsForManager", () => {
       statusText: "OK",
     });
 
-    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, actor, {
+    const result = await createBorrowsForManager(adminClient, actor.userId, actor, {
       items: [
         {
           user_id: userId,
@@ -356,7 +367,7 @@ describe("createBorrowsForManager", () => {
       statusText: "OK",
     });
 
-    const result = await createBorrowsForManager(adminClient, ROLES.MANAGER, actor, {
+    const result = await createBorrowsForManager(adminClient, actor.userId, actor, {
       items: [
         {
           user_id: userId,

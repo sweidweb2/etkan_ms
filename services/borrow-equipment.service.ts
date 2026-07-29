@@ -3,7 +3,11 @@ import {
   type BorrowEquipmentStatusValue,
 } from "@/lib/constants/manager-borrow-equipment-status";
 import { getEquipmentRemainingQuantity, getMaxEditableBorrowQuantity } from "@/lib/constants/manager-equipment-display";
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import { createBorrowsSchema } from "@/lib/validators/manager/create-borrows";
 import {
   toggleBorrowReturnedSchema,
@@ -87,12 +91,6 @@ export type ToggleBorrowReturnedFailure = {
 export type ToggleBorrowReturnedResult =
   | ToggleBorrowReturnedSuccess
   | ToggleBorrowReturnedFailure;
-
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
 
 function mapBorrowStatus(status: string | null): BorrowEquipmentStatusValue {
   if (status === BORROW_EQUIPMENT_STATUSES.RETURNED) {
@@ -299,7 +297,7 @@ function resolveReturnedAt(
 
 async function validateBorrowQuantityForEquipment(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   equipmentId: string,
   currentRecord: BorrowEquipmentRecord,
   nextQuantity: number,
@@ -311,7 +309,7 @@ async function validateBorrowQuantityForEquipment(
 
   const equipment = await getEquipmentForManager(
     adminClient,
-    actorRole,
+    actorUserId,
     equipmentId
   );
 
@@ -340,16 +338,16 @@ async function validateBorrowQuantityForEquipment(
 
 export async function getBorrowPageDataForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<BorrowPageData> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW_BORROWS);
 
   const [students, equipments, classesResult, borrowHistory, classStudentProfileIds] =
     await Promise.all([
-      listStudentsForManager(adminClient, actorRole),
-      listEquipmentsForManager(adminClient, actorRole),
+      listStudentsForManager(adminClient, actorUserId),
+      listEquipmentsForManager(adminClient, actorUserId),
       classRepository.listClasses(adminClient),
-      listAllBorrowsForManager(adminClient, actorRole),
+      listAllBorrowsForManager(adminClient, actorUserId),
       buildClassStudentProfileIds(adminClient),
     ]);
 
@@ -375,9 +373,9 @@ export async function getBorrowPageDataForManager(
 
 export async function listAllBorrowsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerBorrowEquipmentListRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW_BORROWS);
 
   const { data, error } = await borrowEquipmentRepository.listAllBorrows(
     adminClient
@@ -392,10 +390,10 @@ export async function listAllBorrowsForManager(
 
 export async function listEquipmentBorrowsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   equipmentId: string
 ): Promise<ManagerEquipmentBorrowRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW_BORROWS);
 
   const { data: borrows, error } =
     await borrowEquipmentRepository.listBorrowsByEquipmentId(
@@ -426,12 +424,13 @@ export async function listEquipmentBorrowsForManager(
 
 export async function createBorrowsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: { items: Array<{ user_id: string; equipment_id: string; quantity: number }> }
 ): Promise<CreateBorrowsResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_BORROW_CREATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createBorrowsSchema.safeParse(input);
@@ -444,7 +443,7 @@ export async function createBorrowsForManager(
     };
   }
 
-  const equipments = await listEquipmentsForManager(adminClient, actorRole);
+  const equipments = await listEquipmentsForManager(adminClient, actorUserId);
   const equipmentById = new Map(
     equipments.map((equipment) => [equipment.id, equipment])
   );
@@ -525,7 +524,7 @@ export async function createBorrowsForManager(
 
 export async function updateBorrowRecordForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -534,8 +533,9 @@ export async function updateBorrowRecordForManager(
     returnedAt?: string;
   }
 ): Promise<UpdateBorrowRecordResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_BORROW_UPDATE);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateBorrowRecordSchema.safeParse(input);
@@ -561,7 +561,7 @@ export async function updateBorrowRecordForManager(
 
   const stockError = await validateBorrowQuantityForEquipment(
     adminClient,
-    actorRole,
+    actorUserId,
     existing.equipment_id,
     existing,
     parsed.data.quantity,
@@ -623,12 +623,13 @@ export async function updateBorrowRecordForManager(
 
 export async function toggleBorrowReturnedForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: { id: string; isReturned: boolean }
 ): Promise<ToggleBorrowReturnedResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_BORROW_RETURN);
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = toggleBorrowReturnedSchema.safeParse(input);
@@ -655,7 +656,7 @@ export async function toggleBorrowReturnedForManager(
   if (!parsed.data.isReturned) {
     const stockError = await validateBorrowQuantityForEquipment(
       adminClient,
-      actorRole,
+      actorUserId,
       existing.equipment_id,
       existing,
       existing.quantity ?? 1,

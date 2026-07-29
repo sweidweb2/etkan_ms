@@ -1,4 +1,4 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   CLASS_STATUSES,
   type ClassStatusValue,
@@ -9,6 +9,10 @@ import * as classRepository from "@/repositories/class.repository";
 import type { ClassRecord } from "@/repositories/class.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
 import type { SubjectRecord } from "@/repositories/subject.repository";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -61,12 +65,6 @@ export type DeleteSubjectFailure = {
 
 export type DeleteSubjectResult = DeleteSubjectSuccess | DeleteSubjectFailure;
 
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
-
 function normalizeOptionalString(value?: string | null): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -86,7 +84,9 @@ function mapClassStatus(status: string | null): ClassStatusValue {
   return CLASS_STATUSES.SCHEDULED;
 }
 
-function mapClassRecordToSubjectClassRow(record: ClassRecord): ManagerSubjectClassRow {
+function mapClassRecordToSubjectClassRow(
+  record: ClassRecord
+): ManagerSubjectClassRow {
   return {
     id: record.id,
     subject_id: record.subject_id ?? "",
@@ -156,9 +156,9 @@ function mapUpdateSubjectError(message: string): string {
 
 export async function listSubjectsForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null
+  actorUserId: string | null
 ): Promise<ManagerSubjectRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SUBJECTS_VIEW);
 
   const [subjectsResult, classCounts] = await Promise.all([
     subjectRepository.listSubjects(adminClient),
@@ -176,7 +176,7 @@ export async function listSubjectsForManager(
 
 export async function createSubjectForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     name: string;
@@ -185,8 +185,13 @@ export async function createSubjectForManager(
     handout_link?: string;
   }
 ): Promise<CreateSubjectResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.SUBJECTS_CREATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = createSubjectSchema.safeParse(input);
@@ -261,7 +266,7 @@ export async function createSubjectForManager(
 
 export async function updateSubjectForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
@@ -271,8 +276,13 @@ export async function updateSubjectForManager(
     handout_link?: string;
   }
 ): Promise<UpdateSubjectResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.SUBJECTS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const parsed = updateSubjectSchema.safeParse({
@@ -392,12 +402,17 @@ export async function updateSubjectForManager(
 
 export async function deleteSubjectForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   subjectId: string
 ): Promise<DeleteSubjectResult> {
-  if (actorRole !== ROLES.MANAGER) {
-    return { success: false, error: "Unauthorized." };
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.SUBJECTS_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
   }
 
   const existingSubject = await subjectRepository.findSubjectById(
@@ -470,10 +485,10 @@ export async function deleteSubjectForManager(
 
 export async function getSubjectForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   subjectId: string
 ): Promise<ManagerSubjectRow | null> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SUBJECTS_VIEW);
 
   const [subjectResult, classCountResult] = await Promise.all([
     subjectRepository.findSubjectById(adminClient, subjectId),
@@ -500,10 +515,10 @@ export async function getSubjectForManager(
 
 export async function listSubjectClassesForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   subjectId: string
 ): Promise<ManagerSubjectClassRow[]> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SUBJECTS_VIEW);
 
   const subjectResult = await subjectRepository.findSubjectById(
     adminClient,

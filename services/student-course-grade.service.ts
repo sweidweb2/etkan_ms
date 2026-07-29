@@ -1,4 +1,8 @@
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/authorization.service";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
 import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
@@ -605,7 +609,7 @@ function buildStudentClassTabDetail(
 
 export async function getStudentClassGradeDetailForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string,
   studentProfileId: string
 ): Promise<{
@@ -615,9 +619,11 @@ export async function getStudentClassGradeDetailForManager(
   classTasks: ManagerClassTaskForGradesRow[];
   finalExam: ManagerClassFinalExamRow | null;
 } | null> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
+
   const guard = await assertClassGradesUnlockedForManager(
     adminClient,
-    actorRole,
+    actorUserId,
     classId
   );
 
@@ -626,9 +632,9 @@ export async function getStudentClassGradeDetailForManager(
   }
 
   const [students, context, finalExamBundle] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorRole, classId),
+    listClassStudentsForManager(adminClient, actorUserId, classId),
     loadClassGradeContext(adminClient, classId),
-    getClassFinalExamForManager(adminClient, actorRole, classId),
+    getClassFinalExamForManager(adminClient, actorUserId, classId),
   ]);
 
   const student = students.find(
@@ -677,15 +683,9 @@ export async function getStudentClassGradeDetailForManager(
   };
 }
 
-function assertManagerRole(actorRole: RoleValue | null): void {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
-}
-
 export async function getStudentClassAcademicDetailForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string,
   userId: string
 ): Promise<{
@@ -693,7 +693,7 @@ export async function getStudentClassAcademicDetailForManager(
   finalExam: ManagerClassFinalExamRow | null;
   studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
 }> {
-  assertManagerRole(actorRole);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
 
   const enrollmentResult = await studentClassRepository.findStudentClassByUserAndClass(
     adminClient,
@@ -711,7 +711,7 @@ export async function getStudentClassAcademicDetailForManager(
 
   const [context, finalExamBundle] = await Promise.all([
     loadClassGradeContext(adminClient, classId),
-    getClassFinalExamForManager(adminClient, actorRole, classId),
+    getClassFinalExamForManager(adminClient, actorUserId, classId),
   ]);
 
   const sessionIds = context.sessions.map((session) => session.id);
@@ -770,15 +770,21 @@ function buildAttendeeStatusMapsByUserId(
 
 export async function listComputedStudentGradeSheetBundlesForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<{
   classRow: ManagerClassRow;
   bundles: ComputedStudentGradeSheetBundle[];
 }> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.GRADES_EXPORT_CERTIFICATES
+  );
+
   const guard = await assertClassGradesUnlockedForManager(
     adminClient,
-    actorRole,
+    actorUserId,
     classId
   );
 
@@ -787,9 +793,9 @@ export async function listComputedStudentGradeSheetBundlesForManager(
   }
 
   const [students, context, finalExamBundle] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorRole, classId),
+    listClassStudentsForManager(adminClient, actorUserId, classId),
     loadClassGradeContext(adminClient, classId),
-    getClassFinalExamForManager(adminClient, actorRole, classId),
+    getClassFinalExamForManager(adminClient, actorUserId, classId),
   ]);
 
   const sessionIds = context.sessions.map((session) => session.id);
@@ -843,18 +849,16 @@ export async function listComputedStudentGradeSheetBundlesForManager(
 
 export async function listClassStudentGradesForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   classId: string
 ): Promise<{
   rows: ManagerClassStudentGradeRow[];
   tasks: ManagerClassTaskForGradesRow[];
 }> {
-  if (actorRole !== ROLES.MANAGER) {
-    throw new Error("Unauthorized.");
-  }
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
 
   const [students, context] = await Promise.all([
-    listClassStudentsForManager(adminClient, actorRole, classId),
+    listClassStudentsForManager(adminClient, actorUserId, classId),
     loadClassGradeContext(adminClient, classId),
   ]);
 
@@ -875,6 +879,7 @@ export async function listClassStudentGradesForManager(
 
 async function computeAndSaveStudentCourseGrade(
   adminClient: Supabase,
+  actorUserId: string | null,
   actor: AuditActor,
   classId: string,
   userId: string,
@@ -885,7 +890,7 @@ async function computeAndSaveStudentCourseGrade(
 > {
   const students = await listClassStudentsForManager(
     adminClient,
-    ROLES.MANAGER,
+    actorUserId,
     classId
   );
   const student = students.find((row) => row.user_id === userId);
@@ -1014,15 +1019,27 @@ async function computeAndSaveStudentCourseGrade(
 
 export async function computeStudentCourseGradeForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   classId: string,
   userId: string,
   options?: ComputeGradeOptions
 ) {
+  const permission =
+    options?.computeType === "custom"
+      ? PERMISSIONS.GRADES_COMPUTE_CUSTOM
+      : PERMISSIONS.GRADES_COMPUTE;
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    permission
+  );
+  if (unauthorized) {
+    return { success: false as const, error: unauthorized };
+  }
   const guard = await assertClassGradesUnlockedForManager(
     adminClient,
-    actorRole,
+    actorUserId,
     classId
   );
 
@@ -1032,6 +1049,7 @@ export async function computeStudentCourseGradeForManager(
 
   return computeAndSaveStudentCourseGrade(
     adminClient,
+    actorUserId,
     actor,
     classId,
     userId,
@@ -1041,15 +1059,27 @@ export async function computeStudentCourseGradeForManager(
 
 export async function computeAllStudentCourseGradesForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   classId: string,
   studentUserIds: string[],
   options?: ComputeGradeOptions
 ) {
+  const permission =
+    options?.computeType === "custom"
+      ? PERMISSIONS.GRADES_COMPUTE_CUSTOM
+      : PERMISSIONS.GRADES_COMPUTE_ALL;
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    permission
+  );
+  if (unauthorized) {
+    return { success: false as const, error: unauthorized };
+  }
   const guard = await assertClassGradesUnlockedForManager(
     adminClient,
-    actorRole,
+    actorUserId,
     classId
   );
 
@@ -1085,6 +1115,7 @@ export async function computeAllStudentCourseGradesForManager(
 
     const result = await computeAndSaveStudentCourseGrade(
       adminClient,
+      actorUserId,
       actor,
       classId,
       userId,
@@ -1124,14 +1155,18 @@ export async function computeAllStudentCourseGradesForManager(
 
 export async function deleteStudentCourseGradeForManager(
   adminClient: Supabase,
-  actorRole: RoleValue | null,
+  actorUserId: string | null,
   actor: AuditActor,
   classId: string,
   userId: string
 ) {
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.GRADES_DELETE);
+  if (unauthorized) {
+    return { success: false as const, error: unauthorized };
+  }
   const guard = await assertClassGradesUnlockedForManager(
     adminClient,
-    actorRole,
+    actorUserId,
     classId
   );
 

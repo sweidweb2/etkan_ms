@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseSendEmailFormData } from "@/lib/validators/manager/send-email";
 import { sendEmailsForManager } from "@/services/email.service";
@@ -10,10 +10,7 @@ export async function sendManagerEmailAction(
   _prevState: SendManagerEmailActionState,
   formData: FormData
 ): Promise<SendManagerEmailActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
   const parsed = parseSendEmailFormData(formData);
 
   if (!parsed.success) {
@@ -27,7 +24,7 @@ export async function sendManagerEmailAction(
   const adminClient = createSupabaseAdminClient();
   const result = await sendEmailsForManager(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );

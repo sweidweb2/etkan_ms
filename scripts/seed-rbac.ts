@@ -1,6 +1,7 @@
 import {
   PERMISSION_DEFINITIONS,
   PERMISSION_KEYS,
+  PERMISSIONS,
 } from "@/lib/constants/permissions";
 import { ROLES } from "@/lib/constants/roles";
 import * as permissionRepository from "@/repositories/permission.repository";
@@ -97,6 +98,49 @@ async function seedRbac(): Promise<void> {
   console.log("RBAC seed complete.");
   console.log(`  Permissions catalog: ${catalogKeys.size}`);
   console.log(`  Manager grants:      ${managerKeys.length}`);
+
+  const adminBackupPermissions = [
+    PERMISSIONS.BACKUP_VIEW,
+    PERMISSIONS.BACKUP_EXPORT_TABLE,
+    PERMISSIONS.BACKUP_EXPORT_FULL,
+    PERMISSIONS.BACKUP_DOWNLOAD,
+  ] as const;
+
+  const { error: adminReplaceError } =
+    await permissionRepository.replaceRolePermissions(
+      adminClient,
+      ROLES.ADMIN,
+      [...adminBackupPermissions]
+    );
+
+  if (adminReplaceError) {
+    throw new Error(
+      `Failed to seed admin role permissions: ${adminReplaceError.message}`
+    );
+  }
+
+  const { data: adminGrants, error: adminGrantsError } =
+    await permissionRepository.listPermissionKeysByRole(
+      adminClient,
+      ROLES.ADMIN
+    );
+
+  if (adminGrantsError) {
+    throw new Error(
+      `Failed to list admin permissions: ${adminGrantsError.message}`
+    );
+  }
+
+  const adminKeys = new Set(
+    (adminGrants ?? []).map((row) => row.permission_key)
+  );
+  for (const key of adminBackupPermissions) {
+    if (!adminKeys.has(key)) {
+      throw new Error(`Admin missing permission grant: ${key}`);
+    }
+  }
+
+  console.log(`  Admin backup grants: ${adminBackupPermissions.length}`);
   console.log("  Other roles:         empty (no role_permissions rows)");
 }
 

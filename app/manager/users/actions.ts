@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionAuditActor, getSessionRole } from "@/lib/auth/session";
+import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   revalidateManagerPeopleLists,
   revalidateManagerUsersList,
@@ -18,10 +18,7 @@ export async function createStaffUserAction(
   _prevState: CreateStaffUserActionState,
   formData: FormData
 ): Promise<CreateStaffUserActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseCreateStaffUserFormData(formData);
 
@@ -36,7 +33,7 @@ export async function createStaffUserAction(
   const adminClient = createSupabaseAdminClient();
   const result = await createStaffUser(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );
@@ -62,10 +59,7 @@ export async function updateUserAction(
   _prevState: UpdateManagerUserActionState,
   formData: FormData
 ): Promise<UpdateManagerUserActionState> {
-  const [actorRole, actor] = await Promise.all([
-    getSessionRole(),
-    getSessionAuditActor(),
-  ]);
+  const actor = await getSessionAuditActor();
 
   const parsed = parseUpdateManagerUserFormData(formData);
 
@@ -80,7 +74,7 @@ export async function updateUserAction(
   const adminClient = createSupabaseAdminClient();
   const result = await updateManagerUser(
     adminClient,
-    actorRole,
+    actor.userId,
     actor,
     parsed.data
   );

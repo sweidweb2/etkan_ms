@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ClassDetailsPanel } from "@/components/manager/classes/class-details-panel";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getClassAnalyticsForManager,
@@ -24,8 +24,8 @@ export default async function ManagerClassDetailPage({
 }: ManagerClassDetailPageProps) {
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
-  const role = await getSessionRole();
-  const classRow = await getClassForManager(adminClient, role, id);
+  const user = await getSessionUser();
+  const classRow = await getClassForManager(adminClient, user?.id ?? null, id);
 
   if (!classRow) {
     notFound();
@@ -42,15 +42,15 @@ export default async function ManagerClassDetailPage({
     semesters,
     computedGradeLock,
   ] = await Promise.all([
-    listClassSessionsForManager(adminClient, role, id),
-    listClassStudentsForManager(adminClient, role, id),
-    listAvailableStudentsForClass(adminClient, role, id),
-    getClassFinalExamForManager(adminClient, role, id),
-    getClassAnalyticsForManager(adminClient, role, id),
-    listClassTeacherOptionsForManager(adminClient, role, id),
-    listSubjectsForManager(adminClient, role),
-    listSemestersForManager(adminClient, role),
-    getClassComputedGradeLockStateForManager(adminClient, role, id),
+    listClassSessionsForManager(adminClient, user?.id ?? null, id),
+    listClassStudentsForManager(adminClient, user?.id ?? null, id),
+    listAvailableStudentsForClass(adminClient, user?.id ?? null, id),
+    getClassFinalExamForManager(adminClient, user?.id ?? null, id),
+    getClassAnalyticsForManager(adminClient, user?.id ?? null, id),
+    listClassTeacherOptionsForManager(adminClient, user?.id ?? null, id),
+    listSubjectsForManager(adminClient, user?.id ?? null),
+    listSemestersForManager(adminClient, user?.id ?? null),
+    getClassComputedGradeLockStateForManager(adminClient, user?.id ?? null, id),
   ]);
 
   return (
