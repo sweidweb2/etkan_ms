@@ -205,24 +205,26 @@ Do one feature group per pass. Check off when service checks are permission-base
 
 ---
 
-## Phase 5 — Route and panel access (light)
+## Phase 5 — Route and panel access (light) ✅
 
 Keep role → panel root. Add permission awareness where a route should be blocked even inside the manager panel.
 
+**Shipped:** `lib/auth/manager-route-permissions.ts` (path → `*.view`), `requireManagerRoutePermission` in manager layout (after role check), `x-pathname` from middleware client, `app/manager/forbidden.tsx`. Deny → redirect to dashboard when `dashboard.view` held, else `forbidden()`. Admin/backup stays permission-expressed; `/manager` remains manager-only.
+
 ### Tasks
 
-- [ ] Map manager routes → required **view** permission (e.g. `/manager/subjects` → `subjects.view`)
-- [ ] Decide enforcement place: layout helper and/or middleware extension
-- [ ] Deny page access when view permission is missing (redirect or forbidden page)
-- [ ] Keep cross-panel rule: user only enters their role’s panel root
-- [ ] Decide admin/backup overlap (today admin can backup) → express as permissions
+- [x] Map manager routes → required **view** permission (e.g. `/manager/subjects` → `subjects.view`)
+- [x] Decide enforcement place: layout helper and/or middleware extension
+- [x] Deny page access when view permission is missing (redirect or forbidden page)
+- [x] Keep cross-panel rule: user only enters their role’s panel root
+- [x] Decide admin/backup overlap (today admin can backup) → express as permissions
 
 ### Testing
 
-- [ ] Manager with all permissions: all manager routes open
-- [ ] Test user with only `subjects.view`: subjects ok, other manager pages blocked
-- [ ] Wrong panel root still blocked by role (teacher cannot open `/manager`)
-- [ ] Login redirect and maintenance behavior unchanged
+- [x] Manager with all permissions: all manager routes open
+- [x] Test user with only `subjects.view`: subjects ok, other manager pages blocked
+- [x] Wrong panel root still blocked by role (teacher cannot open `/manager`)
+- [x] Login redirect and maintenance behavior unchanged
 
 **Done when:** deep links respect permissions, not only the sidebar.
 

@@ -7,10 +7,19 @@ import { ROLES } from "@/lib/constants/roles";
 type RolePanelLayoutProps = {
   role: (typeof ROLES)[keyof typeof ROLES];
   children: React.ReactNode;
+  /** Runs after role check (e.g. manager route view-permission gate). */
+  assertAccess?: () => Promise<void>;
 };
 
-export async function RolePanelLayout({ role, children }: RolePanelLayoutProps) {
+export async function RolePanelLayout({
+  role,
+  children,
+  assertAccess,
+}: RolePanelLayoutProps) {
   await requireRole(role);
+  if (assertAccess) {
+    await assertAccess();
+  }
   const [displayName, panelConfig] = await Promise.all([
     getSessionDisplayName(),
     Promise.resolve(getPanelConfigForRole(role)),

@@ -9,9 +9,12 @@ import type { Database } from "@/types/supabase";
 export function createSupabaseMiddlewareClient(
   request: NextRequest
 ) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+
   const response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   });
 
