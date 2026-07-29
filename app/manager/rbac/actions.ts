@@ -48,6 +48,6 @@ export async function updateRolePermissionsAction(
     return { success: false, error: result.error };
   }
 
-  revalidatePath(ROUTES.MANAGER_RBAC);
+  revalidatePath(ROUTES.MANAGER_ROOT, "layout");
   return { success: true, message: result.message };
 }

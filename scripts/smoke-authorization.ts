@@ -77,6 +77,14 @@ async function smokeAuthorization(): Promise<void> {
     await requirePermission(client, userId, PERMISSIONS.SUBJECTS_VIEW);
     console.log(`  Permissions loaded: ${permissions.size}`);
     console.log("  Sample checks: subjects.view / subjects.delete / dashboard.view OK");
+
+    if (!(await hasPermission(client, userId, PERMISSIONS.RBAC_MANAGE))) {
+      console.log(
+        "  Note: manager missing rbac.manage — run `npm run seed:rbac` after Phase 7 catalog."
+      );
+    } else {
+      console.log("  rbac.manage: OK");
+    }
   } else {
     console.log(
       `  Non-manager smoke: permission count=${permissions.size} (expected 0 if unseeded)`

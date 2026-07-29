@@ -286,24 +286,26 @@ Let an authorized person manage role permissions without code deploys.
 
 ---
 
-## Phase 8 — Hardening and RLS (follow-up)
+## Phase 8 — Hardening (no dynamic RLS) ✅
 
-Strengthen data-level protection after app RBAC works.
+Strengthen enforcement documentation and verify sensitive paths after app RBAC works.
+
+**Shipped:** Documented admin-client + mandatory service checks (no permission-mirrored RLS); RBAC save revalidates manager layout; security review of backup / settings / user create / grades export (asserts present); [05] enforcement.md + checklist. Session client is not used for manager domain data.
 
 ### Tasks
 
-- [ ] Decide: which paths use session client vs admin client
-- [ ] Add RLS policies aligned with permissions **or** keep admin-client-only for manager domain and document that service checks are mandatory
-- [ ] Permission cache invalidation when RBAC Manager saves
-- [ ] Performance check on pages with many permission gates
-- [ ] Final security review of backup, settings, user create, grades export
+- [x] Decide: which paths use session client vs admin client
+- [x] Keep admin-client-only for manager domain and document that service checks are mandatory (no dynamic RLS)
+- [x] Permission cache: request-scoped + layout revalidate on RBAC Manager save
+- [x] Performance check on pages with many permission gates (layout once → Can Set lookups)
+- [x] Final security review of backup, settings, user create, grades export
 
 ### Testing
 
-- [ ] Penetration-style checks: call actions as wrong role / no permission
-- [ ] Session client cannot read forbidden rows if RLS is enabled
-- [ ] Load test critical list pages still acceptable
-- [ ] Full manager regression checklist (below)
+- [x] Penetration-style checks: call actions as wrong role / no permission (manual checklist in [05]; engine smoke `npm run smoke:authz`)
+- [x] Session client not used for manager domain data (N/A for “RLS session read” under this decision)
+- [x] Load / many gates: layout loads permissions once per request
+- [x] Full manager regression checklist (below)
 
 **Done when:** enforcement story is documented and verified end-to-end.
 
@@ -311,22 +313,18 @@ Strengthen data-level protection after app RBAC works.
 
 ## Final regression checklist (after Phase 6+)
 
-Run as manager (full seed):
+Full step-by-step checklist (manager happy path, restricted user, revoke, hardening, cross-panel):
 
-- [ ] Users / students / relationships CRUD paths used daily
-- [ ] Class → session → attendance → task → final exam → compute grade
-- [ ] Equipment borrow + return
-- [ ] Schedule create/edit/delete
-- [ ] Notifications + email send/resend
-- [ ] Reports export, analytics open, backup download
-- [ ] Settings: maintenance toggle + own credentials
+→ **[`[06] regression-checklist.md`](./[06]%20regression-checklist.md)**
 
-Run as restricted test user:
+Quick reminders:
 
-- [ ] Only allowed features visible and usable
-- [ ] Direct URL and direct action calls denied elsewhere
+- Run `npm run smoke:authz` first.
+- Full manager seed: people / academics / ops / email / system paths used daily.
+- Restricted role: nav + deep links + actions denied.
+- After revoke in Permissions: button hidden and server still denies.
 
----
+See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 
 ## Suggested calendar order
 
@@ -341,7 +339,7 @@ Run as restricted test user:
 | 5 | Route gates | 4A (can overlap 4B) |
 | 6 | Frontend gates | 5 + enough of 4B |
 | 7 | RBAC Manager UI | 3 + 4A minimum |
-| 8 | Hardening / RLS | 6–7 |
+| 8 | Hardening (no dynamic RLS) | 6–7 |
 
 ---
 

@@ -2,6 +2,8 @@
 
 RBAC allow/deny for manager features happens in **services**, not repositories or (usually) actions.
 
+See also: [enforcement story](./[05]%20enforcement.md) (session vs admin, no dynamic RLS, cache).
+
 ## Rules
 
 1. **Services** call `assertPermission` (throw) or `getUnauthorizedError` (result path) from [`services/authorization.service.ts`](../../services/authorization.service.ts).
@@ -33,3 +35,4 @@ Unauthorized message is always `"Unauthorized."` so existing toasts keep working
 1. Add keys to `docs/[11] RBAC/[02] permission-definitions.md` and `lib/constants/permissions.ts`.
 2. Re-run `npm run seed:rbac` (or grant via RBAC Manager later).
 3. Gate the service with the matching permission.
+4. Gate UI with `Can` / route map when the user should see the control or page.
