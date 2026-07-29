@@ -94,6 +94,9 @@ npx supabase migration list
 # 5. Restore admin user (uses .env.local Supabase keys)
 npm run seed:admin
 
+# 5b. Seed RBAC permission catalog + manager grants
+npm run seed:rbac
+
 # 6. Load demo semesters, classes, teachers, and students
 npm run seed:demo
 

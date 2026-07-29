@@ -20,12 +20,15 @@ The initial migration defines the Etkan MS data model:
 | Area | Tables |
 | --- | --- |
 | Identity | `profiles`, `student_profiles` |
+| RBAC | `permissions`, `role_permissions` |
 | Relationships | `relationships` |
 | Academics | `subjects`, `classes`, `class_teacher`, `student_class`, `tasks`, `student_tasks`, `student_course_grade` |
 | Equipment | `equipments`, `borrow_equipment` |
 | Other | `student_takeouts`, `audit_logs`, `email_sent`, `email_users` |
 
 Canonical SQL is in `supabase/migrations/`. Regenerate `types/supabase.ts` after schema changes.
+
+RBAC tables store the permission catalog and which `profiles.role` values may use each key. Seed with `npm run seed:rbac` after migrations (manager gets all permissions; other roles start empty).
 
 ## Next steps
 

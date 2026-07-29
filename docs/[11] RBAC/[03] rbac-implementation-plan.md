@@ -78,26 +78,28 @@ Store roles’ permissions in the database. Keep `profiles.role` as the user’s
 
 ### Tasks
 
-- [ ] Design tables:
-  - [ ] `permissions` — key, label, feature group, description
-  - [ ] `role_permissions` — role + permission key (unique pair)
-- [ ] Write migration(s)
-- [ ] Seed all permission rows from Phase 1 constants
-- [ ] Seed **manager → all permissions**
-- [ ] Seed other roles with empty or minimal sets (decide per role; student/teacher can stay empty for now)
-- [ ] Add repository methods: list permissions, list by role, replace role permissions
-- [ ] Update generated/DB types if the project uses them
-- [ ] Note in database docs what these tables are for
+- [x] Design tables:
+  - [x] `permissions` — key, label, feature group, description
+  - [x] `role_permissions` — role + permission key (unique pair)
+- [x] Write migration(s)
+- [x] Seed all permission rows from Phase 1 constants
+- [x] Seed **manager → all permissions**
+- [x] Seed other roles with empty or minimal sets (decide per role; student/teacher can stay empty for now)
+- [x] Add repository methods: list permissions, list by role, replace role permissions
+- [x] Update generated/DB types if the project uses them
+- [x] Note in database docs what these tables are for
 
 ### Testing
 
-- [ ] Migration applies cleanly on empty and existing DB
-- [ ] Seed: manager has every permission from Phase 1
-- [ ] Seed: no orphan permission keys
-- [ ] Repository read/write works in isolation (simple service or script test)
-- [ ] Rollback / reset path still works for local dev
+- [x] Migration applies cleanly on empty and existing DB
+- [x] Seed: manager has every permission from Phase 1
+- [x] Seed: no orphan permission keys
+- [x] Repository read/write works in isolation (simple service or script test)
+- [x] Rollback / reset path still works for local dev
 
-**Done when:** DB holds the catalog and manager’s full grant.
+**Done when:** DB holds the catalog and manager’s full grant. ✅
+
+**Result:** migration `20260729170000_rbac_permissions.sql`, `repositories/permission.repository.ts`, `npm run seed:rbac` (manager = all 84; other roles empty). Columns use `access` (read/write) instead of description.
 
 ---
 

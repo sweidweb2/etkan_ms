@@ -552,6 +552,30 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          access: string
+          created_at: string
+          feature_group: string
+          key: string
+          label: string
+        }
+        Insert: {
+          access: string
+          created_at?: string
+          feature_group: string
+          key: string
+          label: string
+        }
+        Update: {
+          access?: string
+          created_at?: string
+          feature_group?: string
+          key?: string
+          label?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -605,6 +629,29 @@ export type Database = {
           speciality?: string | null
         }
         Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          permission_key: string
+          role: string
+        }
+        Insert: {
+          permission_key: string
+          role: string
+        }
+        Update: {
+          permission_key?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+        ]
       }
       semesters: {
         Row: {
