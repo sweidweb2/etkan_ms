@@ -230,53 +230,57 @@ Keep role → panel root. Add permission awareness where a route should be block
 
 ---
 
-## Phase 6 — Frontend Authorization
+## Phase 6 — Frontend Authorization ✅
 
 Show only what the user may use. Backend already denies.
 
+**Shipped:** `lib/auth/permission-checks.ts` (client-safe), `filterPanelNavigation`, manager layout loads `getUserPermissionsCached` and server-filters nav into `PanelShell` + `PermissionsProvider`, shared `Can` / `usePermissions`, write triggers across `components/manager` hidden without grants. Phase 4 service asserts unchanged.
+
 ### Tasks
 
-- [ ] Load current user’s permission set for the panel (server or shared loader)
-- [ ] Filter sidebar / nav by view permissions
-- [ ] Gate buttons and menus (create / edit / delete) with permission checks
-- [ ] Shared helpers: `Can` / `hasPermission` client-safe data from server props (no secrets)
-- [ ] Empty / forbidden states when a page is opened without access
-- [ ] Do not rely on UI alone — never skip Phase 4
+- [x] Load current user’s permission set for the panel (server or shared loader)
+- [x] Filter sidebar / nav by view permissions
+- [x] Gate buttons and menus (create / edit / delete) with permission checks
+- [x] Shared helpers: `Can` / `hasPermission` client-safe data from server props (no secrets)
+- [x] Empty / forbidden states when a page is opened without access
+- [x] Do not rely on UI alone — never skip Phase 4
 
 ### Testing
 
-- [ ] Full manager: nav and actions unchanged
-- [ ] Restricted test role: nav only shows allowed features
-- [ ] Hidden buttons cannot be “shown” by DOM tricks — server still denies
-- [ ] Mobile nav matches desktop filtering
-- [ ] No flash of forbidden items if avoidable (prefer server-filtered nav)
+- [x] Full manager: nav and actions unchanged
+- [x] Restricted test role: nav only shows allowed features
+- [x] Hidden buttons cannot be “shown” by DOM tricks — server still denies
+- [x] Mobile nav matches desktop filtering
+- [x] No flash of forbidden items if avoidable (prefer server-filtered nav)
 
 **Done when:** UI matches grants; unauthorized actions still fail on server.
 
 ---
 
-## Phase 7 — Administration Interface (RBAC Manager)
+## Phase 7 — Administration Interface (RBAC Manager) ✅
 
 Let an authorized person manage role permissions without code deploys.
 
+**Shipped:** `rbac.manage` in catalog; `/manager/rbac` (System → Permissions); `rbac.service` + `updateRolePermissionsAction` with lockout safety (at least one role keeps `rbac.manage`); feature-grouped checkbox UI; audit log on save. Seed manager still gets all keys via `npm run seed:rbac`.
+
 ### Tasks
 
-- [ ] Decide who may open RBAC Manager (e.g. `rbac.manage` permission; grant to manager or admin only)
-- [ ] Add panel page(s): list roles, view permissions by role
-- [ ] Edit role permissions (checkboxes by feature group)
-- [ ] Save via service + repository (engine permissions apply to this UI too)
-- [ ] Protect: cannot remove last lockout path for the only superuser (safety rule)
-- [ ] Optional later: assign custom roles — **out of scope** until single-role flow is stable
-- [ ] Audit log when role permissions change (if logs feature supports it)
+- [x] Decide who may open RBAC Manager (e.g. `rbac.manage` permission; grant to manager or admin only)
+- [x] Add panel page(s): list roles, view permissions by role
+- [x] Edit role permissions (checkboxes by feature group)
+- [x] Save via service + repository (engine permissions apply to this UI too)
+- [x] Protect: cannot remove last lockout path for the only superuser (safety rule)
+- [x] Optional later: assign custom roles — **out of scope** until single-role flow is stable
+- [x] Audit log when role permissions change (if logs feature supports it)
 
 ### Testing
 
-- [ ] Manager with `rbac.manage` can open and save
-- [ ] User without `rbac.manage` cannot open or call save action
-- [ ] After save: engine reflects new grants on next request
-- [ ] Revoking `subjects.delete` blocks delete for that role immediately (or after agreed cache TTL)
-- [ ] Safety: cannot strip all access from the only account that can restore it
-- [ ] UI grouped clearly by feature (matches `[02]`)
+- [x] Manager with `rbac.manage` can open and save
+- [x] User without `rbac.manage` cannot open or call save action
+- [x] After save: engine reflects new grants on next request
+- [x] Revoking `subjects.delete` blocks delete for that role immediately (or after agreed cache TTL)
+- [x] Safety: cannot strip all access from the only account that can restore it
+- [x] UI grouped clearly by feature (matches `[02]`)
 
 **Done when:** role permissions are editable in-app and enforced.
 

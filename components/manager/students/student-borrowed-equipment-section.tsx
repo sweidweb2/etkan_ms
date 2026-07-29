@@ -9,6 +9,7 @@ import {
   PencilIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { BorrowEquipmentStatusBadge } from "@/components/manager/students/borrow-equipment-status-badge";
 import { EditBorrowEquipmentDialog } from "@/components/manager/students/edit-borrow-equipment-dialog";
 import { ViewBorrowEquipmentDialog } from "@/components/manager/students/view-borrow-equipment-dialog";
@@ -38,6 +39,7 @@ import {
   MANAGER_BORROW_EQUIPMENT_STATUS_LABELS,
   MANAGER_BORROW_EQUIPMENT_TOGGLE_LABELS,
 } from "@/lib/constants/manager-student-borrow-equipment-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentBorrowEquipmentPreview } from "@/lib/manager/get-manager-student-borrow-equipment-preview";
 import { showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -348,29 +350,33 @@ export function StudentBorrowedEquipmentSection({
                           <BorrowEquipmentStatusBadge status={row.status} />
                         </td>
                         <td className="px-4 py-3">
-                          <Switch
-                            checked={isBorrowed}
-                            onCheckedChange={(checked) =>
-                              handleToggleStatus(row, checked)
-                            }
-                            aria-label={
-                              isBorrowed
-                                ? MANAGER_BORROW_EQUIPMENT_TOGGLE_LABELS.borrowed
-                                : MANAGER_BORROW_EQUIPMENT_TOGGLE_LABELS.returned
-                            }
-                          />
+                          <Can permission={PERMISSIONS.EQUIPMENT_BORROW_RETURN}>
+                            <Switch
+                              checked={isBorrowed}
+                              onCheckedChange={(checked) =>
+                                handleToggleStatus(row, checked)
+                              }
+                              aria-label={
+                                isBorrowed
+                                  ? MANAGER_BORROW_EQUIPMENT_TOGGLE_LABELS.borrowed
+                                  : MANAGER_BORROW_EQUIPMENT_TOGGLE_LABELS.returned
+                              }
+                            />
+                          </Can>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Edit borrow record"
-                              onClick={() => openEditDialog(row)}
-                            >
-                              <PencilIcon />
-                            </Button>
+                            <Can permission={PERMISSIONS.EQUIPMENT_BORROW_UPDATE}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Edit borrow record"
+                                onClick={() => openEditDialog(row)}
+                              >
+                                <PencilIcon />
+                              </Button>
+                            </Can>
                             <Button
                               type="button"
                               variant="ghost"

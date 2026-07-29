@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import {
@@ -16,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MANAGER_USER_PREVIEW_ID } from "@/lib/constants/manager-users-mock";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerUserPreview } from "@/lib/manager/get-manager-user-preview";
 import { ROUTES } from "@/lib/constants/routes";
 import type { ManagerUserRow } from "@/types/manager-user";
@@ -79,10 +81,12 @@ export function UserDetailsPanel({ userId }: UserDetailsPanelProps) {
         <CardHeader className="border-b">
           <CardTitle className="text-xl">{displayName}</CardTitle>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsEditOpen(true)}>
-              <PencilIcon data-icon="inline-start" />
-              Edit user
-            </Button>
+            <Can permission={PERMISSIONS.USERS_UPDATE}>
+              <Button type="button" onClick={() => setIsEditOpen(true)}>
+                <PencilIcon data-icon="inline-start" />
+                Edit user
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent>

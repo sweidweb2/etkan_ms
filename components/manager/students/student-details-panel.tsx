@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
 import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
 import { StudentBorrowedEquipmentSection } from "@/components/manager/students/student-borrowed-equipment-section";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import {
   scrollToStudentDetailsSection,
@@ -126,10 +128,12 @@ export function StudentDetailsPanel({
         <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle className="text-xl">{student.full_name}</CardTitle>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsEditOpen(true)}>
-              <PencilIcon data-icon="inline-start" />
-              Edit student
-            </Button>
+            <Can permission={PERMISSIONS.STUDENTS_UPDATE}>
+              <Button type="button" onClick={() => setIsEditOpen(true)}>
+                <PencilIcon data-icon="inline-start" />
+                Edit student
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="pb-4 pt-2">

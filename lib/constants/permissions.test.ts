@@ -56,7 +56,8 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("freezes the Phase 0 catalog size at 84 keys", () => {
-    expect(PERMISSION_KEYS).toHaveLength(84);
+  it("keeps the catalog size at 85 keys (includes rbac.manage)", () => {
+    expect(PERMISSION_KEYS).toHaveLength(85);
+    expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
   });
 });

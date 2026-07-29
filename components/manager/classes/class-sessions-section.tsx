@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PlusIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddClassSessionDialog } from "@/components/manager/classes/add-class-session-dialog";
 import { ClassSessionCard } from "@/components/manager/classes/class-session-card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import {
   sortClassSessionsNewestFirst,
@@ -92,30 +94,32 @@ export function ClassSessionsSection({
             {sortedSessions.length === 1 ? "" : "s"} for {className}.
           </p>
           <CardAction className="self-center">
-            {hasComputedGrades ? (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <span className="inline-flex" tabIndex={0} />
-                    }
-                  >
-                    <Button type="button" disabled>
-                      <PlusIcon data-icon="inline-start" />
-                      Add session
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : (
-              <Button type="button" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add session
-              </Button>
-            )}
+            <Can permission={PERMISSIONS.SESSIONS_CREATE}>
+              {hasComputedGrades ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <span className="inline-flex" tabIndex={0} />
+                      }
+                    >
+                      <Button type="button" disabled>
+                        <PlusIcon data-icon="inline-start" />
+                        Add session
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <Button type="button" onClick={() => setIsAddOpen(true)}>
+                  <PlusIcon data-icon="inline-start" />
+                  Add session
+                </Button>
+              )}
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="py-3">

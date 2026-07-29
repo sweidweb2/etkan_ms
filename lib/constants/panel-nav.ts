@@ -146,6 +146,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "logs",
         },
         {
+          title: "Permissions",
+          href: ROUTES.MANAGER_RBAC,
+          icon: "shield",
+        },
+        {
           title: "Settings",
           href: ROUTES.MANAGER_SETTINGS,
           icon: "settings",

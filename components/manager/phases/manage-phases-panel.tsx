@@ -10,6 +10,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddPhaseDialog } from "@/components/manager/phases/add-phase-dialog";
 import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
 import { PhaseCard } from "@/components/manager/phases/phase-card";
@@ -24,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { MANAGER_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-phase-display";
 import {
@@ -213,10 +215,12 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
             <ChartNoAxesColumnIncreasingIcon data-icon="inline-start" />
             Progress track
           </Button>
-          <Button type="button" onClick={() => setIsAddOpen(true)}>
-            <PlusIcon data-icon="inline-start" />
-            Add semester
-          </Button>
+          <Can permission={PERMISSIONS.SEMESTERS_CREATE}>
+            <Button type="button" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add semester
+            </Button>
+          </Can>
         </div>
       </div>
 

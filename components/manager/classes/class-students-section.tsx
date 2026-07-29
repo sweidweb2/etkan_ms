@@ -11,6 +11,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { updateClassStudentStatusAction } from "@/app/manager/classes/actions";
+import { Can } from "@/components/auth/can";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,7 @@ import {
   STUDENT_CLASS_STATUS_VALUES,
   type StudentClassStatusValue,
 } from "@/lib/constants/manager-student-class-status";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -289,10 +291,12 @@ export function ClassStudentsSection({
         <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Students</CardTitle>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add student
-            </Button>
+            <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add student
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="px-0 pb-0">
@@ -385,39 +389,52 @@ export function ClassStudentsSection({
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Select
-                          value={student.enrollment_status}
-                          items={ENROLLMENT_STATUS_SELECT_ITEMS}
-                          disabled={isStatusPending}
-                          onValueChange={(value) => {
-                            if (!value) {
-                              return;
-                            }
-
-                            handleEnrollmentStatusChange(
-                              student,
-                              value as StudentClassStatusValue
-                            );
-                          }}
+                        <Can
+                          permission={PERMISSIONS.CLASSES_CHANGE_ENROLLMENT}
+                          fallback={
+                            <span>
+                              {
+                                MANAGER_STUDENT_CLASS_STATUS_LABELS[
+                                  student.enrollment_status as StudentClassStatusValue
+                                ]
+                              }
+                            </span>
+                          }
                         >
-                          <SelectTrigger
-                            className="w-[9.5rem]"
-                            aria-label={`Enrollment status for ${student.full_name}`}
+                          <Select
+                            value={student.enrollment_status}
+                            items={ENROLLMENT_STATUS_SELECT_ITEMS}
+                            disabled={isStatusPending}
+                            onValueChange={(value) => {
+                              if (!value) {
+                                return;
+                              }
+
+                              handleEnrollmentStatusChange(
+                                student,
+                                value as StudentClassStatusValue
+                              );
+                            }}
                           >
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent align="start">
-                            {STUDENT_CLASS_STATUS_VALUES.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {
-                                  MANAGER_STUDENT_CLASS_STATUS_LABELS[
-                                    status as StudentClassStatusValue
-                                  ]
-                                }
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                            <SelectTrigger
+                              className="w-[9.5rem]"
+                              aria-label={`Enrollment status for ${student.full_name}`}
+                            >
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent align="start">
+                              {STUDENT_CLASS_STATUS_VALUES.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {
+                                    MANAGER_STUDENT_CLASS_STATUS_LABELS[
+                                      status as StudentClassStatusValue
+                                    ]
+                                  }
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </Can>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                         {student.joined_at

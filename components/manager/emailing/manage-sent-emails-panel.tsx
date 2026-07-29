@@ -11,6 +11,7 @@ import {
   SendIcon,
   SparklesIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import {
   ResendEmailButton,
   ResendEmailDialog,
@@ -19,6 +20,7 @@ import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerEmailSentDetailRoute,
   ROUTES,
@@ -132,13 +134,15 @@ export function ManageSentEmailsPanel({
             Administrative circulars tracked in email_sent.
           </p>
         </div>
-        <Link
-          href={ROUTES.MANAGER_EMAILING_COMPOSE}
-          className={cn(buttonVariants({ size: "default" }), "shrink-0")}
-        >
-          <SparklesIcon data-icon="inline-start" />
-          Full customization
-        </Link>
+        <Can permission={PERMISSIONS.EMAILING_SEND}>
+          <Link
+            href={ROUTES.MANAGER_EMAILING_COMPOSE}
+            className={cn(buttonVariants({ size: "default" }), "shrink-0")}
+          >
+            <SparklesIcon data-icon="inline-start" />
+            Full customization
+          </Link>
+        </Can>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -258,9 +262,11 @@ export function ManageSentEmailsPanel({
                           : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <ResendEmailButton
-                          onClick={() => setResendTarget(email)}
-                        />
+                        <Can permission={PERMISSIONS.EMAILING_RESEND}>
+                          <ResendEmailButton
+                            onClick={() => setResendTarget(email)}
+                          />
+                        </Can>
                       </td>
                     </tr>
                   ))

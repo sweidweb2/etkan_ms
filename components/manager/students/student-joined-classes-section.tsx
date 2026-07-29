@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { PlusIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import {
   Tabs as TabsPrimitive,
   TabsList as TabsListPrimitive,
@@ -25,6 +26,7 @@ import {
   MANAGER_STUDENT_CLASS_STATUS_LABELS,
 } from "@/lib/constants/manager-student-class-display";
 import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
@@ -185,10 +187,12 @@ export function StudentJoinedClassesSection({
             Select a class below. Use arrows or drag to browse enrolled classes.
           </p>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsAssignClassOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Assign class
-            </Button>
+            <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
+              <Button type="button" onClick={() => setIsAssignClassOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Assign class
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="min-w-0 max-w-full overflow-hidden px-0 pb-0">

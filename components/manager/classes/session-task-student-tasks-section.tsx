@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { EyeIcon, PencilIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { EditStudentTaskSheet } from "@/components/manager/classes/edit-student-task-sheet";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SESSION_STUDENT_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -206,15 +208,17 @@ export function SessionTaskStudentTasksSection({
                               <EyeIcon className="size-4" />
                             </Link>
                           ) : null}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Edit task for ${studentTask.full_name}`}
-                            onClick={() => handleOpenEdit(studentTask)}
-                          >
-                            <PencilIcon />
-                          </Button>
+                          <Can permission={PERMISSIONS.TASKS_UPDATE_STUDENT}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Edit task for ${studentTask.full_name}`}
+                              onClick={() => handleOpenEdit(studentTask)}
+                            >
+                              <PencilIcon />
+                            </Button>
+                          </Can>
                         </div>
                       </td>
                     </tr>

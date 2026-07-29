@@ -7,6 +7,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddClassDialog } from "@/components/manager/classes/add-class-dialog";
 import { ClassCard } from "@/components/manager/classes/class-card";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import type {
   ManagerClassSemesterOption,
   ManagerClassSubjectOption,
@@ -180,10 +182,12 @@ export function ManageClassesPanel({
             Classes with subject, semester, and enrollment context.
           </p>
         </div>
-        <Button type="button" onClick={() => setIsAddOpen(true)}>
-          <PlusIcon data-icon="inline-start" />
-          Add class
-        </Button>
+        <Can permission={PERMISSIONS.CLASSES_CREATE}>
+          <Button type="button" onClick={() => setIsAddOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Add class
+          </Button>
+        </Can>
       </div>
 
       {isAddOpen ? (

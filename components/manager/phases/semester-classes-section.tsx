@@ -7,6 +7,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { ConnectSemesterClassDialog } from "@/components/manager/phases/connect-semester-class-dialog";
 import { SemesterClassCard } from "@/components/manager/phases/semester-class-card";
 import { SemesterClassesProgressTrack } from "@/components/manager/phases/semester-classes-progress-track";
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { printPageSection } from "@/lib/export/print-page-section";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 
@@ -194,10 +196,12 @@ export function SemesterClassesSection({
             Classes linked to this semester via classes.semester_id.
           </CardDescription>
           <CardAction className="self-center print:hidden">
-            <Button type="button" onClick={() => setIsConnectOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Connect class
-            </Button>
+            <Can permission={PERMISSIONS.SEMESTERS_CONNECT_CLASS}>
+              <Button type="button" onClick={() => setIsConnectOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Connect class
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-6 pt-3 pb-3">

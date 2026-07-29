@@ -31,7 +31,7 @@ Search, filter, and list↔detail are part of the matching `*.view` key (not sep
 
 Kept as separate groups (match manager domains):
 
-Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cron Jobs · Settings
+Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cron Jobs · Settings · RBAC
 
 Collapsed into `*.view` (not separate permissions): search, filter, schedule/alerts widgets on dashboard, student detail sub-tabs (classes/grades/borrows summaries).
 
@@ -240,6 +240,12 @@ Format: `key` — label — access
 | `settings.maintenance` | Toggle maintenance mode | write |
 | `settings.update_credentials` | Update own email or password | write |
 
+### RBAC
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `rbac.manage` | Manage role permissions | write |
+
 ---
 
 ## Key index (unique)
@@ -329,9 +335,10 @@ cron_jobs.view
 settings.view
 settings.maintenance
 settings.update_credentials
+rbac.manage
 ```
 
-**Count:** 84 keys · all unique · naming consistent · accounting view-only.
+**Count:** 85 keys · all unique · naming consistent · accounting view-only.
 
 ---
 

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { ArrowLeftIcon, SendIcon } from "lucide-react";
 import { sendManagerEmailAction } from "@/app/manager/emailing/actions";
+import { Can } from "@/components/auth/can";
 import {
   RecipientToField,
   type ComposeRecipient,
@@ -36,6 +37,7 @@ import {
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useZodForm } from "@/hooks/use-zod-form";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import type { EmailLocale } from "@/lib/email/templates";
 import { cn } from "@/lib/utils";
@@ -216,14 +218,16 @@ export function ComposeLetterPanel({ initialUsers }: ComposeLetterPanelProps) {
             circular.
           </p>
         </div>
-        <Button
-          type="submit"
-          form="compose-letter-form"
-          disabled={isPending}
-        >
-          {isPending ? <InlineSpinner /> : <SendIcon data-icon="inline-start" />}
-          Send
-        </Button>
+        <Can permission={PERMISSIONS.EMAILING_SEND}>
+          <Button
+            type="submit"
+            form="compose-letter-form"
+            disabled={isPending}
+          >
+            {isPending ? <InlineSpinner /> : <SendIcon data-icon="inline-start" />}
+            Send
+          </Button>
+        </Can>
       </div>
 
       <Card className="py-0">
@@ -353,14 +357,16 @@ export function ComposeLetterPanel({ initialUsers }: ComposeLetterPanelProps) {
               >
                 Cancel
               </Link>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  <InlineSpinner />
-                ) : (
-                  <SendIcon data-icon="inline-start" />
-                )}
-                Send
-              </Button>
+              <Can permission={PERMISSIONS.EMAILING_SEND}>
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? (
+                    <InlineSpinner />
+                  ) : (
+                    <SendIcon data-icon="inline-start" />
+                  )}
+                  Send
+                </Button>
+              </Can>
             </div>
           </form>
         </CardContent>

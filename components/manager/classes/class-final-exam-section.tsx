@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon, PlusIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { CreateFinalExamDialog } from "@/components/manager/classes/create-final-exam-dialog";
 import { EditFinalExamDialog } from "@/components/manager/classes/edit-final-exam-dialog";
 import { EditStudentFinalExamGradeSheet } from "@/components/manager/classes/edit-student-finalexam-grade-sheet";
@@ -22,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CLASS_FINAL_EXAM_TABLE_LIMITS } from "@/lib/constants/manager-class-final-exam-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -175,36 +177,40 @@ export function ClassFinalExamSection({
           </p>
           <CardAction className="self-center">
             {!finalExam ? (
-              hasComputedGrades ? (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<span className="inline-flex" tabIndex={0} />}
-                  >
-                    <Button type="button" disabled>
-                      <PlusIcon data-icon="inline-start" />
-                      Create final exam
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Button type="button" onClick={() => setIsCreateOpen(true)}>
-                  <PlusIcon data-icon="inline-start" />
-                  Create final exam
-                </Button>
-              )
+              <Can permission={PERMISSIONS.FINAL_EXAMS_CREATE}>
+                {hasComputedGrades ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<span className="inline-flex" tabIndex={0} />}
+                    >
+                      <Button type="button" disabled>
+                        <PlusIcon data-icon="inline-start" />
+                        Create final exam
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Button type="button" onClick={() => setIsCreateOpen(true)}>
+                    <PlusIcon data-icon="inline-start" />
+                    Create final exam
+                  </Button>
+                )}
+              </Can>
             ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Edit final exam"
-                onClick={() => setIsEditExamOpen(true)}
-              >
-                <PencilIcon />
-              </Button>
+              <Can permission={PERMISSIONS.FINAL_EXAMS_UPDATE}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Edit final exam"
+                  onClick={() => setIsEditExamOpen(true)}
+                >
+                  <PencilIcon />
+                </Button>
+              </Can>
             )}
           </CardAction>
         </CardHeader>
@@ -314,15 +320,17 @@ export function ClassFinalExamSection({
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Edit final exam for ${row.full_name}`}
-                                onClick={() => handleOpenEditGrade(row)}
-                              >
-                                <PencilIcon />
-                              </Button>
+                              <Can permission={PERMISSIONS.FINAL_EXAMS_UPDATE_STUDENT}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`Edit final exam for ${row.full_name}`}
+                                  onClick={() => handleOpenEditGrade(row)}
+                                >
+                                  <PencilIcon />
+                                </Button>
+                              </Can>
                             </div>
                           </td>
                         </tr>

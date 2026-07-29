@@ -20,15 +20,16 @@ import {
   SettingsIcon,
   WrenchIcon,
 } from "lucide-react";
+import {
+  deleteNotificationAction,
+  markNotificationReadAction,
+} from "@/app/manager/notifications/actions";
+import { Can } from "@/components/auth/can";
 import { AddNotificationDialog } from "@/components/manager/notifications/add-notification-dialog";
 import { EditNotificationDialog } from "@/components/manager/notifications/edit-notification-dialog";
 import { NotificationDetailsDialog } from "@/components/manager/notifications/notification-details-dialog";
 import { NotificationCategoryBadge } from "@/components/manager/notifications/notification-category-badge";
 import { NotificationPriorityBadge } from "@/components/manager/notifications/notification-priority-badge";
-import {
-  deleteNotificationAction,
-  markNotificationReadAction,
-} from "@/app/manager/notifications/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -63,6 +64,7 @@ import {
   NOTIFICATION_CATEGORY_VALUES,
   type NotificationCategoryValue,
 } from "@/lib/constants/manager-notification-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { cn } from "@/lib/utils";
 import type { ManagerNotificationRow } from "@/types/manager-notification";
@@ -340,10 +342,12 @@ export function ManageNotificationsPanel({
             Review school updates, alerts, and system messages.
           </p>
         </div>
-        <Button type="button" onClick={() => setIsCreateOpen(true)}>
-          <PlusIcon data-icon="inline-start" />
-          Create notification
-        </Button>
+        <Can permission={PERMISSIONS.NOTIFICATIONS_CREATE}>
+          <Button type="button" onClick={() => setIsCreateOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Create notification
+          </Button>
+        </Can>
       </div>
 
       <AddNotificationDialog
@@ -439,16 +443,18 @@ export function ManageNotificationsPanel({
             Filter by status or category, then open linked pages when available.
           </CardDescription>
           <CardAction className="self-center">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleMarkAllAsRead}
-              disabled={stats.unread === 0 || isMarkReadActionPending}
-            >
-              <CheckCheckIcon data-icon="inline-start" />
-              Mark all read
-            </Button>
+            <Can permission={PERMISSIONS.NOTIFICATIONS_MARK_READ}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleMarkAllAsRead}
+                disabled={stats.unread === 0 || isMarkReadActionPending}
+              >
+                <CheckCheckIcon data-icon="inline-start" />
+                Mark all read
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="px-0 pb-0">
@@ -596,19 +602,21 @@ export function ManageNotificationsPanel({
                           </Button>
                         ) : null}
                         {!notification.is_read ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="xs"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleMarkAsRead(notification.id);
-                            }}
-                            disabled={isMarkReadActionPending}
-                          >
-                            <CheckIcon data-icon="inline-start" />
-                            Mark as read
-                          </Button>
+                          <Can permission={PERMISSIONS.NOTIFICATIONS_MARK_READ}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleMarkAsRead(notification.id);
+                              }}
+                              disabled={isMarkReadActionPending}
+                            >
+                              <CheckIcon data-icon="inline-start" />
+                              Mark as read
+                            </Button>
+                          </Can>
                         ) : (
                           <span className="text-xs text-muted-foreground">
                             Read{" "}

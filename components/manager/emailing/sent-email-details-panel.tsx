@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { format } from "date-fns";
 import { CheckIcon, CopyIcon, SparklesIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -20,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -130,13 +132,15 @@ export function SentEmailDetailsPanel({
             Ref. {email.reference_code} · {email.template_label}
           </p>
         </div>
-        <Link
-          href={ROUTES.MANAGER_EMAILING_COMPOSE}
-          className={cn(buttonVariants({ size: "default" }), "shrink-0")}
-        >
-          <SparklesIcon data-icon="inline-start" />
-          Full customization
-        </Link>
+        <Can permission={PERMISSIONS.EMAILING_SEND}>
+          <Link
+            href={ROUTES.MANAGER_EMAILING_COMPOSE}
+            className={cn(buttonVariants({ size: "default" }), "shrink-0")}
+          >
+            <SparklesIcon data-icon="inline-start" />
+            Full customization
+          </Link>
+        </Can>
       </div>
 
       <Card className="gap-0 py-0">

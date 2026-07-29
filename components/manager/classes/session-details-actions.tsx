@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { LayersIcon, UsersRoundIcon } from "lucide-react";
 import { updateSessionSettingsAction } from "@/app/manager/classes/actions";
+import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   SESSION_GROUP_GRADE_LEVEL_TOGGLE_OFF_CLASSES,
   SESSION_GROUP_GRADE_LEVEL_TOGGLE_ON_CLASSES,
 } from "@/lib/constants/manager-session-group-grade-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -230,20 +232,22 @@ export function SessionDetailsActions({
             </Select>
           </div>
 
-          <Button
-            type="button"
-            className="self-start"
-            disabled={isPending || !selectedPhaseId || hasComputedGrades}
-            onClick={handleSavePhase}
-            title={
-              hasComputedGrades
-                ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
-                : undefined
-            }
-          >
-            {isPhasePending ? <InlineSpinner /> : null}
-            Save phase link
-          </Button>
+          <Can permission={PERMISSIONS.SESSIONS_UPDATE_SETTINGS}>
+            <Button
+              type="button"
+              className="self-start"
+              disabled={isPending || !selectedPhaseId || hasComputedGrades}
+              onClick={handleSavePhase}
+              title={
+                hasComputedGrades
+                  ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+                  : undefined
+              }
+            >
+              {isPhasePending ? <InlineSpinner /> : null}
+              Save phase link
+            </Button>
+          </Can>
           {hasComputedGrades ? (
             <p className="text-xs text-muted-foreground">
               {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
@@ -313,20 +317,22 @@ export function SessionDetailsActions({
             </div>
           </fieldset>
 
-          <Button
-            type="button"
-            className="self-start"
-            disabled={isPending || !selectedGroupGrade || hasComputedGrades}
-            onClick={handleSaveGroupGrade}
-            title={
-              hasComputedGrades
-                ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
-                : undefined
-            }
-          >
-            {isGroupGradePending ? <InlineSpinner /> : null}
-            Save group grade
-          </Button>
+          <Can permission={PERMISSIONS.SESSIONS_UPDATE_SETTINGS}>
+            <Button
+              type="button"
+              className="self-start"
+              disabled={isPending || !selectedGroupGrade || hasComputedGrades}
+              onClick={handleSaveGroupGrade}
+              title={
+                hasComputedGrades
+                  ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+                  : undefined
+              }
+            >
+              {isGroupGradePending ? <InlineSpinner /> : null}
+              Save group grade
+            </Button>
+          </Can>
           {hasComputedGrades ? (
             <p className="text-xs text-muted-foreground">
               {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}

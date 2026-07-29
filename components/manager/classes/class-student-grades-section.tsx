@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { EyeIcon, DownloadIcon, MessageSquareTextIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { ClassFastCertificatePanel } from "@/components/manager/classes/class-fast-certificate-panel";
 import { CustomizeComputeAllDialog } from "@/components/manager/classes/customize-compute-all-dialog";
 import {
@@ -14,6 +15,7 @@ import { StudentGradeMissingDataDialog } from "@/components/manager/classes/stud
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 import {
   Dialog,
@@ -620,22 +622,26 @@ export function ClassStudentGradesSection({
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pendingRows.length === 0}
-            onClick={() => setIsCustomizeComputeAllOpen(true)}
-          >
-            Customize compute all
-          </Button>
-          <Button
-            type="button"
-            className="bg-orange-500 text-white hover:bg-orange-500/90"
-            disabled={pendingRows.length === 0}
-            onClick={openComputeAllDialog}
-          >
-            Compute all
-          </Button>
+          <Can permission={PERMISSIONS.GRADES_COMPUTE_CUSTOM}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pendingRows.length === 0}
+              onClick={() => setIsCustomizeComputeAllOpen(true)}
+            >
+              Customize compute all
+            </Button>
+          </Can>
+          <Can permission={PERMISSIONS.GRADES_COMPUTE_ALL}>
+            <Button
+              type="button"
+              className="bg-orange-500 text-white hover:bg-orange-500/90"
+              disabled={pendingRows.length === 0}
+              onClick={openComputeAllDialog}
+            >
+              Compute all
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -702,14 +708,16 @@ export function ClassStudentGradesSection({
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="bg-orange-500 text-white hover:bg-orange-500/90"
-                            onClick={() => openComputeDialog(row)}
-                          >
-                            Compute
-                          </Button>
+                          <Can permission={PERMISSIONS.GRADES_COMPUTE}>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-orange-500 text-white hover:bg-orange-500/90"
+                              onClick={() => openComputeDialog(row)}
+                            >
+                              Compute
+                            </Button>
+                          </Can>
                           <Link
                             href={getManagerClassStudentGradesDetailRoute(
                               classId,
@@ -745,22 +753,24 @@ export function ClassStudentGradesSection({
             ) : (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isExportingCertificates}
-                    onClick={() => {
-                      void handleExportAllCertificates();
-                    }}
-                  >
-                    {isExportingCertificates ? (
-                      <InlineSpinner />
-                    ) : (
-                      <DownloadIcon data-icon="inline-start" />
-                    )}
-                    Export all certificates
-                  </Button>
+                  <Can permission={PERMISSIONS.GRADES_EXPORT_CERTIFICATES}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isExportingCertificates}
+                      onClick={() => {
+                        void handleExportAllCertificates();
+                      }}
+                    >
+                      {isExportingCertificates ? (
+                        <InlineSpinner />
+                      ) : (
+                        <DownloadIcon data-icon="inline-start" />
+                      )}
+                      Export all certificates
+                    </Button>
+                  </Can>
                 </div>
               {groupedComputedRows.map(({ batch, rows: batchRows }) => (
                 <div
@@ -873,14 +883,16 @@ export function ClassStudentGradesSection({
                                   <EyeIcon data-icon="inline-start" />
                                   Details
                                 </Link>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => openDeleteGradeDialog(row)}
-                                >
-                                  Delete grade
-                                </Button>
+                                <Can permission={PERMISSIONS.GRADES_DELETE}>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => openDeleteGradeDialog(row)}
+                                  >
+                                    Delete grade
+                                  </Button>
+                                </Can>
                               </div>
                             </td>
                           </tr>

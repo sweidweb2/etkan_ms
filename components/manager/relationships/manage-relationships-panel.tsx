@@ -10,6 +10,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddRelationshipDialog } from "@/components/manager/relationships/add-relationship-dialog";
 import { RelationshipDetailSheet } from "@/components/manager/relationships/relationship-detail-sheet";
 import { ViewRelationshipDialog } from "@/components/manager/relationships/view-relationship-dialog";
@@ -30,6 +31,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerRelationshipRow } from "@/types/manager-relationship";
@@ -359,10 +361,12 @@ export function ManageRelationshipsPanel({
           <CardHeader className="border-b py-3">
             <CardTitle>Relationships</CardTitle>
             <CardAction className="self-center">
-              <Button type="button" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add relation
-              </Button>
+              <Can permission={PERMISSIONS.RELATIONSHIPS_CREATE}>
+                <Button type="button" onClick={() => setIsAddOpen(true)}>
+                  <PlusIcon data-icon="inline-start" />
+                  Add relation
+                </Button>
+              </Can>
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
@@ -493,15 +497,17 @@ export function ManageRelationshipsPanel({
                             >
                               <MessageSquareIcon />
                             </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Edit ${relationship.name}`}
-                              onClick={() => handleOpenEditSheet(relationship)}
-                            >
-                              <PencilIcon />
-                            </Button>
+                            <Can permission={PERMISSIONS.RELATIONSHIPS_UPDATE}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`Edit ${relationship.name}`}
+                                onClick={() => handleOpenEditSheet(relationship)}
+                              >
+                                <PencilIcon />
+                              </Button>
+                            </Can>
                           </div>
                         </td>
                       </tr>

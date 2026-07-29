@@ -5,6 +5,7 @@ import { useActionState, useState, useTransition } from "react";
 import { format, formatDistanceStrict } from "date-fns";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { deleteClassSessionAction } from "@/app/manager/classes/actions";
+import { Can } from "@/components/auth/can";
 import { EditClassSessionDialog } from "@/components/manager/classes/edit-class-session-dialog";
 import { SessionDetailsActions } from "@/components/manager/classes/session-details-actions";
 import { SessionDetailsTabsSection } from "@/components/manager/classes/session-details-tabs-section";
@@ -38,6 +39,7 @@ import {
   SESSION_TIMING_BADGE_CLASSES,
   SESSION_TIMING_LABELS,
 } from "@/lib/constants/manager-class-session-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { SESSION_GROUP_GRADE_LEVEL_LABELS } from "@/lib/constants/manager-session-group-grade-display";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import {
@@ -237,29 +239,33 @@ export function ClassSessionDetailsPanel({
             S{session.nb_order} · {session.topic}
           </CardTitle>
           <CardAction className="flex items-center gap-2 self-center">
-            <Button
-              type="button"
-              disabled={hasComputedGrades}
-              title={
-                hasComputedGrades
-                  ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
-                  : undefined
-              }
-              onClick={() => setIsEditOpen(true)}
-            >
-              <PencilIcon data-icon="inline-start" />
-              Edit session
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={isDeleteDisabled || isDeleteActionPending}
-              title={deleteBlockedReason}
-              onClick={() => setIsDeleteOpen(true)}
-            >
-              <Trash2Icon data-icon="inline-start" />
-              Delete session
-            </Button>
+            <Can permission={PERMISSIONS.SESSIONS_UPDATE}>
+              <Button
+                type="button"
+                disabled={hasComputedGrades}
+                title={
+                  hasComputedGrades
+                    ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+                    : undefined
+                }
+                onClick={() => setIsEditOpen(true)}
+              >
+                <PencilIcon data-icon="inline-start" />
+                Edit session
+              </Button>
+            </Can>
+            <Can permission={PERMISSIONS.SESSIONS_DELETE}>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isDeleteDisabled || isDeleteActionPending}
+                title={deleteBlockedReason}
+                onClick={() => setIsDeleteOpen(true)}
+              >
+                <Trash2Icon data-icon="inline-start" />
+                Delete session
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="pt-2 pb-4">

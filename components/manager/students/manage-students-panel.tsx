@@ -11,6 +11,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddStudentDialog } from "@/components/manager/students/add-student-dialog";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -36,6 +37,7 @@ import {
   STUDENT_STATUS_VALUES,
   type StudentStatusValue,
 } from "@/lib/constants/manager-student-status";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -288,10 +290,12 @@ export function ManageStudentsPanel({
           <CardHeader className="border-b py-3">
             <CardTitle>Students</CardTitle>
             <CardAction className="self-center">
-              <Button type="button" onClick={() => setIsAddStudentOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add student
-              </Button>
+              <Can permission={PERMISSIONS.STUDENTS_CREATE}>
+                <Button type="button" onClick={() => setIsAddStudentOpen(true)}>
+                  <PlusIcon data-icon="inline-start" />
+                  Add student
+                </Button>
+              </Can>
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">

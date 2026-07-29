@@ -13,6 +13,7 @@ import {
   UserIcon,
 } from "lucide-react";
 import { deleteWeeklyScheduleSlotAction } from "@/app/manager/schedule/actions";
+import { Can } from "@/components/auth/can";
 import { AddWeeklyScheduleSlotDialog } from "@/components/manager/schedule/add-weekly-schedule-slot-dialog";
 import { EditWeeklyScheduleSlotDialog } from "@/components/manager/schedule/edit-weekly-schedule-slot-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -35,6 +36,7 @@ import {
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import type {
   DeleteWeeklyScheduleSlotActionState,
   ManagerWeeklyScheduleClassOption,
@@ -226,10 +228,12 @@ export function ManagerSchedulePanel({
             Default weekly calendar from 5 AM to 12 midnight.
           </p>
         </div>
-        <Button type="button" onClick={() => setIsCreateOpen(true)}>
-          <PlusIcon data-icon="inline-start" />
-          Add slot
-        </Button>
+        <Can permission={PERMISSIONS.SCHEDULE_CREATE}>
+          <Button type="button" onClick={() => setIsCreateOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Add slot
+          </Button>
+        </Can>
       </div>
 
       <AddWeeklyScheduleSlotDialog
@@ -475,26 +479,30 @@ export function ManagerSchedulePanel({
               {selectedSession ? (
                 <DialogFooter className="sm:justify-between">
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsEditOpen(true);
-                      }}
-                      disabled={isDeleteActionPending}
-                    >
-                      <PencilIcon data-icon="inline-start" />
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={() => setDeleteTarget(selectedSession)}
-                      disabled={isDeleteActionPending}
-                    >
-                      <Trash2Icon data-icon="inline-start" />
-                      Delete
-                    </Button>
+                    <Can permission={PERMISSIONS.SCHEDULE_UPDATE}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditOpen(true);
+                        }}
+                        disabled={isDeleteActionPending}
+                      >
+                        <PencilIcon data-icon="inline-start" />
+                        Edit
+                      </Button>
+                    </Can>
+                    <Can permission={PERMISSIONS.SCHEDULE_DELETE}>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => setDeleteTarget(selectedSession)}
+                        disabled={isDeleteActionPending}
+                      >
+                        <Trash2Icon data-icon="inline-start" />
+                        Delete
+                      </Button>
+                    </Can>
                   </div>
                   <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                     Close

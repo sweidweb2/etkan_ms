@@ -2,11 +2,13 @@
 
 import { useActionState, useTransition, type FormEvent } from "react";
 import { useState } from "react";
+import { Can } from "@/components/auth/can";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import type {
   UpdateMaintenanceModeActionState,
 } from "@/app/manager/settings/actions";
@@ -60,15 +62,17 @@ export function MaintenanceModeSection({
             </span>
           </div>
 
-          <Switch
-            checked={enabled}
-            onCheckedChange={setEnabled}
-            aria-label="Toggle maintenance mode"
-          />
+          <Can permission={PERMISSIONS.SETTINGS_MAINTENANCE}>
+            <Switch
+              checked={enabled}
+              onCheckedChange={setEnabled}
+              aria-label="Toggle maintenance mode"
+            />
 
-          <Button type="submit" size="sm" disabled={isPending}>
-            {isPending ? <InlineSpinner /> : "Save"}
-          </Button>
+            <Button type="submit" size="sm" disabled={isPending}>
+              {isPending ? <InlineSpinner /> : "Save"}
+            </Button>
+          </Can>
         </form>
       </CardContent>
     </Card>

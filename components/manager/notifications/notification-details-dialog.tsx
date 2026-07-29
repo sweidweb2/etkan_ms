@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { format } from "date-fns";
 import { ArrowUpRightIcon, MessageSquareTextIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { NotificationCategoryBadge } from "@/components/manager/notifications/notification-category-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { NOTIFICATION_AUDIENCE_LABELS, NOTIFICATION_PRIORITY_LABELS } from "@/lib/constants/manager-notification-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { ManagerNotificationRow } from "@/types/manager-notification";
 
 type NotificationDetailsDialogProps = {
@@ -152,24 +154,28 @@ export function NotificationDetailsDialog({
             ) : null}
             {notification ? (
               <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onEdit(notification)}
-                  disabled={isDeletePending}
-                >
-                  <PencilIcon data-icon="inline-start" />
-                  Edit
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => onDelete(notification)}
-                  disabled={isDeletePending}
-                >
-                  <Trash2Icon data-icon="inline-start" />
-                  Delete
-                </Button>
+                <Can permission={PERMISSIONS.NOTIFICATIONS_UPDATE}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onEdit(notification)}
+                    disabled={isDeletePending}
+                  >
+                    <PencilIcon data-icon="inline-start" />
+                    Edit
+                  </Button>
+                </Can>
+                <Can permission={PERMISSIONS.NOTIFICATIONS_DELETE}>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => onDelete(notification)}
+                    disabled={isDeletePending}
+                  >
+                    <Trash2Icon data-icon="inline-start" />
+                    Delete
+                  </Button>
+                </Can>
               </>
             ) : null}
           </div>

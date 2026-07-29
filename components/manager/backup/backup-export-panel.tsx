@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Download, MessageSquareTextIcon } from "lucide-react";
 import { FieldLabel } from "@/components/auth/field-label";
+import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import {
   BACKUP_TABLES,
   type BackupTableName,
 } from "@/lib/constants/backup-tables";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import type { BackupHistoryEntry } from "@/types/backup-history";
 
@@ -362,21 +364,23 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                             </p>
                           </td>
                           <td className="px-1 py-2 align-middle text-right">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-xs"
-                              aria-label="Re-export backup"
-                              onClick={() => handleHistoryExport(entry)}
-                              disabled={pendingHistoryExportId !== null}
-                              className="text-primary hover:bg-primary/10 hover:text-primary"
-                            >
-                              {pendingHistoryExportId === entry.id ? (
-                                <InlineSpinner />
-                              ) : (
-                                <Download className="size-4" aria-hidden />
-                              )}
-                            </Button>
+                            <Can permission={PERMISSIONS.BACKUP_DOWNLOAD}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-xs"
+                                aria-label="Re-export backup"
+                                onClick={() => handleHistoryExport(entry)}
+                                disabled={pendingHistoryExportId !== null}
+                                className="text-primary hover:bg-primary/10 hover:text-primary"
+                              >
+                                {pendingHistoryExportId === entry.id ? (
+                                  <InlineSpinner />
+                                ) : (
+                                  <Download className="size-4" aria-hidden />
+                                )}
+                              </Button>
+                            </Can>
                           </td>
                           <td className="px-1 py-2 align-middle text-right">
                             <Button
@@ -493,18 +497,20 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
               </div>
             </CardContent>
             <CardFooter className="bg-muted/40">
-              <Button
-                type="button"
-                onClick={handleTableExport}
-                disabled={pendingScope !== null}
-              >
-                {isTableExportPending ? (
-                  <InlineSpinner />
-                ) : (
-                  <Download aria-hidden />
-                )}
-                Export selected table
-              </Button>
+              <Can permission={PERMISSIONS.BACKUP_EXPORT_TABLE}>
+                <Button
+                  type="button"
+                  onClick={handleTableExport}
+                  disabled={pendingScope !== null}
+                >
+                  {isTableExportPending ? (
+                    <InlineSpinner />
+                  ) : (
+                    <Download aria-hidden />
+                  )}
+                  Export selected table
+                </Button>
+              </Can>
             </CardFooter>
           </Card>
 
@@ -516,19 +522,21 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
               </CardDescription>
             </CardHeader>
             <CardFooter className="bg-muted/40">
-              <Button
-                type="button"
-                variant="default"
-                onClick={handleDatabaseExport}
-                disabled={pendingScope !== null}
-              >
-                {isDatabaseExportPending ? (
-                  <InlineSpinner />
-                ) : (
-                  <Download aria-hidden />
-                )}
-                Export full database
-              </Button>
+              <Can permission={PERMISSIONS.BACKUP_EXPORT_FULL}>
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={handleDatabaseExport}
+                  disabled={pendingScope !== null}
+                >
+                  {isDatabaseExportPending ? (
+                    <InlineSpinner />
+                  ) : (
+                    <Download aria-hidden />
+                  )}
+                  Export full database
+                </Button>
+              </Can>
             </CardFooter>
           </Card>
         </div>

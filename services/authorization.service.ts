@@ -1,5 +1,12 @@
 import { cache } from "react";
 import {
+  UNAUTHORIZED_MESSAGE,
+  hasAllPermissionsInSet,
+  hasAnyPermissionInSet,
+  hasPermissionInSet,
+  requirePermissionInSet,
+} from "@/lib/auth/permission-checks";
+import {
   isPermissionKey,
   type PermissionKey,
 } from "@/lib/constants/permissions";
@@ -9,9 +16,15 @@ import * as profileRepository from "@/repositories/profile.repository";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
-type Supabase = SupabaseClient<Database>;
+export {
+  UNAUTHORIZED_MESSAGE,
+  hasAllPermissionsInSet,
+  hasAnyPermissionInSet,
+  hasPermissionInSet,
+  requirePermissionInSet,
+} from "@/lib/auth/permission-checks";
 
-export const UNAUTHORIZED_MESSAGE = "Unauthorized.";
+type Supabase = SupabaseClient<Database>;
 
 const EMPTY_PERMISSIONS: ReadonlySet<PermissionKey> = new Set();
 
@@ -80,46 +93,6 @@ export async function getUserPermissionsCached(
   userId: string
 ): Promise<ReadonlySet<PermissionKey>> {
   return loadUserPermissionsCached(userId);
-}
-
-export function hasPermissionInSet(
-  permissions: ReadonlySet<PermissionKey>,
-  permission: string
-): boolean {
-  if (!isPermissionKey(permission)) {
-    return false;
-  }
-  return permissions.has(permission);
-}
-
-export function hasAnyPermissionInSet(
-  permissions: ReadonlySet<PermissionKey>,
-  candidates: readonly string[]
-): boolean {
-  return candidates.some((permission) =>
-    hasPermissionInSet(permissions, permission)
-  );
-}
-
-export function hasAllPermissionsInSet(
-  permissions: ReadonlySet<PermissionKey>,
-  candidates: readonly string[]
-): boolean {
-  if (candidates.length === 0) {
-    return true;
-  }
-  return candidates.every((permission) =>
-    hasPermissionInSet(permissions, permission)
-  );
-}
-
-export function requirePermissionInSet(
-  permissions: ReadonlySet<PermissionKey>,
-  permission: string
-): void {
-  if (!hasPermissionInSet(permissions, permission)) {
-    throw new Error(UNAUTHORIZED_MESSAGE);
-  }
 }
 
 export async function hasPermission(

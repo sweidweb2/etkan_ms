@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { createBorrowsAction } from "@/app/manager/equipments/actions";
+import { Can } from "@/components/auth/can";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -47,6 +48,7 @@ import {
   getEquipmentRemainingQuantity,
   getMaxBorrowQuantityPerStudent,
 } from "@/lib/constants/manager-equipment-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -1034,18 +1036,20 @@ export function BorrowEquipmentPanel({
       </Card>
 
       <div className="flex justify-end">
-        <Button
-          type="button"
-          onClick={handleSaveBorrow}
-          disabled={isPending || hasInsufficientStockForSave}
-          className="bg-orange-500 text-white hover:bg-orange-500/90"
-        >
-          {isPending ? (
-            <InlineSpinner />
-          ) : (
-            "Save borrow"
-          )}
-        </Button>
+        <Can permission={PERMISSIONS.EQUIPMENT_BORROW_CREATE}>
+          <Button
+            type="button"
+            onClick={handleSaveBorrow}
+            disabled={isPending || hasInsufficientStockForSave}
+            className="bg-orange-500 text-white hover:bg-orange-500/90"
+          >
+            {isPending ? (
+              <InlineSpinner />
+            ) : (
+              "Save borrow"
+            )}
+          </Button>
+        </Can>
       </div>
 
       <div ref={borrowHistorySectionRef} className="scroll-mt-6">

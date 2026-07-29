@@ -12,17 +12,19 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Can } from "@/components/auth/can";
 import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
 import { SemesterClassesSection } from "@/components/manager/phases/semester-classes-section";
 import { SemesterStatusBadge } from "@/components/manager/phases/semester-status-badge";
 import { SemesterStudentsSection } from "@/components/manager/phases/semester-students-section";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROUTES } from "@/lib/constants/routes";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 import type { ManagerStudentRow } from "@/types/manager-student";
 import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
-import { ROUTES } from "@/lib/constants/routes";
 
 type SemesterDetailsPanelProps = {
   semester: ManagerSemesterRow;
@@ -109,16 +111,18 @@ export function SemesterDetailsPanel({
             <CardTitle className="text-xl">{semester.name}</CardTitle>
             <SemesterStatusBadge status={semester.status} />
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="print:hidden"
-            onClick={() => setEditOpen(true)}
-          >
-            <PencilIcon className="size-4" />
-            Edit
-          </Button>
+          <Can permission={PERMISSIONS.SEMESTERS_UPDATE}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="print:hidden"
+              onClick={() => setEditOpen(true)}
+            >
+              <PencilIcon className="size-4" />
+              Edit
+            </Button>
+          </Can>
         </CardHeader>
         <CardContent className="pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">

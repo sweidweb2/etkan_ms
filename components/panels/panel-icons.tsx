@@ -19,6 +19,7 @@ import {
   Send,
   Server,
   Settings,
+  Shield,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -44,4 +45,5 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   backup: DatabaseBackup,
   logs: ScrollText,
   clock: Clock,
+  shield: Shield,
 };

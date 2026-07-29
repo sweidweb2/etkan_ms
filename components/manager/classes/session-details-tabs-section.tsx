@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PlusIcon } from "lucide-react";
 import { updateAttendeeAction } from "@/app/manager/classes/actions";
+import { Can } from "@/components/auth/can";
 import { AddSessionTaskDialog } from "@/components/manager/classes/add-session-task-dialog";
 import {
   Tabs as TabsPrimitive,
@@ -39,6 +40,7 @@ import {
   SESSION_ATTENDEE_TABLE_LIMITS,
   SESSION_TASK_TABLE_LIMITS,
 } from "@/lib/constants/manager-class-session-detail-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
   STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
@@ -321,42 +323,55 @@ function SessionAttendeesTable({
                   />
                 </td>
                 <td className="px-4 py-3">
-                  <Select
-                    value={attendee.status}
-                    items={ATTENDEE_STATUS_SELECT_ITEMS}
-                    disabled={
-                      isPending || lockedUserIdSet.has(attendee.student_id)
+                  <Can
+                    permission={PERMISSIONS.ATTENDANCE_UPDATE}
+                    fallback={
+                      <span>
+                        {
+                          SESSION_ATTENDEE_STATUS_LABELS[
+                            attendee.status as AttendeeStatusValue
+                          ]
+                        }
+                      </span>
                     }
-                    onValueChange={(value) => {
-                      if (!value) {
-                        return;
-                      }
-
-                      handleStatusChange(
-                        attendee,
-                        value as AttendeeStatusValue
-                      );
-                    }}
                   >
-                    <SelectTrigger
-                      className="w-[8.5rem]"
-                      aria-label={`Attendance status for ${attendee.full_name}`}
-                      title={
-                        lockedUserIdSet.has(attendee.student_id)
-                          ? STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR
-                          : undefined
+                    <Select
+                      value={attendee.status}
+                      items={ATTENDEE_STATUS_SELECT_ITEMS}
+                      disabled={
+                        isPending || lockedUserIdSet.has(attendee.student_id)
                       }
+                      onValueChange={(value) => {
+                        if (!value) {
+                          return;
+                        }
+
+                        handleStatusChange(
+                          attendee,
+                          value as AttendeeStatusValue
+                        );
+                      }}
                     >
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent align="start">
-                      {ATTENDEE_STATUS_VALUES.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {SESSION_ATTENDEE_STATUS_LABELS[status]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <SelectTrigger
+                        className="w-[8.5rem]"
+                        aria-label={`Attendance status for ${attendee.full_name}`}
+                        title={
+                          lockedUserIdSet.has(attendee.student_id)
+                            ? STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR
+                            : undefined
+                        }
+                      >
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent align="start">
+                        {ATTENDEE_STATUS_VALUES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {SESSION_ATTENDEE_STATUS_LABELS[status]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Can>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                   {formatDateTimeCell(attendee.created_at)}
@@ -449,26 +464,28 @@ export function SessionDetailsTabsSection({
               </TabsListPrimitive>
               <div className="flex justify-end">
                 {activeTab === "tasks" ? (
-                  hasComputedGrades ? (
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={<span className="inline-flex" tabIndex={0} />}
-                      >
-                        <Button type="button" disabled>
-                          <PlusIcon data-icon="inline-start" />
-                          Create task
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Button type="button" onClick={() => setIsAddOpen(true)}>
-                      <PlusIcon data-icon="inline-start" />
-                      Create task
-                    </Button>
-                  )
+                  <Can permission={PERMISSIONS.TASKS_CREATE}>
+                    {hasComputedGrades ? (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={<span className="inline-flex" tabIndex={0} />}
+                        >
+                          <Button type="button" disabled>
+                            <PlusIcon data-icon="inline-start" />
+                            Create task
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Button type="button" onClick={() => setIsAddOpen(true)}>
+                        <PlusIcon data-icon="inline-start" />
+                        Create task
+                      </Button>
+                    )}
+                  </Can>
                 ) : null}
               </div>
             </div>

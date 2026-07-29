@@ -16,6 +16,7 @@ import {
 import {
   toggleBorrowReturnedAction,
 } from "@/app/manager/equipments/actions";
+import { Can } from "@/components/auth/can";
 import { EditBorrowRecordDialog } from "@/components/manager/equipments/edit-borrow-record-dialog";
 import { BorrowEquipmentStatusBadge } from "@/components/manager/students/borrow-equipment-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -53,6 +54,7 @@ import {
   MANAGER_BORROW_EQUIPMENT_STATUS_LABELS,
   MANAGER_BORROW_RETURNED_TOGGLE_LABELS,
 } from "@/lib/constants/manager-student-borrow-equipment-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
@@ -449,35 +451,39 @@ export function BorrowEquipmentHistorySection({
                             <BorrowEquipmentStatusBadge status={row.status} />
                           </td>
                           <td className="px-4 py-3">
-                            <Switch
-                              checked={isReturned}
-                              disabled={isTogglePending}
-                              onCheckedChange={(checked) =>
-                                handleToggleReturned(row, checked)
-                              }
-                              className={
-                                isReturned
-                                  ? "bg-emerald-500 hover:bg-emerald-500/90"
-                                  : undefined
-                              }
-                              aria-label={
-                                isReturned
-                                  ? MANAGER_BORROW_RETURNED_TOGGLE_LABELS.on
-                                  : MANAGER_BORROW_RETURNED_TOGGLE_LABELS.off
-                              }
-                            />
+                            <Can permission={PERMISSIONS.EQUIPMENT_BORROW_RETURN}>
+                              <Switch
+                                checked={isReturned}
+                                disabled={isTogglePending}
+                                onCheckedChange={(checked) =>
+                                  handleToggleReturned(row, checked)
+                                }
+                                className={
+                                  isReturned
+                                    ? "bg-emerald-500 hover:bg-emerald-500/90"
+                                    : undefined
+                                }
+                                aria-label={
+                                  isReturned
+                                    ? MANAGER_BORROW_RETURNED_TOGGLE_LABELS.on
+                                    : MANAGER_BORROW_RETURNED_TOGGLE_LABELS.off
+                                }
+                              />
+                            </Can>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Edit borrow record"
-                                onClick={() => openEditDialog(row)}
-                              >
-                                <PencilIcon />
-                              </Button>
+                              <Can permission={PERMISSIONS.EQUIPMENT_BORROW_UPDATE}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label="Edit borrow record"
+                                  onClick={() => openEditDialog(row)}
+                                >
+                                  <PencilIcon />
+                                </Button>
+                              </Can>
                             </div>
                           </td>
                         </tr>

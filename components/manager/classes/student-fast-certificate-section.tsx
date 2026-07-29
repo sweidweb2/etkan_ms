@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { FileTextIcon, ZapIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { buildFastCertificateSheetModel } from "@/lib/manager/build-fast-certificate-sheet-model";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { formatCourseGradeValue } from "@/lib/constants/manager-student-course-grade-display";
 import {
   buildDefaultTaskWeights,
@@ -420,18 +422,20 @@ export function StudentFastCertificateContent({
         </div>
 
         <div className="flex justify-end border-t pt-4">
-          <Button
-            type="button"
-            disabled={!canExport || isExporting}
-            onClick={handleExportPdf}
-          >
-            {isExporting ? (
-              <InlineSpinner />
-            ) : (
-              <FileTextIcon data-icon="inline-start" />
-            )}
-            Export certificate PDF
-          </Button>
+          <Can permission={PERMISSIONS.GRADES_EXPORT_FAST_CERTIFICATE}>
+            <Button
+              type="button"
+              disabled={!canExport || isExporting}
+              onClick={handleExportPdf}
+            >
+              {isExporting ? (
+                <InlineSpinner />
+              ) : (
+                <FileTextIcon data-icon="inline-start" />
+              )}
+              Export certificate PDF
+            </Button>
+          </Can>
         </div>
     </div>
   );

@@ -21,6 +21,7 @@ import {
   ComposeEmailDialog,
   type ComposeEmailTarget,
 } from "@/components/manager/emailing/compose-email-dialog";
+import { Can } from "@/components/auth/can";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { EMAIL_TEMPLATES, type EmailTemplateId } from "@/lib/email/templates";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import { EMAIL_REGEX } from "@/lib/validators/auth/fields";
@@ -336,13 +338,15 @@ export function ManageEmailingPanel({
               Select users, pick a template, and send through Mailtrap.
             </p>
           </div>
-          <Link
-            href={ROUTES.MANAGER_EMAILING_COMPOSE}
-            className={cn(buttonVariants({ size: "default" }), "shrink-0")}
-          >
-            <SparklesIcon data-icon="inline-start" />
-            Full customization
-          </Link>
+          <Can permission={PERMISSIONS.EMAILING_SEND}>
+            <Link
+              href={ROUTES.MANAGER_EMAILING_COMPOSE}
+              className={cn(buttonVariants({ size: "default" }), "shrink-0")}
+            >
+              <SparklesIcon data-icon="inline-start" />
+              Full customization
+            </Link>
+          </Can>
         </div>
 
         <Card className="py-0">
@@ -378,14 +382,16 @@ export function ManageEmailingPanel({
                     }
                   }}
                 />
-                <Button
-                  type="button"
-                  className="shrink-0"
-                  onClick={openCustomToEmailCompose}
-                >
-                  <SendIcon data-icon="inline-start" />
-                  Compose
-                </Button>
+                <Can permission={PERMISSIONS.EMAILING_SEND}>
+                  <Button
+                    type="button"
+                    className="shrink-0"
+                    onClick={openCustomToEmailCompose}
+                  >
+                    <SendIcon data-icon="inline-start" />
+                    Compose
+                  </Button>
+                </Can>
               </div>
               {customToEmailError ? (
                 <p className="text-sm text-destructive">{customToEmailError}</p>
@@ -450,20 +456,22 @@ export function ManageEmailingPanel({
                       </p>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!canUseReadyActions}
-                    className="w-full"
-                    onClick={() => openReadyAction(action.id)}
-                    title={
-                      canUseReadyActions
-                        ? undefined
-                        : "Select at least one user with an email address"
-                    }
-                  >
-                    Compose
-                  </Button>
+                  <Can permission={PERMISSIONS.EMAILING_SEND}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!canUseReadyActions}
+                      className="w-full"
+                      onClick={() => openReadyAction(action.id)}
+                      title={
+                        canUseReadyActions
+                          ? undefined
+                          : "Select at least one user with an email address"
+                      }
+                    >
+                      Compose
+                    </Button>
+                  </Can>
                 </div>
               );
             })}
@@ -483,19 +491,21 @@ export function ManageEmailingPanel({
             </div>
             {isBulkSelection ? (
               <CardAction className="self-center">
-                <Button
-                  type="button"
-                  disabled={selectedWithEmail.length === 0}
-                  onClick={() =>
-                    openCompose("custom", {
-                      mode: "bulk",
-                      users: selectedWithEmail,
-                    })
-                  }
-                >
-                  <SendIcon data-icon="inline-start" />
-                  Send all
-                </Button>
+                <Can permission={PERMISSIONS.EMAILING_SEND}>
+                  <Button
+                    type="button"
+                    disabled={selectedWithEmail.length === 0}
+                    onClick={() =>
+                      openCompose("custom", {
+                        mode: "bulk",
+                        users: selectedWithEmail,
+                      })
+                    }
+                  >
+                    <SendIcon data-icon="inline-start" />
+                    Send all
+                  </Button>
+                </Can>
               </CardAction>
             ) : null}
           </CardHeader>
@@ -664,35 +674,37 @@ export function ManageEmailingPanel({
                               : "—"}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    disabled={rowSendDisabled || !hasEmail}
-                                    aria-label={`Message ${displayName}`}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      openCompose("custom", {
-                                        mode: "single",
-                                        user,
-                                      });
-                                    }}
-                                  />
-                                }
-                              >
-                                <MessageSquareIcon className="size-4" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {rowSendDisabled
-                                  ? "Use Send all for multiple recipients"
-                                  : !hasEmail
-                                    ? "User has no email address"
-                                    : "Compose message"}
-                              </TooltipContent>
-                            </Tooltip>
+                            <Can permission={PERMISSIONS.EMAILING_SEND}>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      disabled={rowSendDisabled || !hasEmail}
+                                      aria-label={`Message ${displayName}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openCompose("custom", {
+                                          mode: "single",
+                                          user,
+                                        });
+                                      }}
+                                    />
+                                  }
+                                >
+                                  <MessageSquareIcon className="size-4" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {rowSendDisabled
+                                    ? "Use Send all for multiple recipients"
+                                    : !hasEmail
+                                      ? "User has no email address"
+                                      : "Compose message"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </Can>
                           </td>
                         </tr>
                       );

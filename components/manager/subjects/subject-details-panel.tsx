@@ -5,6 +5,7 @@ import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { deleteSubjectAction } from "@/app/manager/subjects/actions";
+import { Can } from "@/components/auth/can";
 import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
 import { SubjectClassesSection } from "@/components/manager/subjects/subject-classes-section";
 import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject-collapsible-section";
@@ -33,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -211,20 +213,24 @@ export function SubjectDetailsPanel({
         <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{subject.name}</CardTitle>
           <CardAction className="flex items-center gap-2 self-center">
-            <Button type="button" onClick={() => setIsEditOpen(true)}>
-              <PencilIcon data-icon="inline-start" />
-              Edit subject
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={hasLinkedClasses || isDeleteActionPending}
-              title={deleteBlockedReason}
-              onClick={() => setIsDeleteOpen(true)}
-            >
-              <Trash2Icon data-icon="inline-start" />
-              Delete subject
-            </Button>
+            <Can permission={PERMISSIONS.SUBJECTS_UPDATE}>
+              <Button type="button" onClick={() => setIsEditOpen(true)}>
+                <PencilIcon data-icon="inline-start" />
+                Edit subject
+              </Button>
+            </Can>
+            <Can permission={PERMISSIONS.SUBJECTS_DELETE}>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={hasLinkedClasses || isDeleteActionPending}
+                title={deleteBlockedReason}
+                onClick={() => setIsDeleteOpen(true)}
+              >
+                <Trash2Icon data-icon="inline-start" />
+                Delete subject
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="pt-2 pb-4">

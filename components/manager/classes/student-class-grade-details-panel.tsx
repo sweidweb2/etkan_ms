@@ -5,6 +5,7 @@ import { ExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   ComputeFactorWeightsFields,
@@ -18,6 +19,7 @@ import { ClassTabCollapsibleSection } from "@/components/manager/students/class-
 import { StudentAttendanceStatusBadge } from "@/components/manager/students/student-attendance-status-badge";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
 import { Button } from "@/components/ui/button";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -764,22 +766,26 @@ export function StudentClassGradeDetailsPanel({
           <CardTitle className="text-xl">{student.full_name}</CardTitle>
           <CardAction className="self-center">
             <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                type="button"
-                disabled={isComputing || isDeleting}
-                onClick={() => openComputeDialog()}
-              >
-                {hasComputedGrade ? "Recompute" : "Compute"}
-              </Button>
-              {hasComputedGrade ? (
+              <Can permission={PERMISSIONS.GRADES_COMPUTE}>
                 <Button
                   type="button"
-                  variant="destructive"
                   disabled={isComputing || isDeleting}
-                  onClick={() => setIsDeleteDialogOpen(true)}
+                  onClick={() => openComputeDialog()}
                 >
-                  Delete grade
+                  {hasComputedGrade ? "Recompute" : "Compute"}
                 </Button>
+              </Can>
+              {hasComputedGrade ? (
+                <Can permission={PERMISSIONS.GRADES_DELETE}>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={isComputing || isDeleting}
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                  >
+                    Delete grade
+                  </Button>
+                </Can>
               ) : null}
             </div>
           </CardAction>

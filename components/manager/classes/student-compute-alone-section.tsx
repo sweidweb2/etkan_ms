@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { CalculatorIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   Dialog,
   DialogContent,
@@ -206,14 +208,16 @@ export function StudentComputeAloneSection({
           </div>
 
           <DialogFooter showCloseButton>
-            <Button
-              type="button"
-              disabled={isConfirmPending}
-              onClick={handleConfirmCompute}
-            >
-              {isConfirmPending ? <InlineSpinner className="mr-2" /> : null}
-              Confirm
-            </Button>
+            <Can permission={PERMISSIONS.GRADES_COMPUTE_CUSTOM}>
+              <Button
+                type="button"
+                disabled={isConfirmPending}
+                onClick={handleConfirmCompute}
+              >
+                {isConfirmPending ? <InlineSpinner className="mr-2" /> : null}
+                Confirm
+              </Button>
+            </Can>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -363,7 +367,9 @@ export function StudentComputeAloneSection({
         ) : null}
 
         <div className="flex justify-end border-t pt-4">
-          <Button type="submit">Recompute</Button>
+          <Can permission={PERMISSIONS.GRADES_COMPUTE_CUSTOM}>
+            <Button type="submit">Recompute</Button>
+          </Can>
         </div>
       </form>
     </ClassTabCollapsibleSection>

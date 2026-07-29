@@ -51,6 +51,7 @@ export const ROUTES = {
   MANAGER_BACKUP: "/manager/backup",
   MANAGER_LOGS: "/manager/logs",
   MANAGER_CRON_JOBS: "/manager/cron-jobs",
+  MANAGER_RBAC: "/manager/rbac",
   CEO_ROOT: "/ceo",
   CEO_DASHBOARD: "/ceo/dashboard",
   CEO_USERS_ANALYSIS: "/ceo/users-analysis",

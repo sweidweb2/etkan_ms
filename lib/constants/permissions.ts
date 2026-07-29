@@ -38,6 +38,7 @@ export const PERMISSION_FEATURES = [
   "logs",
   "cron_jobs",
   "settings",
+  "rbac",
 ] as const;
 
 export type PermissionFeature = (typeof PERMISSION_FEATURES)[number];
@@ -66,6 +67,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   logs: "Logs",
   cron_jobs: "Cron Jobs",
   settings: "Settings",
+  rbac: "RBAC",
 };
 
 /** Stable permission keys — import these in services and UI. */
@@ -176,6 +178,8 @@ export const PERMISSIONS = {
   SETTINGS_VIEW: "settings.view",
   SETTINGS_MAINTENANCE: "settings.maintenance",
   SETTINGS_UPDATE_CREDENTIALS: "settings.update_credentials",
+
+  RBAC_MANAGE: "rbac.manage",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -716,6 +720,13 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SETTINGS_UPDATE_CREDENTIALS,
     feature: "settings",
     label: "Update own email or password",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.RBAC_MANAGE,
+    feature: "rbac",
+    label: "Manage role permissions",
     access: PERMISSION_ACCESS.WRITE,
   },
 ] as const;

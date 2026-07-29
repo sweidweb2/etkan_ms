@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { DownloadIcon, PrinterIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   downloadCsv,
   formatReportFilename,
 } from "@/lib/export/download-csv";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { showSuccessToast } from "@/lib/toast";
 import type { ReportColumn, ReportId, ReportRow } from "@/types/manager-reports";
 
@@ -55,32 +57,36 @@ export function ReportExportActions({
 
   return (
     <div className="flex flex-wrap gap-2 print:hidden">
-      <Button
-        type="button"
-        variant="outline"
-        disabled={rows.length === 0 || isExportingCsv}
-        onClick={handleExportCsv}
-      >
-        {isExportingCsv ? (
-          <InlineSpinner className="mr-2" />
-        ) : (
-          <DownloadIcon data-icon="inline-start" />
-        )}
-        Export CSV
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        disabled={rows.length === 0 || isPrinting}
-        onClick={handlePrint}
-      >
-        {isPrinting ? (
-          <InlineSpinner className="mr-2" />
-        ) : (
-          <PrinterIcon data-icon="inline-start" />
-        )}
-        Print / PDF
-      </Button>
+      <Can permission={PERMISSIONS.REPORTS_EXPORT}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={rows.length === 0 || isExportingCsv}
+          onClick={handleExportCsv}
+        >
+          {isExportingCsv ? (
+            <InlineSpinner className="mr-2" />
+          ) : (
+            <DownloadIcon data-icon="inline-start" />
+          )}
+          Export CSV
+        </Button>
+      </Can>
+      <Can permission={PERMISSIONS.REPORTS_PRINT}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={rows.length === 0 || isPrinting}
+          onClick={handlePrint}
+        >
+          {isPrinting ? (
+            <InlineSpinner className="mr-2" />
+          ) : (
+            <PrinterIcon data-icon="inline-start" />
+          )}
+          Print / PDF
+        </Button>
+      </Can>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { LineChartIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AssignClassTeachersDropdown } from "@/components/manager/classes/assign-class-teachers-dropdown";
 import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
 import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog";
@@ -34,6 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getClassSessionCompletionRate } from "@/lib/constants/manager-semester-class-progress";
 import {
   CLASS_STATUS_BADGE_CLASSES,
@@ -219,24 +221,35 @@ export function ClassDetailsPanel({
                 </TooltipContent>
               </Tooltip>
             )}
-            <AssignClassTeachersDropdown
-              classId={classRow.id}
-              teachers={teachers}
-              onTeachersChange={setTeachers}
-              onClassUpdated={setClassRow}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsChangeStatusOpen(true)}
+            <Can
+              anyOf={[
+                PERMISSIONS.CLASSES_ASSIGN_TEACHER,
+                PERMISSIONS.CLASSES_UNASSIGN_TEACHER,
+              ]}
             >
-              <RefreshCwIcon data-icon="inline-start" />
-              Change status
-            </Button>
-            <Button type="button" onClick={() => setIsEditOpen(true)}>
-              <PencilIcon data-icon="inline-start" />
-              Edit class
-            </Button>
+              <AssignClassTeachersDropdown
+                classId={classRow.id}
+                teachers={teachers}
+                onTeachersChange={setTeachers}
+                onClassUpdated={setClassRow}
+              />
+            </Can>
+            <Can permission={PERMISSIONS.CLASSES_CHANGE_STATUS}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsChangeStatusOpen(true)}
+              >
+                <RefreshCwIcon data-icon="inline-start" />
+                Change status
+              </Button>
+            </Can>
+            <Can permission={PERMISSIONS.CLASSES_UPDATE}>
+              <Button type="button" onClick={() => setIsEditOpen(true)}>
+                <PencilIcon data-icon="inline-start" />
+                Edit class
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="pt-2 pb-4">

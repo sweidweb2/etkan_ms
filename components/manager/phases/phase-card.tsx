@@ -8,6 +8,8 @@ import {
   CircleDollarSignIcon,
   PencilIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
+import { SemesterStatusBadge } from "@/components/manager/phases/semester-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,11 +19,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PHASE_CARD_LIMITS } from "@/lib/constants/manager-phase-display";
-import { truncateText } from "@/lib/utils/truncate-text";
-import type { ManagerSemesterRow } from "@/types/manager-phase";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerSemesterDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-import { SemesterStatusBadge } from "@/components/manager/phases/semester-status-badge";
+import { truncateText } from "@/lib/utils/truncate-text";
+import type { ManagerSemesterRow } from "@/types/manager-phase";
 
 function TruncatedText({
   value,
@@ -80,20 +82,22 @@ export function PhaseCard({ phase, onEdit }: PhaseCardProps) {
               </CardTitle>
               <div className="flex shrink-0 items-center gap-1.5">
                 {onEdit ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-8"
-                    aria-label={`Edit semester ${phase.name}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onEdit(phase);
-                    }}
-                  >
-                    <PencilIcon className="size-4" />
-                  </Button>
+                  <Can permission={PERMISSIONS.SEMESTERS_UPDATE}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="size-8"
+                      aria-label={`Edit semester ${phase.name}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onEdit(phase);
+                      }}
+                    >
+                      <PencilIcon className="size-4" />
+                    </Button>
+                  </Can>
                 ) : null}
                 <SemesterStatusBadge status={phase.status} className="shrink-0" />
               </div>

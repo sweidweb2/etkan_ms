@@ -8,9 +8,11 @@ import {
   PrinterIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { Can } from "@/components/auth/can";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -211,51 +213,55 @@ export function StudentClassGradeSheetDemo({
               disabled={isBusy}
             />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={exportingFormat !== null}
-                >
-                  {exportingFormat ? (
-                    <InlineSpinner />
-                  ) : (
-                    <FileTextIcon data-icon="inline-start" />
-                  )}
-                  Export
-                  <ChevronDownIcon data-icon="inline-end" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuLabel>Export grade sheet</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={exportingFormat !== null}
-                  onSelect={handleExportPdf}
-                >
-                  Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={exportingFormat !== null}
-                  onSelect={handleExportDoc}
-                >
-                  Export as DOC
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Can permission={PERMISSIONS.GRADES_EXPORT_CERTIFICATES}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={exportingFormat !== null}
+                  >
+                    {exportingFormat ? (
+                      <InlineSpinner />
+                    ) : (
+                      <FileTextIcon data-icon="inline-start" />
+                    )}
+                    Export
+                    <ChevronDownIcon data-icon="inline-end" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuLabel>Export grade sheet</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={exportingFormat !== null}
+                    onSelect={handleExportPdf}
+                  >
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={exportingFormat !== null}
+                    onSelect={handleExportDoc}
+                  >
+                    Export as DOC
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </Can>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isBusy}
-              onClick={handlePrint}
-            >
-              <PrinterIcon data-icon="inline-start" />
-              Print sheet
-            </Button>
+            <Can permission={PERMISSIONS.GRADES_PREVIEW_CERTIFICATE}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isBusy}
+                onClick={handlePrint}
+              >
+                <PrinterIcon data-icon="inline-start" />
+                Print sheet
+              </Button>
+            </Can>
           </div>
         </div>
 

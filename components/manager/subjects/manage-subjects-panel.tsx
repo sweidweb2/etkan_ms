@@ -8,6 +8,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddSubjectDialog } from "@/components/manager/subjects/add-subject-dialog";
 import { SubjectCard } from "@/components/manager/subjects/subject-card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
 const PAGE_SIZE = 15;
@@ -265,10 +267,12 @@ export function ManageSubjectsPanel({
             Subjects and linked class counts from your school catalog.
           </p>
         </div>
-        <Button type="button" onClick={() => setIsAddOpen(true)}>
-          <PlusIcon data-icon="inline-start" />
-          Add subject
-        </Button>
+        <Can permission={PERMISSIONS.SUBJECTS_CREATE}>
+          <Button type="button" onClick={() => setIsAddOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Add subject
+          </Button>
+        </Can>
       </div>
 
       <AddSubjectDialog

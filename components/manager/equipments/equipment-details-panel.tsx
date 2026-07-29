@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { EditEquipmentDialog } from "@/components/manager/equipments/edit-equipment-dialog";
 import { EquipmentBorrowsSection } from "@/components/manager/equipments/equipment-borrows-section";
 import {
@@ -27,6 +28,7 @@ import {
   getEquipmentInventoryValue,
   getEquipmentRemainingQuantity,
 } from "@/lib/constants/manager-equipment-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerEquipmentRow } from "@/types/manager-equipment";
@@ -97,10 +99,12 @@ export function EquipmentDetailsPanel({
         <CardHeader className="border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{equipment.name}</CardTitle>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsEditOpen(true)}>
-              <PencilIcon data-icon="inline-start" />
-              Edit equipment
-            </Button>
+            <Can permission={PERMISSIONS.EQUIPMENT_UPDATE}>
+              <Button type="button" onClick={() => setIsEditOpen(true)}>
+                <PencilIcon data-icon="inline-start" />
+                Edit equipment
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
         <CardContent className="pt-2 pb-4">

@@ -13,6 +13,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddEquipmentDialog } from "@/components/manager/equipments/add-equipment-dialog";
 import { EditEquipmentDialog } from "@/components/manager/equipments/edit-equipment-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -36,6 +37,7 @@ import {
   formatEquipmentUnitPrice,
   getEquipmentRemainingQuantity,
 } from "@/lib/constants/manager-equipment-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerEquipmentDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -216,18 +218,22 @@ export function ManageEquipmentsPanel({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              render={<Link href={ROUTES.MANAGER_EQUIPMENT_BORROW} />}
-              nativeButton={false}
-              variant="outline"
-            >
-              <HandHelpingIcon data-icon="inline-start" />
-              Borrow
-            </Button>
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add equipment
-            </Button>
+            <Can permission={PERMISSIONS.EQUIPMENT_BORROW_CREATE}>
+              <Button
+                render={<Link href={ROUTES.MANAGER_EQUIPMENT_BORROW} />}
+                nativeButton={false}
+                variant="outline"
+              >
+                <HandHelpingIcon data-icon="inline-start" />
+                Borrow
+              </Button>
+            </Can>
+            <Can permission={PERMISSIONS.EQUIPMENT_CREATE}>
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add equipment
+              </Button>
+            </Can>
           </div>
         </div>
 
@@ -360,15 +366,17 @@ export function ManageEquipmentsPanel({
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Edit ${equipment.name}`}
-                                onClick={() => setEditingEquipment(equipment)}
-                              >
-                                <PencilIcon />
-                              </Button>
+                              <Can permission={PERMISSIONS.EQUIPMENT_UPDATE}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`Edit ${equipment.name}`}
+                                  onClick={() => setEditingEquipment(equipment)}
+                                >
+                                  <PencilIcon />
+                                </Button>
+                              </Can>
                               <Button
                                 render={
                                   <Link

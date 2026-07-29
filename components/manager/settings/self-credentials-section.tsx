@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useTransition, type FormEvent } from "react";
+import { Can } from "@/components/auth/can";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   updateSelfCredentialsAction,
   type ChangeSelfCredentialsActionState,
@@ -114,9 +116,11 @@ export function SelfCredentialsSection() {
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" size="sm" disabled={isPending}>
-              {isPending ? <InlineSpinner /> : "Save"}
-            </Button>
+            <Can permission={PERMISSIONS.SETTINGS_UPDATE_CREDENTIALS}>
+              <Button type="submit" size="sm" disabled={isPending}>
+                {isPending ? <InlineSpinner /> : "Save"}
+              </Button>
+            </Can>
           </div>
         </form>
       </CardContent>

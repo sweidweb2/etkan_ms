@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { PlusIcon, SearchIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddSemesterStudentDialog } from "@/components/manager/phases/add-semester-student-dialog";
 import { StudentSemesterStatusBadge } from "@/components/manager/students/student-semester-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import { MANAGER_STUDENT_SEMESTER_TABLE_LIMITS } from "@/lib/constants/manager-student-semester-display";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerStudentRow } from "@/types/manager-student";
@@ -134,10 +136,12 @@ export function SemesterStudentsSection({
             </p>
           </div>
           <CardAction className="self-center">
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add student
-            </Button>
+            <Can permission={PERMISSIONS.SEMESTERS_ADD_STUDENT}>
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add student
+              </Button>
+            </Can>
           </CardAction>
         </CardHeader>
 

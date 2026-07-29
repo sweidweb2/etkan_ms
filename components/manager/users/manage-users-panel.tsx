@@ -12,6 +12,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
@@ -33,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerStudentDetailRoute,
   getManagerUserDetailRoute,
@@ -316,10 +318,12 @@ export function ManageUsersPanel({
           <CardHeader className="border-b py-3">
             <CardTitle>Users</CardTitle>
             <CardAction className="self-center">
-              <Button type="button" onClick={() => setIsAddUserOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add user
-              </Button>
+              <Can permission={PERMISSIONS.USERS_CREATE}>
+                <Button type="button" onClick={() => setIsAddUserOpen(true)}>
+                  <PlusIcon data-icon="inline-start" />
+                  Add user
+                </Button>
+              </Can>
             </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
@@ -413,16 +417,18 @@ export function ManageUsersPanel({
                           onClick={(event) => event.stopPropagation()}
                         >
                           <div className="inline-flex items-center justify-center gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
-                              aria-label={`Edit ${user.username ?? user.email}`}
-                              onClick={() => setEditingUser(user)}
-                            >
-                              <PencilIcon className="size-4" />
-                            </Button>
+                            <Can permission={PERMISSIONS.USERS_UPDATE}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+                                aria-label={`Edit ${user.username ?? user.email}`}
+                                onClick={() => setEditingUser(user)}
+                              >
+                                <PencilIcon className="size-4" />
+                              </Button>
+                            </Can>
                             <UserDetailsLink user={user} />
                           </div>
                         </td>
