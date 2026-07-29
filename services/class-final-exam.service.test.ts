@@ -186,7 +186,7 @@ describe("createFinalExamForManager", () => {
 
     const result = await createFinalExamForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         class_id: classId,
@@ -264,7 +264,7 @@ describe("createFinalExamForManager", () => {
 
     const result = await createFinalExamForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { class_id: classId, title: "Final exam" }
     );
@@ -294,7 +294,7 @@ describe("createFinalExamForManager", () => {
 
     const result = await createFinalExamForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { class_id: classId, title: "Final exam" }
     );
@@ -421,7 +421,7 @@ describe("addStudentToClassForManager final exam grade", () => {
 
     const result = await addStudentToClassForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { class_id: classId, studentProfileId }
     );
@@ -463,7 +463,7 @@ describe("addStudentToClassForManager final exam grade", () => {
 
     const result = await addStudentToClassForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { class_id: classId, studentProfileId }
     );
@@ -510,7 +510,7 @@ describe("addStudentToClassForManager final exam grade", () => {
 
     const result = await addStudentToClassForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { class_id: classId, studentProfileId }
     );
@@ -564,7 +564,7 @@ describe("addStudentToClassForManager final exam grade", () => {
 
     const result = await addStudentToClassForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { class_id: classId, studentProfileId }
     );
@@ -631,7 +631,7 @@ describe("addStudentToClassForManager final exam grade", () => {
 
     const result = await addStudentToClassForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { class_id: classId, studentProfileId }
     );
@@ -695,7 +695,7 @@ describe("updateFinalExamForManager", () => {
 
     const result = await updateFinalExamForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: examId,
@@ -732,7 +732,7 @@ describe("updateFinalExamForManager", () => {
 
     const result = await updateFinalExamForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { id: examId, title: "Cannot update", max_grade: 50 }
     );
@@ -747,7 +747,7 @@ describe("updateFinalExamForManager", () => {
   it("rejects empty title", async () => {
     const result = await updateFinalExamForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { id: examId, title: "   " }
     );

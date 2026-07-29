@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ATTENDEE_STATUSES } from "@/lib/constants/manager-attendee-status";
 import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
-import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import { SESSION_GROUP_GRADE_LEVELS } from "@/types/manager-session-group-grade";
 import * as attendeeRepository from "@/repositories/attendee.repository";
@@ -223,7 +222,7 @@ describe("getStudentClassGradeDetailForManager", () => {
 
     const result = await getStudentClassGradeDetailForManager(
       adminClient,
-      ROLES.MANAGER,
+      actorUserId,
       classId,
       "99999999-9999-4999-8999-999999999999"
     );
@@ -240,7 +239,7 @@ describe("getStudentClassGradeDetailForManager", () => {
     await expect(
       getStudentClassGradeDetailForManager(
         adminClient,
-        ROLES.MANAGER,
+        actorUserId,
         classId,
         studentProfileId
       )
@@ -252,7 +251,7 @@ describe("getStudentClassGradeDetailForManager", () => {
 
     const result = await getStudentClassGradeDetailForManager(
       adminClient,
-      ROLES.MANAGER,
+      actorUserId,
       classId,
       studentProfileId
     );
@@ -319,7 +318,7 @@ describe("getStudentClassGradeDetailForManager", () => {
 
     const result = await getStudentClassGradeDetailForManager(
       adminClient,
-      ROLES.MANAGER,
+      actorUserId,
       classId,
       studentProfileId
     );
@@ -397,7 +396,7 @@ describe("getStudentClassGradeDetailForManager", () => {
 
     const result = await getStudentClassGradeDetailForManager(
       adminClient,
-      ROLES.MANAGER,
+      actorUserId,
       classId,
       studentProfileId
     );
@@ -483,7 +482,7 @@ describe("listComputedStudentGradeSheetBundlesForManager", () => {
 
     const result = await listComputedStudentGradeSheetBundlesForManager(
       adminClient,
-      ROLES.MANAGER,
+      actorUserId,
       classId
     );
 
@@ -501,7 +500,7 @@ describe("listComputedStudentGradeSheetBundlesForManager", () => {
 
     const result = await listComputedStudentGradeSheetBundlesForManager(
       adminClient,
-      ROLES.MANAGER,
+      actorUserId,
       classId
     );
 

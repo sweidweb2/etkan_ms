@@ -145,7 +145,7 @@ describe("createSubjectForManager", () => {
   it("returns validation errors for invalid input", async () => {
     const result = await createSubjectForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         ...validCreateInput,
@@ -171,7 +171,7 @@ describe("createSubjectForManager", () => {
 
     const result = await createSubjectForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validCreateInput
     );
@@ -202,7 +202,7 @@ describe("createSubjectForManager", () => {
 
     const result = await createSubjectForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validCreateInput
     );
@@ -262,7 +262,7 @@ describe("getSubjectForManager", () => {
 
     const subject = await getSubjectForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       subjectId
     );
 
@@ -288,7 +288,7 @@ describe("getSubjectForManager", () => {
 
     const subject = await getSubjectForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       subjectId
     );
 
@@ -327,7 +327,7 @@ describe("listSubjectClassesForManager", () => {
 
     const classes = await listSubjectClassesForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       subjectId
     );
 
@@ -363,7 +363,7 @@ describe("listSubjectClassesForManager", () => {
 
     const classes = await listSubjectClassesForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       subjectId
     );
 
@@ -406,7 +406,7 @@ describe("listSubjectClassesForManager", () => {
 
     const classes = await listSubjectClassesForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       subjectId
     );
 
@@ -448,7 +448,7 @@ describe("deleteSubjectForManager", () => {
 
     const result = await deleteSubjectForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       subjectId
     );
@@ -469,7 +469,7 @@ describe("deleteSubjectForManager", () => {
 
     const result = await deleteSubjectForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       subjectId
     );
@@ -496,7 +496,7 @@ describe("deleteSubjectForManager", () => {
 
     const result = await deleteSubjectForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       subjectId
     );

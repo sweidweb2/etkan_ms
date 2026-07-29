@@ -125,7 +125,7 @@ describe("getSemesterForManager", () => {
 
     const semester = await getSemesterForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       semesterId
     );
 
@@ -143,7 +143,7 @@ describe("getSemesterForManager", () => {
 
     const semester = await getSemesterForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       semesterId
     );
 
@@ -179,7 +179,7 @@ describe("createSemesterForManager", () => {
   it("returns validation errors for invalid input", async () => {
     const result = await createSemesterForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         ...validCreateInput,
@@ -205,7 +205,7 @@ describe("createSemesterForManager", () => {
 
     const result = await createSemesterForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validCreateInput
     );
@@ -236,7 +236,7 @@ describe("createSemesterForManager", () => {
 
     const result = await createSemesterForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validCreateInput
     );
@@ -284,7 +284,7 @@ describe("updateSemesterForManager", () => {
 
     const result = await updateSemesterForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: semesterId,

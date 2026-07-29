@@ -141,7 +141,7 @@ describe("getSessionDetailForManager", () => {
 
     const result = await getSessionDetailForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       classId,
       sessionId
     );
@@ -227,7 +227,7 @@ describe("getSessionDetailForManager", () => {
 
     const result = await getSessionDetailForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       classId,
       sessionId
     );
@@ -289,7 +289,7 @@ describe("updateSessionSettingsForManager", () => {
 
     const result = await updateSessionSettingsForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         session_id: sessionId,
@@ -332,7 +332,7 @@ describe("updateSessionSettingsForManager", () => {
 
     const result = await updateSessionSettingsForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         session_id: sessionId,
@@ -360,7 +360,7 @@ describe("updateSessionSettingsForManager", () => {
 
     const result = await updateSessionSettingsForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         session_id: sessionId,
@@ -387,7 +387,7 @@ describe("updateSessionSettingsForManager", () => {
 
     const result = await updateSessionSettingsForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         session_id: sessionId,
@@ -422,7 +422,7 @@ describe("updateClassSessionForManager", () => {
 
     const result = await updateClassSessionForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         session_id: sessionId,
@@ -512,7 +512,7 @@ describe("createSessionTaskForManager", () => {
 
     const result = await createSessionTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         class_id: classId,
@@ -561,7 +561,7 @@ describe("createSessionTaskForManager", () => {
 
     const result = await createSessionTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         class_id: classId,
@@ -623,7 +623,7 @@ describe("updateAttendeeForManager", () => {
 
     const result = await updateAttendeeForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: attendeeId,
@@ -666,7 +666,7 @@ describe("updateAttendeeForManager", () => {
 
     const result = await updateAttendeeForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: attendeeId,
@@ -744,7 +744,7 @@ describe("updateStudentTaskForManager", () => {
 
     const result = await updateStudentTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: studentTaskId,
@@ -826,7 +826,7 @@ describe("updateStudentTaskForManager", () => {
 
     const result = await updateStudentTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: studentTaskId,
@@ -899,7 +899,7 @@ describe("updateStudentTaskForManager", () => {
 
     const result = await updateStudentTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: studentTaskId,
@@ -972,7 +972,7 @@ describe("updateStudentTaskForManager", () => {
 
     const result = await updateStudentTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: studentTaskId,
@@ -1046,7 +1046,7 @@ describe("updateStudentTaskForManager", () => {
 
     const result = await updateStudentTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: studentTaskId,
@@ -1099,7 +1099,7 @@ describe("updateStudentTaskForManager", () => {
 
     const result = await updateStudentTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: studentTaskId,
@@ -1153,7 +1153,7 @@ describe("updateStudentTaskForManager", () => {
 
     const result = await updateStudentTaskForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: studentTaskId,
@@ -1477,7 +1477,7 @@ describe("deleteClassSessionForManager", () => {
 
     const result = await deleteClassSessionForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       sessionId
     );
@@ -1500,7 +1500,7 @@ describe("deleteClassSessionForManager", () => {
 
     const result = await deleteClassSessionForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       sessionId
     );
@@ -1524,7 +1524,7 @@ describe("deleteClassSessionForManager", () => {
 
     const result = await deleteClassSessionForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       sessionId
     );
@@ -1569,7 +1569,7 @@ describe("deleteClassSessionForManager", () => {
 
     const result = await deleteClassSessionForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       sessionId
     );
@@ -1637,7 +1637,7 @@ describe("deleteClassSessionForManager", () => {
 
     const result = await deleteClassSessionForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       sessionId
     );

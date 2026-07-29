@@ -43,7 +43,7 @@ Turn the business list into stable keys before any schema or code engine.
 
 **Done when:** permission list is frozen and ready to code. ✅
 
-**Result:** `[02] permission-definitions.md` frozen — 84 keys, `{feature}.{action}`, read/write marked. Ready for Phase 1.
+**Result:** `[02] permission-definitions.md` frozen — 85 keys (includes later `rbac.manage`), `{feature}.{action}`, read/write marked.
 
 ---
 
@@ -68,7 +68,7 @@ Official list lives in code so the app and seeds share one source.
 
 **Done when:** app code can import stable permission keys. ✅
 
-**Result:** `lib/constants/permissions.ts` — 84 keys, labels, access, feature helpers + `permissions.test.ts`.
+**Result:** `lib/constants/permissions.ts` — 85 keys (includes `rbac.manage`), labels, access, feature helpers + `permissions.test.ts`.
 
 ---
 

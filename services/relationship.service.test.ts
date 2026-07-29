@@ -87,7 +87,7 @@ describe("listRelationshipsForManager", () => {
 
     const relationships = await listRelationshipsForManager(
       adminClient,
-      ROLES.MANAGER
+      actor.userId
     );
 
     expect(relationships).toEqual([
@@ -115,7 +115,7 @@ describe("listRelationshipsForManager", () => {
 
     const relationships = await listRelationshipsForManager(
       adminClient,
-      ROLES.MANAGER
+      actor.userId
     );
 
     expect(relationships).toEqual([]);
@@ -143,7 +143,7 @@ describe("listRelationshipsForManager", () => {
 
     const relationships = await listRelationshipsForManager(
       adminClient,
-      ROLES.MANAGER
+      actor.userId
     );
 
     expect(relationships).toEqual([
@@ -189,7 +189,7 @@ describe("createRelationshipForManager", () => {
 
     const result = await createRelationshipForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validCreateInput
     );
@@ -213,7 +213,7 @@ describe("createRelationshipForManager", () => {
   it("returns validation errors for invalid input", async () => {
     const result = await createRelationshipForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         ...validCreateInput,
@@ -239,7 +239,7 @@ describe("createRelationshipForManager", () => {
 
     const result = await createRelationshipForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validCreateInput
     );
@@ -279,7 +279,7 @@ describe("updateRelationshipForManager", () => {
 
     const result = await updateRelationshipForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validUpdateInput
     );
@@ -312,7 +312,7 @@ describe("updateRelationshipForManager", () => {
 
     const result = await updateRelationshipForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validUpdateInput
     );
@@ -336,7 +336,7 @@ describe("updateRelationshipForManager", () => {
   it("returns validation errors for invalid id", async () => {
     const result = await updateRelationshipForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         ...validUpdateInput,

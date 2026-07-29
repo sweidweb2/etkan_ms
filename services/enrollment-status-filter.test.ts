@@ -97,7 +97,7 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
 
     const result = await listAvailableStudentsForClass(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       classId
     );
 
@@ -144,7 +144,7 @@ describe("computeAllStudentCourseGradesForManager enrollment filter", () => {
 
     const result = await computeAllStudentCourseGradesForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       classId,
       [pausedUserId],

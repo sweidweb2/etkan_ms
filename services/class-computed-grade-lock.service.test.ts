@@ -3,7 +3,6 @@ import {
   CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
   STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
 } from "@/lib/manager/class-grades-access";
-import { ROLES } from "@/lib/constants/roles";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import {
   assertClassStructureUnlockedForComputedGrades,
@@ -119,7 +118,7 @@ describe("getClassComputedGradeLockStateForManager", () => {
 
     const result = await getClassComputedGradeLockStateForManager(
       adminClient,
-      ROLES.MANAGER,
+      actorUserId,
       classId
     );
 
@@ -139,7 +138,7 @@ describe("getClassComputedGradeLockStateForManager", () => {
 
     const result = await getClassComputedGradeLockStateForManager(
       adminClient,
-      ROLES.MANAGER,
+      actorUserId,
       classId
     );
 

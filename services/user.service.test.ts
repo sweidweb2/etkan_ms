@@ -168,7 +168,7 @@ describe("createStaffUser", () => {
 
     const result = await createStaffUser(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validStaffInput
     );
@@ -197,7 +197,7 @@ describe("createStaffUser", () => {
 
     const result = await createStaffUser(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validStaffInput
     );
@@ -239,7 +239,7 @@ describe("createStaffUser", () => {
 
     const result = await createStaffUser(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validStaffInput
     );
@@ -299,7 +299,7 @@ describe("createStaffUser", () => {
 
     const result = await createStaffUser(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validStaffInput
     );

@@ -159,7 +159,7 @@ describe("getStudentForManager", () => {
 
     const student = await getStudentForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       "missing-id"
     );
 
@@ -179,7 +179,7 @@ describe("getStudentForManager", () => {
 
     const student = await getStudentForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       "student-profile-1"
     );
 
@@ -226,7 +226,7 @@ describe("getStudentDetailStatsForManager", () => {
 
     const stats = await getStudentDetailStatsForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       "user-1"
     );
 
@@ -292,7 +292,7 @@ describe("createStudent", () => {
 
     const result = await createStudent(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validStudentInput
     );
@@ -321,7 +321,7 @@ describe("createStudent", () => {
 
     const result = await createStudent(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validStudentInput
     );
@@ -369,7 +369,7 @@ describe("createStudent", () => {
 
     const result = await createStudent(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validStudentInput
     );
@@ -425,7 +425,7 @@ describe("createStudent", () => {
 
     const result = await createStudent(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validStudentInput
     );
@@ -501,7 +501,7 @@ describe("updateStudent", () => {
 
     const result = await updateStudent(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       updateInput
     );
@@ -583,7 +583,7 @@ describe("updateStudent", () => {
 
     const result = await updateStudent(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       updateInput
     );

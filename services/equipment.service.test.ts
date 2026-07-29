@@ -109,7 +109,7 @@ describe("getEquipmentForManager", () => {
 
     const row = await getEquipmentForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       equipmentId
     );
 
@@ -144,7 +144,7 @@ describe("createEquipmentForManager", () => {
 
     const result = await createEquipmentForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validCreateInput
     );
@@ -177,7 +177,7 @@ describe("createEquipmentForManager", () => {
 
     const result = await createEquipmentForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       validCreateInput
     );

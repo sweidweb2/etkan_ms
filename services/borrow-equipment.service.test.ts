@@ -89,7 +89,7 @@ describe("listEquipmentBorrowsForManager", () => {
 
     const rows = await listEquipmentBorrowsForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       equipmentId
     );
 
@@ -120,7 +120,7 @@ describe("listEquipmentBorrowsForManager", () => {
 
     const rows = await listEquipmentBorrowsForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       equipmentId
     );
 
@@ -448,7 +448,7 @@ describe("updateBorrowRecordForManager", () => {
 
     const result = await updateBorrowRecordForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: borrowId,
@@ -480,7 +480,7 @@ describe("updateBorrowRecordForManager", () => {
 
     const result = await updateBorrowRecordForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       {
         id: borrowId,
@@ -535,7 +535,7 @@ describe("toggleBorrowReturnedForManager", () => {
 
     const result = await toggleBorrowReturnedForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { id: borrowId, isReturned: true }
     );
@@ -586,7 +586,7 @@ describe("toggleBorrowReturnedForManager", () => {
 
     const result = await toggleBorrowReturnedForManager(
       adminClient,
-      ROLES.MANAGER,
+      actor.userId,
       actor,
       { id: borrowId, isReturned: false }
     );
