@@ -1,6 +1,13 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { ChevronUpIcon, SearchIcon } from "lucide-react";
 import {
   updateRolePermissionsAction,
   type UpdateRolePermissionsActionState,
@@ -15,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -33,6 +41,7 @@ import {
 } from "@/lib/constants/permissions";
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import { ROLE_VALUES, ROLES, type RoleValue } from "@/lib/constants/roles";
+import { cn } from "@/lib/utils";
 
 type ManagerRbacPanelProps = {
   initialGrantsByRole: Record<RoleValue, PermissionKey[]>;
@@ -40,6 +49,8 @@ type ManagerRbacPanelProps = {
 };
 
 const initialActionState: UpdateRolePermissionsActionState = {};
+const SCROLL_TOP_THRESHOLD_PX = 320;
+const SEARCH_RESULT_LIMIT = 12;
 
 function sortedKeys(keys: Iterable<PermissionKey>): PermissionKey[] {
   return [...keys].sort();
@@ -54,14 +65,38 @@ function sameKeySet(a: PermissionKey[], b: PermissionKey[]): boolean {
   return left.every((key, index) => key === right[index]);
 }
 
+function permissionRowId(key: PermissionKey) {
+  return `perm-row-${key}`;
+}
+
+function matchesPermission(
+  definition: PermissionDefinition,
+  query: string
+): boolean {
+  const featureLabel = PERMISSION_FEATURE_LABELS[definition.feature];
+  const haystack =
+    `${definition.key} ${definition.label} ${featureLabel} ${definition.access}`.toLowerCase();
+  return haystack.includes(query);
+}
+
 export function ManagerRbacPanel({
   initialGrantsByRole,
   catalog,
 }: ManagerRbacPanelProps) {
+  const pageTopRef = useRef<HTMLDivElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const [selectedRole, setSelectedRole] = useState<RoleValue>(ROLES.MANAGER);
   const [editsByRole, setEditsByRole] = useState<
     Partial<Record<RoleValue, PermissionKey[]>>
   >({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
+  const [highlightedKey, setHighlightedKey] = useState<PermissionKey | null>(
+    null
+  );
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const [state, formAction, isActionPending] = useActionState(
     updateRolePermissionsAction,
@@ -78,10 +113,70 @@ export function ManagerRbacPanel({
     })).filter((group) => group.definitions.length > 0);
   }, [catalog]);
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const searchResults = useMemo(() => {
+    if (!normalizedSearch) {
+      return [];
+    }
+    return catalog
+      .filter((definition) => matchesPermission(definition, normalizedSearch))
+      .slice(0, SEARCH_RESULT_LIMIT);
+  }, [catalog, normalizedSearch]);
+
   const savedKeys = initialGrantsByRole[selectedRole] ?? [];
   const draftKeys = editsByRole[selectedRole] ?? savedKeys;
   const isDirty = !sameKeySet(draftKeys, savedKeys);
   const draftSet = useMemo(() => new Set(draftKeys), [draftKeys]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    function updateScrollTopVisibility() {
+      const y =
+        window.scrollY ||
+        document.documentElement.scrollTop ||
+        document.body.scrollTop ||
+        0;
+      setShowScrollTop(y > SCROLL_TOP_THRESHOLD_PX);
+    }
+
+    updateScrollTopVisibility();
+    window.addEventListener("scroll", updateScrollTopVisibility, {
+      passive: true,
+    });
+    document.addEventListener("scroll", updateScrollTopVisibility, {
+      passive: true,
+      capture: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", updateScrollTopVisibility);
+      document.removeEventListener("scroll", updateScrollTopVisibility, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!highlightedKey) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedKey(null);
+    }, 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [highlightedKey]);
 
   function handleRoleChange(role: string | null) {
     if (!role) {
@@ -130,9 +225,56 @@ export function ManagerRbacPanel({
     setDraftKeys(sortedKeys(next));
   }
 
+  function scrollToPermission(key: PermissionKey) {
+    const target = document.getElementById(permissionRowId(key));
+    if (!target) {
+      return;
+    }
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedKey(key);
+    setSearchQuery("");
+    setIsSearchOpen(false);
+    setActiveSearchIndex(0);
+  }
+
+  function scrollToPageTop() {
+    pageTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      setSearchQuery("");
+      setIsSearchOpen(false);
+      return;
+    }
+
+    if (!isSearchOpen || searchResults.length === 0) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveSearchIndex((index) => (index + 1) % searchResults.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveSearchIndex(
+        (index) => (index - 1 + searchResults.length) % searchResults.length
+      );
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const selected = searchResults[activeSearchIndex];
+      if (selected) {
+        scrollToPermission(selected.key);
+      }
+    }
+  }
+
+  const showSearchDropdown = isSearchOpen && normalizedSearch.length > 0;
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
+      <div ref={pageTopRef}>
         <h1 className="text-2xl font-semibold tracking-tight">Permissions</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Grant or revoke permissions for each role. Changes apply on the next
@@ -148,23 +290,109 @@ export function ManagerRbacPanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6 pt-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex w-full max-w-sm flex-col gap-2">
-              <label htmlFor="rbac-role" className="text-sm font-medium">
-                Role
-              </label>
-              <Select value={selectedRole} onValueChange={handleRoleChange}>
-                <SelectTrigger id="rbac-role" aria-label="Select role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLE_VALUES.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {MANAGER_USER_ROLE_LABELS[role]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex w-full max-w-sm flex-col gap-2">
+                <label htmlFor="rbac-role" className="text-sm font-medium">
+                  Role
+                </label>
+                <Select value={selectedRole} onValueChange={handleRoleChange}>
+                  <SelectTrigger id="rbac-role" aria-label="Select role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_VALUES.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {MANAGER_USER_ROLE_LABELS[role]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div
+                ref={searchContainerRef}
+                className="relative w-full max-w-md"
+              >
+                <label htmlFor="rbac-permission-search" className="sr-only">
+                  Find permission
+                </label>
+                <div className="relative">
+                  <SearchIcon
+                    className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden
+                  />
+                  <Input
+                    id="rbac-permission-search"
+                    type="search"
+                    role="combobox"
+                    aria-expanded={showSearchDropdown}
+                    aria-controls="rbac-permission-search-list"
+                    aria-autocomplete="list"
+                    placeholder="Find permission…"
+                    value={searchQuery}
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setIsSearchOpen(true);
+                      setActiveSearchIndex(0);
+                    }}
+                    onFocus={() => setIsSearchOpen(true)}
+                    onKeyDown={handleSearchKeyDown}
+                    className="pl-8"
+                  />
+                </div>
+
+                {showSearchDropdown ? (
+                  <ul
+                    id="rbac-permission-search-list"
+                    role="listbox"
+                    className="absolute top-full z-50 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-md"
+                  >
+                    {searchResults.length === 0 ? (
+                      <li className="px-3 py-2 text-sm text-muted-foreground">
+                        No permissions found
+                      </li>
+                    ) : (
+                      searchResults.map((definition, index) => {
+                        const isActive = index === activeSearchIndex;
+                        return (
+                          <li
+                            key={definition.key}
+                            role="option"
+                            aria-selected={isActive}
+                          >
+                            <button
+                              type="button"
+                              className={cn(
+                                "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground",
+                                isActive && "bg-accent text-accent-foreground"
+                              )}
+                              onMouseEnter={() => setActiveSearchIndex(index)}
+                              onClick={() =>
+                                scrollToPermission(definition.key)
+                              }
+                            >
+                              <span className="font-medium">
+                                {definition.label}
+                              </span>
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {definition.key}
+                                <span className="ml-2 text-[10px] uppercase tracking-wide">
+                                  {
+                                    PERMISSION_FEATURE_LABELS[
+                                      definition.feature
+                                    ]
+                                  }
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })
+                    )}
+                  </ul>
+                ) : null}
+              </div>
             </div>
 
             <Can permission={PERMISSIONS.RBAC_MANAGE}>
@@ -238,10 +466,16 @@ export function ManagerRbacPanel({
                   <ul className="divide-y divide-border">
                     {definitions.map((definition) => {
                       const checked = draftSet.has(definition.key);
+                      const isHighlighted = highlightedKey === definition.key;
                       return (
                         <li
                           key={definition.key}
-                          className="flex items-start gap-3 px-4 py-3"
+                          id={permissionRowId(definition.key)}
+                          className={cn(
+                            "flex items-start gap-3 px-4 py-3 scroll-mt-24 transition-colors",
+                            isHighlighted &&
+                              "bg-primary/10 ring-2 ring-primary/40 ring-inset"
+                          )}
                         >
                           <input
                             id={`perm-${definition.key}`}
@@ -278,6 +512,19 @@ export function ManagerRbacPanel({
           </div>
         </CardContent>
       </Card>
+
+      {showScrollTop ? (
+        <Button
+          type="button"
+          size="icon"
+          variant="secondary"
+          aria-label="Back to top"
+          className="fixed bottom-6 left-1/2 z-40 size-10 -translate-x-1/2 rounded-full border border-border shadow-md"
+          onClick={scrollToPageTop}
+        >
+          <ChevronUpIcon className="size-5" />
+        </Button>
+      ) : null}
     </div>
   );
 }
