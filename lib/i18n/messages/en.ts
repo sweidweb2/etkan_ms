@@ -75,12 +75,16 @@ export const en = {
   "hero.slide3.card3.body":
     "Ship something people can use—not only a classroom exercise.",
 
-  "about.eyebrow": "Our model",
-  "about.title": "Learning that builds people—and real technology",
+  "about.eyebrow": "Vision & mission",
+  "about.title": "Where Etkan is headed—and why we build",
   "about.lead":
-    "Etkan is a distinctive learning model built around small teams of about ten students, ages sixteen to twenty-one, working in a setting that mirrors real industrial and technological practice. Participants are not only receivers of knowledge—they move through a full journey that includes:",
-  "about.image.alt":
-    "Illustration of a collaborative tech team coding, building robotics, and developing ideas",
+    "A productive path grounded in an Islamic outlook: shape the person, teach with depth, and deliver technology the world can use.",
+  "about.vision.label": "Vision",
+  "about.vision.body":
+    "A generation that thinks clearly, works with discipline, and creates technology with purpose—people formed before products, ready for real industrial practice.",
+  "about.mission.label": "Mission",
+  "about.mission.body":
+    "Train small teams through workshops, projects, and hands-on delivery so every participant leaves with skill, responsibility, and a usable technology outcome.",
   "about.hero.eyebrow": "About Etkan",
   "about.hero.title": "Etkan builds people and real technology",
   "about.hero.lead":
@@ -122,6 +126,46 @@ export const en = {
     "Reaching a complete technology product that is ready for real-world use—not only a classroom exercise.",
   "about.closing":
     "In this way, Etkan goes beyond conventional schooling. It offers a productive educational model grounded in an Islamic outlook: shaping the person before the product, emphasizing practical experience, structured thinking, and professional responsibility, and bringing genuine industrial experience to the rising generation.",
+
+  "about.services.eyebrow": "The golden triangle",
+  "about.services.title": "Three foundations Etkan stands on",
+  "about.services.lead":
+    "Breeding, education, and production—the triangle that shapes the person, builds real skill, and delivers usable technology.",
+  "about.services.viewAll": "View careers",
+  "about.services.explore": "Explore",
+
+  "about.services.breeding.label": "Breeding",
+  "about.services.breeding.headline": "Shape the person before the product",
+  "about.services.breeding.summary":
+    "Character, responsibility, and an Islamic outlook come first—so teams grow as people, not only as technicians.",
+  "about.services.breeding.stat.value": "01",
+  "about.services.breeding.stat.unit": "foundation · character",
+  "about.services.breeding.tag1": "Tarbiya",
+  "about.services.breeding.tag2": "Values",
+  "about.services.breeding.imageAlt":
+    "Young people collaborating with care and shared purpose",
+
+  "about.services.education.label": "Education",
+  "about.services.education.headline": "Learn by thinking, studying, and building",
+  "about.services.education.summary":
+    "Guided thinking, workshops, courses, and structured practice that turn concepts into owned skill.",
+  "about.services.education.stat.value": "02",
+  "about.services.education.stat.unit": "foundation · craft",
+  "about.services.education.tag1": "Workshops",
+  "about.services.education.tag2": "Courses",
+  "about.services.education.imageAlt":
+    "Students learning together through hands-on study and discussion",
+
+  "about.services.production.label": "Production",
+  "about.services.production.headline": "Ship technology ready for real use",
+  "about.services.production.summary":
+    "From idea to a working product—industrial practice, teamwork across specialties, and delivery that leaves the classroom.",
+  "about.services.production.stat.value": "03",
+  "about.services.production.stat.unit": "foundation · output",
+  "about.services.production.tag1": "Projects",
+  "about.services.production.tag2": "Industry",
+  "about.services.production.imageAlt":
+    "Hands building real hardware and technology in a workshop",
 
   "learningWays.eyebrow": "Our approach",
   "learningWays.title": "The learning ways Etkan follows",

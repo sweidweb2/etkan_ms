@@ -16,6 +16,8 @@ export const ROUTES = {
   ADMIN_DASHBOARD: "/admin/dashboard",
   MANAGER_ROOT: "/manager",
   MANAGER_DASHBOARD: "/manager/dashboard",
+  CO_MANAGER_ROOT: "/co-manager",
+  CO_MANAGER_DASHBOARD: "/co-manager/dashboard",
   MANAGER_USERS: "/manager/users",
   MANAGER_USER_DETAIL: "/manager/users/[id]",
   MANAGER_STUDENTS: "/manager/students",
@@ -66,6 +68,8 @@ export const ROUTES = {
   TEACHER_STUDENTS: "/teacher/students",
   TEACHER_NOTIFICATIONS: "/teacher/notifications",
   TEACHER_ANALYTICS: "/teacher/analytics",
+  TRAINER_ROOT: "/trainer",
+  TRAINER_DASHBOARD: "/trainer/dashboard",
   STUDENT_ROOT: "/student",
   STUDENT_DASHBOARD: "/student/dashboard",
   STUDENT_CLASSES: "/student/classes",
@@ -79,16 +83,20 @@ export type Route = (typeof ROUTES)[keyof typeof ROUTES];
 const ROLE_DASHBOARD_ROUTES: Record<RoleValue, string> = {
   [ROLES.ADMIN]: ROUTES.ADMIN_DASHBOARD,
   [ROLES.MANAGER]: ROUTES.MANAGER_DASHBOARD,
+  [ROLES.CO_MANAGER]: ROUTES.CO_MANAGER_DASHBOARD,
   [ROLES.CEO]: ROUTES.CEO_DASHBOARD,
   [ROLES.TEACHER]: ROUTES.TEACHER_DASHBOARD,
+  [ROLES.TRAINER]: ROUTES.TRAINER_DASHBOARD,
   [ROLES.STUDENT]: ROUTES.STUDENT_DASHBOARD,
 };
 
 const ROLE_PANEL_ROOTS: Record<RoleValue, string> = {
   [ROLES.ADMIN]: ROUTES.ADMIN_ROOT,
   [ROLES.MANAGER]: ROUTES.MANAGER_ROOT,
+  [ROLES.CO_MANAGER]: ROUTES.CO_MANAGER_ROOT,
   [ROLES.CEO]: ROUTES.CEO_ROOT,
   [ROLES.TEACHER]: ROUTES.TEACHER_ROOT,
+  [ROLES.TRAINER]: ROUTES.TRAINER_ROOT,
   [ROLES.STUDENT]: ROUTES.STUDENT_ROOT,
 };
 

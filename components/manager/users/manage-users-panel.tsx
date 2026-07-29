@@ -181,10 +181,14 @@ export function ManageUsersPanel({
     () => ({
       total: users.length,
       students: users.filter((user) => user.role === ROLES.STUDENT).length,
-      teachers: users.filter((user) => user.role === ROLES.TEACHER).length,
+      teachers: users.filter(
+        (user) =>
+          user.role === ROLES.TEACHER || user.role === ROLES.TRAINER
+      ).length,
       staff: users.filter(
         (user) =>
           user.role === ROLES.MANAGER ||
+          user.role === ROLES.CO_MANAGER ||
           user.role === ROLES.ADMIN ||
           user.role === ROLES.CEO
       ).length,

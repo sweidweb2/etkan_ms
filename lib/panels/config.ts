@@ -2,9 +2,11 @@ import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
   ADMIN_PANEL_NAVIGATION,
   CEO_PANEL_NAVIGATION,
+  CO_MANAGER_PANEL_NAVIGATION,
   MANAGER_PANEL_NAVIGATION,
   STUDENT_PANEL_NAVIGATION,
   TEACHER_PANEL_NAVIGATION,
+  TRAINER_PANEL_NAVIGATION,
 } from "@/lib/constants/panel-nav";
 import type { PanelConfig, PanelVariant } from "@/types/panel";
 
@@ -19,6 +21,11 @@ const PANEL_CONFIG_BY_ROLE: Record<RoleValue, PanelConfig> = {
     label: "Manager",
     navigation: MANAGER_PANEL_NAVIGATION,
   },
+  [ROLES.CO_MANAGER]: {
+    variant: "co-manager",
+    label: "Co-manager",
+    navigation: CO_MANAGER_PANEL_NAVIGATION,
+  },
   [ROLES.CEO]: {
     variant: "ceo",
     label: "CEO",
@@ -28,6 +35,11 @@ const PANEL_CONFIG_BY_ROLE: Record<RoleValue, PanelConfig> = {
     variant: "teacher",
     label: "Teacher",
     navigation: TEACHER_PANEL_NAVIGATION,
+  },
+  [ROLES.TRAINER]: {
+    variant: "trainer",
+    label: "Trainer",
+    navigation: TRAINER_PANEL_NAVIGATION,
   },
   [ROLES.STUDENT]: {
     variant: "student",
@@ -44,8 +56,10 @@ export function isPanelVariant(value: string): value is PanelVariant {
   return (
     value === "admin" ||
     value === "manager" ||
+    value === "co-manager" ||
     value === "ceo" ||
     value === "teacher" ||
+    value === "trainer" ||
     value === "student"
   );
 }

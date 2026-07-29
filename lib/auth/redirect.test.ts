@@ -23,6 +23,10 @@ describe("getPostLoginRedirect", () => {
     expect(getPostLoginRedirect(ROLES.MANAGER)).toBe(ROUTES.MANAGER_DASHBOARD);
     expect(getPostLoginRedirect(ROLES.STUDENT)).toBe(ROUTES.STUDENT_DASHBOARD);
     expect(getPostLoginRedirect(ROLES.ADMIN)).toBe(ROUTES.ADMIN_DASHBOARD);
+    expect(getPostLoginRedirect(ROLES.CO_MANAGER)).toBe(
+      ROUTES.CO_MANAGER_DASHBOARD
+    );
+    expect(getPostLoginRedirect(ROLES.TRAINER)).toBe(ROUTES.TRAINER_DASHBOARD);
   });
 
   it("honors next when path is allowed for the role", () => {

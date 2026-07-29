@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Tabs,
   TabsContent,
@@ -14,13 +15,17 @@ import {
   CareersAddToCartButton,
   CareersCartDock,
 } from "@/components/public/careers-cart";
+import {
+  isCareersTabId,
+  type CareersTabId,
+} from "@/lib/constants/about-services";
 import { CAREERS_ROADMAP_CARDS } from "@/lib/constants/careers-roadmaps";
 import { getCareersRoadmapDetailRoute } from "@/lib/constants/routes";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { cn } from "@/lib/utils";
 
-type CareersTab = "roadmap" | "workshops" | "online";
+type CareersTab = CareersTabId;
 
 type WorkshopCard = {
   id: string;
@@ -181,7 +186,15 @@ const TAB_TRIGGER_CLASS = cn(
 
 export function CareersSection() {
   const { t } = usePublicI18n();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<CareersTab>("roadmap");
+
+  useEffect(() => {
+    const next = searchParams.get("tab");
+    if (next && isCareersTabId(next)) {
+      setTab(next);
+    }
+  }, [searchParams]);
 
   return (
     <section className="relative isolate overflow-hidden px-4 pt-20 pb-16 sm:px-6 sm:pt-24 sm:pb-20">

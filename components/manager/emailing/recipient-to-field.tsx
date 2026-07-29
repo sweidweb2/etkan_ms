@@ -32,7 +32,13 @@ const BULK_OPTIONS: Array<{ id: string; label: string; roles?: RoleValue[] }> =
     { id: "all_users", label: "All users" },
     { id: "all_students", label: "All students", roles: [ROLES.STUDENT] },
     { id: "all_teachers", label: "All teachers", roles: [ROLES.TEACHER] },
+    { id: "all_trainers", label: "All trainers", roles: [ROLES.TRAINER] },
     { id: "all_managers", label: "All managers", roles: [ROLES.MANAGER] },
+    {
+      id: "all_co_managers",
+      label: "All co-managers",
+      roles: [ROLES.CO_MANAGER],
+    },
     { id: "all_admins", label: "All admins", roles: [ROLES.ADMIN] },
     { id: "all_ceos", label: "All CEOs", roles: [ROLES.CEO] },
   ];

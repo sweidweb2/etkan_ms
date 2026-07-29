@@ -40,8 +40,10 @@ export type PanelNavigation = {
 export type PanelVariant =
   | "admin"
   | "manager"
+  | "co-manager"
   | "ceo"
   | "teacher"
+  | "trainer"
   | "student";
 
 export type PanelConfig = {

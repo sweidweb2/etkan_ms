@@ -1,0 +1,8 @@
+---
+description: Keep RBAC permission definitions in sync when features or actions change
+alwaysApply: true
+---
+
+# RBAC permissions doc
+
+When you add or change a feature, or any action under a feature, update `docs/[11] RBAC/[02] permission-definitions.md` with the matching permission(s).

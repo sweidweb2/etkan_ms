@@ -26,12 +26,20 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.MANAGER_DASHBOARD, ROLES.MANAGER)).toBe(true);
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.MANAGER)).toBe(true);
     expect(canAccessPath(ROUTES.STUDENT_DASHBOARD, ROLES.STUDENT)).toBe(true);
+    expect(canAccessPath(ROUTES.CO_MANAGER_DASHBOARD, ROLES.CO_MANAGER)).toBe(
+      true
+    );
+    expect(canAccessPath(ROUTES.TRAINER_DASHBOARD, ROLES.TRAINER)).toBe(true);
   });
 
   it("denies cross-role panel access", () => {
     expect(canAccessPath(ROUTES.ADMIN_DASHBOARD, ROLES.MANAGER)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.STUDENT)).toBe(false);
     expect(canAccessPath(ROUTES.CEO_DASHBOARD, ROLES.TEACHER)).toBe(false);
+    expect(canAccessPath(ROUTES.MANAGER_DASHBOARD, ROLES.CO_MANAGER)).toBe(
+      false
+    );
+    expect(canAccessPath(ROUTES.TEACHER_DASHBOARD, ROLES.TRAINER)).toBe(false);
   });
 
   it("allows non-panel routes for any role", () => {

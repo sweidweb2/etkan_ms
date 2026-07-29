@@ -14,6 +14,14 @@ function dashboardNavigation(href: string): PanelNavigation {
 }
 
 export const ADMIN_PANEL_NAV = dashboardNavigation(ROUTES.ADMIN_DASHBOARD).items!;
+export const CO_MANAGER_PANEL_NAVIGATION = dashboardNavigation(
+  ROUTES.CO_MANAGER_DASHBOARD
+);
+export const CO_MANAGER_PANEL_NAV = CO_MANAGER_PANEL_NAVIGATION.items!;
+export const TRAINER_PANEL_NAVIGATION = dashboardNavigation(
+  ROUTES.TRAINER_DASHBOARD
+);
+export const TRAINER_PANEL_NAV = TRAINER_PANEL_NAVIGATION.items!;
 
 export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
   items: [

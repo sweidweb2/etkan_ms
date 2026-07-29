@@ -76,12 +76,16 @@ export const ar = {
   "hero.slide3.card3.body":
     "أصدر شيئًا يمكن استخدامه فعلًا—لا مجرد تمرين صفّي.",
 
-  "about.eyebrow": "نموذجنا",
-  "about.title": "تعلّم يبني الإنسان—وتقنية قابلة للحياة",
+  "about.eyebrow": "الرؤية والرسالة",
+  "about.title": "إلى أين تتجه إتقان—ولماذا نبني",
   "about.lead":
-    "إتقان هي نموذج تعليمي فريد يقوم على تشكيل فرق صغيرة من 10 طلاب تتراوح أعمارهم بين 16 و 21 عامًا، يعملون ضمن بيئة تحاكي الواقع الصناعي والتكنولوجي. لا يقتصر دور المشاركين على تلقي المعرفة، بل يمرّون برحلة متكاملة تشمل:",
-  "about.image.alt":
-    "رسم توضيحي لفريق تقني متعاون يعمل على البرمجة والروبوتات وتطوير الأفكار",
+    "مسار منتج من منطلق إسلامي: تشكيل الإنسان، وتعليم بعمق، وإنتاج تقنية يمكن للعالم استخدامها.",
+  "about.vision.label": "الرؤية",
+  "about.vision.body":
+    "جيل يفكّر بوضوح، ويعمل بانضباط، ويبتكر تقنية بهدف—إنسان يُبنى قبل المنتج، ومستعد لممارسة صناعية حقيقية.",
+  "about.mission.label": "الرسالة",
+  "about.mission.body":
+    "تدريب فرق صغيرة عبر الورش والمشاريع والتنفيذ العملي، ليغادر كل مشارك بمهارة ومسؤولية ومخرج تكنولوجي قابل للاستخدام.",
   "about.hero.eyebrow": "عن إتقان",
   "about.hero.title": "إتقان تبني الإنسان وتقنية حقيقية",
   "about.hero.lead":
@@ -123,6 +127,46 @@ export const ar = {
     "الوصول إلى إنتاج منتج تكنولوجي متكامل وقابل للاستخدام الفعلي—لا مجرد تمرين صفّي.",
   "about.closing":
     "وبذلك، تتجاوز إتقان مفهوم التعليم التقليدي لتقدّم نموذجًا تربويًا إنتاجيًا من منطلق إسلامي يهدف إلى المساعدة في بناء الإنسان قبل المنتج، ويركّز على الخبرة العملية، التفكير المنهجي، والمسؤولية المهنية، مع نقل حقيقي للتجارب الصناعية إلى الجيل الناشئ.",
+
+  "about.services.eyebrow": "المثلث الذهبي",
+  "about.services.title": "ثلاثة أساسات تقوم عليها إتقان",
+  "about.services.lead":
+    "التربية، والتعليم، والإنتاج—مثلث يشكّل الإنسان، ويبني مهارة حقيقية، ويصل إلى تقنية قابلة للاستخدام.",
+  "about.services.viewAll": "عرض المسارات",
+  "about.services.explore": "استكشف",
+
+  "about.services.breeding.label": "التربية",
+  "about.services.breeding.headline": "ابنِ الإنسان قبل المنتج",
+  "about.services.breeding.summary":
+    "الشخصية والمسؤولية والمنطلق الإسلامي أولًا—لينمو الفريق كأشخاص لا كتقنيين فحسب.",
+  "about.services.breeding.stat.value": "01",
+  "about.services.breeding.stat.unit": "أساس · الشخصية",
+  "about.services.breeding.tag1": "تربية",
+  "about.services.breeding.tag2": "قيم",
+  "about.services.breeding.imageAlt":
+    "شباب يتعاونون بعناية وهدف مشترك",
+
+  "about.services.education.label": "التعليم",
+  "about.services.education.headline": "تعلّم بالتفكير والدراسة والبناء",
+  "about.services.education.summary":
+    "تفكير موجّه، وورش ودورات، وممارسة منظّمة تحوّل المفاهيم إلى مهارة مملوكة.",
+  "about.services.education.stat.value": "02",
+  "about.services.education.stat.unit": "أساس · الحرفة",
+  "about.services.education.tag1": "ورش",
+  "about.services.education.tag2": "دورات",
+  "about.services.education.imageAlt":
+    "طلاب يتعلمون معًا عبر الدراسة العملية والنقاش",
+
+  "about.services.production.label": "الإنتاج",
+  "about.services.production.headline": "أنجز تقنية جاهزة للاستخدام الحقيقي",
+  "about.services.production.summary":
+    "من الفكرة إلى منتج يعمل—ممارسة صناعية، وعمل جماعي عبر التخصصات، وتسليم يخرج من الصف.",
+  "about.services.production.stat.value": "03",
+  "about.services.production.stat.unit": "أساس · المخرج",
+  "about.services.production.tag1": "مشاريع",
+  "about.services.production.tag2": "صناعة",
+  "about.services.production.imageAlt":
+    "أيادٍ تبني عتادًا وتقنية حقيقية داخل ورشة",
 
   "learningWays.eyebrow": "نهجنا",
   "learningWays.title": "طرق التعلّم التي تتبعها إتقان",

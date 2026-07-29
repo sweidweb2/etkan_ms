@@ -1,8 +1,10 @@
 export const NOTIFICATION_AUDIENCE_VALUES = [
   "admin",
   "manager",
+  "co-manager",
   "ceo",
   "teacher",
+  "trainer",
   "student",
   "all",
 ] as const;
@@ -33,8 +35,10 @@ export const NOTIFICATION_AUDIENCE_LABELS: Record<
 > = {
   admin: "Admin",
   manager: "Manager",
+  "co-manager": "Co-manager",
   ceo: "CEO",
   teacher: "Teacher",
+  trainer: "Trainer",
   student: "Student",
   all: "Everyone",
 };

@@ -82,6 +82,8 @@ Always enforce authorization in **three places**:
 2. Supabase **RLS** → data-level protection
 3. Service layer → business-rule protection
 
+When you add or change a feature, or any action under a feature, update `docs/[11] RBAC/[02] permission-definitions.md` with the matching permission(s).
+
 ## TypeScript, Zod, and Validation
 
 - Use **TypeScript everywhere**; prefer `interface` for object shapes and `type` for unions/utility types.
@@ -112,4 +114,5 @@ Always enforce authorization in **three places**:
 ## Documentation
 
 - When adding or changing behavior, update docs under `docs/` if it affects flows or contracts.
+- When adding or changing a feature or action, update `docs/[11] RBAC/[02] permission-definitions.md`.
 - Code examples should match the architecture rules above and reuse existing utilities.
