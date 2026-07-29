@@ -184,6 +184,55 @@ export const en = {
   "learningWays.card3.body":
     "An individual or group is tasked with accomplishing a specific technique within their general knowledge. They must build the experiment in the given context, research until they finish, and leave as someone who owns real experience.",
 
+  "homeTestimonials.eyebrow": "Voices",
+  "homeTestimonials.title": "What people say about Etkan",
+  "homeTestimonials.lead":
+    "Real feedback from the learning path—courses, teamwork, and how Etkan changes how you grow.",
+  "homeTestimonials.ariaLabel": "Testimonials",
+  "homeTestimonials.t1.quote":
+    "Python, Arduino, and SolidWorks on the path were excellent—clear information, useful tricks, and tasks that showed how much I was learning. Etkan also taught me that I can keep growing on my own.",
+  "homeTestimonials.t2.quote":
+    "Teamwork at Etkan is unlike anywhere else—real collaboration, and no one is left behind. I came to learn alone and left understanding why working together matters.",
+  "homeTestimonials.t3.quote":
+    "What we learn at Etkan is realistic and applies in the real world. Everything is proven through experiment and work—and it changed how I think.",
+  "homeTestimonials.t4.quote":
+    "A distinctive experience: time management, purposeful industrial thinking, and problem-solving—the right way to search for information, learn, and grow.",
+
+  "homeCertificates.eyebrow": "Recognition",
+  "homeCertificates.title": "Three certificates from Etkan",
+  "homeCertificates.lead":
+    "Etkan recognizes learning at every stage—participation, completing a roadmap, and your academic grades.",
+  "homeCertificates.seal": "Etkan certificate",
+  "homeCertificates.card1.tag": "Presence",
+  "homeCertificates.card1.title": "Certificate of participation",
+  "homeCertificates.card1.body":
+    "Awarded for taking part in Etkan workshops, sessions, and learning activities.",
+  "homeCertificates.card2.tag": "Roadmap",
+  "homeCertificates.card2.title": "Official roadmap completion",
+  "homeCertificates.card2.body":
+    "An official Etkan certificate confirming you finished a learning roadmap successfully.",
+  "homeCertificates.card3.tag": "Results",
+  "homeCertificates.card3.title": "Certificate of grades",
+  "homeCertificates.card3.body":
+    "Documents your academic results and course grades earned along the Etkan path.",
+
+  "homeActivity.eyebrow": "Inside Etkan",
+  "homeActivity.title": "Dense work. Many builds.",
+  "homeActivity.lead":
+    "A year of learning intensity beside a wall of projects—proof that Etkan stays in motion.",
+  "homeActivity.heatmap.tag": "Rhythm",
+  "homeActivity.heatmap.title": "Learning & working heatmap",
+  "homeActivity.heatmap.body":
+    "A contribution-style map tinted in Etkan’s color—strong cells show how often the community shows up to learn and ship.",
+  "homeActivity.heatmap.ariaLabel": "Activity heatmap showing high density of learning and work at Etkan",
+  "homeActivity.heatmap.less": "Less",
+  "homeActivity.heatmap.more": "More",
+  "homeActivity.mosaic.tag": "Builds",
+  "homeActivity.mosaic.title": "Project mosaic",
+  "homeActivity.mosaic.body":
+    "A zoomed-out grid of project moments. Photos will fill these cells as you add them.",
+  "homeActivity.mosaic.ariaLabel": "Grid of Etkan project images",
+
   "courseLogos.eyebrow": "What we teach",
   "courseLogos.title": "Courses across code, hardware, and making",
   "courseLogos.ariaLabel": "Etkan course topics",

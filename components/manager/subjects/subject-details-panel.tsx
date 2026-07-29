@@ -241,6 +241,10 @@ export function SubjectDetailsPanel({
             <DetailLink label="Handout" href={subject.handout_link} />
             <DetailField label="Classes" value={String(classes.length)} />
             <DetailField
+              label="Planned sessions"
+              value={String(subject.nb_sessions)}
+            />
+            <DetailField
               label="Created"
               value={format(new Date(subject.created_at), "MMM d, yyyy 'at' h:mm a")}
             />

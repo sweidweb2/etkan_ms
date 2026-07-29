@@ -58,6 +58,7 @@ export function AddSubjectDialog({
     mode: "onBlur",
     defaultValues: {
       name: "",
+      nb_sessions: 0,
       syllabus_link: "",
       reference_link: "",
       handout_link: "",
@@ -68,6 +69,7 @@ export function AddSubjectDialog({
     if (!open) {
       reset({
         name: "",
+        nb_sessions: 0,
         syllabus_link: "",
         reference_link: "",
         handout_link: "",
@@ -83,6 +85,7 @@ export function AddSubjectDialog({
   function onSubmit(values: CreateSubjectInput) {
     const formData = new FormData();
     formData.set("name", values.name.trim());
+    formData.set("nb_sessions", String(values.nb_sessions));
     formData.set("syllabus_link", values.syllabus_link?.trim() ?? "");
     formData.set("reference_link", values.reference_link?.trim() ?? "");
     formData.set("handout_link", values.handout_link?.trim() ?? "");
@@ -93,6 +96,8 @@ export function AddSubjectDialog({
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const sessionsError =
+    errors.nb_sessions?.message ?? state.fieldErrors?.nb_sessions?.[0];
   const syllabusError =
     errors.syllabus_link?.message ?? state.fieldErrors?.syllabus_link?.[0];
   const referenceError =
@@ -106,7 +111,8 @@ export function AddSubjectDialog({
         <DialogHeader>
           <DialogTitle>Add subject</DialogTitle>
           <DialogDescription>
-            Create a subject with optional resource links.
+            Create a subject with planned session count and optional resource
+            links.
           </DialogDescription>
         </DialogHeader>
 
@@ -130,6 +136,25 @@ export function AddSubjectDialog({
             />
             {nameError ? (
               <p className="text-sm text-destructive">{nameError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="add-subject-sessions"
+              label="Number of sessions"
+              hint="Required"
+            />
+            <Input
+              id="add-subject-sessions"
+              type="number"
+              min="0"
+              aria-invalid={!!sessionsError}
+              disabled={isPending}
+              {...register("nb_sessions")}
+            />
+            {sessionsError ? (
+              <p className="text-sm text-destructive">{sessionsError}</p>
             ) : null}
           </div>
 

@@ -1,14 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { format } from "date-fns";
 import {
   BookOpenIcon,
+  CalendarIcon,
   ExternalLinkIcon,
   FileTextIcon,
   GraduationCapIcon,
+  LayersIcon,
   Link2Icon,
+  PencilIcon,
 } from "lucide-react";
+import { Can } from "@/components/auth/can";
+import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SUBJECT_CARD_LIMITS } from "@/lib/constants/manager-subject-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerSubjectDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -102,7 +110,17 @@ function ResourceRow({
   );
 }
 
-export function SubjectCard({ subject }: SubjectCardProps) {
+export function SubjectCard({ subject: initialSubject }: SubjectCardProps) {
+  const router = useRouter();
+  const [subject, setSubject] = useState(initialSubject);
+  const [prevSubject, setPrevSubject] = useState(initialSubject);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  if (initialSubject !== prevSubject) {
+    setPrevSubject(initialSubject);
+    setSubject(initialSubject);
+  }
+
   const detailHref = getManagerSubjectDetailRoute(subject.id);
   const linkCount = [
     subject.syllabus_link,
@@ -110,8 +128,21 @@ export function SubjectCard({ subject }: SubjectCardProps) {
     subject.handout_link,
   ].filter(Boolean).length;
 
+  const handleSubjectUpdated = (updated: ManagerSubjectRow) => {
+    setSubject(updated);
+    router.refresh();
+  };
+
   return (
     <TooltipProvider>
+      {isEditOpen ? (
+        <EditSubjectDialog
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          subject={subject}
+          onSubjectUpdated={handleSubjectUpdated}
+        />
+      ) : null}
       <Card className="group relative flex h-full flex-col overflow-hidden gap-0 py-0 transition-all duration-200 hover:border-sky-400/45 hover:shadow-[0_12px_32px_rgba(14,165,233,0.16)]">
         <Link
           href={detailHref}
@@ -119,35 +150,43 @@ export function SubjectCard({ subject }: SubjectCardProps) {
           className="absolute inset-0 z-0 rounded-xl"
         />
         <CardHeader className="relative z-10 gap-2 border-b bg-muted/20 px-3 py-2.5 pointer-events-none">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 items-start gap-2">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-300">
-                <GraduationCapIcon className="size-4" />
-              </div>
-              <div className="min-w-0">
-                <CardTitle className="text-sm leading-snug">
-                  <TruncatedText
-                    value={subject.name}
-                    maxLength={SUBJECT_CARD_LIMITS.name}
-                  />
-                </CardTitle>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {linkCount} resource{linkCount === 1 ? "" : "s"} linked
-                </p>
-              </div>
+          <div className="flex min-w-0 items-start gap-2">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-300">
+              <GraduationCapIcon className="size-4" />
             </div>
-            <div className="flex shrink-0 flex-col items-end rounded-md bg-background px-2 py-1 ring-1 ring-foreground/10">
-              <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-                Classes
-              </span>
-              <span className="text-base font-semibold tabular-nums leading-none">
-                {subject.class_count}
-              </span>
+            <div className="min-w-0">
+              <CardTitle className="text-sm leading-snug">
+                <TruncatedText
+                  value={subject.name}
+                  maxLength={SUBJECT_CARD_LIMITS.name}
+                />
+              </CardTitle>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {linkCount} resource{linkCount === 1 ? "" : "s"} linked
+              </p>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="relative z-10 flex flex-1 flex-col gap-1.5 px-3 py-2.5 pointer-events-none">
+          <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[11px]">
+            <LayersIcon className="size-3 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+              Classes
+            </span>
+            <span className="shrink-0 font-semibold tabular-nums text-foreground">
+              {subject.class_count}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[11px]">
+            <CalendarIcon className="size-3 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+              Sessions
+            </span>
+            <span className="shrink-0 font-semibold tabular-nums text-foreground">
+              {subject.nb_sessions}
+            </span>
+          </div>
           <ResourceRow
             label="Syllabus"
             href={subject.syllabus_link}
@@ -169,15 +208,34 @@ export function SubjectCard({ subject }: SubjectCardProps) {
           <span className="text-[11px] text-muted-foreground">
             {format(new Date(subject.created_at), "MMM d, yyyy")}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
-            nativeButton={false}
-            render={<Link href={detailHref} />}
-          >
-            View
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Can permission={PERMISSIONS.SUBJECTS_UPDATE}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
+                aria-label={`Edit ${subject.name}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setIsEditOpen(true);
+                }}
+              >
+                <PencilIcon data-icon="inline-start" />
+                Edit
+              </Button>
+            </Can>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
+              nativeButton={false}
+              render={<Link href={detailHref} />}
+            >
+              View
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </TooltipProvider>

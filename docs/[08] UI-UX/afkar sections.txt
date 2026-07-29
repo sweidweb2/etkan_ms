@@ -1,0 +1,23 @@
+Best fits (link out, don’t duplicate the full page)
+
+1-Featured careers / roadmaps — Short preview of 2–3 roadmaps with a CTA to /careers. Complements career stages and certificates.
+2-Student life / blog — 2–3 recent posts from /life. Adds human proof without another “process” block.
+3-Projects showcase — A few standout projects from /projects. Shows outcomes after learning ways + certificates.
+4-Gallery strip — Full-bleed photo row from /gallery. Atmosphere, not more copy.
+5-About teaser — One short “who we are” + CTA to /about (and services). Useful if visitors still don’t know Etkan after the hero.
+6-Optional extras (only if you have real content)
+
+7-Testimonials / student voices — Quotes or short stories (stronger than another icon grid).
+8-How to join / next step — Apply, visit, or sign up — sits well just above the contact CTA.
+9-Partners / community — Only if you have real logos or names.
+I’d skip for now
+
+Another 3-card “values / why us / process” block — you already have stages, ways, certificates, and journey.
+Stats strips or feature grids that don’t lead somewhere.
+Suggested order if you add one or two
+
+After certificates (or after course logos): projects or gallery → after journey / before contact: life preview or how to join.
+
+If you want one of these built, switch to Agent mode and say which section.
+
+calndar npm install @fullcalendar/react

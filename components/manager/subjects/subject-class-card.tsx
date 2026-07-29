@@ -16,6 +16,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  getClassProgressTone,
+  getClassSessionCompletionRate,
+} from "@/lib/constants/manager-semester-class-progress";
+import {
   CLASS_CARD_LIMITS,
   CLASS_STATUS_BADGE_CLASSES,
   CLASS_STATUS_LABELS,
@@ -67,6 +71,8 @@ export function SubjectClassCard({
   const statusClassName =
     CLASS_STATUS_BADGE_CLASSES[classRow.status] ??
     "bg-muted text-muted-foreground";
+  const sessionRate = getClassSessionCompletionRate(classRow);
+  const sessionTone = getClassProgressTone(classRow);
 
   return (
     <TooltipProvider>
@@ -94,6 +100,25 @@ export function SubjectClassCard({
         </CardHeader>
 
         <CardContent className="flex flex-1 flex-col gap-3 py-4">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">Session progress</span>
+              <span className="font-medium tabular-nums text-foreground">
+                {classRow.completed_sessions}/{classRow.subject_nb_sessions} ·{" "}
+                {sessionRate}%
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-[width]",
+                  sessionTone.fillClassName
+                )}
+                style={{ width: `${sessionRate}%` }}
+              />
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <HashIcon className="size-3.5 shrink-0" />
             <span className="shrink-0">Class ID</span>

@@ -185,6 +185,55 @@ export const ar = {
   "learningWays.card3.body":
     "يُكلَّف الفرد أو المجموعة بإنجاز تقنية معيّنة تكون ضمن علمهم العام، وعليهم بناء التجربة ضمن الحالة المحدّدة والبحث للوصول إلى الإنجاز—فيصبح صاحب تجربة.",
 
+  "homeTestimonials.eyebrow": "أصوات",
+  "homeTestimonials.title": "ماذا يقولون عن إتقان",
+  "homeTestimonials.lead":
+    "آراء حقيقية من المسار—المواد، العمل الجماعي، وكيف تغيّر إتقان طريقة نموّك.",
+  "homeTestimonials.ariaLabel": "شهادات",
+  "homeTestimonials.t1.quote":
+    "مواد المسار Python وArduino وSolidWorks كانوا ممتازين—معلومات واضحة وtricks مفيدة، والـtask بيوضّح قديش عم تستفيد. وبإتقان تعلّمت كمان إنّي فيني أكمل وأطوّر لحالي.",
+  "homeTestimonials.t2.quote":
+    "العمل الجماعي بإتقان ما في مثله—تعاون رائع وما في تقصير. فتت لأتعلّم لحالي وطلعت فاهم ليش الشغل سوية مهم.",
+  "homeTestimonials.t3.quote":
+    "الدراسة بإتقان مفيدة جدًا. اللي عم نتعلّمه واقعي وبيتطبّق، وكل شي منثبّت بالتجربة—وغيّر طريقة تفكيري.",
+  "homeTestimonials.t4.quote":
+    "تجربة مميزة: تنظيم وقت، فكر صناعي هادف، وحل مشاكل—وبطريقة صح بتخليك تفتّش وتتعلّم وتطوّر.",
+
+  "homeCertificates.eyebrow": "الاعتراف",
+  "homeCertificates.title": "ثلاث شهادات من إتقان",
+  "homeCertificates.lead":
+    "تعترف إتقان بالتعلّم في كل مرحلة—المشاركة، إتمام خارطة الطريق، ودرجاتك الأكاديمية.",
+  "homeCertificates.seal": "شهادة إتقان",
+  "homeCertificates.card1.tag": "حضور",
+  "homeCertificates.card1.title": "شهادة مشاركة",
+  "homeCertificates.card1.body":
+    "تُمنح للمشاركة في ورش إتقان وجلساتها وأنشطة التعلّم.",
+  "homeCertificates.card2.tag": "خارطة الطريق",
+  "homeCertificates.card2.title": "شهادة رسمية بإتمام خارطة الطريق",
+  "homeCertificates.card2.body":
+    "شهادة رسمية من إتقان تؤكد أنك أنهيت خارطة تعلّم بنجاح.",
+  "homeCertificates.card3.tag": "النتائج",
+  "homeCertificates.card3.title": "شهادة الدرجات",
+  "homeCertificates.card3.body":
+    "توثّق نتائجك الأكاديمية ودرجات المقررات التي أحرزتها على مسار إتقان.",
+
+  "homeActivity.eyebrow": "داخل إتقان",
+  "homeActivity.title": "عمل كثيف. مشاريع كثيرة.",
+  "homeActivity.lead":
+    "سنة من كثافة التعلّم بجانب جدار من المشاريع—دليل على أن إتقان لا تتوقف عن الحركة.",
+  "homeActivity.heatmap.tag": "الإيقاع",
+  "homeActivity.heatmap.title": "خريطة حرارية للتعلّم والعمل",
+  "homeActivity.heatmap.body":
+    "خريطة بأسلوب المساهمات بلون إتقان—الخلايا القوية تُظهر كم يظهر المجتمع ليتعلّم وينجز.",
+  "homeActivity.heatmap.ariaLabel": "خريطة حرارية تُظهر كثافة عالية للتعلّم والعمل في إتقان",
+  "homeActivity.heatmap.less": "أقل",
+  "homeActivity.heatmap.more": "أكثر",
+  "homeActivity.mosaic.tag": "البناء",
+  "homeActivity.mosaic.title": "فسيفساء المشاريع",
+  "homeActivity.mosaic.body":
+    "شبكة مصغّرة للحظات المشاريع. ستُملأ الخلايا بالصور عندما تضيفها.",
+  "homeActivity.mosaic.ariaLabel": "شبكة صور مشاريع إتقان",
+
   "courseLogos.eyebrow": "ماذا نعلّم",
   "courseLogos.title": "دورات عبر البرمجة والعتاد والصناعة",
   "courseLogos.ariaLabel": "مواضيع دورات إتقان",

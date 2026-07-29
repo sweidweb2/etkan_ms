@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import * as classRepository from "@/repositories/class.repository";
+import * as sessionRepository from "@/repositories/session.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
@@ -14,6 +15,7 @@ import {
 
 vi.mock("@/repositories/subject.repository");
 vi.mock("@/repositories/class.repository");
+vi.mock("@/repositories/session.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -49,6 +51,7 @@ const subjectRecord = {
 
 const validCreateInput = {
   name: "Physics",
+  nb_sessions: 10,
   syllabus_link: "https://school.edu/syllabus/physics",
   reference_link: "",
   handout_link: "https://school.edu/handouts/physics",
@@ -227,7 +230,7 @@ describe("createSubjectForManager", () => {
       syllabus_link: "https://school.edu/syllabus/physics",
       reference_link: null,
       handout_link: "https://school.edu/handouts/physics",
-      nb_sessions: 0,
+      nb_sessions: 10,
     });
   });
 });
@@ -361,6 +364,14 @@ describe("listSubjectClassesForManager", () => {
       statusText: "OK",
     });
 
+    vi.mocked(sessionRepository.listSessionCountsByClassIds).mockResolvedValue({
+      data: [{ class_id: "class-1" }, { class_id: "class-1" }],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
     const classes = await listSubjectClassesForManager(
       adminClient,
       actor.userId,
@@ -373,6 +384,8 @@ describe("listSubjectClassesForManager", () => {
         subject_id: subjectId,
         name: "Physics 101",
         status: "in_progress",
+        subject_nb_sessions: 10,
+        completed_sessions: 2,
         created_at: "2026-02-01T00:00:00.000Z",
       },
     ]);
@@ -404,6 +417,14 @@ describe("listSubjectClassesForManager", () => {
       statusText: "OK",
     });
 
+    vi.mocked(sessionRepository.listSessionCountsByClassIds).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
     const classes = await listSubjectClassesForManager(
       adminClient,
       actor.userId,
@@ -416,6 +437,8 @@ describe("listSubjectClassesForManager", () => {
         subject_id: subjectId,
         name: "Legacy Class",
         status: "scheduled",
+        subject_nb_sessions: 10,
+        completed_sessions: 0,
         created_at: "",
       },
     ]);

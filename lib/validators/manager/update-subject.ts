@@ -16,6 +16,11 @@ export const updateSubjectSchema = z.object({
     .trim()
     .min(1, { message: "Subject name is required." })
     .max(120, { message: "Subject name must be at most 120 characters." }),
+  nb_sessions: z.coerce
+    .number()
+    .int({ message: "Number of sessions must be a whole number." })
+    .min(0, { message: "Number of sessions must be 0 or greater." })
+    .max(1000, { message: "Number of sessions must be at most 1000." }),
   syllabus_link: optionalUrlField,
   reference_link: optionalUrlField,
   handout_link: optionalUrlField,
@@ -40,6 +45,7 @@ export function parseUpdateSubjectFormData(formData: FormData):
 
   const parsed = updateSubjectSchema.safeParse({
     name: formData.get("name"),
+    nb_sessions: formData.get("nb_sessions"),
     syllabus_link: formData.get("syllabus_link"),
     reference_link: formData.get("reference_link"),
     handout_link: formData.get("handout_link"),

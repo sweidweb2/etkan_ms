@@ -60,7 +60,7 @@ export function HomeLearningWaysSection() {
   const canAnimate = hydrated && !reduceMotion;
 
   return (
-    <section className="relative isolate overflow-hidden px-4 py-16 sm:px-6 sm:py-20">
+    <section className="relative isolate overflow-hidden px-4 py-10 sm:px-6 sm:py-12">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(165deg,color-mix(in_oklch,var(--muted)_45%,var(--background)),var(--background)_42%,color-mix(in_oklch,var(--muted)_28%,var(--background)))]"
@@ -124,7 +124,7 @@ export function HomeLearningWaysSection() {
           </motion.p>
         </div>
 
-        <ol className="relative mt-14 grid gap-6 md:grid-cols-3 md:gap-5 lg:mt-20 lg:gap-6">
+        <ol className="relative mt-10 grid gap-6 md:grid-cols-3 md:gap-5 lg:mt-12 lg:gap-6">
           <svg
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-8 top-[42%] hidden h-24 w-[calc(100%-4rem)] text-[#3E3E75]/25 md:block dark:text-[#C4C4E8]/25"

@@ -7,6 +7,7 @@ import { createSubjectSchema } from "@/lib/validators/manager/create-subject";
 import { updateSubjectSchema } from "@/lib/validators/manager/update-subject";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassRecord } from "@/repositories/class.repository";
+import * as sessionRepository from "@/repositories/session.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
 import type { SubjectRecord } from "@/repositories/subject.repository";
 import {
@@ -85,13 +86,17 @@ function mapClassStatus(status: string | null): ClassStatusValue {
 }
 
 function mapClassRecordToSubjectClassRow(
-  record: ClassRecord
+  record: ClassRecord,
+  subjectNbSessions: number,
+  completedSessions: number
 ): ManagerSubjectClassRow {
   return {
     id: record.id,
     subject_id: record.subject_id ?? "",
     name: record.name,
     status: mapClassStatus(record.status),
+    subject_nb_sessions: subjectNbSessions,
+    completed_sessions: completedSessions,
     created_at: record.created_at ?? "",
   };
 }
@@ -180,6 +185,7 @@ export async function createSubjectForManager(
   actor: AuditActor,
   input: {
     name: string;
+    nb_sessions: number;
     syllabus_link?: string;
     reference_link?: string;
     handout_link?: string;
@@ -204,7 +210,8 @@ export async function createSubjectForManager(
     };
   }
 
-  const { name, syllabus_link, reference_link, handout_link } = parsed.data;
+  const { name, nb_sessions, syllabus_link, reference_link, handout_link } =
+    parsed.data;
   const normalizedName = name.trim();
 
   const existing = await subjectRepository.findSubjectByName(
@@ -232,7 +239,7 @@ export async function createSubjectForManager(
     syllabus_link: normalizeOptionalString(syllabus_link),
     reference_link: normalizeOptionalString(reference_link),
     handout_link: normalizeOptionalString(handout_link),
-    nb_sessions: 0,
+    nb_sessions,
   });
 
   if (error || !data) {
@@ -271,6 +278,7 @@ export async function updateSubjectForManager(
   input: {
     id: string;
     name: string;
+    nb_sessions: number;
     syllabus_link?: string;
     reference_link?: string;
     handout_link?: string;
@@ -287,6 +295,7 @@ export async function updateSubjectForManager(
 
   const parsed = updateSubjectSchema.safeParse({
     name: input.name,
+    nb_sessions: input.nb_sessions,
     syllabus_link: input.syllabus_link,
     reference_link: input.reference_link,
     handout_link: input.handout_link,
@@ -301,7 +310,8 @@ export async function updateSubjectForManager(
   }
 
   const { id } = input;
-  const { name, syllabus_link, reference_link, handout_link } = parsed.data;
+  const { name, nb_sessions, syllabus_link, reference_link, handout_link } =
+    parsed.data;
   const normalizedName = name.trim();
   const normalizedSyllabus = normalizeOptionalString(syllabus_link);
   const normalizedReference = normalizeOptionalString(reference_link);
@@ -363,6 +373,7 @@ export async function updateSubjectForManager(
       syllabus_link: normalizedSyllabus,
       reference_link: normalizedReference,
       handout_link: normalizedHandout,
+      nb_sessions,
     }
   );
 
@@ -383,12 +394,14 @@ export async function updateSubjectForManager(
       syllabus_link: existingSubject.data.syllabus_link,
       reference_link: existingSubject.data.reference_link,
       handout_link: existingSubject.data.handout_link,
+      nb_sessions: existingSubject.data.nb_sessions,
     },
     new_data: {
       name: data.name,
       syllabus_link: data.syllabus_link,
       reference_link: data.reference_link,
       handout_link: data.handout_link,
+      nb_sessions: data.nb_sessions,
     },
     metadata: { note: "Subject updated." },
   });
@@ -542,5 +555,29 @@ export async function listSubjectClassesForManager(
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapClassRecordToSubjectClassRow);
+  const classes = data ?? [];
+  const classIds = classes.map((row) => row.id);
+  const sessionResult = await sessionRepository.listSessionCountsByClassIds(
+    adminClient,
+    classIds
+  );
+
+  if (sessionResult.error) {
+    throw new Error(sessionResult.error.message);
+  }
+
+  const sessionCounts = new Map<string, number>();
+  for (const row of sessionResult.data ?? []) {
+    sessionCounts.set(row.class_id, (sessionCounts.get(row.class_id) ?? 0) + 1);
+  }
+
+  const subjectNbSessions = subjectResult.data.nb_sessions;
+
+  return classes.map((record) =>
+    mapClassRecordToSubjectClassRow(
+      record,
+      subjectNbSessions,
+      sessionCounts.get(record.id) ?? 0
+    )
+  );
 }

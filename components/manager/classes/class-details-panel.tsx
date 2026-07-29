@@ -36,7 +36,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { getClassSessionCompletionRate } from "@/lib/constants/manager-semester-class-progress";
+import {
+  getClassProgressTone,
+  getClassSessionCompletionRate,
+} from "@/lib/constants/manager-semester-class-progress";
 import {
   CLASS_STATUS_BADGE_CLASSES,
   CLASS_STATUS_LABELS,
@@ -136,6 +139,7 @@ export function ClassDetailsPanel({
   const [teachers, setTeachers] = useState(initialTeachers);
 
   const sessionRate = getClassSessionCompletionRate(classRow);
+  const sessionTone = getClassProgressTone(classRow);
   const gradesUnlocked = isClassGradesUnlocked(classRow.status);
   const statusLabel = CLASS_STATUS_LABELS[classRow.status] ?? classRow.status;
   const statusClassName =
@@ -300,6 +304,25 @@ export function ClassDetailsPanel({
             />
             <DetailField label="Created" value={createdText} />
           </dl>
+
+          <div className="mt-6 flex flex-col gap-1.5 border-t pt-4">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">Session progress</span>
+              <span className="font-medium tabular-nums text-foreground">
+                {classRow.completed_sessions}/{classRow.subject_nb_sessions} ·{" "}
+                {sessionRate}%
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-[width]",
+                  sessionTone.fillClassName
+                )}
+                style={{ width: `${sessionRate}%` }}
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 

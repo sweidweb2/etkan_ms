@@ -63,6 +63,7 @@ export function EditSubjectDialog({
     mode: "onBlur",
     defaultValues: {
       name: subject.name,
+      nb_sessions: subject.nb_sessions,
       syllabus_link: subject.syllabus_link ?? "",
       reference_link: subject.reference_link ?? "",
       handout_link: subject.handout_link ?? "",
@@ -73,6 +74,7 @@ export function EditSubjectDialog({
     if (open) {
       reset({
         name: subject.name,
+        nb_sessions: subject.nb_sessions,
         syllabus_link: subject.syllabus_link ?? "",
         reference_link: subject.reference_link ?? "",
         handout_link: subject.handout_link ?? "",
@@ -91,6 +93,7 @@ export function EditSubjectDialog({
     const formData = new FormData();
     formData.set("id", subject.id);
     formData.set("name", values.name.trim());
+    formData.set("nb_sessions", String(values.nb_sessions));
     formData.set("syllabus_link", values.syllabus_link?.trim() ?? "");
     formData.set("reference_link", values.reference_link?.trim() ?? "");
     formData.set("handout_link", values.handout_link?.trim() ?? "");
@@ -101,6 +104,8 @@ export function EditSubjectDialog({
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const sessionsError =
+    errors.nb_sessions?.message ?? state.fieldErrors?.nb_sessions?.[0];
   const syllabusError =
     errors.syllabus_link?.message ?? state.fieldErrors?.syllabus_link?.[0];
   const referenceError =
@@ -114,7 +119,7 @@ export function EditSubjectDialog({
         <DialogHeader>
           <DialogTitle>Edit subject</DialogTitle>
           <DialogDescription>
-            Update subject details and resource links.
+            Update subject details, planned session count, and resource links.
           </DialogDescription>
         </DialogHeader>
 
@@ -134,6 +139,25 @@ export function EditSubjectDialog({
             />
             {nameError ? (
               <p className="text-sm text-destructive">{nameError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-subject-sessions"
+              label="Number of sessions"
+              hint="Required"
+            />
+            <Input
+              id="edit-subject-sessions"
+              type="number"
+              min="0"
+              aria-invalid={!!sessionsError}
+              disabled={isPending}
+              {...register("nb_sessions")}
+            />
+            {sessionsError ? (
+              <p className="text-sm text-destructive">{sessionsError}</p>
             ) : null}
           </div>
 

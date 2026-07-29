@@ -29,6 +29,7 @@ export type UpdateSubjectRecordInput = {
   syllabus_link: string | null;
   reference_link: string | null;
   handout_link: string | null;
+  nb_sessions: number;
 };
 
 export async function listSubjects(client: Supabase) {
@@ -83,6 +84,7 @@ export async function updateSubjectById(
       syllabus_link: input.syllabus_link,
       reference_link: input.reference_link,
       handout_link: input.handout_link,
+      nb_sessions: input.nb_sessions,
     })
     .eq("id", id)
     .select(SUBJECT_COLUMNS)
