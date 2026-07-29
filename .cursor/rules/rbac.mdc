@@ -5,4 +5,7 @@ alwaysApply: true
 
 # RBAC permissions doc
 
-When you add or change a feature, or any action under a feature, update `docs/[11] RBAC/[02] permission-definitions.md` with the matching permission(s).
+When you add or change a feature, or any action under a feature:
+
+1. Update `docs/[11] RBAC/[02] permission-definitions.md` with the matching permission(s).
+2. Add the same key(s) to `lib/constants/permissions.ts` (`PERMISSIONS` + `PERMISSION_DEFINITIONS`).

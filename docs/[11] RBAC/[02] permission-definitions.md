@@ -1,6 +1,6 @@
 # RBAC — Permission Definitions (frozen)
 
-**Status:** Phase 0 complete — list frozen for coding (Phase 1).  
+**Status:** Phase 0–1 complete — frozen list lives in code at `lib/constants/permissions.ts`.  
 **Baseline:** manager panel capabilities.  
 **Roles co-manager / trainer:** empty panels — no keys yet.
 
@@ -337,4 +337,4 @@ settings.update_credentials
 
 ## Change rule
 
-New feature or action → add a row here first (see `.cursor/rules/rbac.mdc`), then implement in code (Phase 1+).
+New feature or action → add a row here first (see `.cursor/rules/rbac.mdc`), then add the same key to `lib/constants/permissions.ts`.

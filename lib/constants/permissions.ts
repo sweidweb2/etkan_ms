@@ -1,0 +1,775 @@
+/**
+ * Official RBAC permission keys (Phase 1).
+ *
+ * Source of truth for seeds and the authorization engine.
+ * New feature / action → update `docs/[11] RBAC/[02] permission-definitions.md`
+ * first, then add the matching entry here.
+ */
+
+export const PERMISSION_ACCESS = {
+  READ: "read",
+  WRITE: "write",
+} as const;
+
+export type PermissionAccess =
+  (typeof PERMISSION_ACCESS)[keyof typeof PERMISSION_ACCESS];
+
+export const PERMISSION_FEATURES = [
+  "dashboard",
+  "users",
+  "students",
+  "relationships",
+  "subjects",
+  "classes",
+  "sessions",
+  "attendance",
+  "tasks",
+  "final_exams",
+  "grades",
+  "semesters",
+  "equipment",
+  "schedule",
+  "notifications",
+  "emailing",
+  "accounting",
+  "reports",
+  "analytics",
+  "backup",
+  "logs",
+  "cron_jobs",
+  "settings",
+] as const;
+
+export type PermissionFeature = (typeof PERMISSION_FEATURES)[number];
+
+export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
+  dashboard: "Dashboard",
+  users: "Users",
+  students: "Students",
+  relationships: "Relationships",
+  subjects: "Subjects",
+  classes: "Classes",
+  sessions: "Sessions",
+  attendance: "Attendance",
+  tasks: "Tasks",
+  final_exams: "Final Exams",
+  grades: "Grades",
+  semesters: "Semesters",
+  equipment: "Equipment",
+  schedule: "Schedule",
+  notifications: "Notifications",
+  emailing: "Emailing",
+  accounting: "Accounting",
+  reports: "Reports",
+  analytics: "Analytics",
+  backup: "Backup",
+  logs: "Logs",
+  cron_jobs: "Cron Jobs",
+  settings: "Settings",
+};
+
+/** Stable permission keys — import these in services and UI. */
+export const PERMISSIONS = {
+  DASHBOARD_VIEW: "dashboard.view",
+
+  USERS_VIEW: "users.view",
+  USERS_CREATE: "users.create",
+  USERS_UPDATE: "users.update",
+
+  STUDENTS_VIEW: "students.view",
+  STUDENTS_CREATE: "students.create",
+  STUDENTS_UPDATE: "students.update",
+  STUDENTS_CHANGE_STATUS: "students.change_status",
+
+  RELATIONSHIPS_VIEW: "relationships.view",
+  RELATIONSHIPS_CREATE: "relationships.create",
+  RELATIONSHIPS_UPDATE: "relationships.update",
+
+  SUBJECTS_VIEW: "subjects.view",
+  SUBJECTS_CREATE: "subjects.create",
+  SUBJECTS_UPDATE: "subjects.update",
+  SUBJECTS_DELETE: "subjects.delete",
+
+  CLASSES_VIEW: "classes.view",
+  CLASSES_CREATE: "classes.create",
+  CLASSES_UPDATE: "classes.update",
+  CLASSES_CHANGE_STATUS: "classes.change_status",
+  CLASSES_ASSIGN_TEACHER: "classes.assign_teacher",
+  CLASSES_UNASSIGN_TEACHER: "classes.unassign_teacher",
+  CLASSES_ADD_STUDENT: "classes.add_student",
+  CLASSES_CHANGE_ENROLLMENT: "classes.change_enrollment",
+  CLASSES_VIEW_ANALYTICS: "classes.view_analytics",
+
+  SESSIONS_VIEW: "sessions.view",
+  SESSIONS_CREATE: "sessions.create",
+  SESSIONS_UPDATE: "sessions.update",
+  SESSIONS_DELETE: "sessions.delete",
+  SESSIONS_UPDATE_SETTINGS: "sessions.update_settings",
+
+  ATTENDANCE_VIEW: "attendance.view",
+  ATTENDANCE_UPDATE: "attendance.update",
+
+  TASKS_VIEW: "tasks.view",
+  TASKS_CREATE: "tasks.create",
+  TASKS_UPDATE_STUDENT: "tasks.update_student",
+
+  FINAL_EXAMS_VIEW: "final_exams.view",
+  FINAL_EXAMS_CREATE: "final_exams.create",
+  FINAL_EXAMS_UPDATE: "final_exams.update",
+  FINAL_EXAMS_UPDATE_STUDENT: "final_exams.update_student",
+
+  GRADES_VIEW: "grades.view",
+  GRADES_COMPUTE: "grades.compute",
+  GRADES_COMPUTE_ALL: "grades.compute_all",
+  GRADES_COMPUTE_CUSTOM: "grades.compute_custom",
+  GRADES_DELETE: "grades.delete",
+  GRADES_EXPORT_CERTIFICATES: "grades.export_certificates",
+  GRADES_EXPORT_FAST_CERTIFICATE: "grades.export_fast_certificate",
+  GRADES_PREVIEW_CERTIFICATE: "grades.preview_certificate",
+
+  SEMESTERS_VIEW: "semesters.view",
+  SEMESTERS_CREATE: "semesters.create",
+  SEMESTERS_UPDATE: "semesters.update",
+  SEMESTERS_ADD_STUDENT: "semesters.add_student",
+  SEMESTERS_CONNECT_CLASS: "semesters.connect_class",
+
+  EQUIPMENT_VIEW: "equipment.view",
+  EQUIPMENT_CREATE: "equipment.create",
+  EQUIPMENT_UPDATE: "equipment.update",
+  EQUIPMENT_VIEW_BORROWS: "equipment.view_borrows",
+  EQUIPMENT_BORROW_CREATE: "equipment.borrow_create",
+  EQUIPMENT_BORROW_UPDATE: "equipment.borrow_update",
+  EQUIPMENT_BORROW_RETURN: "equipment.borrow_return",
+
+  SCHEDULE_VIEW: "schedule.view",
+  SCHEDULE_CREATE: "schedule.create",
+  SCHEDULE_UPDATE: "schedule.update",
+  SCHEDULE_DELETE: "schedule.delete",
+
+  NOTIFICATIONS_VIEW: "notifications.view",
+  NOTIFICATIONS_CREATE: "notifications.create",
+  NOTIFICATIONS_UPDATE: "notifications.update",
+  NOTIFICATIONS_MARK_READ: "notifications.mark_read",
+  NOTIFICATIONS_DELETE: "notifications.delete",
+
+  EMAILING_VIEW: "emailing.view",
+  EMAILING_SEND: "emailing.send",
+  EMAILING_RESEND: "emailing.resend",
+
+  ACCOUNTING_VIEW: "accounting.view",
+
+  REPORTS_VIEW: "reports.view",
+  REPORTS_EXPORT: "reports.export",
+  REPORTS_PRINT: "reports.print",
+
+  ANALYTICS_VIEW: "analytics.view",
+
+  BACKUP_VIEW: "backup.view",
+  BACKUP_EXPORT_TABLE: "backup.export_table",
+  BACKUP_EXPORT_FULL: "backup.export_full",
+  BACKUP_DOWNLOAD: "backup.download",
+
+  LOGS_VIEW: "logs.view",
+
+  CRON_JOBS_VIEW: "cron_jobs.view",
+
+  SETTINGS_VIEW: "settings.view",
+  SETTINGS_MAINTENANCE: "settings.maintenance",
+  SETTINGS_UPDATE_CREDENTIALS: "settings.update_credentials",
+} as const;
+
+export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+export type PermissionDefinition = {
+  key: PermissionKey;
+  feature: PermissionFeature;
+  label: string;
+  access: PermissionAccess;
+};
+
+/**
+ * Human labels + access for UI / seeds.
+ * Must stay 1:1 with `PERMISSIONS` and `docs/[11] RBAC/[02]`.
+ */
+export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
+  {
+    key: PERMISSIONS.DASHBOARD_VIEW,
+    feature: "dashboard",
+    label: "View dashboard",
+    access: PERMISSION_ACCESS.READ,
+  },
+
+  {
+    key: PERMISSIONS.USERS_VIEW,
+    feature: "users",
+    label: "View users",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.USERS_CREATE,
+    feature: "users",
+    label: "Create staff user",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.USERS_UPDATE,
+    feature: "users",
+    label: "Edit user",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.STUDENTS_VIEW,
+    feature: "students",
+    label: "View students",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.STUDENTS_CREATE,
+    feature: "students",
+    label: "Create student",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.STUDENTS_UPDATE,
+    feature: "students",
+    label: "Edit student",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.STUDENTS_CHANGE_STATUS,
+    feature: "students",
+    label: "Change student status",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.RELATIONSHIPS_VIEW,
+    feature: "relationships",
+    label: "View relationships",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.RELATIONSHIPS_CREATE,
+    feature: "relationships",
+    label: "Create relationship",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.RELATIONSHIPS_UPDATE,
+    feature: "relationships",
+    label: "Edit relationship",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.SUBJECTS_VIEW,
+    feature: "subjects",
+    label: "View subjects",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_CREATE,
+    feature: "subjects",
+    label: "Create subject",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_UPDATE,
+    feature: "subjects",
+    label: "Edit subject",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_DELETE,
+    feature: "subjects",
+    label: "Delete subject",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.CLASSES_VIEW,
+    feature: "classes",
+    label: "View classes",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.CLASSES_CREATE,
+    feature: "classes",
+    label: "Create class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_UPDATE,
+    feature: "classes",
+    label: "Edit class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_CHANGE_STATUS,
+    feature: "classes",
+    label: "Change class status",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_ASSIGN_TEACHER,
+    feature: "classes",
+    label: "Assign teacher",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_UNASSIGN_TEACHER,
+    feature: "classes",
+    label: "Unassign teacher",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_ADD_STUDENT,
+    feature: "classes",
+    label: "Add student to class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_CHANGE_ENROLLMENT,
+    feature: "classes",
+    label: "Change student enrollment status",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_VIEW_ANALYTICS,
+    feature: "classes",
+    label: "View class analytics",
+    access: PERMISSION_ACCESS.READ,
+  },
+
+  {
+    key: PERMISSIONS.SESSIONS_VIEW,
+    feature: "sessions",
+    label: "View sessions",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SESSIONS_CREATE,
+    feature: "sessions",
+    label: "Create session",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SESSIONS_UPDATE,
+    feature: "sessions",
+    label: "Edit session",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SESSIONS_DELETE,
+    feature: "sessions",
+    label: "Delete session",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SESSIONS_UPDATE_SETTINGS,
+    feature: "sessions",
+    label: "Update session settings",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.ATTENDANCE_VIEW,
+    feature: "attendance",
+    label: "View attendance",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.ATTENDANCE_UPDATE,
+    feature: "attendance",
+    label: "Update attendance",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.TASKS_VIEW,
+    feature: "tasks",
+    label: "View tasks",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.TASKS_CREATE,
+    feature: "tasks",
+    label: "Create task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TASKS_UPDATE_STUDENT,
+    feature: "tasks",
+    label: "Edit student task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.FINAL_EXAMS_VIEW,
+    feature: "final_exams",
+    label: "View final exam",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.FINAL_EXAMS_CREATE,
+    feature: "final_exams",
+    label: "Create final exam",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.FINAL_EXAMS_UPDATE,
+    feature: "final_exams",
+    label: "Edit final exam",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.FINAL_EXAMS_UPDATE_STUDENT,
+    feature: "final_exams",
+    label: "Edit student final-exam grade",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.GRADES_VIEW,
+    feature: "grades",
+    label: "View class grades",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.GRADES_COMPUTE,
+    feature: "grades",
+    label: "Compute student grade",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GRADES_COMPUTE_ALL,
+    feature: "grades",
+    label: "Compute all class grades",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GRADES_COMPUTE_CUSTOM,
+    feature: "grades",
+    label: "Compute grade with custom weights",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GRADES_DELETE,
+    feature: "grades",
+    label: "Delete computed grade",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GRADES_EXPORT_CERTIFICATES,
+    feature: "grades",
+    label: "Export grade certificates",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GRADES_EXPORT_FAST_CERTIFICATE,
+    feature: "grades",
+    label: "Export fast certificate",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GRADES_PREVIEW_CERTIFICATE,
+    feature: "grades",
+    label: "Preview grade certificate",
+    access: PERMISSION_ACCESS.READ,
+  },
+
+  {
+    key: PERMISSIONS.SEMESTERS_VIEW,
+    feature: "semesters",
+    label: "View semesters",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SEMESTERS_CREATE,
+    feature: "semesters",
+    label: "Create semester",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SEMESTERS_UPDATE,
+    feature: "semesters",
+    label: "Edit semester",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SEMESTERS_ADD_STUDENT,
+    feature: "semesters",
+    label: "Add student to semester",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SEMESTERS_CONNECT_CLASS,
+    feature: "semesters",
+    label: "Connect class to semester",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.EQUIPMENT_VIEW,
+    feature: "equipment",
+    label: "View equipment",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.EQUIPMENT_CREATE,
+    feature: "equipment",
+    label: "Create equipment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.EQUIPMENT_UPDATE,
+    feature: "equipment",
+    label: "Edit equipment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.EQUIPMENT_VIEW_BORROWS,
+    feature: "equipment",
+    label: "View borrow history",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.EQUIPMENT_BORROW_CREATE,
+    feature: "equipment",
+    label: "Create borrow",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.EQUIPMENT_BORROW_UPDATE,
+    feature: "equipment",
+    label: "Edit borrow",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.EQUIPMENT_BORROW_RETURN,
+    feature: "equipment",
+    label: "Mark borrow returned / not returned",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.SCHEDULE_VIEW,
+    feature: "schedule",
+    label: "View schedule",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SCHEDULE_CREATE,
+    feature: "schedule",
+    label: "Create schedule slot",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SCHEDULE_UPDATE,
+    feature: "schedule",
+    label: "Edit schedule slot",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SCHEDULE_DELETE,
+    feature: "schedule",
+    label: "Delete schedule slot",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.NOTIFICATIONS_VIEW,
+    feature: "notifications",
+    label: "View notifications",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.NOTIFICATIONS_CREATE,
+    feature: "notifications",
+    label: "Create notification",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.NOTIFICATIONS_UPDATE,
+    feature: "notifications",
+    label: "Edit notification",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.NOTIFICATIONS_MARK_READ,
+    feature: "notifications",
+    label: "Mark notification(s) read",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.NOTIFICATIONS_DELETE,
+    feature: "notifications",
+    label: "Delete notification",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.EMAILING_VIEW,
+    feature: "emailing",
+    label: "View emailing and sent mail",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.EMAILING_SEND,
+    feature: "emailing",
+    label: "Compose and send email",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.EMAILING_RESEND,
+    feature: "emailing",
+    label: "Resend email",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.ACCOUNTING_VIEW,
+    feature: "accounting",
+    label: "View accounting page",
+    access: PERMISSION_ACCESS.READ,
+  },
+
+  {
+    key: PERMISSIONS.REPORTS_VIEW,
+    feature: "reports",
+    label: "View reports",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.REPORTS_EXPORT,
+    feature: "reports",
+    label: "Export report CSV",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.REPORTS_PRINT,
+    feature: "reports",
+    label: "Print report",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.ANALYTICS_VIEW,
+    feature: "analytics",
+    label: "View analytics",
+    access: PERMISSION_ACCESS.READ,
+  },
+
+  {
+    key: PERMISSIONS.BACKUP_VIEW,
+    feature: "backup",
+    label: "View backup history",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.BACKUP_EXPORT_TABLE,
+    feature: "backup",
+    label: "Export table backup",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.BACKUP_EXPORT_FULL,
+    feature: "backup",
+    label: "Export full backup",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.BACKUP_DOWNLOAD,
+    feature: "backup",
+    label: "Download backup file",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.LOGS_VIEW,
+    feature: "logs",
+    label: "View audit logs",
+    access: PERMISSION_ACCESS.READ,
+  },
+
+  {
+    key: PERMISSIONS.CRON_JOBS_VIEW,
+    feature: "cron_jobs",
+    label: "View cron jobs",
+    access: PERMISSION_ACCESS.READ,
+  },
+
+  {
+    key: PERMISSIONS.SETTINGS_VIEW,
+    feature: "settings",
+    label: "View settings",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SETTINGS_MAINTENANCE,
+    feature: "settings",
+    label: "Toggle maintenance mode",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SETTINGS_UPDATE_CREDENTIALS,
+    feature: "settings",
+    label: "Update own email or password",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+] as const;
+
+export const PERMISSION_KEYS = Object.values(PERMISSIONS) as PermissionKey[];
+
+export const PERMISSION_KEY_SET: ReadonlySet<PermissionKey> = new Set(
+  PERMISSION_KEYS
+);
+
+export const PERMISSION_LABELS: Record<PermissionKey, string> =
+  Object.fromEntries(
+    PERMISSION_DEFINITIONS.map((definition) => [
+      definition.key,
+      definition.label,
+    ])
+  ) as Record<PermissionKey, string>;
+
+export const PERMISSION_ACCESS_BY_KEY: Record<PermissionKey, PermissionAccess> =
+  Object.fromEntries(
+    PERMISSION_DEFINITIONS.map((definition) => [
+      definition.key,
+      definition.access,
+    ])
+  ) as Record<PermissionKey, PermissionAccess>;
+
+/** Agreed key pattern: `{feature}.{action}` with snake_case segments. */
+export const PERMISSION_KEY_PATTERN =
+  /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
+
+export function isPermissionKey(value: string): value is PermissionKey {
+  return PERMISSION_KEY_SET.has(value as PermissionKey);
+}
+
+export function getPermissionDefinition(
+  key: PermissionKey
+): PermissionDefinition {
+  const definition = PERMISSION_DEFINITIONS.find((item) => item.key === key);
+  if (!definition) {
+    throw new Error(`Missing permission definition for key: ${key}`);
+  }
+  return definition;
+}
+
+export function getPermissionsByFeature(
+  feature: PermissionFeature
+): PermissionDefinition[] {
+  return PERMISSION_DEFINITIONS.filter(
+    (definition) => definition.feature === feature
+  );
+}
+
+export function getPermissionKeysByFeature(
+  feature: PermissionFeature
+): PermissionKey[] {
+  return getPermissionsByFeature(feature).map((definition) => definition.key);
+}

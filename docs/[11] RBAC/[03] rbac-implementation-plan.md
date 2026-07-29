@@ -53,20 +53,22 @@ Official list lives in code so the app and seeds share one source.
 
 ### Tasks
 
-- [ ] Create `lib/constants/permissions.ts` (or similar) with all permission keys
-- [ ] Group keys by feature (match `[02]`)
-- [ ] Add human labels / descriptions map for UI later
-- [ ] Export TypeScript type for a permission key
-- [ ] Export helper lists (all keys, keys by feature)
-- [ ] Document: new feature → add permission here first
+- [x] Create `lib/constants/permissions.ts` (or similar) with all permission keys
+- [x] Group keys by feature (match `[02]`)
+- [x] Add human labels / descriptions map for UI later
+- [x] Export TypeScript type for a permission key
+- [x] Export helper lists (all keys, keys by feature)
+- [x] Document: new feature → add permission here first
 
 ### Testing
 
-- [ ] Unit test: all keys are unique
-- [ ] Unit test: key format matches the agreed pattern
-- [ ] Typecheck passes with the new module
+- [x] Unit test: all keys are unique
+- [x] Unit test: key format matches the agreed pattern
+- [x] Typecheck passes with the new module
 
-**Done when:** app code can import stable permission keys.
+**Done when:** app code can import stable permission keys. ✅
+
+**Result:** `lib/constants/permissions.ts` — 84 keys, labels, access, feature helpers + `permissions.test.ts`.
 
 ---
 
