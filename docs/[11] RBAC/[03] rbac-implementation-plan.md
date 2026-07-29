@@ -109,25 +109,27 @@ One place answers: *can this user do this action?*
 
 ### Tasks
 
-- [ ] Add authorization service (e.g. `services/authorization.service.ts`)
-- [ ] Implement `getUserPermissions(userId)` (via profile role → role_permissions)
-- [ ] Implement `hasPermission(userId, permission)`
-- [ ] Implement `requirePermission(userId, permission)` (throw / return unauthorized result)
-- [ ] Optional: `hasAnyPermission` / `hasAllPermissions` for compound UI gates
-- [ ] Cache strategy for one request (avoid N queries per page) — e.g. load once per request
-- [ ] Keep repositories free of auth logic; engine uses permission repositories only
-- [ ] Do **not** remove old manager role checks yet
+- [x] Add authorization service (e.g. `services/authorization.service.ts`)
+- [x] Implement `getUserPermissions(userId)` (via profile role → role_permissions)
+- [x] Implement `hasPermission(userId, permission)`
+- [x] Implement `requirePermission(userId, permission)` (throw / return unauthorized result)
+- [x] Optional: `hasAnyPermission` / `hasAllPermissions` for compound UI gates
+- [x] Cache strategy for one request (avoid N queries per page) — e.g. load once per request
+- [x] Keep repositories free of auth logic; engine uses permission repositories only
+- [x] Do **not** remove old manager role checks yet
 
 ### Testing
 
-- [ ] Unit tests: manager user → allowed for sample permissions
-- [ ] Unit tests: teacher/student with no grants → denied
-- [ ] Unit tests: unknown permission key → denied (safe default)
-- [ ] Unit tests: missing user / missing profile → denied
-- [ ] Unit tests: requirePermission fails with a clear unauthorized outcome
-- [ ] Smoke: engine used from a throwaway script or temporary call site without breaking login
+- [x] Unit tests: manager user → allowed for sample permissions
+- [x] Unit tests: teacher/student with no grants → denied
+- [x] Unit tests: unknown permission key → denied (safe default)
+- [x] Unit tests: missing user / missing profile → denied
+- [x] Unit tests: requirePermission fails with a clear unauthorized outcome
+- [x] Smoke: engine used from a throwaway script or temporary call site without breaking login
 
-**Done when:** engine is trusted and tested; nothing critical depends on it yet.
+**Done when:** engine is trusted and tested; nothing critical depends on it yet. ✅
+
+**Result:** `services/authorization.service.ts` + tests; `npm run smoke:authz`. Manager role checks unchanged.
 
 ---
 
