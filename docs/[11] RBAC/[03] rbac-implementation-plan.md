@@ -28,20 +28,22 @@ Turn the business list into stable keys before any schema or code engine.
 
 ### Tasks
 
-- [ ] Review `docs/[11] RBAC/[02] permission-definitions.md` with the team
-- [ ] Decide final feature groups (keep or merge small ones)
-- [ ] Agree naming style for keys (example: `students.view`, `students.create`, `grades.compute`)
-- [ ] Add a short note in the doc: **key ↔ human label** for each permission
-- [ ] Mark which permissions are **read** vs **write** (helps UI and tests later)
-- [ ] Confirm: Accounting stays as view-only until that feature exists
+- [x] Review `docs/[11] RBAC/[02] permission-definitions.md` with the team
+- [x] Decide final feature groups (keep or merge small ones)
+- [x] Agree naming style for keys (example: `students.view`, `students.create`, `grades.compute`)
+- [x] Add a short note in the doc: **key ↔ human label** for each permission
+- [x] Mark which permissions are **read** vs **write** (helps UI and tests later)
+- [x] Confirm: Accounting stays as view-only until that feature exists
 
 ### Testing
 
-- [ ] Every manager action in `[02]` has exactly one key
-- [ ] No duplicate keys
-- [ ] Naming is consistent across features
+- [x] Every manager action in `[02]` has exactly one key
+- [x] No duplicate keys
+- [x] Naming is consistent across features
 
-**Done when:** permission list is frozen and ready to code.
+**Done when:** permission list is frozen and ready to code. ✅
+
+**Result:** `[02] permission-definitions.md` frozen — 84 keys, `{feature}.{action}`, read/write marked. Ready for Phase 1.
 
 ---
 
