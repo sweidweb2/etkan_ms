@@ -12,8 +12,11 @@ export type ManagerSppDetail = {
   payment_phase_id: string;
   payment_phase_name: string;
   payment_phase_status: PaymentPhaseStatus;
-  class_id: string;
-  class_name: string;
+  semester_id: string;
+  semester_name: string;
+  semester_code: string;
+  billing_class_id: string | null;
+  billing_class_name: string | null;
   phase_amount: number;
   status: StudentPaymentPhaseStatus;
   original_amount: number;

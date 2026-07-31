@@ -7,6 +7,7 @@ import {
   type PaymentPhaseStatus,
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
+import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createStudentPaymentSchema } from "@/lib/validators/manager/create-student-payment";
 import { deleteStudentPaymentSchema } from "@/lib/validators/manager/delete-student-payment";
@@ -212,6 +213,10 @@ export async function getSppDetailForManager(
     ? sppRecord.status
     : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
   const remaining = Number(sppRecord.remaining_amount);
+  const billingClass = await resolveInProgressClassForSemester(
+    adminClient,
+    phaseRecord.semester_id
+  );
 
   return {
     id: sppRecord.id,
@@ -220,8 +225,11 @@ export async function getSppDetailForManager(
     payment_phase_id: phaseRecord.id,
     payment_phase_name: phaseRecord.name,
     payment_phase_status: phaseStatus,
-    class_id: phaseRecord.class_id,
-    class_name: phaseRecord.classes?.name ?? "Unknown class",
+    semester_id: phaseRecord.semester_id,
+    semester_name: phaseRecord.semesters?.name ?? "Unknown semester",
+    semester_code: phaseRecord.semester_code,
+    billing_class_id: billingClass?.id ?? null,
+    billing_class_name: billingClass?.name ?? null,
     phase_amount: Number(phaseRecord.amount),
     status: sppStatus,
     original_amount: Number(sppRecord.original_amount),

@@ -5,16 +5,17 @@ import {
   type PaymentPhaseStatus,
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
+import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
 import { buildInitialSppInsert } from "@/lib/manager/accounting/spp-insert";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cancelPaymentPhaseSchema } from "@/lib/validators/manager/cancel-payment-phase";
 import { createPaymentPhaseSchema } from "@/lib/validators/manager/create-payment-phase";
 import { repairMissingSppSchema } from "@/lib/validators/manager/repair-missing-spp";
 import { updatePaymentPhaseSchema } from "@/lib/validators/manager/update-payment-phase";
-import * as classRepository from "@/repositories/class.repository";
 import type { PaymentPhaseListRecord } from "@/repositories/payment-phase.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
@@ -32,8 +33,8 @@ import {
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerMissingSppRow,
-  ManagerPaymentPhaseClassOption,
   ManagerPaymentPhaseRow,
+  ManagerPaymentPhaseSemesterOption,
   ManagerSppRow,
 } from "@/types/manager-payment-phase";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -126,14 +127,17 @@ function isStudentPaymentPhaseStatus(
 function mapPhaseRecordToRow(
   record: PaymentPhaseListRecord,
   sppActiveCount: number,
-  sppPaidCount: number
+  sppPaidCount: number,
+  billingClass?: { id: string; name: string } | null
 ): ManagerPaymentPhaseRow {
   return {
     id: record.id,
     name: record.name,
-    class_id: record.class_id,
-    class_name: record.classes?.name ?? "Unknown class",
+    semester_id: record.semester_id,
+    semester_name: record.semesters?.name ?? "Unknown semester",
     semester_code: record.semester_code,
+    billing_class_id: billingClass?.id ?? null,
+    billing_class_name: billingClass?.name ?? null,
     status: isPaymentPhaseStatus(record.status)
       ? record.status
       : PAYMENT_PHASE_STATUSES.OPENED,
@@ -146,6 +150,28 @@ function mapPhaseRecordToRow(
     spp_active_count: sppActiveCount,
     spp_paid_count: sppPaidCount,
   };
+}
+
+async function buildBillingClassBySemesterId(
+  adminClient: Supabase,
+  semesterIds: string[]
+): Promise<Map<string, { id: string; name: string }>> {
+  const map = new Map<string, { id: string; name: string }>();
+  const unique = [...new Set(semesterIds.filter(Boolean))];
+
+  await Promise.all(
+    unique.map(async (semesterId) => {
+      const billingClass = await resolveInProgressClassForSemester(
+        adminClient,
+        semesterId
+      );
+      if (billingClass) {
+        map.set(semesterId, { id: billingClass.id, name: billingClass.name });
+      }
+    })
+  );
+
+  return map;
 }
 
 async function buildStudentLabelsByUserId(
@@ -279,9 +305,19 @@ export async function listPaymentPhasesForManager(
     records.map((record) => record.id)
   );
 
+  const billingBySemester = await buildBillingClassBySemesterId(
+    adminClient,
+    records.map((record) => record.semester_id)
+  );
+
   return records.map((record) => {
     const counts = sppCounts.get(record.id) ?? { active: 0, paid: 0 };
-    return mapPhaseRecordToRow(record, counts.active, counts.paid);
+    return mapPhaseRecordToRow(
+      record,
+      counts.active,
+      counts.paid,
+      billingBySemester.get(record.semester_id) ?? null
+    );
   });
 }
 
@@ -308,8 +344,21 @@ export async function listMissingSppForOpenedPhases(
     return [];
   }
 
-  const classIds = [...new Set(phases.map((phase) => phase.class_id))];
+  const billingBySemester = await buildBillingClassBySemesterId(
+    adminClient,
+    phases.map((phase) => phase.semester_id)
+  );
+
+  const classIds = [
+    ...new Set(
+      [...billingBySemester.values()].map((billingClass) => billingClass.id)
+    ),
+  ];
   const phaseIds = phases.map((phase) => phase.id);
+
+  if (classIds.length === 0) {
+    return [];
+  }
 
   const [
     { data: enrollments, error: enrollmentError },
@@ -346,14 +395,21 @@ export async function listMissingSppForOpenedPhases(
 
   const missing: Array<{
     student_id: string;
-    class_id: string;
-    class_name: string;
+    semester_id: string;
+    semester_name: string;
+    billing_class_id: string;
+    billing_class_name: string;
     payment_phase_id: string;
     payment_phase_name: string;
   }> = [];
 
   for (const phase of phases) {
-    const enrolled = enrolledByClassId.get(phase.class_id) ?? [];
+    const billingClass = billingBySemester.get(phase.semester_id);
+    if (!billingClass) {
+      continue;
+    }
+
+    const enrolled = enrolledByClassId.get(billingClass.id) ?? [];
     const existing = sppStudentsByPhaseId.get(phase.id) ?? new Set();
 
     for (const studentId of enrolled) {
@@ -363,8 +419,10 @@ export async function listMissingSppForOpenedPhases(
 
       missing.push({
         student_id: studentId,
-        class_id: phase.class_id,
-        class_name: phase.classes?.name ?? "Unknown class",
+        semester_id: phase.semester_id,
+        semester_name: phase.semesters?.name ?? "Unknown semester",
+        billing_class_id: billingClass.id,
+        billing_class_name: billingClass.name,
         payment_phase_id: phase.id,
         payment_phase_name: phase.name,
       });
@@ -384,52 +442,48 @@ export async function listMissingSppForOpenedPhases(
   }));
 }
 
-export async function listPaymentPhaseClassOptionsForManager(
+export async function listPaymentPhaseSemesterOptionsForManager(
   adminClient: Supabase,
   actorUserId: string | null
-): Promise<ManagerPaymentPhaseClassOption[]> {
+): Promise<ManagerPaymentPhaseSemesterOption[]> {
   await assertPermission(
     adminClient,
     actorUserId,
     PERMISSIONS.ACCOUNTING_VIEW
   );
 
-  const [{ data: classes, error: classError }, { data: opened, error: openedError }] =
-    await Promise.all([
-      classRepository.listClassesForPaymentPhasePicker(adminClient),
-      paymentPhaseRepository.listOpenedPaymentPhaseClassIds(adminClient),
-    ]);
+  const [
+    { data: semesters, error: semesterError },
+    { data: opened, error: openedError },
+  ] = await Promise.all([
+    semesterRepository.listSemestersForPaymentPhasePicker(adminClient),
+    paymentPhaseRepository.listOpenedPaymentPhaseSemesterIds(adminClient),
+  ]);
 
-  if (classError) {
-    throw new Error(classError.message);
+  if (semesterError) {
+    throw new Error(semesterError.message);
   }
 
   if (openedError) {
     throw new Error(openedError.message);
   }
 
-  const openedClassIds = new Set(
-    (opened ?? []).map((row) => row.class_id)
+  const openedSemesterIds = new Set(
+    (opened ?? []).map((row) => row.semester_id)
   );
 
-  return (classes ?? [])
+  return (semesters ?? [])
     .filter((row) => {
-      const semesterCode = row.semesters?.semester_code?.trim();
-      return Boolean(semesterCode) && !openedClassIds.has(row.id);
+      const semesterCode = row.semester_code?.trim();
+      return Boolean(semesterCode) && !openedSemesterIds.has(row.id);
     })
     .map((row) => {
-      const semester_code = row.semesters!.semester_code.trim();
-      const subject_name = row.subjects?.name ?? null;
-      const label = subject_name
-        ? `${row.name} · ${subject_name} · ${semester_code}`
-        : `${row.name} · ${semester_code}`;
-
+      const semester_code = row.semester_code.trim();
       return {
         id: row.id,
         name: row.name,
-        subject_name,
         semester_code,
-        label,
+        label: `${row.name} · ${semester_code}`,
       };
     });
 }
@@ -440,7 +494,7 @@ export async function createPaymentPhaseForManager(
   actor: AuditActor,
   input: {
     name: string;
-    class_id: string;
+    semester_id: string;
     amount: number;
     upfront_amount: number;
     duration_months: number;
@@ -469,7 +523,7 @@ export async function createPaymentPhaseForManager(
 
   const {
     name,
-    class_id,
+    semester_id,
     amount,
     upfront_amount,
     duration_months,
@@ -477,38 +531,35 @@ export async function createPaymentPhaseForManager(
     end_date,
   } = parsed.data;
 
-  const { data: classRow, error: classError } =
-    await classRepository.findClassForPaymentPhaseById(adminClient, class_id);
+  const { data: semesterRow, error: semesterError } =
+    await semesterRepository.findSemesterById(adminClient, semester_id);
 
-  if (classError) {
+  if (semesterError) {
     return {
       success: false,
       error: "Unable to create payment phase. Please try again.",
     };
   }
 
-  if (!classRow) {
-    return { success: false, error: "Class not found." };
+  if (!semesterRow) {
+    return { success: false, error: "Semester not found." };
   }
 
-  const semesterCode = classRow.semesters?.semester_code?.trim();
+  const semesterCode = semesterRow.semester_code?.trim();
   if (!semesterCode) {
     return {
       success: false,
-      error:
-        "This class has no semester code. Assign a semester with a code before creating a payment phase.",
+      error: "This semester has no semester code.",
       fieldErrors: {
-        class_id: [
-          "Class must belong to a semester with a semester code.",
-        ],
+        semester_id: ["Semester must have a semester code."],
       },
     };
   }
 
   const { data: existingOpened, error: openedError } =
-    await paymentPhaseRepository.findOpenedPaymentPhaseByClassId(
+    await paymentPhaseRepository.findOpenedPaymentPhaseBySemesterId(
       adminClient,
-      class_id
+      semester_id
     );
 
   if (openedError) {
@@ -521,9 +572,9 @@ export async function createPaymentPhaseForManager(
   if (existingOpened) {
     return {
       success: false,
-      error: "This class already has an opened payment phase.",
+      error: "This semester already has an opened payment phase.",
       fieldErrors: {
-        class_id: ["This class already has an opened payment phase."],
+        semester_id: ["This semester already has an opened payment phase."],
       },
     };
   }
@@ -531,7 +582,7 @@ export async function createPaymentPhaseForManager(
   const { data: phase, error: createError } =
     await paymentPhaseRepository.createPaymentPhase(adminClient, {
       name: name.trim(),
-      class_id,
+      semester_id,
       semester_code: semesterCode,
       amount,
       upfront_amount,
@@ -546,9 +597,9 @@ export async function createPaymentPhaseForManager(
     if (message.includes("unique") || message.includes("duplicate")) {
       return {
         success: false,
-        error: "This class already has an opened payment phase.",
+        error: "This semester already has an opened payment phase.",
         fieldErrors: {
-          class_id: ["This class already has an opened payment phase."],
+          semester_id: ["This semester already has an opened payment phase."],
         },
       };
     }
@@ -559,22 +610,33 @@ export async function createPaymentPhaseForManager(
     };
   }
 
-  const { data: enrolledRows, error: enrolledError } =
-    await studentClassRepository.listEnrolledUserIdsByClassId(
-      adminClient,
-      class_id
-    );
+  const billingClass = await resolveInProgressClassForSemester(
+    adminClient,
+    semester_id
+  );
 
-  if (enrolledError) {
-    return {
-      success: false,
-      error: "Payment phase created, but enrolled students could not be loaded.",
-    };
+  let enrolledUserIds: string[] = [];
+
+  if (billingClass) {
+    const { data: enrolledRows, error: enrolledError } =
+      await studentClassRepository.listEnrolledUserIdsByClassId(
+        adminClient,
+        billingClass.id
+      );
+
+    if (enrolledError) {
+      return {
+        success: false,
+        error:
+          "Payment phase created, but enrolled students could not be loaded.",
+      };
+    }
+
+    enrolledUserIds = [
+      ...new Set((enrolledRows ?? []).map((row) => row.user_id)),
+    ];
   }
 
-  const enrolledUserIds = [
-    ...new Set((enrolledRows ?? []).map((row) => row.user_id)),
-  ];
   const assignedAt = new Date().toISOString();
   const sppInputs = enrolledUserIds.map((studentId) =>
     buildInitialSppInsert(studentId, phase.id, amount, assignedAt)
@@ -603,7 +665,7 @@ export async function createPaymentPhaseForManager(
     record_id: phase.id,
     new_data: {
       name: phase.name,
-      class_id: phase.class_id,
+      semester_id: phase.semester_id,
       semester_code: phase.semester_code,
       amount: phase.amount,
       upfront_amount: phase.upfront_amount,
@@ -614,17 +676,17 @@ export async function createPaymentPhaseForManager(
     },
     metadata: {
       spp_count: sppInputs.length,
+      billing_class_id: billingClass?.id ?? null,
       note: "Payment phase created.",
     },
   });
 
   const phaseListRecord: PaymentPhaseListRecord = {
-    ...phase,
-    classes: {
-      id: classRow.id,
-      name: classRow.name,
-      semester_id: null,
-      semesters: classRow.semesters,
+    ...(phase as PaymentPhaseListRecord),
+    semesters: {
+      id: semesterRow.id,
+      name: semesterRow.name,
+      semester_code: semesterCode,
     },
   };
 
@@ -633,7 +695,10 @@ export async function createPaymentPhaseForManager(
     phase: mapPhaseRecordToRow(
       phaseListRecord,
       sppInputs.length,
-      0
+      0,
+      billingClass
+        ? { id: billingClass.id, name: billingClass.name }
+        : null
     ),
     message: "Payment phase created.",
   };
@@ -714,11 +779,23 @@ export async function repairMissingSppForManager(
     };
   }
 
+  const billingClass = await resolveInProgressClassForSemester(
+    adminClient,
+    phase.semester_id
+  );
+
+  if (!billingClass) {
+    return {
+      success: false,
+      error: "No in-progress class found for this semester.",
+    };
+  }
+
   const { data: enrollment, error: enrollmentError } =
     await studentClassRepository.findStudentClassByUserAndClass(
       adminClient,
       student_id,
-      phase.class_id
+      billingClass.id
     );
 
   if (enrollmentError) {
@@ -731,7 +808,7 @@ export async function repairMissingSppForManager(
   if (!enrollment || enrollment.status !== STUDENT_CLASS_STATUSES.ENROLLED) {
     return {
       success: false,
-      error: "Student is not enrolled in this class.",
+      error: "Student is not enrolled in this semester's in-progress class.",
     };
   }
 
@@ -742,7 +819,7 @@ export async function repairMissingSppForManager(
       phase: {
         id: phase.id,
         name: phase.name,
-        class_id: phase.class_id,
+        semester_id: phase.semester_id,
         semester_code: phase.semester_code,
         amount: Number(phase.amount),
         upfront_amount: Number(phase.upfront_amount),
@@ -829,8 +906,19 @@ export async function getPaymentPhaseForManager(
   const record = data as PaymentPhaseListRecord;
   const sppCounts = await buildSppCountsByPhaseId(adminClient, [record.id]);
   const counts = sppCounts.get(record.id) ?? { active: 0, paid: 0 };
+  const billingClass = await resolveInProgressClassForSemester(
+    adminClient,
+    record.semester_id
+  );
 
-  return mapPhaseRecordToRow(record, counts.active, counts.paid);
+  return mapPhaseRecordToRow(
+    record,
+    counts.active,
+    counts.paid,
+    billingClass
+      ? { id: billingClass.id, name: billingClass.name }
+      : null
+  );
 }
 
 export async function listSppsForPhaseForManager(
@@ -1048,10 +1136,21 @@ export async function updatePaymentPhaseForManager(
     finalRecord.id,
   ]);
   const counts = sppCounts.get(finalRecord.id) ?? { active: 0, paid: 0 };
+  const billingClass = await resolveInProgressClassForSemester(
+    adminClient,
+    finalRecord.semester_id
+  );
 
   return {
     success: true,
-    phase: mapPhaseRecordToRow(finalRecord, counts.active, counts.paid),
+    phase: mapPhaseRecordToRow(
+      finalRecord,
+      counts.active,
+      counts.paid,
+      billingClass
+        ? { id: billingClass.id, name: billingClass.name }
+        : null
+    ),
     message: "Payment phase updated.",
   };
 }
@@ -1140,10 +1239,21 @@ export async function cancelPaymentPhaseForManager(
     cancelledRecord.id,
   ]);
   const counts = sppCounts.get(cancelledRecord.id) ?? { active: 0, paid: 0 };
+  const billingClass = await resolveInProgressClassForSemester(
+    adminClient,
+    cancelledRecord.semester_id
+  );
 
   return {
     success: true,
-    phase: mapPhaseRecordToRow(cancelledRecord, counts.active, counts.paid),
+    phase: mapPhaseRecordToRow(
+      cancelledRecord,
+      counts.active,
+      counts.paid,
+      billingClass
+        ? { id: billingClass.id, name: billingClass.name }
+        : null
+    ),
     message: "Payment phase cancelled.",
   };
 }

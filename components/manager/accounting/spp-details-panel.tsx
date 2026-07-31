@@ -405,7 +405,10 @@ export function SppDetailsPanel({
                 {spp.payment_phase_name}
               </Link>
               {" · "}
-              {spp.class_name}
+              {spp.semester_name}
+              {spp.billing_class_name
+                ? ` · ${spp.billing_class_name}`
+                : ""}
             </p>
             {spp.payments_blocked ? (
               <p className="text-amber-700 dark:text-amber-300">

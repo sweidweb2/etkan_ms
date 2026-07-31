@@ -6,7 +6,7 @@ import {
 
 const validInput = {
   name: "Fall tuition",
-  class_id: "11111111-1111-4111-8111-111111111111",
+  semester_id: "11111111-1111-4111-8111-111111111111",
   amount: 1000,
   upfront_amount: 200,
   duration_months: 4,
@@ -49,7 +49,7 @@ describe("parseCreatePaymentPhaseFormData", () => {
   it("parses FormData into typed input", () => {
     const formData = new FormData();
     formData.set("name", "Fall tuition");
-    formData.set("class_id", validInput.class_id);
+    formData.set("semester_id", validInput.semester_id);
     formData.set("amount", "1000");
     formData.set("upfront_amount", "200");
     formData.set("duration_months", "4");
@@ -61,6 +61,7 @@ describe("parseCreatePaymentPhaseFormData", () => {
     if (parsed.success) {
       expect(parsed.data.amount).toBe(1000);
       expect(parsed.data.duration_months).toBe(4);
+      expect(parsed.data.semester_id).toBe(validInput.semester_id);
     }
   });
 });

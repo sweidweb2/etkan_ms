@@ -31,14 +31,14 @@ import {
 } from "@/lib/validators/manager/create-payment-phase";
 import type {
   CreatePaymentPhaseActionState,
-  ManagerPaymentPhaseClassOption,
+  ManagerPaymentPhaseSemesterOption,
 } from "@/types/manager-payment-phase";
 
 const initialState: CreatePaymentPhaseActionState = {};
 
 const defaultValues: CreatePaymentPhaseInput = {
   name: "",
-  class_id: "",
+  semester_id: "",
   amount: 0,
   upfront_amount: 0,
   duration_months: 1,
@@ -49,14 +49,14 @@ const defaultValues: CreatePaymentPhaseInput = {
 type CreatePaymentPhaseDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  classOptions: ManagerPaymentPhaseClassOption[];
+  semesterOptions: ManagerPaymentPhaseSemesterOption[];
   onCreated: () => void;
 };
 
 export function CreatePaymentPhaseDialog({
   open,
   onOpenChange,
-  classOptions,
+  semesterOptions,
   onCreated,
 }: CreatePaymentPhaseDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -83,8 +83,8 @@ export function CreatePaymentPhaseDialog({
     defaultValues,
   });
 
-  const selectedClassId = watch("class_id");
-  const hasClassOptions = classOptions.length > 0;
+  const selectedSemesterId = watch("semester_id");
+  const hasSemesterOptions = semesterOptions.length > 0;
 
   useEffect(() => {
     if (!open) {
@@ -100,7 +100,7 @@ export function CreatePaymentPhaseDialog({
   function onSubmit(values: CreatePaymentPhaseInput) {
     const formData = new FormData();
     formData.set("name", values.name.trim());
-    formData.set("class_id", values.class_id);
+    formData.set("semester_id", values.semester_id);
     formData.set("amount", String(values.amount));
     formData.set("upfront_amount", String(values.upfront_amount));
     formData.set("duration_months", String(values.duration_months));
@@ -113,8 +113,8 @@ export function CreatePaymentPhaseDialog({
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
-  const classError =
-    errors.class_id?.message ?? state.fieldErrors?.class_id?.[0];
+  const semesterError =
+    errors.semester_id?.message ?? state.fieldErrors?.semester_id?.[0];
   const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
   const upfrontError =
     errors.upfront_amount?.message ?? state.fieldErrors?.upfront_amount?.[0];
@@ -131,7 +131,8 @@ export function CreatePaymentPhaseDialog({
         <DialogHeader>
           <DialogTitle>Create payment phase</DialogTitle>
           <DialogDescription>
-            Open a payment phase for a class and assign enrolled students.
+            Open a payment phase for a semester. Students on the semester&apos;s
+            in-progress class are assigned automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -160,30 +161,30 @@ export function CreatePaymentPhaseDialog({
 
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="create-payment-phase-class"
-              label="Class"
-              hint="Required · semester code required · no opened phase"
+              htmlFor="create-payment-phase-semester"
+              label="Semester"
+              hint="Required · no opened phase"
             />
-            {hasClassOptions ? (
+            {hasSemesterOptions ? (
               <Select
-                value={selectedClassId || null}
+                value={selectedSemesterId || null}
                 onValueChange={(value) => {
                   if (!value) {
                     return;
                   }
-                  setValue("class_id", value, { shouldValidate: true });
+                  setValue("semester_id", value, { shouldValidate: true });
                 }}
                 disabled={isPending}
               >
                 <SelectTrigger
-                  id="create-payment-phase-class"
+                  id="create-payment-phase-semester"
                   className="w-full"
-                  aria-invalid={!!classError}
+                  aria-invalid={!!semesterError}
                 >
-                  <SelectValue placeholder="Select a class" />
+                  <SelectValue placeholder="Select a semester" />
                 </SelectTrigger>
                 <SelectContent align="start">
-                  {classOptions.map((option) => (
+                  {semesterOptions.map((option) => (
                     <SelectItem key={option.id} value={option.id}>
                       {option.label}
                     </SelectItem>
@@ -192,12 +193,12 @@ export function CreatePaymentPhaseDialog({
               </Select>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No eligible classes. Classes need a semester code and must not
-                already have an opened phase.
+                No eligible semesters. Semesters need a code and must not already
+                have an opened phase.
               </p>
             )}
-            {classError ? (
-              <p className="text-sm text-destructive">{classError}</p>
+            {semesterError ? (
+              <p className="text-sm text-destructive">{semesterError}</p>
             ) : null}
           </div>
 
@@ -225,7 +226,7 @@ export function CreatePaymentPhaseDialog({
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="create-payment-phase-upfront"
-                label="Upfront amount"
+                label="Upfront"
                 hint="Required"
               />
               <Input
@@ -247,7 +248,7 @@ export function CreatePaymentPhaseDialog({
             <FieldLabel
               htmlFor="create-payment-phase-duration"
               label="Duration (months)"
-              hint="Required · at least 1"
+              hint="Required"
             />
             <Input
               id="create-payment-phase-duration"
@@ -286,7 +287,7 @@ export function CreatePaymentPhaseDialog({
               <FieldLabel
                 htmlFor="create-payment-phase-end"
                 label="End date"
-                hint="Required · on or after start"
+                hint="Required"
               />
               <Input
                 id="create-payment-phase-end"
@@ -314,7 +315,7 @@ export function CreatePaymentPhaseDialog({
           <Button
             type="submit"
             form="create-payment-phase-form"
-            disabled={!hasClassOptions || isPending}
+            disabled={!hasSemesterOptions || isPending}
           >
             {isPending ? <InlineSpinner /> : null}
             Create phase

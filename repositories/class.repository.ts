@@ -88,32 +88,21 @@ export async function findClassById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
-const CLASS_PAYMENT_PHASE_PICKER_SELECT =
-  "id, name, subjects ( name ), semesters ( name, semester_code )";
-
-export type ClassPaymentPhasePickerRecord = {
-  id: string;
-  name: string;
-  subjects: { name: string } | null;
-  semesters: { name: string; semester_code: string } | null;
-};
-
-export async function listClassesForPaymentPhasePicker(client: Supabase) {
-  return client
-    .from("classes")
-    .select(CLASS_PAYMENT_PHASE_PICKER_SELECT)
-    .not("semester_id", "is", null)
-    .order("name", { ascending: true });
-}
-
-export async function findClassForPaymentPhaseById(
+/**
+ * Billing class for a semester: status = in_progress.
+ * If multiple exist, pick oldest created_at (deterministic).
+ */
+export async function findInProgressClassBySemesterId(
   client: Supabase,
-  id: string
+  semesterId: string
 ) {
   return client
     .from("classes")
-    .select(CLASS_PAYMENT_PHASE_PICKER_SELECT)
-    .eq("id", id)
+    .select(CLASS_COLUMNS)
+    .eq("semester_id", semesterId)
+    .eq("status", "in_progress")
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
 }
 

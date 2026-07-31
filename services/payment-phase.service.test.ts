@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as classRepository from "@/repositories/class.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
@@ -20,6 +21,7 @@ import {
 vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/payment-phase.repository");
 vi.mock("@/repositories/profile.repository");
+vi.mock("@/repositories/semester.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-financial-adjustment.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
@@ -45,6 +47,7 @@ const actor: AuditActor = {
   userLabel: "Manager",
 };
 
+const semesterId = "66666666-6666-4666-8666-666666666666";
 const classId = "22222222-2222-4222-8222-222222222222";
 const phaseId = "33333333-3333-4333-8333-333333333333";
 const studentA = "44444444-4444-4444-8444-444444444444";
@@ -52,7 +55,7 @@ const studentB = "55555555-5555-4555-8555-555555555555";
 
 const validCreateInput = {
   name: "Fall tuition",
-  class_id: classId,
+  semester_id: semesterId,
   amount: 1000,
   upfront_amount: 200,
   duration_months: 4,
@@ -60,17 +63,28 @@ const validCreateInput = {
   end_date: "2026-12-31",
 };
 
-const classRow = {
+const semesterRow = {
+  id: semesterId,
+  name: "Fall 2026",
+  semester_code: "F26",
+  start_date: "2026-09-01",
+  end_date: "2026-12-31",
+  created_at: "2026-01-01T00:00:00.000Z",
+};
+
+const billingClass = {
   id: classId,
+  subject_id: null,
   name: "Math 101",
-  subjects: { name: "Mathematics" },
-  semesters: { name: "Fall 2026", semester_code: "F26" },
+  status: "in_progress",
+  semester_id: semesterId,
+  created_at: "2026-01-01T00:00:00.000Z",
 };
 
 const phaseRecord = {
   id: phaseId,
   name: "Fall tuition",
-  class_id: classId,
+  semester_id: semesterId,
   semester_code: "F26",
   amount: 1000,
   upfront_amount: 200,
@@ -82,22 +96,41 @@ const phaseRecord = {
   updated_at: "2026-07-01T00:00:00.000Z",
 };
 
+const phaseListRecord = {
+  ...phaseRecord,
+  semesters: {
+    id: semesterId,
+    name: "Fall 2026",
+    semester_code: "F26",
+  },
+};
+
+function mockBillingClass(data: typeof billingClass | null = billingClass) {
+  vi.mocked(classRepository.findInProgressClassBySemesterId).mockResolvedValue({
+    data,
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  } as never);
+}
+
 describe("createPaymentPhaseForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
-  it("rejects when an opened phase already exists for the class", async () => {
-    vi.mocked(classRepository.findClassForPaymentPhaseById).mockResolvedValue({
-      data: classRow,
+  it("rejects when an opened phase already exists for the semester", async () => {
+    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
+      data: semesterRow,
       error: null,
       count: null,
       status: 200,
       statusText: "OK",
     } as never);
     vi.mocked(
-      paymentPhaseRepository.findOpenedPaymentPhaseByClassId
+      paymentPhaseRepository.findOpenedPaymentPhaseBySemesterId
     ).mockResolvedValue({
       data: phaseRecord,
       error: null,
@@ -120,16 +153,16 @@ describe("createPaymentPhaseForManager", () => {
     expect(paymentPhaseRepository.createPaymentPhase).not.toHaveBeenCalled();
   });
 
-  it("creates a phase and seeds SPPs for enrolled students", async () => {
-    vi.mocked(classRepository.findClassForPaymentPhaseById).mockResolvedValue({
-      data: classRow,
+  it("creates a phase and seeds SPPs from the in-progress class", async () => {
+    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
+      data: semesterRow,
       error: null,
       count: null,
       status: 200,
       statusText: "OK",
     } as never);
     vi.mocked(
-      paymentPhaseRepository.findOpenedPaymentPhaseByClassId
+      paymentPhaseRepository.findOpenedPaymentPhaseBySemesterId
     ).mockResolvedValue({
       data: null,
       error: null,
@@ -144,6 +177,7 @@ describe("createPaymentPhaseForManager", () => {
       status: 201,
       statusText: "Created",
     } as never);
+    mockBillingClass();
     vi.mocked(
       studentClassRepository.listEnrolledUserIdsByClassId
     ).mockResolvedValue({
@@ -170,7 +204,9 @@ describe("createPaymentPhaseForManager", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.phase.spp_active_count).toBe(2);
+      expect(result.phase.semester_id).toBe(semesterId);
       expect(result.phase.semester_code).toBe("F26");
+      expect(result.phase.billing_class_id).toBe(classId);
     }
 
     expect(
@@ -193,6 +229,52 @@ describe("createPaymentPhaseForManager", () => {
     );
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
+
+  it("creates a phase with no SPPs when no in-progress class exists", async () => {
+    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
+      data: semesterRow,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      paymentPhaseRepository.findOpenedPaymentPhaseBySemesterId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(paymentPhaseRepository.createPaymentPhase).mockResolvedValue({
+      data: phaseRecord,
+      error: null,
+      count: null,
+      status: 201,
+      statusText: "Created",
+    } as never);
+    mockBillingClass(null);
+
+    const result = await createPaymentPhaseForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      validCreateInput
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.phase.spp_active_count).toBe(0);
+      expect(result.phase.billing_class_id).toBeNull();
+    }
+    expect(
+      studentClassRepository.listEnrolledUserIdsByClassId
+    ).not.toHaveBeenCalled();
+    expect(
+      studentPaymentPhaseRepository.createStudentPaymentPhases
+    ).not.toHaveBeenCalled();
+  });
 });
 
 describe("listMissingSppForOpenedPhases", () => {
@@ -200,24 +282,15 @@ describe("listMissingSppForOpenedPhases", () => {
     vi.resetAllMocks();
   });
 
-  it("returns enrolled students without any SPP row", async () => {
+  it("returns enrolled students without any SPP row on the billing class", async () => {
     vi.mocked(paymentPhaseRepository.listOpenedPaymentPhases).mockResolvedValue({
-      data: [
-        {
-          ...phaseRecord,
-          classes: {
-            id: classId,
-            name: "Math 101",
-            semester_id: "sem-1",
-            semesters: { name: "Fall 2026", semester_code: "F26" },
-          },
-        },
-      ],
+      data: [phaseListRecord],
       error: null,
       count: null,
       status: 200,
       statusText: "OK",
     } as never);
+    mockBillingClass();
     vi.mocked(
       studentClassRepository.listEnrolledUserIdsByClassIds
     ).mockResolvedValue({
@@ -240,7 +313,9 @@ describe("listMissingSppForOpenedPhases", () => {
       error: null,
     } as never);
     vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
-      data: [{ id: studentB, username: "studentb", role: "student", created_at: "" }],
+      data: [
+        { id: studentB, username: "studentb", role: "student", created_at: "" },
+      ],
       error: null,
     } as never);
     vi.mocked(
@@ -260,7 +335,32 @@ describe("listMissingSppForOpenedPhases", () => {
       student_id: studentB,
       student_label: "Student B",
       payment_phase_id: phaseId,
+      semester_id: semesterId,
+      semester_name: "Fall 2026",
+      billing_class_id: classId,
+      billing_class_name: "Math 101",
     });
+  });
+
+  it("returns empty when no in-progress class exists", async () => {
+    vi.mocked(paymentPhaseRepository.listOpenedPaymentPhases).mockResolvedValue({
+      data: [phaseListRecord],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    mockBillingClass(null);
+
+    const missing = await listMissingSppForOpenedPhases(
+      adminClient,
+      actor.userId
+    );
+
+    expect(missing).toEqual([]);
+    expect(
+      studentClassRepository.listEnrolledUserIdsByClassIds
+    ).not.toHaveBeenCalled();
   });
 });
 
@@ -272,15 +372,7 @@ describe("repairMissingSppForManager", () => {
 
   it("no-ops successfully when SPP already exists", async () => {
     vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: {
-        ...phaseRecord,
-        classes: {
-          id: classId,
-          name: "Math 101",
-          semester_id: "sem-1",
-          semesters: { name: "Fall 2026", semester_code: "F26" },
-        },
-      },
+      data: phaseListRecord,
       error: null,
       count: null,
       status: 200,
@@ -325,17 +417,9 @@ describe("repairMissingSppForManager", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("creates a missing SPP for an enrolled student", async () => {
+  it("creates a missing SPP for a student enrolled on the billing class", async () => {
     vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: {
-        ...phaseRecord,
-        classes: {
-          id: classId,
-          name: "Math 101",
-          semester_id: "sem-1",
-          semesters: { name: "Fall 2026", semester_code: "F26" },
-        },
-      },
+      data: phaseListRecord,
       error: null,
       count: null,
       status: 200,
@@ -350,6 +434,7 @@ describe("repairMissingSppForManager", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    mockBillingClass();
     vi.mocked(
       studentClassRepository.findStudentClassByUserAndClass
     ).mockResolvedValue({
@@ -403,16 +488,6 @@ describe("repairMissingSppForManager", () => {
   });
 });
 
-const phaseListRecord = {
-  ...phaseRecord,
-  classes: {
-    id: classId,
-    name: "Math 101",
-    semester_id: "sem-1",
-    semesters: { name: "Fall 2026", semester_code: "F26" },
-  },
-};
-
 const sppActive = {
   id: "spp-active",
   student_id: studentA,
@@ -447,6 +522,7 @@ describe("updatePaymentPhaseForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockBillingClass();
   });
 
   it("rejects updates when the phase is cancelled", async () => {
@@ -525,19 +601,29 @@ describe("updatePaymentPhaseForManager", () => {
       status: 200,
       statusText: "OK",
     } as never);
-    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue({
-      data: { ...phaseListRecord, status: "opened", amount: 1500 },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue(
+      {
+        data: { ...phaseListRecord, status: "opened", amount: 1500 },
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never
+    );
     vi.mocked(
       studentPaymentPhaseRepository.listSppsByPaymentPhaseIds
     ).mockResolvedValue({
       data: [
-        { payment_phase_id: phaseId, status: "partially_paid", student_id: studentA },
-        { payment_phase_id: phaseId, status: "cancelled", student_id: studentB },
+        {
+          payment_phase_id: phaseId,
+          status: "partially_paid",
+          student_id: studentA,
+        },
+        {
+          payment_phase_id: phaseId,
+          status: "cancelled",
+          student_id: studentB,
+        },
       ],
       error: null,
     } as never);
@@ -588,6 +674,7 @@ describe("cancelPaymentPhaseForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockBillingClass();
   });
 
   it("cancels an opened phase without mutating SPPs", async () => {
@@ -598,13 +685,15 @@ describe("cancelPaymentPhaseForManager", () => {
       status: 200,
       statusText: "OK",
     } as never);
-    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue({
-      data: { ...phaseListRecord, status: "cancelled" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue(
+      {
+        data: { ...phaseListRecord, status: "cancelled" },
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never
+    );
     vi.mocked(
       studentPaymentPhaseRepository.listSppsByPaymentPhaseIds
     ).mockResolvedValue({
@@ -649,6 +738,8 @@ describe("cancelPaymentPhaseForManager", () => {
     if (!result.success) {
       expect(result.error).toMatch(/already cancelled/i);
     }
-    expect(paymentPhaseRepository.updatePaymentPhaseStatus).not.toHaveBeenCalled();
+    expect(
+      paymentPhaseRepository.updatePaymentPhaseStatus
+    ).not.toHaveBeenCalled();
   });
 });

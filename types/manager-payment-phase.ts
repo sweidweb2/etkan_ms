@@ -7,9 +7,11 @@ import type {
 export type ManagerPaymentPhaseRow = {
   id: string;
   name: string;
-  class_id: string;
-  class_name: string;
+  semester_id: string;
+  semester_name: string;
   semester_code: string;
+  billing_class_id: string | null;
+  billing_class_name: string | null;
   status: PaymentPhaseStatus;
   amount: number;
   upfront_amount: number;
@@ -24,16 +26,17 @@ export type ManagerPaymentPhaseRow = {
 export type ManagerMissingSppRow = {
   student_id: string;
   student_label: string;
-  class_id: string;
-  class_name: string;
+  semester_id: string;
+  semester_name: string;
+  billing_class_id: string;
+  billing_class_name: string;
   payment_phase_id: string;
   payment_phase_name: string;
 };
 
-export type ManagerPaymentPhaseClassOption = {
+export type ManagerPaymentPhaseSemesterOption = {
   id: string;
   name: string;
-  subject_name: string | null;
   semester_code: string;
   label: string;
 };

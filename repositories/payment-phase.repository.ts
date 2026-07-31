@@ -4,14 +4,14 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const PAYMENT_PHASE_COLUMNS =
-  "id, name, class_id, semester_code, amount, upfront_amount, duration_months, start_date, end_date, status, created_at, updated_at";
+  "id, name, semester_id, semester_code, amount, upfront_amount, duration_months, start_date, end_date, status, created_at, updated_at";
 
-const PAYMENT_PHASE_LIST_SELECT = `${PAYMENT_PHASE_COLUMNS}, classes ( id, name, semester_id, semesters ( name, semester_code ) )`;
+const PAYMENT_PHASE_LIST_SELECT = `${PAYMENT_PHASE_COLUMNS}, semesters ( id, name, semester_code )`;
 
 export type PaymentPhaseRecord = {
   id: string;
   name: string;
-  class_id: string;
+  semester_id: string;
   semester_code: string;
   amount: number;
   upfront_amount: number;
@@ -24,17 +24,16 @@ export type PaymentPhaseRecord = {
 };
 
 export type PaymentPhaseListRecord = PaymentPhaseRecord & {
-  classes: {
+  semesters: {
     id: string;
     name: string;
-    semester_id: string | null;
-    semesters: { name: string; semester_code: string } | null;
+    semester_code: string;
   } | null;
 };
 
 export type CreatePaymentPhaseRecordInput = {
   name: string;
-  class_id: string;
+  semester_id: string;
   semester_code: string;
   amount: number;
   upfront_amount: number;
@@ -59,45 +58,45 @@ export async function findPaymentPhaseById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
-export async function findOpenedPaymentPhaseByClassId(
+export async function findOpenedPaymentPhaseBySemesterId(
   client: Supabase,
-  classId: string
+  semesterId: string
 ) {
   return client
     .from("payment_phases")
     .select(PAYMENT_PHASE_COLUMNS)
-    .eq("class_id", classId)
+    .eq("semester_id", semesterId)
     .eq("status", "opened")
     .maybeSingle();
 }
 
-export async function findLatestClosedPaymentPhaseByClassId(
+export async function findLatestClosedPaymentPhaseBySemesterId(
   client: Supabase,
-  classId: string
+  semesterId: string
 ) {
   return client
     .from("payment_phases")
     .select(PAYMENT_PHASE_COLUMNS)
-    .eq("class_id", classId)
+    .eq("semester_id", semesterId)
     .eq("status", "closed")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 }
 
-/** Prefer opened phase for a class; else latest closed. Never returns cancelled. */
-export async function findCurrentSyncPhaseByClassId(
+/** Prefer opened phase for a semester; else latest closed. Never returns cancelled. */
+export async function findCurrentSyncPhaseBySemesterId(
   client: Supabase,
-  classId: string
+  semesterId: string
 ) {
-  const opened = await findOpenedPaymentPhaseByClassId(client, classId);
+  const opened = await findOpenedPaymentPhaseBySemesterId(client, semesterId);
   if (opened.error) {
     return opened;
   }
   if (opened.data) {
     return opened;
   }
-  return findLatestClosedPaymentPhaseByClassId(client, classId);
+  return findLatestClosedPaymentPhaseBySemesterId(client, semesterId);
 }
 
 export async function listOpenedPaymentPhases(client: Supabase) {
@@ -108,10 +107,10 @@ export async function listOpenedPaymentPhases(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
-export async function listOpenedPaymentPhaseClassIds(client: Supabase) {
+export async function listOpenedPaymentPhaseSemesterIds(client: Supabase) {
   return client
     .from("payment_phases")
-    .select("class_id")
+    .select("semester_id")
     .eq("status", "opened");
 }
 
@@ -123,7 +122,7 @@ export async function createPaymentPhase(
     .from("payment_phases")
     .insert({
       name: input.name,
-      class_id: input.class_id,
+      semester_id: input.semester_id,
       semester_code: input.semester_code,
       amount: input.amount,
       upfront_amount: input.upfront_amount,

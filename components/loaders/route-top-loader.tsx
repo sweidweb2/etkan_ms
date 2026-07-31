@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 
 const MIN_VISIBLE_MS = 450;
 const FINISH_MS = 280;
+/** Abort if a started navigation never settles (e.g. prevented link click). */
+const STUCK_ABORT_MS = 4000;
 
 function isModifiedClick(event: MouseEvent) {
   return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
@@ -44,6 +46,7 @@ export function RouteTopLoader() {
   const finishTimerRef = useRef<number | null>(null);
   const showTimerRef = useRef<number | null>(null);
   const settleTimerRef = useRef<number | null>(null);
+  const stuckTimerRef = useRef<number | null>(null);
 
   const clearTimer = (ref: { current: number | null }) => {
     if (ref.current !== null) {
@@ -52,10 +55,21 @@ export function RouteTopLoader() {
     }
   };
 
+  const reset = () => {
+    clearTimer(finishTimerRef);
+    clearTimer(settleTimerRef);
+    clearTimer(showTimerRef);
+    clearTimer(stuckTimerRef);
+    setIsLoading(false);
+    setIsFinishing(false);
+    navTokenRef.current = 0;
+  };
+
   const begin = () => {
     clearTimer(finishTimerRef);
     clearTimer(settleTimerRef);
     clearTimer(showTimerRef);
+    clearTimer(stuckTimerRef);
 
     const token = ++navTokenRef.current;
     startedAtRef.current = Date.now();
@@ -66,6 +80,11 @@ export function RouteTopLoader() {
       setIsFinishing(false);
       setIsLoading(true);
     }, 0);
+
+    stuckTimerRef.current = window.setTimeout(() => {
+      if (navTokenRef.current !== token) return;
+      reset();
+    }, STUCK_ABORT_MS);
   };
 
   const end = () => {
@@ -73,6 +92,7 @@ export function RouteTopLoader() {
     if (token === 0) return;
 
     clearTimer(settleTimerRef);
+    clearTimer(stuckTimerRef);
 
     const elapsed = Date.now() - startedAtRef.current;
     const waitForMin = Math.max(0, MIN_VISIBLE_MS - elapsed);
@@ -93,6 +113,8 @@ export function RouteTopLoader() {
   };
 
   // Internal <a> navigations (sidebar, breadcrumbs, links).
+  // Bubble phase so nested buttons can preventDefault/stopPropagation first
+  // (e.g. Edit on a card that is wrapped in a Link).
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       if (event.button !== 0 || isModifiedClick(event) || event.defaultPrevented) {
@@ -118,8 +140,8 @@ export function RouteTopLoader() {
       begin();
     };
 
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
   }, []);
 
   // router.push / back / forward
@@ -165,6 +187,7 @@ export function RouteTopLoader() {
       clearTimer(finishTimerRef);
       clearTimer(showTimerRef);
       clearTimer(settleTimerRef);
+      clearTimer(stuckTimerRef);
     };
   }, []);
 

@@ -2,7 +2,9 @@ import {
   PAYMENT_PHASE_STATUSES,
   STUDENT_PAYMENT_PHASE_STATUSES,
 } from "@/lib/manager/accounting/constants";
+import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
 import { buildInitialSppInsert } from "@/lib/manager/accounting/spp-insert";
+import * as classRepository from "@/repositories/class.repository";
 import type { PaymentPhaseRecord } from "@/repositories/payment-phase.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
@@ -38,14 +40,38 @@ export type LeaveSyncResult = {
   cancelled: boolean;
 };
 
+/**
+ * Resolve sync target for a class enrollment event.
+ * Only the semester's in-progress class participates in payment sync.
+ */
 export async function findSyncTargetPhaseForClass(
   adminClient: Supabase,
   classId: string
 ): Promise<SyncTargetPhase | null> {
+  const { data: classRow, error: classError } =
+    await classRepository.findClassById(adminClient, classId);
+
+  if (classError) {
+    throw new Error(classError.message);
+  }
+
+  if (!classRow?.semester_id) {
+    return null;
+  }
+
+  const billingClass = await resolveInProgressClassForSemester(
+    adminClient,
+    classRow.semester_id
+  );
+
+  if (!billingClass || billingClass.id !== classId) {
+    return null;
+  }
+
   const { data, error } =
-    await paymentPhaseRepository.findCurrentSyncPhaseByClassId(
+    await paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
       adminClient,
-      classId
+      classRow.semester_id
     );
 
   if (error) {
@@ -190,6 +216,7 @@ export async function onStudentJoinedClass(
       metadata: {
         note: "Student payment phase created from class enrollment sync.",
         class_id: input.classId,
+        semester_id: phase.semester_id,
         phase_reopened: phaseReopened,
       },
     });
@@ -206,6 +233,7 @@ export async function onStudentJoinedClass(
       metadata: {
         note: "Payment phase reopened after late enrollment.",
         class_id: input.classId,
+        semester_id: phase.semester_id,
         student_id: input.studentId,
       },
     });
@@ -279,6 +307,7 @@ export async function onStudentLeftClass(
       metadata: {
         note: "Student payment phase cancelled from class leave sync.",
         class_id: input.classId,
+        semester_id: phase.semester_id,
       },
     });
   }

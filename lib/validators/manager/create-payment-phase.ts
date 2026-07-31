@@ -9,10 +9,10 @@ export const createPaymentPhaseSchema = z
       .trim()
       .min(1, { message: "Phase name is required." })
       .max(120, { message: "Phase name must be at most 120 characters." }),
-    class_id: z
+    semester_id: z
       .string()
       .trim()
-      .uuid({ message: "Class is required." }),
+      .uuid({ message: "Semester is required." }),
     amount: z.coerce
       .number()
       .min(0, { message: "Amount must be 0 or greater." })
@@ -59,7 +59,7 @@ export function parseCreatePaymentPhaseFormData(formData: FormData):
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = createPaymentPhaseSchema.safeParse({
     name: formData.get("name"),
-    class_id: formData.get("class_id"),
+    semester_id: formData.get("semester_id"),
     amount: formData.get("amount"),
     upfront_amount: formData.get("upfront_amount"),
     duration_months: formData.get("duration_months"),

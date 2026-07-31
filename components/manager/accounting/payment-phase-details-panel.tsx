@@ -46,6 +46,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingSppDetailRoute,
   getManagerClassDetailRoute,
+  getManagerSemesterDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { PAYMENT_PHASE_STATUSES } from "@/lib/manager/accounting/constants";
@@ -266,15 +267,27 @@ export function PaymentPhaseDetailsPanel({
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailField label="Class">
+              <DetailField label="Semester">
                 <Link
-                  href={getManagerClassDetailRoute(phase.class_id)}
+                  href={getManagerSemesterDetailRoute(phase.semester_id)}
                   className="font-medium text-primary hover:underline"
                 >
-                  {phase.class_name}
+                  {phase.semester_name}
                 </Link>
               </DetailField>
               <DetailField label="Semester code" value={phase.semester_code} />
+              {phase.billing_class_id && phase.billing_class_name ? (
+                <DetailField label="Billing class">
+                  <Link
+                    href={getManagerClassDetailRoute(phase.billing_class_id)}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {phase.billing_class_name}
+                  </Link>
+                </DetailField>
+              ) : (
+                <DetailField label="Billing class" value="—" />
+              )}
               <DetailField label="Status">
                 <PaymentPhaseStatusBadge status={phase.status} />
               </DetailField>

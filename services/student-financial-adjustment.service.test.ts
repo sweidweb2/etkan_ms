@@ -50,7 +50,7 @@ const formId = "66666666-6666-4666-8666-666666666666";
 const phaseRecord = {
   id: phaseId,
   name: "Fall tuition",
-  class_id: "class-1",
+  semester_id: "66666666-6666-4666-8666-666666666666",
   semester_code: "F26",
   amount: 1000,
   upfront_amount: 0,
@@ -60,11 +60,10 @@ const phaseRecord = {
   status: "opened",
   created_at: "2026-07-01T00:00:00.000Z",
   updated_at: "2026-07-01T00:00:00.000Z",
-  classes: {
-    id: "class-1",
-    name: "Math 101",
-    semester_id: "sem-1",
-    semesters: { name: "Fall", semester_code: "F26" },
+  semesters: {
+    id: "66666666-6666-4666-8666-666666666666",
+    name: "Fall",
+    semester_code: "F26",
   },
 };
 

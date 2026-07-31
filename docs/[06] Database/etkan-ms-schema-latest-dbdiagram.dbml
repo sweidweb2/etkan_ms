@@ -383,7 +383,7 @@ Ref: backup_history.created_by > profiles.id
 Table payment_phases {
   id uuid [pk, default: `gen_random_uuid()`]
   name text [not null]
-  class_id uuid [not null]
+  semester_id uuid [not null]
   semester_code text [not null]
   amount numeric(10,2) [not null]
   upfront_amount numeric(10,2) [not null, default: 0]
@@ -470,7 +470,7 @@ Table student_financial_forms {
 Ref: student_payment_phases.student_id > profiles.id
 Ref: student_payment_phases.payment_phase_id > payment_phases.id
 
-Ref: payment_phases.class_id > classes.id
+Ref: payment_phases.semester_id > semesters.id
 
 Ref: student_payments.student_payment_phase_id > student_payment_phases.id
 

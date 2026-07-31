@@ -44,8 +44,8 @@ import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   ManagerMissingSppRow,
-  ManagerPaymentPhaseClassOption,
   ManagerPaymentPhaseRow,
+  ManagerPaymentPhaseSemesterOption,
 } from "@/types/manager-payment-phase";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
@@ -119,8 +119,9 @@ function matchesPhaseSearch(phase: ManagerPaymentPhaseRow, query: string) {
 
   const haystack = [
     phase.name,
-    phase.class_name,
+    phase.semester_name,
     phase.semester_code,
+    phase.billing_class_name ?? "",
     phase.status,
   ]
     .join(" ")
@@ -132,13 +133,13 @@ function matchesPhaseSearch(phase: ManagerPaymentPhaseRow, query: string) {
 type ManageAccountingPanelProps = {
   initialPhases: ManagerPaymentPhaseRow[];
   initialMissing: ManagerMissingSppRow[];
-  classOptions: ManagerPaymentPhaseClassOption[];
+  semesterOptions: ManagerPaymentPhaseSemesterOption[];
 };
 
 export function ManageAccountingPanel({
   initialPhases,
   initialMissing,
-  classOptions,
+  semesterOptions,
 }: ManageAccountingPanelProps) {
   const router = useRouter();
   const phases = initialPhases;
@@ -229,7 +230,7 @@ export function ManageAccountingPanel({
         <CreatePaymentPhaseDialog
           open={isCreateOpen}
           onOpenChange={setIsCreateOpen}
-          classOptions={classOptions}
+          semesterOptions={semesterOptions}
           onCreated={handleCreated}
         />
 
@@ -294,8 +295,8 @@ export function ManageAccountingPanel({
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Class</th>
                     <th className="px-4 py-3 font-medium">Semester</th>
+                    <th className="px-4 py-3 font-medium">Code</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium text-right">Amount</th>
                     <th className="px-4 py-3 font-medium text-right">Upfront</th>
@@ -328,7 +329,7 @@ export function ManageAccountingPanel({
                         </td>
                         <td className="max-w-[12rem] px-4 py-3">
                           <TruncatedCell
-                            value={phase.class_name}
+                            value={phase.semester_name}
                             maxLength={28}
                           />
                         </td>
@@ -476,7 +477,8 @@ export function ManageAccountingPanel({
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Class</th>
+                    <th className="px-4 py-3 font-medium">Semester</th>
+                    <th className="px-4 py-3 font-medium">Billing class</th>
                     <th className="px-4 py-3 font-medium">Phase</th>
                     <th className="px-4 py-3 font-medium text-right">Action</th>
                   </tr>
@@ -485,7 +487,7 @@ export function ManageAccountingPanel({
                   {missing.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         All enrolled students on opened phases have an
@@ -506,7 +508,13 @@ export function ManageAccountingPanel({
                         </td>
                         <td className="max-w-[12rem] px-4 py-3">
                           <TruncatedCell
-                            value={row.class_name}
+                            value={row.semester_name}
+                            maxLength={28}
+                          />
+                        </td>
+                        <td className="max-w-[12rem] px-4 py-3">
+                          <TruncatedCell
+                            value={row.billing_class_name ?? "—"}
                             maxLength={28}
                           />
                         </td>

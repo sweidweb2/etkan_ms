@@ -555,13 +555,13 @@ export type Database = {
       payment_phases: {
         Row: {
           amount: number
-          class_id: string
           created_at: string
           duration_months: number
           end_date: string
           id: string
           name: string
           semester_code: string
+          semester_id: string
           start_date: string
           status: string
           updated_at: string
@@ -569,13 +569,13 @@ export type Database = {
         }
         Insert: {
           amount: number
-          class_id: string
           created_at?: string
           duration_months: number
           end_date: string
           id?: string
           name: string
           semester_code: string
+          semester_id: string
           start_date: string
           status?: string
           updated_at?: string
@@ -583,13 +583,13 @@ export type Database = {
         }
         Update: {
           amount?: number
-          class_id?: string
           created_at?: string
           duration_months?: number
           end_date?: string
           id?: string
           name?: string
           semester_code?: string
+          semester_id?: string
           start_date?: string
           status?: string
           updated_at?: string
@@ -597,10 +597,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "payment_phases_class_id_fkey"
-            columns: ["class_id"]
+            foreignKeyName: "payment_phases_semester_id_fkey"
+            columns: ["semester_id"]
             isOneToOne: false
-            referencedRelation: "classes"
+            referencedRelation: "semesters"
             referencedColumns: ["id"]
           },
         ]

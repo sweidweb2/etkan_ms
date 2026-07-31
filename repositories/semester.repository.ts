@@ -49,6 +49,20 @@ export async function findSemesterById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export type SemesterPaymentPhasePickerRecord = {
+  id: string;
+  name: string;
+  semester_code: string;
+};
+
+export async function listSemestersForPaymentPhasePicker(client: Supabase) {
+  return client
+    .from("semesters")
+    .select("id, name, semester_code")
+    .not("semester_code", "is", null)
+    .order("name", { ascending: true });
+}
+
 export async function findSemesterByName(client: Supabase, name: string) {
   return client
     .from("semesters")
