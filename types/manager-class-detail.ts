@@ -47,6 +47,7 @@ export type UpdateClassStatusActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   classRow?: ManagerClassRow;
 };
@@ -89,6 +90,7 @@ export type AddStudentToClassActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   student?: ManagerClassStudentRow;
   studentGrade?: ManagerStudentFinalExamGradeRow;
@@ -117,6 +119,7 @@ export type UpdateClassStudentStatusActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   student?: ManagerClassStudentRow;
 };
@@ -125,6 +128,7 @@ export type TransferStudentBetweenClassesActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  warning?: string;
   fieldErrors?: FieldErrors;
   from_class_id?: string;
   to_class_id?: string;

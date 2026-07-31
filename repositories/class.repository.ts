@@ -106,6 +106,23 @@ export async function findInProgressClassBySemesterId(
     .maybeSingle();
 }
 
+/** Another in-progress class on the same semester (exclude one class id). */
+export async function findOtherInProgressClassBySemesterId(
+  client: Supabase,
+  semesterId: string,
+  excludeClassId: string
+) {
+  return client
+    .from("classes")
+    .select(CLASS_COLUMNS)
+    .eq("semester_id", semesterId)
+    .eq("status", "in_progress")
+    .neq("id", excludeClassId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+}
+
 export async function listClassesWithSubjectBySemesterId(
   client: Supabase,
   semesterId: string

@@ -189,6 +189,7 @@ export async function updateClassStatusAction(
   return {
     success: true,
     message: result.message,
+    warning: result.warning,
     classRow: result.classRow,
   };
 }
@@ -386,6 +387,7 @@ export async function addStudentToClassAction(
   return {
     success: true,
     message: result.message,
+    warning: result.warning,
     student: result.student,
     studentGrade: result.studentGrade,
     classRow: result.classRow,
@@ -427,6 +429,7 @@ export async function updateClassStudentStatusAction(
   return {
     success: true,
     message: result.message,
+    warning: result.warning,
     student: result.student,
   };
 }
@@ -468,6 +471,7 @@ export async function transferStudentBetweenClassesAction(
   return {
     success: true,
     message: result.message,
+    warning: result.warning,
     student: result.student,
     from_class_id: result.from_class_id,
     to_class_id: result.to_class_id,

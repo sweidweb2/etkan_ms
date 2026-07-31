@@ -9,7 +9,11 @@ import type { PaymentPhaseRecord } from "@/repositories/payment-phase.repository
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
-import { recalcPhaseStatusFromSpps } from "@/services/accounting-recalc.service";
+import * as studentClassRepository from "@/repositories/student-class.repository";
+import {
+  recalcPhaseStatusFromSpps,
+  recalcSingleSpp,
+} from "@/services/accounting-recalc.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -25,12 +29,14 @@ export type EnsureSppResult = {
   spp: StudentPaymentPhaseRecord | null;
   created: boolean;
   alreadyExisted: boolean;
+  reactivated: boolean;
 };
 
 export type JoinSyncResult = {
   phase: SyncTargetPhase | null;
   spp: StudentPaymentPhaseRecord | null;
   created: boolean;
+  reactivated: boolean;
   phaseReopened: boolean;
 };
 
@@ -38,6 +44,12 @@ export type LeaveSyncResult = {
   phase: SyncTargetPhase | null;
   spp: StudentPaymentPhaseRecord | null;
   cancelled: boolean;
+};
+
+export type BackfillSppsResult = {
+  ensuredCount: number;
+  createdCount: number;
+  reactivatedCount: number;
 };
 
 /**
@@ -82,8 +94,8 @@ export async function findSyncTargetPhaseForClass(
 }
 
 /**
- * Create SPP if missing. If a cancelled (or any) SPP already exists for the
- * phase, leave it unchanged — unique (student_id, payment_phase_id).
+ * Create SPP if missing. Reactivate a cancelled SPP (recalc from payments /
+ * adjustments). Other existing rows stay unchanged — unique (student_id, phase).
  */
 export async function ensureSppForStudentOnPhase(
   adminClient: Supabase,
@@ -105,10 +117,36 @@ export async function ensureSppForStudentOnPhase(
   }
 
   if (existing) {
+    if (existing.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
+      const { data: pendingRow, error: uncancelError } =
+        await studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus(
+          adminClient,
+          existing.id,
+          STUDENT_PAYMENT_PHASE_STATUSES.PENDING
+        );
+
+      if (uncancelError || !pendingRow) {
+        throw new Error(
+          uncancelError?.message ??
+            "Unable to reactivate student payment phase."
+        );
+      }
+
+      const reactivated = await recalcSingleSpp(adminClient, existing.id);
+
+      return {
+        spp: reactivated,
+        created: false,
+        alreadyExisted: true,
+        reactivated: true,
+      };
+    }
+
     return {
       spp: existing as StudentPaymentPhaseRecord,
       created: false,
       alreadyExisted: true,
+      reactivated: false,
     };
   }
 
@@ -134,10 +172,40 @@ export async function ensureSppForStudentOnPhase(
           input.studentId,
           input.phase.id
         );
+
+      if (
+        raced &&
+        raced.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
+      ) {
+        const { data: pendingRow, error: uncancelError } =
+          await studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus(
+            adminClient,
+            raced.id,
+            STUDENT_PAYMENT_PHASE_STATUSES.PENDING
+          );
+
+        if (uncancelError || !pendingRow) {
+          throw new Error(
+            uncancelError?.message ??
+              "Unable to reactivate student payment phase."
+          );
+        }
+
+        const reactivated = await recalcSingleSpp(adminClient, raced.id);
+
+        return {
+          spp: reactivated,
+          created: false,
+          alreadyExisted: true,
+          reactivated: true,
+        };
+      }
+
       return {
         spp: (raced as StudentPaymentPhaseRecord | null) ?? null,
         created: false,
         alreadyExisted: true,
+        reactivated: false,
       };
     }
     throw new Error(
@@ -149,6 +217,7 @@ export async function ensureSppForStudentOnPhase(
     spp: created as StudentPaymentPhaseRecord,
     created: true,
     alreadyExisted: false,
+    reactivated: false,
   };
 }
 
@@ -164,6 +233,7 @@ export async function onStudentJoinedClass(
       phase: null,
       spp: null,
       created: false,
+      reactivated: false,
       phaseReopened: false,
     };
   }
@@ -173,6 +243,7 @@ export async function onStudentJoinedClass(
       phase: null,
       spp: null,
       created: false,
+      reactivated: false,
       phaseReopened: false,
     };
   }
@@ -184,8 +255,10 @@ export async function onStudentJoinedClass(
   });
 
   let phaseReopened = false;
+  const shouldReopenPhase =
+    wasClosed && (ensured.created || ensured.reactivated);
 
-  if (wasClosed && ensured.created) {
+  if (shouldReopenPhase) {
     const { error: reopenError } =
       await paymentPhaseRepository.updatePaymentPhaseStatus(
         adminClient,
@@ -222,6 +295,26 @@ export async function onStudentJoinedClass(
     });
   }
 
+  if (actor && ensured.reactivated && ensured.spp) {
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "update",
+      severity: "info",
+      table_name: "student_payment_phases",
+      record_id: ensured.spp.id,
+      old_data: { status: STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED },
+      new_data: {
+        status: ensured.spp.status,
+        remaining_amount: ensured.spp.remaining_amount,
+      },
+      metadata: {
+        note: "Student payment phase reactivated after re-enrollment.",
+        class_id: input.classId,
+        semester_id: phase.semester_id,
+        phase_reopened: phaseReopened,
+      },
+    });
+  }
+
   if (actor && phaseReopened) {
     await recordManagerAuditLog(adminClient, actor, {
       action: "update",
@@ -243,6 +336,7 @@ export async function onStudentJoinedClass(
     phase,
     spp: ensured.spp,
     created: ensured.created,
+    reactivated: ensured.reactivated,
     phaseReopened,
   };
 }
@@ -316,5 +410,107 @@ export async function onStudentLeftClass(
     phase,
     spp: updated as StudentPaymentPhaseRecord,
     cancelled: true,
+  };
+}
+
+/**
+ * When a class becomes the semester's in-progress billing class, ensure SPPs
+ * for all currently enrolled students on the semester's sync payment phase.
+ */
+export async function backfillSppsForClassBecomeInProgress(
+  adminClient: Supabase,
+  classId: string,
+  actor?: AuditActor | null
+): Promise<BackfillSppsResult> {
+  const phase = await findSyncTargetPhaseForClass(adminClient, classId);
+
+  if (!phase || phase.status === PAYMENT_PHASE_STATUSES.CANCELLED) {
+    return { ensuredCount: 0, createdCount: 0, reactivatedCount: 0 };
+  }
+
+  const { data: enrolledRows, error: enrolledError } =
+    await studentClassRepository.listEnrolledUserIdsByClassId(
+      adminClient,
+      classId
+    );
+
+  if (enrolledError) {
+    throw new Error(enrolledError.message);
+  }
+
+  const studentIds = [
+    ...new Set((enrolledRows ?? []).map((row) => row.user_id)),
+  ];
+
+  let createdCount = 0;
+  let reactivatedCount = 0;
+
+  for (const studentId of studentIds) {
+    const ensured = await ensureSppForStudentOnPhase(adminClient, {
+      studentId,
+      phase,
+    });
+
+    if (ensured.created) {
+      createdCount += 1;
+      if (actor && ensured.spp) {
+        await recordManagerAuditLog(adminClient, actor, {
+          action: "insert",
+          severity: "info",
+          table_name: "student_payment_phases",
+          record_id: ensured.spp.id,
+          new_data: {
+            student_id: ensured.spp.student_id,
+            payment_phase_id: ensured.spp.payment_phase_id,
+            status: ensured.spp.status,
+          },
+          metadata: {
+            note: "Student payment phase created from class in_progress backfill.",
+            class_id: classId,
+            semester_id: phase.semester_id,
+          },
+        });
+      }
+    } else if (ensured.reactivated) {
+      reactivatedCount += 1;
+      if (actor && ensured.spp) {
+        await recordManagerAuditLog(adminClient, actor, {
+          action: "update",
+          severity: "info",
+          table_name: "student_payment_phases",
+          record_id: ensured.spp.id,
+          old_data: { status: STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED },
+          new_data: { status: ensured.spp.status },
+          metadata: {
+            note: "Student payment phase reactivated from class in_progress backfill.",
+            class_id: classId,
+            semester_id: phase.semester_id,
+          },
+        });
+      }
+    }
+  }
+
+  if (studentIds.length > 0) {
+    const wasClosed = phase.status === PAYMENT_PHASE_STATUSES.CLOSED;
+    if (wasClosed && (createdCount > 0 || reactivatedCount > 0)) {
+      const { error: reopenError } =
+        await paymentPhaseRepository.updatePaymentPhaseStatus(
+          adminClient,
+          phase.id,
+          PAYMENT_PHASE_STATUSES.OPENED
+        );
+      if (reopenError) {
+        throw new Error(reopenError.message);
+      }
+    }
+
+    await recalcPhaseStatusFromSpps(adminClient, phase.id);
+  }
+
+  return {
+    ensuredCount: studentIds.length,
+    createdCount,
+    reactivatedCount,
   };
 }

@@ -8,6 +8,8 @@ export type ActionToastState = {
   message?: string;
   /** Shown as toast description (e.g. week number adjusted). */
   note?: string;
+  /** Non-fatal notice after a successful mutation (e.g. payment sync failed). */
+  warning?: string;
 };
 
 export function showSuccessToast(message: string, description?: string) {

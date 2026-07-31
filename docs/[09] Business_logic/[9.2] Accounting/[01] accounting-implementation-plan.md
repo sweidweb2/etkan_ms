@@ -85,9 +85,12 @@ Financial summary (always recalculated):
 | Student enrolled into the in-progress class (late join) | If semester has `opened` **or** `closed` phase: create SPP; if phase was `closed`, **reopen** to `opened` + recalc |
 | Student enrolled into a non–in-progress class | No payment sync |
 | Student paused / stopped / removed from the in-progress class | Mark their SPP `cancelled` (if any for that semester’s phase); recalc phase |
+| Student re-enrolls on the in-progress class after leave | **Reactivate** the cancelled SPP (recalc from existing payments/adjustments); do not insert a second row |
 | Student changes class (transfer) | = leave old class (cancel old SPP if it was the billing class); **do not** auto-create SPP on new class — manager assigns manually if needed |
+| Class status becomes `in_progress` | At most **one** in-progress class per semester (reject second). Backfill SPPs for enrolled students on the semester’s sync phase |
 | Semester has `cancelled` phase only | Late join does **not** auto-create; manager must create/open a new phase |
 | Multiple historical phases | Sync attaches only to the semester’s **current non-cancelled** phase: prefer `opened`, else `closed` (reopen path). Never attach to `cancelled` |
+| Payment sync throws on enroll/leave/transfer/backfill | Enrollment/status change **still succeeds**; audit warning + UI `warning` toast; Missing-SPP + Repair remain the safety net |
 
 ### 1.4 What managers cannot do
 
@@ -383,5 +386,7 @@ Start implementation at **Phase 0 → Phase 1** so the Accounting page becomes t
 | Cancelled phase + existing payments | Keep payment rows; block new payments |
 | Who is “enrolled” for auto SPP | `student_class.status = enrolled` only |
 | Amount source of truth | Live from `payment_phases.amount` (no SPP amount snapshot) |
+| Cancelled SPP then re-enroll | Reactivate same SPP (recalc; keep payment history) |
+| In-progress classes per semester | At most one; becoming `in_progress` backfills SPPs for sync phase |
 
 If product later needs frozen amounts per student, add `spp.original_amount_snapshot` in a follow-up migration.

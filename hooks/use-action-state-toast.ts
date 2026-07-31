@@ -13,6 +13,7 @@ function stateFingerprint(state: ActionToastState) {
     error: state.error ?? null,
     message: state.message ?? null,
     note: state.note ?? null,
+    warning: state.warning ?? null,
   });
 }
 
@@ -21,7 +22,8 @@ function hasToastPayload(state: ActionToastState) {
     state.success === true ||
     state.success === false ||
     Boolean(state.error) ||
-    Boolean(state.message)
+    Boolean(state.message) ||
+    Boolean(state.warning)
   );
 }
 
@@ -59,6 +61,9 @@ export function useActionStateToast(
 
     if (state.success === true) {
       showActionResultToast(state);
+      if (state.warning) {
+        showErrorToast(state.warning);
+      }
       return;
     }
 

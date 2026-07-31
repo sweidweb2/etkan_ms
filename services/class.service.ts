@@ -56,6 +56,7 @@ import {
   type AuditActor,
 } from "@/services/audit-log.service";
 import {
+  backfillSppsForClassBecomeInProgress,
   onStudentJoinedClass,
   onStudentLeftClass,
 } from "@/services/accounting-sync.service";
@@ -99,6 +100,37 @@ type MutationFailure = {
   error: string;
   fieldErrors?: FieldErrors;
 };
+
+const PAYMENT_SYNC_FAILURE_WARNING =
+  "Payment sync failed. Check Accounting → Missing assignments.";
+
+async function recordPaymentSyncFailure(
+  adminClient: Supabase,
+  actor: AuditActor,
+  input: {
+    studentId: string;
+    classId: string;
+    operation: string;
+    error: unknown;
+  }
+) {
+  const errorMessage =
+    input.error instanceof Error ? input.error.message : "Unknown error";
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "other",
+    severity: "warning",
+    table_name: "student_payment_phases",
+    record_id: null,
+    metadata: {
+      note: "Payment sync failed; enrollment/status change was kept.",
+      operation: input.operation,
+      class_id: input.classId,
+      student_id: input.studentId,
+      error: errorMessage,
+    },
+  });
+}
 
 function mapClassStatus(status: string | null): ClassStatusValue {
   if (
@@ -1396,7 +1428,12 @@ export async function updateClassForManager(
 }
 
 export type UpdateClassStatusResult =
-  | { success: true; classRow: ManagerClassRow; message: string }
+  | {
+      success: true;
+      classRow: ManagerClassRow;
+      message: string;
+      warning?: string;
+    }
   | MutationFailure;
 
 export async function updateClassStatusForManager(
@@ -1435,10 +1472,43 @@ export async function updateClassStatusForManager(
     return { success: false, error: "Class not found." };
   }
 
+  const nextStatus = parsed.data.status;
+  const previousStatus = existing.data.status;
+  const semesterId = existing.data.semester_id;
+
+  if (
+    nextStatus === CLASS_STATUSES.IN_PROGRESS &&
+    semesterId &&
+    previousStatus !== CLASS_STATUSES.IN_PROGRESS
+  ) {
+    const { data: otherInProgress, error: otherError } =
+      await classRepository.findOtherInProgressClassBySemesterId(
+        adminClient,
+        semesterId,
+        input.class_id
+      );
+
+    if (otherError) {
+      return { success: false, error: otherError.message };
+    }
+
+    if (otherInProgress) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: {
+          status: [
+            "This semester already has an in-progress class. Set that class to another status first.",
+          ],
+        },
+      };
+    }
+  }
+
   const { data, error } = await classRepository.updateClassStatus(
     adminClient,
     input.class_id,
-    parsed.data.status
+    nextStatus
   );
 
   if (error || !data) {
@@ -1457,14 +1527,38 @@ export async function updateClassStatusForManager(
     action: "update",
     table_name: "classes",
     record_id: classRow.id,
-    old_data: { status: existing.data.status },
+    old_data: { status: previousStatus },
     new_data: { status: classRow.status },
   });
+
+  let warning: string | undefined;
+
+  if (
+    nextStatus === CLASS_STATUSES.IN_PROGRESS &&
+    previousStatus !== CLASS_STATUSES.IN_PROGRESS
+  ) {
+    try {
+      await backfillSppsForClassBecomeInProgress(
+        adminClient,
+        input.class_id,
+        actor
+      );
+    } catch (syncError) {
+      await recordPaymentSyncFailure(adminClient, actor, {
+        studentId: "",
+        classId: input.class_id,
+        operation: "class_status_in_progress_backfill",
+        error: syncError,
+      });
+      warning = PAYMENT_SYNC_FAILURE_WARNING;
+    }
+  }
 
   return {
     success: true,
     classRow,
     message: "Class status updated.",
+    warning,
   };
 }
 
@@ -2066,6 +2160,7 @@ export type AddStudentToClassResult =
       studentGrade?: ManagerStudentFinalExamGradeRow;
       classRow: ManagerClassRow;
       message: string;
+      warning?: string;
     }
   | MutationFailure;
 
@@ -2284,6 +2379,8 @@ export async function addStudentToClassForManager(
     },
   });
 
+  let warning: string | undefined;
+
   if (!options?.skipPaymentSync) {
     try {
       await onStudentJoinedClass(
@@ -2291,8 +2388,14 @@ export async function addStudentToClassForManager(
         { studentId: userId, classId: input.class_id },
         actor
       );
-    } catch {
-      // Enrollment remains; Missing-SPP repair is the safety net.
+    } catch (syncError) {
+      await recordPaymentSyncFailure(adminClient, actor, {
+        studentId: userId,
+        classId: input.class_id,
+        operation: "enroll_join_sync",
+        error: syncError,
+      });
+      warning = PAYMENT_SYNC_FAILURE_WARNING;
     }
   }
 
@@ -2302,6 +2405,7 @@ export async function addStudentToClassForManager(
     studentGrade,
     classRow,
     message: `${student.full_name} added to class.`,
+    warning,
   };
 }
 
@@ -2310,6 +2414,7 @@ export type UpdateClassStudentStatusResult =
       success: true;
       student: ManagerClassStudentRow;
       message: string;
+      warning?: string;
     }
   | MutationFailure;
 
@@ -2419,6 +2524,7 @@ export async function updateClassStudentStatusForManager(
 
   const previousStatus = existing.data.status;
   const nextStatus = parsed.data.status;
+  let warning: string | undefined;
 
   if (
     nextStatus === STUDENT_CLASS_STATUSES.PAUSED ||
@@ -2430,8 +2536,14 @@ export async function updateClassStudentStatusForManager(
         { studentId: enrollment.user_id, classId: input.class_id },
         actor
       );
-    } catch {
-      // Status update remains; accounting can be repaired later.
+    } catch (syncError) {
+      await recordPaymentSyncFailure(adminClient, actor, {
+        studentId: enrollment.user_id,
+        classId: input.class_id,
+        operation: "enrollment_leave_sync",
+        error: syncError,
+      });
+      warning = PAYMENT_SYNC_FAILURE_WARNING;
     }
   } else if (
     nextStatus === STUDENT_CLASS_STATUSES.ENROLLED &&
@@ -2443,8 +2555,14 @@ export async function updateClassStudentStatusForManager(
         { studentId: enrollment.user_id, classId: input.class_id },
         actor
       );
-    } catch {
-      // Status update remains; Missing-SPP repair is the safety net.
+    } catch (syncError) {
+      await recordPaymentSyncFailure(adminClient, actor, {
+        studentId: enrollment.user_id,
+        classId: input.class_id,
+        operation: "enrollment_rejoin_sync",
+        error: syncError,
+      });
+      warning = PAYMENT_SYNC_FAILURE_WARNING;
     }
   }
 
@@ -2452,6 +2570,7 @@ export async function updateClassStudentStatusForManager(
     success: true,
     student,
     message: "Enrollment status updated.",
+    warning,
   };
 }
 
@@ -2462,6 +2581,7 @@ export type TransferStudentBetweenClassesResult =
       from_class_id: string;
       to_class_id: string;
       message: string;
+      warning?: string;
     }
   | MutationFailure;
 
@@ -2594,14 +2714,22 @@ export async function transferStudentBetweenClassesForManager(
     };
   }
 
+  let warning: string | undefined;
+
   try {
     await onStudentLeftClass(
       adminClient,
       { studentId: userId, classId: from_class_id },
       actor
     );
-  } catch {
-    // Continue transfer; leave sync can be repaired.
+  } catch (syncError) {
+    await recordPaymentSyncFailure(adminClient, actor, {
+      studentId: userId,
+      classId: from_class_id,
+      operation: "transfer_leave_sync",
+      error: syncError,
+    });
+    warning = PAYMENT_SYNC_FAILURE_WARNING;
   }
 
   const enrollResult = await addStudentToClassForManager(
@@ -2654,5 +2782,6 @@ export async function transferStudentBetweenClassesForManager(
     from_class_id,
     to_class_id,
     message: `${enrollResult.student.full_name} transferred. Destination billing was not auto-assigned.`,
+    warning,
   };
 }
