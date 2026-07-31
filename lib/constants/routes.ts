@@ -25,9 +25,9 @@ export const ROUTES = {
   MANAGER_SUBJECTS: "/manager/subjects",
   MANAGER_SUBJECT_DETAIL: "/manager/subjects/[id]",
   MANAGER_ACCOUNTING: "/manager/accounting",
-  MANAGER_ACCOUNTING_PHASE_DETAIL: "/manager/accounting/phases/[phaseId]",
+  MANAGER_ACCOUNTING_PHASE_DETAIL: "/manager/accounting/phases/[id]",
   MANAGER_ACCOUNTING_SPP_DETAIL:
-    "/manager/accounting/phases/[phaseId]/students/[sppId]",
+    "/manager/accounting/phases/[id]/students/[sppId]",
   MANAGER_SCHEDULE: "/manager/schedule",
   MANAGER_NOTIFICATIONS: "/manager/notifications",
   MANAGER_EMAILING: "/manager/emailing",

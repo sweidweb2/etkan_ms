@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
@@ -32,7 +32,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
+import { formatPaymentPhaseMoney, PAYMENT_PHASE_STATUS_LABELS } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingPhaseDetailRoute,
@@ -53,6 +53,17 @@ import type {
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const STATUS_FILTER_ALL = "all";
+
+const PHASE_ROW_CLASS =
+  "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+
+const STATUS_FILTER_SELECT_ITEMS = [
+  { value: STATUS_FILTER_ALL, label: "All statuses" },
+  ...PAYMENT_PHASE_STATUS_VALUES.map((status) => ({
+    value: status,
+    label: PAYMENT_PHASE_STATUS_LABELS[status],
+  })),
+];
 
 function TruncatedCell({
   value,
@@ -212,6 +223,20 @@ export function ManageAccountingPanel({
     router.refresh();
   };
 
+  const openPhaseDetails = (phaseId: string) => {
+    router.push(getManagerAccountingPhaseDetailRoute(phaseId));
+  };
+
+  const handlePhaseRowKeyDown = (
+    event: KeyboardEvent<HTMLTableRowElement>,
+    phaseId: string
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openPhaseDetails(phaseId);
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
@@ -273,6 +298,7 @@ export function ManageAccountingPanel({
               </div>
               <Select
                 value={statusFilter}
+                items={STATUS_FILTER_SELECT_ITEMS}
                 onValueChange={handleStatusFilterChange}
               >
                 <SelectTrigger className="w-full sm:w-44" aria-label="Status">
@@ -282,11 +308,7 @@ export function ManageAccountingPanel({
                   <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
                   {PAYMENT_PHASE_STATUS_VALUES.map((status) => (
                     <SelectItem key={status} value={status}>
-                      {status === PAYMENT_PHASE_STATUSES.OPENED
-                        ? "Opened"
-                        : status === PAYMENT_PHASE_STATUSES.CLOSED
-                          ? "Closed"
-                          : "Cancelled"}
+                      {PAYMENT_PHASE_STATUS_LABELS[status]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -327,12 +349,22 @@ export function ManageAccountingPanel({
                     paginatedPhases.map((phase) => (
                       <tr
                         key={phase.id}
-                        className="border-b last:border-b-0 hover:bg-muted/30"
+                        className={PHASE_ROW_CLASS}
+                        tabIndex={0}
+                        role="link"
+                        aria-label={`View ${phase.name}`}
+                        onClick={() => openPhaseDetails(phase.id)}
+                        onKeyDown={(event) =>
+                          handlePhaseRowKeyDown(event, phase.id)
+                        }
                       >
                         <td className="max-w-[12rem] px-4 py-3 font-medium">
                           <TruncatedCell value={phase.name} maxLength={28} />
                         </td>
-                        <td className="max-w-[12rem] px-4 py-3">
+                        <td
+                          className="max-w-[12rem] px-4 py-3"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           <Link
                             href={getManagerSemesterDetailRoute(
                               phase.semester_id
@@ -370,7 +402,10 @@ export function ManageAccountingPanel({
                         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                           {format(new Date(phase.created_at), "MMM d, yyyy")}
                         </td>
-                        <td className="px-4 py-3">
+                        <td
+                          className="px-4 py-3"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           <div className="flex items-center justify-end">
                             <Button
                               render={
@@ -502,8 +537,8 @@ export function ManageAccountingPanel({
                         colSpan={5}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
-                        All enrolled students on opened phases have an
-                        assignment.
+                        All students have an assignment on opened payment
+                        phases.
                       </td>
                     </tr>
                   ) : (

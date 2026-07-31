@@ -8,13 +8,13 @@ import {
 } from "@/services/payment-phase.service";
 
 type ManagerPaymentPhaseDetailPageProps = {
-  params: Promise<{ phaseId: string }>;
+  params: Promise<{ id: string }>;
 };
 
 export default async function ManagerPaymentPhaseDetailPage({
   params,
 }: ManagerPaymentPhaseDetailPageProps) {
-  const { phaseId } = await params;
+  const { id: phaseId } = await params;
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
   const actorUserId = user?.id ?? null;

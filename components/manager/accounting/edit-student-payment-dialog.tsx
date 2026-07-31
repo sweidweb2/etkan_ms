@@ -88,6 +88,10 @@ export function EditStudentPaymentDialog({
 
   const selectedMethod = watch("payment_method");
   const receivedByManagement = watch("received_by_management");
+  const paymentMethodSelectItems = PAYMENT_METHOD_VALUES.map((method) => ({
+    value: method,
+    label: PAYMENT_METHOD_LABELS[method],
+  }));
 
   useEffect(() => {
     if (open && payment) {
@@ -204,6 +208,7 @@ export function EditStudentPaymentDialog({
             />
             <Select
               value={selectedMethod}
+              items={paymentMethodSelectItems}
               onValueChange={(value) => {
                 if (!value) return;
                 setValue(

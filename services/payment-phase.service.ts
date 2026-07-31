@@ -1,4 +1,3 @@
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import {
   PAYMENT_PHASE_STATUSES,
   STUDENT_PAYMENT_PHASE_STATUSES,
@@ -364,46 +363,36 @@ export async function listMissingSppForOpenedPhases(
     return [];
   }
 
-  const billingBySemester = await buildBillingClassBySemesterId(
-    adminClient,
-    phases.map((phase) => phase.semester_id)
-  );
-
-  const classIds = [
-    ...new Set(
-      [...billingBySemester.values()].map((billingClass) => billingClass.id)
-    ),
-  ];
   const phaseIds = phases.map((phase) => phase.id);
 
-  if (classIds.length === 0) {
-    return [];
-  }
-
   const [
-    { data: enrollments, error: enrollmentError },
+    { data: students, error: studentsError },
     { data: existingSpps, error: sppError },
+    billingBySemester,
   ] = await Promise.all([
-    studentClassRepository.listEnrolledUserIdsByClassIds(adminClient, classIds),
+    studentProfileRepository.listStudentProfiles(adminClient),
     studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
       adminClient,
       phaseIds
     ),
+    buildBillingClassBySemesterId(
+      adminClient,
+      phases.map((phase) => phase.semester_id)
+    ),
   ]);
 
-  if (enrollmentError) {
-    throw new Error(enrollmentError.message);
+  if (studentsError) {
+    throw new Error(studentsError.message);
   }
 
   if (sppError) {
     throw new Error(sppError.message);
   }
 
-  const enrolledByClassId = new Map<string, string[]>();
-  for (const row of enrollments ?? []) {
-    const list = enrolledByClassId.get(row.class_id) ?? [];
-    list.push(row.user_id);
-    enrolledByClassId.set(row.class_id, list);
+  const allStudents = students ?? [];
+
+  if (allStudents.length === 0) {
+    return [];
   }
 
   const sppStudentsByPhaseId = new Map<string, Set<string>>();
@@ -413,36 +402,26 @@ export async function listMissingSppForOpenedPhases(
     sppStudentsByPhaseId.set(row.payment_phase_id, set);
   }
 
-  const missing: Array<{
-    student_id: string;
-    semester_id: string;
-    semester_name: string;
-    billing_class_id: string;
-    billing_class_name: string;
-    payment_phase_id: string;
-    payment_phase_name: string;
-  }> = [];
+  const missing: ManagerMissingSppRow[] = [];
 
   for (const phase of phases) {
-    const billingClass = billingBySemester.get(phase.semester_id);
-    if (!billingClass) {
-      continue;
-    }
-
-    const enrolled = enrolledByClassId.get(billingClass.id) ?? [];
+    const billingClass = billingBySemester.get(phase.semester_id) ?? null;
     const existing = sppStudentsByPhaseId.get(phase.id) ?? new Set();
 
-    for (const studentId of enrolled) {
-      if (existing.has(studentId)) {
+    for (const student of allStudents) {
+      if (existing.has(student.user_id)) {
         continue;
       }
 
+      const fullName = student.full_name?.trim();
+
       missing.push({
-        student_id: studentId,
+        student_id: student.user_id,
+        student_label: fullName || student.user_id,
         semester_id: phase.semester_id,
         semester_name: phase.semesters?.name ?? "Unknown semester",
-        billing_class_id: billingClass.id,
-        billing_class_name: billingClass.name,
+        billing_class_id: billingClass?.id ?? null,
+        billing_class_name: billingClass?.name ?? null,
         payment_phase_id: phase.id,
         payment_phase_name: phase.name,
       });
@@ -453,12 +432,14 @@ export async function listMissingSppForOpenedPhases(
     return [];
   }
 
-  const studentIds = [...new Set(missing.map((row) => row.student_id))];
-  const labels = await buildStudentLabelsByUserId(adminClient, studentIds);
+  const labels = await buildStudentLabelsByUserId(
+    adminClient,
+    [...new Set(missing.map((row) => row.student_id))]
+  );
 
   return missing.map((row) => ({
     ...row,
-    student_label: labels.get(row.student_id) ?? row.student_id,
+    student_label: labels.get(row.student_id) ?? row.student_label,
   }));
 }
 
@@ -799,37 +780,21 @@ export async function repairMissingSppForManager(
     };
   }
 
-  const billingClass = await resolveInProgressClassForSemester(
-    adminClient,
-    phase.semester_id
-  );
-
-  if (!billingClass) {
-    return {
-      success: false,
-      error: "No in-progress class found for this semester.",
-    };
-  }
-
-  const { data: enrollment, error: enrollmentError } =
-    await studentClassRepository.findStudentClassByUserAndClass(
+  const { data: studentProfile, error: studentError } =
+    await studentProfileRepository.findStudentProfileByUserId(
       adminClient,
-      student_id,
-      billingClass.id
+      student_id
     );
 
-  if (enrollmentError) {
+  if (studentError) {
     return {
       success: false,
       error: "Unable to assign student payment phase. Please try again.",
     };
   }
 
-  if (!enrollment || enrollment.status !== STUDENT_CLASS_STATUSES.ENROLLED) {
-    return {
-      success: false,
-      error: "Student is not enrolled in this semester's in-progress class.",
-    };
+  if (!studentProfile) {
+    return { success: false, error: "Student not found." };
   }
 
   let ensured;

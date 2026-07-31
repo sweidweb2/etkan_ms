@@ -85,6 +85,10 @@ export function CreatePaymentPhaseDialog({
 
   const selectedSemesterId = watch("semester_id");
   const hasSemesterOptions = semesterOptions.length > 0;
+  const semesterSelectItems = semesterOptions.map((option) => ({
+    value: option.id,
+    label: option.label,
+  }));
 
   useEffect(() => {
     if (!open) {
@@ -168,6 +172,7 @@ export function CreatePaymentPhaseDialog({
             {hasSemesterOptions ? (
               <Select
                 value={selectedSemesterId || null}
+                items={semesterSelectItems}
                 onValueChange={(value) => {
                   if (!value) {
                     return;

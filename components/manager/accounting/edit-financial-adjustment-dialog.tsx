@@ -89,6 +89,16 @@ export function EditFinancialAdjustmentDialog({
 
   const selectedType = watch("type");
   const selectedValueType = watch("value_type");
+  const typeSelectItems = FINANCIAL_ADJUSTMENT_TYPE_VALUES.map((type) => ({
+    value: type,
+    label: FINANCIAL_ADJUSTMENT_TYPE_LABELS[type],
+  }));
+  const valueTypeSelectItems = FINANCIAL_ADJUSTMENT_VALUE_TYPE_VALUES.map(
+    (valueType) => ({
+      value: valueType,
+      label: FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS[valueType],
+    })
+  );
 
   useEffect(() => {
     if (open && adjustment) {
@@ -149,6 +159,7 @@ export function EditFinancialAdjustmentDialog({
             <FieldLabel htmlFor="edit-adj-type" label="Type" hint="Required" />
             <Select
               value={selectedType}
+              items={typeSelectItems}
               onValueChange={(value) => {
                 if (!value) return;
                 setValue("type", value as UpdateFinancialAdjustmentInput["type"], {
@@ -182,6 +193,7 @@ export function EditFinancialAdjustmentDialog({
               />
               <Select
                 value={selectedValueType}
+                items={valueTypeSelectItems}
                 onValueChange={(value) => {
                   if (!value) return;
                   setValue(

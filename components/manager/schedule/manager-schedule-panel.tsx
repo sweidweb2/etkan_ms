@@ -20,7 +20,15 @@ import interactionPlugin from "@fullcalendar/react/interaction";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
 import listPlugin from "@fullcalendar/react/list";
-import { CopyIcon, PlusIcon } from "lucide-react";
+import {
+  CopyIcon,
+  GraduationCapIcon,
+  MonitorIcon,
+  PlusIcon,
+  UsersIcon,
+  WrenchIcon,
+  type LucideIcon,
+} from "lucide-react";
 import {
   createWeeklyScheduleSlotAction,
   copyWeeklyScheduleSlotsAction,
@@ -88,6 +96,13 @@ const TYPE_FILTER_OPTIONS: { value: ScheduleTypeFilter; label: string }[] = [
     label: WEEKLY_SCHEDULE_SLOT_TYPE_LABELS[type],
   })),
 ];
+
+const TYPE_STAT_ICONS: Record<WeeklyScheduleSlotType, LucideIcon> = {
+  class: GraduationCapIcon,
+  workshop: WrenchIcon,
+  online: MonitorIcon,
+  meeting: UsersIcon,
+};
 
 type DragSourceSnapshot = {
   session: ManagerWeeklyScheduleSession;
@@ -321,6 +336,28 @@ export function ManagerSchedulePanel({
         : sessions.filter((session) => session.type === typeFilter);
     return weeklyScheduleSessionsToEvents(filtered);
   }, [sessions, typeFilter]);
+
+  const weekTypeCounts = useMemo(() => {
+    const bounds = getSundayWeekBounds(weekStart);
+    const counts: Record<WeeklyScheduleSlotType, number> = {
+      class: 0,
+      workshop: 0,
+      online: 0,
+      meeting: 0,
+    };
+
+    for (const session of sessions) {
+      if (
+        session.slotDate < bounds.weekStart ||
+        session.slotDate > bounds.weekEnd
+      ) {
+        continue;
+      }
+      counts[session.type] += 1;
+    }
+
+    return counts;
+  }, [sessions, weekStart]);
 
   function softRefresh() {
     startTransition(() => {
@@ -959,31 +996,57 @@ export function ManagerSchedulePanel({
         </Can>
       </div>
 
-      <div
-        role="tablist"
-        aria-label="Filter by slot type"
-        className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
-      >
-        {TYPE_FILTER_OPTIONS.map((option) => {
-          const selected = typeFilter === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => setTypeFilter(option.value)}
-              className={cn(
-                "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
-                "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-                selected &&
-                  "border-border bg-background text-foreground shadow-sm"
-              )}
-            >
-              {option.label}
-            </button>
-          );
-        })}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div
+          aria-label="Slot counts for this week"
+          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+        >
+          {WEEKLY_SCHEDULE_SLOT_TYPE_VALUES.map((type) => {
+            const Icon = TYPE_STAT_ICONS[type];
+            const count = weekTypeCounts[type];
+            return (
+              <div
+                key={type}
+                className="inline-flex items-center gap-1.5 rounded-full border border-transparent px-3.5 py-1.5 text-sm text-muted-foreground"
+              >
+                <Icon className="size-3.5 shrink-0" aria-hidden />
+                <span className="font-semibold tabular-nums text-foreground">
+                  {count}
+                </span>
+                <span className="font-medium">
+                  {WEEKLY_SCHEDULE_SLOT_TYPE_LABELS[type]}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Filter by slot type"
+          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+        >
+          {TYPE_FILTER_OPTIONS.map((option) => {
+            const selected = typeFilter === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setTypeFilter(option.value)}
+                className={cn(
+                  "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+                  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
+                  selected &&
+                    "border-border bg-background text-foreground shadow-sm"
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <AddWeeklyScheduleSlotDialog

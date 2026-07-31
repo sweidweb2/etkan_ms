@@ -88,6 +88,14 @@ const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const STATUS_FILTER_ALL = "all";
 const initialCancelState: CancelPaymentPhaseActionState = {};
 
+const STATUS_FILTER_SELECT_ITEMS = [
+  { value: STATUS_FILTER_ALL, label: "All statuses" },
+  ...STUDENT_PAYMENT_PHASE_STATUS_VALUES.map((status) => ({
+    value: status,
+    label: SPP_STATUS_LABELS[status],
+  })),
+];
+
 type PaymentPhaseDetailsPanelProps = {
   phase: ManagerPaymentPhaseRow;
   initialSpps: ManagerSppRow[];
@@ -448,6 +456,7 @@ export function PaymentPhaseDetailsPanel({
               </div>
               <Select
                 value={statusFilter}
+                items={STATUS_FILTER_SELECT_ITEMS}
                 onValueChange={handleStatusFilterChange}
               >
                 <SelectTrigger className="w-full sm:w-44" aria-label="Status">

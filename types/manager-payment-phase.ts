@@ -28,8 +28,8 @@ export type ManagerMissingSppRow = {
   student_label: string;
   semester_id: string;
   semester_name: string;
-  billing_class_id: string;
-  billing_class_name: string;
+  billing_class_id: string | null;
+  billing_class_name: string | null;
   payment_phase_id: string;
   payment_phase_name: string;
 };

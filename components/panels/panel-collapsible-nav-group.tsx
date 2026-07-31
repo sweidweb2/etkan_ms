@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { useId, useState, useSyncExternalStore } from "react";
+import { useId, useState } from "react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -21,22 +21,17 @@ type PanelNavMenuProps = {
   items: PanelNavItem[];
 };
 
-const emptySubscribe = () => () => {};
+function isNavItemActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function PanelNavMenu({ items }: PanelNavMenuProps) {
   const pathname = usePathname();
-  const hasMounted = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false
-  );
 
   return (
     <SidebarMenu>
       {items.map((item) => {
-        const isActive =
-          hasMounted &&
-          (pathname === item.href || pathname.startsWith(`${item.href}/`));
+        const isActive = isNavItemActive(pathname, item.href);
         const Icon = PANEL_ICONS[item.icon];
 
         return (
@@ -64,10 +59,7 @@ type PanelCollapsibleNavGroupProps = {
 };
 
 function groupContainsPath(group: PanelNavGroup, pathname: string): boolean {
-  return group.items.some(
-    (item) =>
-      pathname === item.href || pathname.startsWith(`${item.href}/`)
-  );
+  return group.items.some((item) => isNavItemActive(pathname, item.href));
 }
 
 export function PanelCollapsibleNavGroup({

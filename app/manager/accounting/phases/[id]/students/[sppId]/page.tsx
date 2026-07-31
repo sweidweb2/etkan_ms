@@ -9,13 +9,13 @@ import {
 } from "@/services/student-payment.service";
 
 type ManagerSppDetailPageProps = {
-  params: Promise<{ phaseId: string; sppId: string }>;
+  params: Promise<{ id: string; sppId: string }>;
 };
 
 export default async function ManagerSppDetailPage({
   params,
 }: ManagerSppDetailPageProps) {
-  const { phaseId, sppId } = await params;
+  const { id: phaseId, sppId } = await params;
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
   const actor = await getSessionAuditActor();
