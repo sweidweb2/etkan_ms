@@ -91,6 +91,7 @@ function matchesSearch(phase: ManagerSemesterRow, query: string) {
 
   const haystack = [
     phase.name,
+    phase.semester_code,
     String(phase.amount),
     String(phase.nb_courses),
   ]

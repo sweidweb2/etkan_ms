@@ -15,6 +15,7 @@ import {
 import { createPhaseSchema } from "@/lib/validators/manager/create-phase";
 import { updatePhaseSchema } from "@/lib/validators/manager/update-phase";
 import { connectSemesterClassSchema } from "@/lib/validators/manager/connect-semester-class";
+import { generateSemesterCode } from "@/lib/manager/generate-semester-code";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassWithSubjectRecord } from "@/repositories/class.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
@@ -35,6 +36,39 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
+
+const SEMESTER_CODE_MAX_ATTEMPTS = 40;
+
+async function allocateUniqueSemesterCode(
+  adminClient: Supabase
+): Promise<
+  | { success: true; semesterCode: string }
+  | { success: false; error: string }
+> {
+  for (let attempt = 0; attempt < SEMESTER_CODE_MAX_ATTEMPTS; attempt += 1) {
+    const semesterCode = generateSemesterCode();
+    const existing = await semesterRepository.findSemesterByCode(
+      adminClient,
+      semesterCode
+    );
+
+    if (existing.error) {
+      return {
+        success: false,
+        error: mapCreateSemesterError(existing.error.message),
+      };
+    }
+
+    if (!existing.data) {
+      return { success: true, semesterCode };
+    }
+  }
+
+  return {
+    success: false,
+    error: "Unable to allocate a unique semester code. Please try again.",
+  };
+}
 
 export type CreateSemesterSuccess = {
   success: true;
@@ -88,12 +122,17 @@ function mapSemesterRecordToRow(record: SemesterRecord): ManagerSemesterRow {
     amount: Number(record.amount),
     status: mapSemesterStatus(record.status),
     start_date: record.start_date ?? null,
+    semester_code: record.semester_code,
     created_at: record.created_at ?? "",
   };
 }
 
 function mapCreateSemesterError(message: string): string {
   const normalized = message.toLowerCase();
+
+  if (normalized.includes("semester_code")) {
+    return "Unable to allocate a unique semester code. Please try again.";
+  }
 
   if (normalized.includes("duplicate") || normalized.includes("unique")) {
     return "A semester with this name already exists.";
@@ -313,12 +352,19 @@ export async function createSemesterForManager(
     };
   }
 
+  const codeAllocation = await allocateUniqueSemesterCode(adminClient);
+
+  if (!codeAllocation.success) {
+    return { success: false, error: codeAllocation.error };
+  }
+
   const { data, error } = await semesterRepository.createSemester(adminClient, {
     name: normalizedName,
     nb_courses,
     amount,
     status,
     start_date,
+    semester_code: codeAllocation.semesterCode,
   });
 
   if (error || !data) {
@@ -339,6 +385,7 @@ export async function createSemesterForManager(
       amount: data.amount,
       status: data.status,
       start_date: data.start_date,
+      semester_code: data.semester_code,
     },
     metadata: { note: "Semester created." },
   });
@@ -445,6 +492,7 @@ export async function updateSemesterForManager(
       amount: existing.data.amount,
       status: existing.data.status,
       start_date: existing.data.start_date,
+      semester_code: existing.data.semester_code,
     },
     new_data: {
       name: data.name,
@@ -452,6 +500,7 @@ export async function updateSemesterForManager(
       amount: data.amount,
       status: data.status,
       start_date: data.start_date,
+      semester_code: data.semester_code,
     },
     metadata: {
       note: "Semester updated.",

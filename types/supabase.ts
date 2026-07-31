@@ -552,6 +552,48 @@ export type Database = {
           },
         ]
       }
+      payment_phases: {
+        Row: {
+          amount: number
+          created_at: string
+          duration_months: number
+          end_date: string
+          id: string
+          name: string
+          semester_code: string
+          start_date: string
+          status: string
+          updated_at: string
+          upfront_amount: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          duration_months: number
+          end_date: string
+          id?: string
+          name: string
+          semester_code: string
+          start_date: string
+          status?: string
+          updated_at?: string
+          upfront_amount?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          duration_months?: number
+          end_date?: string
+          id?: string
+          name?: string
+          semester_code?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+          upfront_amount?: number
+        }
+        Relationships: []
+      }
       permissions: {
         Row: {
           access: string
@@ -660,6 +702,7 @@ export type Database = {
           id: string
           name: string
           nb_courses: number
+          semester_code: string
           start_date: string | null
           status: string
         }
@@ -669,6 +712,7 @@ export type Database = {
           id?: string
           name: string
           nb_courses?: number
+          semester_code: string
           start_date?: string | null
           status?: string
         }
@@ -678,6 +722,7 @@ export type Database = {
           id?: string
           name?: string
           nb_courses?: number
+          semester_code?: string
           start_date?: string | null
           status?: string
         }
@@ -880,6 +925,234 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_financial_adjustments: {
+        Row: {
+          created_at: string
+          effective_date: string
+          id: string
+          reason: string | null
+          student_payment_phase_id: string
+          type: string
+          updated_at: string
+          value: number
+          value_type: string
+        }
+        Insert: {
+          created_at?: string
+          effective_date: string
+          id?: string
+          reason?: string | null
+          student_payment_phase_id: string
+          type: string
+          updated_at?: string
+          value: number
+          value_type: string
+        }
+        Update: {
+          created_at?: string
+          effective_date?: string
+          id?: string
+          reason?: string | null
+          student_payment_phase_id?: string
+          type?: string
+          updated_at?: string
+          value?: number
+          value_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_financial_adjustments_student_payment_phase_id_fkey"
+            columns: ["student_payment_phase_id"]
+            isOneToOne: false
+            referencedRelation: "student_payment_phases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_financial_forms: {
+        Row: {
+          affordable_monthly_payment: number | null
+          agreed_to_rules: boolean
+          both_parents_work: boolean
+          certificates: string | null
+          children_currently_learning: number | null
+          created_at: string
+          current_gpa: string | null
+          date_of_birth: string | null
+          family_chronic_disease: boolean
+          family_hardship: boolean
+          family_members: number | null
+          full_name: string
+          has_deceased_parent: boolean
+          id: string
+          parent_phone: string | null
+          phone: string | null
+          received_financial_aid_before: boolean
+          school_or_university: string | null
+          student_financial_adjustment_id: string
+          student_monthly_income: number | null
+          student_works: boolean
+          total_family_income: number | null
+          updated_at: string
+          working_family_members: number | null
+        }
+        Insert: {
+          affordable_monthly_payment?: number | null
+          agreed_to_rules: boolean
+          both_parents_work?: boolean
+          certificates?: string | null
+          children_currently_learning?: number | null
+          created_at?: string
+          current_gpa?: string | null
+          date_of_birth?: string | null
+          family_chronic_disease?: boolean
+          family_hardship?: boolean
+          family_members?: number | null
+          full_name: string
+          has_deceased_parent?: boolean
+          id?: string
+          parent_phone?: string | null
+          phone?: string | null
+          received_financial_aid_before?: boolean
+          school_or_university?: string | null
+          student_financial_adjustment_id: string
+          student_monthly_income?: number | null
+          student_works?: boolean
+          total_family_income?: number | null
+          updated_at?: string
+          working_family_members?: number | null
+        }
+        Update: {
+          affordable_monthly_payment?: number | null
+          agreed_to_rules?: boolean
+          both_parents_work?: boolean
+          certificates?: string | null
+          children_currently_learning?: number | null
+          created_at?: string
+          current_gpa?: string | null
+          date_of_birth?: string | null
+          family_chronic_disease?: boolean
+          family_hardship?: boolean
+          family_members?: number | null
+          full_name?: string
+          has_deceased_parent?: boolean
+          id?: string
+          parent_phone?: string | null
+          phone?: string | null
+          received_financial_aid_before?: boolean
+          school_or_university?: string | null
+          student_financial_adjustment_id?: string
+          student_monthly_income?: number | null
+          student_works?: boolean
+          total_family_income?: number | null
+          updated_at?: string
+          working_family_members?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_financial_forms_student_financial_adjustment_id_fkey"
+            columns: ["student_financial_adjustment_id"]
+            isOneToOne: true
+            referencedRelation: "student_financial_adjustments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_payment_phases: {
+        Row: {
+          assigned_at: string
+          created_at: string
+          id: string
+          payment_phase_id: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at: string
+          created_at?: string
+          id?: string
+          payment_phase_id: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          created_at?: string
+          id?: string
+          payment_phase_id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_payment_phases_payment_phase_id_fkey"
+            columns: ["payment_phase_id"]
+            isOneToOne: false
+            referencedRelation: "payment_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_payment_phases_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          receipt_number: string | null
+          received_by: string
+          received_by_management: boolean
+          student_payment_phase_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date: string
+          payment_method: string
+          receipt_number?: string | null
+          received_by: string
+          received_by_management?: boolean
+          student_payment_phase_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          receipt_number?: string | null
+          received_by?: string
+          received_by_management?: boolean
+          student_payment_phase_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_payments_student_payment_phase_id_fkey"
+            columns: ["student_payment_phase_id"]
+            isOneToOne: false
+            referencedRelation: "student_payment_phases"
             referencedColumns: ["id"]
           },
         ]

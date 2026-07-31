@@ -9,6 +9,7 @@ export const MANAGER_PHASES_MOCK: ManagerSemesterRow[] = [
     amount: 450,
     status: SEMESTER_STATUS_VALUES[0]!,
     start_date: "2025-09-01",
+    semester_code: "1001",
     created_at: "2025-08-18T09:00:00.000Z",
   },
   {
@@ -18,6 +19,7 @@ export const MANAGER_PHASES_MOCK: ManagerSemesterRow[] = [
     amount: 620,
     status: SEMESTER_STATUS_VALUES[1]!,
     start_date: "2025-09-01",
+    semester_code: "1002",
     created_at: "2025-08-20T10:15:00.000Z",
   },
   {
@@ -27,6 +29,7 @@ export const MANAGER_PHASES_MOCK: ManagerSemesterRow[] = [
     amount: 380,
     status: SEMESTER_STATUS_VALUES[2]!,
     start_date: "2025-09-15",
+    semester_code: "1003",
     created_at: "2025-08-22T11:30:00.000Z",
   },
   {
@@ -36,6 +39,7 @@ export const MANAGER_PHASES_MOCK: ManagerSemesterRow[] = [
     amount: 700,
     status: SEMESTER_STATUS_VALUES[3]!,
     start_date: "2025-10-01",
+    semester_code: "1004",
     created_at: "2025-08-25T13:10:00.000Z",
   },
   {
@@ -45,6 +49,7 @@ export const MANAGER_PHASES_MOCK: ManagerSemesterRow[] = [
     amount: 540,
     status: SEMESTER_STATUS_VALUES[4]!,
     start_date: "2025-06-01",
+    semester_code: "1005",
     created_at: "2025-05-28T08:45:00.000Z",
   },
   {
@@ -54,6 +59,7 @@ export const MANAGER_PHASES_MOCK: ManagerSemesterRow[] = [
     amount: 510,
     status: SEMESTER_STATUS_VALUES[0]!,
     start_date: "2025-09-01",
+    semester_code: "1006",
     created_at: "2025-08-29T14:40:00.000Z",
   },
   {
@@ -63,6 +69,7 @@ export const MANAGER_PHASES_MOCK: ManagerSemesterRow[] = [
     amount: 430,
     status: SEMESTER_STATUS_VALUES[1]!,
     start_date: "2025-07-01",
+    semester_code: "1007",
     created_at: "2025-06-18T09:20:00.000Z",
   },
   {
@@ -72,6 +79,7 @@ export const MANAGER_PHASES_MOCK: ManagerSemesterRow[] = [
     amount: 470,
     status: SEMESTER_STATUS_VALUES[2]!,
     start_date: "2025-09-01",
+    semester_code: "1008",
     created_at: "2025-09-01T12:05:00.000Z",
   },
 ];

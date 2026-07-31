@@ -140,6 +140,7 @@ export function EditPhaseDialog({
           <DialogTitle>Edit semester</DialogTitle>
           <DialogDescription>
             Update name, courses, amount, start date, and lifecycle status.
+            Semester code cannot be changed.
           </DialogDescription>
         </DialogHeader>
 
@@ -167,6 +168,21 @@ export function EditPhaseDialog({
               {nameError ? (
                 <p className="text-sm text-destructive">{nameError}</p>
               ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <FieldLabel
+                htmlFor="edit-semester-code"
+                label="Semester code"
+                hint="Read-only"
+              />
+              <Input
+                id="edit-semester-code"
+                value={semester.semester_code}
+                readOnly
+                disabled
+                className="font-mono tracking-wider"
+              />
             </div>
 
             <div className="flex flex-col gap-2">

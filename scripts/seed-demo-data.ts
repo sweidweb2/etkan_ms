@@ -1,5 +1,6 @@
 import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
+import { generateSemesterCode } from "@/lib/manager/generate-semester-code";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
@@ -44,11 +45,23 @@ async function findOrCreateSemester(
   if (existing.error) throw new Error(existing.error.message);
   if (existing.data) return existing.data.id;
 
+  let semesterCode = generateSemesterCode();
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const codeCheck = await semesterRepository.findSemesterByCode(
+      client,
+      semesterCode
+    );
+    if (codeCheck.error) throw new Error(codeCheck.error.message);
+    if (!codeCheck.data) break;
+    semesterCode = generateSemesterCode();
+  }
+
   const { data, error } = await semesterRepository.createSemester(client, {
     name: input.name,
     amount: input.amount,
     nb_courses: input.nbCourses,
     start_date: input.startDate ?? null,
+    semester_code: semesterCode,
   });
 
   if (error || !data) {

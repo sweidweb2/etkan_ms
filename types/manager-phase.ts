@@ -10,6 +10,8 @@ export interface ManagerSemesterRow {
   amount: number;
   status: SemesterStatusValue;
   start_date: string | null;
+  /** Unique 4-digit public semester code. */
+  semester_code: string;
   created_at: string;
 }
 

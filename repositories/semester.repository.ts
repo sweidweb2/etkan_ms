@@ -4,7 +4,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const SEMESTER_COLUMNS =
-  "id, name, nb_courses, amount, status, start_date, created_at";
+  "id, name, nb_courses, amount, status, start_date, semester_code, created_at";
 
 export type SemesterRecord = {
   id: string;
@@ -13,6 +13,7 @@ export type SemesterRecord = {
   amount: number;
   status: string;
   start_date: string | null;
+  semester_code: string;
   created_at: string | null;
 };
 
@@ -22,6 +23,7 @@ export type CreateSemesterRecordInput = {
   amount?: number;
   status?: string;
   start_date?: string | null;
+  semester_code: string;
 };
 
 export type UpdateSemesterRecordInput = {
@@ -55,6 +57,14 @@ export async function findSemesterByName(client: Supabase, name: string) {
     .maybeSingle();
 }
 
+export async function findSemesterByCode(client: Supabase, semesterCode: string) {
+  return client
+    .from("semesters")
+    .select("id, semester_code")
+    .eq("semester_code", semesterCode)
+    .maybeSingle();
+}
+
 export async function createSemester(
   client: Supabase,
   input: CreateSemesterRecordInput
@@ -67,6 +77,7 @@ export async function createSemester(
       amount: input.amount ?? 0,
       status: input.status ?? "scheduled",
       start_date: input.start_date ?? null,
+      semester_code: input.semester_code,
     })
     .select(SEMESTER_COLUMNS)
     .single();

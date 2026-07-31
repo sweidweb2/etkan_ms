@@ -114,7 +114,13 @@ export function PhaseCard({ phase, onEdit }: PhaseCardProps) {
                 <p className="text-xs text-muted-foreground">Courses</p>
                 <p className="mt-1 font-semibold">{phase.nb_courses}</p>
               </div>
-              <div className="rounded-lg border bg-muted/20 p-3 sm:col-span-2">
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs text-muted-foreground">Semester code</p>
+                <p className="mt-1 font-semibold tabular-nums tracking-wider">
+                  {phase.semester_code}
+                </p>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-3">
                 <p className="text-xs text-muted-foreground">Start date</p>
                 <p className="mt-1 font-semibold">{startDateLabel}</p>
               </div>

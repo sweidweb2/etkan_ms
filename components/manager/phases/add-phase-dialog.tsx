@@ -126,7 +126,8 @@ export function AddPhaseDialog({
           <DialogTitle>Add semester</DialogTitle>
           <DialogDescription>
             Create a semester with name, courses, amount, start date, and
-            lifecycle status.
+            lifecycle status. A unique 4-digit semester code is assigned
+            automatically.
           </DialogDescription>
         </DialogHeader>
 

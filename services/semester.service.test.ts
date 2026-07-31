@@ -42,6 +42,7 @@ const semesterRecord = {
   amount: 450,
   status: SEMESTER_STATUSES.SCHEDULED,
   start_date: "2026-09-01",
+  semester_code: "4821",
   created_at: "2026-01-01T00:00:00.000Z",
 };
 
@@ -83,6 +84,7 @@ describe("listSemestersForManager", () => {
         amount: 450,
         status: SEMESTER_STATUSES.SCHEDULED,
         start_date: "2026-09-01",
+        semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
       },
     ]);
@@ -154,6 +156,7 @@ describe("getSemesterForManager", () => {
       amount: 450,
       status: SEMESTER_STATUSES.SCHEDULED,
       start_date: "2026-09-01",
+      semester_code: "4821",
       created_at: "2026-01-01T00:00:00.000Z",
     });
   });
@@ -226,6 +229,14 @@ describe("createSemesterForManager", () => {
       statusText: "OK",
     });
 
+    vi.mocked(semesterRepository.findSemesterByCode).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
     vi.mocked(semesterRepository.createSemester).mockResolvedValue({
       data: semesterRecord,
       error: null,
@@ -250,10 +261,19 @@ describe("createSemesterForManager", () => {
         amount: 450,
         status: SEMESTER_STATUSES.SCHEDULED,
         start_date: "2026-09-01",
+        semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
       },
       message: "Semester created.",
     });
+
+    expect(semesterRepository.createSemester).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        name: "Fall 2026 Core Semester",
+        semester_code: expect.stringMatching(/^\d{4}$/),
+      })
+    );
   });
 });
 
@@ -305,6 +325,7 @@ describe("updateSemesterForManager", () => {
         amount: 500,
         status: SEMESTER_STATUSES.IN_PROGRESS,
         start_date: "2026-09-15",
+        semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
       },
       message: "Semester updated.",
