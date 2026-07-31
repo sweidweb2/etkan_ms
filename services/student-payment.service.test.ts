@@ -1,19 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as classRepository from "@/repositories/class.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
+import * as profileRepository from "@/repositories/profile.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
   createStudentPaymentForManager,
   deleteStudentPaymentForManager,
+  getSppDetailForManager,
 } from "@/services/student-payment.service";
 
+vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/payment-phase.repository");
+vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-financial-adjustment.repository");
+vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -392,6 +399,80 @@ describe("createStudentPaymentForManager", () => {
         remaining_amount: -200,
       })
     );
+  });
+});
+
+describe("getSppDetailForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("sets has_credit when remaining amount is negative (E9)", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: {
+        ...sppRecord,
+        status: "paid",
+        total_paid: 1200,
+        remaining_amount: -200,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
+      data: phaseRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: "student-1",
+        username: "student",
+        role: "student",
+        created_at: "",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesByUserIds
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "sp-1",
+          user_id: "student-1",
+          full_name: "Student One",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(classRepository.findInProgressClassBySemesterId).mockResolvedValue(
+      {
+        data: null,
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never
+    );
+
+    const detail = await getSppDetailForManager(
+      adminClient,
+      actor.userId,
+      phaseId,
+      sppId
+    );
+
+    expect(detail).not.toBeNull();
+    expect(detail?.remaining_amount).toBe(-200);
+    expect(detail?.has_credit).toBe(true);
+    expect(detail?.status).toBe("paid");
+    expect(detail?.student_profile_id).toBe("sp-1");
   });
 });
 

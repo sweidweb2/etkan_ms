@@ -329,15 +329,15 @@ Hook points in existing class enrollment services:
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| E1 | Create phase on class with 10 enrolled | 10 SPPs `pending`, phase `opened` |
-| E2 | Second `opened` phase same class | Rejected |
-| E3 | Late enroll while phase `opened` | New SPP `pending` |
-| E4 | Late enroll while phase `closed` | Phase → `opened`, new SPP `pending` |
+| E1 | Create phase on semester with in-progress class (N enrolled) | N SPPs `pending`, phase `opened` |
+| E2 | Second `opened` phase same semester | Rejected |
+| E3 | Late enroll on semester’s in-progress class while phase `opened` | New SPP `pending` |
+| E4 | Late enroll on semester’s in-progress class while phase `closed` | Phase → `opened`, new SPP `pending` |
 | E5 | Late enroll while only `cancelled` phase | No auto SPP |
 | E6 | Student leaves / stopped | SPP → `cancelled`; if others all `paid` → phase `closed` |
-| E7 | Student moves to another class | Old SPP cancelled; no auto SPP on new class |
+| E7 | Student transferred to another class | Old SPP cancelled; destination enroll skips payment sync (no auto SPP) |
 | E8 | Pay full amount | SPP `paid`; if all active paid → phase `closed` |
-| E9 | Overpay | `remaining < 0`, SPP `paid`, Credit badge |
+| E9 | Overpay | `remaining < 0`, SPP `paid`, Credit badge (`has_credit`) |
 | E10 | Delete payment after phase closed | SPP may leave `paid`; phase reopens |
 | E11 | Edit phase amount upward | Recalc; some SPPs may leave `paid` → phase reopens |
 | E12 | Add 100% scholarship | `finalDue = 0`, SPP `paid` (0 paid ok), may close phase |
