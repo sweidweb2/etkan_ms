@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { addStudentToClassAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { StudentMultiSelectField } from "@/components/manager/classes/student-multi-select-field";
@@ -61,10 +61,6 @@ export function AddStudentToClassDialog({
     []
   );
 
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-
-  useActionStateToast(state, isPending);
-
   const {
     handleSubmit,
     reset,
@@ -78,15 +74,18 @@ export function AddStudentToClassDialog({
     },
   });
 
-  const hasAvailableStudents = availableStudents.length > 0;
-  const selectedCount = selectedStudents.length;
-
-  useEffect(() => {
-    if (!open) {
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
+    if (!nextOpen) {
       setSelectedStudents([]);
       reset({ studentProfileIds: [] });
     }
-  }, [open, reset]);
+    onOpenChange(nextOpen);
+  });
+
+  useActionStateToast(state, isPending);
+
+  const hasAvailableStudents = availableStudents.length > 0;
+  const selectedCount = selectedStudents.length;
 
   useActionStateSuccess(
     state,
