@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useMemo, useState, useTransition } from "react";
+import {
+  useActionState,
+  useMemo,
+  useState,
+  useTransition,
+  type KeyboardEvent,
+} from "react";
 import { format } from "date-fns";
 import {
   BanIcon,
+  BanknoteIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
@@ -14,6 +21,7 @@ import {
 } from "lucide-react";
 import { cancelPaymentPhaseAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
+import { CreateStudentPaymentDialog } from "@/components/manager/accounting/create-student-payment-dialog";
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
@@ -70,6 +78,7 @@ import {
 } from "@/lib/constants/routes";
 import {
   PAYMENT_PHASE_STATUSES,
+  STUDENT_PAYMENT_PHASE_STATUSES,
   STUDENT_PAYMENT_PHASE_STATUS_VALUES,
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
@@ -88,6 +97,9 @@ const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const STATUS_FILTER_ALL = "all";
 const initialCancelState: CancelPaymentPhaseActionState = {};
 
+const SPP_ROW_CLASS =
+  "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+
 const STATUS_FILTER_SELECT_ITEMS = [
   { value: STATUS_FILTER_ALL, label: "All statuses" },
   ...STUDENT_PAYMENT_PHASE_STATUS_VALUES.map((status) => ({
@@ -99,6 +111,7 @@ const STATUS_FILTER_SELECT_ITEMS = [
 type PaymentPhaseDetailsPanelProps = {
   phase: ManagerPaymentPhaseRow;
   initialSpps: ManagerSppRow[];
+  actorLabel: string;
 };
 
 function DetailField({
@@ -192,6 +205,7 @@ function matchesSppSearch(spp: ManagerSppRow, query: string) {
 export function PaymentPhaseDetailsPanel({
   phase: initialPhase,
   initialSpps,
+  actorLabel,
 }: PaymentPhaseDetailsPanelProps) {
   const router = useRouter();
   const [phase, setPhase] = useState(initialPhase);
@@ -200,6 +214,9 @@ export function PaymentPhaseDetailsPanel({
   const [prevSpps, setPrevSpps] = useState(initialSpps);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [recordPaymentSppId, setRecordPaymentSppId] = useState<string | null>(
+    null
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
@@ -237,6 +254,16 @@ export function PaymentPhaseDetailsPanel({
   }
 
   const isCancelled = phase.status === PAYMENT_PHASE_STATUSES.CANCELLED;
+  const canRecordPayments = !isCancelled;
+
+  const openRecordPayment = (sppId: string) => {
+    setRecordPaymentSppId(sppId);
+  };
+
+  const handlePaymentCreated = () => {
+    setRecordPaymentSppId(null);
+    router.refresh();
+  };
 
   const filteredSpps = useMemo(() => {
     return spps.filter((spp) => {
@@ -282,6 +309,20 @@ export function PaymentPhaseDetailsPanel({
     router.refresh();
   };
 
+  const openSppDetails = (sppId: string) => {
+    router.push(getManagerAccountingSppDetailRoute(phase.id, sppId));
+  };
+
+  const handleSppRowKeyDown = (
+    event: KeyboardEvent<HTMLTableRowElement>,
+    sppId: string
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openSppDetails(sppId);
+    }
+  };
+
   function handleConfirmCancel() {
     const formData = new FormData();
     formData.set("payment_phase_id", phase.id);
@@ -312,6 +353,19 @@ export function PaymentPhaseDetailsPanel({
           onOpenChange={setIsEditOpen}
           phase={phase}
           onUpdated={handlePhaseUpdated}
+        />
+
+        <CreateStudentPaymentDialog
+          key={recordPaymentSppId ?? "closed"}
+          open={recordPaymentSppId !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setRecordPaymentSppId(null);
+            }
+          }}
+          sppId={recordPaymentSppId ?? ""}
+          defaultReceivedBy={actorLabel}
+          onCreated={handlePaymentCreated}
         />
 
         <Dialog open={isCancelOpen} onOpenChange={handleCancelOpenChange}>
@@ -507,27 +561,46 @@ export function PaymentPhaseDetailsPanel({
                     paginatedSpps.map((spp) => (
                       <tr
                         key={spp.id}
-                        className="border-b last:border-b-0 hover:bg-muted/30"
+                        className={SPP_ROW_CLASS}
+                        tabIndex={0}
+                        role="link"
+                        aria-label={`View assignment for ${spp.student_label}`}
+                        onClick={() => openSppDetails(spp.id)}
+                        onKeyDown={(event) =>
+                          handleSppRowKeyDown(event, spp.id)
+                        }
                       >
-                        <td className="max-w-[14rem] px-4 py-3 font-medium">
-                          {spp.student_profile_id ? (
-                            <Link
-                              href={getManagerStudentDetailRoute(
-                                spp.student_profile_id
+                        <td
+                          className="max-w-[18rem] px-4 py-3 font-medium"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="min-w-0 flex-1">
+                              {spp.student_profile_id ? (
+                                <Link
+                                  href={getManagerStudentDetailRoute(
+                                    spp.student_profile_id
+                                  )}
+                                  className="text-primary hover:underline"
+                                >
+                                  <TruncatedCell
+                                    value={spp.student_label}
+                                    maxLength={28}
+                                  />
+                                </Link>
+                              ) : (
+                                <TruncatedCell
+                                  value={spp.student_label}
+                                  maxLength={28}
+                                />
                               )}
-                              className="text-primary hover:underline"
-                            >
-                              <TruncatedCell
-                                value={spp.student_label}
-                                maxLength={32}
-                              />
-                            </Link>
-                          ) : (
-                            <TruncatedCell
-                              value={spp.student_label}
-                              maxLength={32}
-                            />
-                          )}
+                            </div>
+                            {spp.remaining_amount < 0 ? (
+                              <span className="inline-flex shrink-0 items-center rounded-md bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300">
+                                Refund
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <SppStatusBadge status={spp.status} />
@@ -554,8 +627,40 @@ export function PaymentPhaseDetailsPanel({
                             ) : null}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end">
+                        <td
+                          className="px-4 py-3"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            {canRecordPayments &&
+                            spp.status !==
+                              STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ? (
+                              <Can
+                                permission={
+                                  PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE
+                                }
+                              >
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Record payment for ${spp.student_label}`}
+                                        className="text-muted-foreground hover:text-foreground"
+                                        onClick={() =>
+                                          openRecordPayment(spp.id)
+                                        }
+                                      />
+                                    }
+                                  >
+                                    <BanknoteIcon />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Record payment</TooltipContent>
+                                </Tooltip>
+                              </Can>
+                            ) : null}
                             <Button
                               render={
                                 <Link

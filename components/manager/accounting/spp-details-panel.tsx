@@ -396,7 +396,7 @@ export function SppDetailsPanel({
               {spp.student_profile_id ? (
                 <Link
                   href={getManagerStudentDetailRoute(spp.student_profile_id)}
-                  className="text-primary hover:underline"
+                  className="inline-flex items-center rounded-lg border border-border bg-card px-2.5 py-1 text-base font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
                 >
                   {spp.student_label}
                 </Link>
@@ -410,33 +410,28 @@ export function SppDetailsPanel({
             </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-            <p>
-              Phase{" "}
+            <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={getManagerAccountingPhaseDetailRoute(spp.payment_phase_id)}
-                className="font-medium text-primary hover:underline"
+                className="inline-flex max-w-[16rem] items-center truncate rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
               >
-                {spp.payment_phase_name}
+                Phase · {spp.payment_phase_name}
               </Link>
-              {" · "}
               <Link
                 href={getManagerSemesterDetailRoute(spp.semester_id)}
-                className="font-medium text-primary hover:underline"
+                className="inline-flex max-w-[16rem] items-center truncate rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
               >
-                {spp.semester_name}
+                Semester · {spp.semester_name}
               </Link>
               {spp.billing_class_id && spp.billing_class_name ? (
-                <>
-                  {" · "}
-                  <Link
-                    href={getManagerClassDetailRoute(spp.billing_class_id)}
-                    className="font-medium text-primary hover:underline"
-                  >
-                    {spp.billing_class_name}
-                  </Link>
-                </>
+                <Link
+                  href={getManagerClassDetailRoute(spp.billing_class_id)}
+                  className="inline-flex max-w-[16rem] items-center truncate rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+                >
+                  Class · {spp.billing_class_name}
+                </Link>
               ) : null}
-            </p>
+            </div>
             {spp.payments_blocked ? (
               <p className="text-amber-700 dark:text-amber-300">
                 Payments and adjustments are blocked because this phase or
