@@ -93,7 +93,9 @@ export type AddStudentToClassActionState = {
   warning?: string;
   fieldErrors?: FieldErrors;
   student?: ManagerClassStudentRow;
+  students?: ManagerClassStudentRow[];
   studentGrade?: ManagerStudentFinalExamGradeRow;
+  studentGrades?: ManagerStudentFinalExamGradeRow[];
   classRow?: ManagerClassRow;
 };
 

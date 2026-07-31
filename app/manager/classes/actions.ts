@@ -10,7 +10,7 @@ import {
 } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { parseAddStudentToClassFormData } from "@/lib/validators/manager/add-student-to-class";
+import { parseAddStudentsToClassFormData } from "@/lib/validators/manager/add-student-to-class";
 import {
   parseAssignClassTeacherFormData,
   parseUnassignClassTeacherFormData,
@@ -32,7 +32,7 @@ import {
   parseUpdateClassFormData,
 } from "@/lib/validators/manager/update-class";
 import {
-  addStudentToClassForManager,
+  addStudentsToClassForManager,
   assignTeacherToClassForManager,
   createClassForManager,
   createClassSessionForManager,
@@ -358,7 +358,7 @@ export async function addStudentToClassAction(
 ): Promise<AddStudentToClassActionState> {
   const actor = await getSessionAuditActor();
 
-  const parsed = parseAddStudentToClassFormData(formData);
+  const parsed = parseAddStudentsToClassFormData(formData);
 
   if (!parsed.success) {
     return {
@@ -369,7 +369,7 @@ export async function addStudentToClassAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await addStudentToClassForManager(
+  const result = await addStudentsToClassForManager(
     adminClient,
     actor.userId,
     actor,
@@ -388,8 +388,10 @@ export async function addStudentToClassAction(
     success: true,
     message: result.message,
     warning: result.warning,
-    student: result.student,
-    studentGrade: result.studentGrade,
+    students: result.students,
+    student: result.students[0],
+    studentGrades: result.studentGrades,
+    studentGrade: result.studentGrades[0],
     classRow: result.classRow,
   };
 }

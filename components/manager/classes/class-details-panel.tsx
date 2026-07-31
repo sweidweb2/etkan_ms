@@ -14,6 +14,7 @@ import { ClassSessionProgressTrack } from "@/components/manager/classes/class-se
 import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
 import { ClassStudentsSection } from "@/components/manager/classes/class-students-section";
 import type { ClassTransferOption } from "@/components/manager/classes/transfer-student-between-classes-dialog";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -24,18 +25,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getClassProgressTone,
@@ -191,10 +186,13 @@ export function ClassDetailsPanel({
         />
       ) : null}
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-xl">{classRow.name}</CardTitle>
-          <CardAction className="flex flex-wrap items-center gap-2 self-center">
+      <ClassTabCollapsibleSection
+        title={classRow.name}
+        description="Class overview, status, enrollment, and session progress."
+        storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_INFO}
+        defaultOpen
+        action={
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {gradesUnlocked ? (
               <Link
                 href={getManagerClassGradesRoute(classRow.id)}
@@ -257,9 +255,10 @@ export function ClassDetailsPanel({
                 Edit class
               </Button>
             </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="pt-2 pb-4">
+          </div>
+        }
+      >
+        <div className="px-4 pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Name" value={classRow.name} />
             <DetailField label="Status">
@@ -326,8 +325,8 @@ export function ClassDetailsPanel({
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </ClassTabCollapsibleSection>
 
       {hasComputedGrades ? (
         <div className="rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-100">

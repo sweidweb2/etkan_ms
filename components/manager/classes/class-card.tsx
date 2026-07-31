@@ -6,7 +6,6 @@ import {
   BookOpenIcon,
   CalendarIcon,
   GraduationCapIcon,
-  HashIcon,
   UsersIcon,
 } from "lucide-react";
 import {
@@ -156,17 +155,6 @@ export function ClassCard({ classRow }: ClassCardProps) {
                 style={{ width: `${sessionRate}%` }}
               />
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <HashIcon className="size-3.5 shrink-0" />
-            <span className="shrink-0">Class ID</span>
-            <span className="min-w-0 font-mono text-foreground">
-              <TruncatedText
-                value={classRow.id}
-                maxLength={MANAGER_CLASS_CARD_LIMITS.id}
-              />
-            </span>
           </div>
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -1,11 +1,13 @@
 "use client";
 
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import {
   buildClassSessionSlots,
   getClassSessionSlotSummary,
@@ -119,24 +121,24 @@ export function ClassSessionProgressTrack({
 
   return (
     <TooltipProvider>
-      <div className="rounded-xl border bg-muted/20 p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-medium">Class session progress</h3>
-            <p className="text-xs text-muted-foreground">
-              Session delivery progress for this class ({summary.completedSessions}/
-              {summary.totalSessions} sessions scheduled).
-            </p>
-          </div>
-          <div className="shrink-0 self-start text-right sm:self-center">
-            <p className="text-2xl font-semibold tabular-nums tracking-tight">
+      <ClassTabCollapsibleSection
+        title="Class session progress"
+        description={`Session delivery progress for this class (${summary.completedSessions}/${summary.totalSessions} sessions scheduled).`}
+        storageKey={
+          COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_SESSION_PROGRESS
+        }
+        action={
+          <div className="pr-1 text-right">
+            <p className="text-lg font-semibold tabular-nums tracking-tight leading-none">
               {summary.overallRate}%
             </p>
-            <p className="text-xs text-muted-foreground">Overall completion</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Overall
+            </p>
           </div>
-        </div>
-
-        <div className="mt-6 overflow-x-auto pb-1">
+        }
+      >
+        <div className="overflow-x-auto px-4 pt-4 pb-5 sm:px-5">
           <div
             className="relative mx-5 min-w-full sm:mx-8"
             style={{ minWidth: `${Math.max(slots.length * 8, 18)}rem` }}
@@ -214,7 +216,7 @@ export function ClassSessionProgressTrack({
             })}
           </div>
         </div>
-      </div>
+      </ClassTabCollapsibleSection>
     </TooltipProvider>
   );
 }

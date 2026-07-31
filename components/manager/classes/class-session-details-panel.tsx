@@ -9,6 +9,7 @@ import { Can } from "@/components/auth/can";
 import { EditClassSessionDialog } from "@/components/manager/classes/edit-class-session-dialog";
 import { SessionDetailsActions } from "@/components/manager/classes/session-details-actions";
 import { SessionDetailsTabsSection } from "@/components/manager/classes/session-details-tabs-section";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PendingFlowChecklist } from "@/components/loaders/pending-flow-checklist";
 import {
@@ -19,13 +20,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import {
   SESSION_TIMING_BADGE_CLASSES,
   SESSION_TIMING_LABELS,
@@ -233,12 +228,13 @@ export function ClassSessionDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-xl">
-            S{session.nb_order} · {session.topic}
-          </CardTitle>
-          <CardAction className="flex items-center gap-2 self-center">
+      <ClassTabCollapsibleSection
+        title={`S${session.nb_order} · ${session.topic}`}
+        description="Session overview, timing, phase link, and group grade."
+        storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.SESSION_DETAILS_INFO}
+        defaultOpen
+        action={
+          <div className="flex items-center gap-2">
             <Can permission={PERMISSIONS.SESSIONS_UPDATE}>
               <Button
                 type="button"
@@ -266,9 +262,10 @@ export function ClassSessionDetailsPanel({
                 Delete session
               </Button>
             </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="pt-2 pb-4">
+          </div>
+        }
+      >
+        <div className="px-4 pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Topic" value={session.topic} />
             <DetailField label="Order" value={`S${session.nb_order}`} />
@@ -317,8 +314,8 @@ export function ClassSessionDetailsPanel({
                 : "Not set"}
             </DetailField>
           </dl>
-        </CardContent>
-      </Card>
+        </div>
+      </ClassTabCollapsibleSection>
 
       <EditClassSessionDialog
         open={isEditOpen}

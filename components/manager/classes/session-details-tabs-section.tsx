@@ -14,8 +14,8 @@ import {
   TabsList as TabsListPrimitive,
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -30,6 +30,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getManagerClassSessionTaskDetailRoute } from "@/lib/constants/routes";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import {
   ATTENDEE_STATUSES,
   ATTENDEE_STATUS_VALUES,
@@ -427,96 +428,100 @@ export function SessionDetailsTabsSection({
         }}
       />
 
-      <Card className="py-0">
-        <CardContent className="px-0 pb-0">
-          <TabsPrimitive
-            value={activeTab}
-            onValueChange={(value) =>
-              setActiveTab(value as SessionDetailsTabValue)
-            }
-            className="flex flex-col gap-0"
-          >
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b bg-muted/25 px-4 pt-2 pb-3">
-              <div aria-hidden="true" />
-              <TabsListPrimitive className="inline-flex h-auto items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8">
-                <TabsTriggerPrimitive
-                  value="tasks"
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-5 py-2 text-sm font-medium transition-all duration-200",
-                    "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
-                    "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
-                    "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  )}
-                >
-                  Tasks
-                </TabsTriggerPrimitive>
-                <TabsTriggerPrimitive
-                  value="attendee"
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-5 py-2 text-sm font-medium transition-all duration-200",
-                    "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
-                    "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
-                    "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  )}
-                >
-                  Attendee
-                </TabsTriggerPrimitive>
-              </TabsListPrimitive>
-              <div className="flex justify-end">
-                {activeTab === "tasks" ? (
-                  <Can permission={PERMISSIONS.TASKS_CREATE}>
-                    {hasComputedGrades ? (
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={<span className="inline-flex" tabIndex={0} />}
-                        >
-                          <Button type="button" disabled>
-                            <PlusIcon data-icon="inline-start" />
-                            Create task
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Button type="button" onClick={() => setIsAddOpen(true)}>
-                        <PlusIcon data-icon="inline-start" />
-                        Create task
-                      </Button>
-                    )}
-                  </Can>
-                ) : null}
-              </div>
-            </div>
+      <ClassTabCollapsibleSection
+        title="Tasks & attendance"
+        description={`Tasks and attendee records for ${sessionLabel}.`}
+        storageKey={
+          COLLAPSIBLE_SECTION_STORAGE_KEYS.SESSION_DETAILS_TASKS_ATTENDEE
+        }
+        defaultOpen
+        action={
+          activeTab === "tasks" ? (
+            <Can permission={PERMISSIONS.TASKS_CREATE}>
+              {hasComputedGrades ? (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<span className="inline-flex" tabIndex={0} />}
+                  >
+                    <Button type="button" disabled>
+                      <PlusIcon data-icon="inline-start" />
+                      Create task
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button type="button" onClick={() => setIsAddOpen(true)}>
+                  <PlusIcon data-icon="inline-start" />
+                  Create task
+                </Button>
+              )}
+            </Can>
+          ) : null
+        }
+      >
+        <TabsPrimitive
+          value={activeTab}
+          onValueChange={(value) =>
+            setActiveTab(value as SessionDetailsTabValue)
+          }
+          className="flex flex-col gap-0"
+        >
+          <div className="flex items-center justify-center border-b bg-muted/25 px-4 pt-2 pb-3">
+            <TabsListPrimitive className="inline-flex h-auto items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8">
+              <TabsTriggerPrimitive
+                value="tasks"
+                className={cn(
+                  "inline-flex items-center rounded-full border px-5 py-2 text-sm font-medium transition-all duration-200",
+                  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
+                  "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
+                  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                )}
+              >
+                Tasks
+              </TabsTriggerPrimitive>
+              <TabsTriggerPrimitive
+                value="attendee"
+                className={cn(
+                  "inline-flex items-center rounded-full border px-5 py-2 text-sm font-medium transition-all duration-200",
+                  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
+                  "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
+                  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                )}
+              >
+                Attendee
+              </TabsTriggerPrimitive>
+            </TabsListPrimitive>
+          </div>
 
-            <TabsContentsPrimitive>
-              <TabsContentPrimitive value="tasks" className="px-0 py-0">
-                <SessionTasksTable
-                  classId={classId}
-                  sessionId={sessionId}
-                  tasks={tasks}
-                />
-              </TabsContentPrimitive>
-              <TabsContentPrimitive value="attendee" className="px-0 py-0">
-                <SessionAttendeesTable
-                  classId={classId}
-                  sessionId={sessionId}
-                  attendees={attendees}
-                  lockedUserIds={lockedUserIds}
-                  onAttendeeUpdated={(attendee) => {
-                    setAttendees((current) =>
-                      current.map((row) =>
-                        row.id === attendee.id ? attendee : row
-                      )
-                    );
-                  }}
-                />
-              </TabsContentPrimitive>
-            </TabsContentsPrimitive>
-          </TabsPrimitive>
-        </CardContent>
-      </Card>
+          <TabsContentsPrimitive>
+            <TabsContentPrimitive value="tasks" className="px-0 py-0">
+              <SessionTasksTable
+                classId={classId}
+                sessionId={sessionId}
+                tasks={tasks}
+              />
+            </TabsContentPrimitive>
+            <TabsContentPrimitive value="attendee" className="px-0 py-0">
+              <SessionAttendeesTable
+                classId={classId}
+                sessionId={sessionId}
+                attendees={attendees}
+                lockedUserIds={lockedUserIds}
+                onAttendeeUpdated={(attendee) => {
+                  setAttendees((current) =>
+                    current.map((row) =>
+                      row.id === attendee.id ? attendee : row
+                    )
+                  );
+                }}
+              />
+            </TabsContentPrimitive>
+          </TabsContentsPrimitive>
+        </TabsPrimitive>
+      </ClassTabCollapsibleSection>
     </TooltipProvider>
   );
 }

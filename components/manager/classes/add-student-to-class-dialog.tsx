@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { addStudentToClassAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { StudentMultiSelectField } from "@/components/manager/classes/student-multi-select-field";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,20 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
-  addStudentToClassSchema,
-  type AddStudentToClassInput,
+  addStudentsToClassSchema,
+  type AddStudentsToClassInput,
 } from "@/lib/validators/manager/add-student-to-class";
 import type { AddStudentToClassActionState } from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
@@ -42,10 +36,10 @@ type AddStudentToClassDialogProps = {
   classId: string;
   className: string;
   availableStudents: ManagerStudentRow[];
-  onStudentAdded: (
-    student: ManagerClassStudentRow,
+  onStudentsAdded: (
+    students: ManagerClassStudentRow[],
     classRow: ManagerClassRow,
-    studentGrade?: ManagerStudentFinalExamGradeRow
+    studentGrades: ManagerStudentFinalExamGradeRow[]
   ) => void;
 };
 
@@ -55,7 +49,7 @@ export function AddStudentToClassDialog({
   classId,
   className,
   availableStudents,
-  onStudentAdded,
+  onStudentsAdded,
 }: AddStudentToClassDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
@@ -63,6 +57,9 @@ export function AddStudentToClassDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const [selectedStudents, setSelectedStudents] = useState<ManagerStudentRow[]>(
+    []
+  );
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
@@ -72,27 +69,22 @@ export function AddStudentToClassDialog({
     handleSubmit,
     reset,
     setValue,
-    watch,
     formState: { errors },
   } = useZodForm({
-    schema: addStudentToClassSchema,
+    schema: addStudentsToClassSchema,
     mode: "onBlur",
     defaultValues: {
-      studentProfileId: "",
+      studentProfileIds: [] as string[],
     },
   });
 
-  const selectedStudentProfileId = watch("studentProfileId");
   const hasAvailableStudents = availableStudents.length > 0;
-
-  const studentSelectItems = availableStudents.map((student) => ({
-    value: student.student_profile_id,
-    label: `${student.full_name} · ${student.email}`,
-  }));
+  const selectedCount = selectedStudents.length;
 
   useEffect(() => {
     if (!open) {
-      reset({ studentProfileId: "" });
+      setSelectedStudents([]);
+      reset({ studentProfileIds: [] });
     }
   }, [open, reset]);
 
@@ -100,21 +92,43 @@ export function AddStudentToClassDialog({
     state,
     isPending,
     (nextState) => {
-      if (!nextState.student || !nextState.classRow) {
+      const added = nextState.students ?? (nextState.student ? [nextState.student] : []);
+      if (!nextState.classRow || added.length === 0) {
         return;
       }
 
-      onStudentAdded(nextState.student, nextState.classRow, nextState.studentGrade);
+      onStudentsAdded(
+        added,
+        nextState.classRow,
+        nextState.studentGrades ??
+          (nextState.studentGrade ? [nextState.studentGrade] : [])
+      );
       onOpenChange(false);
     },
     (nextState) =>
-      Boolean(nextState.success && nextState.student && nextState.classRow)
+      Boolean(
+        nextState.success &&
+          nextState.classRow &&
+          ((nextState.students && nextState.students.length > 0) ||
+            nextState.student)
+      )
   );
 
-  function onSubmit(values: AddStudentToClassInput) {
+  function handleSelectionChange(next: ManagerStudentRow[]) {
+    setSelectedStudents(next);
+    setValue(
+      "studentProfileIds",
+      next.map((student) => student.student_profile_id),
+      { shouldValidate: true }
+    );
+  }
+
+  function onSubmit(values: AddStudentsToClassInput) {
     const formData = new FormData();
     formData.set("class_id", classId);
-    formData.set("studentProfileId", values.studentProfileId);
+    for (const id of values.studentProfileIds) {
+      formData.append("studentProfileIds", id);
+    }
 
     startTransition(() => {
       formAction(formData);
@@ -122,16 +136,17 @@ export function AddStudentToClassDialog({
   }
 
   const studentError =
-    errors.studentProfileId?.message ??
+    errors.studentProfileIds?.message ??
+    state.fieldErrors?.studentProfileIds?.[0] ??
     state.fieldErrors?.studentProfileId?.[0];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Add student to class</DialogTitle>
+          <DialogTitle>Add students to class</DialogTitle>
           <DialogDescription>
-            Enroll a student in {className}.
+            Enroll one or more students in {className}.
           </DialogDescription>
         </DialogHeader>
 
@@ -144,40 +159,18 @@ export function AddStudentToClassDialog({
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="add-student-to-class-id"
-              label="Student"
+              label="Students"
               hint="Required"
             />
             {hasAvailableStudents ? (
-              <Select
-                value={selectedStudentProfileId || null}
-                items={studentSelectItems}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-
-                  setValue("studentProfileId", value, { shouldValidate: true });
-                }}
+              <StudentMultiSelectField
+                inputId="add-student-to-class-id"
+                students={availableStudents}
+                selected={selectedStudents}
+                onChange={handleSelectionChange}
                 disabled={isPending}
-              >
-                <SelectTrigger
-                  id="add-student-to-class-id"
-                  className="w-full"
-                  aria-invalid={!!studentError}
-                >
-                  <SelectValue placeholder="Select a student" />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  {availableStudents.map((student) => (
-                    <SelectItem
-                      key={student.student_profile_id}
-                      value={student.student_profile_id}
-                    >
-                      {student.full_name} · {student.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                invalid={!!studentError}
+              />
             ) : (
               <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
                 Every available student is already enrolled in this class.
@@ -201,13 +194,15 @@ export function AddStudentToClassDialog({
           <Button
             type="submit"
             form="add-student-to-class-form"
-            disabled={!hasAvailableStudents || isPending}
+            disabled={!hasAvailableStudents || selectedCount === 0 || isPending}
           >
             {isPending ? (
               <>
                 <InlineSpinner className="mr-2" />
-                Adding student
+                {selectedCount > 1 ? "Adding students" : "Adding student"}
               </>
+            ) : selectedCount > 1 ? (
+              `Add ${selectedCount} students`
             ) : (
               "Add student"
             )}

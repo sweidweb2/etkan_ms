@@ -19,14 +19,8 @@ import {
   TransferStudentBetweenClassesDialog,
   type ClassTransferOption,
 } from "@/components/manager/classes/transfer-student-between-classes-dialog";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,6 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { CLASS_STUDENT_TABLE_LIMITS } from "@/lib/constants/manager-class-student-display";
 import { MANAGER_STUDENT_CLASS_STATUS_LABELS } from "@/lib/constants/manager-student-class-display";
 import {
@@ -261,26 +256,32 @@ export function ClassStudentsSection({
     });
   };
 
-  const handleAddStudent = (
-    student: ManagerClassStudentRow,
+  const handleStudentsAdded = (
+    addedStudents: ManagerClassStudentRow[],
     classRow: ManagerClassRow,
-    studentGrade?: ManagerStudentFinalExamGradeRow
+    studentGrades: ManagerStudentFinalExamGradeRow[] = []
   ) => {
-    if (students.some((row) => row.id === student.id)) {
+    const existingIds = new Set(students.map((row) => row.id));
+    const fresh = addedStudents.filter((row) => !existingIds.has(row.id));
+    if (fresh.length === 0) {
       return;
     }
 
-    const nextStudents = [student, ...students];
+    const nextStudents = [...fresh, ...students];
     setStudents(nextStudents);
     onStudentsChange(nextStudents);
+
+    const addedProfileIds = new Set(
+      fresh.map((row) => row.student_profile_id)
+    );
     onAvailableStudentsChange(
       availableStudents.filter(
-        (row) => row.student_profile_id !== student.student_profile_id
+        (row) => !addedProfileIds.has(row.student_profile_id)
       )
     );
     onClassUpdated(classRow);
-    if (studentGrade) {
-      onStudentGradeAdded(studentGrade);
+    for (const grade of studentGrades) {
+      onStudentGradeAdded(grade);
     }
     setCurrentPage(1);
   };
@@ -294,7 +295,7 @@ export function ClassStudentsSection({
           classId={classId}
           className={className}
           availableStudents={availableStudents}
-          onStudentAdded={handleAddStudent}
+          onStudentsAdded={handleStudentsAdded}
         />
       ) : null}
 
@@ -312,19 +313,20 @@ export function ClassStudentsSection({
         }}
       />
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-3">
-          <CardTitle>Students</CardTitle>
-          <CardAction className="self-center">
-            <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
-              <Button type="button" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add student
-              </Button>
-            </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+      <ClassTabCollapsibleSection
+        title="Students"
+        description={`Enrolled students in ${className}.`}
+        storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_STUDENTS}
+        defaultOpen
+        action={
+          <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
+            <Button type="button" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add student
+            </Button>
+          </Can>
+        }
+      >
           <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -562,8 +564,7 @@ export function ClassStudentsSection({
               </div>
             </div>
           ) : null}
-        </CardContent>
-      </Card>
+      </ClassTabCollapsibleSection>
     </TooltipProvider>
   );
 }

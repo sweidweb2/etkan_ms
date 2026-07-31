@@ -28,7 +28,10 @@ import { createClassSessionSchema } from "@/lib/validators/manager/create-class-
 import { createFinalExamSchema } from "@/lib/validators/manager/create-final-exam";
 import { createEditStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { updateFinalExamSchema } from "@/lib/validators/manager/update-final-exam";
-import { addStudentToClassSchema } from "@/lib/validators/manager/add-student-to-class";
+import {
+  addStudentToClassSchema,
+  addStudentsToClassSchema,
+} from "@/lib/validators/manager/add-student-to-class";
 import { transferStudentBetweenClassesSchema } from "@/lib/validators/manager/transfer-student-between-classes";
 import { updateStudentClassStatusSchema } from "@/lib/validators/manager/update-student-class-status";
 import * as attendeeRepository from "@/repositories/attendee.repository";
@@ -2406,6 +2409,114 @@ export async function addStudentToClassForManager(
     classRow,
     message: `${student.full_name} added to class.`,
     warning,
+  };
+}
+
+export type AddStudentsToClassResult =
+  | {
+      success: true;
+      students: ManagerClassStudentRow[];
+      studentGrades: ManagerStudentFinalExamGradeRow[];
+      classRow: ManagerClassRow;
+      message: string;
+      warning?: string;
+    }
+  | MutationFailure;
+
+export async function addStudentsToClassForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    class_id: string;
+    studentProfileIds: string[];
+  }
+): Promise<AddStudentsToClassResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.CLASSES_ADD_STUDENT
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = addStudentsToClassSchema.safeParse({
+    studentProfileIds: input.studentProfileIds,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const uniqueIds = [...new Set(parsed.data.studentProfileIds)];
+  const students: ManagerClassStudentRow[] = [];
+  const studentGrades: ManagerStudentFinalExamGradeRow[] = [];
+  const failures: string[] = [];
+  const warnings: string[] = [];
+  let classRow: ManagerClassRow | undefined;
+
+  for (const studentProfileId of uniqueIds) {
+    const result = await addStudentToClassForManager(
+      adminClient,
+      actorUserId,
+      actor,
+      { class_id: input.class_id, studentProfileId }
+    );
+
+    if (!result.success) {
+      const detail =
+        result.fieldErrors?.studentProfileId?.[0] ??
+        result.error ??
+        "Unable to enroll student.";
+      failures.push(detail);
+      continue;
+    }
+
+    students.push(result.student);
+    if (result.studentGrade) {
+      studentGrades.push(result.studentGrade);
+    }
+    if (result.warning) {
+      warnings.push(result.warning);
+    }
+    classRow = result.classRow;
+  }
+
+  if (students.length === 0) {
+    return {
+      success: false,
+      error: failures[0] ?? "Unable to enroll students.",
+      fieldErrors: {
+        studentProfileIds: [failures[0] ?? "Unable to enroll students."],
+      },
+    };
+  }
+
+  if (!classRow) {
+    return { success: false, error: "Unable to load updated class." };
+  }
+
+  const message =
+    failures.length === 0
+      ? students.length === 1
+        ? `${students[0].full_name} added to class.`
+        : `${students.length} students added to class.`
+      : `Added ${students.length} of ${uniqueIds.length} students. ${failures.length} could not be added.`;
+
+  const uniqueWarnings = [...new Set(warnings)];
+
+  return {
+    success: true,
+    students,
+    studentGrades,
+    classRow,
+    message,
+    warning: uniqueWarnings.length > 0 ? uniqueWarnings.join(" ") : undefined,
   };
 }
 

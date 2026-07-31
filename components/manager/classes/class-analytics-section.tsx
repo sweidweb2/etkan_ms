@@ -1,8 +1,9 @@
 "use client";
 
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { AnalyticsChartCard } from "@/components/manager/analytics/analytics-chart-card";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import {
   formatGroupGradeLevelTick,
   GROUP_GRADE_LEVEL_Y_TICKS,
@@ -64,15 +65,12 @@ export function ClassAnalyticsSection({
   }));
 
   return (
-    <Card className="py-0">
-      <CardHeader className="border-b bg-muted/40 py-3">
-        <CardTitle>Class analytics</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Task grades, group grades, and attendance across sessions for{" "}
-          {className}.
-        </p>
-      </CardHeader>
-      <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
+    <ClassTabCollapsibleSection
+      title="Class analytics"
+      description={`Task grades, group grades, and attendance across sessions for ${className}.`}
+      storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_ANALYTICS}
+    >
+      <div className="grid gap-6 px-4 pt-2 pb-3 lg:grid-cols-2">
         <AnalyticsChartCard
           title="Average task grades"
           description={
@@ -156,7 +154,7 @@ export function ClassAnalyticsSection({
             Percent of enrolled students marked present for each session.
           </p>
         </AnalyticsChartCard>
-      </CardContent>
-    </Card>
+      </div>
+    </ClassTabCollapsibleSection>
   );
 }

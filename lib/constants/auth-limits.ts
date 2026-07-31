@@ -13,4 +13,4 @@ export const AUTH_RATE_LIMITS = {
 } as const;
 
 /** Inactivity window before server/client session logout (matches Supabase config). */
-export const SESSION_INACTIVITY_MS = 15 * 60 * 1000;
+export const SESSION_INACTIVITY_MS = 30 * 60 * 1000;

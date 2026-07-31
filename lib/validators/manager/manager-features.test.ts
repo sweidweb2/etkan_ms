@@ -136,6 +136,7 @@ describe("parseCreateSubjectFormData", () => {
         syllabus_link: "https://school.edu/syllabus/physics",
         reference_link: "",
         handout_link: "https://school.edu/handouts/physics",
+        nb_sessions: 0,
       },
     });
   });

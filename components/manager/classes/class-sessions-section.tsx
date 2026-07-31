@@ -5,14 +5,8 @@ import { PlusIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddClassSessionDialog } from "@/components/manager/classes/add-class-session-dialog";
 import { ClassSessionCard } from "@/components/manager/classes/class-session-card";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
@@ -20,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import {
@@ -86,43 +81,39 @@ export function ClassSessionsSection({
         />
       ) : null}
 
-      <Card className="py-0">
-        <CardHeader className="border-b bg-muted/40 py-3">
-          <CardTitle>Sessions</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {sortedSessions.length} planned session
-            {sortedSessions.length === 1 ? "" : "s"} for {className}.
-          </p>
-          <CardAction className="self-center">
-            <Can permission={PERMISSIONS.SESSIONS_CREATE}>
-              {hasComputedGrades ? (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <span className="inline-flex" tabIndex={0} />
-                      }
-                    >
-                      <Button type="button" disabled>
-                        <PlusIcon data-icon="inline-start" />
-                        Add session
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ) : (
-                <Button type="button" onClick={() => setIsAddOpen(true)}>
-                  <PlusIcon data-icon="inline-start" />
-                  Add session
-                </Button>
-              )}
-            </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="py-3">
+      <ClassTabCollapsibleSection
+        title="Sessions"
+        description={`${sortedSessions.length} planned session${sortedSessions.length === 1 ? "" : "s"} for ${className}.`}
+        storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_SESSIONS}
+        defaultOpen
+        action={
+          <Can permission={PERMISSIONS.SESSIONS_CREATE}>
+            {hasComputedGrades ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<span className="inline-flex" tabIndex={0} />}
+                  >
+                    <Button type="button" disabled>
+                      <PlusIcon data-icon="inline-start" />
+                      Add session
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add session
+              </Button>
+            )}
+          </Can>
+        }
+      >
+        <div className="px-4 py-3">
           {sortedSessions.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No sessions are planned for this class yet.
@@ -134,7 +125,9 @@ export function ClassSessionsSection({
                 className="rounded-lg"
                 navButtonClassName="size-8 rounded-full text-muted-foreground hover:bg-background/80 hover:text-foreground disabled:opacity-30"
                 initialScrollPosition="start"
-                resetScrollKey={sortedSessions.map((session) => session.id).join("|")}
+                resetScrollKey={sortedSessions
+                  .map((session) => session.id)
+                  .join("|")}
               >
                 <div className="flex w-max flex-row gap-3 p-1">
                   {sortedSessions.map((session) => (
@@ -148,8 +141,8 @@ export function ClassSessionsSection({
               </HorizontalScrollCarousel>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </ClassTabCollapsibleSection>
     </>
   );
 }

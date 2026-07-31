@@ -44,19 +44,19 @@ Supabase only allows redirects to URLs on this list. The path must be exactly `/
 
 ## Session inactivity timeout
 
-Sessions expire after **15 minutes of inactivity** (no navigation or API refresh). This is enforced in three layers:
+Sessions expire after **30 minutes of inactivity** (no navigation or API refresh). This is enforced in three layers:
 
 | Layer | Location |
 | --- | --- |
-| Supabase Auth | `[auth.sessions] inactivity_timeout = "15m"` in `supabase/config.toml` (local) |
+| Supabase Auth | `[auth.sessions] inactivity_timeout = "30m"` in `supabase/config.toml` (local) |
 | Middleware | `middleware.ts` — refreshes session on panel requests; redirects stale cookies to login with `?message=session_expired` |
-| Client idle monitor | `components/auth/session-idle-monitor.tsx` in panel shell — signs out after 15 min with no pointer/keyboard/scroll activity |
+| Client idle monitor | `components/auth/session-idle-monitor.tsx` in panel shell — signs out after 30 min with no pointer/keyboard/scroll activity |
 
 ### Hosted Supabase projects
 
 For production/staging, set the same value in the dashboard:
 
-**Project → Authentication → Sessions → Inactivity timeout = 15 minutes**
+**Project → Authentication → Sessions → Inactivity timeout = 30 minutes**
 
 Or push config with a recent Supabase CLI (`supabase config push`). Local `config.toml` applies when running `supabase start` only.
 

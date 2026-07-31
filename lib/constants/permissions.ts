@@ -816,9 +816,12 @@ export const PERMISSION_ACCESS_BY_KEY: Record<PermissionKey, PermissionAccess> =
     ])
   ) as Record<PermissionKey, PermissionAccess>;
 
-/** Agreed key pattern: `{feature}.{action}` with snake_case segments. */
+/**
+ * Agreed key pattern: `{feature}.{action}` or `{feature}.{resource}.{action}`
+ * with snake_case segments (one or more dotted action segments after feature).
+ */
 export const PERMISSION_KEY_PATTERN =
-  /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
+  /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
 
 export function isPermissionKey(value: string): value is PermissionKey {
   return PERMISSION_KEY_SET.has(value as PermissionKey);

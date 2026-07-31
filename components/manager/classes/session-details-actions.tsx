@@ -5,14 +5,9 @@ import { LayersIcon, UsersRoundIcon } from "lucide-react";
 import { updateSessionSettingsAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -20,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import {
   SESSION_GROUP_GRADE_LEVEL_DOT_CLASSES,
   SESSION_GROUP_GRADE_LEVEL_LABELS,
@@ -183,11 +179,13 @@ export function SessionDetailsActions({
   }
 
   return (
-    <Card className={cn("py-0", className)}>
-      <CardHeader className="border-b bg-muted/40 py-3">
-        <CardTitle>Session settings</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-6 pt-2 pb-3 lg:grid-cols-2">
+    <ClassTabCollapsibleSection
+      title="Session settings"
+      description="Link this session to a phase and set the group grade level."
+      storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.SESSION_DETAILS_SETTINGS}
+      defaultOpen
+    >
+      <div className={cn("grid gap-6 px-4 pt-2 pb-3 lg:grid-cols-2", className)}>
         <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 ring-1 ring-foreground/8">
           <div className="flex items-center gap-2">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
@@ -339,7 +337,7 @@ export function SessionDetailsActions({
             </p>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </ClassTabCollapsibleSection>
   );
 }

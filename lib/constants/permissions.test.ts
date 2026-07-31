@@ -29,7 +29,7 @@ describe("permissions", () => {
     expect(PERMISSION_DEFINITIONS).toHaveLength(Object.keys(PERMISSIONS).length);
   });
 
-  it("matches the agreed {feature}.{action} key pattern", () => {
+  it("matches the agreed {feature}.{action} or {feature}.{resource}.{action} key pattern", () => {
     for (const key of PERMISSION_KEYS) {
       expect(key).toMatch(PERMISSION_KEY_PATTERN);
     }
@@ -52,12 +52,13 @@ describe("permissions", () => {
   it("type-guards permission keys", () => {
     expect(isPermissionKey("subjects.view")).toBe(true);
     expect(isPermissionKey("subjects.delete")).toBe(true);
+    expect(isPermissionKey("accounting.payment_phases.create")).toBe(true);
     expect(isPermissionKey("not.a.real.key")).toBe(false);
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 85 keys (includes rbac.manage)", () => {
-    expect(PERMISSION_KEYS).toHaveLength(85);
+  it("keeps the catalog size at 94 keys (includes rbac.manage + accounting)", () => {
+    expect(PERMISSION_KEYS).toHaveLength(94);
     expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
   });
 });

@@ -10,9 +10,10 @@
 
 | Rule | Example |
 |------|---------|
-| Format | `{feature}.{action}` |
+| Format | `{feature}.{action}` or `{feature}.{resource}.{action}` |
 | Feature | lowercase plural noun (`students`, `final_exams`) |
 | Action | lowercase verb (`view`, `create`, `update`, `delete`) |
+| Nested resource | optional middle segment (`accounting.payment_phases.create`) |
 | Multi-word action | snake_case (`mark_read`, `borrow_return`) |
 | One key | Exactly one key per grantable action — no duplicates |
 
