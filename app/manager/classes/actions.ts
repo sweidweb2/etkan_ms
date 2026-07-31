@@ -26,6 +26,7 @@ import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update
 import { parseUpdateFinalExamFormData } from "@/lib/validators/manager/update-final-exam";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
 import { parseUpdateStudentClassStatusFormData } from "@/lib/validators/manager/update-student-class-status";
+import { parseTransferStudentBetweenClassesFormData } from "@/lib/validators/manager/transfer-student-between-classes";
 import {
   parseChangeClassStatusFormData,
   parseUpdateClassFormData,
@@ -36,6 +37,7 @@ import {
   createClassForManager,
   createClassSessionForManager,
   createFinalExamForManager,
+  transferStudentBetweenClassesForManager,
   unassignTeacherFromClassForManager,
   updateClassForManager,
   updateClassStatusForManager,
@@ -57,6 +59,7 @@ import type {
   CreateClassActionState,
   CreateClassSessionActionState,
   CreateFinalExamActionState,
+  TransferStudentBetweenClassesActionState,
   UnassignClassTeacherActionState,
   UpdateClassActionState,
   UpdateClassStatusActionState,
@@ -425,6 +428,49 @@ export async function updateClassStudentStatusAction(
     success: true,
     message: result.message,
     student: result.student,
+  };
+}
+
+export async function transferStudentBetweenClassesAction(
+  _prevState: TransferStudentBetweenClassesActionState,
+  formData: FormData
+): Promise<TransferStudentBetweenClassesActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseTransferStudentBetweenClassesFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await transferStudentBetweenClassesForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(getManagerClassDetailRoute(result.from_class_id));
+  revalidatePath(getManagerClassDetailRoute(result.to_class_id));
+
+  return {
+    success: true,
+    message: result.message,
+    student: result.student,
+    from_class_id: result.from_class_id,
+    to_class_id: result.to_class_id,
   };
 }
 

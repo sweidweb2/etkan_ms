@@ -7,6 +7,7 @@ import {
   getClassFinalExamForManager,
   getClassForManager,
   listAvailableStudentsForClass,
+  listClassesForManager,
   listClassSessionsForManager,
   listClassStudentsForManager,
   listClassTeacherOptionsForManager,
@@ -41,6 +42,7 @@ export default async function ManagerClassDetailPage({
     subjects,
     semesters,
     computedGradeLock,
+    allClasses,
   ] = await Promise.all([
     listClassSessionsForManager(adminClient, user?.id ?? null, id),
     listClassStudentsForManager(adminClient, user?.id ?? null, id),
@@ -51,6 +53,7 @@ export default async function ManagerClassDetailPage({
     listSubjectsForManager(adminClient, user?.id ?? null),
     listSemestersForManager(adminClient, user?.id ?? null),
     getClassComputedGradeLockStateForManager(adminClient, user?.id ?? null, id),
+    listClassesForManager(adminClient, user?.id ?? null),
   ]);
 
   return (
@@ -59,6 +62,10 @@ export default async function ManagerClassDetailPage({
       initialSessions={sessions}
       initialStudents={students}
       initialAvailableStudents={availableStudents}
+      transferClassOptions={allClasses.map((row) => ({
+        id: row.id,
+        name: row.name,
+      }))}
       initialFinalExam={finalExamBundle.finalExam}
       initialStudentGrades={finalExamBundle.studentGrades}
       initialAnalytics={analytics}

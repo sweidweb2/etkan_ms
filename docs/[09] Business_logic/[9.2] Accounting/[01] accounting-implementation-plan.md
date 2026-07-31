@@ -302,12 +302,12 @@ Hook points in existing class enrollment services:
 
 ### Phase 5 — Enrollment sync & edge-case hardening
 
-- [ ] **T5.1** Hook enroll → auto SPP + reopen closed phase
-- [ ] **T5.2** Hook leave / pause / stop → cancel SPP + recalc (phase may close if all remaining paid)
-- [ ] **T5.3** Class change = leave only (no auto-assign on new class)
-- [ ] **T5.4** Missing-SPP repair action uses same sync helper
-- [ ] **T5.5** Service tests for: late join on closed phase, leave last unpaid student, overpay, amount edit after payments, delete payment reopening phase
-- [ ] **T5.6** Audit log coverage for phase/payment/adjustment mutations
+- [x] **T5.1** Hook enroll → auto SPP + reopen closed phase
+- [x] **T5.2** Hook leave / pause / stop → cancel SPP + recalc (phase may close if all remaining paid)
+- [x] **T5.3** Class change = leave only (no auto-assign on new class)
+- [x] **T5.4** Missing-SPP repair action uses same sync helper
+- [x] **T5.5** Service tests for: late join on closed phase, leave last unpaid student, overpay, amount edit after payments, delete payment reopening phase
+- [x] **T5.6** Audit log coverage for phase/payment/adjustment mutations
 
 **Exit:** edge cases covered by tests; missing table stays empty under normal enroll flow.
 

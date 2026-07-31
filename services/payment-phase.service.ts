@@ -5,8 +5,7 @@ import {
   type PaymentPhaseStatus,
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
-import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
-import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
+import { buildInitialSppInsert } from "@/lib/manager/accounting/spp-insert";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cancelPaymentPhaseSchema } from "@/lib/validators/manager/cancel-payment-phase";
 import { createPaymentPhaseSchema } from "@/lib/validators/manager/create-payment-phase";
@@ -21,6 +20,7 @@ import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-p
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import { recalcNonCancelledSppsForPhase } from "@/services/accounting-recalc.service";
+import { ensureSppForStudentOnPhase } from "@/services/accounting-sync.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -249,31 +249,6 @@ async function buildSppCountsByPhaseId(
   }
 
   return counts;
-}
-
-function buildInitialSppInsert(
-  studentId: string,
-  paymentPhaseId: string,
-  phaseAmount: number,
-  assignedAt: string
-) {
-  const financials = computeSppFinancials(phaseAmount, null, []);
-  const status = deriveSppStatus(
-    financials,
-    STUDENT_PAYMENT_PHASE_STATUSES.PENDING
-  );
-
-  return {
-    student_id: studentId,
-    payment_phase_id: paymentPhaseId,
-    assigned_at: assignedAt,
-    status,
-    original_amount: financials.original,
-    adjustment_amount: financials.adjustmentAmount,
-    final_amount_due: financials.finalDue,
-    total_paid: financials.totalPaid,
-    remaining_amount: financials.remaining,
-  };
 }
 
 export async function listPaymentPhasesForManager(
@@ -760,29 +735,43 @@ export async function repairMissingSppForManager(
     };
   }
 
-  const assignedAt = new Date().toISOString();
-  const sppInput = buildInitialSppInsert(
-    student_id,
-    payment_phase_id,
-    Number(phase.amount),
-    assignedAt
-  );
+  let ensured;
+  try {
+    ensured = await ensureSppForStudentOnPhase(adminClient, {
+      studentId: student_id,
+      phase: {
+        id: phase.id,
+        name: phase.name,
+        class_id: phase.class_id,
+        semester_code: phase.semester_code,
+        amount: Number(phase.amount),
+        upfront_amount: Number(phase.upfront_amount),
+        duration_months: phase.duration_months,
+        start_date: phase.start_date,
+        end_date: phase.end_date,
+        status: phase.status,
+        created_at: phase.created_at,
+        updated_at: phase.updated_at,
+      },
+    });
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Unable to assign student payment phase. Please try again.",
+    };
+  }
 
-  const { data: created, error: createError } =
-    await studentPaymentPhaseRepository.createStudentPaymentPhase(
-      adminClient,
-      sppInput
-    );
+  if (ensured.alreadyExisted) {
+    return {
+      success: true,
+      message: "Student payment phase already exists.",
+    };
+  }
 
-  if (createError || !created) {
-    const message = createError?.message?.toLowerCase() ?? "";
-    if (message.includes("unique") || message.includes("duplicate")) {
-      return {
-        success: true,
-        message: "Student payment phase already exists.",
-      };
-    }
-
+  if (!ensured.spp) {
     return {
       success: false,
       error: "Unable to assign student payment phase. Please try again.",
@@ -793,13 +782,13 @@ export async function repairMissingSppForManager(
     action: "insert",
     severity: "info",
     table_name: "student_payment_phases",
-    record_id: created.id,
+    record_id: ensured.spp.id,
     new_data: {
-      student_id: created.student_id,
-      payment_phase_id: created.payment_phase_id,
-      status: created.status,
-      original_amount: created.original_amount,
-      remaining_amount: created.remaining_amount,
+      student_id: ensured.spp.student_id,
+      payment_phase_id: ensured.spp.payment_phase_id,
+      status: ensured.spp.status,
+      original_amount: ensured.spp.original_amount,
+      remaining_amount: ensured.spp.remaining_amount,
     },
     metadata: {
       note: "Missing student payment phase repaired.",

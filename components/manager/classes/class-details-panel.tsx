@@ -13,6 +13,7 @@ import { ClassFinalExamSection } from "@/components/manager/classes/class-final-
 import { ClassSessionProgressTrack } from "@/components/manager/classes/class-session-progress-track";
 import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
 import { ClassStudentsSection } from "@/components/manager/classes/class-students-section";
+import type { ClassTransferOption } from "@/components/manager/classes/transfer-student-between-classes-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -77,6 +78,7 @@ type ClassDetailsPanelProps = {
   initialSessions: ManagerClassSessionRow[];
   initialStudents: ManagerClassStudentRow[];
   initialAvailableStudents: ManagerStudentRow[];
+  transferClassOptions: ClassTransferOption[];
   initialFinalExam: ManagerClassFinalExamRow | null;
   initialStudentGrades: ManagerStudentFinalExamGradeRow[];
   initialAnalytics: ManagerClassAnalyticsPreview;
@@ -115,6 +117,7 @@ export function ClassDetailsPanel({
   initialSessions,
   initialStudents,
   initialAvailableStudents,
+  transferClassOptions,
   initialFinalExam,
   initialStudentGrades,
   initialAnalytics,
@@ -348,6 +351,7 @@ export function ClassDetailsPanel({
         className={classRow.name}
         initialStudents={students}
         availableStudents={availableStudents}
+        transferClassOptions={transferClassOptions}
         onStudentsChange={setStudents}
         onAvailableStudentsChange={setAvailableStudents}
         onClassUpdated={setClassRow}

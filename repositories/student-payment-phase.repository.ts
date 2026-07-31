@@ -155,3 +155,19 @@ export async function updateStudentPaymentPhaseFinancials(
     .select(SPP_COLUMNS)
     .single();
 }
+
+export async function updateStudentPaymentPhaseStatus(
+  client: Supabase,
+  id: string,
+  status: string
+) {
+  return client
+    .from("student_payment_phases")
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(SPP_COLUMNS)
+    .single();
+}

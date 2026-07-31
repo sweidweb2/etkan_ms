@@ -71,6 +71,35 @@ export async function findOpenedPaymentPhaseByClassId(
     .maybeSingle();
 }
 
+export async function findLatestClosedPaymentPhaseByClassId(
+  client: Supabase,
+  classId: string
+) {
+  return client
+    .from("payment_phases")
+    .select(PAYMENT_PHASE_COLUMNS)
+    .eq("class_id", classId)
+    .eq("status", "closed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
+/** Prefer opened phase for a class; else latest closed. Never returns cancelled. */
+export async function findCurrentSyncPhaseByClassId(
+  client: Supabase,
+  classId: string
+) {
+  const opened = await findOpenedPaymentPhaseByClassId(client, classId);
+  if (opened.error) {
+    return opened;
+  }
+  if (opened.data) {
+    return opened;
+  }
+  return findLatestClosedPaymentPhaseByClassId(client, classId);
+}
+
 export async function listOpenedPaymentPhases(client: Supabase) {
   return client
     .from("payment_phases")

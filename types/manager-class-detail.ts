@@ -121,4 +121,14 @@ export type UpdateClassStudentStatusActionState = {
   student?: ManagerClassStudentRow;
 };
 
+export type TransferStudentBetweenClassesActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  from_class_id?: string;
+  to_class_id?: string;
+  student?: ManagerClassStudentRow;
+};
+
 export type { ManagerClassAnalyticsPreview };

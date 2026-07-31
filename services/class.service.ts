@@ -29,6 +29,7 @@ import { createFinalExamSchema } from "@/lib/validators/manager/create-final-exa
 import { createEditStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { updateFinalExamSchema } from "@/lib/validators/manager/update-final-exam";
 import { addStudentToClassSchema } from "@/lib/validators/manager/add-student-to-class";
+import { transferStudentBetweenClassesSchema } from "@/lib/validators/manager/transfer-student-between-classes";
 import { updateStudentClassStatusSchema } from "@/lib/validators/manager/update-student-class-status";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
@@ -54,6 +55,10 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
+import {
+  onStudentJoinedClass,
+  onStudentLeftClass,
+} from "@/services/accounting-sync.service";
 import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
 import { isDueDatePast } from "@/lib/manager/late-enrollment";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
@@ -2071,6 +2076,10 @@ export async function addStudentToClassForManager(
   input: {
     class_id: string;
     studentProfileId: string;
+  },
+  options?: {
+    /** Only transfer uses this — normal enroll always syncs payment. */
+    skipPaymentSync?: boolean;
   }
 ): Promise<AddStudentToClassResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_ADD_STUDENT);
@@ -2275,6 +2284,18 @@ export async function addStudentToClassForManager(
     },
   });
 
+  if (!options?.skipPaymentSync) {
+    try {
+      await onStudentJoinedClass(
+        adminClient,
+        { studentId: userId, classId: input.class_id },
+        actor
+      );
+    } catch {
+      // Enrollment remains; Missing-SPP repair is the safety net.
+    }
+  }
+
   return {
     success: true,
     student,
@@ -2396,9 +2417,242 @@ export async function updateClassStudentStatusForManager(
     },
   });
 
+  const previousStatus = existing.data.status;
+  const nextStatus = parsed.data.status;
+
+  if (
+    nextStatus === STUDENT_CLASS_STATUSES.PAUSED ||
+    nextStatus === STUDENT_CLASS_STATUSES.STOPPED
+  ) {
+    try {
+      await onStudentLeftClass(
+        adminClient,
+        { studentId: enrollment.user_id, classId: input.class_id },
+        actor
+      );
+    } catch {
+      // Status update remains; accounting can be repaired later.
+    }
+  } else if (
+    nextStatus === STUDENT_CLASS_STATUSES.ENROLLED &&
+    previousStatus !== STUDENT_CLASS_STATUSES.ENROLLED
+  ) {
+    try {
+      await onStudentJoinedClass(
+        adminClient,
+        { studentId: enrollment.user_id, classId: input.class_id },
+        actor
+      );
+    } catch {
+      // Status update remains; Missing-SPP repair is the safety net.
+    }
+  }
+
   return {
     success: true,
     student,
     message: "Enrollment status updated.",
+  };
+}
+
+export type TransferStudentBetweenClassesResult =
+  | {
+      success: true;
+      student: ManagerClassStudentRow;
+      from_class_id: string;
+      to_class_id: string;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function transferStudentBetweenClassesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    student_profile_id: string;
+    from_class_id: string;
+    to_class_id: string;
+  }
+): Promise<TransferStudentBetweenClassesResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.CLASSES_CHANGE_ENROLLMENT
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = transferStudentBetweenClassesSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { student_profile_id, from_class_id, to_class_id } = parsed.data;
+
+  const [fromClassResult, toClassResult, studentProfileResult] =
+    await Promise.all([
+      classRepository.findClassDetailById(adminClient, from_class_id),
+      classRepository.findClassDetailById(adminClient, to_class_id),
+      studentProfileRepository.findStudentProfileById(
+        adminClient,
+        student_profile_id
+      ),
+    ]);
+
+  if (fromClassResult.error) {
+    return { success: false, error: fromClassResult.error.message };
+  }
+  if (!fromClassResult.data) {
+    return { success: false, error: "Source class not found." };
+  }
+
+  if (toClassResult.error) {
+    return { success: false, error: toClassResult.error.message };
+  }
+  if (!toClassResult.data) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { to_class_id: ["Destination class not found."] },
+    };
+  }
+
+  if (studentProfileResult.error || !studentProfileResult.data) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { student_profile_id: ["Student not found."] },
+    };
+  }
+
+  const userId = studentProfileResult.data.user_id;
+
+  const fromEnrollment =
+    await studentClassRepository.findStudentClassByUserAndClass(
+      adminClient,
+      userId,
+      from_class_id
+    );
+
+  if (fromEnrollment.error) {
+    return { success: false, error: fromEnrollment.error.message };
+  }
+
+  if (!fromEnrollment.data) {
+    return {
+      success: false,
+      error: "Student is not enrolled in the source class.",
+    };
+  }
+
+  if (fromEnrollment.data.status !== STUDENT_CLASS_STATUSES.ENROLLED) {
+    return {
+      success: false,
+      error: "Only enrolled students can be transferred.",
+    };
+  }
+
+  const toEnrollment =
+    await studentClassRepository.findStudentClassByUserAndClass(
+      adminClient,
+      userId,
+      to_class_id
+    );
+
+  if (toEnrollment.error) {
+    return { success: false, error: toEnrollment.error.message };
+  }
+
+  if (toEnrollment.data) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        to_class_id: ["Student is already in the destination class."],
+      },
+    };
+  }
+
+  const { data: stopped, error: stopError } =
+    await studentClassRepository.updateStudentClassStatus(
+      adminClient,
+      fromEnrollment.data.id,
+      STUDENT_CLASS_STATUSES.STOPPED
+    );
+
+  if (stopError || !stopped) {
+    return {
+      success: false,
+      error: stopError?.message ?? "Unable to leave the source class.",
+    };
+  }
+
+  try {
+    await onStudentLeftClass(
+      adminClient,
+      { studentId: userId, classId: from_class_id },
+      actor
+    );
+  } catch {
+    // Continue transfer; leave sync can be repaired.
+  }
+
+  const enrollResult = await addStudentToClassForManager(
+    adminClient,
+    actorUserId,
+    actor,
+    {
+      class_id: to_class_id,
+      studentProfileId: student_profile_id,
+    },
+    { skipPaymentSync: true }
+  );
+
+  if (!enrollResult.success) {
+    return {
+      success: false,
+      error:
+        enrollResult.error ??
+        "Left source class, but could not enroll in destination.",
+      fieldErrors: enrollResult.fieldErrors,
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "student_class",
+    record_id: enrollResult.student.id,
+    old_data: {
+      class_id: from_class_id,
+      status: STUDENT_CLASS_STATUSES.ENROLLED,
+    },
+    new_data: {
+      class_id: to_class_id,
+      status: STUDENT_CLASS_STATUSES.ENROLLED,
+      from_enrollment_id: fromEnrollment.data.id,
+      from_status: STUDENT_CLASS_STATUSES.STOPPED,
+    },
+    metadata: {
+      note: "Student transferred between classes without destination payment sync.",
+      from_class_id,
+      to_class_id,
+      student_id: userId,
+    },
+  });
+
+  return {
+    success: true,
+    student: enrollResult.student,
+    from_class_id,
+    to_class_id,
+    message: `${enrollResult.student.full_name} transferred. Destination billing was not auto-assigned.`,
   };
 }

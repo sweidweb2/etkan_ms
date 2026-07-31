@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
+  ArrowRightLeftIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
@@ -13,6 +15,10 @@ import {
 import { updateClassStudentStatusAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
+import {
+  TransferStudentBetweenClassesDialog,
+  type ClassTransferOption,
+} from "@/components/manager/classes/transfer-student-between-classes-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -69,6 +75,7 @@ type ClassStudentsSectionProps = {
   className: string;
   initialStudents: ManagerClassStudentRow[];
   availableStudents: ManagerStudentRow[];
+  transferClassOptions: ClassTransferOption[];
   onStudentsChange: (students: ManagerClassStudentRow[]) => void;
   onAvailableStudentsChange: (students: ManagerStudentRow[]) => void;
   onClassUpdated: (classRow: ManagerClassRow) => void;
@@ -159,11 +166,13 @@ export function ClassStudentsSection({
   className,
   initialStudents,
   availableStudents,
+  transferClassOptions,
   onStudentsChange,
   onAvailableStudentsChange,
   onClassUpdated,
   onStudentGradeAdded,
 }: ClassStudentsSectionProps) {
+  const router = useRouter();
   const [isTransitionPending, startTransition] = useTransition();
   const [statusUpdateState, statusUpdateAction, isStatusUpdatePending] =
     useActionState(updateClassStudentStatusAction, initialStatusUpdateState);
@@ -173,6 +182,8 @@ export function ClassStudentsSection({
 
   const [students, setStudents] = useState(initialStudents);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [transferringStudent, setTransferringStudent] =
+    useState<ManagerClassStudentRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(1);
@@ -286,6 +297,20 @@ export function ClassStudentsSection({
           onStudentAdded={handleAddStudent}
         />
       ) : null}
+
+      <TransferStudentBetweenClassesDialog
+        open={transferringStudent !== null}
+        onOpenChange={(open) => {
+          if (!open) setTransferringStudent(null);
+        }}
+        fromClassId={classId}
+        student={transferringStudent}
+        classOptions={transferClassOptions}
+        onTransferred={() => {
+          setTransferringStudent(null);
+          router.refresh();
+        }}
+      />
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
@@ -442,15 +467,36 @@ export function ClassStudentsSection({
                           : "—"}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Link
-                          href={getManagerStudentDetailRoute(
-                            student.student_profile_id
-                          )}
-                          aria-label={`View ${student.full_name}`}
-                          className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        >
-                          <EyeIcon className="size-4" />
-                        </Link>
+                        <div className="inline-flex items-center justify-end gap-1">
+                          {student.enrollment_status === "enrolled" ? (
+                            <Can
+                              permission={
+                                PERMISSIONS.CLASSES_CHANGE_ENROLLMENT
+                              }
+                            >
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`Transfer ${student.full_name}`}
+                                onClick={() =>
+                                  setTransferringStudent(student)
+                                }
+                              >
+                                <ArrowRightLeftIcon />
+                              </Button>
+                            </Can>
+                          ) : null}
+                          <Link
+                            href={getManagerStudentDetailRoute(
+                              student.student_profile_id
+                            )}
+                            aria-label={`View ${student.full_name}`}
+                            className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          >
+                            <EyeIcon className="size-4" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))
