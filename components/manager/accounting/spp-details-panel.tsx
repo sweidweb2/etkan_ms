@@ -53,6 +53,9 @@ import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-d
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingPhaseDetailRoute,
+  getManagerClassDetailRoute,
+  getManagerSemesterDetailRoute,
+  getManagerStudentDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import {
@@ -389,7 +392,18 @@ export function SppDetailsPanel({
 
         <Card>
           <CardHeader>
-            <CardTitle>{spp.student_label}</CardTitle>
+            <CardTitle>
+              {spp.student_profile_id ? (
+                <Link
+                  href={getManagerStudentDetailRoute(spp.student_profile_id)}
+                  className="text-primary hover:underline"
+                >
+                  {spp.student_label}
+                </Link>
+              ) : (
+                spp.student_label
+              )}
+            </CardTitle>
             <CardAction className="flex flex-wrap items-center gap-2">
               <SppStatusBadge status={spp.status} />
               <PaymentPhaseStatusBadge status={spp.payment_phase_status} />
@@ -405,10 +419,23 @@ export function SppDetailsPanel({
                 {spp.payment_phase_name}
               </Link>
               {" · "}
-              {spp.semester_name}
-              {spp.billing_class_name
-                ? ` · ${spp.billing_class_name}`
-                : ""}
+              <Link
+                href={getManagerSemesterDetailRoute(spp.semester_id)}
+                className="font-medium text-primary hover:underline"
+              >
+                {spp.semester_name}
+              </Link>
+              {spp.billing_class_id && spp.billing_class_name ? (
+                <>
+                  {" · "}
+                  <Link
+                    href={getManagerClassDetailRoute(spp.billing_class_id)}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {spp.billing_class_name}
+                  </Link>
+                </>
+              ) : null}
             </p>
             {spp.payments_blocked ? (
               <p className="text-amber-700 dark:text-amber-300">

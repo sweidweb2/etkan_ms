@@ -318,10 +318,10 @@ Hook points in existing class enrollment services:
 
 ### Phase 6 — Polish (manager UX)
 
-- [ ] **T6.1** Empty states, filters, pagination parity with other manager panels
-- [ ] **T6.2** Links: phase → class detail; SPP → student detail
+- [x] **T6.1** Empty states, filters, pagination parity with other manager panels
+- [x] **T6.2** Links: phase → semester detail (billing class when present); SPP → student detail
 - [ ] **T6.3** Print/export later (not required for v1)
-- [ ] **T6.4** Update this doc’s checklist as tasks complete
+- [x] **T6.4** Update this doc’s checklist as tasks complete
 
 ---
 

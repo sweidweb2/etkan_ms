@@ -174,14 +174,17 @@ async function buildBillingClassBySemesterId(
   return map;
 }
 
-async function buildStudentLabelsByUserId(
+async function buildStudentMetaByUserId(
   adminClient: Supabase,
   studentIds: string[]
-): Promise<Map<string, string>> {
-  const labels = new Map<string, string>();
+): Promise<Map<string, { label: string; student_profile_id: string | null }>> {
+  const meta = new Map<
+    string,
+    { label: string; student_profile_id: string | null }
+  >();
 
   if (studentIds.length === 0) {
-    return labels;
+    return meta;
   }
 
   const [{ data: profiles }, { data: studentProfiles }] = await Promise.all([
@@ -195,17 +198,32 @@ async function buildStudentLabelsByUserId(
   const usernameById = new Map(
     (profiles ?? []).map((profile) => [profile.id, profile.username])
   );
-  const fullNameByUserId = new Map(
-    (studentProfiles ?? []).map((profile) => [
-      profile.user_id,
-      profile.full_name,
-    ])
+  const studentProfileByUserId = new Map(
+    (studentProfiles ?? []).map((profile) => [profile.user_id, profile])
   );
 
   for (const studentId of studentIds) {
-    const fullName = fullNameByUserId.get(studentId)?.trim();
+    const studentProfile = studentProfileByUserId.get(studentId);
+    const fullName = studentProfile?.full_name?.trim();
     const username = usernameById.get(studentId)?.trim();
-    labels.set(studentId, fullName || username || studentId);
+    meta.set(studentId, {
+      label: fullName || username || studentId,
+      student_profile_id: studentProfile?.id ?? null,
+    });
+  }
+
+  return meta;
+}
+
+async function buildStudentLabelsByUserId(
+  adminClient: Supabase,
+  studentIds: string[]
+): Promise<Map<string, string>> {
+  const meta = await buildStudentMetaByUserId(adminClient, studentIds);
+  const labels = new Map<string, string>();
+
+  for (const [studentId, entry] of meta) {
+    labels.set(studentId, entry.label);
   }
 
   return labels;
@@ -213,11 +231,13 @@ async function buildStudentLabelsByUserId(
 
 function mapSppRecordToRow(
   record: StudentPaymentPhaseRecord,
-  studentLabel: string
+  studentLabel: string,
+  studentProfileId: string | null
 ): ManagerSppRow {
   return {
     id: record.id,
     student_id: record.student_id,
+    student_profile_id: studentProfileId,
     student_label: studentLabel,
     payment_phase_id: record.payment_phase_id,
     status: isStudentPaymentPhaseStatus(record.status)
@@ -948,17 +968,19 @@ export async function listSppsForPhaseForManager(
     return [];
   }
 
-  const labels = await buildStudentLabelsByUserId(
+  const meta = await buildStudentMetaByUserId(
     adminClient,
     [...new Set(records.map((record) => record.student_id))]
   );
 
-  return records.map((record) =>
-    mapSppRecordToRow(
+  return records.map((record) => {
+    const studentMeta = meta.get(record.student_id);
+    return mapSppRecordToRow(
       record,
-      labels.get(record.student_id) ?? record.student_id
-    )
-  );
+      studentMeta?.label ?? record.student_id,
+      studentMeta?.student_profile_id ?? null
+    );
+  });
 }
 
 export async function updatePaymentPhaseForManager(

@@ -44,6 +44,7 @@ export type ManagerPaymentPhaseSemesterOption = {
 export type ManagerSppRow = {
   id: string;
   student_id: string;
+  student_profile_id: string | null;
   student_label: string;
   payment_phase_id: string;
   status: StudentPaymentPhaseStatus;

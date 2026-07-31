@@ -8,6 +8,7 @@ import type {
 export type ManagerSppDetail = {
   id: string;
   student_id: string;
+  student_profile_id: string | null;
   student_label: string;
   payment_phase_id: string;
   payment_phase_name: string;

@@ -137,10 +137,10 @@ function mapPaymentRecordToRow(
   };
 }
 
-async function resolveStudentLabel(
+async function resolveStudentMeta(
   adminClient: Supabase,
   studentId: string
-): Promise<string> {
+): Promise<{ label: string; student_profile_id: string | null }> {
   const [{ data: profile }, { data: studentProfiles }] = await Promise.all([
     profileRepository.findProfileById(adminClient, studentId),
     studentProfileRepository.listStudentProfilesByUserIds(adminClient, [
@@ -148,9 +148,14 @@ async function resolveStudentLabel(
     ]),
   ]);
 
-  const fullName = studentProfiles?.[0]?.full_name?.trim();
+  const studentProfile = studentProfiles?.[0];
+  const fullName = studentProfile?.full_name?.trim();
   const username = profile?.username?.trim();
-  return fullName || username || studentId;
+
+  return {
+    label: fullName || username || studentId,
+    student_profile_id: studentProfile?.id ?? null,
+  };
 }
 
 function assertPaymentsAllowed(
@@ -202,7 +207,7 @@ export async function getSppDetailForManager(
 
   const phaseRecord = phase as PaymentPhaseListRecord;
   const sppRecord = spp as StudentPaymentPhaseRecord;
-  const studentLabel = await resolveStudentLabel(
+  const studentMeta = await resolveStudentMeta(
     adminClient,
     sppRecord.student_id
   );
@@ -221,7 +226,8 @@ export async function getSppDetailForManager(
   return {
     id: sppRecord.id,
     student_id: sppRecord.student_id,
-    student_label: studentLabel,
+    student_profile_id: studentMeta.student_profile_id,
+    student_label: studentMeta.label,
     payment_phase_id: phaseRecord.id,
     payment_phase_name: phaseRecord.name,
     payment_phase_status: phaseStatus,

@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
-import { PencilIcon, BanIcon } from "lucide-react";
+import {
+  BanIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  EyeIcon,
+  PencilIcon,
+  SearchIcon,
+} from "lucide-react";
 import { cancelPaymentPhaseAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
@@ -35,21 +42,37 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
+import {
+  formatPaymentPhaseMoney,
+  SPP_STATUS_LABELS,
+} from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingSppDetailRoute,
   getManagerClassDetailRoute,
   getManagerSemesterDetailRoute,
+  getManagerStudentDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
-import { PAYMENT_PHASE_STATUSES } from "@/lib/manager/accounting/constants";
+import {
+  PAYMENT_PHASE_STATUSES,
+  STUDENT_PAYMENT_PHASE_STATUS_VALUES,
+  type StudentPaymentPhaseStatus,
+} from "@/lib/manager/accounting/constants";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -61,6 +84,8 @@ import type {
   ManagerSppRow,
 } from "@/types/manager-payment-phase";
 
+const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const STATUS_FILTER_ALL = "all";
 const initialCancelState: CancelPaymentPhaseActionState = {};
 
 type PaymentPhaseDetailsPanelProps = {
@@ -119,6 +144,43 @@ function TruncatedCell({
   );
 }
 
+function getPageNumbers(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, totalPages, currentPage]);
+
+  for (let offset = -1; offset <= 1; offset += 1) {
+    const page = currentPage + offset;
+    if (page > 1 && page < totalPages) {
+      pages.add(page);
+    }
+  }
+
+  const sortedPages = [...pages].sort((a, b) => a - b);
+  const result: Array<number | "ellipsis"> = [];
+
+  sortedPages.forEach((page, index) => {
+    const previousPage = sortedPages[index - 1];
+    if (previousPage !== undefined && page - previousPage > 1) {
+      result.push("ellipsis");
+    }
+    result.push(page);
+  });
+
+  return result;
+}
+
+function matchesSppSearch(spp: ManagerSppRow, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return spp.student_label.toLowerCase().includes(normalizedQuery);
+}
+
 export function PaymentPhaseDetailsPanel({
   phase: initialPhase,
   initialSpps,
@@ -130,6 +192,12 @@ export function PaymentPhaseDetailsPanel({
   const [prevSpps, setPrevSpps] = useState(initialSpps);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
+    10
+  );
+  const [currentPage, setCurrentPage] = useState(1);
   const [isTransitionPending, startTransition] = useTransition();
   const [cancelState, cancelAction, isCancelPending] = useActionState(
     cancelPaymentPhaseAction,
@@ -161,6 +229,45 @@ export function PaymentPhaseDetailsPanel({
   }
 
   const isCancelled = phase.status === PAYMENT_PHASE_STATUSES.CANCELLED;
+
+  const filteredSpps = useMemo(() => {
+    return spps.filter((spp) => {
+      const matchesStatus =
+        statusFilter === STATUS_FILTER_ALL || spp.status === statusFilter;
+      return matchesStatus && matchesSppSearch(spp, searchQuery);
+    });
+  }, [spps, searchQuery, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSpps.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedSpps = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    return filteredSpps.slice(startIndex, startIndex + pageSize);
+  }, [filteredSpps, pageSize, safeCurrentPage]);
+
+  const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
+  const rangeStart =
+    filteredSpps.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredSpps.length);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusFilterChange = (value: string | null) => {
+    setStatusFilter(value ?? STATUS_FILTER_ALL);
+    setCurrentPage(1);
+  };
+
+  const handlePageSizeChange = (value: string | null) => {
+    if (!value) {
+      return;
+    }
+    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
+    setCurrentPage(1);
+  };
 
   const handlePhaseUpdated = (updated: ManagerPaymentPhaseRow) => {
     setPhase(updated);
@@ -328,8 +435,37 @@ export function PaymentPhaseDetailsPanel({
             <CardTitle>Student payment phases</CardTitle>
           </CardHeader>
           <CardContent className="px-0 pb-0">
+            <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
+              <div className="relative max-w-md flex-1">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                  placeholder="Search student…"
+                  className="pl-8"
+                  aria-label="Search student payment phases"
+                />
+              </div>
+              <Select
+                value={statusFilter}
+                onValueChange={handleStatusFilterChange}
+              >
+                <SelectTrigger className="w-full sm:w-44" aria-label="Status">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
+                  {STUDENT_PAYMENT_PHASE_STATUS_VALUES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {SPP_STATUS_LABELS[status as StudentPaymentPhaseStatus]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] text-sm">
+              <table className="w-full min-w-[1040px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="px-4 py-3 font-medium">Student</th>
@@ -343,37 +479,46 @@ export function PaymentPhaseDetailsPanel({
                     <th className="px-4 py-3 font-medium text-right">
                       Remaining
                     </th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {spps.length === 0 ? (
+                  {paginatedSpps.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
-                        No student payment phases assigned yet.
+                        {spps.length === 0
+                          ? "No student payment phases assigned yet."
+                          : "No students match your filters."}
                       </td>
                     </tr>
                   ) : (
-                    spps.map((spp) => (
+                    paginatedSpps.map((spp) => (
                       <tr
                         key={spp.id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
                       >
                         <td className="max-w-[14rem] px-4 py-3 font-medium">
-                          <Link
-                            href={getManagerAccountingSppDetailRoute(
-                              phase.id,
-                              spp.id
-                            )}
-                            className="text-primary hover:underline"
-                          >
+                          {spp.student_profile_id ? (
+                            <Link
+                              href={getManagerStudentDetailRoute(
+                                spp.student_profile_id
+                              )}
+                              className="text-primary hover:underline"
+                            >
+                              <TruncatedCell
+                                value={spp.student_label}
+                                maxLength={32}
+                              />
+                            </Link>
+                          ) : (
                             <TruncatedCell
                               value={spp.student_label}
                               maxLength={32}
                             />
-                          </Link>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <SppStatusBadge status={spp.status} />
@@ -400,11 +545,112 @@ export function PaymentPhaseDetailsPanel({
                             ) : null}
                           </span>
                         </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end">
+                            <Button
+                              render={
+                                <Link
+                                  href={getManagerAccountingSppDetailRoute(
+                                    phase.id,
+                                    spp.id
+                                  )}
+                                />
+                              }
+                              nativeButton={false}
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`View assignment for ${spp.student_label}`}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <EyeIcon />
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>
+                  Showing {rangeStart}–{rangeEnd} of {filteredSpps.length}
+                </span>
+                <span aria-hidden="true">·</span>
+                <div className="flex items-center gap-2">
+                  <span>Rows</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={handlePageSizeChange}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="w-16"
+                      aria-label="Rows per page"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <SelectItem key={size} value={String(size)}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeftIcon />
+                </Button>
+                {pageNumbers.map((page, index) =>
+                  page === "ellipsis" ? (
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="px-1 text-muted-foreground"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <Button
+                      key={page}
+                      type="button"
+                      variant={page === safeCurrentPage ? "default" : "outline"}
+                      size="icon-sm"
+                      onClick={() => setCurrentPage(page)}
+                      aria-label={`Page ${page}`}
+                      aria-current={
+                        page === safeCurrentPage ? "page" : undefined
+                      }
+                    >
+                      {page}
+                    </Button>
+                  )
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() =>
+                    setCurrentPage((page) => Math.min(totalPages, page + 1))
+                  }
+                  aria-label="Next page"
+                >
+                  <ChevronRightIcon />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -34,7 +34,10 @@ import {
 } from "@/components/ui/tooltip";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { getManagerAccountingPhaseDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerAccountingPhaseDetailRoute,
+  getManagerSemesterDetailRoute,
+} from "@/lib/constants/routes";
 import {
   PAYMENT_PHASE_STATUSES,
   PAYMENT_PHASE_STATUS_VALUES,
@@ -216,7 +219,7 @@ export function ManageAccountingPanel({
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Accounting</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Open payment phases by class and assign enrolled students.
+              Open payment phases by semester and assign enrolled students.
             </p>
           </div>
           <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE}>
@@ -263,7 +266,7 @@ export function ManageAccountingPanel({
                 <Input
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search name, class, or semester code…"
+                  placeholder="Search name, semester, or code…"
                   className="pl-8"
                   aria-label="Search payment phases"
                 />
@@ -315,7 +318,9 @@ export function ManageAccountingPanel({
                         colSpan={10}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
-                        No payment phases match your filters.
+                        {phases.length === 0
+                          ? "No payment phases yet."
+                          : "No payment phases match your filters."}
                       </td>
                     </tr>
                   ) : (
@@ -328,10 +333,17 @@ export function ManageAccountingPanel({
                           <TruncatedCell value={phase.name} maxLength={28} />
                         </td>
                         <td className="max-w-[12rem] px-4 py-3">
-                          <TruncatedCell
-                            value={phase.semester_name}
-                            maxLength={28}
-                          />
+                          <Link
+                            href={getManagerSemesterDetailRoute(
+                              phase.semester_id
+                            )}
+                            className="text-primary hover:underline"
+                          >
+                            <TruncatedCell
+                              value={phase.semester_name}
+                              maxLength={28}
+                            />
+                          </Link>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 tabular-nums text-muted-foreground">
                           {phase.semester_code}
