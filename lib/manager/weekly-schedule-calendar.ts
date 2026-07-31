@@ -6,6 +6,13 @@ import {
 } from "@/lib/validators/manager/weekly-schedule-slot";
 import type { ManagerWeeklyScheduleSession } from "@/types/manager-weekly-schedule";
 
+/** Optimistic create/copy ids before the server returns a real UUID. */
+export const TEMP_SCHEDULE_ID_PREFIX = "__temp_";
+
+export function isTempScheduleId(id: string): boolean {
+  return id.startsWith(TEMP_SCHEDULE_ID_PREFIX);
+}
+
 function normalizeTimeForCalendar(value: string): string {
   const [hours = "00", minutes = "00"] = value.split(":");
   return `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}:00`;
@@ -28,6 +35,7 @@ export function weeklyScheduleSessionsToEvents(
     const contrastColor = getWeeklyScheduleSlotStrongColor(color);
     const startTime = normalizeTimeForCalendar(session.startTime);
     const endTime = normalizeTimeForCalendar(session.endTime);
+    const isTemp = isTempScheduleId(session.id);
 
     return {
       id: session.id,
@@ -37,8 +45,12 @@ export function weeklyScheduleSessionsToEvents(
       // Monarch: pastel fill + strong contrast for title/time text.
       color,
       contrastColor,
+      editable: !isTemp,
+      startEditable: !isTemp,
+      durationEditable: !isTemp,
       extendedProps: {
         session,
+        isTemp,
       },
     };
   });

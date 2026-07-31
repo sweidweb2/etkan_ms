@@ -49,10 +49,12 @@ import {
   formatDateFromDate,
   formatTimeFromDate,
   getSundayWeekBounds,
+  isTempScheduleId,
+  TEMP_SCHEDULE_ID_PREFIX,
   weeklyScheduleSessionsToEvents,
   type CreateSlotDefaults,
 } from "@/lib/manager/weekly-schedule-calendar";
-import { showErrorToast, showSuccessToast } from "@/lib/toast";
+import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
   getWeeklyScheduleSlotStrongColor,
@@ -72,10 +74,9 @@ import "@fullcalendar/react/themes/monarch/theme.css";
 import "@/components/manager/schedule/fullcalendar-dark.css";
 
 const DUP_GHOST_ID_PREFIX = "__dup_ghost_";
-const TEMP_ID_PREFIX = "__temp_";
 
 function makeTempId(): string {
-  return `${TEMP_ID_PREFIX}${crypto.randomUUID()}`;
+  return `${TEMP_SCHEDULE_ID_PREFIX}${crypto.randomUUID()}`;
 }
 
 type ScheduleTypeFilter = "all" | WeeklyScheduleSlotType;
@@ -302,9 +303,15 @@ export function ManagerSchedulePanel({
   const [typeFilter, setTypeFilter] = React.useState<ScheduleTypeFilter>("all");
   const isAltDupDragRef = useRef(false);
   const dragSourceRef = useRef<DragSourceSnapshot | null>(null);
+  const pendingTempIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    setSessions(initialSessions);
+    setSessions((prev) => {
+      const pendingTemps = prev.filter((session) =>
+        pendingTempIdsRef.current.has(session.id)
+      );
+      return [...initialSessions, ...pendingTemps];
+    });
   }, [initialSessions]);
 
   const events = useMemo<EventInput[]>(() => {
@@ -319,6 +326,20 @@ export function ManagerSchedulePanel({
     startTransition(() => {
       router.refresh();
     });
+  }
+
+  function trackPendingTemp(tempId: string) {
+    pendingTempIdsRef.current.add(tempId);
+  }
+
+  function untrackPendingTemp(tempId: string) {
+    pendingTempIdsRef.current.delete(tempId);
+  }
+
+  function ensureCreatedTypeVisible(type: WeeklyScheduleSlotType) {
+    if (typeFilter !== "all" && typeFilter !== type) {
+      setTypeFilter(type);
+    }
   }
 
   function showDuplicateGhost(snapshot: DragSourceSnapshot) {
@@ -401,6 +422,11 @@ export function ManagerSchedulePanel({
   );
 
   function openEditSession(session: ManagerWeeklyScheduleSession) {
+    if (isTempScheduleId(session.id)) {
+      showInfoToast("Still saving this slot…");
+      return;
+    }
+
     setSelectedSession(session);
     setIsEditOpen(true);
   }
@@ -413,6 +439,8 @@ export function ManagerSchedulePanel({
   async function handleOptimisticCreate(values: CreateWeeklyScheduleSlotInput) {
     const tempId = makeTempId();
     const optimistic = sessionFromCreateInput(values, tempId);
+    trackPendingTemp(tempId);
+    ensureCreatedTypeVisible(values.type);
     setSessions((prev) => [...prev, optimistic]);
 
     const result = await createWeeklyScheduleSlotAction(
@@ -421,6 +449,7 @@ export function ManagerSchedulePanel({
     );
 
     if (!result.success || !result.session) {
+      untrackPendingTemp(tempId);
       setSessions((prev) => prev.filter((session) => session.id !== tempId));
       showErrorToast(result.error ?? "Unable to create slot.");
       return;
@@ -429,10 +458,16 @@ export function ManagerSchedulePanel({
     setSessions((prev) =>
       prev.map((session) => (session.id === tempId ? result.session! : session))
     );
+    untrackPendingTemp(tempId);
     showSuccessToast(result.message ?? "Slot created.");
   }
 
   async function handleOptimisticUpdate(values: UpdateWeeklyScheduleSlotInput) {
+    if (isTempScheduleId(values.id)) {
+      showInfoToast("Still saving this slot…");
+      return;
+    }
+
     const previous = sessions.find((session) => session.id === values.id);
     if (!previous) {
       showErrorToast("Unable to update slot.");
@@ -502,6 +537,9 @@ export function ManagerSchedulePanel({
       color: item.color,
     }));
 
+    for (const tempId of tempIds) {
+      trackPendingTemp(tempId);
+    }
     setSessions((prev) => [...prev, ...optimisticSessions]);
 
     const formData = new FormData();
@@ -510,6 +548,9 @@ export function ManagerSchedulePanel({
 
     if (!result.success) {
       const tempIdSet = new Set(tempIds);
+      for (const tempId of tempIds) {
+        untrackPendingTemp(tempId);
+      }
       setSessions((prev) =>
         prev.filter((session) => !tempIdSet.has(session.id))
       );
@@ -517,12 +558,21 @@ export function ManagerSchedulePanel({
       return;
     }
 
+    for (const tempId of tempIds) {
+      untrackPendingTemp(tempId);
+    }
     showSuccessToast(result.message ?? "Last week copied.");
     softRefresh();
   }
 
   function handleConfirmDelete() {
     if (!deleteTarget) {
+      return;
+    }
+
+    if (isTempScheduleId(deleteTarget.id)) {
+      showInfoToast("Still saving this slot…");
+      setDeleteTarget(null);
       return;
     }
 
@@ -581,7 +631,7 @@ export function ManagerSchedulePanel({
     }
 
     const session = getSessionFromEventProps(info.event);
-    if (!session || !info.event.start) {
+    if (!session || !info.event.start || isTempScheduleId(session.id)) {
       dragSourceRef.current = null;
       return;
     }
@@ -616,7 +666,7 @@ export function ManagerSchedulePanel({
 
     clearDuplicateGhostVisual();
 
-    if (!source) {
+    if (!source || isTempScheduleId(source.id)) {
       info.revert();
       return;
     }
@@ -757,7 +807,7 @@ export function ManagerSchedulePanel({
     const start = info.event.start;
     const end = info.event.end;
 
-    if (!session || !start || !end) {
+    if (!session || !start || !end || isTempScheduleId(session.id)) {
       info.revert();
       return;
     }
