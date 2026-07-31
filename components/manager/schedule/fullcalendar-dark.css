@@ -1,0 +1,88 @@
+/**
+ * Bridge FullCalendar Monarch chrome to Etkan system theme tokens.
+ * Per-event colors still flow through --fc-event-color (set by FC from event.color).
+ */
+.fc-schedule-theme {
+  /* primary / controls */
+  --fc-monarch-primary: var(--primary);
+  --fc-monarch-primary-foreground: var(--primary-foreground);
+  --fc-monarch-primary-over: color-mix(in oklab, var(--primary) 88%, white);
+  --fc-monarch-primary-down: color-mix(in oklab, var(--primary) 80%, white);
+
+  /* secondary */
+  --fc-monarch-secondary: var(--secondary);
+  --fc-monarch-secondary-foreground: var(--secondary-foreground);
+  --fc-monarch-secondary-over: color-mix(in oklab, var(--secondary) 92%, var(--foreground));
+  --fc-monarch-secondary-down: color-mix(in oklab, var(--secondary) 85%, var(--foreground));
+
+  /* tertiary */
+  --fc-monarch-tertiary: var(--accent);
+  --fc-monarch-tertiary-foreground: var(--accent-foreground);
+  --fc-monarch-tertiary-over: color-mix(in oklab, var(--accent) 92%, var(--foreground));
+  --fc-monarch-tertiary-down: color-mix(in oklab, var(--accent) 85%, var(--foreground));
+
+  /* calendar content (default event fallback only) */
+  --fc-monarch-event: var(--primary);
+  --fc-monarch-event-contrast: var(--primary-foreground);
+  --fc-monarch-highlight: color-mix(in oklab, var(--primary) 18%, transparent);
+  --fc-monarch-now: var(--destructive);
+
+  /* selection / focus */
+  --fc-monarch-selected: var(--accent);
+  --fc-monarch-selected-foreground: var(--accent-foreground);
+  --fc-monarch-selected-over: color-mix(in oklab, var(--accent) 92%, var(--foreground));
+  --fc-monarch-selected-down: color-mix(in oklab, var(--accent) 85%, var(--foreground));
+  --fc-monarch-outline: var(--ring);
+
+  /* surfaces */
+  --fc-monarch-popover: var(--popover);
+  --fc-monarch-background: var(--background);
+  --fc-monarch-faint: color-mix(in oklab, var(--muted-foreground) 8%, transparent);
+  --fc-monarch-muted: color-mix(in oklab, var(--muted-foreground) 12%, transparent);
+  --fc-monarch-strong: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
+  --fc-monarch-stronger: color-mix(in oklab, var(--muted-foreground) 28%, transparent);
+  --fc-monarch-strongest: color-mix(in oklab, var(--muted-foreground) 34%, transparent);
+
+  /* text */
+  --fc-monarch-foreground: var(--foreground);
+  --fc-monarch-faint-foreground: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+  --fc-monarch-muted-foreground: var(--muted-foreground);
+
+  /* borders */
+  --fc-monarch-border: var(--border);
+  --fc-monarch-strong-border: color-mix(in oklab, var(--border) 70%, var(--foreground));
+}
+
+.dark .fc-schedule-theme {
+  --fc-monarch-primary-over: color-mix(in oklab, var(--primary) 88%, black);
+  --fc-monarch-primary-down: color-mix(in oklab, var(--primary) 80%, black);
+}
+
+/*
+ * Pastel fill (--fc-event-color) + strong label/left-border (--fc-event-contrast-color).
+ * Monarch paints block titles with contrast via .fc-monarch-i9F.
+ */
+.fc-schedule-theme [style*="--fc-event-contrast-color"] {
+  border-inline-start: 3px solid var(--fc-event-contrast-color) !important;
+}
+
+/* Alt-duplicate: original stays (ghost); dragged card is the moving copy. */
+.fc-schedule-theme .fc-schedule-dup-ghost {
+  pointer-events: none !important;
+  opacity: 1 !important;
+}
+
+.fc-schedule-theme.is-alt-duplicating .fc-monarch-iTG {
+  opacity: 0.9;
+  outline: 2px dashed var(--fc-event-contrast-color);
+  outline-offset: -2px;
+}
+
+/* Top/bottom resize grips: cursor only, no fill effect */
+.fc-schedule-theme .fc-monarch-YDC,
+.fc-schedule-theme .fc-monarch-fJL {
+  z-index: 3;
+  height: 6px !important;
+  cursor: ns-resize;
+  background: transparent !important;
+}

@@ -1,29 +1,28 @@
 import type { FieldErrors } from "@/types/auth";
 
-export type WeeklyScheduleDay =
-  | "Sunday"
-  | "Monday"
-  | "Tuesday"
-  | "Wednesday"
-  | "Thursday"
-  | "Friday"
-  | "Saturday";
+export type WeeklyScheduleSlotType =
+  | "class"
+  | "workshop"
+  | "online"
+  | "meeting";
+
+export type WeeklyScheduleSlotColor =
+  | "#BAE6FD"
+  | "#A7F3D0"
+  | "#DDD6FE"
+  | "#FDE68A"
+  | "#FECDD3";
 
 export interface ManagerWeeklyScheduleSession {
   id: string;
-  class_id: string;
-  className: string;
-  subjectName: string;
-  teacherName: string;
-  room: string;
-  day: WeeklyScheduleDay;
+  name: string;
+  type: WeeklyScheduleSlotType;
+  /** ISO date YYYY-MM-DD */
+  slotDate: string;
   startTime: string;
   endTime: string;
-}
-
-export interface ManagerWeeklyScheduleClassOption {
-  id: string;
-  label: string;
+  /** #RRGGBB hex */
+  color: string;
 }
 
 export type CreateWeeklyScheduleSlotActionState = {
@@ -46,4 +45,35 @@ export type DeleteWeeklyScheduleSlotActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+};
+
+export type CopyWeeklyScheduleSlotPreviewItem = {
+  name: string;
+  type: WeeklyScheduleSlotType;
+  slotDate: string;
+  startTime: string;
+  endTime: string;
+  color: string;
+  sourceSlotDate: string;
+};
+
+export type CopyWeeklyScheduleSlotSkipItem = CopyWeeklyScheduleSlotPreviewItem & {
+  reason: string;
+};
+
+export type CopyWeeklySchedulePreview = {
+  weekStart: string;
+  weekEnd: string;
+  lastWeekStart: string;
+  lastWeekEnd: string;
+  willCreate: CopyWeeklyScheduleSlotPreviewItem[];
+  willSkip: CopyWeeklyScheduleSlotSkipItem[];
+};
+
+export type CopyWeeklyScheduleSlotActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  createdCount?: number;
+  skippedCount?: number;
 };

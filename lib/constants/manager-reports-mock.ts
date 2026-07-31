@@ -1,6 +1,16 @@
 import { format } from "date-fns";
 import type { AnalyticsPeriod } from "@/types/manager-analytics";
 import { MANAGER_CLASSES_MOCK } from "@/lib/constants/manager-classes-mock";
+
+export const ANALYTICS_PERIOD_OPTIONS: { value: AnalyticsPeriod; label: string }[] =
+  [
+    { value: "7d", label: "Last 7 days" },
+    { value: "30d", label: "Last 30 days" },
+    { value: "90d", label: "Last 90 days" },
+    { value: "semester", label: "This semester" },
+    { value: "all", label: "All time" },
+  ];
+
 import { getPreviewClassStatus } from "@/lib/constants/manager-class-status";
 import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import { MANAGER_RELATIONSHIPS_MOCK } from "@/lib/constants/manager-relationships-mock";

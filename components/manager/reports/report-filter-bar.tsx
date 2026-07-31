@@ -1,10 +1,10 @@
 "use client";
 
 import { SearchIcon } from "lucide-react";
-import { ANALYTICS_PERIOD_OPTIONS } from "@/lib/constants/manager-analytics-mock";
 import { MANAGER_CLASSES_MOCK } from "@/lib/constants/manager-classes-mock";
 import { MANAGER_PHASES_MOCK } from "@/lib/constants/manager-phases-mock";
 import {
+  ANALYTICS_PERIOD_OPTIONS,
   AUDIT_TABLE_OPTIONS,
 } from "@/lib/constants/manager-reports-mock";
 import { STUDENT_STATUS_VALUES } from "@/lib/constants/manager-student-status";

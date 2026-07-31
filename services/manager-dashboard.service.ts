@@ -1,9 +1,10 @@
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { AUDIT_LOG_ACTION_LABELS } from "@/lib/constants/manager-audit-log-display";
 import { BORROW_EQUIPMENT_STATUSES } from "@/lib/constants/manager-borrow-equipment-status";
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { WEEKLY_SCHEDULE_SLOT_TYPE_LABELS } from "@/lib/validators/manager/weekly-schedule-slot";
 import { assertPermission } from "@/services/authorization.service";
 import { listAuditLogsForManager } from "@/services/audit-log.service";
 import { listAllBorrowsForManager } from "@/services/borrow-equipment.service";
@@ -26,16 +27,6 @@ import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Supabase = SupabaseClient<Database>;
-
-const WEEKDAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
 
 function toMinutes(timeHhMm: string): number {
   const [hours, minutes] = timeHhMm.split(":").map(Number);
@@ -72,10 +63,10 @@ function slotsOverlap(
   return toMinutes(startA) < toMinutes(endB) && toMinutes(startB) < toMinutes(endA);
 }
 
-function countTodayRoomConflicts(
+function countTodayOverlappingSlots(
   todaySlots: ManagerWeeklyScheduleSession[]
 ): number {
-  let conflicts = 0;
+  let overlaps = 0;
 
   for (let i = 0; i < todaySlots.length; i += 1) {
     for (let j = i + 1; j < todaySlots.length; j += 1) {
@@ -83,15 +74,14 @@ function countTodayRoomConflicts(
       const right = todaySlots[j]!;
 
       if (
-        left.room.trim().toLowerCase() === right.room.trim().toLowerCase() &&
         slotsOverlap(left.startTime, left.endTime, right.startTime, right.endTime)
       ) {
-        conflicts += 1;
+        overlaps += 1;
       }
     }
   }
 
-  return conflicts;
+  return overlaps;
 }
 
 function buildStats(input: {
@@ -153,16 +143,16 @@ function buildTodaySchedule(
   slots: ManagerWeeklyScheduleSession[],
   now: Date
 ): ManagerDashboardScheduleItem[] {
-  const todayName = WEEKDAY_NAMES[now.getDay()];
+  const todayIso = format(now, "yyyy-MM-dd");
 
   return slots
-    .filter((slot) => slot.day === todayName)
+    .filter((slot) => slot.slotDate === todayIso)
     .sort((left, right) => toMinutes(left.startTime) - toMinutes(right.startTime))
     .map((slot) => ({
       id: slot.id,
-      title: slot.className,
+      title: slot.name,
       time: `${slot.startTime} - ${slot.endTime}`,
-      meta: `Room ${slot.room} · Teacher: ${slot.teacherName}`,
+      meta: WEEKLY_SCHEDULE_SLOT_TYPE_LABELS[slot.type],
       status: getScheduleStatus(slot.startTime, slot.endTime, now),
     }));
 }
@@ -170,7 +160,7 @@ function buildTodaySchedule(
 function buildGlance(input: {
   newStudentsLast7Days: number;
   subjectsWithActiveClasses: number;
-  roomConflictsToday: number;
+  overlappingSlotsToday: number;
 }): ManagerDashboardGlanceItem[] {
   return [
     {
@@ -195,10 +185,10 @@ function buildGlance(input: {
       id: "schedule-health",
       title: "Schedule health",
       description:
-        input.roomConflictsToday === 0
-          ? "No room conflicts detected for today's classes."
-          : `${input.roomConflictsToday} room conflict${input.roomConflictsToday === 1 ? "" : "s"} detected for today.`,
-      tone: input.roomConflictsToday === 0 ? "emerald" : "amber",
+        input.overlappingSlotsToday === 0
+          ? "No overlapping slots detected for today."
+          : `${input.overlappingSlotsToday} overlapping slot pair${input.overlappingSlotsToday === 1 ? "" : "s"} detected for today.`,
+      tone: input.overlappingSlotsToday === 0 ? "emerald" : "amber",
     },
   ];
 }
@@ -292,8 +282,9 @@ export async function getManagerDashboardForManager(
   ).length;
 
   const schedule = buildTodaySchedule(scheduleSlots, now);
-  const roomConflictsToday = countTodayRoomConflicts(
-    scheduleSlots.filter((slot) => slot.day === WEEKDAY_NAMES[now.getDay()])
+  const todayIso = format(now, "yyyy-MM-dd");
+  const overlappingSlotsToday = countTodayOverlappingSlots(
+    scheduleSlots.filter((slot) => slot.slotDate === todayIso)
   );
 
   return {
@@ -312,7 +303,7 @@ export async function getManagerDashboardForManager(
     glance: buildGlance({
       newStudentsLast7Days,
       subjectsWithActiveClasses: activeClassSubjectIds.size,
-      roomConflictsToday,
+      overlappingSlotsToday,
     }),
     activity: buildActivity(auditLogs),
   };

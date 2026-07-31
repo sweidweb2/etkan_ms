@@ -4,53 +4,27 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const SLOT_COLUMNS =
-  "id, class_id, day_of_week, start_time, end_time, room, created_at, updated_at";
-
-const SLOT_WITH_CLASS_SELECT = `
-  id,
-  class_id,
-  day_of_week,
-  start_time,
-  end_time,
-  room,
-  created_at,
-  updated_at,
-  classes (
-    name,
-    subjects ( name ),
-    class_teacher (
-      profiles:teacher_id ( username )
-    )
-  )
-`;
+  "id, name, type, slot_date, start_time, end_time, color, created_at, updated_at";
 
 export type WeeklyScheduleSlotRecord = {
   id: string;
-  class_id: string;
-  day_of_week: string;
+  name: string;
+  type: string;
+  slot_date: string;
   start_time: string;
   end_time: string;
-  room: string;
+  color: string;
   created_at: string;
   updated_at: string;
 };
 
-export type WeeklyScheduleSlotWithClassRecord = WeeklyScheduleSlotRecord & {
-  classes: {
-    name: string;
-    subjects: { name: string } | null;
-    class_teacher: Array<{
-      profiles: { username: string | null } | null;
-    }> | null;
-  } | null;
-};
-
 export type CreateWeeklyScheduleSlotRecordInput = {
-  class_id: string;
-  day_of_week: string;
+  name: string;
+  type: string;
+  slot_date: string;
   start_time: string;
   end_time: string;
-  room: string;
+  color: string;
 };
 
 export type UpdateWeeklyScheduleSlotRecordInput =
@@ -59,36 +33,31 @@ export type UpdateWeeklyScheduleSlotRecordInput =
 export async function listWeeklyScheduleSlots(client: Supabase) {
   return client
     .from("weekly_schedule_slots")
-    .select(SLOT_WITH_CLASS_SELECT)
-    .order("day_of_week", { ascending: true })
+    .select(SLOT_COLUMNS)
+    .order("slot_date", { ascending: true })
+    .order("start_time", { ascending: true });
+}
+
+export async function listWeeklyScheduleSlotsInDateRange(
+  client: Supabase,
+  fromDate: string,
+  toDate: string
+) {
+  return client
+    .from("weekly_schedule_slots")
+    .select(SLOT_COLUMNS)
+    .gte("slot_date", fromDate)
+    .lte("slot_date", toDate)
+    .order("slot_date", { ascending: true })
     .order("start_time", { ascending: true });
 }
 
 export async function findWeeklyScheduleSlotById(client: Supabase, id: string) {
   return client
     .from("weekly_schedule_slots")
-    .select(SLOT_WITH_CLASS_SELECT)
+    .select(SLOT_COLUMNS)
     .eq("id", id)
     .maybeSingle();
-}
-
-export async function listWeeklyScheduleSlotsByRoomAndDay(
-  client: Supabase,
-  room: string,
-  dayOfWeek: string,
-  excludeId?: string
-) {
-  let query = client
-    .from("weekly_schedule_slots")
-    .select(SLOT_COLUMNS)
-    .eq("room", room)
-    .eq("day_of_week", dayOfWeek);
-
-  if (excludeId) {
-    query = query.neq("id", excludeId);
-  }
-
-  return query;
 }
 
 export async function createWeeklyScheduleSlot(
@@ -100,15 +69,42 @@ export async function createWeeklyScheduleSlot(
   return client
     .from("weekly_schedule_slots")
     .insert({
-      class_id: input.class_id,
-      day_of_week: input.day_of_week,
+      name: input.name,
+      type: input.type,
+      slot_date: input.slot_date,
       start_time: input.start_time,
       end_time: input.end_time,
-      room: input.room,
+      color: input.color,
       updated_at: now,
     })
-    .select(SLOT_WITH_CLASS_SELECT)
+    .select(SLOT_COLUMNS)
     .single();
+}
+
+export async function createWeeklyScheduleSlots(
+  client: Supabase,
+  inputs: CreateWeeklyScheduleSlotRecordInput[]
+) {
+  if (inputs.length === 0) {
+    return { data: [] as WeeklyScheduleSlotRecord[], error: null };
+  }
+
+  const now = new Date().toISOString();
+
+  return client
+    .from("weekly_schedule_slots")
+    .insert(
+      inputs.map((input) => ({
+        name: input.name,
+        type: input.type,
+        slot_date: input.slot_date,
+        start_time: input.start_time,
+        end_time: input.end_time,
+        color: input.color,
+        updated_at: now,
+      }))
+    )
+    .select(SLOT_COLUMNS);
 }
 
 export async function updateWeeklyScheduleSlot(
@@ -121,15 +117,16 @@ export async function updateWeeklyScheduleSlot(
   return client
     .from("weekly_schedule_slots")
     .update({
-      class_id: input.class_id,
-      day_of_week: input.day_of_week,
+      name: input.name,
+      type: input.type,
+      slot_date: input.slot_date,
       start_time: input.start_time,
       end_time: input.end_time,
-      room: input.room,
+      color: input.color,
       updated_at: now,
     })
     .eq("id", id)
-    .select(SLOT_WITH_CLASS_SELECT)
+    .select(SLOT_COLUMNS)
     .single();
 }
 

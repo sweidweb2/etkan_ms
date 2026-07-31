@@ -99,13 +99,18 @@ Table sessions {
 
 Table weekly_schedule_slots {
   id uuid [pk, default: `gen_random_uuid()`]
-  class_id uuid [not null]
-  day_of_week text [not null]
+  name text [not null]
+  type text [not null, note: 'class | workshop | online | meeting']
+  slot_date date [not null]
   start_time time [not null]
   end_time time [not null]
-  room text [not null]
+  color text [not null, default: '#BAE6FD', note: '#RRGGBB pastel hex']
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (name, slot_date, start_time, end_time) [unique]
+  }
 }
 
 Table attendee {
@@ -342,8 +347,6 @@ Ref: student_class.class_id > classes.id
 
 Ref: sessions.class_id > classes.id
 Ref: sessions.semester_id > semesters.id
-
-Ref: weekly_schedule_slots.class_id > classes.id
 
 Ref: attendee.session_id > sessions.id
 Ref: attendee.student_id > profiles.id

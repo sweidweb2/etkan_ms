@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
-import { createWeeklyScheduleSlotAction } from "@/app/manager/schedule/actions";
+import { useEffect, useTransition } from "react";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { ScheduleSlotColorPicker } from "@/components/manager/schedule/schedule-slot-color-picker";
+import { ScheduleSlotTypePicker } from "@/components/manager/schedule/schedule-slot-type-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,52 +15,49 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   createWeeklyScheduleSlotSchema,
-  WEEKLY_SCHEDULE_DAY_VALUES,
+  WEEKLY_SCHEDULE_SLOT_DEFAULT_COLOR,
   type CreateWeeklyScheduleSlotInput,
 } from "@/lib/validators/manager/weekly-schedule-slot";
 import type {
-  CreateWeeklyScheduleSlotActionState,
-  ManagerWeeklyScheduleClassOption,
+  WeeklyScheduleSlotColor,
+  WeeklyScheduleSlotType,
 } from "@/types/manager-weekly-schedule";
 
-const initialState: CreateWeeklyScheduleSlotActionState = {};
+export type AddWeeklyScheduleSlotDefaults = {
+  slot_date?: string;
+  start_time?: string;
+  end_time?: string;
+  type?: WeeklyScheduleSlotType;
+};
 
 type AddWeeklyScheduleSlotDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  classOptions: ManagerWeeklyScheduleClassOption[];
-  onSlotCreated: () => void;
+  onCreate: (values: CreateWeeklyScheduleSlotInput) => void | Promise<void>;
+  defaults?: AddWeeklyScheduleSlotDefaults | null;
 };
+
+function todayIso(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export function AddWeeklyScheduleSlotDialog({
   open,
   onOpenChange,
-  classOptions,
-  onSlotCreated,
+  onCreate,
+  defaults = null,
 }: AddWeeklyScheduleSlotDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
-    createWeeklyScheduleSlotAction,
-    initialState
-  );
-  const isPending = isActionPending || isTransitionPending;
-
+  const isPending = isTransitionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-
-  useActionStateToast(state, isPending);
 
   const {
     register,
@@ -72,55 +70,54 @@ export function AddWeeklyScheduleSlotDialog({
     schema: createWeeklyScheduleSlotSchema,
     mode: "onBlur",
     defaultValues: {
-      class_id: "",
-      day: "Monday",
-      start_time: "09:00",
-      end_time: "10:30",
-      room: "",
+      name: "",
+      type: defaults?.type ?? "class",
+      slot_date: defaults?.slot_date ?? todayIso(),
+      start_time: defaults?.start_time ?? "09:00",
+      end_time: defaults?.end_time ?? "10:30",
+      color: WEEKLY_SCHEDULE_SLOT_DEFAULT_COLOR,
     },
   });
 
-  const selectedClassId = watch("class_id");
-  const selectedDay = watch("day");
+  const selectedType = watch("type");
+  const selectedColor = watch("color");
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
       reset({
-        class_id: "",
-        day: "Monday",
-        start_time: "09:00",
-        end_time: "10:30",
-        room: "",
+        name: "",
+        type: defaults?.type ?? "class",
+        slot_date: defaults?.slot_date ?? todayIso(),
+        start_time: defaults?.start_time ?? "09:00",
+        end_time: defaults?.end_time ?? "10:30",
+        color: WEEKLY_SCHEDULE_SLOT_DEFAULT_COLOR,
       });
+      return;
     }
-  }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
-    onOpenChange(false);
-    onSlotCreated();
-  });
+    reset({
+      name: "",
+      type: "class",
+      slot_date: todayIso(),
+      start_time: "09:00",
+      end_time: "10:30",
+      color: WEEKLY_SCHEDULE_SLOT_DEFAULT_COLOR,
+    });
+  }, [open, defaults, reset]);
 
   function onSubmit(values: CreateWeeklyScheduleSlotInput) {
-    const formData = new FormData();
-    formData.set("class_id", values.class_id);
-    formData.set("day", values.day);
-    formData.set("start_time", values.start_time);
-    formData.set("end_time", values.end_time);
-    formData.set("room", values.room.trim());
-
+    onOpenChange(false);
     startTransition(() => {
-      formAction(formData);
+      void onCreate(values);
     });
   }
 
-  const classIdError =
-    errors.class_id?.message ?? state.fieldErrors?.class_id?.[0];
-  const dayError = errors.day?.message ?? state.fieldErrors?.day?.[0];
-  const startTimeError =
-    errors.start_time?.message ?? state.fieldErrors?.start_time?.[0];
-  const endTimeError =
-    errors.end_time?.message ?? state.fieldErrors?.end_time?.[0];
-  const roomError = errors.room?.message ?? state.fieldErrors?.room?.[0];
+  const nameError = errors.name?.message;
+  const typeError = errors.type?.message;
+  const slotDateError = errors.slot_date?.message;
+  const startTimeError = errors.start_time?.message;
+  const endTimeError = errors.end_time?.message;
+  const colorError = errors.color?.message;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -128,7 +125,7 @@ export function AddWeeklyScheduleSlotDialog({
         <DialogHeader>
           <DialogTitle>Add schedule slot</DialogTitle>
           <DialogDescription>
-            Create a recurring weekly class slot on the timetable.
+            Create a schedule slot on a specific calendar date.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,82 +135,83 @@ export function AddWeeklyScheduleSlotDialog({
           className="flex flex-col gap-4"
           noValidate
         >
-          <input type="hidden" {...register("class_id")} />
-          <input type="hidden" {...register("day")} />
+          <input type="hidden" {...register("type")} />
+          <input type="hidden" {...register("color")} />
 
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="add-schedule-slot-class"
-              label="Class"
+              htmlFor="add-schedule-slot-name"
+              label="Name"
               hint="Required"
             />
-            <Select
-              value={selectedClassId || null}
+            <Input
+              id="add-schedule-slot-name"
+              aria-invalid={!!nameError}
               disabled={isPending}
-              onValueChange={(value) => {
-                if (!value) {
-                  return;
-                }
-
-                setValue("class_id", value, { shouldValidate: true });
-              }}
-            >
-              <SelectTrigger
-                id="add-schedule-slot-class"
-                className="w-full"
-                aria-invalid={!!classIdError}
-              >
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                {classOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {classIdError ? (
-              <p className="text-sm text-destructive">{classIdError}</p>
+              placeholder="e.g. Algebra A, Team standup"
+              {...register("name")}
+            />
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
           </div>
 
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="add-schedule-slot-day"
-              label="Day"
+              htmlFor="add-schedule-slot-type"
+              label="Type"
               hint="Required"
             />
-            <Select
-              value={selectedDay}
+            <ScheduleSlotTypePicker
+              id="add-schedule-slot-type"
+              value={selectedType}
               disabled={isPending}
-              onValueChange={(value) => {
-                if (!value) {
-                  return;
-                }
-
-                setValue("day", value as CreateWeeklyScheduleSlotInput["day"], {
-                  shouldValidate: true,
-                });
+              invalid={!!typeError}
+              onChange={(type: WeeklyScheduleSlotType) => {
+                setValue("type", type, { shouldValidate: true });
               }}
-            >
-              <SelectTrigger
-                id="add-schedule-slot-day"
-                className="w-full"
-                aria-invalid={!!dayError}
-              >
-                <SelectValue placeholder="Select day" />
-              </SelectTrigger>
-              <SelectContent>
-                {WEEKLY_SCHEDULE_DAY_VALUES.map((day) => (
-                  <SelectItem key={day} value={day}>
-                    {day}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {dayError ? (
-              <p className="text-sm text-destructive">{dayError}</p>
+            />
+            {typeError ? (
+              <p className="text-sm text-destructive">{typeError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="add-schedule-slot-color"
+              label="Color"
+              hint="Required"
+            />
+            <div id="add-schedule-slot-color">
+              <ScheduleSlotColorPicker
+                value={selectedColor}
+                disabled={isPending}
+                invalid={!!colorError}
+                onChange={(color: WeeklyScheduleSlotColor) => {
+                  setValue("color", color, { shouldValidate: true });
+                }}
+              />
+            </div>
+            {colorError ? (
+              <p className="text-sm text-destructive">{colorError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="add-schedule-slot-date"
+              label="Date"
+              hint="Required"
+            />
+            <Input
+              id="add-schedule-slot-date"
+              type="date"
+              aria-invalid={!!slotDateError}
+              disabled={isPending}
+              {...register("slot_date")}
+            />
+            {slotDateError ? (
+              <p className="text-sm text-destructive">{slotDateError}</p>
             ) : null}
           </div>
 
@@ -254,23 +252,6 @@ export function AddWeeklyScheduleSlotDialog({
               ) : null}
             </div>
           </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-schedule-slot-room"
-              label="Room"
-              hint="Required"
-            />
-            <Input
-              id="add-schedule-slot-room"
-              aria-invalid={!!roomError}
-              disabled={isPending}
-              {...register("room")}
-            />
-            {roomError ? (
-              <p className="text-sm text-destructive">{roomError}</p>
-            ) : null}
-          </div>
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">
@@ -285,7 +266,7 @@ export function AddWeeklyScheduleSlotDialog({
           <Button
             type="submit"
             form="add-schedule-slot-form"
-            disabled={isPending || classOptions.length === 0}
+            disabled={isPending}
           >
             {isPending ? (
               <>

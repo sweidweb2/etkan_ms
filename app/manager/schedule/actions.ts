@@ -3,16 +3,21 @@
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
+  parseCopyWeeklyScheduleSlotsFormData,
   parseCreateWeeklyScheduleSlotFormData,
   parseUpdateWeeklyScheduleSlotFormData,
   parseWeeklyScheduleSlotIdFormData,
 } from "@/lib/validators/manager/weekly-schedule-slot";
 import {
+  copyLastWeekScheduleForManager,
   createWeeklyScheduleSlotForManager,
   deleteWeeklyScheduleSlotForManager,
+  previewCopyLastWeekScheduleForManager,
   updateWeeklyScheduleSlotForManager,
 } from "@/services/weekly-schedule-slot.service";
 import type {
+  CopyWeeklySchedulePreview,
+  CopyWeeklyScheduleSlotActionState,
   CreateWeeklyScheduleSlotActionState,
   DeleteWeeklyScheduleSlotActionState,
   UpdateWeeklyScheduleSlotActionState,
@@ -126,5 +131,58 @@ export async function deleteWeeklyScheduleSlotAction(
   return {
     success: true,
     message: result.message,
+  };
+}
+
+export async function previewCopyLastWeekScheduleAction(
+  weekStart: string
+): Promise<
+  | { success: true; preview: CopyWeeklySchedulePreview }
+  | { success: false; error: string }
+> {
+  const actor = await getSessionAuditActor();
+  const adminClient = createSupabaseAdminClient();
+
+  return previewCopyLastWeekScheduleForManager(
+    adminClient,
+    actor.userId,
+    weekStart
+  );
+}
+
+export async function copyWeeklyScheduleSlotsAction(
+  _prevState: CopyWeeklyScheduleSlotActionState,
+  formData: FormData
+): Promise<CopyWeeklyScheduleSlotActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCopyWeeklyScheduleSlotsFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await copyLastWeekScheduleForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data.week_start
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    createdCount: result.createdCount,
+    skippedCount: result.skippedCount,
   };
 }

@@ -1,9 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
-import { updateWeeklyScheduleSlotAction } from "@/app/manager/schedule/actions";
+import { useEffect, useTransition } from "react";
+import { Trash2Icon } from "lucide-react";
+import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { ScheduleSlotColorPicker } from "@/components/manager/schedule/schedule-slot-color-picker";
+import { ScheduleSlotTypePicker } from "@/components/manager/schedule/schedule-slot-type-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,55 +17,38 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   updateWeeklyScheduleSlotSchema,
-  WEEKLY_SCHEDULE_DAY_VALUES,
+  WEEKLY_SCHEDULE_SLOT_DEFAULT_COLOR,
   type UpdateWeeklyScheduleSlotInput,
 } from "@/lib/validators/manager/weekly-schedule-slot";
 import type {
-  ManagerWeeklyScheduleClassOption,
   ManagerWeeklyScheduleSession,
-  UpdateWeeklyScheduleSlotActionState,
+  WeeklyScheduleSlotColor,
+  WeeklyScheduleSlotType,
 } from "@/types/manager-weekly-schedule";
-
-const initialState: UpdateWeeklyScheduleSlotActionState = {};
 
 type EditWeeklyScheduleSlotDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   session: ManagerWeeklyScheduleSession | null;
-  classOptions: ManagerWeeklyScheduleClassOption[];
-  onSlotUpdated: () => void;
+  onUpdate: (values: UpdateWeeklyScheduleSlotInput) => void | Promise<void>;
+  onDeleteRequest?: (session: ManagerWeeklyScheduleSession) => void;
 };
 
 export function EditWeeklyScheduleSlotDialog({
   open,
   onOpenChange,
   session,
-  classOptions,
-  onSlotUpdated,
+  onUpdate,
+  onDeleteRequest,
 }: EditWeeklyScheduleSlotDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
-    updateWeeklyScheduleSlotAction,
-    initialState
-  );
-  const isPending = isActionPending || isTransitionPending;
-
+  const isPending = isTransitionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-
-  useActionStateToast(state, isPending);
 
   const {
     register,
@@ -76,16 +62,19 @@ export function EditWeeklyScheduleSlotDialog({
     mode: "onBlur",
     defaultValues: {
       id: session?.id ?? "",
-      class_id: session?.class_id ?? "",
-      day: session?.day ?? "Monday",
+      name: session?.name ?? "",
+      type: session?.type ?? "class",
+      slot_date: session?.slotDate ?? "",
       start_time: session?.startTime ?? "09:00",
       end_time: session?.endTime ?? "10:30",
-      room: session?.room ?? "",
+      color:
+        (session?.color as WeeklyScheduleSlotColor | undefined) ??
+        WEEKLY_SCHEDULE_SLOT_DEFAULT_COLOR,
     },
   });
 
-  const selectedClassId = watch("class_id");
-  const selectedDay = watch("day");
+  const selectedType = watch("type");
+  const selectedColor = watch("color");
 
   useEffect(() => {
     if (!open || !session) {
@@ -94,41 +83,30 @@ export function EditWeeklyScheduleSlotDialog({
 
     reset({
       id: session.id,
-      class_id: session.class_id,
-      day: session.day,
+      name: session.name,
+      type: session.type,
+      slot_date: session.slotDate,
       start_time: session.startTime,
       end_time: session.endTime,
-      room: session.room,
+      color:
+        (session.color as WeeklyScheduleSlotColor | undefined) ??
+        WEEKLY_SCHEDULE_SLOT_DEFAULT_COLOR,
     });
   }, [open, reset, session]);
 
-  useActionStateSuccess(state, isPending, () => {
-    onOpenChange(false);
-    onSlotUpdated();
-  });
-
   function onSubmit(values: UpdateWeeklyScheduleSlotInput) {
-    const formData = new FormData();
-    formData.set("id", values.id);
-    formData.set("class_id", values.class_id);
-    formData.set("day", values.day);
-    formData.set("start_time", values.start_time);
-    formData.set("end_time", values.end_time);
-    formData.set("room", values.room.trim());
-
+    onOpenChange(false);
     startTransition(() => {
-      formAction(formData);
+      void onUpdate(values);
     });
   }
 
-  const classIdError =
-    errors.class_id?.message ?? state.fieldErrors?.class_id?.[0];
-  const dayError = errors.day?.message ?? state.fieldErrors?.day?.[0];
-  const startTimeError =
-    errors.start_time?.message ?? state.fieldErrors?.start_time?.[0];
-  const endTimeError =
-    errors.end_time?.message ?? state.fieldErrors?.end_time?.[0];
-  const roomError = errors.room?.message ?? state.fieldErrors?.room?.[0];
+  const nameError = errors.name?.message;
+  const typeError = errors.type?.message;
+  const slotDateError = errors.slot_date?.message;
+  const startTimeError = errors.start_time?.message;
+  const endTimeError = errors.end_time?.message;
+  const colorError = errors.color?.message;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -136,7 +114,7 @@ export function EditWeeklyScheduleSlotDialog({
         <DialogHeader>
           <DialogTitle>Edit schedule slot</DialogTitle>
           <DialogDescription>
-            Update the weekly class slot details.
+            Update the schedule slot details.
           </DialogDescription>
         </DialogHeader>
 
@@ -147,82 +125,82 @@ export function EditWeeklyScheduleSlotDialog({
           noValidate
         >
           <input type="hidden" {...register("id")} />
-          <input type="hidden" {...register("class_id")} />
-          <input type="hidden" {...register("day")} />
+          <input type="hidden" {...register("type")} />
+          <input type="hidden" {...register("color")} />
 
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="edit-schedule-slot-class"
-              label="Class"
+              htmlFor="edit-schedule-slot-name"
+              label="Name"
               hint="Required"
             />
-            <Select
-              value={selectedClassId || null}
+            <Input
+              id="edit-schedule-slot-name"
+              aria-invalid={!!nameError}
               disabled={isPending}
-              onValueChange={(value) => {
-                if (!value) {
-                  return;
-                }
-
-                setValue("class_id", value, { shouldValidate: true });
-              }}
-            >
-              <SelectTrigger
-                id="edit-schedule-slot-class"
-                className="w-full"
-                aria-invalid={!!classIdError}
-              >
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                {classOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {classIdError ? (
-              <p className="text-sm text-destructive">{classIdError}</p>
+              {...register("name")}
+            />
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
           </div>
 
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="edit-schedule-slot-day"
-              label="Day"
+              htmlFor="edit-schedule-slot-type"
+              label="Type"
               hint="Required"
             />
-            <Select
-              value={selectedDay}
+            <ScheduleSlotTypePicker
+              id="edit-schedule-slot-type"
+              value={selectedType}
               disabled={isPending}
-              onValueChange={(value) => {
-                if (!value) {
-                  return;
-                }
-
-                setValue("day", value as UpdateWeeklyScheduleSlotInput["day"], {
-                  shouldValidate: true,
-                });
+              invalid={!!typeError}
+              onChange={(type: WeeklyScheduleSlotType) => {
+                setValue("type", type, { shouldValidate: true });
               }}
-            >
-              <SelectTrigger
-                id="edit-schedule-slot-day"
-                className="w-full"
-                aria-invalid={!!dayError}
-              >
-                <SelectValue placeholder="Select day" />
-              </SelectTrigger>
-              <SelectContent>
-                {WEEKLY_SCHEDULE_DAY_VALUES.map((day) => (
-                  <SelectItem key={day} value={day}>
-                    {day}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {dayError ? (
-              <p className="text-sm text-destructive">{dayError}</p>
+            />
+            {typeError ? (
+              <p className="text-sm text-destructive">{typeError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-schedule-slot-color"
+              label="Color"
+              hint="Required"
+            />
+            <div id="edit-schedule-slot-color">
+              <ScheduleSlotColorPicker
+                value={selectedColor}
+                disabled={isPending}
+                invalid={!!colorError}
+                onChange={(color: WeeklyScheduleSlotColor) => {
+                  setValue("color", color, { shouldValidate: true });
+                }}
+              />
+            </div>
+            {colorError ? (
+              <p className="text-sm text-destructive">{colorError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-schedule-slot-date"
+              label="Date"
+              hint="Required"
+            />
+            <Input
+              id="edit-schedule-slot-date"
+              type="date"
+              aria-invalid={!!slotDateError}
+              disabled={isPending}
+              {...register("slot_date")}
+            />
+            {slotDateError ? (
+              <p className="text-sm text-destructive">{slotDateError}</p>
             ) : null}
           </div>
 
@@ -263,48 +241,49 @@ export function EditWeeklyScheduleSlotDialog({
               ) : null}
             </div>
           </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-schedule-slot-room"
-              label="Room"
-              hint="Required"
-            />
-            <Input
-              id="edit-schedule-slot-room"
-              aria-invalid={!!roomError}
-              disabled={isPending}
-              {...register("room")}
-            />
-            {roomError ? (
-              <p className="text-sm text-destructive">{roomError}</p>
-            ) : null}
-          </div>
         </form>
 
-        <DialogFooter className="mt-2 sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isPending}
-            onClick={() => handleOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="edit-schedule-slot-form"
-            disabled={!session || isPending}
-          >
-            {isPending ? (
-              <>
-                <InlineSpinner />
-                Saving changes
-              </>
-            ) : (
-              "Save changes"
-            )}
-          </Button>
+        <DialogFooter className="mt-2 sm:justify-between">
+          {session && onDeleteRequest ? (
+            <Can permission={PERMISSIONS.SCHEDULE_DELETE}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon-sm"
+                disabled={isPending}
+                aria-label="Delete schedule slot"
+                onClick={() => onDeleteRequest(session)}
+              >
+                <Trash2Icon />
+              </Button>
+            </Can>
+          ) : (
+            <span />
+          )}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => handleOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="edit-schedule-slot-form"
+              disabled={!session || isPending}
+            >
+              {isPending ? (
+                <>
+                  <InlineSpinner />
+                  Saving changes
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
