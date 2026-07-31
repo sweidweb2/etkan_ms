@@ -1,17 +1,11 @@
 import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import {
-  FINANCIAL_ADJUSTMENT_VALUE_TYPES,
   PAYMENT_PHASE_STATUSES,
   STUDENT_PAYMENT_PHASE_STATUSES,
-  type FinancialAdjustmentValueType,
   type PaymentPhaseStatus,
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
-import { derivePaymentPhaseStatus } from "@/lib/manager/accounting/payment-phase-status";
-import {
-  computeSppFinancials,
-  type SppAdjustmentInput,
-} from "@/lib/manager/accounting/spp-financials";
+import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
 import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cancelPaymentPhaseSchema } from "@/lib/validators/manager/cancel-payment-phase";
@@ -23,11 +17,10 @@ import type { PaymentPhaseListRecord } from "@/repositories/payment-phase.reposi
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
-import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import { recalcNonCancelledSppsForPhase } from "@/services/accounting-recalc.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -127,15 +120,6 @@ function isStudentPaymentPhaseStatus(
     value === STUDENT_PAYMENT_PHASE_STATUSES.PARTIALLY_PAID ||
     value === STUDENT_PAYMENT_PHASE_STATUSES.PAID ||
     value === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
-  );
-}
-
-function isAdjustmentValueType(
-  value: string
-): value is FinancialAdjustmentValueType {
-  return (
-    value === FINANCIAL_ADJUSTMENT_VALUE_TYPES.FIXED ||
-    value === FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE
   );
 }
 
@@ -289,101 +273,6 @@ function buildInitialSppInsert(
     final_amount_due: financials.finalDue,
     total_paid: financials.totalPaid,
     remaining_amount: financials.remaining,
-  };
-}
-
-async function recalcNonCancelledSppsForPhase(
-  adminClient: Supabase,
-  phaseAmount: number,
-  phaseStatus: PaymentPhaseStatus,
-  spps: StudentPaymentPhaseRecord[]
-): Promise<{ sppRecalculated: number; nextPhaseStatus: PaymentPhaseStatus }> {
-  const nonCancelled = spps.filter(
-    (spp) => spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
-  );
-  const cancelledStatuses = spps
-    .filter((spp) => spp.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED)
-    .map(() => STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED);
-
-  const sppIds = nonCancelled.map((spp) => spp.id);
-
-  const [
-    { data: payments, error: paymentsError },
-    { data: adjustments, error: adjustmentsError },
-  ] = await Promise.all([
-    studentPaymentRepository.listPaymentAmountsBySppIds(adminClient, sppIds),
-    studentFinancialAdjustmentRepository.listAdjustmentsBySppIds(
-      adminClient,
-      sppIds
-    ),
-  ]);
-
-  if (paymentsError) {
-    throw new Error(paymentsError.message);
-  }
-
-  if (adjustmentsError) {
-    throw new Error(adjustmentsError.message);
-  }
-
-  const paymentAmountsBySppId = new Map<string, number[]>();
-  for (const payment of payments ?? []) {
-    const list =
-      paymentAmountsBySppId.get(payment.student_payment_phase_id) ?? [];
-    list.push(Number(payment.amount));
-    paymentAmountsBySppId.set(payment.student_payment_phase_id, list);
-  }
-
-  const adjustmentBySppId = new Map<string, SppAdjustmentInput>();
-  for (const adjustment of adjustments ?? []) {
-    if (!isAdjustmentValueType(adjustment.value_type)) {
-      continue;
-    }
-    adjustmentBySppId.set(adjustment.student_payment_phase_id, {
-      value_type: adjustment.value_type,
-      value: Number(adjustment.value),
-    });
-  }
-
-  const derivedStatuses: StudentPaymentPhaseStatus[] = [...cancelledStatuses];
-  let sppRecalculated = 0;
-
-  for (const spp of nonCancelled) {
-    const currentStatus = isStudentPaymentPhaseStatus(spp.status)
-      ? spp.status
-      : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
-    const financials = computeSppFinancials(
-      phaseAmount,
-      adjustmentBySppId.get(spp.id) ?? null,
-      paymentAmountsBySppId.get(spp.id) ?? []
-    );
-    const nextStatus = deriveSppStatus(financials, currentStatus);
-
-    const { error: updateError } =
-      await studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials(
-        adminClient,
-        spp.id,
-        {
-          status: nextStatus,
-          original_amount: financials.original,
-          adjustment_amount: financials.adjustmentAmount,
-          final_amount_due: financials.finalDue,
-          total_paid: financials.totalPaid,
-          remaining_amount: financials.remaining,
-        }
-      );
-
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
-
-    derivedStatuses.push(nextStatus);
-    sppRecalculated += 1;
-  }
-
-  return {
-    sppRecalculated,
-    nextPhaseStatus: derivePaymentPhaseStatus(phaseStatus, derivedStatuses),
   };
 }
 

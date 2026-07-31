@@ -44,6 +44,7 @@ import {
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
+  getManagerAccountingSppDetailRoute,
   getManagerClassDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
@@ -348,10 +349,18 @@ export function PaymentPhaseDetailsPanel({
                         className="border-b last:border-b-0 hover:bg-muted/30"
                       >
                         <td className="max-w-[14rem] px-4 py-3 font-medium">
-                          <TruncatedCell
-                            value={spp.student_label}
-                            maxLength={32}
-                          />
+                          <Link
+                            href={getManagerAccountingSppDetailRoute(
+                              phase.id,
+                              spp.id
+                            )}
+                            className="text-primary hover:underline"
+                          >
+                            <TruncatedCell
+                              value={spp.student_label}
+                              maxLength={32}
+                            />
+                          </Link>
                         </td>
                         <td className="px-4 py-3">
                           <SppStatusBadge status={spp.status} />

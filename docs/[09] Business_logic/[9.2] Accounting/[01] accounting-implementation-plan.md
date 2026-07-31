@@ -279,11 +279,11 @@ Hook points in existing class enrollment services:
 
 ### Phase 3 — SPP detail: payments
 
-- [ ] **T3.1** SPP detail route + summary cards
-- [ ] **T3.2** Payments list + create/update/delete
-- [ ] **T3.3** After each payment CUD → recalc SPP financials/status → recalc phase status (reopen if needed)
-- [ ] **T3.4** Credit badge when `remaining < 0`
-- [ ] **T3.5** Block payment CUD when phase is `cancelled` (and optionally when SPP `cancelled`)
+- [x] **T3.1** SPP detail route + summary cards
+- [x] **T3.2** Payments list + create/update/delete
+- [x] **T3.3** After each payment CUD → recalc SPP financials/status → recalc phase status (reopen if needed)
+- [x] **T3.4** Credit badge when `remaining < 0`
+- [x] **T3.5** Block payment CUD when phase is `cancelled` (and optionally when SPP `cancelled`)
 
 **Exit:** can record money and see statuses move pending → partially_paid → paid → phase closed.
 

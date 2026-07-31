@@ -26,6 +26,8 @@ export const ROUTES = {
   MANAGER_SUBJECT_DETAIL: "/manager/subjects/[id]",
   MANAGER_ACCOUNTING: "/manager/accounting",
   MANAGER_ACCOUNTING_PHASE_DETAIL: "/manager/accounting/phases/[phaseId]",
+  MANAGER_ACCOUNTING_SPP_DETAIL:
+    "/manager/accounting/phases/[phaseId]/students/[sppId]",
   MANAGER_SCHEDULE: "/manager/schedule",
   MANAGER_NOTIFICATIONS: "/manager/notifications",
   MANAGER_EMAILING: "/manager/emailing",
@@ -136,6 +138,13 @@ export function getManagerEquipmentDetailRoute(equipmentId: string): string {
 
 export function getManagerAccountingPhaseDetailRoute(phaseId: string): string {
   return `/manager/accounting/phases/${phaseId}`;
+}
+
+export function getManagerAccountingSppDetailRoute(
+  phaseId: string,
+  sppId: string
+): string {
+  return `/manager/accounting/phases/${phaseId}/students/${sppId}`;
 }
 
 export function getManagerSemesterDetailRoute(semesterId: string): string {
