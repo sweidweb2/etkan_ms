@@ -555,6 +555,7 @@ export type Database = {
       payment_phases: {
         Row: {
           amount: number
+          class_id: string
           created_at: string
           duration_months: number
           end_date: string
@@ -568,6 +569,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          class_id: string
           created_at?: string
           duration_months: number
           end_date: string
@@ -581,6 +583,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          class_id?: string
           created_at?: string
           duration_months?: number
           end_date?: string
@@ -592,7 +595,15 @@ export type Database = {
           updated_at?: string
           upfront_amount?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_phases_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       permissions: {
         Row: {
@@ -1064,30 +1075,45 @@ export type Database = {
       }
       student_payment_phases: {
         Row: {
+          adjustment_amount: number
           assigned_at: string
           created_at: string
+          final_amount_due: number
           id: string
+          original_amount: number
           payment_phase_id: string
+          remaining_amount: number
           status: string
           student_id: string
+          total_paid: number
           updated_at: string
         }
         Insert: {
+          adjustment_amount?: number
           assigned_at: string
           created_at?: string
+          final_amount_due?: number
           id?: string
+          original_amount?: number
           payment_phase_id: string
+          remaining_amount?: number
           status?: string
           student_id: string
+          total_paid?: number
           updated_at?: string
         }
         Update: {
+          adjustment_amount?: number
           assigned_at?: string
           created_at?: string
+          final_amount_due?: number
           id?: string
+          original_amount?: number
           payment_phase_id?: string
+          remaining_amount?: number
           status?: string
           student_id?: string
+          total_paid?: number
           updated_at?: string
         }
         Relationships: [

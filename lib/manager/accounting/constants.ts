@@ -1,0 +1,39 @@
+export const PAYMENT_PHASE_STATUSES = {
+  OPENED: "opened",
+  CLOSED: "closed",
+  CANCELLED: "cancelled",
+} as const;
+
+export type PaymentPhaseStatus =
+  (typeof PAYMENT_PHASE_STATUSES)[keyof typeof PAYMENT_PHASE_STATUSES];
+
+export const PAYMENT_PHASE_STATUS_VALUES = [
+  PAYMENT_PHASE_STATUSES.OPENED,
+  PAYMENT_PHASE_STATUSES.CLOSED,
+  PAYMENT_PHASE_STATUSES.CANCELLED,
+] as const;
+
+export const STUDENT_PAYMENT_PHASE_STATUSES = {
+  PENDING: "pending",
+  PARTIALLY_PAID: "partially_paid",
+  PAID: "paid",
+  CANCELLED: "cancelled",
+} as const;
+
+export type StudentPaymentPhaseStatus =
+  (typeof STUDENT_PAYMENT_PHASE_STATUSES)[keyof typeof STUDENT_PAYMENT_PHASE_STATUSES];
+
+export const STUDENT_PAYMENT_PHASE_STATUS_VALUES = [
+  STUDENT_PAYMENT_PHASE_STATUSES.PENDING,
+  STUDENT_PAYMENT_PHASE_STATUSES.PARTIALLY_PAID,
+  STUDENT_PAYMENT_PHASE_STATUSES.PAID,
+  STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED,
+] as const;
+
+export const FINANCIAL_ADJUSTMENT_VALUE_TYPES = {
+  FIXED: "fixed",
+  PERCENTAGE: "percentage",
+} as const;
+
+export type FinancialAdjustmentValueType =
+  (typeof FINANCIAL_ADJUSTMENT_VALUE_TYPES)[keyof typeof FINANCIAL_ADJUSTMENT_VALUE_TYPES];

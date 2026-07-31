@@ -1,7 +1,28 @@
-export default function ManagerAccountingPage() {
+import { ManageAccountingPanel } from "@/components/manager/accounting/manage-accounting-panel";
+import { getSessionUser } from "@/lib/auth/session";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  listMissingSppForOpenedPhases,
+  listPaymentPhaseClassOptionsForManager,
+  listPaymentPhasesForManager,
+} from "@/services/payment-phase.service";
+
+export default async function ManagerAccountingPage() {
+  const adminClient = createSupabaseAdminClient();
+  const user = await getSessionUser();
+  const actorUserId = user?.id ?? null;
+
+  const [phases, missing, classOptions] = await Promise.all([
+    listPaymentPhasesForManager(adminClient, actorUserId),
+    listMissingSppForOpenedPhases(adminClient, actorUserId),
+    listPaymentPhaseClassOptionsForManager(adminClient, actorUserId),
+  ]);
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Accounting</h1>
-    </div>
+    <ManageAccountingPanel
+      initialPhases={phases}
+      initialMissing={missing}
+      classOptions={classOptions}
+    />
   );
 }

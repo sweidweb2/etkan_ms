@@ -88,6 +88,35 @@ export async function findClassById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+const CLASS_PAYMENT_PHASE_PICKER_SELECT =
+  "id, name, subjects ( name ), semesters ( name, semester_code )";
+
+export type ClassPaymentPhasePickerRecord = {
+  id: string;
+  name: string;
+  subjects: { name: string } | null;
+  semesters: { name: string; semester_code: string } | null;
+};
+
+export async function listClassesForPaymentPhasePicker(client: Supabase) {
+  return client
+    .from("classes")
+    .select(CLASS_PAYMENT_PHASE_PICKER_SELECT)
+    .not("semester_id", "is", null)
+    .order("name", { ascending: true });
+}
+
+export async function findClassForPaymentPhaseById(
+  client: Supabase,
+  id: string
+) {
+  return client
+    .from("classes")
+    .select(CLASS_PAYMENT_PHASE_PICKER_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+}
+
 export async function listClassesWithSubjectBySemesterId(
   client: Supabase,
   semesterId: string

@@ -98,6 +98,21 @@ export async function listEnrolledUserIdsByClassId(
     .eq("status", STUDENT_CLASS_STATUSES.ENROLLED);
 }
 
+export async function listEnrolledUserIdsByClassIds(
+  client: Supabase,
+  classIds: string[]
+) {
+  if (classIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("student_class")
+    .select("user_id, class_id")
+    .in("class_id", classIds)
+    .eq("status", STUDENT_CLASS_STATUSES.ENROLLED);
+}
+
 export async function findStudentClassByUserAndClass(
   client: Supabase,
   userId: string,

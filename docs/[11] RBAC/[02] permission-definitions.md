@@ -23,7 +23,7 @@
 
 Search, filter, and list↔detail are part of the matching `*.view` key (not separate keys).
 
-**Accounting:** view-only until real accounting features exist (`accounting.view` only).
+**Accounting:** manager billing for class payment phases, student payment phases, payments, and financial adjustments.
 
 ---
 
@@ -196,6 +196,15 @@ Format: `key` — label — access
 | Key | Label | Access |
 |-----|-------|--------|
 | `accounting.view` | View accounting page | read |
+| `accounting.payment_phases.create` | Create payment phase | write |
+| `accounting.payment_phases.update` | Edit payment phase | write |
+| `accounting.payment_phases.cancel` | Cancel payment phase | write |
+| `accounting.payments.create` | Record student payment | write |
+| `accounting.payments.update` | Edit student payment | write |
+| `accounting.payments.delete` | Delete student payment | write |
+| `accounting.adjustments.create` | Create financial adjustment | write |
+| `accounting.adjustments.update` | Edit financial adjustment | write |
+| `accounting.adjustments.delete` | Delete financial adjustment | write |
 
 ### Reports
 
@@ -322,6 +331,15 @@ emailing.view
 emailing.send
 emailing.resend
 accounting.view
+accounting.payment_phases.create
+accounting.payment_phases.update
+accounting.payment_phases.cancel
+accounting.payments.create
+accounting.payments.update
+accounting.payments.delete
+accounting.adjustments.create
+accounting.adjustments.update
+accounting.adjustments.delete
 reports.view
 reports.export
 reports.print
@@ -338,7 +356,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 85 keys · all unique · naming consistent · accounting view-only.
+**Count:** 94 keys · all unique · naming consistent · accounting includes phase/payment/adjustment writes.
 
 ---
 

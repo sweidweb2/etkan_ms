@@ -159,6 +159,15 @@ export const PERMISSIONS = {
   EMAILING_RESEND: "emailing.resend",
 
   ACCOUNTING_VIEW: "accounting.view",
+  ACCOUNTING_PAYMENT_PHASES_CREATE: "accounting.payment_phases.create",
+  ACCOUNTING_PAYMENT_PHASES_UPDATE: "accounting.payment_phases.update",
+  ACCOUNTING_PAYMENT_PHASES_CANCEL: "accounting.payment_phases.cancel",
+  ACCOUNTING_PAYMENTS_CREATE: "accounting.payments.create",
+  ACCOUNTING_PAYMENTS_UPDATE: "accounting.payments.update",
+  ACCOUNTING_PAYMENTS_DELETE: "accounting.payments.delete",
+  ACCOUNTING_ADJUSTMENTS_CREATE: "accounting.adjustments.create",
+  ACCOUNTING_ADJUSTMENTS_UPDATE: "accounting.adjustments.update",
+  ACCOUNTING_ADJUSTMENTS_DELETE: "accounting.adjustments.delete",
 
   REPORTS_VIEW: "reports.view",
   REPORTS_EXPORT: "reports.export",
@@ -637,6 +646,60 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "accounting",
     label: "View accounting page",
     access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE,
+    feature: "accounting",
+    label: "Create payment phase",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_UPDATE,
+    feature: "accounting",
+    label: "Edit payment phase",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CANCEL,
+    feature: "accounting",
+    label: "Cancel payment phase",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE,
+    feature: "accounting",
+    label: "Record student payment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_PAYMENTS_UPDATE,
+    feature: "accounting",
+    label: "Edit student payment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_PAYMENTS_DELETE,
+    feature: "accounting",
+    label: "Delete student payment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE,
+    feature: "accounting",
+    label: "Create financial adjustment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE,
+    feature: "accounting",
+    label: "Edit financial adjustment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE,
+    feature: "accounting",
+    label: "Delete financial adjustment",
+    access: PERMISSION_ACCESS.WRITE,
   },
 
   {
