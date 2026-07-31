@@ -3,6 +3,38 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
+const ADJUSTMENT_COLUMNS =
+  "id, student_payment_phase_id, type, value_type, value, reason, effective_date, created_at, updated_at";
+
+export type FinancialAdjustmentRecord = {
+  id: string;
+  student_payment_phase_id: string;
+  type: string;
+  value_type: string;
+  value: number;
+  reason: string | null;
+  effective_date: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateFinancialAdjustmentRecordInput = {
+  student_payment_phase_id: string;
+  type: string;
+  value_type: string;
+  value: number;
+  reason: string | null;
+  effective_date: string;
+};
+
+export type UpdateFinancialAdjustmentRecordInput = {
+  type: string;
+  value_type: string;
+  value: number;
+  reason: string | null;
+  effective_date: string;
+};
+
 export async function listAdjustmentsBySppIds(
   client: Supabase,
   sppIds: string[]
@@ -15,4 +47,62 @@ export async function listAdjustmentsBySppIds(
     .from("student_financial_adjustments")
     .select("student_payment_phase_id, value_type, value")
     .in("student_payment_phase_id", sppIds);
+}
+
+export async function findAdjustmentBySppId(client: Supabase, sppId: string) {
+  return client
+    .from("student_financial_adjustments")
+    .select(ADJUSTMENT_COLUMNS)
+    .eq("student_payment_phase_id", sppId)
+    .maybeSingle();
+}
+
+export async function findAdjustmentById(client: Supabase, id: string) {
+  return client
+    .from("student_financial_adjustments")
+    .select(ADJUSTMENT_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+}
+
+export async function createAdjustment(
+  client: Supabase,
+  input: CreateFinancialAdjustmentRecordInput
+) {
+  return client
+    .from("student_financial_adjustments")
+    .insert({
+      student_payment_phase_id: input.student_payment_phase_id,
+      type: input.type,
+      value_type: input.value_type,
+      value: input.value,
+      reason: input.reason,
+      effective_date: input.effective_date,
+    })
+    .select(ADJUSTMENT_COLUMNS)
+    .single();
+}
+
+export async function updateAdjustment(
+  client: Supabase,
+  id: string,
+  input: UpdateFinancialAdjustmentRecordInput
+) {
+  return client
+    .from("student_financial_adjustments")
+    .update({
+      type: input.type,
+      value_type: input.value_type,
+      value: input.value,
+      reason: input.reason,
+      effective_date: input.effective_date,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(ADJUSTMENT_COLUMNS)
+    .single();
+}
+
+export async function deleteAdjustment(client: Supabase, id: string) {
+  return client.from("student_financial_adjustments").delete().eq("id", id);
 }

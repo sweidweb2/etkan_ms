@@ -10,11 +10,20 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCancelPaymentPhaseFormData } from "@/lib/validators/manager/cancel-payment-phase";
 import { parseCreatePaymentPhaseFormData } from "@/lib/validators/manager/create-payment-phase";
+import {
+  parseCreateFinancialAdjustmentFormData,
+  parseUpdateFinancialAdjustmentFormData,
+} from "@/lib/validators/manager/create-financial-adjustment";
 import { parseCreateStudentPaymentFormData } from "@/lib/validators/manager/create-student-payment";
+import { parseDeleteFinancialAdjustmentFormData } from "@/lib/validators/manager/delete-financial-adjustment";
 import { parseDeleteStudentPaymentFormData } from "@/lib/validators/manager/delete-student-payment";
 import { parseRepairMissingSppFormData } from "@/lib/validators/manager/repair-missing-spp";
 import { parseUpdatePaymentPhaseFormData } from "@/lib/validators/manager/update-payment-phase";
 import { parseUpdateStudentPaymentFormData } from "@/lib/validators/manager/update-student-payment";
+import {
+  parseCreateFinancialFormFormData,
+  parseUpdateFinancialFormFormData,
+} from "@/lib/validators/manager/upsert-financial-form";
 import {
   cancelPaymentPhaseForManager,
   createPaymentPhaseForManager,
@@ -22,10 +31,23 @@ import {
   updatePaymentPhaseForManager,
 } from "@/services/payment-phase.service";
 import {
+  createAdjustmentForManager,
+  createFinancialFormForManager,
+  deleteAdjustmentForManager,
+  updateAdjustmentForManager,
+  updateFinancialFormForManager,
+} from "@/services/student-financial-adjustment.service";
+import {
   createStudentPaymentForManager,
   deleteStudentPaymentForManager,
   updateStudentPaymentForManager,
 } from "@/services/student-payment.service";
+import type {
+  CreateFinancialAdjustmentActionState,
+  DeleteFinancialAdjustmentActionState,
+  UpdateFinancialAdjustmentActionState,
+  UpsertFinancialFormActionState,
+} from "@/types/manager-financial-adjustment";
 import type {
   CancelPaymentPhaseActionState,
   CreatePaymentPhaseActionState,
@@ -336,6 +358,246 @@ export async function deleteStudentPaymentAction(
   return {
     success: true,
     message: result.message,
+    student_payment_phase_id: result.student_payment_phase_id,
+    payment_phase_id: result.payment_phase_id,
+  };
+}
+
+export async function createFinancialAdjustmentAction(
+  _prevState: CreateFinancialAdjustmentActionState,
+  formData: FormData
+): Promise<CreateFinancialAdjustmentActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateFinancialAdjustmentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createAdjustmentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidatePath(
+    getManagerAccountingSppDetailRoute(
+      result.payment_phase_id,
+      result.student_payment_phase_id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    adjustment: result.adjustment,
+  };
+}
+
+export async function updateFinancialAdjustmentAction(
+  _prevState: UpdateFinancialAdjustmentActionState,
+  formData: FormData
+): Promise<UpdateFinancialAdjustmentActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseUpdateFinancialAdjustmentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateAdjustmentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidatePath(
+    getManagerAccountingSppDetailRoute(
+      result.payment_phase_id,
+      result.student_payment_phase_id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    adjustment: result.adjustment,
+  };
+}
+
+export async function deleteFinancialAdjustmentAction(
+  _prevState: DeleteFinancialAdjustmentActionState,
+  formData: FormData
+): Promise<DeleteFinancialAdjustmentActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseDeleteFinancialAdjustmentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteAdjustmentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidatePath(
+    getManagerAccountingSppDetailRoute(
+      result.payment_phase_id,
+      result.student_payment_phase_id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    student_payment_phase_id: result.student_payment_phase_id,
+    payment_phase_id: result.payment_phase_id,
+  };
+}
+
+export async function createFinancialFormAction(
+  _prevState: UpsertFinancialFormActionState,
+  formData: FormData
+): Promise<UpsertFinancialFormActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateFinancialFormFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createFinancialFormForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidatePath(
+    getManagerAccountingSppDetailRoute(
+      result.payment_phase_id,
+      result.student_payment_phase_id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    form: result.form,
+    student_payment_phase_id: result.student_payment_phase_id,
+    payment_phase_id: result.payment_phase_id,
+  };
+}
+
+export async function updateFinancialFormAction(
+  _prevState: UpsertFinancialFormActionState,
+  formData: FormData
+): Promise<UpsertFinancialFormActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseUpdateFinancialFormFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateFinancialFormForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidatePath(
+    getManagerAccountingSppDetailRoute(
+      result.payment_phase_id,
+      result.student_payment_phase_id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    form: result.form,
     student_payment_phase_id: result.student_payment_phase_id,
     payment_phase_id: result.payment_phase_id,
   };

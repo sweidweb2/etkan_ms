@@ -5,12 +5,18 @@ import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { deleteStudentPaymentAction } from "@/app/manager/accounting/actions";
+import {
+  deleteFinancialAdjustmentAction,
+  deleteStudentPaymentAction,
+} from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
+import { CreateFinancialAdjustmentDialog } from "@/components/manager/accounting/create-financial-adjustment-dialog";
 import { CreateStudentPaymentDialog } from "@/components/manager/accounting/create-student-payment-dialog";
+import { EditFinancialAdjustmentDialog } from "@/components/manager/accounting/edit-financial-adjustment-dialog";
 import { EditStudentPaymentDialog } from "@/components/manager/accounting/edit-student-payment-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
+import { UpsertFinancialFormDialog } from "@/components/manager/accounting/upsert-financial-form-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
@@ -50,7 +56,12 @@ import {
   ROUTES,
 } from "@/lib/constants/routes";
 import {
+  FINANCIAL_ADJUSTMENT_TYPE_LABELS,
+  FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS,
+  FINANCIAL_ADJUSTMENT_VALUE_TYPES,
   PAYMENT_METHOD_LABELS,
+  type FinancialAdjustmentType,
+  type FinancialAdjustmentValueType,
   type PaymentMethod,
 } from "@/lib/manager/accounting/constants";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
@@ -59,16 +70,22 @@ import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
+  DeleteFinancialAdjustmentActionState,
+  ManagerFinancialAdjustmentRow,
+} from "@/types/manager-financial-adjustment";
+import type {
   DeleteStudentPaymentActionState,
   ManagerSppDetail,
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
 
-const initialDeleteState: DeleteStudentPaymentActionState = {};
+const initialDeletePaymentState: DeleteStudentPaymentActionState = {};
+const initialDeleteAdjustmentState: DeleteFinancialAdjustmentActionState = {};
 
 type SppDetailsPanelProps = {
   spp: ManagerSppDetail;
   initialPayments: ManagerStudentPaymentRow[];
+  initialAdjustment: ManagerFinancialAdjustmentRow | null;
   actorLabel: string;
 };
 
@@ -104,9 +121,20 @@ function TruncatedCell({
   );
 }
 
+function formatAdjustmentValue(
+  valueType: FinancialAdjustmentValueType,
+  value: number
+) {
+  if (valueType === FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE) {
+    return `${value}%`;
+  }
+  return formatPaymentPhaseMoney(value);
+}
+
 export function SppDetailsPanel({
   spp: initialSpp,
   initialPayments,
+  initialAdjustment,
   actorLabel,
 }: SppDetailsPanelProps) {
   const router = useRouter();
@@ -114,19 +142,37 @@ export function SppDetailsPanel({
   const [prevSpp, setPrevSpp] = useState(initialSpp);
   const [payments, setPayments] = useState(initialPayments);
   const [prevPayments, setPrevPayments] = useState(initialPayments);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [adjustment, setAdjustment] = useState(initialAdjustment);
+  const [prevAdjustment, setPrevAdjustment] = useState(initialAdjustment);
+  const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
   const [editingPayment, setEditingPayment] =
     useState<ManagerStudentPaymentRow | null>(null);
   const [deletingPayment, setDeletingPayment] =
     useState<ManagerStudentPaymentRow | null>(null);
+  const [isCreateAdjustmentOpen, setIsCreateAdjustmentOpen] = useState(false);
+  const [isEditAdjustmentOpen, setIsEditAdjustmentOpen] = useState(false);
+  const [isDeleteAdjustmentOpen, setIsDeleteAdjustmentOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isTransitionPending, startTransition] = useTransition();
-  const [deleteState, deleteAction, isDeletePending] = useActionState(
-    deleteStudentPaymentAction,
-    initialDeleteState
+
+  const [deletePaymentState, deletePaymentAction, isDeletePaymentPending] =
+    useActionState(deleteStudentPaymentAction, initialDeletePaymentState);
+  const [
+    deleteAdjustmentState,
+    deleteAdjustmentAction,
+    isDeleteAdjustmentPending,
+  ] = useActionState(
+    deleteFinancialAdjustmentAction,
+    initialDeleteAdjustmentState
   );
-  const isDeleteActionPending = isDeletePending || isTransitionPending;
-  const handleDeleteOpenChange = usePendingAwareOpenChange(
-    isDeleteActionPending,
+
+  const isDeletePaymentActionPending =
+    isDeletePaymentPending || isTransitionPending;
+  const isDeleteAdjustmentActionPending =
+    isDeleteAdjustmentPending || isTransitionPending;
+
+  const handleDeletePaymentOpenChange = usePendingAwareOpenChange(
+    isDeletePaymentActionPending,
     (open) => {
       if (!open) {
         setDeletingPayment(null);
@@ -134,11 +180,26 @@ export function SppDetailsPanel({
     }
   );
 
-  useActionStateToast(deleteState, isDeleteActionPending);
-  useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+  const handleDeleteAdjustmentOpenChange = usePendingAwareOpenChange(
+    isDeleteAdjustmentActionPending,
+    setIsDeleteAdjustmentOpen
+  );
+
+  useActionStateToast(deletePaymentState, isDeletePaymentActionPending);
+  useActionStateSuccess(deletePaymentState, isDeletePaymentActionPending, () => {
     setDeletingPayment(null);
     router.refresh();
   });
+
+  useActionStateToast(deleteAdjustmentState, isDeleteAdjustmentActionPending);
+  useActionStateSuccess(
+    deleteAdjustmentState,
+    isDeleteAdjustmentActionPending,
+    () => {
+      setIsDeleteAdjustmentOpen(false);
+      router.refresh();
+    }
+  );
 
   if (initialSpp !== prevSpp) {
     setPrevSpp(initialSpp);
@@ -150,17 +211,32 @@ export function SppDetailsPanel({
     setPayments(initialPayments);
   }
 
+  if (initialAdjustment !== prevAdjustment) {
+    setPrevAdjustment(initialAdjustment);
+    setAdjustment(initialAdjustment);
+  }
+
   const handleChanged = () => {
     router.refresh();
   };
 
-  function handleConfirmDelete() {
+  function handleConfirmDeletePayment() {
     if (!deletingPayment) return;
     const formData = new FormData();
     formData.set("id", deletingPayment.id);
     formData.set("student_payment_phase_id", spp.id);
     startTransition(() => {
-      deleteAction(formData);
+      deletePaymentAction(formData);
+    });
+  }
+
+  function handleConfirmDeleteAdjustment() {
+    if (!adjustment) return;
+    const formData = new FormData();
+    formData.set("id", adjustment.id);
+    formData.set("student_payment_phase_id", spp.id);
+    startTransition(() => {
+      deleteAdjustmentAction(formData);
     });
   }
 
@@ -190,8 +266,8 @@ export function SppDetailsPanel({
         </Breadcrumb>
 
         <CreateStudentPaymentDialog
-          open={isCreateOpen}
-          onOpenChange={setIsCreateOpen}
+          open={isCreatePaymentOpen}
+          onOpenChange={setIsCreatePaymentOpen}
           sppId={spp.id}
           defaultReceivedBy={actorLabel}
           onCreated={handleChanged}
@@ -206,13 +282,38 @@ export function SppDetailsPanel({
           onUpdated={handleChanged}
         />
 
+        <CreateFinancialAdjustmentDialog
+          open={isCreateAdjustmentOpen}
+          onOpenChange={setIsCreateAdjustmentOpen}
+          sppId={spp.id}
+          onCreated={handleChanged}
+        />
+
+        <EditFinancialAdjustmentDialog
+          open={isEditAdjustmentOpen}
+          onOpenChange={setIsEditAdjustmentOpen}
+          adjustment={adjustment}
+          onUpdated={handleChanged}
+        />
+
+        {adjustment ? (
+          <UpsertFinancialFormDialog
+            key={adjustment.form?.id ?? `create-form-${adjustment.id}`}
+            open={isFormDialogOpen}
+            onOpenChange={setIsFormDialogOpen}
+            adjustmentId={adjustment.id}
+            form={adjustment.form}
+            onSaved={handleChanged}
+          />
+        ) : null}
+
         <Dialog
           open={deletingPayment !== null}
-          onOpenChange={handleDeleteOpenChange}
+          onOpenChange={handleDeletePaymentOpenChange}
         >
           <DialogContent
             className="sm:max-w-md"
-            showCloseButton={!isDeleteActionPending}
+            showCloseButton={!isDeletePaymentActionPending}
           >
             <DialogHeader>
               <DialogTitle>Delete payment</DialogTitle>
@@ -228,18 +329,58 @@ export function SppDetailsPanel({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => handleDeleteOpenChange(false)}
-                disabled={isDeleteActionPending}
+                onClick={() => handleDeletePaymentOpenChange(false)}
+                disabled={isDeletePaymentActionPending}
               >
                 Cancel
               </Button>
               <Button
                 type="button"
                 variant="destructive"
-                onClick={handleConfirmDelete}
-                disabled={isDeleteActionPending}
+                onClick={handleConfirmDeletePayment}
+                disabled={isDeletePaymentActionPending}
               >
-                {isDeleteActionPending ? <InlineSpinner /> : null}
+                {isDeletePaymentActionPending ? <InlineSpinner /> : null}
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={isDeleteAdjustmentOpen}
+          onOpenChange={handleDeleteAdjustmentOpenChange}
+        >
+          <DialogContent
+            className="sm:max-w-md"
+            showCloseButton={!isDeleteAdjustmentActionPending}
+          >
+            <DialogHeader>
+              <DialogTitle>Delete financial adjustment</DialogTitle>
+              <DialogDescription>
+                Delete this adjustment
+                {adjustment?.form
+                  ? " and its financial form"
+                  : ""}
+                ? Balances will recalculate.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDeleteAdjustmentOpenChange(false)}
+                disabled={isDeleteAdjustmentActionPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmDeleteAdjustment}
+                disabled={isDeleteAdjustmentActionPending}
+              >
+                {isDeleteAdjustmentActionPending ? <InlineSpinner /> : null}
                 Delete
               </Button>
             </DialogFooter>
@@ -268,8 +409,8 @@ export function SppDetailsPanel({
             </p>
             {spp.payments_blocked ? (
               <p className="text-amber-700 dark:text-amber-300">
-                Payments are blocked because this phase or student assignment is
-                cancelled.
+                Payments and adjustments are blocked because this phase or
+                student assignment is cancelled.
               </p>
             ) : null}
           </CardContent>
@@ -313,6 +454,168 @@ export function SppDetailsPanel({
           </div>
         </div>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial adjustment</CardTitle>
+            {!spp.payments_blocked && !adjustment ? (
+              <CardAction>
+                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsCreateAdjustmentOpen(true)}
+                  >
+                    <PlusIcon data-icon="inline-start" />
+                    Add adjustment
+                  </Button>
+                </Can>
+              </CardAction>
+            ) : null}
+            {!spp.payments_blocked && adjustment ? (
+              <CardAction className="flex flex-wrap gap-2">
+                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsEditAdjustmentOpen(true)}
+                  >
+                    <PencilIcon data-icon="inline-start" />
+                    Edit
+                  </Button>
+                </Can>
+                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsDeleteAdjustmentOpen(true)}
+                  >
+                    <Trash2Icon data-icon="inline-start" />
+                    Delete
+                  </Button>
+                </Can>
+              </CardAction>
+            ) : null}
+          </CardHeader>
+          <CardContent>
+            {!adjustment ? (
+              <p className="text-sm text-muted-foreground">
+                No financial adjustment on this student payment phase.
+              </p>
+            ) : (
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground">Type</dt>
+                  <dd className="font-medium">
+                    {
+                      FINANCIAL_ADJUSTMENT_TYPE_LABELS[
+                        adjustment.type as FinancialAdjustmentType
+                      ]
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Value type</dt>
+                  <dd className="font-medium">
+                    {
+                      FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS[
+                        adjustment.value_type as FinancialAdjustmentValueType
+                      ]
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Value</dt>
+                  <dd className="font-medium tabular-nums">
+                    {formatAdjustmentValue(
+                      adjustment.value_type as FinancialAdjustmentValueType,
+                      adjustment.value
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Effective date</dt>
+                  <dd className="font-medium">
+                    {format(
+                      new Date(adjustment.effective_date),
+                      "MMM d, yyyy"
+                    )}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">Reason</dt>
+                  <dd className="font-medium">{adjustment.reason ?? "—"}</dd>
+                </div>
+              </dl>
+            )}
+          </CardContent>
+        </Card>
+
+        {adjustment ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial form</CardTitle>
+              {!spp.payments_blocked ? (
+                <CardAction>
+                  <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={adjustment.form ? "outline" : "default"}
+                      onClick={() => setIsFormDialogOpen(true)}
+                    >
+                      {adjustment.form ? (
+                        <>
+                          <PencilIcon data-icon="inline-start" />
+                          Edit form
+                        </>
+                      ) : (
+                        <>
+                          <PlusIcon data-icon="inline-start" />
+                          Add financial form
+                        </>
+                      )}
+                    </Button>
+                  </Can>
+                </CardAction>
+              ) : null}
+            </CardHeader>
+            <CardContent>
+              {!adjustment.form ? (
+                <p className="text-sm text-muted-foreground">
+                  No financial form attached. Forms do not change amounts.
+                </p>
+              ) : (
+                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-muted-foreground">Full name</dt>
+                    <dd className="font-medium">{adjustment.form.full_name}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Agreed to rules</dt>
+                    <dd className="font-medium">
+                      {adjustment.form.agreed_to_rules ? "Yes" : "No"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">School / university</dt>
+                    <dd className="font-medium">
+                      {adjustment.form.school_or_university ?? "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Phone</dt>
+                    <dd className="font-medium">
+                      {adjustment.form.phone ?? "—"}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card className="py-0">
           <CardHeader className="border-b py-3">
             <CardTitle>Payments</CardTitle>
@@ -322,7 +625,7 @@ export function SppDetailsPanel({
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => setIsCreateOpen(true)}
+                    onClick={() => setIsCreatePaymentOpen(true)}
                   >
                     <PlusIcon data-icon="inline-start" />
                     Record payment

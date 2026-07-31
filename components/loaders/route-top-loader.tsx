@@ -173,15 +173,16 @@ export function RouteTopLoader() {
   return (
     <div
       className={cn(
-        "pointer-events-none fixed inset-x-0 top-0 z-[200] h-1 overflow-hidden transition-opacity duration-150",
+        "pointer-events-none fixed inset-x-0 top-0 z-[200] h-1 transition-opacity duration-150",
         isVisible ? "opacity-100" : "opacity-0"
       )}
       aria-hidden
     >
       <div
         className={cn(
-          "route-top-loader-bar h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.85)]",
-          "dark:bg-[#C4C4E8] dark:shadow-[0_0_10px_rgba(196,196,232,0.7)]",
+          "route-top-loader-bar h-full bg-white",
+          "shadow-[0_0_0_1px_var(--primary),0_0_8px_rgba(62,62,117,0.5)]",
+          "dark:bg-[#C4C4E8] dark:shadow-[0_0_0_1px_var(--primary),0_0_8px_rgba(154,154,208,0.55)]",
           isLoading && "route-top-loader-bar-active",
           isFinishing && "route-top-loader-bar-finishing"
         )}

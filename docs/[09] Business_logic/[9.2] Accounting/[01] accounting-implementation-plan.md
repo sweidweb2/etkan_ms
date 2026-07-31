@@ -291,10 +291,10 @@ Hook points in existing class enrollment services:
 
 ### Phase 4 — Financial adjustments (+ forms)
 
-- [ ] **T4.1** Enforce ≤1 adjustment per SPP in service + DB
-- [ ] **T4.2** Create/update/delete adjustment → recalc SPP + phase
-- [ ] **T4.3** Financial form create/update tied to adjustment (fields from schema)
-- [ ] **T4.4** Percentage vs fixed validation (0–100 for %)
+- [x] **T4.1** Enforce ≤1 adjustment per SPP in service + DB
+- [x] **T4.2** Create/update/delete adjustment → recalc SPP + phase
+- [x] **T4.3** Financial form create/update tied to adjustment (fields from schema)
+- [x] **T4.4** Percentage vs fixed validation (0–100 for %)
 
 **Exit:** discounts/scholarships change due and statuses correctly.
 
