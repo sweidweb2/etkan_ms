@@ -24,6 +24,14 @@ export async function listClasses(client: Supabase) {
     .order("name", { ascending: true });
 }
 
+export async function listInProgressClasses(client: Supabase) {
+  return client
+    .from("classes")
+    .select("id, name")
+    .eq("status", "in_progress")
+    .order("name", { ascending: true });
+}
+
 const CLASS_PICKER_SELECT = "id, name, subjects ( name )";
 
 export type ClassPickerRecord = {

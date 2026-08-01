@@ -1,3 +1,4 @@
+import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import {
   PAYMENT_PHASE_STATUSES,
   STUDENT_PAYMENT_PHASE_STATUSES,
@@ -19,7 +20,10 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import { recalcNonCancelledSppsForPhase } from "@/services/accounting-recalc.service";
+import {
+  recalcNonCancelledSppsForPhase,
+  recalcPhaseStatusFromSpps,
+} from "@/services/accounting-recalc.service";
 import { ensureSppForStudentOnPhase } from "@/services/accounting-sync.service";
 import {
   recordManagerAuditLog,
@@ -363,36 +367,46 @@ export async function listMissingSppForOpenedPhases(
     return [];
   }
 
+  const billingBySemester = await buildBillingClassBySemesterId(
+    adminClient,
+    phases.map((phase) => phase.semester_id)
+  );
+
+  const classIds = [
+    ...new Set(
+      [...billingBySemester.values()].map((billingClass) => billingClass.id)
+    ),
+  ];
   const phaseIds = phases.map((phase) => phase.id);
 
+  if (classIds.length === 0) {
+    return [];
+  }
+
   const [
-    { data: students, error: studentsError },
+    { data: enrollments, error: enrollmentError },
     { data: existingSpps, error: sppError },
-    billingBySemester,
   ] = await Promise.all([
-    studentProfileRepository.listStudentProfiles(adminClient),
+    studentClassRepository.listEnrolledUserIdsByClassIds(adminClient, classIds),
     studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
       adminClient,
       phaseIds
     ),
-    buildBillingClassBySemesterId(
-      adminClient,
-      phases.map((phase) => phase.semester_id)
-    ),
   ]);
 
-  if (studentsError) {
-    throw new Error(studentsError.message);
+  if (enrollmentError) {
+    throw new Error(enrollmentError.message);
   }
 
   if (sppError) {
     throw new Error(sppError.message);
   }
 
-  const allStudents = students ?? [];
-
-  if (allStudents.length === 0) {
-    return [];
+  const enrolledByClassId = new Map<string, string[]>();
+  for (const row of enrollments ?? []) {
+    const list = enrolledByClassId.get(row.class_id) ?? [];
+    list.push(row.user_id);
+    enrolledByClassId.set(row.class_id, list);
   }
 
   const sppStudentsByPhaseId = new Map<string, Set<string>>();
@@ -402,26 +416,36 @@ export async function listMissingSppForOpenedPhases(
     sppStudentsByPhaseId.set(row.payment_phase_id, set);
   }
 
-  const missing: ManagerMissingSppRow[] = [];
+  const missing: Array<{
+    student_id: string;
+    semester_id: string;
+    semester_name: string;
+    billing_class_id: string;
+    billing_class_name: string;
+    payment_phase_id: string;
+    payment_phase_name: string;
+  }> = [];
 
   for (const phase of phases) {
-    const billingClass = billingBySemester.get(phase.semester_id) ?? null;
+    const billingClass = billingBySemester.get(phase.semester_id);
+    if (!billingClass) {
+      continue;
+    }
+
+    const enrolled = enrolledByClassId.get(billingClass.id) ?? [];
     const existing = sppStudentsByPhaseId.get(phase.id) ?? new Set();
 
-    for (const student of allStudents) {
-      if (existing.has(student.user_id)) {
+    for (const studentId of enrolled) {
+      if (existing.has(studentId)) {
         continue;
       }
 
-      const fullName = student.full_name?.trim();
-
       missing.push({
-        student_id: student.user_id,
-        student_label: fullName || student.user_id,
+        student_id: studentId,
         semester_id: phase.semester_id,
         semester_name: phase.semesters?.name ?? "Unknown semester",
-        billing_class_id: billingClass?.id ?? null,
-        billing_class_name: billingClass?.name ?? null,
+        billing_class_id: billingClass.id,
+        billing_class_name: billingClass.name,
         payment_phase_id: phase.id,
         payment_phase_name: phase.name,
       });
@@ -439,7 +463,7 @@ export async function listMissingSppForOpenedPhases(
 
   return missing.map((row) => ({
     ...row,
-    student_label: labels.get(row.student_id) ?? row.student_label,
+    student_label: labels.get(row.student_id) ?? row.student_id,
   }));
 }
 
@@ -752,10 +776,13 @@ export async function repairMissingSppForManager(
     return { success: false, error: "Payment phase not found." };
   }
 
-  if (phase.status !== PAYMENT_PHASE_STATUSES.OPENED) {
+  if (
+    phase.status !== PAYMENT_PHASE_STATUSES.OPENED &&
+    phase.status !== PAYMENT_PHASE_STATUSES.CLOSED
+  ) {
     return {
       success: false,
-      error: "Only opened payment phases can receive missing assignments.",
+      error: "Only opened or closed payment phases can receive assignments.",
     };
   }
 
@@ -773,29 +800,50 @@ export async function repairMissingSppForManager(
     };
   }
 
-  if (existingSpp) {
+  if (
+    existingSpp &&
+    existingSpp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
+  ) {
     return {
       success: true,
       message: "Student payment phase already exists.",
     };
   }
 
-  const { data: studentProfile, error: studentError } =
-    await studentProfileRepository.findStudentProfileByUserId(
+  const billingClass = await resolveInProgressClassForSemester(
+    adminClient,
+    phase.semester_id
+  );
+
+  if (!billingClass) {
+    return {
+      success: false,
+      error: "No in-progress class found for this semester.",
+    };
+  }
+
+  const { data: enrollment, error: enrollmentError } =
+    await studentClassRepository.findStudentClassByUserAndClass(
       adminClient,
-      student_id
+      student_id,
+      billingClass.id
     );
 
-  if (studentError) {
+  if (enrollmentError) {
     return {
       success: false,
       error: "Unable to assign student payment phase. Please try again.",
     };
   }
 
-  if (!studentProfile) {
-    return { success: false, error: "Student not found." };
+  if (!enrollment || enrollment.status !== STUDENT_CLASS_STATUSES.ENROLLED) {
+    return {
+      success: false,
+      error: "Student is not enrolled in this semester's in-progress class.",
+    };
   }
+
+  const wasClosed = phase.status === PAYMENT_PHASE_STATUSES.CLOSED;
 
   let ensured;
   try {
@@ -826,7 +874,7 @@ export async function repairMissingSppForManager(
     };
   }
 
-  if (ensured.alreadyExisted) {
+  if (ensured.alreadyExisted && !ensured.reactivated) {
     return {
       success: true,
       message: "Student payment phase already exists.",
@@ -840,8 +888,42 @@ export async function repairMissingSppForManager(
     };
   }
 
+  let phaseReopened = false;
+  const shouldReopenPhase =
+    wasClosed && (ensured.created || ensured.reactivated);
+
+  if (shouldReopenPhase) {
+    const { error: reopenError } =
+      await paymentPhaseRepository.updatePaymentPhaseStatus(
+        adminClient,
+        phase.id,
+        PAYMENT_PHASE_STATUSES.OPENED
+      );
+
+    if (reopenError) {
+      return {
+        success: false,
+        error: "Student was assigned, but the phase could not be reopened.",
+      };
+    }
+
+    phaseReopened = true;
+  }
+
+  try {
+    await recalcPhaseStatusFromSpps(adminClient, phase.id);
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Student was assigned, but phase status could not be recalculated.",
+    };
+  }
+
   await recordManagerAuditLog(adminClient, actor, {
-    action: "insert",
+    action: ensured.created ? "insert" : "update",
     severity: "info",
     table_name: "student_payment_phases",
     record_id: ensured.spp.id,
@@ -853,14 +935,35 @@ export async function repairMissingSppForManager(
       remaining_amount: ensured.spp.remaining_amount,
     },
     metadata: {
-      note: "Missing student payment phase repaired.",
+      note: ensured.created
+        ? "Missing student payment phase repaired."
+        : "Cancelled student payment phase reactivated.",
       payment_phase_id,
+      phase_reopened: phaseReopened,
     },
   });
 
+  if (phaseReopened) {
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "update",
+      severity: "info",
+      table_name: "payment_phases",
+      record_id: phase.id,
+      old_data: { status: PAYMENT_PHASE_STATUSES.CLOSED },
+      new_data: { status: PAYMENT_PHASE_STATUSES.OPENED },
+      metadata: {
+        note: "Payment phase reopened after assigning an unpaid student.",
+        student_id,
+        payment_phase_id: phase.id,
+      },
+    });
+  }
+
   return {
     success: true,
-    message: "Student payment phase assigned.",
+    message: phaseReopened
+      ? "Student payment phase assigned and phase reopened."
+      : "Student payment phase assigned.",
   };
 }
 

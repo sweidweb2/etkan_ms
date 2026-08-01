@@ -10,6 +10,7 @@ import {
 import { Can } from "@/components/auth/can";
 import { AddClassDialog } from "@/components/manager/classes/add-class-dialog";
 import { ClassCard } from "@/components/manager/classes/class-card";
+import { StudentsWithoutActiveClassCard } from "@/components/manager/shared/students-without-active-class-card";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type {
   ManagerClassSemesterOption,
@@ -30,6 +32,7 @@ import type {
   ManagerClassTeacherSelectOption,
 } from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
+import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 
 const PAGE_SIZE = 6;
 const STATUS_FILTER_ALL = "all";
@@ -85,6 +88,7 @@ function matchesSearch(classRow: ManagerClassRow, query: string) {
 
 type ManageClassesPanelProps = {
   initialClasses: ManagerClassRow[];
+  initialStudentsWithoutActiveClass: ManagerStudentWithoutActiveClassRow[];
   subjectOptions: ManagerClassSubjectOption[];
   semesterOptions: ManagerClassSemesterOption[];
   teacherOptions: ManagerClassTeacherSelectOption[];
@@ -92,11 +96,13 @@ type ManageClassesPanelProps = {
 
 export function ManageClassesPanel({
   initialClasses,
+  initialStudentsWithoutActiveClass,
   subjectOptions,
   semesterOptions,
   teacherOptions,
 }: ManageClassesPanelProps) {
   const [classes, setClasses] = useState(initialClasses);
+  const studentsWithoutActiveClass = initialStudentsWithoutActiveClass;
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
@@ -114,8 +120,9 @@ export function ManageClassesPanel({
         (row) =>
           row.status === CLASS_STATUSES.PAUSED || row.status === CLASS_STATUSES.STOPPED
       ).length,
+      studentsWithoutActiveClass: studentsWithoutActiveClass.length,
     }),
-    [classes]
+    [classes, studentsWithoutActiveClass]
   );
 
   const filteredClasses = useMemo(() => {
@@ -201,7 +208,7 @@ export function ManageClassesPanel({
         />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <UserStatCard
           label="Total classes"
           value={stats.total}
@@ -226,6 +233,11 @@ export function ManageClassesPanel({
           label="On hold"
           value={stats.onHold}
           accentClassName="border-l-amber-500"
+        />
+        <UserStatCard
+          label="No active class"
+          value={stats.studentsWithoutActiveClass}
+          accentClassName="border-l-rose-500"
         />
       </div>
 
@@ -379,6 +391,15 @@ export function ManageClassesPanel({
           ) : null}
         </CardContent>
       </Card>
+
+      <StudentsWithoutActiveClassCard
+        students={studentsWithoutActiveClass}
+        description="Students who are not enrolled in any in-progress class."
+        storageKey={
+          COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASSES_STUDENTS_WITHOUT_ACTIVE_CLASS
+        }
+        defaultOpen
+      />
     </div>
   );
 }

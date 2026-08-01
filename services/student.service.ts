@@ -28,6 +28,7 @@ import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerStudentDetailStats,
   ManagerStudentRow,
+  ManagerStudentWithoutActiveClassRow,
 } from "@/types/manager-student";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -215,6 +216,76 @@ export async function listStudentsForManager(
 ): Promise<ManagerStudentRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
   return listStudentsForManagerCached();
+}
+
+type StudentsWithoutActiveClassViewPermission =
+  | typeof PERMISSIONS.ACCOUNTING_VIEW
+  | typeof PERMISSIONS.CLASSES_VIEW;
+
+/**
+ * Students who are not currently enrolled in any class with status in_progress.
+ * Paused/stopped on an in-progress class still counts as not enrolled.
+ */
+export async function listStudentsWithoutInProgressClassForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  viewPermission: StudentsWithoutActiveClassViewPermission
+): Promise<ManagerStudentWithoutActiveClassRow[]> {
+  await assertPermission(adminClient, actorUserId, viewPermission);
+
+  const [
+    { data: studentProfiles, error: profilesError },
+    { data: inProgressClasses, error: classesError },
+  ] = await Promise.all([
+    studentProfileRepository.listStudentProfiles(adminClient),
+    classRepository.listInProgressClasses(adminClient),
+  ]);
+
+  if (profilesError) {
+    throw new Error(profilesError.message);
+  }
+
+  if (classesError) {
+    throw new Error(classesError.message);
+  }
+
+  const profiles = studentProfiles ?? [];
+  if (profiles.length === 0) {
+    return [];
+  }
+
+  const inProgressClassIds = (inProgressClasses ?? []).map(
+    (classRow) => classRow.id
+  );
+
+  const enrolledUserIds = new Set<string>();
+
+  if (inProgressClassIds.length > 0) {
+    const { data: enrollments, error: enrollmentError } =
+      await studentClassRepository.listEnrolledUserIdsByClassIds(
+        adminClient,
+        inProgressClassIds
+      );
+
+    if (enrollmentError) {
+      throw new Error(enrollmentError.message);
+    }
+
+    for (const row of enrollments ?? []) {
+      enrolledUserIds.add(row.user_id);
+    }
+  }
+
+  return profiles
+    .filter((profile) => !enrolledUserIds.has(profile.user_id))
+    .map((profile) => ({
+      user_id: profile.user_id,
+      student_profile_id: profile.id,
+      full_name: profile.full_name,
+      phone: profile.phone,
+      status: mapStudentStatus(profile.status),
+    }))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
 }
 
 export async function getStudentForManager(

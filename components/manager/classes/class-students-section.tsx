@@ -191,13 +191,12 @@ export function ClassStudentsSection({
         return;
       }
 
-      setStudents((prev) => {
-        const nextStudents = prev.map((row) =>
-          row.id === nextState.student!.id ? nextState.student! : row
-        );
-        onStudentsChange(nextStudents);
-        return nextStudents;
-      });
+      const updatedStudent = nextState.student;
+      const nextStudents = students.map((row) =>
+        row.id === updatedStudent.id ? updatedStudent : row
+      );
+      setStudents(nextStudents);
+      onStudentsChange(nextStudents);
     },
     (nextState) => Boolean(nextState.success && nextState.student)
   );

@@ -14,6 +14,15 @@ export interface ManagerStudentRow {
   created_at: string;
 }
 
+/** Student with no enrolled membership on any in_progress class. */
+export interface ManagerStudentWithoutActiveClassRow {
+  user_id: string;
+  student_profile_id: string;
+  full_name: string;
+  phone: string | null;
+  status: StudentStatusValue;
+}
+
 /** Academic progress stats for manager student detail view. */
 export interface ManagerStudentDetailStats {
   classesRegistered: number;

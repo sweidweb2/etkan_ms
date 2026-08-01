@@ -14,4 +14,11 @@ export const COLLAPSIBLE_SECTION_STORAGE_KEYS = {
   SESSION_DETAILS_SETTINGS: "etkan:collapsible:session-details:settings",
   SESSION_DETAILS_TASKS_ATTENDEE:
     "etkan:collapsible:session-details:tasks-attendee",
+  ACCOUNTING_OVERVIEW: "etkan:collapsible:accounting:overview",
+  ACCOUNTING_PAYMENT_PHASES: "etkan:collapsible:accounting:payment-phases",
+  ACCOUNTING_MISSING_SPP: "etkan:collapsible:accounting:missing-spp",
+  ACCOUNTING_STUDENTS_WITHOUT_ACTIVE_CLASS:
+    "etkan:collapsible:accounting:students-without-active-class",
+  CLASSES_STUDENTS_WITHOUT_ACTIVE_CLASS:
+    "etkan:collapsible:classes:students-without-active-class",
 } as const;

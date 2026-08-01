@@ -4,6 +4,7 @@ import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import * as authRepository from "@/repositories/auth.repository";
+import * as classRepository from "@/repositories/class.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -17,10 +18,13 @@ import {
   getStudentDetailStatsForManager,
   getStudentForManager,
   listStudentsForManager,
+  listStudentsWithoutInProgressClassForManager,
   updateStudent,
 } from "@/services/student.service";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 vi.mock("@/repositories/auth.repository");
+vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-class.repository");
@@ -597,5 +601,63 @@ describe("updateStudent", () => {
     expect(profileRepository.updateProfileById).toHaveBeenCalled();
     expect(authRepository.updateAuthUserByAdmin).toHaveBeenCalled();
     expect(studentProfileRepository.updateStudentProfileById).toHaveBeenCalled();
+  });
+});
+
+describe("listStudentsWithoutInProgressClassForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns students who are not enrolled on any in-progress class", async () => {
+    const otherProfile = {
+      id: "student-profile-2",
+      user_id: "user-2",
+      full_name: "Alex Other",
+      birth_date: null,
+      phone: null,
+      status: STUDENT_STATUSES.ACTIVE,
+      created_at: "2026-01-02T00:00:00.000Z",
+    };
+
+    vi.mocked(studentProfileRepository.listStudentProfiles).mockResolvedValue({
+      data: [studentProfile, otherProfile],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(classRepository.listInProgressClasses).mockResolvedValue({
+      data: [{ id: "class-1", name: "Math" }],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentClassRepository.listEnrolledUserIdsByClassIds
+    ).mockResolvedValue({
+      data: [{ user_id: "user-1", class_id: "class-1" }],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await listStudentsWithoutInProgressClassForManager(
+      adminClient,
+      actor.userId,
+      PERMISSIONS.CLASSES_VIEW
+    );
+
+    expect(result).toEqual([
+      {
+        user_id: "user-2",
+        student_profile_id: "student-profile-2",
+        full_name: "Alex Other",
+        phone: null,
+        status: STUDENT_STATUSES.ACTIVE,
+      },
+    ]);
   });
 });
