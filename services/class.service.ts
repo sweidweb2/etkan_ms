@@ -9,10 +9,6 @@ import {
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
 import {
-  STUDENT_CLASS_STATUSES,
-  type StudentClassStatusValue,
-} from "@/lib/constants/manager-student-class-status";
-import {
   buildGradesByTaskId,
   computeOverallAverageTaskGrade,
   computeSessionTaskGradeSummary,
@@ -32,8 +28,8 @@ import {
   addStudentToClassSchema,
   addStudentsToClassSchema,
 } from "@/lib/validators/manager/add-student-to-class";
+import { removeStudentFromClassSchema } from "@/lib/validators/manager/remove-student-from-class";
 import { transferStudentBetweenClassesSchema } from "@/lib/validators/manager/transfer-student-between-classes";
-import { updateStudentClassStatusSchema } from "@/lib/validators/manager/update-student-class-status";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
@@ -49,7 +45,6 @@ import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import type { StudentClassRecord } from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
@@ -74,7 +69,7 @@ import {
   assertClassStructureUnlockedForComputedGrades,
   assertStudentGradeInputsUnlockedForComputedGrade,
 } from "@/services/class-computed-grade-lock.service";
-import { ensureSessionAttendeesForEnrolledStudents, seedLateJoinAttendeesForStudent, seedLateJoinStudentTasksForStudent } from "@/services/session.service";
+import { ensureSessionAttendeesForMembers, seedLateJoinAttendeesForStudent, seedLateJoinStudentTasksForStudent } from "@/services/session.service";
 import { listStudentsForManager } from "@/services/student.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
@@ -147,26 +142,6 @@ function mapClassStatus(status: string | null): ClassStatusValue {
   }
 
   return CLASS_STATUSES.SCHEDULED;
-}
-
-function mapEnrollmentStatus(status: string | null): StudentClassStatusValue {
-  if (
-    status === STUDENT_CLASS_STATUSES.ENROLLED ||
-    status === STUDENT_CLASS_STATUSES.PAUSED ||
-    status === STUDENT_CLASS_STATUSES.STOPPED
-  ) {
-    return status;
-  }
-
-  if (status === "done") {
-    return STUDENT_CLASS_STATUSES.STOPPED;
-  }
-
-  if (status === "in_progress" || status === "active") {
-    return STUDENT_CLASS_STATUSES.ENROLLED;
-  }
-
-  return STUDENT_CLASS_STATUSES.ENROLLED;
 }
 
 function mapFinalExamStatus(status: string): StudentTaskStatusValue {
@@ -1062,7 +1037,6 @@ export async function listClassStudentsForManager(
       username: profile.username,
       email: authResult.data.user?.email ?? "",
       phone: studentProfile.phone,
-      enrollment_status: mapEnrollmentStatus(enrollment.status),
       joined_at: enrollment.joined_at ?? "",
     });
   }
@@ -1676,7 +1650,7 @@ export async function createClassSessionForManager(
   const session = mapSessionRecord(data as SessionRecord);
 
   try {
-    await ensureSessionAttendeesForEnrolledStudents(
+    await ensureSessionAttendeesForMembers(
       adminClient,
       session.id,
       input.class_id
@@ -1837,20 +1811,22 @@ export async function createFinalExamForManager(
     };
   }
 
-  const enrolledResult =
-    await studentClassRepository.listEnrolledUserIdsByClassId(
+  // Seed pending final-exam grade rows for current class members only.
+  // Existing grade rows for students who left are retained (not deleted).
+  const membersResult =
+    await studentClassRepository.listMemberUserIdsByClassId(
       adminClient,
       input.class_id
     );
 
-  if (enrolledResult.error) {
-    return { success: false, error: enrolledResult.error.message };
+  if (membersResult.error) {
+    return { success: false, error: membersResult.error.message };
   }
 
-  const enrolledUserIds = (enrolledResult.data ?? []).map((row) => row.user_id);
+  const memberUserIds = (membersResult.data ?? []).map((row) => row.user_id);
   const gradesResult = await finalExamRepository.createStudentFinalExamGrades(
     adminClient,
-    enrolledUserIds.map((studentId) => ({
+    memberUserIds.map((studentId) => ({
       final_exam_id: data.id,
       student_id: studentId,
       status: STUDENT_TASK_STATUSES.PENDING,
@@ -2256,7 +2232,6 @@ export async function addStudentToClassForManager(
     {
       user_id: userId,
       class_id: input.class_id,
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
     }
   );
 
@@ -2298,7 +2273,6 @@ export async function addStudentToClassForManager(
     username: profileResult.data.username,
     email: authResult.data.user?.email ?? "",
     phone: studentProfileResult.data.phone,
-    enrollment_status: mapEnrollmentStatus(data.status),
     joined_at: data.joined_at ?? new Date().toISOString(),
   };
 
@@ -2378,7 +2352,6 @@ export async function addStudentToClassForManager(
     new_data: {
       class_id: input.class_id,
       user_id: userId,
-      status: student.enrollment_status,
     },
   });
 
@@ -2520,33 +2493,34 @@ export async function addStudentsToClassForManager(
   };
 }
 
-export type UpdateClassStudentStatusResult =
+export type RemoveStudentFromClassResult =
   | {
       success: true;
-      student: ManagerClassStudentRow;
+      removedStudentId: string;
       message: string;
       warning?: string;
     }
   | MutationFailure;
 
-export async function updateClassStudentStatusForManager(
+export async function removeStudentFromClassForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
   input: {
     id: string;
     class_id: string;
-    status: string;
   }
-): Promise<UpdateClassStudentStatusResult> {
-  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_CHANGE_ENROLLMENT);
+): Promise<RemoveStudentFromClassResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.CLASSES_REMOVE_STUDENT
+  );
   if (unauthorized) {
     return { success: false, error: unauthorized };
   }
 
-  const parsed = updateStudentClassStatusSchema.safeParse({
-    status: input.status,
-  });
+  const parsed = removeStudentFromClassSchema.safeParse(input);
 
   if (!parsed.success) {
     return {
@@ -2558,129 +2532,69 @@ export async function updateClassStudentStatusForManager(
 
   const existing = await studentClassRepository.findStudentClassById(
     adminClient,
-    input.id
+    parsed.data.id
   );
 
   if (existing.error) {
     return { success: false, error: existing.error.message };
   }
 
-  if (!existing.data || existing.data.class_id !== input.class_id) {
+  if (!existing.data || existing.data.class_id !== parsed.data.class_id) {
     return { success: false, error: "Enrollment not found." };
   }
 
-  const { data, error } = await studentClassRepository.updateStudentClassStatus(
-    adminClient,
-    input.id,
-    parsed.data.status
-  );
-
-  if (error || !data) {
-    return {
-      success: false,
-      error: error?.message ?? "Unable to update enrollment status.",
-    };
-  }
-
-  const enrollment = data as StudentClassRecord;
-  const [profileResult, studentProfileResult, authResult] = await Promise.all([
-    profileRepository.findProfileById(adminClient, enrollment.user_id),
-    studentProfileRepository.findStudentProfileByUserId(
+  const { data: deleted, error: deleteError } =
+    await studentClassRepository.deleteStudentClassById(
       adminClient,
-      enrollment.user_id
-    ),
-    authRepository.getAuthUserById(adminClient, enrollment.user_id),
-  ]);
+      parsed.data.id
+    );
 
-  if (profileResult.error || !profileResult.data) {
+  if (deleteError || !deleted) {
     return {
       success: false,
-      error: profileResult.error?.message ?? "Unable to load student profile.",
+      error: deleteError?.message ?? "Unable to remove student from class.",
     };
   }
-
-  if (studentProfileResult.error || !studentProfileResult.data) {
-    return {
-      success: false,
-      error:
-        studentProfileResult.error?.message ??
-        "Unable to load student profile.",
-    };
-  }
-
-  const student: ManagerClassStudentRow = {
-    id: enrollment.id,
-    student_profile_id: studentProfileResult.data.id,
-    user_id: enrollment.user_id,
-    full_name: studentProfileResult.data.full_name,
-    username: profileResult.data.username,
-    email: authResult.data.user?.email ?? "",
-    phone: studentProfileResult.data.phone,
-    enrollment_status: mapEnrollmentStatus(enrollment.status),
-    joined_at: enrollment.joined_at ?? "",
-  };
 
   await recordManagerAuditLog(adminClient, actor, {
-    action: "update",
+    action: "delete",
     severity: "info",
     table_name: "student_class",
-    record_id: student.id,
+    record_id: deleted.id,
     old_data: {
-      status: existing.data.status,
+      class_id: parsed.data.class_id,
+      user_id: deleted.user_id,
     },
-    new_data: {
-      status: student.enrollment_status,
+    new_data: null,
+    metadata: {
+      note: "Student removed from class (binary membership).",
+      class_id: parsed.data.class_id,
+      student_id: deleted.user_id,
     },
   });
 
-  const previousStatus = existing.data.status;
-  const nextStatus = parsed.data.status;
   let warning: string | undefined;
 
-  if (
-    nextStatus === STUDENT_CLASS_STATUSES.PAUSED ||
-    nextStatus === STUDENT_CLASS_STATUSES.STOPPED
-  ) {
-    try {
-      await onStudentLeftClass(
-        adminClient,
-        { studentId: enrollment.user_id, classId: input.class_id },
-        actor
-      );
-    } catch (syncError) {
-      await recordPaymentSyncFailure(adminClient, actor, {
-        studentId: enrollment.user_id,
-        classId: input.class_id,
-        operation: "enrollment_leave_sync",
-        error: syncError,
-      });
-      warning = PAYMENT_SYNC_FAILURE_WARNING;
-    }
-  } else if (
-    nextStatus === STUDENT_CLASS_STATUSES.ENROLLED &&
-    previousStatus !== STUDENT_CLASS_STATUSES.ENROLLED
-  ) {
-    try {
-      await onStudentJoinedClass(
-        adminClient,
-        { studentId: enrollment.user_id, classId: input.class_id },
-        actor
-      );
-    } catch (syncError) {
-      await recordPaymentSyncFailure(adminClient, actor, {
-        studentId: enrollment.user_id,
-        classId: input.class_id,
-        operation: "enrollment_rejoin_sync",
-        error: syncError,
-      });
-      warning = PAYMENT_SYNC_FAILURE_WARNING;
-    }
+  try {
+    await onStudentLeftClass(
+      adminClient,
+      { studentId: deleted.user_id, classId: parsed.data.class_id },
+      actor
+    );
+  } catch (syncError) {
+    await recordPaymentSyncFailure(adminClient, actor, {
+      studentId: deleted.user_id,
+      classId: parsed.data.class_id,
+      operation: "enrollment_leave_sync",
+      error: syncError,
+    });
+    warning = PAYMENT_SYNC_FAILURE_WARNING;
   }
 
   return {
     success: true,
-    student,
-    message: "Enrollment status updated.",
+    removedStudentId: deleted.id,
+    message: "Student removed from class.",
     warning,
   };
 }
@@ -2709,7 +2623,7 @@ export async function transferStudentBetweenClassesForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.CLASSES_CHANGE_ENROLLMENT
+    PERMISSIONS.CLASSES_REMOVE_STUDENT
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -2783,13 +2697,6 @@ export async function transferStudentBetweenClassesForManager(
     };
   }
 
-  if (fromEnrollment.data.status !== STUDENT_CLASS_STATUSES.ENROLLED) {
-    return {
-      success: false,
-      error: "Only enrolled students can be transferred.",
-    };
-  }
-
   const toEnrollment =
     await studentClassRepository.findStudentClassByUserAndClass(
       adminClient,
@@ -2811,17 +2718,16 @@ export async function transferStudentBetweenClassesForManager(
     };
   }
 
-  const { data: stopped, error: stopError } =
-    await studentClassRepository.updateStudentClassStatus(
+  const { data: leftMembership, error: leaveError } =
+    await studentClassRepository.deleteStudentClassById(
       adminClient,
-      fromEnrollment.data.id,
-      STUDENT_CLASS_STATUSES.STOPPED
+      fromEnrollment.data.id
     );
 
-  if (stopError || !stopped) {
+  if (leaveError || !leftMembership) {
     return {
       success: false,
-      error: stopError?.message ?? "Unable to leave the source class.",
+      error: leaveError?.message ?? "Unable to leave the source class.",
     };
   }
 
@@ -2871,13 +2777,10 @@ export async function transferStudentBetweenClassesForManager(
     record_id: enrollResult.student.id,
     old_data: {
       class_id: from_class_id,
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
     },
     new_data: {
       class_id: to_class_id,
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
       from_enrollment_id: fromEnrollment.data.id,
-      from_status: STUDENT_CLASS_STATUSES.STOPPED,
     },
     metadata: {
       note: "Student transferred between classes without destination payment sync.",

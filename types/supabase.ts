@@ -795,21 +795,18 @@ export type Database = {
           class_id: string
           id: string
           joined_at: string | null
-          status: string
           user_id: string
         }
         Insert: {
           class_id: string
           id?: string
           joined_at?: string | null
-          status?: string
           user_id: string
         }
         Update: {
           class_id?: string
           id?: string
           joined_at?: string | null
-          status?: string
           user_id?: string
         }
         Relationships: [

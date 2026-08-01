@@ -5,7 +5,6 @@ import {
 } from "@/services/authorization.service";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import type { StudentTaskStatusValue } from "@/lib/constants/manager-student-task-status";
 import {
@@ -342,7 +341,7 @@ function mapStoredGradeRow(
     username: student.username,
     email: student.email,
     phone: student.phone,
-    enrollment_status: student.enrollment_status,
+    enrollment_status: "Member",
     is_computed: true,
     total_grade: totalGrade,
     task_total_grade:
@@ -398,7 +397,7 @@ function mapPendingGradeRow(
     username: student.username,
     email: student.email,
     phone: student.phone,
-    enrollment_status: student.enrollment_status,
+    enrollment_status: "Member",
     is_computed: false,
     total_grade: null,
     task_total_grade: taskTotalGrade,
@@ -706,7 +705,7 @@ export async function getStudentClassAcademicDetailForManager(
   }
 
   if (!enrollmentResult.data) {
-    throw new Error("Student is not enrolled in this class.");
+    throw new Error("Student is not a member of this class.");
   }
 
   const [context, finalExamBundle] = await Promise.all([
@@ -896,7 +895,7 @@ async function computeAndSaveStudentCourseGrade(
   const student = students.find((row) => row.user_id === userId);
 
   if (!student) {
-    return { success: false, error: "Student is not enrolled in this class." };
+    return { success: false, error: "Student is not a member of this class." };
   }
 
   const context = await loadClassGradeContext(adminClient, classId);
@@ -1097,19 +1096,17 @@ export async function computeAllStudentCourseGradesForManager(
     return { success: false as const, error: enrollmentsResult.error.message };
   }
 
-  const enrolledUserIds = new Set(
-    (enrollmentsResult.data ?? [])
-      .filter((row) => row.status === STUDENT_CLASS_STATUSES.ENROLLED)
-      .map((row) => row.user_id)
+  const memberUserIds = new Set(
+    (enrollmentsResult.data ?? []).map((row) => row.user_id)
   );
 
   const computedRows: ManagerClassStudentGradeRow[] = [];
   const failures: string[] = [];
-  let skippedNonEnrolled = 0;
+  let skippedNonMembers = 0;
 
   for (const userId of studentUserIds) {
-    if (!enrolledUserIds.has(userId)) {
-      skippedNonEnrolled += 1;
+    if (!memberUserIds.has(userId)) {
+      skippedNonMembers += 1;
       continue;
     }
 
@@ -1137,10 +1134,10 @@ export async function computeAllStudentCourseGradesForManager(
     };
   }
 
-  const skippedTotal = failures.length + skippedNonEnrolled;
+  const skippedTotal = failures.length + skippedNonMembers;
   const skippedNote =
-    skippedNonEnrolled > 0
-      ? ` Skipped ${skippedNonEnrolled} paused/stopped.`
+    skippedNonMembers > 0
+      ? ` Skipped ${skippedNonMembers} non-member(s).`
       : "";
 
   return {

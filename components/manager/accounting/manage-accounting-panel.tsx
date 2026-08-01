@@ -38,7 +38,10 @@ import { formatPaymentPhaseMoney, PAYMENT_PHASE_STATUS_LABELS } from "@/lib/cons
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingPhaseDetailRoute,
+  getManagerAccountingSppDetailRoute,
+  getManagerClassDetailRoute,
   getManagerSemesterDetailRoute,
+  getManagerStudentDetailRoute,
 } from "@/lib/constants/routes";
 import {
   PAYMENT_PHASE_STATUSES,
@@ -51,6 +54,7 @@ import type {
   ManagerMissingSppRow,
   ManagerPaymentPhaseRow,
   ManagerPaymentPhaseSemesterOption,
+  ManagerSppSemesterMismatchRow,
 } from "@/types/manager-payment-phase";
 import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 
@@ -151,6 +155,7 @@ type ManageAccountingPanelProps = {
   initialPhases: ManagerPaymentPhaseRow[];
   initialMissing: ManagerMissingSppRow[];
   initialStudentsWithoutActiveClass: ManagerStudentWithoutActiveClassRow[];
+  initialSppSemesterMismatches: ManagerSppSemesterMismatchRow[];
   semesterOptions: ManagerPaymentPhaseSemesterOption[];
 };
 
@@ -158,12 +163,14 @@ export function ManageAccountingPanel({
   initialPhases,
   initialMissing,
   initialStudentsWithoutActiveClass,
+  initialSppSemesterMismatches,
   semesterOptions,
 }: ManageAccountingPanelProps) {
   const router = useRouter();
   const phases = initialPhases;
   const missing = initialMissing;
   const studentsWithoutActiveClass = initialStudentsWithoutActiveClass;
+  const sppSemesterMismatches = initialSppSemesterMismatches;
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [assignRow, setAssignRow] = useState<ManagerMissingSppRow | null>(null);
@@ -621,9 +628,150 @@ export function ManageAccountingPanel({
             </div>
         </ClassTabCollapsibleSection>
 
+        <ClassTabCollapsibleSection
+          title="SPP semester mismatch"
+          description="Students with an active billing record on a payment phase whose semester does not match their current in-progress class."
+          storageKey={
+            COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_SPP_SEMESTER_MISMATCH
+          }
+          defaultOpen
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px] text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-left">
+                  <th className="px-4 py-3 font-medium">Student</th>
+                  <th className="px-4 py-3 font-medium">SPP phase / semester</th>
+                  <th className="px-4 py-3 font-medium">
+                    Current class / semester
+                  </th>
+                  <th className="px-4 py-3 font-medium text-right">Links</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sppSemesterMismatches.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-4 py-10 text-center text-muted-foreground"
+                    >
+                      No semester mismatches between active SPPs and current
+                      classes.
+                    </td>
+                  </tr>
+                ) : (
+                  sppSemesterMismatches.map((row) => (
+                    <tr
+                      key={row.spp_id}
+                      className="border-b last:border-b-0 hover:bg-muted/30"
+                    >
+                      <td className="max-w-[14rem] px-4 py-3 font-medium">
+                        <TruncatedCell
+                          value={row.student_label}
+                          maxLength={32}
+                        />
+                      </td>
+                      <td className="max-w-[16rem] px-4 py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <TruncatedCell
+                            value={row.payment_phase_name}
+                            maxLength={28}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {row.phase_semester_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="max-w-[16rem] px-4 py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <TruncatedCell
+                            value={row.current_class_name}
+                            maxLength={28}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {row.current_semester_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          {row.student_profile_id ? (
+                            <Button
+                              render={
+                                <Link
+                                  href={getManagerStudentDetailRoute(
+                                    row.student_profile_id
+                                  )}
+                                />
+                              }
+                              nativeButton={false}
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`View ${row.student_label}`}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <EyeIcon />
+                            </Button>
+                          ) : null}
+                          <Button
+                            render={
+                              <Link
+                                href={getManagerAccountingPhaseDetailRoute(
+                                  row.payment_phase_id
+                                )}
+                              />
+                            }
+                            nativeButton={false}
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            Phase
+                          </Button>
+                          <Button
+                            render={
+                              <Link
+                                href={getManagerAccountingSppDetailRoute(
+                                  row.payment_phase_id,
+                                  row.spp_id
+                                )}
+                              />
+                            }
+                            nativeButton={false}
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            SPP
+                          </Button>
+                          <Button
+                            render={
+                              <Link
+                                href={getManagerClassDetailRoute(
+                                  row.current_class_id
+                                )}
+                              />
+                            }
+                            nativeButton={false}
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            Class
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </ClassTabCollapsibleSection>
+
         <StudentsWithoutActiveClassCard
           students={studentsWithoutActiveClass}
-          description="Students who are not enrolled in any in-progress class. They will not appear in missing payment-phase assignments until enrolled."
+          description="Students who are not members of any in-progress class. They may still have billing or payment-phase records."
           storageKey={
             COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_STUDENTS_WITHOUT_ACTIVE_CLASS
           }

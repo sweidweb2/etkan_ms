@@ -15,8 +15,10 @@ import {
   createPaymentPhaseForManager,
   listMissingSppForOpenedPhases,
   repairMissingSppForManager,
+  transferStudentPaymentPhaseForManager,
   updatePaymentPhaseForManager,
 } from "@/services/payment-phase.service";
+import * as accountingRecalcService from "@/services/accounting-recalc.service";
 
 vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/payment-phase.repository");
@@ -30,6 +32,14 @@ vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("@/services/accounting-recalc.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/accounting-recalc.service")>();
+  return {
+    ...actual,
+    recalcPhaseStatusFromSpps: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 vi.mock("@/services/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -179,7 +189,7 @@ describe("createPaymentPhaseForManager", () => {
     } as never);
     mockBillingClass();
     vi.mocked(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).mockResolvedValue({
       data: [{ user_id: studentA }, { user_id: studentB }],
       error: null,
@@ -269,7 +279,7 @@ describe("createPaymentPhaseForManager", () => {
       expect(result.phase.billing_class_id).toBeNull();
     }
     expect(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).not.toHaveBeenCalled();
     expect(
       studentPaymentPhaseRepository.createStudentPaymentPhases
@@ -292,7 +302,7 @@ describe("listMissingSppForOpenedPhases", () => {
     } as never);
     mockBillingClass();
     vi.mocked(
-      studentClassRepository.listEnrolledUserIdsByClassIds
+      studentClassRepository.listMemberUserIdsByClassIds
     ).mockResolvedValue({
       data: [
         { user_id: studentA, class_id: classId },
@@ -359,7 +369,7 @@ describe("listMissingSppForOpenedPhases", () => {
 
     expect(missing).toEqual([]);
     expect(
-      studentClassRepository.listEnrolledUserIdsByClassIds
+      studentClassRepository.listMemberUserIdsByClassIds
     ).not.toHaveBeenCalled();
   });
 });
@@ -457,7 +467,6 @@ describe("repairMissingSppForManager", () => {
         id: "sc-1",
         user_id: studentB,
         class_id: classId,
-        status: "enrolled",
         joined_at: "2026-01-01T00:00:00.000Z",
       },
       error: null,
@@ -544,7 +553,6 @@ describe("repairMissingSppForManager", () => {
         id: "sc-1",
         user_id: studentB,
         class_id: classId,
-        status: "enrolled",
         joined_at: "2026-01-01T00:00:00.000Z",
       },
       error: null,
@@ -882,5 +890,207 @@ describe("cancelPaymentPhaseForManager", () => {
     expect(
       paymentPhaseRepository.updatePaymentPhaseStatus
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe("transferStudentPaymentPhaseForManager", () => {
+  const sppId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const destPhaseId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const sppRecord = {
+    id: sppId,
+    student_id: studentA,
+    payment_phase_id: phaseId,
+    assigned_at: "2026-07-01T00:00:00.000Z",
+    status: "pending",
+    original_amount: 1000,
+    adjustment_amount: 0,
+    final_amount_due: 1000,
+    total_paid: 0,
+    remaining_amount: 1000,
+    created_at: "2026-07-01T00:00:00.000Z",
+    updated_at: "2026-07-01T00:00:00.000Z",
+  };
+
+  const destPhase = {
+    ...phaseListRecord,
+    id: destPhaseId,
+    name: "Spring tuition",
+    status: "opened",
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    vi.mocked(
+      accountingRecalcService.recalcPhaseStatusFromSpps
+    ).mockResolvedValue(undefined as never);
+  });
+
+  it("moves the SPP and recalculates source and destination phases", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
+      data: destPhase,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.findSppByStudentAndPhase
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.updateStudentPaymentPhasePaymentPhaseId
+    ).mockResolvedValue({
+      data: { ...sppRecord, payment_phase_id: destPhaseId },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await transferStudentPaymentPhaseForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { spp_id: sppId, destination_payment_phase_id: destPhaseId }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.from_payment_phase_id).toBe(phaseId);
+      expect(result.to_payment_phase_id).toBe(destPhaseId);
+    }
+    expect(
+      studentPaymentPhaseRepository.updateStudentPaymentPhasePaymentPhaseId
+    ).toHaveBeenCalledWith(adminClient, sppId, destPhaseId);
+    expect(
+      accountingRecalcService.recalcPhaseStatusFromSpps
+    ).toHaveBeenCalledWith(adminClient, phaseId);
+    expect(
+      accountingRecalcService.recalcPhaseStatusFromSpps
+    ).toHaveBeenCalledWith(adminClient, destPhaseId);
+  });
+
+  it("rejects when destination equals source", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await transferStudentPaymentPhaseForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { spp_id: sppId, destination_payment_phase_id: phaseId }
+    );
+
+    expect(result.success).toBe(false);
+    expect(
+      studentPaymentPhaseRepository.updateStudentPaymentPhasePaymentPhaseId
+    ).not.toHaveBeenCalled();
+  });
+
+  it("rejects cancelled destination phases", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
+      data: { ...destPhase, status: "cancelled" },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await transferStudentPaymentPhaseForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { spp_id: sppId, destination_payment_phase_id: destPhaseId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/opened or closed/i);
+    }
+  });
+
+  it("rejects when student already has an SPP on destination", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
+      data: destPhase,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.findSppByStudentAndPhase
+    ).mockResolvedValue({
+      data: { ...sppRecord, id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc" },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await transferStudentPaymentPhaseForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { spp_id: sppId, destination_payment_phase_id: destPhaseId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/already has a payment record/i);
+    }
+  });
+
+  it("rejects transferring a cancelled SPP", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: { ...sppRecord, status: "cancelled" },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await transferStudentPaymentPhaseForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { spp_id: sppId, destination_payment_phase_id: destPhaseId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/cancelled/i);
+    }
   });
 });

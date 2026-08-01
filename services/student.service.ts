@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
+import { CLASS_STATUSES, type ClassStatusValue } from "@/lib/constants/manager-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
@@ -31,6 +31,7 @@ import type {
   ManagerStudentWithoutActiveClassRow,
 } from "@/types/manager-student";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
+import type { ManagerClassOption } from "@/types/manager-class";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -223,8 +224,8 @@ type StudentsWithoutActiveClassViewPermission =
   | typeof PERMISSIONS.CLASSES_VIEW;
 
 /**
- * Students who are not currently enrolled in any class with status in_progress.
- * Paused/stopped on an in-progress class still counts as not enrolled.
+ * Students who are not currently members of any class with status in_progress.
+ * Binary membership: any `student_class` row on an in-progress class counts.
  */
 export async function listStudentsWithoutInProgressClassForManager(
   adminClient: Supabase,
@@ -262,7 +263,7 @@ export async function listStudentsWithoutInProgressClassForManager(
 
   if (inProgressClassIds.length > 0) {
     const { data: enrollments, error: enrollmentError } =
-      await studentClassRepository.listEnrolledUserIdsByClassIds(
+      await studentClassRepository.listMemberUserIdsByClassIds(
         adminClient,
         inProgressClassIds
       );
@@ -321,16 +322,12 @@ export async function getStudentDetailStatsForManager(
 
   const [
     classesRegisteredResult,
-    classesDoneResult,
+    enrollmentsResult,
     tasksTotalResult,
     tasksDoneResult,
   ] = await Promise.all([
     studentClassRepository.countStudentClassesByUserId(adminClient, userId),
-    studentClassRepository.countStudentClassesByUserIdAndStatus(
-      adminClient,
-      userId,
-      STUDENT_CLASS_STATUSES.STOPPED
-    ),
+    studentClassRepository.listStudentClassesByUserId(adminClient, userId),
     studentTaskRepository.countStudentTasksByStudentId(adminClient, userId),
     studentTaskRepository.countStudentTasksDoneByStudentId(adminClient, userId),
   ]);
@@ -339,8 +336,8 @@ export async function getStudentDetailStatsForManager(
     throw new Error(classesRegisteredResult.error.message);
   }
 
-  if (classesDoneResult.error) {
-    throw new Error(classesDoneResult.error.message);
+  if (enrollmentsResult.error) {
+    throw new Error(enrollmentsResult.error.message);
   }
 
   if (tasksTotalResult.error) {
@@ -352,7 +349,23 @@ export async function getStudentDetailStatsForManager(
   }
 
   const classesRegistered = classesRegisteredResult.count ?? 0;
-  const classesDone = classesDoneResult.count ?? 0;
+  const enrollmentClassIds = (enrollmentsResult.data ?? []).map(
+    (row) => row.class_id
+  );
+
+  let classesDone = 0;
+  if (enrollmentClassIds.length > 0) {
+    const classesResult = await classRepository.listClassesWithSubjectByIds(
+      adminClient,
+      enrollmentClassIds
+    );
+    if (classesResult.error) {
+      throw new Error(classesResult.error.message);
+    }
+    classesDone = (classesResult.data ?? []).filter(
+      (row) => row.status === CLASS_STATUSES.DONE
+    ).length;
+  }
 
   return {
     classesRegistered,
@@ -363,16 +376,18 @@ export async function getStudentDetailStatsForManager(
   };
 }
 
-function mapStudentClassStatus(status: string | null): ManagerStudentClassRow["status"] {
+function mapClassStatus(status: string | null): ClassStatusValue {
   if (
-    status === STUDENT_CLASS_STATUSES.ENROLLED ||
-    status === STUDENT_CLASS_STATUSES.PAUSED ||
-    status === STUDENT_CLASS_STATUSES.STOPPED
+    status === CLASS_STATUSES.SCHEDULED ||
+    status === CLASS_STATUSES.IN_PROGRESS ||
+    status === CLASS_STATUSES.DONE ||
+    status === CLASS_STATUSES.PAUSED ||
+    status === CLASS_STATUSES.STOPPED
   ) {
     return status;
   }
 
-  return STUDENT_CLASS_STATUSES.ENROLLED;
+  return CLASS_STATUSES.SCHEDULED;
 }
 
 export async function listJoinedClassesForStudentManager(
@@ -422,11 +437,45 @@ export async function listJoinedClassesForStudentManager(
         class_id: enrollment.class_id,
         name: classRow.name,
         subject_name: classRow.subjects?.name ?? "—",
-        status: mapStudentClassStatus(enrollment.status),
+        class_status: mapClassStatus(classRow.status),
         joined_at: enrollment.joined_at ?? "",
       },
     ];
   });
+}
+
+/** Classes the student is not currently a member of (for Assign class). */
+export async function listAssignableClassesForStudentManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  userId: string
+): Promise<ManagerClassOption[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
+
+  const [membershipResult, classesResult] = await Promise.all([
+    studentClassRepository.listStudentClassesByUserId(adminClient, userId),
+    classRepository.listClassesWithSubjectForPicker(adminClient),
+  ]);
+
+  if (membershipResult.error) {
+    throw new Error(membershipResult.error.message);
+  }
+
+  if (classesResult.error) {
+    throw new Error(classesResult.error.message);
+  }
+
+  const memberClassIds = new Set(
+    (membershipResult.data ?? []).map((row) => row.class_id)
+  );
+
+  return (classesResult.data ?? [])
+    .filter((row) => !memberClassIds.has(row.id))
+    .map((row) => ({
+      class_id: row.id,
+      name: row.name,
+      subject_name: row.subjects?.name ?? "—",
+    }));
 }
 
 export async function createStudent(

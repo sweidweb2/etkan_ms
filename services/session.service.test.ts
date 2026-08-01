@@ -159,7 +159,7 @@ describe("getSessionDetailForManager", () => {
       error: null,
     } as never);
     vi.mocked(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).mockResolvedValue({
       data: [{ user_id: studentA }, { user_id: studentB }],
       error: null,
@@ -448,7 +448,7 @@ describe("createSessionTaskForManager", () => {
     mockUnlockedComputedGrades();
   });
 
-  it("creates pending student_tasks for enrolled students", async () => {
+  it("creates pending student_tasks for class members", async () => {
     vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
       data: sessionRecord,
       error: null,
@@ -466,7 +466,7 @@ describe("createSessionTaskForManager", () => {
       error: null,
     } as never);
     vi.mocked(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).mockResolvedValue({
       data: [{ user_id: studentA }, { user_id: studentB }],
       error: null,
@@ -538,7 +538,7 @@ describe("createSessionTaskForManager", () => {
       ]
     );
     expect(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).toHaveBeenCalledWith(adminClient, classId);
     expect(result.success).toBe(true);
     if (result.success) {

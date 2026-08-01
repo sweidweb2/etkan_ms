@@ -31,7 +31,6 @@ const bundle: ComputedStudentGradeSheetBundle = {
     username: "sara",
     email: "sara@example.com",
     phone: null,
-    enrollment_status: "active",
     joined_at: "2026-02-01T00:00:00.000Z",
   },
   gradeRow: {
@@ -41,7 +40,7 @@ const bundle: ComputedStudentGradeSheetBundle = {
     username: "sara",
     email: "sara@example.com",
     phone: null,
-    enrollment_status: "active",
+    enrollment_status: "Member",
     is_computed: true,
     total_grade: 86.5,
     task_total_grade: 87.5,

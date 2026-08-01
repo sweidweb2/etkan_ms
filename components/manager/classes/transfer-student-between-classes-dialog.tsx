@@ -120,8 +120,9 @@ export function TransferStudentBetweenClassesDialog({
         <DialogHeader>
           <DialogTitle>Transfer student</DialogTitle>
           <DialogDescription>
-            Move {student?.full_name ?? "this student"} to another class. Source
-            billing is cancelled; destination payment phase is not auto-assigned.
+            Move {student?.full_name ?? "this student"} to another class.
+            Membership moves with them; payment phases are not moved
+            automatically and can be adjusted later if needed.
           </DialogDescription>
         </DialogHeader>
 

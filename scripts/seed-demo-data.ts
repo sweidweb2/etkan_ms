@@ -1,5 +1,4 @@
 import { ROLES } from "@/lib/constants/roles";
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import { generateSemesterCode } from "@/lib/manager/generate-semester-code";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
@@ -369,7 +368,6 @@ async function ensureStudentClassEnrollment(
     {
       user_id: userId,
       class_id: classId,
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
     }
   );
 

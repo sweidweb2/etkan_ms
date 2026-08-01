@@ -64,6 +64,17 @@ export async function listPaymentsBySppId(client: Supabase, sppId: string) {
     .order("created_at", { ascending: false });
 }
 
+export async function listPaymentIdsBySppIds(client: Supabase, sppIds: string[]) {
+  if (sppIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("student_payments")
+    .select("id")
+    .in("student_payment_phase_id", sppIds);
+}
+
 export async function findPaymentById(client: Supabase, id: string) {
   return client
     .from("student_payments")

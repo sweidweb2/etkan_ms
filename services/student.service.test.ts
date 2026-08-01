@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
 import { ROLES } from "@/lib/constants/roles";
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
@@ -205,14 +204,51 @@ describe("getStudentDetailStatsForManager", () => {
       statusText: "OK",
     });
 
-    vi.mocked(
-      studentClassRepository.countStudentClassesByUserIdAndStatus
-    ).mockResolvedValue({
-      count: 1,
+    vi.mocked(studentClassRepository.listStudentClassesByUserId).mockResolvedValue({
+      data: [
+        {
+          id: "sc-1",
+          user_id: "user-1",
+          class_id: "class-done",
+          joined_at: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "sc-2",
+          user_id: "user-1",
+          class_id: "class-active",
+          joined_at: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "sc-3",
+          user_id: "user-1",
+          class_id: "class-2",
+          joined_at: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "sc-4",
+          user_id: "user-1",
+          class_id: "class-3",
+          joined_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
       error: null,
+      count: null,
       status: 200,
       statusText: "OK",
-    });
+    } as never);
+
+    vi.mocked(classRepository.listClassesWithSubjectByIds).mockResolvedValue({
+      data: [
+        { id: "class-done", status: "done", name: "Done", subjects: { name: "S" } },
+        { id: "class-active", status: "in_progress", name: "Active", subjects: { name: "S" } },
+        { id: "class-2", status: "scheduled", name: "Two", subjects: { name: "S" } },
+        { id: "class-3", status: "scheduled", name: "Three", subjects: { name: "S" } },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
 
     vi.mocked(studentTaskRepository.countStudentTasksByStudentId).mockResolvedValue({
       count: 10,
@@ -242,13 +278,11 @@ describe("getStudentDetailStatsForManager", () => {
       tasksTotal: 10,
     });
 
-    expect(
-      studentClassRepository.countStudentClassesByUserIdAndStatus
-    ).toHaveBeenCalledWith(
+    expect(studentClassRepository.listStudentClassesByUserId).toHaveBeenCalledWith(
       adminClient,
-      "user-1",
-      STUDENT_CLASS_STATUSES.STOPPED
+      "user-1"
     );
+    expect(classRepository.listClassesWithSubjectByIds).toHaveBeenCalled();
   });
 });
 
@@ -635,7 +669,7 @@ describe("listStudentsWithoutInProgressClassForManager", () => {
       statusText: "OK",
     } as never);
     vi.mocked(
-      studentClassRepository.listEnrolledUserIdsByClassIds
+      studentClassRepository.listMemberUserIdsByClassIds
     ).mockResolvedValue({
       data: [{ user_id: "user-1", class_id: "class-1" }],
       error: null,

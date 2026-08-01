@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 import {
   BookOpenIcon,
+  HistoryIcon,
   PackageIcon,
 } from "lucide-react";
 import {
@@ -40,6 +41,16 @@ const NAV_CARDS: NavCardConfig[] = [
     iconClassName:
       "bg-violet-200/70 text-violet-700 dark:bg-violet-900/60 dark:text-violet-300",
   },
+  {
+    id: STUDENT_DETAILS_SECTION_IDS.activity,
+    label: "Activity",
+    description: "Audited events for this student",
+    icon: HistoryIcon,
+    themeClassName:
+      "bg-amber-100/90 ring-amber-200/80 hover:bg-amber-100 dark:bg-amber-950/40 dark:ring-amber-800/60 dark:hover:bg-amber-950/55",
+    iconClassName:
+      "bg-amber-200/70 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300",
+  },
 ];
 
 function NavCardContent({ card }: { card: NavCardConfig }) {
@@ -72,7 +83,7 @@ const navCardClassName =
 
 export function StudentDetailsSectionNav() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {NAV_CARDS.map((card) => (
         <button
           key={card.id}

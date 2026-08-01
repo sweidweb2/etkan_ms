@@ -687,7 +687,7 @@ export function ClassStudentGradesSection({
                             fullName={row.full_name}
                           />
                           <span className="text-xs text-muted-foreground">
-                            {row.enrollment_status}
+                            Member
                           </span>
                         </div>
                       </td>
@@ -852,7 +852,7 @@ export function ClassStudentGradesSection({
                                   fullName={row.full_name}
                                 />
                                 <span className="text-xs text-muted-foreground">
-                                  {row.enrollment_status}
+                                  Member
                                 </span>
                               </div>
                             </td>
@@ -947,7 +947,7 @@ export function ClassStudentGradesSection({
                             fullName={row.full_name}
                           />
                           <span className="text-xs text-muted-foreground">
-                            {row.enrollment_status}
+                            Member
                           </span>
                         </div>
                       </td>

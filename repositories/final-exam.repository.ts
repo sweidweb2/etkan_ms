@@ -116,6 +116,16 @@ export async function listStudentFinalExamGradesByFinalExamId(
     .order("created_at", { ascending: true });
 }
 
+export async function listStudentFinalExamGradeIdsByStudentId(
+  client: Supabase,
+  studentId: string
+) {
+  return client
+    .from("student_finalexam_grade")
+    .select("id")
+    .eq("student_id", studentId);
+}
+
 export async function findStudentFinalExamGradeById(
   client: Supabase,
   id: string

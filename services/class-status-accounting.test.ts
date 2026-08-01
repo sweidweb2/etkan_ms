@@ -28,7 +28,7 @@ vi.mock("@/services/student.service", () => ({
 vi.mock("@/services/session.service", () => ({
   seedLateJoinAttendeesForStudent: vi.fn(),
   seedLateJoinStudentTasksForStudent: vi.fn(),
-  ensureSessionAttendeesForEnrolledStudents: vi.fn(),
+  ensureSessionAttendeesForMembers: vi.fn(),
 }));
 vi.mock("@/services/class-computed-grade-lock.service", () => ({
   assertClassStructureUnlockedForComputedGrades: vi.fn(),

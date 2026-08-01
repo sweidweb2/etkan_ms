@@ -11,8 +11,9 @@ import {
   EyeIcon,
   PlusIcon,
   SearchIcon,
+  Trash2Icon,
 } from "lucide-react";
-import { updateClassStudentStatusAction } from "@/app/manager/classes/actions";
+import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
 import {
@@ -20,15 +21,17 @@ import {
   type ClassTransferOption,
 } from "@/components/manager/classes/transfer-student-between-classes-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -37,33 +40,21 @@ import {
 } from "@/components/ui/tooltip";
 import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { CLASS_STUDENT_TABLE_LIMITS } from "@/lib/constants/manager-class-student-display";
-import { MANAGER_STUDENT_CLASS_STATUS_LABELS } from "@/lib/constants/manager-student-class-display";
-import {
-  STUDENT_CLASS_STATUS_VALUES,
-  type StudentClassStatusValue,
-} from "@/lib/constants/manager-student-class-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type { ManagerStudentRow } from "@/types/manager-student";
-import type { UpdateClassStudentStatusActionState } from "@/types/manager-class-detail";
+import type { RemoveStudentFromClassActionState } from "@/types/manager-class-detail";
 
 const PAGE_SIZE = 10;
-const STATUS_FILTER_ALL = "all";
-const initialStatusUpdateState: UpdateClassStudentStatusActionState = {};
-
-const ENROLLMENT_STATUS_SELECT_ITEMS = Object.fromEntries(
-  STUDENT_CLASS_STATUS_VALUES.map((status) => [
-    status,
-    MANAGER_STUDENT_CLASS_STATUS_LABELS[status as StudentClassStatusValue],
-  ])
-) as Record<StudentClassStatusValue, string>;
+const initialRemoveState: RemoveStudentFromClassActionState = {};
 
 type ClassStudentsSectionProps = {
   classId: string;
@@ -148,7 +139,6 @@ function matchesSearch(student: ManagerClassStudentRow, query: string) {
     student.username ?? "",
     student.email,
     student.phone ?? "",
-    student.enrollment_status,
   ]
     .join(" ")
     .toLowerCase();
@@ -169,47 +159,53 @@ export function ClassStudentsSection({
 }: ClassStudentsSectionProps) {
   const router = useRouter();
   const [isTransitionPending, startTransition] = useTransition();
-  const [statusUpdateState, statusUpdateAction, isStatusUpdatePending] =
-    useActionState(updateClassStudentStatusAction, initialStatusUpdateState);
-  const isStatusPending = isStatusUpdatePending || isTransitionPending;
+  const [removeState, removeAction, isRemovePending] = useActionState(
+    removeStudentFromClassAction,
+    initialRemoveState
+  );
+  const isPending = isRemovePending || isTransitionPending;
 
-  useActionStateToast(statusUpdateState, isStatusPending);
+  useActionStateToast(removeState, isPending);
 
   const [students, setStudents] = useState(initialStudents);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [transferringStudent, setTransferringStudent] =
     useState<ManagerClassStudentRow | null>(null);
+  const [removingStudent, setRemovingStudent] =
+    useState<ManagerClassStudentRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const handleRemoveOpenChange = usePendingAwareOpenChange(
+    isPending,
+    (open) => {
+      if (!open) {
+        setRemovingStudent(null);
+      }
+    }
+  );
+
   useActionStateSuccess(
-    statusUpdateState,
-    isStatusPending,
+    removeState,
+    isPending,
     (nextState) => {
-      if (!nextState.student) {
+      if (!nextState.removedStudentId) {
         return;
       }
 
-      const updatedStudent = nextState.student;
-      const nextStudents = students.map((row) =>
-        row.id === updatedStudent.id ? updatedStudent : row
-      );
+      const removedId = nextState.removedStudentId;
+      const nextStudents = students.filter((row) => row.id !== removedId);
       setStudents(nextStudents);
       onStudentsChange(nextStudents);
+      setRemovingStudent(null);
+      router.refresh();
     },
-    (nextState) => Boolean(nextState.success && nextState.student)
+    (nextState) => Boolean(nextState.success && nextState.removedStudentId)
   );
 
   const filteredStudents = useMemo(() => {
-    return students.filter((student) => {
-      const matchesStatus =
-        statusFilter === STATUS_FILTER_ALL ||
-        student.enrollment_status === statusFilter;
-
-      return matchesStatus && matchesSearch(student, searchQuery);
-    });
-  }, [students, searchQuery, statusFilter]);
+    return students.filter((student) => matchesSearch(student, searchQuery));
+  }, [students, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -232,28 +228,19 @@ export function ClassStudentsSection({
     setCurrentPage(1);
   };
 
-  const handleStatusFilterChange = (value: string | null) => {
-    setStatusFilter(value ?? STATUS_FILTER_ALL);
-    setCurrentPage(1);
-  };
-
-  const handleEnrollmentStatusChange = (
-    student: ManagerClassStudentRow,
-    status: StudentClassStatusValue
-  ) => {
-    if (status === student.enrollment_status) {
+  function handleConfirmRemove() {
+    if (!removingStudent) {
       return;
     }
 
     const formData = new FormData();
-    formData.set("id", student.id);
+    formData.set("id", removingStudent.id);
     formData.set("class_id", classId);
-    formData.set("status", status);
 
     startTransition(() => {
-      statusUpdateAction(formData);
+      removeAction(formData);
     });
-  };
+  }
 
   const handleStudentsAdded = (
     addedStudents: ManagerClassStudentRow[],
@@ -312,9 +299,50 @@ export function ClassStudentsSection({
         }}
       />
 
+      <Dialog
+        open={removingStudent !== null}
+        onOpenChange={handleRemoveOpenChange}
+      >
+        <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+          <DialogHeader>
+            <DialogTitle>Remove student</DialogTitle>
+            <DialogDescription>
+              Remove {removingStudent?.full_name ?? "this student"} from{" "}
+              {className}? They will leave the class roster. Billing and payment
+              phase records are kept if any exist.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleRemoveOpenChange(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmRemove}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <InlineSpinner />
+                  Removing
+                </>
+              ) : (
+                "Remove"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ClassTabCollapsibleSection
         title="Students"
-        description={`Enrolled students in ${className}.`}
+        description={`Students in ${className}.`}
         storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_STUDENTS}
         defaultOpen
         action={
@@ -337,26 +365,6 @@ export function ClassStudentsSection({
                 aria-label="Search class students"
               />
             </div>
-            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-              <SelectTrigger
-                className="w-full sm:w-44"
-                aria-label="Filter by enrollment status"
-              >
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
-                {STUDENT_CLASS_STATUS_VALUES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {
-                      MANAGER_STUDENT_CLASS_STATUS_LABELS[
-                        status as StudentClassStatusValue
-                      ]
-                    }
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="overflow-x-auto">
@@ -367,7 +375,6 @@ export function ClassStudentsSection({
                   <th className="px-4 py-3 font-medium">Username</th>
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 font-medium">Enrollment</th>
                   <th className="px-4 py-3 font-medium">Joined</th>
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
@@ -376,12 +383,12 @@ export function ClassStudentsSection({
                 {paginatedStudents.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={6}
                       className="px-4 py-10 text-center text-muted-foreground"
                     >
                       {students.length === 0
-                        ? "No students enrolled in this class yet."
-                        : "No students match your filters."}
+                        ? "No students in this class yet."
+                        : "No students match your search."}
                     </td>
                   </tr>
                 ) : (
@@ -414,54 +421,6 @@ export function ClassStudentsSection({
                           maxLength={CLASS_STUDENT_TABLE_LIMITS.phone}
                         />
                       </td>
-                      <td className="px-4 py-3">
-                        <Can
-                          permission={PERMISSIONS.CLASSES_CHANGE_ENROLLMENT}
-                          fallback={
-                            <span>
-                              {
-                                MANAGER_STUDENT_CLASS_STATUS_LABELS[
-                                  student.enrollment_status as StudentClassStatusValue
-                                ]
-                              }
-                            </span>
-                          }
-                        >
-                          <Select
-                            value={student.enrollment_status}
-                            items={ENROLLMENT_STATUS_SELECT_ITEMS}
-                            disabled={isStatusPending}
-                            onValueChange={(value) => {
-                              if (!value) {
-                                return;
-                              }
-
-                              handleEnrollmentStatusChange(
-                                student,
-                                value as StudentClassStatusValue
-                              );
-                            }}
-                          >
-                            <SelectTrigger
-                              className="w-[9.5rem]"
-                              aria-label={`Enrollment status for ${student.full_name}`}
-                            >
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent align="start">
-                              {STUDENT_CLASS_STATUS_VALUES.map((status) => (
-                                <SelectItem key={status} value={status}>
-                                  {
-                                    MANAGER_STUDENT_CLASS_STATUS_LABELS[
-                                      status as StudentClassStatusValue
-                                    ]
-                                  }
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </Can>
-                      </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                         {student.joined_at
                           ? format(new Date(student.joined_at), "MMM d, yyyy")
@@ -469,25 +428,26 @@ export function ClassStudentsSection({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center justify-end gap-1">
-                          {student.enrollment_status === "enrolled" ? (
-                            <Can
-                              permission={
-                                PERMISSIONS.CLASSES_CHANGE_ENROLLMENT
-                              }
+                          <Can permission={PERMISSIONS.CLASSES_REMOVE_STUDENT}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Remove ${student.full_name}`}
+                              onClick={() => setRemovingStudent(student)}
                             >
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Transfer ${student.full_name}`}
-                                onClick={() =>
-                                  setTransferringStudent(student)
-                                }
-                              >
-                                <ArrowRightLeftIcon />
-                              </Button>
-                            </Can>
-                          ) : null}
+                              <Trash2Icon />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Transfer ${student.full_name}`}
+                              onClick={() => setTransferringStudent(student)}
+                            >
+                              <ArrowRightLeftIcon />
+                            </Button>
+                          </Can>
                           <Link
                             href={getManagerStudentDetailRoute(
                               student.student_profile_id

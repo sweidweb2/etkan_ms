@@ -2,10 +2,12 @@ import { notFound } from "next/navigation";
 import { StudentDetailsPanel } from "@/components/manager/students/student-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { listStudentActivityForManager } from "@/services/student-activity.service";
 import { getStudentClassAcademicDetailForManager } from "@/services/student-course-grade.service";
 import {
   getStudentDetailStatsForManager,
   getStudentForManager,
+  listAssignableClassesForStudentManager,
   listJoinedClassesForStudentManager,
 } from "@/services/student.service";
 import type { ManagerStudentClassAcademicBundle } from "@/types/manager-student-class-detail";
@@ -27,15 +29,35 @@ export default async function ManagerStudentDetailPage({
     notFound();
   }
 
-  const [stats, joinedClasses] = await Promise.all([
-    getStudentDetailStatsForManager(adminClient, user?.id ?? null, student.user_id),
-    listJoinedClassesForStudentManager(adminClient, user?.id ?? null, student.user_id),
-  ]);
+  const [stats, joinedClasses, availableClasses, activityRows] =
+    await Promise.all([
+      getStudentDetailStatsForManager(
+        adminClient,
+        user?.id ?? null,
+        student.user_id
+      ),
+      listJoinedClassesForStudentManager(
+        adminClient,
+        user?.id ?? null,
+        student.user_id
+      ),
+      listAssignableClassesForStudentManager(
+        adminClient,
+        user?.id ?? null,
+        student.user_id
+      ),
+      listStudentActivityForManager(
+        adminClient,
+        user?.id ?? null,
+        student.user_id
+      ),
+    ]);
 
   const academicResults = await Promise.all(
     joinedClasses.map(async (classRow) => {
       const academic = await getStudentClassAcademicDetailForManager(
-        adminClient, user?.id ?? null,
+        adminClient,
+        user?.id ?? null,
         classRow.class_id,
         student.user_id
       );
@@ -55,7 +77,9 @@ export default async function ManagerStudentDetailPage({
     <StudentDetailsPanel
       student={student}
       stats={stats}
+      availableClasses={availableClasses}
       classBundles={academicResults}
+      activityRows={activityRows}
     />
   );
 }

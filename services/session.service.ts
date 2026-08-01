@@ -224,18 +224,23 @@ function mapStudentTaskRow(
   };
 }
 
-export async function ensureSessionAttendeesForEnrolledStudents(
+/**
+ * Ensure attendee rows exist for current class members only.
+ * Binary membership: any student_class row counts. Does not remove rows for
+ * former members — historical attendance remains.
+ */
+export async function ensureSessionAttendeesForMembers(
   adminClient: Supabase,
   sessionId: string,
   classId: string
 ): Promise<void> {
-  const [enrolledResult, attendeesResult] = await Promise.all([
-    studentClassRepository.listEnrolledUserIdsByClassId(adminClient, classId),
+  const [membersResult, attendeesResult] = await Promise.all([
+    studentClassRepository.listMemberUserIdsByClassId(adminClient, classId),
     attendeeRepository.listAttendeesBySessionId(adminClient, sessionId),
   ]);
 
-  if (enrolledResult.error) {
-    throw new Error(enrolledResult.error.message);
+  if (membersResult.error) {
+    throw new Error(membersResult.error.message);
   }
 
   if (attendeesResult.error) {
@@ -245,7 +250,7 @@ export async function ensureSessionAttendeesForEnrolledStudents(
   const existing = new Set(
     (attendeesResult.data ?? []).map((row) => row.student_id)
   );
-  const missing = (enrolledResult.data ?? [])
+  const missing = (membersResult.data ?? [])
     .map((row) => row.user_id)
     .filter((userId) => !existing.has(userId));
 
@@ -460,7 +465,7 @@ export async function getSessionDetailForManager(
     return null;
   }
 
-  await ensureSessionAttendeesForEnrolledStudents(
+  await ensureSessionAttendeesForMembers(
     adminClient,
     sessionId,
     classId
@@ -1117,20 +1122,20 @@ export async function createSessionTaskForManager(
     };
   }
 
-  const enrolledResult =
-    await studentClassRepository.listEnrolledUserIdsByClassId(
+  const membersResult =
+    await studentClassRepository.listMemberUserIdsByClassId(
       adminClient,
       input.class_id
     );
 
-  if (enrolledResult.error) {
-    return { success: false, error: enrolledResult.error.message };
+  if (membersResult.error) {
+    return { success: false, error: membersResult.error.message };
   }
 
-  const enrolledUserIds = (enrolledResult.data ?? []).map((row) => row.user_id);
+  const memberUserIds = (membersResult.data ?? []).map((row) => row.user_id);
   const gradesResult = await studentTaskRepository.createStudentTasks(
     adminClient,
-    enrolledUserIds.map((studentId) => ({
+    memberUserIds.map((studentId) => ({
       task_id: data.id,
       student_id: studentId,
       status: STUDENT_TASK_STATUSES.PENDING,
@@ -1181,6 +1186,10 @@ export type UpdateAttendeeResult =
     }
   | MutationFailure;
 
+/**
+ * Update an existing attendee row. No membership gate: former members keep
+ * historical rows and those rows remain editable.
+ */
 export async function updateAttendeeForManager(
   adminClient: Supabase,
   actorUserId: string | null,

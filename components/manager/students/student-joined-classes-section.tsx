@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { format } from "date-fns";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon } from "lucide-react";
+import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import {
   Tabs as TabsPrimitive,
@@ -15,26 +17,39 @@ import { ClassCourseGradeSection } from "@/components/manager/students/class-cou
 import { ClassFinalExamStudentSection } from "@/components/manager/students/class-final-exam-student-section";
 import { ClassGroupGradesSection } from "@/components/manager/students/class-group-grades-section";
 import { ClassTasksSection } from "@/components/manager/students/class-tasks-section";
-import { StudentClassStatusBadge } from "@/components/manager/students/student-class-status-badge";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
-import { MANAGER_CLASSES_MOCK, getManagerClassOption } from "@/lib/constants/manager-classes-mock";
 import {
-  MANAGER_STUDENT_CLASS_TAB_ACTIVE_RING,
-  MANAGER_STUDENT_CLASS_TAB_STATUS_DOT,
-  MANAGER_STUDENT_CLASS_STATUS_LABELS,
-} from "@/lib/constants/manager-student-class-display";
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
+import {
+  MANAGER_CLASS_STATUS_BADGE_CLASSES,
+  MANAGER_CLASS_STATUS_DOT_CLASSES,
+  MANAGER_CLASS_STATUS_LABELS,
+} from "@/lib/constants/manager-class-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { cn } from "@/lib/utils";
+import type { ManagerClassOption } from "@/types/manager-class";
+import type { RemoveStudentFromClassActionState } from "@/types/manager-class-detail";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 import type { ManagerStudentClassAcademicBundle } from "@/types/manager-student-class-detail";
 
+const initialRemoveState: RemoveStudentFromClassActionState = {};
+
 type StudentJoinedClassesSectionProps = {
-  userId: string;
+  studentProfileId: string;
   initialClasses: ManagerStudentClassRow[];
+  availableClasses: ManagerClassOption[];
   classBundles: ManagerStudentClassAcademicBundle[];
 };
 
@@ -57,10 +72,25 @@ function ClassDetailField({
   );
 }
 
+function ClassStatusBadge({ status }: { status: ManagerStudentClassRow["class_status"] }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-md px-2 py-0.5 text-xs font-medium capitalize",
+        MANAGER_CLASS_STATUS_BADGE_CLASSES[status]
+      )}
+    >
+      {MANAGER_CLASS_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
 function ClassTabPanel({
   bundle,
+  onRemove,
 }: {
   bundle: ManagerStudentClassAcademicBundle;
+  onRemove: () => void;
 }) {
   const { classRow, detail, finalExam, studentFinalExamGrade } = bundle;
 
@@ -69,14 +99,23 @@ function ClassTabPanel({
       <dl className="grid gap-4 rounded-lg bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <ClassDetailField label="Class name" value={classRow.name} />
         <ClassDetailField label="Subject" value={classRow.subject_name} />
-        <ClassDetailField label="Status">
-          <StudentClassStatusBadge status={classRow.status} />
+        <ClassDetailField label="Class status">
+          <ClassStatusBadge status={classRow.class_status} />
         </ClassDetailField>
         <ClassDetailField
           label="Joined"
           value={format(new Date(classRow.joined_at), "MMM d, yyyy")}
         />
       </dl>
+
+      <div className="flex justify-end">
+        <Can permission={PERMISSIONS.CLASSES_REMOVE_STUDENT}>
+          <Button type="button" variant="destructive" onClick={onRemove}>
+            <Trash2Icon data-icon="inline-start" />
+            Remove from class
+          </Button>
+        </Can>
+      </div>
 
       <ClassAttendanceSection detail={detail} />
       <ClassGroupGradesSection groupGradeSlots={detail.groupGradeSlots} />
@@ -91,11 +130,21 @@ function ClassTabPanel({
 }
 
 export function StudentJoinedClassesSection({
-  userId,
+  studentProfileId,
   initialClasses,
+  availableClasses,
   classBundles,
 }: StudentJoinedClassesSectionProps) {
-  void userId;
+  const router = useRouter();
+  const [isTransitionPending, startTransition] = useTransition();
+  const [removeState, removeAction, isRemovePending] = useActionState(
+    removeStudentFromClassAction,
+    initialRemoveState
+  );
+  const isPending = isRemovePending || isTransitionPending;
+
+  useActionStateToast(removeState, isPending);
+
   const [classes, setClasses] = useState<ManagerStudentClassRow[]>(initialClasses);
   const [prevInitialClasses, setPrevInitialClasses] =
     useState<ManagerStudentClassRow[]>(initialClasses);
@@ -103,7 +152,13 @@ export function StudentJoinedClassesSection({
     useState<ManagerStudentClassAcademicBundle[]>(classBundles);
   const [prevClassBundles, setPrevClassBundles] =
     useState<ManagerStudentClassAcademicBundle[]>(classBundles);
+  const [assignableClasses, setAssignableClasses] =
+    useState(availableClasses);
+  const [prevAvailableClasses, setPrevAvailableClasses] =
+    useState(availableClasses);
   const [isAssignClassOpen, setIsAssignClassOpen] = useState(false);
+  const [removingClass, setRemovingClass] =
+    useState<ManagerStudentClassRow | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>(
     () => classes[0]?.id ?? null
   );
@@ -115,6 +170,15 @@ export function StudentJoinedClassesSection({
         : classes[0]!.id;
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
+  const handleRemoveOpenChange = usePendingAwareOpenChange(
+    isPending,
+    (open) => {
+      if (!open) {
+        setRemovingClass(null);
+      }
+    }
+  );
+
   if (initialClasses !== prevInitialClasses) {
     setPrevInitialClasses(initialClasses);
     setClasses(initialClasses);
@@ -125,17 +189,29 @@ export function StudentJoinedClassesSection({
     setBundles(classBundles);
   }
 
-  const enrolledClassIds = useMemo(
-    () => new Set(classes.map((classRow) => classRow.class_id)),
-    [classes]
-  );
+  if (availableClasses !== prevAvailableClasses) {
+    setPrevAvailableClasses(availableClasses);
+    setAssignableClasses(availableClasses);
+  }
 
-  const availableClasses = useMemo(
-    () =>
-      MANAGER_CLASSES_MOCK.filter(
-        (classOption) => !enrolledClassIds.has(classOption.class_id)
-      ),
-    [enrolledClassIds]
+  useActionStateSuccess(
+    removeState,
+    isPending,
+    (nextState) => {
+      if (!nextState.removedStudentId) {
+        return;
+      }
+
+      const removedId = nextState.removedStudentId;
+      const nextClasses = classes.filter((row) => row.id !== removedId);
+      setClasses(nextClasses);
+      setBundles((current) =>
+        current.filter((bundle) => bundle.classRow.id !== removedId)
+      );
+      setRemovingClass(null);
+      router.refresh();
+    },
+    (nextState) => Boolean(nextState.success && nextState.removedStudentId)
   );
 
   const activeBundle =
@@ -151,24 +227,18 @@ export function StudentJoinedClassesSection({
     });
   }, [resolvedActiveTab]);
 
-  function handleAssignClass(classId: string) {
-    const classOption = getManagerClassOption(classId);
-    if (!classOption) {
+  function handleConfirmRemove() {
+    if (!removingClass) {
       return;
     }
 
-    const enrollment: ManagerStudentClassRow = {
-      id: crypto.randomUUID(),
-      class_id: classOption.class_id,
-      name: classOption.name,
-      subject_name: classOption.subject_name,
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
-      joined_at: new Date().toISOString(),
-    };
+    const formData = new FormData();
+    formData.set("id", removingClass.id);
+    formData.set("class_id", removingClass.class_id);
 
-    setClasses((current) => [...current, enrollment]);
-    setActiveTab(enrollment.id);
-    showSuccessToast("Class assigned to the student.");
+    startTransition(() => {
+      removeAction(formData);
+    });
   }
 
   return (
@@ -176,15 +246,59 @@ export function StudentJoinedClassesSection({
       <AssignStudentClassDialog
         open={isAssignClassOpen}
         onOpenChange={setIsAssignClassOpen}
-        availableClasses={availableClasses}
-        onAssignClass={handleAssignClass}
+        studentProfileId={studentProfileId}
+        availableClasses={assignableClasses}
+        onAssigned={() => {
+          router.refresh();
+        }}
       />
+
+      <Dialog
+        open={removingClass !== null}
+        onOpenChange={handleRemoveOpenChange}
+      >
+        <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+          <DialogHeader>
+            <DialogTitle>Remove from class</DialogTitle>
+            <DialogDescription>
+              Remove this student from {removingClass?.name ?? "this class"}?
+              Membership ends; billing and payment phase records are kept if
+              any exist. Academic history (tasks, attendance, grades) remains.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleRemoveOpenChange(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmRemove}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <InlineSpinner />
+                  Removing
+                </>
+              ) : (
+                "Remove"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="min-w-0 max-w-full overflow-hidden py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle>Joined classes</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Select a class below. Use arrows or drag to browse enrolled classes.
+            Select a class below. Use arrows or drag to browse memberships.
           </p>
           <CardAction className="self-center">
             <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
@@ -199,7 +313,7 @@ export function StudentJoinedClassesSection({
           {classes.length === 0 ? (
             <div className="min-w-0 max-w-full border-b bg-muted/25 px-4 py-3">
               <p className="rounded-xl bg-muted/60 px-4 py-8 text-center text-sm text-muted-foreground ring-1 ring-foreground/8">
-                No classes assigned yet. Use Assign class to enroll this student.
+                No classes assigned yet. Use Assign class to add this student.
               </p>
             </div>
           ) : (
@@ -228,22 +342,27 @@ export function StudentJoinedClassesSection({
                         className={cn(
                           "group inline-flex max-w-none shrink-0 flex-none items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition-all duration-200",
                           "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
-                          "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-muted/60",
-                          "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                          MANAGER_STUDENT_CLASS_TAB_ACTIVE_RING[classRow.status]
+                          "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md data-[state=active]:ring-2 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-muted/60 data-[state=active]:ring-border/40",
+                          "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         )}
                       >
                         <span
                           className={cn(
                             "size-2 shrink-0 rounded-full",
-                            MANAGER_STUDENT_CLASS_TAB_STATUS_DOT[classRow.status]
+                            MANAGER_CLASS_STATUS_DOT_CLASSES[
+                              classRow.class_status
+                            ]
                           )}
                           aria-hidden="true"
                         />
                         <span className="flex flex-col items-start leading-tight">
                           <span className="whitespace-nowrap">{classRow.name}</span>
                           <span className="text-[10px] font-normal text-muted-foreground group-data-[state=active]:text-foreground/70">
-                            {MANAGER_STUDENT_CLASS_STATUS_LABELS[classRow.status]}
+                            {
+                              MANAGER_CLASS_STATUS_LABELS[
+                                classRow.class_status
+                              ]
+                            }
                           </span>
                         </span>
                       </TabsTriggerPrimitive>
@@ -254,7 +373,10 @@ export function StudentJoinedClassesSection({
 
               {activeBundle ? (
                 <div className="min-w-0 px-4 py-6">
-                  <ClassTabPanel bundle={activeBundle} />
+                  <ClassTabPanel
+                    bundle={activeBundle}
+                    onRemove={() => setRemovingClass(activeBundle.classRow)}
+                  />
                 </div>
               ) : null}
             </TabsPrimitive>

@@ -34,6 +34,21 @@ export type ManagerMissingSppRow = {
   payment_phase_name: string;
 };
 
+export type ManagerSppSemesterMismatchRow = {
+  spp_id: string;
+  student_id: string;
+  student_profile_id: string | null;
+  student_label: string;
+  payment_phase_id: string;
+  payment_phase_name: string;
+  phase_semester_id: string;
+  phase_semester_name: string;
+  current_class_id: string;
+  current_class_name: string;
+  current_semester_id: string | null;
+  current_semester_name: string;
+};
+
 export type ManagerPaymentPhaseSemesterOption = {
   id: string;
   name: string;
@@ -70,6 +85,16 @@ export type RepairMissingSppActionState = {
   error?: string;
   message?: string;
   fieldErrors?: FieldErrors;
+};
+
+export type TransferSppActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  spp_id?: string;
+  from_payment_phase_id?: string;
+  to_payment_phase_id?: string;
 };
 
 export type UpdatePaymentPhaseActionState = {

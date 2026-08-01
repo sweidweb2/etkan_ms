@@ -1,4 +1,4 @@
-import type { StudentClassStatusValue } from "@/lib/constants/manager-student-class-status";
+import type { ClassStatusValue } from "@/lib/constants/manager-class-status";
 
 /** Joined class row for manager student detail tabs (student_class + class + subject). */
 export interface ManagerStudentClassRow {
@@ -6,6 +6,6 @@ export interface ManagerStudentClassRow {
   class_id: string;
   name: string;
   subject_name: string;
-  status: StudentClassStatusValue;
+  class_status: ClassStatusValue;
   joined_at: string;
 }

@@ -93,7 +93,7 @@ Format: `key` — label — access
 | `classes.assign_teacher` | Assign teacher | write |
 | `classes.unassign_teacher` | Unassign teacher | write |
 | `classes.add_student` | Add student to class | write |
-| `classes.change_enrollment` | Change student enrollment status | write |
+| `classes.remove_student` | Remove student from class | write |
 | `classes.view_analytics` | View class analytics | read |
 
 ### Sessions
@@ -200,6 +200,7 @@ Format: `key` — label — access
 | `accounting.payment_phases.create` | Create payment phase | write |
 | `accounting.payment_phases.update` | Edit payment phase | write |
 | `accounting.payment_phases.cancel` | Cancel payment phase | write |
+| `accounting.spp.transfer` | Transfer student payment phase | write |
 | `accounting.payments.create` | Record student payment | write |
 | `accounting.payments.update` | Edit student payment | write |
 | `accounting.payments.delete` | Delete student payment | write |
@@ -283,7 +284,7 @@ classes.change_status
 classes.assign_teacher
 classes.unassign_teacher
 classes.add_student
-classes.change_enrollment
+classes.remove_student
 classes.view_analytics
 sessions.view
 sessions.create
@@ -335,6 +336,7 @@ accounting.view
 accounting.payment_phases.create
 accounting.payment_phases.update
 accounting.payment_phases.cancel
+accounting.spp.transfer
 accounting.payments.create
 accounting.payments.update
 accounting.payments.delete

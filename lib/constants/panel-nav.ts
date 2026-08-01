@@ -273,6 +273,11 @@ export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
       icon: "calculator",
     },
     {
+      title: "Activity",
+      href: ROUTES.STUDENT_ACTIVITY,
+      icon: "logs",
+    },
+    {
       title: "Analytics",
       href: ROUTES.STUDENT_ANALYTICS,
       icon: "analytics",

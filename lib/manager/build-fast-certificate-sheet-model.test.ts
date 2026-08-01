@@ -29,7 +29,6 @@ const student: ManagerClassStudentRow = {
   username: "sara",
   email: "sara@example.com",
   phone: null,
-  enrollment_status: "active",
   joined_at: "2026-02-01T00:00:00.000Z",
 };
 

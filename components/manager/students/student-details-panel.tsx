@@ -8,6 +8,7 @@ import { Can } from "@/components/auth/can";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
 import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
 import { StudentBorrowedEquipmentSection } from "@/components/manager/students/student-borrowed-equipment-section";
+import { StudentActivitySection } from "@/components/manager/students/student-activity-section";
 import { StudentJoinedClassesSection } from "@/components/manager/students/student-joined-classes-section";
 import { StudentDetailStatCard } from "@/components/manager/students/student-detail-stat-card";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
@@ -31,12 +32,16 @@ import type {
   ManagerStudentDetailStats,
   ManagerStudentRow,
 } from "@/types/manager-student";
+import type { ManagerStudentActivityRow } from "@/types/manager-student-activity";
+import type { ManagerClassOption } from "@/types/manager-class";
 import type { ManagerStudentClassAcademicBundle } from "@/types/manager-student-class-detail";
 
 type StudentDetailsPanelProps = {
   student: ManagerStudentRow;
   stats: ManagerStudentDetailStats;
+  availableClasses: ManagerClassOption[];
   classBundles: ManagerStudentClassAcademicBundle[];
+  activityRows: ManagerStudentActivityRow[];
 };
 
 function DetailField({
@@ -69,7 +74,9 @@ function formatBirthDate(value: string | null) {
 export function StudentDetailsPanel({
   student: initialStudent,
   stats,
+  availableClasses,
   classBundles,
+  activityRows,
 }: StudentDetailsPanelProps) {
   const router = useRouter();
   const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
@@ -190,8 +197,9 @@ export function StudentDetailsPanel({
         className="scroll-mt-6"
       >
         <StudentJoinedClassesSection
-          userId={student.user_id}
+          studentProfileId={student.student_profile_id}
           initialClasses={classBundles.map((bundle) => bundle.classRow)}
+          availableClasses={availableClasses}
           classBundles={classBundles}
         />
       </div>
@@ -201,6 +209,13 @@ export function StudentDetailsPanel({
         className="scroll-mt-6"
       >
         <StudentBorrowedEquipmentSection userId={student.user_id} />
+      </div>
+
+      <div
+        id={STUDENT_DETAILS_SECTION_IDS.activity}
+        className="scroll-mt-6"
+      >
+        <StudentActivitySection rows={activityRows} />
       </div>
     </div>
   );

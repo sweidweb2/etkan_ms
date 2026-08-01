@@ -99,7 +99,7 @@ export const PERMISSIONS = {
   CLASSES_ASSIGN_TEACHER: "classes.assign_teacher",
   CLASSES_UNASSIGN_TEACHER: "classes.unassign_teacher",
   CLASSES_ADD_STUDENT: "classes.add_student",
-  CLASSES_CHANGE_ENROLLMENT: "classes.change_enrollment",
+  CLASSES_REMOVE_STUDENT: "classes.remove_student",
   CLASSES_VIEW_ANALYTICS: "classes.view_analytics",
 
   SESSIONS_VIEW: "sessions.view",
@@ -162,6 +162,7 @@ export const PERMISSIONS = {
   ACCOUNTING_PAYMENT_PHASES_CREATE: "accounting.payment_phases.create",
   ACCOUNTING_PAYMENT_PHASES_UPDATE: "accounting.payment_phases.update",
   ACCOUNTING_PAYMENT_PHASES_CANCEL: "accounting.payment_phases.cancel",
+  ACCOUNTING_SPP_TRANSFER: "accounting.spp.transfer",
   ACCOUNTING_PAYMENTS_CREATE: "accounting.payments.create",
   ACCOUNTING_PAYMENTS_UPDATE: "accounting.payments.update",
   ACCOUNTING_PAYMENTS_DELETE: "accounting.payments.delete",
@@ -343,9 +344,9 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     access: PERMISSION_ACCESS.WRITE,
   },
   {
-    key: PERMISSIONS.CLASSES_CHANGE_ENROLLMENT,
+    key: PERMISSIONS.CLASSES_REMOVE_STUDENT,
     feature: "classes",
-    label: "Change student enrollment status",
+    label: "Remove student from class",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
@@ -663,6 +664,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CANCEL,
     feature: "accounting",
     label: "Cancel payment phase",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_SPP_TRANSFER,
+    feature: "accounting",
+    label: "Transfer student payment phase",
     access: PERMISSION_ACCESS.WRITE,
   },
   {

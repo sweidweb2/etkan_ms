@@ -17,6 +17,7 @@ import {
   ChevronRightIcon,
   EyeIcon,
   PencilIcon,
+  ArrowRightLeftIcon,
   SearchIcon,
 } from "lucide-react";
 import { cancelPaymentPhaseAction } from "@/app/manager/accounting/actions";
@@ -25,6 +26,7 @@ import { CreateStudentPaymentDialog } from "@/components/manager/accounting/crea
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
+import { TransferSppDialog } from "@/components/manager/accounting/transfer-spp-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
@@ -111,6 +113,7 @@ const STATUS_FILTER_SELECT_ITEMS = [
 type PaymentPhaseDetailsPanelProps = {
   phase: ManagerPaymentPhaseRow;
   initialSpps: ManagerSppRow[];
+  transferPhaseOptions: ManagerPaymentPhaseRow[];
   actorLabel: string;
 };
 
@@ -205,6 +208,7 @@ function matchesSppSearch(spp: ManagerSppRow, query: string) {
 export function PaymentPhaseDetailsPanel({
   phase: initialPhase,
   initialSpps,
+  transferPhaseOptions,
   actorLabel,
 }: PaymentPhaseDetailsPanelProps) {
   const router = useRouter();
@@ -215,6 +219,9 @@ export function PaymentPhaseDetailsPanel({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [recordPaymentSppId, setRecordPaymentSppId] = useState<string | null>(
+    null
+  );
+  const [transferringSpp, setTransferringSpp] = useState<ManagerSppRow | null>(
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
@@ -366,6 +373,18 @@ export function PaymentPhaseDetailsPanel({
           sppId={recordPaymentSppId ?? ""}
           defaultReceivedBy={actorLabel}
           onCreated={handlePaymentCreated}
+        />
+
+        <TransferSppDialog
+          open={transferringSpp !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setTransferringSpp(null);
+            }
+          }}
+          spp={transferringSpp}
+          sourcePhaseId={phase.id}
+          phases={transferPhaseOptions}
         />
 
         <Dialog open={isCancelOpen} onOpenChange={handleCancelOpenChange}>
@@ -658,6 +677,32 @@ export function PaymentPhaseDetailsPanel({
                                     <BanknoteIcon />
                                   </TooltipTrigger>
                                   <TooltipContent>Record payment</TooltipContent>
+                                </Tooltip>
+                              </Can>
+                            ) : null}
+                            {spp.status !==
+                            STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ? (
+                              <Can
+                                permission={PERMISSIONS.ACCOUNTING_SPP_TRANSFER}
+                              >
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={`Transfer payment phase for ${spp.student_label}`}
+                                        className="text-muted-foreground hover:text-foreground"
+                                        onClick={() => setTransferringSpp(spp)}
+                                      />
+                                    }
+                                  >
+                                    <ArrowRightLeftIcon />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Transfer payment phase
+                                  </TooltipContent>
                                 </Tooltip>
                               </Can>
                             ) : null}

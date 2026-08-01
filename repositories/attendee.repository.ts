@@ -53,6 +53,13 @@ export async function listAttendeesBySessionId(
     .order("created_at", { ascending: true });
 }
 
+export async function listAttendeeIdsByStudentId(
+  client: Supabase,
+  studentId: string
+) {
+  return client.from("attendee").select("id").eq("student_id", studentId);
+}
+
 export async function findAttendeeById(client: Supabase, id: string) {
   return client
     .from("attendee")

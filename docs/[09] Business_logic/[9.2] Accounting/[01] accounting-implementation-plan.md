@@ -15,7 +15,7 @@ Accounting bills **per semester**. A manager opens one **active** Payment Phase 
 | Layer | Owner | Status model |
 |-------|--------|--------------|
 | `payment_phases` | Semester (`semester_id` FK) + copied `semester_code` | `opened` \| `closed` \| `cancelled` — **automatic** except cancel |
-| `student_payment_phases` | Student × phase | `pending` \| `partially_paid` \| `paid` \| `cancelled` — **automatic** except cancel-on-leave |
+| `student_payment_phases` | Student × phase | `pending` \| `partially_paid` \| `paid` \| `cancelled` — **automatic** (cancel is manual/admin only; **not** on class leave) |
 | `student_payments` | SPP | CRUD; triggers recalc |
 | `student_financial_adjustments` | SPP (**≤ 1**) | CRUD; triggers recalc |
 | `student_financial_forms` | Adjustment (optional aid form) | CRUD with adjustment |
@@ -35,8 +35,10 @@ semesters
                     └── student_financial_forms (0..1)
 
 classes (status = in_progress, semester_id)
-  └── operational source of enrolled students for SPP create / missing / enroll sync
+  └── operational source of **class members** (`student_class` row exists; no enrollment status) for SPP create / missing / join sync
 ```
+
+> **Membership model (2026-08-01):** `student_class` is binary (in class / not). Leaving a class **keeps** SPP + payments. See `docs/[12] Plans/[01] student-class-binary-membership-and-spp-transfer.md`.
 
 ### 1.1 Payment Phase
 
@@ -45,7 +47,7 @@ classes (status = in_progress, semester_id)
 | Scope | Belongs to one **semester** (`semester_id` NOT NULL FK → `semesters`) |
 | Soft code copy | Keep **`semester_code`** copied from the semester at create |
 | Cardinality | **At most one `opened` phase per semester** (partial unique index) |
-| Create side-effect | Create an SPP for every student with `student_class.status = enrolled` on the semester’s **in-progress** class (oldest `created_at` if multiple; none if zero) |
+| Create side-effect | Create an SPP for every student with a `student_class` row on the semester’s **in-progress** class (oldest `created_at` if multiple; none if zero) |
 | Status | Fully automatic among `opened` / `closed`; manager may only **cancel** |
 | `closed` meaning | Business “Completed”: every **active** (non-cancelled) SPP is `paid` |
 | Reopen | Any event that makes an active SPP unpaid again → phase `closed` → `opened` |
@@ -57,7 +59,7 @@ classes (status = in_progress, semester_id)
 | `pending` | Final due &gt; 0 and total paid = 0 |
 | `partially_paid` | 0 &lt; total paid &lt; final due |
 | `paid` | total paid ≥ final due (includes overpay / credit) |
-| `cancelled` | Student left the billing (in-progress) class / assignment voided — excluded from phase completion |
+| `cancelled` | Assignment voided by manager (or legacy); **not** auto-set on class leave — excluded from phase completion |
 
 Financial summary (always recalculated):
 
@@ -77,25 +79,26 @@ Financial summary (always recalculated):
 
 **Overpayments allowed:** remaining &lt; 0 → UI “Credit” badge; SPP status still `paid`.
 
-### 1.3 Enrollment sync (edge cases — mandatory)
+### 1.3 Class membership sync (edge cases — mandatory)
 
 | Event | Behavior |
 |-------|----------|
-| Phase created for semester | Insert SPP for each enrolled student on the semester’s **in-progress** class (if any) |
-| Student enrolled into the in-progress class (late join) | If semester has `opened` **or** `closed` phase: create SPP; if phase was `closed`, **reopen** to `opened` + recalc |
-| Student enrolled into a non–in-progress class | No payment sync |
-| Student paused / stopped / removed from the in-progress class | Mark their SPP `cancelled` (if any for that semester’s phase); recalc phase |
-| Student re-enrolls on the in-progress class after leave | **Reactivate** the cancelled SPP (recalc from existing payments/adjustments); do not insert a second row |
-| Student changes class (transfer) | = leave old class (cancel old SPP if it was the billing class); **do not** auto-create SPP on new class — manager assigns manually if needed |
-| Class status becomes `in_progress` | At most **one** in-progress class per semester (reject second). Backfill SPPs for enrolled students on the semester’s sync phase |
+| Phase created for semester | Insert SPP for each **member** of the semester’s **in-progress** class (if any) |
+| Student joins the in-progress class (late join / rejoin) | If semester has `opened` **or** `closed` phase: **reuse** existing SPP for that student×phase if any; else **create**. If phase was `closed` and student is unpaid → **reopen** to `opened` + recalc. At most **one** SPP per student per phase |
+| Student joins a non–in-progress class | No payment sync |
+| Student leaves / is removed from a class | Delete `student_class` only. **Keep** SPP + payments + adjustments. Recalc phase status (student may still be billed while out of class) |
+| Student changes class (transfer) | Membership move only; **keep** SPP as-is (no cancel, no auto-create on destination). Manager may **transfer SPP** manually between payment phases |
+| Class status becomes `in_progress` | At most **one** in-progress class per semester (reject second). Backfill/reuse SPPs for current members on the semester’s sync phase |
 | Semester has `cancelled` phase only | Late join does **not** auto-create; manager must create/open a new phase |
 | Multiple historical phases | Sync attaches only to the semester’s **current non-cancelled** phase: prefer `opened`, else `closed` (reopen path). Never attach to `cancelled` |
-| Payment sync throws on enroll/leave/transfer/backfill | Enrollment/status change **still succeeds**; audit warning + UI `warning` toast; Missing-SPP + Repair remain the safety net |
+| Payment sync throws on join/leave/transfer/backfill | Membership change **still succeeds**; audit warning + UI `warning` toast; Missing-SPP + Repair / SPP transfer remain safety nets |
+
+**Accounting UI (Phase E done):** “students without an active class” (no in-progress membership, may still be billed) is separate from “SPP semester mismatch” (SPP on semester A while member of a class on semester B). SPP **Transfer** is available on phase detail. Full task list: `docs/[12] Plans/[01] student-class-binary-membership-and-spp-transfer.md`.
 
 ### 1.4 What managers cannot do
 
 - Manually set Payment Phase to `closed` / `opened` (except cancel → `cancelled`, and system reopen from `closed`)
-- Manually set SPP to `pending` / `partially_paid` / `paid` (except cancel via leave flow)
+- Manually set SPP to `pending` / `partially_paid` / `paid` (cancel is manager/admin policy only — **not** via class leave)
 - Have two `opened` phases on the same semester
 - Have two financial adjustments on the same SPP
 
@@ -198,7 +201,7 @@ Actions: Create, open detail, cancel (permission-gated).
 
 Definition (locked for v1):
 
-> `student_class.status = enrolled`  
+> `student_class` row exists (binary membership; no status)  
 > AND class is the semester’s **in-progress** class for a payment phase with `status = opened`  
 > AND no `student_payment_phases` row for that `(student_id, payment_phase_id)`  
 > (excluding cancelled-only mismatches — they should not appear if sync worked)
@@ -239,8 +242,8 @@ Follow Etkan layers:
 Hook points in existing class enrollment services:
 
 - After successful **enroll / bulk enroll** → `accountingSync.onStudentJoinedClass`
-- After **pause / stop / remove** → `accountingSync.onStudentLeftClass`
-- Class transfer (if exists) → leave old only
+- After **remove** (delete membership) → `accountingSync.onStudentLeftClass` (keeps SPP; recalc phase)
+- Class transfer → leave old (retain SPP) + destination join with `skipPaymentSync: true` (no auto-create)
 
 ---
 
@@ -309,7 +312,7 @@ Hook points in existing class enrollment services:
 ### Phase 5 — Enrollment sync & edge-case hardening
 
 - [x] **T5.1** Hook enroll → auto SPP + reopen closed phase
-- [x] **T5.2** Hook leave / pause / stop → cancel SPP + recalc (phase may close if all remaining paid)
+- [x] **T5.2** Hook remove → keep SPP + recalc (phase may stay `opened` if that SPP unpaid; may close if all remaining active SPPs paid)
 - [x] **T5.3** Class change = leave only (no auto-assign on new class)
 - [x] **T5.4** Missing-SPP repair action uses same sync helper
 - [x] **T5.5** Service tests for: late join on closed phase, leave last unpaid student, overpay, amount edit after payments, delete payment reopening phase
@@ -337,8 +340,8 @@ Hook points in existing class enrollment services:
 | E3 | Late enroll on semester’s in-progress class while phase `opened` | New SPP `pending` |
 | E4 | Late enroll on semester’s in-progress class while phase `closed` | Phase → `opened`, new SPP `pending` |
 | E5 | Late enroll while only `cancelled` phase | No auto SPP |
-| E6 | Student leaves / stopped | SPP → `cancelled`; if others all `paid` → phase `closed` |
-| E7 | Student transferred to another class | Old SPP cancelled; destination enroll skips payment sync (no auto SPP) |
+| E6 | Student leaves / removed from class | Membership deleted; **SPP kept** (not cancelled); phase recalc; may stay `opened` if that SPP unpaid |
+| E7 | Student transferred to another class | SPP unchanged; destination join does not auto-create SPP; mismatch UI / manual SPP transfer if semesters differ |
 | E8 | Pay full amount | SPP `paid`; if all active paid → phase `closed` |
 | E9 | Overpay | `remaining < 0`, SPP `paid`, Credit badge (`has_credit`) |
 | E10 | Delete payment after phase closed | SPP may leave `paid`; phase reopens |
@@ -384,7 +387,7 @@ Start implementation at **Phase 0 → Phase 1** so the Accounting page becomes t
 | Business “Completed” | DB status `closed` |
 | Empty class after all leave | Phase stays `opened` until manager cancels (or all were paid then `closed` with zero active SPPs — prefer **cancel manually**) |
 | Cancelled phase + existing payments | Keep payment rows; block new payments |
-| Who is “enrolled” for auto SPP | `student_class.status = enrolled` only |
+| Who is a member for auto SPP | Any `student_class` row on the semester’s in-progress class (no status column) |
 | Amount source of truth | Live from `payment_phases.amount` (no SPP amount snapshot) |
 | Cancelled SPP then re-enroll | Reactivate same SPP (recalc; keep payment history) |
 | In-progress classes per semester | At most one; becoming `in_progress` backfills SPPs for sync phase |

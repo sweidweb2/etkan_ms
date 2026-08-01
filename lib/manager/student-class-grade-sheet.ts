@@ -167,7 +167,7 @@ export function buildStudentClassGradeSheetModel({
       className: classRow.name,
       subjectName: classRow.subject_name,
       semesterName: classRow.semester_name ?? "—",
-      enrollmentStatus: student.enrollment_status,
+      enrollmentStatus: "Member",
       joinedAt: student.joined_at,
       computeType: courseGrade?.type ?? null,
       totalGrade: previewTotal,

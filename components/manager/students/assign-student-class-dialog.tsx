@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { addStudentToClassAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,25 +20,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ManagerClassOption } from "@/types/manager-class";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   assignStudentClassSchema,
   type AssignStudentClassInput,
 } from "@/lib/validators/manager/assign-student-class";
+import type { ManagerClassOption } from "@/types/manager-class";
+import type { AddStudentToClassActionState } from "@/types/manager-class-detail";
+
+const initialState: AddStudentToClassActionState = {};
 
 type AssignStudentClassDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  studentProfileId: string;
   availableClasses: ManagerClassOption[];
-  onAssignClass: (classId: string) => void;
+  onAssigned: () => void;
 };
 
 export function AssignStudentClassDialog({
   open,
   onOpenChange,
+  studentProfileId,
   availableClasses,
-  onAssignClass,
+  onAssigned,
 }: AssignStudentClassDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    addStudentToClassAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+
+  useActionStateToast(state, isPending);
+
   const {
     handleSubmit,
     reset,
@@ -57,33 +77,46 @@ export function AssignStudentClassDialog({
   const hasAvailableClasses = availableClasses.length > 0;
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
       reset({ classId: "" });
     }
   }, [open, reset]);
 
+  useActionStateSuccess(state, isPending, () => {
+    onOpenChange(false);
+    onAssigned();
+  });
+
   function onSubmit(values: AssignStudentClassInput) {
-    const isAlreadyListed = !availableClasses.some(
+    const isStillAvailable = availableClasses.some(
       (item) => item.class_id === values.classId
     );
 
-    if (isAlreadyListed) {
+    if (!isStillAvailable) {
       setError("classId", { message: "This class is no longer available." });
       return;
     }
 
-    onAssignClass(values.classId);
-    onOpenChange(false);
+    const formData = new FormData();
+    formData.set("class_id", values.classId);
+    formData.append("studentProfileIds", studentProfileId);
+
+    startTransition(() => {
+      formAction(formData);
+    });
   }
 
+  const classError =
+    errors.classId?.message ?? state.fieldErrors?.studentProfileIds?.[0];
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Assign class</DialogTitle>
           <DialogDescription>
-            Enroll this student via student_class. Only the class is selected
-            here — status and joined date will be set by the backend.
+            Add this student as a member of the selected class. Billing sync
+            runs for the class semester when applicable.
           </DialogDescription>
         </DialogHeader>
 
@@ -97,7 +130,7 @@ export function AssignStudentClassDialog({
             <FieldLabel
               htmlFor="assign-student-class-id"
               label="Class"
-              hint="Required · maps to student_class.class_id"
+              hint="Required"
             />
             {hasAvailableClasses ? (
               <Select
@@ -109,11 +142,12 @@ export function AssignStudentClassDialog({
 
                   setValue("classId", value, { shouldValidate: true });
                 }}
+                disabled={isPending}
               >
                 <SelectTrigger
                   id="assign-student-class-id"
                   className="w-full"
-                  aria-invalid={!!errors.classId}
+                  aria-invalid={!!classError}
                 >
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
@@ -130,11 +164,11 @@ export function AssignStudentClassDialog({
               </Select>
             ) : (
               <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
-                This student is already enrolled in every available class.
+                This student is already a member of every available class.
               </p>
             )}
-            {errors.classId ? (
-              <p className="text-sm text-destructive">{errors.classId.message}</p>
+            {classError ? (
+              <p className="text-sm text-destructive">{classError}</p>
             ) : null}
           </div>
         </form>
@@ -143,16 +177,24 @@ export function AssignStudentClassDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             form="assign-student-class-form"
-            disabled={!hasAvailableClasses}
+            disabled={!hasAvailableClasses || isPending}
           >
-            Assign class
+            {isPending ? (
+              <>
+                <InlineSpinner />
+                Assigning
+              </>
+            ) : (
+              "Assign class"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

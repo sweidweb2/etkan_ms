@@ -85,7 +85,7 @@ Acceptance scenarios **E1–E15** are referenced where they apply (see plan §8)
 Services assert permissions; UI uses `<Can>`.
 
 ### Caveats / risks
-- Enrollment sync is triggered from **class** actions (`CLASSES_*`), not accounting permissions — correct, but managers without accounting rights can still cause SPP create/cancel via enroll/leave/transfer.
+- Enrollment sync is triggered from **class** actions (`CLASSES_*`), not accounting permissions — correct, but managers without accounting rights can still cause SPP **create** on join and phase **recalc** on leave/transfer (leave does **not** cancel SPP).
 - CEO `/ceo/accounting-analysis` is **not** this feature (placeholder / separate surface).
 
 ### Proof
@@ -102,7 +102,7 @@ Services assert permissions; UI uses `<Can>`.
 ### What works
 - Manager picks a **semester** (picker excludes semesters that already have an opened phase / missing code)
 - Copies `semester_code`; creates phase as `opened`
-- Seeds one SPP per `student_class.status = enrolled` on the resolved **in-progress** class (**E1**)
+- Seeds one SPP per **`student_class` membership row** on the resolved **in-progress** class (**E1**; binary membership — no enrollment status)
 - Rejects second opened phase for the same semester (**E2**)
 - If **no** in-progress class: phase still creates with **zero** SPPs (intentional)
 
@@ -185,27 +185,30 @@ Services assert permissions; UI uses `<Can>`.
 
 ## Task 7 — Enrollment sync (join / leave / transfer)
 
-**Status:** Working
+**Status:** Updated 2026-08-01 (Phase B) — leave **retains** SPP; join/rejoin **reuses** existing SPP
+
+> Full tasks: `docs/[12] Plans/[01] student-class-binary-membership-and-spp-transfer.md`  
+> Domain lock: `docs/[09] Business_logic/[9.2] Accounting/[01] accounting-implementation-plan.md` §1.3
 
 ### What works
 | Event | Behavior |
 |-------|----------|
-| Join **in-progress** class, phase `opened` | New SPP `pending` (**E3**) |
-| Join in-progress, phase `closed` | Reopen phase + new SPP (**E4**) |
+| Join **in-progress** class, phase `opened` | Reuse existing SPP or create `pending` (**E3**) |
+| Join in-progress, phase `closed` | Reopen phase + reuse/create SPP (**E4**) |
 | Join when only `cancelled` phase exists | No auto SPP (**E5**) |
 | Join **non**–in-progress class | No payment sync |
-| Leave / pause / stop on billing class | SPP → `cancelled`; phase may `closed` if remaining actives all paid (**E6**) |
-| Re-enroll after leave (same phase) | Reactivate cancelled SPP (recalc; keep payments) |
-| Transfer | Leave sync on source; destination enroll with **`skipPaymentSync: true`** (**E7**) |
-| Class → `in_progress` | Reject second in-progress per semester; backfill SPPs for sync phase |
-| Sync throws | Enrollment/status still succeeds; audit + toast `warning` |
+| Leave / removed from billing class | Membership deleted; **SPP kept**; phase recalc (**E6**) |
+| Rejoin after leave (same phase) | Reuse existing SPP (reactivate only if legacy cancelled) |
+| Transfer | Leave retains SPP; destination enroll with **`skipPaymentSync: true`** (**E7**) |
+| Class → `in_progress` | Reject second in-progress per semester; backfill/reuse SPPs for sync phase |
+| Sync throws | Membership change still succeeds; audit + toast `warning` |
 
 ### Remaining caveat
-- Transfer intentionally does **not** bill the destination class even if it is in-progress (product lock).
+- Transfer intentionally does **not** bill the destination class even if it is in-progress (product lock). Manual SPP transfer + semester-mismatch section are **done** (Phase E): Transfer dialog on phase detail; mismatch list separate from “students without an active class”.
 
 ### Proof
 - `services/accounting-sync.service.ts` + tests
-- `services/class.service.ts` (hooks + transfer + status)
+- `services/class.service.ts` (hooks + transfer)
 - `services/transfer-student-accounting.test.ts`
 - `services/class-status-accounting.test.ts`
 
@@ -237,7 +240,7 @@ Services assert permissions; UI uses `<Can>`.
 **Status:** Working
 
 ### What works
-- SPP status derived from final due vs total paid (except leave → `cancelled`)
+- SPP status derived from final due vs total paid (leave does **not** set `cancelled`; only due vs paid / manager cancel)
 - Phase `closed` iff every **active** (non-cancelled) SPP is `paid`
 - Recalc orchestration after payment / adjustment / phase amount edit / sync
 
@@ -273,13 +276,13 @@ Services assert permissions; UI uses `<Can>`.
 
 | # | Working? | Notes |
 |---|----------|--------|
-| E1 | Yes | Unit: create seeds from in-progress enrolled |
+| E1 | Yes | Unit: create seeds from in-progress members |
 | E2 | Yes | Per **semester** uniqueness |
 | E3 | Yes | Join sync |
 | E4 | Yes | Join + reopen closed |
 | E5 | Yes | No sync target when only cancelled |
-| E6 | Yes | Leave cancel + optional phase close |
-| E7 | Yes | Transfer test: leave sync, no join sync |
+| E6 | Yes | Leave keeps SPP; phase recalc (may stay open if unpaid) |
+| E7 | Yes | Leave retains SPP; destination `skipPaymentSync`; optional manual SPP transfer |
 | E8 | Yes | Pay full + close |
 | E9 | Yes | Overpay + `has_credit` on detail DTO |
 | E10 | Yes | Delete payment reopens |
@@ -346,6 +349,6 @@ From plan §9 — **not missing bugs**:
 
 ## Bottom line
 
-For the **stated manager Accounting requirements**, the feature is **working end-to-end**: semester-scoped phases, derived statuses, payments, one adjustment, enrollment sync on the in-progress class, transfer skip-sync, missing/repair safety net, UX polish, plus hardening for sync warnings, cancelled-SPP reactivation, one in-progress class per semester, and status→in_progress backfill.
+For the **stated manager Accounting requirements**, the feature is **working end-to-end**: semester-scoped phases, derived statuses, payments, one adjustment, enrollment sync on the in-progress class (**leave retains SPP**), transfer skip-sync, manual **SPP Transfer** + semester-mismatch / without-active-class lists, missing/repair safety net, UX polish, plus hardening for sync warnings, cancelled-SPP reactivation, one in-progress class per semester, and status→in_progress backfill.
 
 Still deferred / by design: **print/export (T6.3)**, **live phase amount** (no per-student freeze), **no Playwright E2E**, and transfer **does not** auto-bill the destination class.

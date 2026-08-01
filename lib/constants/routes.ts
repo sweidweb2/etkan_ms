@@ -78,6 +78,7 @@ export const ROUTES = {
   STUDENT_DASHBOARD: "/student/dashboard",
   STUDENT_CLASSES: "/student/classes",
   STUDENT_FINANCE: "/student/finance",
+  STUDENT_ACTIVITY: "/student/activity",
   STUDENT_ANALYTICS: "/student/analytics",
   STUDENT_NOTIFICATIONS: "/student/notifications",
 } as const;

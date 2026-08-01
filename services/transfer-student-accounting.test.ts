@@ -28,7 +28,7 @@ vi.mock("@/services/student.service", () => ({
 vi.mock("@/services/session.service", () => ({
   seedLateJoinAttendeesForStudent: vi.fn().mockResolvedValue(undefined),
   seedLateJoinStudentTasksForStudent: vi.fn().mockResolvedValue(undefined),
-  ensureSessionAttendeesForEnrolledStudents: vi.fn(),
+  ensureSessionAttendeesForMembers: vi.fn(),
 }));
 vi.mock("@/services/class-computed-grade-lock.service", () => ({
   assertClassStructureUnlockedForComputedGrades: vi.fn(),
@@ -84,7 +84,7 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
     vi.mocked(accountingSync.onStudentLeftClass).mockResolvedValue({
       phase: null,
       spp: null,
-      cancelled: true,
+      retained: true,
     } as never);
     vi.mocked(accountingSync.onStudentJoinedClass).mockResolvedValue({
       phase: null,
@@ -100,7 +100,7 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
     ).mockResolvedValue(undefined as never);
   });
 
-  it("cancels source payment sync and skips destination payment sync", async () => {
+  it("retains source payment sync and skips destination payment sync", async () => {
     vi.mocked(classRepository.findClassDetailById).mockImplementation(
       async (_client, classId) =>
         ({
@@ -144,7 +144,6 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
             id: fromEnrollmentId,
             user_id: userId,
             class_id: fromClassId,
-            status: "enrolled",
             joined_at: "2026-01-01T00:00:00.000Z",
           },
           error: null,
@@ -163,21 +162,18 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
       } as never;
     });
 
-    vi.mocked(studentClassRepository.updateStudentClassStatus).mockResolvedValue(
-      {
-        data: {
-          id: fromEnrollmentId,
-          user_id: userId,
-          class_id: fromClassId,
-          status: "stopped",
-          joined_at: "2026-01-01T00:00:00.000Z",
-        },
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never
-    );
+    vi.mocked(studentClassRepository.deleteStudentClassById).mockResolvedValue({
+      data: {
+        id: fromEnrollmentId,
+        user_id: userId,
+        class_id: fromClassId,
+        joined_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
 
     vi.mocked(
       studentClassRepository.createStudentClassEnrollment
@@ -186,7 +182,6 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
         id: toEnrollmentId,
         user_id: userId,
         class_id: toClassId,
-        status: "enrolled",
         joined_at: "2026-07-31T00:00:00.000Z",
       },
       error: null,
@@ -268,6 +263,13 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
       { studentId: userId, classId: fromClassId },
       actor
     );
+    const leaveResult = await vi.mocked(accountingSync.onStudentLeftClass).mock
+      .results[0]?.value;
+    expect(leaveResult).toEqual(
+      expect.objectContaining({
+        retained: true,
+      })
+    );
     expect(accountingSync.onStudentJoinedClass).not.toHaveBeenCalled();
     expect(
       studentClassRepository.createStudentClassEnrollment
@@ -276,8 +278,11 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
       expect.objectContaining({
         user_id: userId,
         class_id: toClassId,
-        status: "enrolled",
       })
+    );
+    expect(studentClassRepository.deleteStudentClassById).toHaveBeenCalledWith(
+      adminClient,
+      fromEnrollmentId
     );
   });
 });

@@ -25,7 +25,7 @@ import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-att
 import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update-class-session";
 import { parseUpdateFinalExamFormData } from "@/lib/validators/manager/update-final-exam";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
-import { parseUpdateStudentClassStatusFormData } from "@/lib/validators/manager/update-student-class-status";
+import { parseRemoveStudentFromClassFormData } from "@/lib/validators/manager/remove-student-from-class";
 import { parseTransferStudentBetweenClassesFormData } from "@/lib/validators/manager/transfer-student-between-classes";
 import {
   parseChangeClassStatusFormData,
@@ -41,7 +41,7 @@ import {
   unassignTeacherFromClassForManager,
   updateClassForManager,
   updateClassStatusForManager,
-  updateClassStudentStatusForManager,
+  removeStudentFromClassForManager,
   updateFinalExamForManager,
   updateStudentFinalExamGradeForManager,
 } from "@/services/class.service";
@@ -63,7 +63,7 @@ import type {
   UnassignClassTeacherActionState,
   UpdateClassActionState,
   UpdateClassStatusActionState,
-  UpdateClassStudentStatusActionState,
+  RemoveStudentFromClassActionState,
   UpdateFinalExamActionState,
   UpdateStudentFinalExamGradeActionState,
 } from "@/types/manager-class-detail";
@@ -396,13 +396,13 @@ export async function addStudentToClassAction(
   };
 }
 
-export async function updateClassStudentStatusAction(
-  _prevState: UpdateClassStudentStatusActionState,
+export async function removeStudentFromClassAction(
+  _prevState: RemoveStudentFromClassActionState,
   formData: FormData
-): Promise<UpdateClassStudentStatusActionState> {
+): Promise<RemoveStudentFromClassActionState> {
   const actor = await getSessionAuditActor();
 
-  const parsed = parseUpdateStudentClassStatusFormData(formData);
+  const parsed = parseRemoveStudentFromClassFormData(formData);
 
   if (!parsed.success) {
     return {
@@ -413,7 +413,7 @@ export async function updateClassStudentStatusAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await updateClassStudentStatusForManager(
+  const result = await removeStudentFromClassForManager(
     adminClient,
     actor.userId,
     actor,
@@ -432,7 +432,7 @@ export async function updateClassStudentStatusAction(
     success: true,
     message: result.message,
     warning: result.warning,
-    student: result.student,
+    removedStudentId: result.removedStudentId,
   };
 }
 

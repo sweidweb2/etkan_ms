@@ -300,14 +300,14 @@ function buildEnrollmentSummary(filters: ReportFilters): ReportRow[] {
         student_name: student.full_name,
         class_name: cls.name,
         subject_name: cls.subject_name,
-        status: cls.status,
+        status: cls.class_status,
         joined_at: formatDate(cls.joined_at),
       };
       allRows.push(row);
 
       if (
         filters.status !== "all" &&
-        cls.status !== filters.status
+        cls.class_status !== filters.status
       ) {
         continue;
       }
@@ -464,7 +464,7 @@ function buildClassRoster(filters: ReportFilters): ReportRow[] {
     return [
       {
         student_name: "Sara Ahmad",
-        status: "enrolled",
+        status: "Member",
         phone: "+961 71 234 567",
         joined_at: formatDate("2025-09-14T08:15:00.000Z"),
       },
@@ -479,7 +479,7 @@ function buildClassRoster(filters: ReportFilters): ReportRow[] {
     if (!match) continue;
     rows.push({
       student_name: student.full_name,
-      status: match.status,
+      status: match.class_status,
       phone: student.phone ?? "—",
       joined_at: formatDate(match.joined_at),
     });
@@ -488,19 +488,19 @@ function buildClassRoster(filters: ReportFilters): ReportRow[] {
   return withMockFallback(rows, [
     {
       student_name: "Sara Ahmad",
-      status: "enrolled",
+      status: "Member",
       phone: "+961 71 234 567",
       joined_at: formatDate("2025-09-14T08:15:00.000Z"),
     },
     {
       student_name: "Omar Khalil",
-      status: "enrolled",
+      status: "Member",
       phone: "+961 76 345 678",
       joined_at: formatDate("2025-09-20T10:00:00.000Z"),
     },
     {
       student_name: "Fatima Zahra",
-      status: "stopped",
+      status: "Member",
       phone: "+961 70 456 789",
       joined_at: formatDate("2025-10-05T16:10:00.000Z"),
     },

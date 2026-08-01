@@ -43,7 +43,7 @@ export async function listSppsByPaymentPhaseIds(
 
   return client
     .from("student_payment_phases")
-    .select("payment_phase_id, status, student_id")
+    .select("id, payment_phase_id, status, student_id")
     .in("payment_phase_id", paymentPhaseIds);
 }
 
@@ -69,6 +69,13 @@ export async function findSppByStudentAndPhase(
     .eq("student_id", studentId)
     .eq("payment_phase_id", paymentPhaseId)
     .maybeSingle();
+}
+
+export async function listSppIdsByStudentId(client: Supabase, studentId: string) {
+  return client
+    .from("student_payment_phases")
+    .select("id")
+    .eq("student_id", studentId);
 }
 
 export async function findSppById(client: Supabase, id: string) {
@@ -165,6 +172,22 @@ export async function updateStudentPaymentPhaseStatus(
     .from("student_payment_phases")
     .update({
       status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(SPP_COLUMNS)
+    .single();
+}
+
+export async function updateStudentPaymentPhasePaymentPhaseId(
+  client: Supabase,
+  id: string,
+  paymentPhaseId: string
+) {
+  return client
+    .from("student_payment_phases")
+    .update({
+      payment_phase_id: paymentPhaseId,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

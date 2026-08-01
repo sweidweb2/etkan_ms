@@ -18,6 +18,7 @@ import { parseCreateStudentPaymentFormData } from "@/lib/validators/manager/crea
 import { parseDeleteFinancialAdjustmentFormData } from "@/lib/validators/manager/delete-financial-adjustment";
 import { parseDeleteStudentPaymentFormData } from "@/lib/validators/manager/delete-student-payment";
 import { parseRepairMissingSppFormData } from "@/lib/validators/manager/repair-missing-spp";
+import { parseTransferSppFormData } from "@/lib/validators/manager/transfer-spp";
 import { parseUpdatePaymentPhaseFormData } from "@/lib/validators/manager/update-payment-phase";
 import { parseUpdateStudentPaymentFormData } from "@/lib/validators/manager/update-student-payment";
 import {
@@ -28,6 +29,7 @@ import {
   cancelPaymentPhaseForManager,
   createPaymentPhaseForManager,
   repairMissingSppForManager,
+  transferStudentPaymentPhaseForManager,
   updatePaymentPhaseForManager,
 } from "@/services/payment-phase.service";
 import {
@@ -52,6 +54,7 @@ import type {
   CancelPaymentPhaseActionState,
   CreatePaymentPhaseActionState,
   RepairMissingSppActionState,
+  TransferSppActionState,
   UpdatePaymentPhaseActionState,
 } from "@/types/manager-payment-phase";
 import type {
@@ -136,6 +139,54 @@ export async function repairMissingSppAction(
   return {
     success: true,
     message: result.message,
+  };
+}
+
+export async function transferSppAction(
+  _prevState: TransferSppActionState,
+  formData: FormData
+): Promise<TransferSppActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseTransferSppFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await transferStudentPaymentPhaseForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(
+    getManagerAccountingPhaseDetailRoute(result.from_payment_phase_id)
+  );
+  revalidatePath(
+    getManagerAccountingPhaseDetailRoute(result.to_payment_phase_id)
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    spp_id: result.spp_id,
+    from_payment_phase_id: result.from_payment_phase_id,
+    to_payment_phase_id: result.to_payment_phase_id,
   };
 }
 

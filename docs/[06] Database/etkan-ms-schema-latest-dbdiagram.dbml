@@ -73,8 +73,9 @@ Table student_class {
   id uuid [pk, default: `gen_random_uuid()`]
   user_id uuid [not null]
   class_id uuid [not null]
-  status text [not null, default: 'enrolled']
   joined_at timestamp [default: `now()`]
+
+  Note: 'Binary membership: row exists = student is in the class (no status column).'
 
   indexes {
     (user_id, class_id) [unique]

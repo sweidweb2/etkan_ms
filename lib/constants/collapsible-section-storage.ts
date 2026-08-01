@@ -17,8 +17,11 @@ export const COLLAPSIBLE_SECTION_STORAGE_KEYS = {
   ACCOUNTING_OVERVIEW: "etkan:collapsible:accounting:overview",
   ACCOUNTING_PAYMENT_PHASES: "etkan:collapsible:accounting:payment-phases",
   ACCOUNTING_MISSING_SPP: "etkan:collapsible:accounting:missing-spp",
+  ACCOUNTING_SPP_SEMESTER_MISMATCH:
+    "etkan:collapsible:accounting:spp-semester-mismatch",
   ACCOUNTING_STUDENTS_WITHOUT_ACTIVE_CLASS:
     "etkan:collapsible:accounting:students-without-active-class",
   CLASSES_STUDENTS_WITHOUT_ACTIVE_CLASS:
     "etkan:collapsible:classes:students-without-active-class",
+  STUDENT_DETAILS_ACTIVITY: "etkan:collapsible:student-details:activity",
 } as const;

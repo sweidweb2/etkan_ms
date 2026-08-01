@@ -49,6 +49,20 @@ export async function listAdjustmentsBySppIds(
     .in("student_payment_phase_id", sppIds);
 }
 
+export async function listAdjustmentIdsBySppIds(
+  client: Supabase,
+  sppIds: string[]
+) {
+  if (sppIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("student_financial_adjustments")
+    .select("id")
+    .in("student_payment_phase_id", sppIds);
+}
+
 export async function findAdjustmentBySppId(client: Supabase, sppId: string) {
   return client
     .from("student_financial_adjustments")

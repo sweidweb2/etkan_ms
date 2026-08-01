@@ -51,6 +51,13 @@ export async function countStudentTasksByStudentId(
     .eq("student_id", studentId);
 }
 
+export async function listStudentTaskIdsByStudentId(
+  client: Supabase,
+  studentId: string
+) {
+  return client.from("student_tasks").select("id").eq("student_id", studentId);
+}
+
 export async function countStudentTasksDoneByStudentId(
   client: Supabase,
   studentId: string

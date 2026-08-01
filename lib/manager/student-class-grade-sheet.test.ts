@@ -30,7 +30,6 @@ const student: ManagerClassStudentRow = {
   username: "sara",
   email: "sara@example.com",
   phone: null,
-  enrollment_status: "active",
   joined_at: "2026-02-01T00:00:00.000Z",
 };
 
@@ -109,7 +108,7 @@ describe("buildStudentClassGradeSheetModel", () => {
       username: student.username,
       email: student.email,
       phone: student.phone,
-      enrollment_status: student.enrollment_status,
+      enrollment_status: "Member",
       is_computed: false,
       total_grade: null,
       task_total_grade: 87.5,
@@ -157,7 +156,7 @@ describe("buildStudentClassGradeSheetModel", () => {
       username: student.username,
       email: student.email,
       phone: student.phone,
-      enrollment_status: student.enrollment_status,
+      enrollment_status: "Member",
       is_computed: true,
       total_grade: 88,
       task_total_grade: 90,

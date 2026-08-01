@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import { ROLES } from "@/lib/constants/roles";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import type { AuditActor } from "@/services/audit-log.service";
@@ -61,7 +60,7 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
     vi.resetAllMocks();
   });
 
-  it("excludes paused and stopped members via all-status helper", async () => {
+  it("excludes any current class members from available list", async () => {
     vi.mocked(
       studentClassRepository.listStudentUserIdsByClassId
     ).mockResolvedValue({
@@ -80,8 +79,8 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
       {
         id: "sp-2",
         user_id: pausedUserId,
-        full_name: "Paused",
-        username: "paused",
+        full_name: "Also member",
+        username: "member2",
         email: "p@example.com",
         phone: null,
       },
@@ -105,13 +104,13 @@ describe("listAvailableStudentsForClass enrollment membership", () => {
       studentClassRepository.listStudentUserIdsByClassId
     ).toHaveBeenCalledWith(adminClient, classId);
     expect(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).not.toHaveBeenCalled();
     expect(result.map((row) => row.user_id)).toEqual([outsideUserId]);
   });
 });
 
-describe("computeAllStudentCourseGradesForManager enrollment filter", () => {
+describe("computeAllStudentCourseGradesForManager membership filter", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(classService.assertClassGradesUnlockedForManager).mockResolvedValue(
@@ -119,7 +118,7 @@ describe("computeAllStudentCourseGradesForManager enrollment filter", () => {
     );
   });
 
-  it("skips paused/stopped ids and does not attempt compute for them", async () => {
+  it("skips user ids that are not class members", async () => {
     vi.mocked(
       studentClassRepository.listStudentClassesByClassId
     ).mockResolvedValue({
@@ -128,14 +127,6 @@ describe("computeAllStudentCourseGradesForManager enrollment filter", () => {
           id: "enrollment-1",
           user_id: enrolledUserId,
           class_id: classId,
-          status: STUDENT_CLASS_STATUSES.ENROLLED,
-          joined_at: "2026-02-01T00:00:00.000Z",
-        },
-        {
-          id: "enrollment-2",
-          user_id: pausedUserId,
-          class_id: classId,
-          status: STUDENT_CLASS_STATUSES.PAUSED,
           joined_at: "2026-02-01T00:00:00.000Z",
         },
       ],

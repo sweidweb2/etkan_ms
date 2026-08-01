@@ -79,7 +79,7 @@ export const MANAGER_REPORT_DEFINITIONS: ReportDefinition[] = [
     id: "at_risk_students",
     category: "student",
     label: "At-risk students",
-    description: "Students with low grades, incomplete tasks, or paused enrollments.",
+    description: "Students with low grades, incomplete tasks, or other risk signals.",
     columns: [
       { key: "student_name", label: "Student" },
       { key: "risk_reason", label: "Risk factor" },

@@ -1,4 +1,4 @@
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
+import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 
 const DEFAULT_STUDENT_CLASSES: ManagerStudentClassRow[] = [
@@ -7,7 +7,7 @@ const DEFAULT_STUDENT_CLASSES: ManagerStudentClassRow[] = [
     class_id: "cls-default-1",
     name: "Math Fundamentals A",
     subject_name: "Mathematics",
-    status: STUDENT_CLASS_STATUSES.ENROLLED,
+    class_status: CLASS_STATUSES.IN_PROGRESS,
     joined_at: "2025-09-15T08:00:00.000Z",
   },
   {
@@ -15,7 +15,7 @@ const DEFAULT_STUDENT_CLASSES: ManagerStudentClassRow[] = [
     class_id: "cls-default-2",
     name: "English Composition",
     subject_name: "English",
-    status: STUDENT_CLASS_STATUSES.PAUSED,
+    class_status: CLASS_STATUSES.PAUSED,
     joined_at: "2025-10-01T10:00:00.000Z",
   },
   {
@@ -23,7 +23,7 @@ const DEFAULT_STUDENT_CLASSES: ManagerStudentClassRow[] = [
     class_id: "cls-default-3",
     name: "Physics Lab",
     subject_name: "Physics",
-    status: STUDENT_CLASS_STATUSES.ENROLLED,
+    class_status: CLASS_STATUSES.IN_PROGRESS,
     joined_at: "2025-10-12T14:30:00.000Z",
   },
   {
@@ -31,7 +31,7 @@ const DEFAULT_STUDENT_CLASSES: ManagerStudentClassRow[] = [
     class_id: "cls-default-4",
     name: "World History",
     subject_name: "History",
-    status: STUDENT_CLASS_STATUSES.STOPPED,
+    class_status: CLASS_STATUSES.DONE,
     joined_at: "2025-08-20T09:00:00.000Z",
   },
 ];
@@ -47,7 +47,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-math-adv",
       name: "Advanced Algebra II",
       subject_name: "Mathematics",
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
+      class_status: CLASS_STATUSES.IN_PROGRESS,
       joined_at: "2025-09-12T08:30:00.000Z",
     },
     {
@@ -55,7 +55,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-eng-lit",
       name: "English Literature",
       subject_name: "English",
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
+      class_status: CLASS_STATUSES.IN_PROGRESS,
       joined_at: "2025-09-12T08:30:00.000Z",
     },
     {
@@ -63,7 +63,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-phys-1",
       name: "Physics — Mechanics",
       subject_name: "Physics",
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
+      class_status: CLASS_STATUSES.IN_PROGRESS,
       joined_at: "2025-09-20T11:00:00.000Z",
     },
     {
@@ -71,7 +71,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-chem-org",
       name: "Organic Chemistry Intro",
       subject_name: "Chemistry",
-      status: STUDENT_CLASS_STATUSES.PAUSED,
+      class_status: CLASS_STATUSES.PAUSED,
       joined_at: "2025-11-05T09:15:00.000Z",
     },
     {
@@ -79,7 +79,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-bio-cell",
       name: "Cell Biology",
       subject_name: "Biology",
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
+      class_status: CLASS_STATUSES.IN_PROGRESS,
       joined_at: "2025-10-02T13:45:00.000Z",
     },
     {
@@ -87,7 +87,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-cs-py",
       name: "Python Programming",
       subject_name: "Computer Science",
-      status: STUDENT_CLASS_STATUSES.STOPPED,
+      class_status: CLASS_STATUSES.DONE,
       joined_at: "2025-06-01T07:00:00.000Z",
     },
     {
@@ -95,7 +95,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-art-studio",
       name: "Studio Art & Design",
       subject_name: "Fine Arts",
-      status: STUDENT_CLASS_STATUSES.PAUSED,
+      class_status: CLASS_STATUSES.PAUSED,
       joined_at: "2025-09-25T15:20:00.000Z",
     },
     {
@@ -103,7 +103,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-pe-fit",
       name: "Physical Education",
       subject_name: "Sports",
-      status: STUDENT_CLASS_STATUSES.STOPPED,
+      class_status: CLASS_STATUSES.DONE,
       joined_at: "2025-09-12T08:30:00.000Z",
     },
   ],
@@ -113,7 +113,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-math-geo",
       name: "Geometry",
       subject_name: "Mathematics",
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
+      class_status: CLASS_STATUSES.IN_PROGRESS,
       joined_at: "2025-09-14T10:45:00.000Z",
     },
     {
@@ -121,7 +121,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-eng-write",
       name: "Creative Writing",
       subject_name: "English",
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
+      class_status: CLASS_STATUSES.IN_PROGRESS,
       joined_at: "2025-09-14T10:45:00.000Z",
     },
     {
@@ -129,7 +129,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-hist-mod",
       name: "Modern History",
       subject_name: "History",
-      status: STUDENT_CLASS_STATUSES.PAUSED,
+      class_status: CLASS_STATUSES.PAUSED,
       joined_at: "2025-11-01T08:00:00.000Z",
     },
     {
@@ -137,7 +137,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-music-theory",
       name: "Music Theory",
       subject_name: "Music",
-      status: STUDENT_CLASS_STATUSES.ENROLLED,
+      class_status: CLASS_STATUSES.IN_PROGRESS,
       joined_at: "2025-10-10T12:00:00.000Z",
     },
     {
@@ -145,7 +145,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-arabic-lit",
       name: "Arabic Literature",
       subject_name: "Arabic",
-      status: STUDENT_CLASS_STATUSES.STOPPED,
+      class_status: CLASS_STATUSES.DONE,
       joined_at: "2025-05-18T09:00:00.000Z",
     },
     {
@@ -153,7 +153,7 @@ export const MANAGER_STUDENT_CLASSES_MOCK: Record<
       class_id: "cls-pe-swim",
       name: "Swimming",
       subject_name: "Sports",
-      status: STUDENT_CLASS_STATUSES.STOPPED,
+      class_status: CLASS_STATUSES.DONE,
       joined_at: "2025-04-02T08:00:00.000Z",
     },
   ],

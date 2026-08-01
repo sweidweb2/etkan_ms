@@ -23,7 +23,7 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 ### Academics
 
 - [ ] **Subjects** — `/manager/subjects`: list, detail, create, edit, delete (when allowed)
-- [ ] **Classes** — `/manager/classes`: create/edit class, assign/unassign teacher, add student, change enrollment
+- [ ] **Classes** — `/manager/classes`: create/edit class, assign/unassign teacher, add student, remove student / transfer
 - [ ] **Class deep path** — class → session → attendance → task → final exam → compute grade → export certificate / fast certificate
 - [ ] **Semesters** — `/manager/semesters`: create/edit, add student, connect class
 - [ ] **Equipment** — `/manager/equipments`: create/edit; `/manager/equipments/borrow`: borrow, edit, return

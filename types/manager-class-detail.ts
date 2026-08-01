@@ -117,13 +117,13 @@ export type UnassignClassTeacherActionState = {
   classRow?: ManagerClassRow;
 };
 
-export type UpdateClassStudentStatusActionState = {
+export type RemoveStudentFromClassActionState = {
   success?: boolean;
   error?: string;
   message?: string;
   warning?: string;
   fieldErrors?: FieldErrors;
-  student?: ManagerClassStudentRow;
+  removedStudentId?: string;
 };
 
 export type TransferStudentBetweenClassesActionState = {

@@ -14,7 +14,8 @@ import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-att
 import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
 import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update-class-session";
-import { parseUpdateStudentClassStatusFormData } from "@/lib/validators/manager/update-student-class-status";
+import { parseRemoveStudentFromClassFormData } from "@/lib/validators/manager/remove-student-from-class";
+import { parseTransferSppFormData } from "@/lib/validators/manager/transfer-spp";
 import { parseCreateNotificationFormData } from "@/lib/validators/manager/create-notification";
 import { parseUpdateNotificationFormData } from "@/lib/validators/manager/update-notification";
 import { parseNotificationIdFormData } from "@/lib/validators/manager/notification-id";
@@ -808,40 +809,52 @@ describe("createEditStudentFinalExamGradeSchema", () => {
   });
 });
 
-describe("parseUpdateStudentClassStatusFormData", () => {
-  it("parses enrollment status update", () => {
+describe("parseRemoveStudentFromClassFormData", () => {
+  it("parses remove student form data", () => {
     const formData = new FormData();
     formData.set("id", relationshipId);
     formData.set("class_id", relationshipId);
-    formData.set("status", "enrolled");
 
-    const result = parseUpdateStudentClassStatusFormData(formData);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.status).toBe("enrolled");
-    }
-  });
-
-  it("parses paused enrollment status", () => {
-    const formData = new FormData();
-    formData.set("id", relationshipId);
-    formData.set("class_id", relationshipId);
-    formData.set("status", "paused");
-
-    const result = parseUpdateStudentClassStatusFormData(formData);
+    const result = parseRemoveStudentFromClassFormData(formData);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.status).toBe("paused");
+      expect(result.data.id).toBe(relationshipId);
+      expect(result.data.class_id).toBe(relationshipId);
     }
   });
 
   it("rejects missing enrollment or class", () => {
     const formData = new FormData();
-    formData.set("status", "invalid");
+    formData.set("id", "not-a-uuid");
 
-    const result = parseUpdateStudentClassStatusFormData(formData);
+    const result = parseRemoveStudentFromClassFormData(formData);
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("parseTransferSppFormData", () => {
+  it("parses transfer SPP form data", () => {
+    const formData = new FormData();
+    formData.set("spp_id", relationshipId);
+    formData.set("destination_payment_phase_id", relationshipId);
+
+    const result = parseTransferSppFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.spp_id).toBe(relationshipId);
+      expect(result.data.destination_payment_phase_id).toBe(relationshipId);
+    }
+  });
+
+  it("rejects invalid uuids", () => {
+    const formData = new FormData();
+    formData.set("spp_id", "bad");
+    formData.set("destination_payment_phase_id", "also-bad");
+
+    const result = parseTransferSppFormData(formData);
 
     expect(result.success).toBe(false);
   });

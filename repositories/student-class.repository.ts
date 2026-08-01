@@ -1,24 +1,20 @@
-import { STUDENT_CLASS_STATUSES } from "@/lib/constants/manager-student-class-status";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-const STUDENT_CLASS_COLUMNS =
-  "id, user_id, class_id, status, joined_at";
+const STUDENT_CLASS_COLUMNS = "id, user_id, class_id, joined_at";
 
 export type StudentClassRecord = {
   id: string;
   user_id: string;
   class_id: string;
-  status: string | null;
   joined_at: string | null;
 };
 
 export type CreateStudentClassInput = {
   user_id: string;
   class_id: string;
-  status: string;
 };
 
 export async function countStudentClassesByUserId(
@@ -29,18 +25,6 @@ export async function countStudentClassesByUserId(
     .from("student_class")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId);
-}
-
-export async function countStudentClassesByUserIdAndStatus(
-  client: Supabase,
-  userId: string,
-  status: string
-) {
-  return client
-    .from("student_class")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("status", status);
 }
 
 export async function listStudentClassCountsByClassIds(
@@ -87,18 +71,19 @@ export async function listStudentUserIdsByClassId(
   return client.from("student_class").select("user_id").eq("class_id", classId);
 }
 
-export async function listEnrolledUserIdsByClassId(
+/** All members of a class (binary membership: any student_class row). */
+export async function listMemberUserIdsByClassId(
   client: Supabase,
   classId: string
 ) {
   return client
     .from("student_class")
     .select("user_id")
-    .eq("class_id", classId)
-    .eq("status", STUDENT_CLASS_STATUSES.ENROLLED);
+    .eq("class_id", classId);
 }
 
-export async function listEnrolledUserIdsByClassIds(
+/** All members of the given classes (binary membership). */
+export async function listMemberUserIdsByClassIds(
   client: Supabase,
   classIds: string[]
 ) {
@@ -109,8 +94,7 @@ export async function listEnrolledUserIdsByClassIds(
   return client
     .from("student_class")
     .select("user_id, class_id")
-    .in("class_id", classIds)
-    .eq("status", STUDENT_CLASS_STATUSES.ENROLLED);
+    .in("class_id", classIds);
 }
 
 export async function findStudentClassByUserAndClass(
@@ -135,7 +119,6 @@ export async function createStudentClassEnrollment(
     .insert({
       user_id: input.user_id,
       class_id: input.class_id,
-      status: input.status,
     })
     .select(STUDENT_CLASS_COLUMNS)
     .single();
@@ -149,17 +132,13 @@ export async function findStudentClassById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
-export async function updateStudentClassStatus(
-  client: Supabase,
-  id: string,
-  status: string
-) {
+export async function deleteStudentClassById(client: Supabase, id: string) {
   return client
     .from("student_class")
-    .update({ status })
+    .delete()
     .eq("id", id)
     .select(STUDENT_CLASS_COLUMNS)
-    .single();
+    .maybeSingle();
 }
 
 export async function countStudentClassesByClassId(

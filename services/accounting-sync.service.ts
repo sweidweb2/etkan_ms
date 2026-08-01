@@ -43,7 +43,8 @@ export type JoinSyncResult = {
 export type LeaveSyncResult = {
   phase: SyncTargetPhase | null;
   spp: StudentPaymentPhaseRecord | null;
-  cancelled: boolean;
+  /** True when an active (non-cancelled) SPP was kept after leave. */
+  retained: boolean;
 };
 
 export type BackfillSppsResult = {
@@ -254,9 +255,17 @@ export async function onStudentJoinedClass(
     phase,
   });
 
+  const sppNeedsBilling =
+    !!ensured.spp &&
+    ensured.spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
+    ensured.spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED;
+
   let phaseReopened = false;
   const shouldReopenPhase =
-    wasClosed && (ensured.created || ensured.reactivated);
+    wasClosed &&
+    (ensured.created ||
+      ensured.reactivated ||
+      (ensured.alreadyExisted && sppNeedsBilling));
 
   if (shouldReopenPhase) {
     const { error: reopenError } =
@@ -328,6 +337,8 @@ export async function onStudentJoinedClass(
         class_id: input.classId,
         semester_id: phase.semester_id,
         student_id: input.studentId,
+        spp_reused:
+          ensured.alreadyExisted && !ensured.created && !ensured.reactivated,
       },
     });
   }
@@ -349,7 +360,7 @@ export async function onStudentLeftClass(
   const phase = await findSyncTargetPhaseForClass(adminClient, input.classId);
 
   if (!phase) {
-    return { phase: null, spp: null, cancelled: false };
+    return { phase: null, spp: null, retained: false };
   }
 
   const { data: spp, error: sppError } =
@@ -364,28 +375,15 @@ export async function onStudentLeftClass(
   }
 
   if (!spp) {
-    return { phase, spp: null, cancelled: false };
+    return { phase, spp: null, retained: false };
   }
 
   if (spp.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
     return {
       phase,
       spp: spp as StudentPaymentPhaseRecord,
-      cancelled: false,
+      retained: false,
     };
-  }
-
-  const { data: updated, error: updateError } =
-    await studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus(
-      adminClient,
-      spp.id,
-      STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
-    );
-
-  if (updateError || !updated) {
-    throw new Error(
-      updateError?.message ?? "Unable to cancel student payment phase."
-    );
   }
 
   await recalcPhaseStatusFromSpps(adminClient, phase.id);
@@ -393,23 +391,31 @@ export async function onStudentLeftClass(
   if (actor) {
     await recordManagerAuditLog(adminClient, actor, {
       action: "update",
-      severity: "warning",
+      severity: "info",
       table_name: "student_payment_phases",
-      record_id: updated.id,
-      old_data: { status: spp.status },
-      new_data: { status: STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED },
+      record_id: spp.id,
+      old_data: {
+        status: spp.status,
+        remaining_amount: spp.remaining_amount,
+      },
+      new_data: {
+        status: spp.status,
+        remaining_amount: spp.remaining_amount,
+      },
       metadata: {
-        note: "Student payment phase cancelled from class leave sync.",
+        note: "Student left class; SPP retained.",
+        spp_id: spp.id,
         class_id: input.classId,
         semester_id: phase.semester_id,
+        student_id: input.studentId,
       },
     });
   }
 
   return {
     phase,
-    spp: updated as StudentPaymentPhaseRecord,
-    cancelled: true,
+    spp: spp as StudentPaymentPhaseRecord,
+    retained: true,
   };
 }
 
@@ -429,7 +435,7 @@ export async function backfillSppsForClassBecomeInProgress(
   }
 
   const { data: enrolledRows, error: enrolledError } =
-    await studentClassRepository.listEnrolledUserIdsByClassId(
+    await studentClassRepository.listMemberUserIdsByClassId(
       adminClient,
       classId
     );

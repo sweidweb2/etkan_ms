@@ -802,7 +802,7 @@ export function StudentClassGradeDetailsPanel({
             <DetailField label="Username" value={student.username ?? "—"} />
             <DetailField label="Email" value={student.email} />
             <DetailField label="Phone" value={student.phone ?? "—"} />
-            <DetailField label="Enrollment status" value={student.enrollment_status} />
+            <DetailField label="Membership" value="Member" />
             <DetailField
               label="Joined class"
               value={format(new Date(student.joined_at), "MMM d, yyyy 'at' h:mm a")}

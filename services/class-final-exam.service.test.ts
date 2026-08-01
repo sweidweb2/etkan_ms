@@ -140,7 +140,7 @@ describe("createFinalExamForManager", () => {
       error: null,
     } as never);
     vi.mocked(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).mockResolvedValue({
       data: [{ user_id: studentA }, { user_id: studentB }],
       error: null,
@@ -197,7 +197,7 @@ describe("createFinalExamForManager", () => {
 
     expect(result.success).toBe(true);
     expect(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).toHaveBeenCalledWith(adminClient, classId);
     expect(finalExamRepository.createStudentFinalExamGrades).toHaveBeenCalledWith(
       adminClient,
@@ -246,7 +246,7 @@ describe("createFinalExamForManager", () => {
       error: null,
     } as never);
     vi.mocked(
-      studentClassRepository.listEnrolledUserIdsByClassId
+      studentClassRepository.listMemberUserIdsByClassId
     ).mockResolvedValue({
       data: [{ user_id: studentA }],
       error: null,

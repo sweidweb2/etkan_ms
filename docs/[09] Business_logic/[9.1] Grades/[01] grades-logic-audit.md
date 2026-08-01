@@ -31,9 +31,9 @@ The **persisted compute is a 2-factor model** (tasks + final exam, default **60 
 | Group / attendance in course total | **Not in formula** (UI aligned to 2-factor; JSON columns unused) |
 | Fast certificate vs saved grade | **Done✅** (shared weighted-sum helper) |
 | Final exam metadata edit after compute | **Done✅** (structure-locked) |
-| Paused / stopped students in seeding | **Done✅** (enrolled-only seeding + compute-all skip) |
+| Membership-only seeding / compute-all | **Done✅** (binary `student_class`: row = member) |
 
-**Bottom line:** The core flow works for enrolled students (including late joins with seeded task rows). Orphan grade preview mocks are removed; remaining polish is outside the class-grades path (e.g. reports/dashboard mocks).
+**Bottom line:** The core flow works for current class members (including late joins with seeded task rows). After leave, historical grade rows may remain; removed students are out of seeding/compute-all. Orphan grade preview mocks are removed; remaining polish is outside the class-grades path (e.g. reports/dashboard mocks).
 
 ---
 
@@ -58,7 +58,7 @@ classes
 | Table | Role | Notes |
 |-------|------|-------|
 | `classes` | Shell | `status`: `scheduled \| in_progress \| done \| paused \| stopped` |
-| `student_class` | Enrollment | `status`: `enrolled \| paused \| stopped` |
+| `student_class` | Membership | Binary: **row exists = member** (no `status` column). See binary-membership plan. |
 | `sessions` | Ordered units | `group_grade_level`: categorical `very_low…very_high` (not a per-student score) |
 | `tasks` | Work items | Belong to a session |
 | `student_tasks` | Per-student task grade | `pending \| submitted \| graded \| late \| missing` |
@@ -219,11 +219,11 @@ Source of truth for math: `lib/manager/compute-student-course-grade.ts` (shared 
 
 ### P1 — Risky
 
-#### R1. `listEnrolledUserIdsByClassId` ignores enrollment status — Done✅
+#### R1. Seeding / compute-all use binary membership — Done✅
 
-**Was:** Helper returned all class members; paused/stopped got new tasks/exam/attendee rows and were included in compute-all.
+**Was (historical):** Helpers ignored a multi-status enrollment model; then temporarily filtered `status = enrolled` and skipped paused/stopped.
 
-**Fixed:** `listEnrolledUserIdsByClassId` filters `status = enrolled`. Added `listStudentUserIdsByClassId` (all statuses) for the add-student picker. Compute-all skips non-enrolled (roster/grades list still shows all with badges).
+**Current:** `student_class` is binary (row = member). `listMemberUserIdsByClassId(s)` drives seeding and compute-all for **current members only**. `listStudentUserIdsByClassId` remains for pickers that need all historical membership ids where applicable. Removed students are not on the live roster for new seeds/compute-all; existing academic rows may still be readable after leave.
 
 #### R2. Final exam metadata not structure-locked — Done✅
 
@@ -276,7 +276,7 @@ Source of truth for math: `lib/manager/compute-student-course-grade.ts` (shared 
 | **Done✅** | Student joins after tasks already exist | `student_tasks` seeded (past due → missing+0; else pending) | Grade/adjust seeded rows before compute (`missing` counts as 0) |
 | **Done✅** | Custom per-task weights in compute dialog | Applied to saved `task_total_grade` | Use weights intentionally; recompute after delete if changing weights |
 | **Done✅** | Expect attendance / group level in final % | Not in formula; UI shows 2-factor only | Use Group/Attendance panels as analytics only |
-| **Done✅** | Compute while students are paused/stopped | Not seeded for new work; compute-all skips them | Roster still shows them; use individual compute if needed |
+| **Done✅** | Student left the class (no membership row) | Not seeded for new work; compute-all uses current members only | Historical grades/tasks may remain; rejoin surfaces existing rows |
 | **Risky** | Class not Done | Grades UI locked | Set status to Done only when ready to finalize |
 | **Risky** | Any student already computed | Cannot add sessions/tasks/exam | Delete all computed grades first, or finish structure before first compute |
 | **Risky** | One student computed | Cannot edit that student’s inputs | Delete that student’s computed grade first |
@@ -313,7 +313,7 @@ Actions:
 
 1. ~~**Pick one compute contract and implement it everywhere**~~ — **Done✅** (Option A: 2-factor + weighted tasks; UI aligned).  
 2. ~~**Seed `student_tasks` on late enroll**~~ — **Done✅**.  
-3. ~~**Filter enrollment status**~~ — **Done✅** (enrolled-only seeding; compute-all skips paused/stopped).  
+3. ~~**Membership-only seeding / compute-all**~~ — **Done✅** (binary `student_class`; `listMemberUserIdsByClassId`).  
 4. ~~**Structure-lock `updateFinalExamForManager`**~~ — **Done✅**.  
 5. ~~**Add unique `(user_id, class_id)`** on `student_course_grade`~~ — **Done✅**.  
 6. ~~**Align four-weight student UI copy**~~ — **Done✅** (2-factor display). JSON columns still unused (populate later only if product wants 4-factor).  
