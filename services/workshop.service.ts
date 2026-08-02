@@ -1,7 +1,11 @@
 import {
   WORKSHOP_INSTRUCTOR_ROLE_VALUES,
+  WORKSHOP_PAYMENT_TYPES,
+  WORKSHOP_PAYMENT_TYPE_VALUES,
   WORKSHOP_WAGE_TYPE_VALUES,
   type WorkshopInstructorRole,
+  type WorkshopPaymentMethod,
+  type WorkshopPaymentType,
   type WorkshopWageType,
 } from "@/lib/constants/manager-workshop-display";
 import {
@@ -25,6 +29,11 @@ import {
   uploadWorkshopDocumentSchema,
 } from "@/lib/validators/manager/workshop-document";
 import {
+  createWorkshopPaymentSchema,
+  deleteWorkshopPaymentSchema,
+  updateWorkshopPaymentSchema,
+} from "@/lib/validators/manager/workshop-payment";
+import {
   assertWorkshopStatusTransition,
   formatLocalDateYmd,
 } from "@/lib/manager/workshops/status-transitions";
@@ -37,6 +46,8 @@ import * as workshopDocumentRepository from "@/repositories/workshop-document.re
 import type { WorkshopDocumentRecord } from "@/repositories/workshop-document.repository";
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import type { WorkshopInstructorWithProfileRecord } from "@/repositories/workshop-instructor.repository";
+import * as workshopPaymentRepository from "@/repositories/workshop-payment.repository";
+import type { WorkshopPaymentRecord } from "@/repositories/workshop-payment.repository";
 import * as workshopRepository from "@/repositories/workshop.repository";
 import type { WorkshopRecord } from "@/repositories/workshop.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
@@ -54,6 +65,9 @@ import type {
   ManagerWorkshopDocumentRow,
   ManagerWorkshopInstructorCandidate,
   ManagerWorkshopInstructorRow,
+  ManagerWorkshopPaymentRow,
+  ManagerWorkshopPaymentSummary,
+  ManagerWorkshopPaymentsPageData,
   ManagerWorkshopRow,
 } from "@/types/manager-workshop";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -177,6 +191,36 @@ export type DeleteWorkshopDocumentResult =
   | DeleteWorkshopDocumentSuccess
   | DeleteWorkshopDocumentFailure;
 
+export type WorkshopPaymentMutationSuccess = {
+  success: true;
+  payment: ManagerWorkshopPaymentRow;
+  message: string;
+};
+
+export type WorkshopPaymentMutationFailure = {
+  success: false;
+  error: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type WorkshopPaymentMutationResult =
+  | WorkshopPaymentMutationSuccess
+  | WorkshopPaymentMutationFailure;
+
+export type DeleteWorkshopPaymentSuccess = {
+  success: true;
+  message: string;
+};
+
+export type DeleteWorkshopPaymentFailure = {
+  success: false;
+  error: string;
+};
+
+export type DeleteWorkshopPaymentResult =
+  | DeleteWorkshopPaymentSuccess
+  | DeleteWorkshopPaymentFailure;
+
 export const WORKSHOP_HAS_PAYMENTS_DELETE_ERROR =
   "Remove workshop payments before deleting this workshop.";
 
@@ -268,6 +312,50 @@ function mapWorkshopDocumentRecord(
       ? getWorkshopDocumentPublicUrl(supabaseUrl, record.storage_path)
       : undefined,
   };
+}
+
+function mapPaymentType(type: string): WorkshopPaymentType {
+  if ((WORKSHOP_PAYMENT_TYPE_VALUES as readonly string[]).includes(type)) {
+    return type as WorkshopPaymentType;
+  }
+  return WORKSHOP_PAYMENT_TYPES.CREDIT;
+}
+
+function mapWorkshopPaymentRecord(
+  record: WorkshopPaymentRecord
+): ManagerWorkshopPaymentRow {
+  return {
+    id: record.id,
+    workshop_id: record.workshop_id,
+    amount: Number(record.amount),
+    type: mapPaymentType(record.type),
+    payment_date: record.payment_date,
+    payment_method: record.payment_method as WorkshopPaymentMethod | string | null,
+    notes: record.notes,
+    created_by: record.created_by,
+    created_at: record.created_at,
+  };
+}
+
+export function buildWorkshopPaymentSummary(
+  payments: ManagerWorkshopPaymentRow[],
+  price: number | null
+): ManagerWorkshopPaymentSummary {
+  let credits = 0;
+  let debits = 0;
+
+  for (const payment of payments) {
+    if (payment.type === WORKSHOP_PAYMENT_TYPES.CREDIT) {
+      credits += payment.amount;
+    } else {
+      debits += payment.amount;
+    }
+  }
+
+  const net = credits - debits;
+  const remaining = price == null ? null : price - net;
+
+  return { credits, debits, net, price, remaining };
 }
 
 export async function listWorkshopsForManager(
@@ -1341,5 +1429,313 @@ export async function deleteWorkshopDocumentForManager(
   return {
     success: true,
     message: "Document deleted.",
+  };
+}
+
+export async function getWorkshopPaymentsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  workshopId: string
+): Promise<ManagerWorkshopPaymentsPageData | null> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
+
+  const [workshopResult, paymentsResult] = await Promise.all([
+    workshopRepository.findWorkshopById(adminClient, workshopId),
+    workshopPaymentRepository.listWorkshopPaymentsByWorkshopId(
+      adminClient,
+      workshopId
+    ),
+  ]);
+
+  if (workshopResult.error) {
+    throw new Error(workshopResult.error.message);
+  }
+
+  if (paymentsResult.error) {
+    throw new Error(paymentsResult.error.message);
+  }
+
+  if (!workshopResult.data) {
+    return null;
+  }
+
+  const workshop = mapWorkshopRecordToRow(workshopResult.data);
+  const payments = (paymentsResult.data ?? []).map(mapWorkshopPaymentRecord);
+
+  return {
+    workshop,
+    payments,
+    summary: buildWorkshopPaymentSummary(payments, workshop.price),
+  };
+}
+
+export async function createWorkshopPaymentForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<WorkshopPaymentMutationResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = createWorkshopPaymentSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  const dataInput = parsed.data;
+
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    dataInput.workshop_id
+  );
+
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to create payment.",
+    };
+  }
+
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+
+  const { data, error } = await workshopPaymentRepository.createWorkshopPayment(
+    adminClient,
+    {
+      workshop_id: dataInput.workshop_id,
+      amount: dataInput.amount,
+      type: dataInput.type,
+      payment_date: dataInput.payment_date,
+      payment_method: dataInput.payment_method,
+      notes: dataInput.notes,
+      created_by: actorUserId,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message || "Unable to create payment.",
+    };
+  }
+
+  const payment = mapWorkshopPaymentRecord(data);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "workshop_payments",
+    record_id: payment.id,
+    new_data: {
+      workshop_id: payment.workshop_id,
+      amount: payment.amount,
+      type: payment.type,
+      payment_date: payment.payment_date,
+      payment_method: payment.payment_method,
+    },
+    metadata: { note: "Workshop payment created." },
+  });
+
+  return {
+    success: true,
+    payment,
+    message:
+      payment.type === WORKSHOP_PAYMENT_TYPES.CREDIT
+        ? "Credit recorded."
+        : "Debit recorded.",
+  };
+}
+
+export async function updateWorkshopPaymentForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<WorkshopPaymentMutationResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = updateWorkshopPaymentSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  const dataInput = parsed.data;
+
+  const existing = await workshopPaymentRepository.findWorkshopPaymentById(
+    adminClient,
+    dataInput.id
+  );
+
+  if (existing.error) {
+    return {
+      success: false,
+      error: existing.error.message || "Unable to update payment.",
+    };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Payment not found." };
+  }
+
+  if (existing.data.workshop_id !== dataInput.workshop_id) {
+    return { success: false, error: "Payment not found." };
+  }
+
+  const previous = mapWorkshopPaymentRecord(existing.data);
+
+  const { data, error } =
+    await workshopPaymentRepository.updateWorkshopPaymentById(
+      adminClient,
+      dataInput.id,
+      {
+        amount: dataInput.amount,
+        type: dataInput.type,
+        payment_date: dataInput.payment_date,
+        payment_method: dataInput.payment_method,
+        notes: dataInput.notes,
+      }
+    );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message || "Unable to update payment.",
+    };
+  }
+
+  const payment = mapWorkshopPaymentRecord(data);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "workshop_payments",
+    record_id: payment.id,
+    old_data: {
+      amount: previous.amount,
+      type: previous.type,
+      payment_date: previous.payment_date,
+      payment_method: previous.payment_method,
+      notes: previous.notes,
+    },
+    new_data: {
+      amount: payment.amount,
+      type: payment.type,
+      payment_date: payment.payment_date,
+      payment_method: payment.payment_method,
+      notes: payment.notes,
+    },
+    metadata: { note: "Workshop payment updated." },
+  });
+
+  return {
+    success: true,
+    payment,
+    message: "Payment updated.",
+  };
+}
+
+export async function deleteWorkshopPaymentForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<DeleteWorkshopPaymentResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = deleteWorkshopPaymentSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+    };
+  }
+
+  const dataInput = parsed.data;
+
+  const existing = await workshopPaymentRepository.findWorkshopPaymentById(
+    adminClient,
+    dataInput.id
+  );
+
+  if (existing.error) {
+    return {
+      success: false,
+      error: existing.error.message || "Unable to delete payment.",
+    };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Payment not found." };
+  }
+
+  if (existing.data.workshop_id !== dataInput.workshop_id) {
+    return { success: false, error: "Payment not found." };
+  }
+
+  const previous = mapWorkshopPaymentRecord(existing.data);
+
+  const { error } = await workshopPaymentRepository.deleteWorkshopPaymentById(
+    adminClient,
+    dataInput.id
+  );
+
+  if (error) {
+    return {
+      success: false,
+      error: error.message || "Unable to delete payment.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "warning",
+    table_name: "workshop_payments",
+    record_id: dataInput.id,
+    old_data: {
+      workshop_id: previous.workshop_id,
+      amount: previous.amount,
+      type: previous.type,
+      payment_date: previous.payment_date,
+      payment_method: previous.payment_method,
+    },
+    metadata: { note: "Workshop payment deleted." },
+  });
+
+  return {
+    success: true,
+    message: "Payment deleted.",
   };
 }

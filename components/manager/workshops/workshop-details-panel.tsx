@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { PencilIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, Trash2Icon, WalletIcon } from "lucide-react";
 import { deleteWorkshopAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
@@ -37,7 +38,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ROUTES } from "@/lib/constants/routes";
+import {
+  getManagerWorkshopPaymentsRoute,
+  ROUTES,
+} from "@/lib/constants/routes";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import type {
@@ -232,6 +236,17 @@ export function WorkshopDetailsPanel({
             <WorkshopStatusBadge status={workshop.status} className="w-fit" />
           </div>
           <CardAction className="flex items-center gap-2 self-center">
+            <Button
+              type="button"
+              variant="outline"
+              render={
+                <Link href={getManagerWorkshopPaymentsRoute(workshop.id)} />
+              }
+            >
+              <WalletIcon data-icon="inline-start" />
+              Payments
+              {paymentCount > 0 ? ` (${paymentCount})` : ""}
+            </Button>
             <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
               <Button type="button" onClick={() => setIsEditOpen(true)}>
                 <PencilIcon data-icon="inline-start" />

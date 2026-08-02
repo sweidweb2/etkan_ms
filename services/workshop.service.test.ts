@@ -1,12 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   WORKSHOP_INSTRUCTOR_ROLES,
+  WORKSHOP_PAYMENT_METHODS,
+  WORKSHOP_PAYMENT_TYPES,
   WORKSHOP_WAGE_TYPES,
 } from "@/lib/constants/manager-workshop-display";
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as workshopDocumentRepository from "@/repositories/workshop-document.repository";
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
+import * as workshopPaymentRepository from "@/repositories/workshop-payment.repository";
 import * as workshopRepository from "@/repositories/workshop.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
 import * as auditLogService from "@/services/audit-log.service";
@@ -14,22 +17,28 @@ import type { AuditActor } from "@/services/audit-log.service";
 import {
   WORKSHOP_HAS_PAYMENTS_DELETE_ERROR,
   addWorkshopInstructorForManager,
+  buildWorkshopPaymentSummary,
   changeWorkshopStatusForManager,
   createWorkshopForManager,
+  createWorkshopPaymentForManager,
   deleteWorkshopDocumentForManager,
   deleteWorkshopForManager,
+  deleteWorkshopPaymentForManager,
   getWorkshopForManager,
+  getWorkshopPaymentsPageForManager,
   listWorkshopsForManager,
   removeWorkshopInstructorForManager,
   renameWorkshopDocumentForManager,
   updateWorkshopForManager,
   updateWorkshopInstructorForManager,
+  updateWorkshopPaymentForManager,
   uploadWorkshopDocumentForManager,
 } from "@/services/workshop.service";
 
 vi.mock("@/repositories/workshop.repository");
 vi.mock("@/repositories/workshop-document.repository");
 vi.mock("@/repositories/workshop-instructor.repository");
+vi.mock("@/repositories/workshop-payment.repository");
 vi.mock("@/repositories/workshop-storage.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/services/audit-log.service", () => ({
@@ -56,6 +65,7 @@ const workshopId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 const instructorUserId = "b2b3c4d5-e6f7-8901-bcde-f12345678901";
 const assignmentId = "33333333-3333-4333-8333-333333333333";
 const documentId = "44444444-4444-4444-8444-444444444444";
+const paymentId = "55555555-5555-4555-8555-555555555555";
 
 const workshopRecord = {
   id: workshopId,
@@ -96,6 +106,18 @@ const documentRecord = {
   mime_type: "application/pdf",
   uploaded_by: actor.userId,
   created_at: "2026-01-03T00:00:00.000Z",
+};
+
+const paymentRecord = {
+  id: paymentId,
+  workshop_id: workshopId,
+  amount: 100,
+  type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+  payment_date: "2026-08-01",
+  payment_method: WORKSHOP_PAYMENT_METHODS.CASH,
+  notes: "Deposit",
+  created_by: actor.userId,
+  created_at: "2026-08-01T00:00:00.000Z",
 };
 
 function makePdfFile(name = "syllabus.pdf", sizeBytes = 1024) {
@@ -1012,5 +1034,255 @@ describe("changeWorkshopStatusForManager", () => {
     if (reopenResult.success) {
       expect(reopenResult.workshop.status).toBe(WORKSHOP_STATUSES.DRAFT);
     }
+  });
+});
+
+describe("buildWorkshopPaymentSummary", () => {
+  it("computes credits, debits, net, and remaining vs price", () => {
+    const summary = buildWorkshopPaymentSummary(
+      [
+        {
+          id: paymentId,
+          workshop_id: workshopId,
+          amount: 100,
+          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+          payment_date: "2026-08-01",
+          payment_method: null,
+          notes: null,
+          created_by: null,
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+        {
+          id: "66666666-6666-4666-8666-666666666666",
+          workshop_id: workshopId,
+          amount: 25,
+          type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+          payment_date: "2026-08-02",
+          payment_method: null,
+          notes: null,
+          created_by: null,
+          created_at: "2026-08-02T00:00:00.000Z",
+        },
+      ],
+      150
+    );
+
+    expect(summary).toEqual({
+      credits: 100,
+      debits: 25,
+      net: 75,
+      price: 150,
+      remaining: 75,
+    });
+  });
+});
+
+describe("getWorkshopPaymentsPageForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns workshop payments and summary", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentsByWorkshopId
+    ).mockResolvedValue({
+      data: [
+        paymentRecord,
+        {
+          ...paymentRecord,
+          id: "66666666-6666-4666-8666-666666666666",
+          amount: 20,
+          type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const page = await getWorkshopPaymentsPageForManager(
+      adminClient,
+      actor.userId,
+      workshopId
+    );
+
+    expect(page?.payments).toHaveLength(2);
+    expect(page?.summary.net).toBe(80);
+    expect(page?.summary.remaining).toBe(70);
+  });
+});
+
+describe("createWorkshopPaymentForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("returns unauthorized when actor is missing", async () => {
+    const result = await createWorkshopPaymentForManager(
+      adminClient,
+      null,
+      actor,
+      {
+        workshop_id: workshopId,
+        amount: 100,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-01",
+        payment_method: null,
+        notes: null,
+      }
+    );
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+  });
+
+  it("rejects invalid amount", async () => {
+    const result = await createWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        amount: 0,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-01",
+        payment_method: null,
+        notes: null,
+      }
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("creates a credit payment", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopPaymentRepository.createWorkshopPayment).mockResolvedValue({
+      data: paymentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await createWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        amount: 100,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-01",
+        payment_method: WORKSHOP_PAYMENT_METHODS.CASH,
+        notes: "Deposit",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.message).toBe("Credit recorded.");
+      expect(result.payment.amount).toBe(100);
+    }
+  });
+});
+
+describe("updateWorkshopPaymentForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("updates payment fields", async () => {
+    vi.mocked(workshopPaymentRepository.findWorkshopPaymentById).mockResolvedValue({
+      data: paymentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.updateWorkshopPaymentById
+    ).mockResolvedValue({
+      data: {
+        ...paymentRecord,
+        amount: 120,
+        payment_method: WORKSHOP_PAYMENT_METHODS.CARD,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await updateWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: paymentId,
+        workshop_id: workshopId,
+        amount: 120,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-01",
+        payment_method: WORKSHOP_PAYMENT_METHODS.CARD,
+        notes: "Deposit",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.payment.amount).toBe(120);
+      expect(result.payment.payment_method).toBe(WORKSHOP_PAYMENT_METHODS.CARD);
+    }
+  });
+});
+
+describe("deleteWorkshopPaymentForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("deletes a payment", async () => {
+    vi.mocked(workshopPaymentRepository.findWorkshopPaymentById).mockResolvedValue({
+      data: paymentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.deleteWorkshopPaymentById
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await deleteWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: paymentId, workshop_id: workshopId }
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "Payment deleted.",
+    });
   });
 });

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   getManagerWorkshopDetailRoute,
+  getManagerWorkshopPaymentsRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
@@ -23,27 +24,38 @@ import {
   parseUploadWorkshopDocumentFormData,
 } from "@/lib/validators/manager/workshop-document";
 import {
+  parseCreateWorkshopPaymentFormData,
+  parseDeleteWorkshopPaymentFormData,
+  parseUpdateWorkshopPaymentFormData,
+} from "@/lib/validators/manager/workshop-payment";
+import {
   addWorkshopInstructorForManager,
   changeWorkshopStatusForManager,
   createWorkshopForManager,
+  createWorkshopPaymentForManager,
   deleteWorkshopDocumentForManager,
   deleteWorkshopForManager,
+  deleteWorkshopPaymentForManager,
   removeWorkshopInstructorForManager,
   renameWorkshopDocumentForManager,
   updateWorkshopForManager,
   updateWorkshopInstructorForManager,
+  updateWorkshopPaymentForManager,
   uploadWorkshopDocumentForManager,
 } from "@/services/workshop.service";
 import type {
   AddWorkshopInstructorActionState,
   ChangeWorkshopStatusActionState,
   CreateWorkshopActionState,
+  CreateWorkshopPaymentActionState,
   DeleteWorkshopActionState,
   DeleteWorkshopDocumentActionState,
+  DeleteWorkshopPaymentActionState,
   RemoveWorkshopInstructorActionState,
   RenameWorkshopDocumentActionState,
   UpdateWorkshopActionState,
   UpdateWorkshopInstructorActionState,
+  UpdateWorkshopPaymentActionState,
   UploadWorkshopDocumentActionState,
 } from "@/types/manager-workshop";
 
@@ -447,6 +459,132 @@ export async function deleteWorkshopDocumentAction(
 
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
   revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
+  };
+}
+
+export async function createWorkshopPaymentAction(
+  _prevState: CreateWorkshopPaymentActionState,
+  formData: FormData
+): Promise<CreateWorkshopPaymentActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseCreateWorkshopPaymentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createWorkshopPaymentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(result.payment.workshop_id));
+  revalidatePath(getManagerWorkshopPaymentsRoute(result.payment.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
+    payment: result.payment,
+  };
+}
+
+export async function updateWorkshopPaymentAction(
+  _prevState: UpdateWorkshopPaymentActionState,
+  formData: FormData
+): Promise<UpdateWorkshopPaymentActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseUpdateWorkshopPaymentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateWorkshopPaymentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(result.payment.workshop_id));
+  revalidatePath(getManagerWorkshopPaymentsRoute(result.payment.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
+    payment: result.payment,
+  };
+}
+
+export async function deleteWorkshopPaymentAction(
+  _prevState: DeleteWorkshopPaymentActionState,
+  formData: FormData
+): Promise<DeleteWorkshopPaymentActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseDeleteWorkshopPaymentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteWorkshopPaymentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
+  revalidatePath(getManagerWorkshopPaymentsRoute(parsed.data.workshop_id));
 
   return {
     success: true,

@@ -110,12 +110,12 @@ Already done: tables, empty page, nav, RBAC seed, backup list.
 
 **Tasks**
 
-- [ ] Route `/manager/workshops/[id]/payments`
-- [ ] Repository + service CRUD for `workshop_payments`
-- [ ] UI: table + create/edit/delete; type debit/credit; payment method select
-- [ ] Optional summary: credits − debits vs workshop `price`
-- [ ] Detail CTA button → payments route
-- [ ] Vitest: validation + service CRUD + authz
+- [x] Route `/manager/workshops/[id]/payments`
+- [x] Repository + service CRUD for `workshop_payments`
+- [x] UI: table + create/edit/delete; type debit/credit; payment method select
+- [x] Optional summary: credits − debits vs workshop `price`
+- [x] Detail CTA button → payments route
+- [x] Vitest: validation + service CRUD + authz
 
 **Exit:** Full payments ledger for a workshop.
 

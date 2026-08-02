@@ -158,3 +158,39 @@ export type DeleteWorkshopDocumentActionState = {
   error?: string;
   message?: string;
 };
+
+export type ManagerWorkshopPaymentSummary = {
+  credits: number;
+  debits: number;
+  net: number;
+  price: number | null;
+  remaining: number | null;
+};
+
+export type ManagerWorkshopPaymentsPageData = {
+  workshop: ManagerWorkshopRow;
+  payments: ManagerWorkshopPaymentRow[];
+  summary: ManagerWorkshopPaymentSummary;
+};
+
+export type CreateWorkshopPaymentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  payment?: ManagerWorkshopPaymentRow;
+};
+
+export type UpdateWorkshopPaymentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  payment?: ManagerWorkshopPaymentRow;
+};
+
+export type DeleteWorkshopPaymentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+};
