@@ -7,6 +7,8 @@ import { PencilIcon, Trash2Icon } from "lucide-react";
 import { deleteWorkshopAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
+import { WorkshopDocumentsSection } from "@/components/manager/workshops/workshop-documents-section";
+import { WorkshopInstructorsSection } from "@/components/manager/workshops/workshop-instructors-section";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { WorkshopStatusStepper } from "@/components/manager/workshops/workshop-status-stepper";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -40,12 +42,18 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import type {
   DeleteWorkshopActionState,
+  ManagerWorkshopDocumentRow,
+  ManagerWorkshopInstructorCandidate,
+  ManagerWorkshopInstructorRow,
   ManagerWorkshopRow,
 } from "@/types/manager-workshop";
 
 type WorkshopDetailsPanelProps = {
   workshop: ManagerWorkshopRow;
   paymentCount: number;
+  instructors: ManagerWorkshopInstructorRow[];
+  instructorCandidates: ManagerWorkshopInstructorCandidate[];
+  documents: ManagerWorkshopDocumentRow[];
 };
 
 const initialDeleteState: DeleteWorkshopActionState = {};
@@ -91,6 +99,9 @@ function formatDate(value: string | null) {
 export function WorkshopDetailsPanel({
   workshop: initialWorkshop,
   paymentCount,
+  instructors,
+  instructorCandidates,
+  documents,
 }: WorkshopDetailsPanelProps) {
   const router = useRouter();
   const [workshop, setWorkshop] = useState(initialWorkshop);
@@ -160,6 +171,17 @@ export function WorkshopDetailsPanel({
           setWorkshop(updated);
           router.refresh();
         }}
+      />
+
+      <WorkshopInstructorsSection
+        workshopId={workshop.id}
+        instructors={instructors}
+        candidates={instructorCandidates}
+      />
+
+      <WorkshopDocumentsSection
+        workshopId={workshop.id}
+        documents={documents}
       />
 
       <Dialog open={isDeleteOpen} onOpenChange={handleDeleteOpenChange}>

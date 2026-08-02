@@ -2,16 +2,24 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
 import { ROLES } from "@/lib/constants/roles";
 import * as authRepository from "@/repositories/auth.repository";
+import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import * as roleService from "@/services/role.service";
-import { createStaffUser, listUsersForManager } from "@/services/user.service";
+import {
+  createStaffUser,
+  listUsersForManager,
+  updateManagerUser,
+} from "@/services/user.service";
 
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/instructor-subject-capability.repository");
+vi.mock("@/repositories/workshop-instructor.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -312,5 +320,111 @@ describe("createStaffUser", () => {
       adminClient,
       "user-1"
     );
+  });
+});
+
+describe("updateManagerUser", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("deletes workshop instructor rows when is_instructor flips off", async () => {
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        username: "teacher1",
+        role: ROLES.TEACHER,
+        is_instructor: true,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
+      data: {
+        id: "user-1",
+        username: "teacher1",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(profileRepository.updateProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        username: "teacher1",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopInstructorRepository.deleteWorkshopInstructorsByUserId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(authRepository.updateAuthUserByAdmin).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+    vi.mocked(
+      studentProfileRepository.findStudentProfileByUserId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await updateManagerUser(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        userId: "user-1",
+        username: "teacher1",
+        email: "teacher@school.com",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(
+      workshopInstructorRepository.deleteWorkshopInstructorsByUserId
+    ).toHaveBeenCalledWith(adminClient, "user-1");
+    expect(
+      instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId
+    ).toHaveBeenCalledWith(adminClient, "user-1");
   });
 });

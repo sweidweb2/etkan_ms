@@ -4,6 +4,7 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
+import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import {
   assertPermission,
   getUnauthorizedError,
@@ -274,6 +275,16 @@ export async function removeInstructorForManager(
     );
   if (capabilityError) {
     return { success: false, error: capabilityError.message };
+  }
+
+  // Profile hard-delete cascades workshop_instructors via FK; flag-off needs explicit cleanup.
+  const { error: workshopInstructorError } =
+    await workshopInstructorRepository.deleteWorkshopInstructorsByUserId(
+      adminClient,
+      trimmedId
+    );
+  if (workshopInstructorError) {
+    return { success: false, error: workshopInstructorError.message };
   }
 
   const { error: profileError } =

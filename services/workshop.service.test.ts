@@ -1,21 +1,37 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  WORKSHOP_INSTRUCTOR_ROLES,
+  WORKSHOP_WAGE_TYPES,
+} from "@/lib/constants/manager-workshop-display";
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
+import * as profileRepository from "@/repositories/profile.repository";
+import * as workshopDocumentRepository from "@/repositories/workshop-document.repository";
+import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import * as workshopRepository from "@/repositories/workshop.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
   WORKSHOP_HAS_PAYMENTS_DELETE_ERROR,
+  addWorkshopInstructorForManager,
   changeWorkshopStatusForManager,
   createWorkshopForManager,
+  deleteWorkshopDocumentForManager,
   deleteWorkshopForManager,
   getWorkshopForManager,
   listWorkshopsForManager,
+  removeWorkshopInstructorForManager,
+  renameWorkshopDocumentForManager,
   updateWorkshopForManager,
+  updateWorkshopInstructorForManager,
+  uploadWorkshopDocumentForManager,
 } from "@/services/workshop.service";
 
 vi.mock("@/repositories/workshop.repository");
+vi.mock("@/repositories/workshop-document.repository");
+vi.mock("@/repositories/workshop-instructor.repository");
 vi.mock("@/repositories/workshop-storage.repository");
+vi.mock("@/repositories/profile.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -37,6 +53,9 @@ const actor: AuditActor = {
 };
 
 const workshopId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
+const instructorUserId = "b2b3c4d5-e6f7-8901-bcde-f12345678901";
+const assignmentId = "33333333-3333-4333-8333-333333333333";
+const documentId = "44444444-4444-4444-8444-444444444444";
 
 const workshopRecord = {
   id: workshopId,
@@ -56,6 +75,35 @@ const workshopRecord = {
   updated_at: "2026-01-01T00:00:00.000Z",
 };
 
+const instructorAssignmentRecord = {
+  id: assignmentId,
+  workshop_id: workshopId,
+  user_id: instructorUserId,
+  role: WORKSHOP_INSTRUCTOR_ROLES.LEAD,
+  wage_type: WORKSHOP_WAGE_TYPES.FIXED,
+  wage_amount: 500,
+  notes: null,
+  created_at: "2026-01-02T00:00:00.000Z",
+  profiles: { username: "lead_teacher" },
+};
+
+const documentRecord = {
+  id: documentId,
+  workshop_id: workshopId,
+  name: "Syllabus",
+  storage_path: `workshops/${workshopId}/aaaa1111-bbbb-4ccc-8ddd-eeeeeeeeeeee-syllabus.pdf`,
+  file_size: 1024,
+  mime_type: "application/pdf",
+  uploaded_by: actor.userId,
+  created_at: "2026-01-03T00:00:00.000Z",
+};
+
+function makePdfFile(name = "syllabus.pdf", sizeBytes = 1024) {
+  return new File([new Uint8Array(sizeBytes)], name, {
+    type: "application/pdf",
+  });
+}
+
 const validCreateInput = {
   name: "Intro to UX",
   subject: "Design",
@@ -67,6 +115,15 @@ const validCreateInput = {
   price: 150,
   start_date: "2026-09-01",
   end_date: "2026-09-30",
+};
+
+const validAddInstructorInput = {
+  workshop_id: workshopId,
+  user_id: instructorUserId,
+  role: WORKSHOP_INSTRUCTOR_ROLES.LEAD,
+  wage_type: WORKSHOP_WAGE_TYPES.FIXED,
+  wage_amount: 500,
+  notes: null,
 };
 
 describe("listWorkshopsForManager", () => {
@@ -313,7 +370,7 @@ describe("getWorkshopForManager", () => {
     vi.resetAllMocks();
   });
 
-  it("returns workshop with payment_count", async () => {
+  it("returns workshop with payment_count, instructors, and candidates", async () => {
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
       data: workshopRecord,
       error: null,
@@ -330,6 +387,46 @@ describe("getWorkshopForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    vi.mocked(
+      workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
+    ).mockResolvedValue({
+      data: [instructorAssignmentRecord],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(profileRepository.listInstructorProfiles).mockResolvedValue({
+      data: [
+        {
+          id: instructorUserId,
+          username: "lead_teacher",
+          role: "teacher",
+          is_instructor: true,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "d4d5e6f7-a8b9-0123-def0-234567890123",
+          username: "assistant_one",
+          role: "teacher",
+          is_instructor: true,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopDocumentRepository.listWorkshopDocumentsByWorkshopId
+    ).mockResolvedValue({
+      data: [documentRecord],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
 
     const detail = await getWorkshopForManager(
       adminClient,
@@ -339,6 +436,437 @@ describe("getWorkshopForManager", () => {
 
     expect(detail?.payment_count).toBe(3);
     expect(detail?.workshop.id).toBe(workshopId);
+    expect(detail?.instructors).toHaveLength(1);
+    expect(detail?.instructors[0]?.username).toBe("lead_teacher");
+    expect(detail?.instructorCandidates).toEqual([
+      {
+        id: "d4d5e6f7-a8b9-0123-def0-234567890123",
+        username: "assistant_one",
+      },
+    ]);
+    expect(detail?.documents).toHaveLength(1);
+    expect(detail?.documents[0]?.name).toBe("Syllabus");
+  });
+});
+
+describe("uploadWorkshopDocumentForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("returns unauthorized when actor is missing", async () => {
+    const result = await uploadWorkshopDocumentForManager(
+      adminClient,
+      null,
+      actor,
+      {
+        workshop_id: workshopId,
+        file: makePdfFile(),
+        name: "Syllabus",
+      }
+    );
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+  });
+
+  it("rejects disallowed mime types", async () => {
+    const result = await uploadWorkshopDocumentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        file: new File([new Uint8Array(10)], "bad.exe", {
+          type: "application/octet-stream",
+        }),
+        name: "Bad",
+      }
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors?.file?.[0]).toMatch(/not allowed/i);
+    }
+  });
+
+  it("uploads to storage then inserts a document row", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopStorageRepository.uploadWorkshopStorageObject
+    ).mockResolvedValue({ error: null });
+    vi.mocked(
+      workshopDocumentRepository.createWorkshopDocument
+    ).mockResolvedValue({
+      data: documentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await uploadWorkshopDocumentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        file: makePdfFile(),
+        name: "Syllabus",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.document.name).toBe("Syllabus");
+      expect(result.message).toBe("Document uploaded.");
+    }
+    expect(
+      workshopStorageRepository.uploadWorkshopStorageObject
+    ).toHaveBeenCalled();
+    expect(
+      workshopDocumentRepository.createWorkshopDocument
+    ).toHaveBeenCalled();
+  });
+});
+
+describe("renameWorkshopDocumentForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("renames display name only", async () => {
+    vi.mocked(
+      workshopDocumentRepository.findWorkshopDocumentById
+    ).mockResolvedValue({
+      data: documentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopDocumentRepository.updateWorkshopDocumentNameById
+    ).mockResolvedValue({
+      data: { ...documentRecord, name: "Updated syllabus" },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await renameWorkshopDocumentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: documentId,
+        workshop_id: workshopId,
+        name: "Updated syllabus",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.document.name).toBe("Updated syllabus");
+    }
+  });
+});
+
+describe("deleteWorkshopDocumentForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("removes storage object then deletes the row", async () => {
+    vi.mocked(
+      workshopDocumentRepository.findWorkshopDocumentById
+    ).mockResolvedValue({
+      data: documentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopStorageRepository.removeWorkshopStorageObjects
+    ).mockResolvedValue({ error: null });
+    vi.mocked(
+      workshopDocumentRepository.deleteWorkshopDocumentById
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await deleteWorkshopDocumentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: documentId, workshop_id: workshopId }
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "Document deleted.",
+    });
+    expect(
+      workshopStorageRepository.removeWorkshopStorageObjects
+    ).toHaveBeenCalledWith(adminClient, [documentRecord.storage_path]);
+    expect(
+      workshopDocumentRepository.deleteWorkshopDocumentById
+    ).toHaveBeenCalledWith(adminClient, documentId);
+  });
+});
+
+describe("addWorkshopInstructorForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("returns unauthorized when actor is missing", async () => {
+    const result = await addWorkshopInstructorForManager(
+      adminClient,
+      null,
+      actor,
+      validAddInstructorInput
+    );
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+  });
+
+  it("rejects non-instructor profiles", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: instructorUserId,
+        username: "not_instructor",
+        role: "teacher",
+        is_instructor: false,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await addWorkshopInstructorForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      validAddInstructorInput
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/instructor/i);
+    }
+  });
+
+  it("blocks duplicate assignments", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: instructorUserId,
+        username: "lead_teacher",
+        role: "teacher",
+        is_instructor: true,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopInstructorRepository.findWorkshopInstructorByWorkshopAndUser
+    ).mockResolvedValue({
+      data: instructorAssignmentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await addWorkshopInstructorForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      validAddInstructorInput
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/already assigned/i);
+    }
+  });
+
+  it("adds an instructor", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: instructorUserId,
+        username: "lead_teacher",
+        role: "teacher",
+        is_instructor: true,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopInstructorRepository.findWorkshopInstructorByWorkshopAndUser
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopInstructorRepository.createWorkshopInstructor
+    ).mockResolvedValue({
+      data: instructorAssignmentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await addWorkshopInstructorForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      validAddInstructorInput
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.instructor.user_id).toBe(instructorUserId);
+      expect(result.message).toBe("Instructor added.");
+    }
+  });
+});
+
+describe("updateWorkshopInstructorForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("updates role and wage", async () => {
+    vi.mocked(
+      workshopInstructorRepository.findWorkshopInstructorById
+    ).mockResolvedValue({
+      data: instructorAssignmentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      workshopInstructorRepository.updateWorkshopInstructorById
+    ).mockResolvedValue({
+      data: {
+        ...instructorAssignmentRecord,
+        role: WORKSHOP_INSTRUCTOR_ROLES.ASSISTANT,
+        wage_type: WORKSHOP_WAGE_TYPES.PERCENTAGE,
+        wage_amount: 25,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await updateWorkshopInstructorForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: assignmentId,
+        workshop_id: workshopId,
+        role: WORKSHOP_INSTRUCTOR_ROLES.ASSISTANT,
+        wage_type: WORKSHOP_WAGE_TYPES.PERCENTAGE,
+        wage_amount: 25,
+        notes: null,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.instructor.role).toBe(WORKSHOP_INSTRUCTOR_ROLES.ASSISTANT);
+      expect(result.instructor.wage_amount).toBe(25);
+    }
+  });
+});
+
+describe("removeWorkshopInstructorForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("removes an assignment", async () => {
+    vi.mocked(
+      workshopInstructorRepository.findWorkshopInstructorById
+    ).mockResolvedValue({
+      data: instructorAssignmentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      workshopInstructorRepository.deleteWorkshopInstructorById
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await removeWorkshopInstructorForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: assignmentId, workshop_id: workshopId }
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "Instructor removed.",
+    });
   });
 });
 

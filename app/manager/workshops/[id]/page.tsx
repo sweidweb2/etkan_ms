@@ -28,6 +28,9 @@ export default async function ManagerWorkshopDetailPage({
     <WorkshopDetailsPanel
       workshop={detail.workshop}
       paymentCount={detail.payment_count}
+      instructors={detail.instructors}
+      instructorCandidates={detail.instructorCandidates}
+      documents={detail.documents}
     />
   );
 }

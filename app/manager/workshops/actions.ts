@@ -13,16 +13,38 @@ import { parseChangeWorkshopStatusFormData } from "@/lib/validators/manager/chan
 import { parseCreateWorkshopFormData } from "@/lib/validators/manager/create-workshop";
 import { parseUpdateWorkshopFormData } from "@/lib/validators/manager/update-workshop";
 import {
+  parseCreateWorkshopInstructorFormData,
+  parseRemoveWorkshopInstructorFormData,
+  parseUpdateWorkshopInstructorFormData,
+} from "@/lib/validators/manager/workshop-instructor";
+import {
+  parseDeleteWorkshopDocumentFormData,
+  parseRenameWorkshopDocumentFormData,
+  parseUploadWorkshopDocumentFormData,
+} from "@/lib/validators/manager/workshop-document";
+import {
+  addWorkshopInstructorForManager,
   changeWorkshopStatusForManager,
   createWorkshopForManager,
+  deleteWorkshopDocumentForManager,
   deleteWorkshopForManager,
+  removeWorkshopInstructorForManager,
+  renameWorkshopDocumentForManager,
   updateWorkshopForManager,
+  updateWorkshopInstructorForManager,
+  uploadWorkshopDocumentForManager,
 } from "@/services/workshop.service";
 import type {
+  AddWorkshopInstructorActionState,
   ChangeWorkshopStatusActionState,
   CreateWorkshopActionState,
   DeleteWorkshopActionState,
+  DeleteWorkshopDocumentActionState,
+  RemoveWorkshopInstructorActionState,
+  RenameWorkshopDocumentActionState,
   UpdateWorkshopActionState,
+  UpdateWorkshopInstructorActionState,
+  UploadWorkshopDocumentActionState,
 } from "@/types/manager-workshop";
 
 export async function createWorkshopAction(
@@ -183,5 +205,251 @@ export async function changeWorkshopStatusAction(
     success: true,
     message: result.message,
     workshop: result.workshop,
+  };
+}
+
+export async function addWorkshopInstructorAction(
+  _prevState: AddWorkshopInstructorActionState,
+  formData: FormData
+): Promise<AddWorkshopInstructorActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseCreateWorkshopInstructorFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await addWorkshopInstructorForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(result.instructor.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
+    instructor: result.instructor,
+  };
+}
+
+export async function updateWorkshopInstructorAction(
+  _prevState: UpdateWorkshopInstructorActionState,
+  formData: FormData
+): Promise<UpdateWorkshopInstructorActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseUpdateWorkshopInstructorFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateWorkshopInstructorForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(result.instructor.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
+    instructor: result.instructor,
+  };
+}
+
+export async function removeWorkshopInstructorAction(
+  _prevState: RemoveWorkshopInstructorActionState,
+  formData: FormData
+): Promise<RemoveWorkshopInstructorActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseRemoveWorkshopInstructorFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await removeWorkshopInstructorForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
+  };
+}
+
+export async function uploadWorkshopDocumentAction(
+  _prevState: UploadWorkshopDocumentActionState,
+  formData: FormData
+): Promise<UploadWorkshopDocumentActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseUploadWorkshopDocumentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await uploadWorkshopDocumentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(result.document.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
+    document: result.document,
+  };
+}
+
+export async function renameWorkshopDocumentAction(
+  _prevState: RenameWorkshopDocumentActionState,
+  formData: FormData
+): Promise<RenameWorkshopDocumentActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseRenameWorkshopDocumentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await renameWorkshopDocumentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(result.document.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
+    document: result.document,
+  };
+}
+
+export async function deleteWorkshopDocumentAction(
+  _prevState: DeleteWorkshopDocumentActionState,
+  formData: FormData
+): Promise<DeleteWorkshopDocumentActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseDeleteWorkshopDocumentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteWorkshopDocumentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
+
+  return {
+    success: true,
+    message: result.message,
   };
 }

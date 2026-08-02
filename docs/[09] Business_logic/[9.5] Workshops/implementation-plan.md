@@ -80,13 +80,13 @@ Already done: tables, empty page, nav, RBAC seed, backup list.
 
 **Tasks**
 
-- [ ] Repository CRUD for `workshop_instructors`
-- [ ] Candidates query: `is_instructor = true`, not already assigned
-- [ ] Service: add / update / remove; enforce unique user; validate role + wage
-- [ ] When `is_instructor` flipped off (user update path): delete that user’s workshop_instructor rows
-- [ ] Profile delete: rely on FK `on delete cascade` (verify); document in service comments
-- [ ] Detail UI: list + add/edit/remove dialogs
-- [ ] Vitest: add/remove, duplicate user blocked, non-instructor rejected, flag-off cleanup
+- [x] Repository CRUD for `workshop_instructors`
+- [x] Candidates query: `is_instructor = true`, not already assigned
+- [x] Service: add / update / remove; enforce unique user; validate role + wage
+- [x] When `is_instructor` flipped off (user update path): delete that user’s workshop_instructor rows
+- [x] Profile delete: rely on FK `on delete cascade` (verify); document in service comments
+- [x] Detail UI: list + add/edit/remove dialogs
+- [x] Vitest: add/remove, duplicate user blocked, non-instructor rejected, flag-off cleanup
 
 **Exit:** Instructors fully managed on detail; orphans cleaned when flag changes.
 
@@ -96,11 +96,11 @@ Already done: tables, empty page, nav, RBAC seed, backup list.
 
 **Tasks**
 
-- [ ] Upload via server action: validate file → Storage upload → insert `workshop_documents`
-- [ ] List + download (public URL) + rename/metadata update if needed + delete (DB + Storage)
-- [ ] On workshop hard delete: list paths → remove Storage objects → delete workshop row (cascade docs)
-- [ ] Detail UI: documents section
-- [ ] Vitest: path helper, delete cleans storage (mocked client), authz
+- [x] Upload via server action: validate file → Storage upload → insert `workshop_documents`
+- [x] List + download (public URL) + rename/metadata update if needed + delete (DB + Storage)
+- [x] On workshop hard delete: list paths → remove Storage objects → delete workshop row (cascade docs)
+- [x] Detail UI: documents section
+- [x] Vitest: path helper, delete cleans storage (mocked client), authz
 
 **Exit:** Syllabus-style files upload/list/delete against public `workshops` bucket.
 

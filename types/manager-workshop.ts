@@ -52,6 +52,8 @@ export interface ManagerWorkshopDocumentRow {
   mime_type: string | null;
   uploaded_by: string | null;
   created_at: string;
+  /** Public Storage URL when loaded for UI. */
+  public_url?: string;
 }
 
 export interface ManagerWorkshopPaymentRow {
@@ -70,10 +72,16 @@ export type ManagerWorkshopsPageData = {
   workshops: ManagerWorkshopRow[];
 };
 
+export type ManagerWorkshopInstructorCandidate = {
+  id: string;
+  username: string;
+};
+
 export type ManagerWorkshopDetailPageData = {
   workshop: ManagerWorkshopRow;
   payment_count: number;
   instructors: ManagerWorkshopInstructorRow[];
+  instructorCandidates: ManagerWorkshopInstructorCandidate[];
   documents: ManagerWorkshopDocumentRow[];
 };
 
@@ -105,4 +113,48 @@ export type ChangeWorkshopStatusActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   workshop?: ManagerWorkshopRow;
+};
+
+export type AddWorkshopInstructorActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  instructor?: ManagerWorkshopInstructorRow;
+};
+
+export type UpdateWorkshopInstructorActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  instructor?: ManagerWorkshopInstructorRow;
+};
+
+export type RemoveWorkshopInstructorActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+};
+
+export type UploadWorkshopDocumentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  document?: ManagerWorkshopDocumentRow;
+};
+
+export type RenameWorkshopDocumentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  document?: ManagerWorkshopDocumentRow;
+};
+
+export type DeleteWorkshopDocumentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
 };
