@@ -61,4 +61,7 @@ Notes
 -----
 - `subject` is free-text for now (not an FK to `subjects`).
 - `workshop_payments` is a ledger (debit/credit), not invoice status workflow.
-- Soft-delete via `workshops.deleted_at`; child rows cascade on hard delete.
+- **v1 delete:** hard delete workshop; children cascade in DB; Storage objects removed in service.
+- `deleted_at` exists on `workshops` but is unused in v1 (hard delete only).
+
+See [implementation-plan.md](./implementation-plan.md) for phased build plan.
