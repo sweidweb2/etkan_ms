@@ -70,8 +70,13 @@ export function AddWorkshopInstructorDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
   const [candidateFilter, setCandidateFilter] = useState("");
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
+    if (!nextOpen) {
+      setCandidateFilter("");
+    }
+    onOpenChange(nextOpen);
+  });
 
   useActionStateToast(state, isPending);
 
@@ -109,7 +114,6 @@ export function AddWorkshopInstructorDialog({
         wage_amount: null,
         notes: null,
       });
-      setCandidateFilter("");
     }
   }, [open, reset, workshopId]);
 

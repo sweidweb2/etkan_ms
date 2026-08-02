@@ -22,6 +22,10 @@ function flowIndex(status: WorkshopStatusValue): number {
   return WORKSHOP_STATUS_FLOW.indexOf(status as WorkshopStatusFlowValue);
 }
 
+function isFlowStatus(status: WorkshopStatusValue): boolean {
+  return flowIndex(status) >= 0;
+}
+
 export function getNextWorkshopStatus(
   current: WorkshopStatusValue
 ): WorkshopStatusFlowValue | null {
@@ -59,51 +63,10 @@ export function canReopenWorkshopFromCancelled(
   return current === WORKSHOP_STATUSES.CANCELLED;
 }
 
-function isAdjacentFlowMove(
-  from: WorkshopStatusValue,
-  to: WorkshopStatusValue
-): boolean {
-  const fromIndex = flowIndex(from);
-  const toIndex = flowIndex(to);
-  if (fromIndex < 0 || toIndex < 0) {
-    return false;
-  }
-  return Math.abs(fromIndex - toIndex) === 1;
-}
-
-function assertScheduledDateRules(
-  startDate: string | null,
-  endDate: string | null,
-  today: string
-): WorkshopStatusTransitionResult {
-  if (!startDate) {
-    return {
-      ok: false,
-      error: "Set a start date before moving to scheduled.",
-    };
-  }
-
-  if (startDate <= today) {
-    return {
-      ok: false,
-      error: "Start date must be in the future to move to scheduled.",
-    };
-  }
-
-  if (endDate && endDate < startDate) {
-    return {
-      ok: false,
-      error: "End date must be on or after start date.",
-    };
-  }
-
-  return { ok: true };
-}
-
 export function assertWorkshopStatusTransition(
   input: WorkshopStatusTransitionInput
 ): WorkshopStatusTransitionResult {
-  const { from, to, startDate, endDate, today } = input;
+  const { from, to } = input;
 
   if (from === to) {
     return { ok: false, error: "Workshop is already in that status." };
@@ -119,28 +82,15 @@ export function assertWorkshopStatusTransition(
     return { ok: true };
   }
 
-  if (from === WORKSHOP_STATUSES.CANCELLED) {
-    if (to !== WORKSHOP_STATUSES.DRAFT) {
-      return {
-        ok: false,
-        error: "Cancelled workshops can only be reopened as draft.",
-      };
-    }
+  // Any lifecycle checkpoint (including jumps), or reopen from cancelled to any checkpoint.
+  if (isFlowStatus(to) && (isFlowStatus(from) || from === WORKSHOP_STATUSES.CANCELLED)) {
     return { ok: true };
   }
 
-  if (!isAdjacentFlowMove(from, to)) {
-    return {
-      ok: false,
-      error: "Status can only move one step forward or backward.",
-    };
-  }
-
-  if (to === WORKSHOP_STATUSES.SCHEDULED) {
-    return assertScheduledDateRules(startDate, endDate, today);
-  }
-
-  return { ok: true };
+  return {
+    ok: false,
+    error: "Invalid workshop status change.",
+  };
 }
 
 /** Format a Date as local YYYY-MM-DD. */

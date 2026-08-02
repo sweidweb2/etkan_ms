@@ -64,18 +64,29 @@ describe("assertWorkshopStatusTransition", () => {
     ).toEqual({ ok: true });
   });
 
-  it("rejects non-adjacent jumps", () => {
-    const result = assertWorkshopStatusTransition({
-      from: WORKSHOP_STATUSES.DRAFT,
-      to: WORKSHOP_STATUSES.IN_PROGRESS,
-      startDate: "2026-09-01",
-      endDate: null,
-      today,
-    });
-    expect(result.ok).toBe(false);
+  it("allows non-adjacent jumps across the lifecycle", () => {
+    expect(
+      assertWorkshopStatusTransition({
+        from: WORKSHOP_STATUSES.DRAFT,
+        to: WORKSHOP_STATUSES.IN_PROGRESS,
+        startDate: null,
+        endDate: null,
+        today,
+      })
+    ).toEqual({ ok: true });
+
+    expect(
+      assertWorkshopStatusTransition({
+        from: WORKSHOP_STATUSES.COMPLETED,
+        to: WORKSHOP_STATUSES.PROPOSAL,
+        startDate: null,
+        endDate: null,
+        today,
+      })
+    ).toEqual({ ok: true });
   });
 
-  it("requires future start_date when moving to scheduled", () => {
+  it("allows move to scheduled without date restrictions", () => {
     expect(
       assertWorkshopStatusTransition({
         from: WORKSHOP_STATUSES.PROPOSAL,
@@ -83,31 +94,21 @@ describe("assertWorkshopStatusTransition", () => {
         startDate: null,
         endDate: null,
         today,
-      }).ok
-    ).toBe(false);
+      })
+    ).toEqual({ ok: true });
 
     expect(
       assertWorkshopStatusTransition({
-        from: WORKSHOP_STATUSES.PROPOSAL,
+        from: WORKSHOP_STATUSES.DRAFT,
         to: WORKSHOP_STATUSES.SCHEDULED,
-        startDate: "2026-08-03",
+        startDate: "2026-08-01",
         endDate: null,
-        today,
-      }).ok
-    ).toBe(false);
-
-    expect(
-      assertWorkshopStatusTransition({
-        from: WORKSHOP_STATUSES.PROPOSAL,
-        to: WORKSHOP_STATUSES.SCHEDULED,
-        startDate: "2026-08-04",
-        endDate: "2026-08-10",
         today,
       })
     ).toEqual({ ok: true });
   });
 
-  it("allows cancel and reopen as draft", () => {
+  it("allows cancel and reopen to any lifecycle checkpoint", () => {
     expect(
       assertWorkshopStatusTransition({
         from: WORKSHOP_STATUSES.SCHEDULED,
@@ -132,6 +133,28 @@ describe("assertWorkshopStatusTransition", () => {
       assertWorkshopStatusTransition({
         from: WORKSHOP_STATUSES.CANCELLED,
         to: WORKSHOP_STATUSES.PROPOSAL,
+        startDate: null,
+        endDate: null,
+        today,
+      })
+    ).toEqual({ ok: true });
+  });
+
+  it("rejects same-status and invalid cancel targets", () => {
+    expect(
+      assertWorkshopStatusTransition({
+        from: WORKSHOP_STATUSES.DRAFT,
+        to: WORKSHOP_STATUSES.DRAFT,
+        startDate: null,
+        endDate: null,
+        today,
+      }).ok
+    ).toBe(false);
+
+    expect(
+      assertWorkshopStatusTransition({
+        from: WORKSHOP_STATUSES.COMPLETED,
+        to: WORKSHOP_STATUSES.CANCELLED,
         startDate: null,
         endDate: null,
         today,

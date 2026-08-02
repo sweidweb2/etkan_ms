@@ -11,17 +11,11 @@ import {
 } from "lucide-react";
 import { deleteWorkshopDocumentAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { RenameWorkshopDocumentDialog } from "@/components/manager/workshops/rename-workshop-document-dialog";
 import { UploadWorkshopDocumentDialog } from "@/components/manager/workshops/upload-workshop-document-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -162,19 +156,24 @@ export function WorkshopDocumentsSection({
         </DialogContent>
       </Dialog>
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-lg">Documents</CardTitle>
-          <CardAction>
-            <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-              <Button type="button" onClick={() => setIsUploadOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Upload
-              </Button>
-            </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="pt-4 pb-4">
+      <ClassTabCollapsibleSection
+        title="Documents"
+        storageKey={`workshop-details-documents:${workshopId}`}
+        defaultOpen
+        action={
+          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setIsUploadOpen(true)}
+            >
+              <PlusIcon data-icon="inline-start" />
+              Upload
+            </Button>
+          </Can>
+        }
+      >
+        <div className="px-3 py-4 sm:px-4">
           {documents.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No documents uploaded yet.
@@ -258,8 +257,8 @@ export function WorkshopDocumentsSection({
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </ClassTabCollapsibleSection>
     </>
   );
 }

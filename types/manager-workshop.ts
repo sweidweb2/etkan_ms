@@ -72,6 +72,18 @@ export type ManagerWorkshopsPageData = {
   workshops: ManagerWorkshopRow[];
 };
 
+export type ManagerWorkshopPaymentLedgerRow = ManagerWorkshopPaymentRow & {
+  workshop_name: string;
+};
+
+export type ManagerWorkshopPaymentsTotals = {
+  credits: number;
+  debits: number;
+  net: number;
+  payment_count: number;
+  workshops_with_payments: number;
+};
+
 export type ManagerWorkshopInstructorCandidate = {
   id: string;
   username: string;

@@ -18,6 +18,7 @@ import {
   WORKSHOP_HAS_PAYMENTS_DELETE_ERROR,
   addWorkshopInstructorForManager,
   buildWorkshopPaymentSummary,
+  buildWorkshopPaymentsTotals,
   changeWorkshopStatusForManager,
   createWorkshopForManager,
   createWorkshopPaymentForManager,
@@ -908,9 +909,16 @@ describe("changeWorkshopStatusForManager", () => {
     expect(result).toEqual({ success: false, error: "Unauthorized." });
   });
 
-  it("rejects non-adjacent status jumps", async () => {
+  it("allows non-adjacent status jumps", async () => {
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
       data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.updateWorkshopStatusById).mockResolvedValue({
+      data: { ...workshopRecord, status: WORKSHOP_STATUSES.IN_PROGRESS },
       error: null,
       count: null,
       status: 200,
@@ -924,17 +932,28 @@ describe("changeWorkshopStatusForManager", () => {
       { id: workshopId, status: WORKSHOP_STATUSES.IN_PROGRESS }
     );
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/one step/i);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.workshop.status).toBe(WORKSHOP_STATUSES.IN_PROGRESS);
     }
   });
 
-  it("rejects move to scheduled without a future start date", async () => {
+  it("allows move to scheduled without a start date", async () => {
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
       data: {
         ...workshopRecord,
         status: WORKSHOP_STATUSES.PROPOSAL,
+        start_date: null,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.updateWorkshopStatusById).mockResolvedValue({
+      data: {
+        ...workshopRecord,
+        status: WORKSHOP_STATUSES.SCHEDULED,
         start_date: null,
       },
       error: null,
@@ -950,9 +969,9 @@ describe("changeWorkshopStatusForManager", () => {
       { id: workshopId, status: WORKSHOP_STATUSES.SCHEDULED }
     );
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/start date/i);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.workshop.status).toBe(WORKSHOP_STATUSES.SCHEDULED);
     }
   });
 
@@ -1073,6 +1092,57 @@ describe("buildWorkshopPaymentSummary", () => {
       net: 75,
       price: 150,
       remaining: 75,
+    });
+  });
+});
+
+describe("buildWorkshopPaymentsTotals", () => {
+  it("aggregates credits, debits, net, and workshop coverage", () => {
+    const totals = buildWorkshopPaymentsTotals([
+      {
+        id: paymentId,
+        workshop_id: workshopId,
+        workshop_name: "Alpha",
+        amount: 100,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-01",
+        payment_method: null,
+        notes: null,
+        created_by: null,
+        created_at: "2026-08-01T00:00:00.000Z",
+      },
+      {
+        id: "66666666-6666-4666-8666-666666666666",
+        workshop_id: workshopId,
+        workshop_name: "Alpha",
+        amount: 25,
+        type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        payment_date: "2026-08-02",
+        payment_method: null,
+        notes: null,
+        created_by: null,
+        created_at: "2026-08-02T00:00:00.000Z",
+      },
+      {
+        id: "77777777-7777-4777-8777-777777777777",
+        workshop_id: "88888888-8888-4888-8888-888888888888",
+        workshop_name: "Beta",
+        amount: 40,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-03",
+        payment_method: null,
+        notes: null,
+        created_by: null,
+        created_at: "2026-08-03T00:00:00.000Z",
+      },
+    ]);
+
+    expect(totals).toEqual({
+      credits: 140,
+      debits: 25,
+      net: 115,
+      payment_count: 3,
+      workshops_with_payments: 2,
     });
   });
 });

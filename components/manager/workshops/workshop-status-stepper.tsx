@@ -1,9 +1,16 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
+import {
+  CalendarDaysIcon,
+  CheckIcon,
+  CircleCheckIcon,
+  FileBadgeIcon,
+  FilePenLineIcon,
+  TimerIcon,
+} from "lucide-react";
 import { changeWorkshopStatusAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
-import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,10 +31,8 @@ import {
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
-  assertWorkshopStatusTransition,
   canCancelWorkshopStatus,
   canReopenWorkshopFromCancelled,
-  formatLocalDateYmd,
   getNextWorkshopStatus,
   getPreviousWorkshopStatus,
 } from "@/lib/manager/workshops/status-transitions";
@@ -40,7 +45,8 @@ import type {
   ManagerWorkshopRow,
 } from "@/types/manager-workshop";
 
-type ConfirmKind = "next" | "back" | "cancel" | "reopen";
+type ConfirmKind = "jump" | "next" | "back" | "cancel" | "reopen";
+type StepTone = "done" | "current" | "upcoming" | "cancelled";
 
 type WorkshopStatusStepperProps = {
   workshop: ManagerWorkshopRow;
@@ -49,10 +55,18 @@ type WorkshopStatusStepperProps = {
 
 const initialState: ChangeWorkshopStatusActionState = {};
 
+const STATUS_ICONS = {
+  [WORKSHOP_STATUSES.DRAFT]: FilePenLineIcon,
+  [WORKSHOP_STATUSES.PROPOSAL]: FileBadgeIcon,
+  [WORKSHOP_STATUSES.SCHEDULED]: CalendarDaysIcon,
+  [WORKSHOP_STATUSES.IN_PROGRESS]: TimerIcon,
+  [WORKSHOP_STATUSES.COMPLETED]: CircleCheckIcon,
+} as const;
+
 function stepTone(
   status: WorkshopStatusValue,
   current: WorkshopStatusValue
-): "done" | "current" | "upcoming" | "cancelled" {
+): StepTone {
   if (current === WORKSHOP_STATUSES.CANCELLED) {
     return "cancelled";
   }
@@ -73,6 +87,81 @@ function stepTone(
     return "current";
   }
   return "upcoming";
+}
+
+function WorkshopStatusCheckpoint({
+  status,
+  tone,
+  clickable,
+  disabled,
+  onSelect,
+}: {
+  status: WorkshopStatusValue;
+  tone: StepTone;
+  clickable: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  const Icon = STATUS_ICONS[status as keyof typeof STATUS_ICONS];
+  const label = MANAGER_WORKSHOP_STATUS_LABELS[status];
+
+  const marker = (
+    <div
+      className={cn(
+        "flex size-10 items-center justify-center rounded-full border-2 bg-background shadow-sm transition-colors sm:size-11",
+        tone === "done" &&
+          "border-emerald-500 bg-emerald-500 text-white shadow-emerald-500/20",
+        tone === "current" &&
+          "border-sky-500 text-sky-600 ring-4 ring-sky-500/20 dark:text-sky-400",
+        tone === "upcoming" &&
+          "border-muted-foreground/25 text-muted-foreground/55",
+        tone === "cancelled" && "border-rose-400/50 text-rose-400/70",
+        clickable &&
+          !disabled &&
+          "group-hover:scale-105 group-hover:border-foreground/40 group-hover:text-foreground"
+      )}
+    >
+      {Icon ? <Icon className="size-4 sm:size-5" strokeWidth={2.25} /> : null}
+    </div>
+  );
+
+  return (
+    <div className="relative z-10 flex flex-col items-center gap-2">
+      {clickable ? (
+        <button
+          type="button"
+          className="group relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-60"
+          disabled={disabled}
+          aria-label={`Set status to ${label}`}
+          onClick={onSelect}
+        >
+          {marker}
+          {tone === "done" ? (
+            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
+              <CheckIcon className="size-2.5" strokeWidth={3} />
+            </span>
+          ) : null}
+        </button>
+      ) : (
+        <div className="relative" aria-current="step">
+          {marker}
+          {tone === "done" ? (
+            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
+              <CheckIcon className="size-2.5" strokeWidth={3} />
+            </span>
+          ) : null}
+        </div>
+      )}
+      <span
+        className={cn(
+          "text-[11px] font-medium leading-tight",
+          tone === "current" ? "text-foreground" : "text-muted-foreground"
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
 }
 
 export function WorkshopStatusStepper({
@@ -113,26 +202,6 @@ export function WorkshopStatusStepper({
   const canCancel = canCancelWorkshopStatus(workshop.status);
   const canReopen = canReopenWorkshopFromCancelled(workshop.status);
 
-  const scheduledGuard = useMemo(() => {
-    if (nextStatus !== WORKSHOP_STATUSES.SCHEDULED) {
-      return { ok: true as const };
-    }
-    return assertWorkshopStatusTransition({
-      from: workshop.status,
-      to: WORKSHOP_STATUSES.SCHEDULED,
-      startDate: workshop.start_date,
-      endDate: workshop.end_date,
-      today: formatLocalDateYmd(),
-    });
-  }, [
-    nextStatus,
-    workshop.end_date,
-    workshop.start_date,
-    workshop.status,
-  ]);
-
-  const nextDisabled = !nextStatus || !scheduledGuard.ok;
-
   function openConfirm(kind: ConfirmKind, target: WorkshopStatusValue) {
     setConfirmKind(kind);
     setPendingTarget(target);
@@ -157,74 +226,71 @@ export function WorkshopStatusStepper({
         ? "Reopen workshop"
         : confirmKind === "back"
           ? "Move status backward"
-          : "Advance status";
+          : confirmKind === "jump"
+            ? "Change status"
+            : "Advance status";
 
   const confirmDescription =
     pendingTarget && confirmKind
       ? `Change status from ${MANAGER_WORKSHOP_STATUS_LABELS[workshop.status]} to ${MANAGER_WORKSHOP_STATUS_LABELS[pendingTarget]}?`
       : "";
 
-  return (
-    <div className="rounded-xl border bg-card px-4 py-4">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-semibold tracking-tight">
-            Workshop status
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Advance or step back one checkpoint at a time.
-          </p>
-        </div>
-        <WorkshopStatusBadge status={workshop.status} />
-      </div>
+  const currentFlowIndex =
+    workshop.status === WORKSHOP_STATUSES.CANCELLED
+      ? -1
+      : WORKSHOP_STATUS_FLOW.indexOf(
+          workshop.status as (typeof WORKSHOP_STATUS_FLOW)[number]
+        );
 
+  return (
+    <div>
       {workshop.status === WORKSHOP_STATUSES.CANCELLED ? (
         <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-800 dark:text-rose-200">
-          This workshop is cancelled. Reopen as draft to continue the lifecycle.
+          This workshop is cancelled. Tap a status below or reopen as draft.
         </p>
       ) : null}
 
-      <div className="relative mb-6 px-1 pt-2">
-        <div className="absolute top-4 right-2 left-2 h-1 rounded-full bg-muted" />
+      <div className="relative mb-6 px-1 pt-1">
+        <div className="absolute top-5 right-[10%] left-[10%] h-1.5 overflow-hidden rounded-full bg-muted">
+          {currentFlowIndex > 0 ? (
+            <div
+              className="h-full rounded-full bg-emerald-500/80 transition-[width] duration-300 ease-out"
+              style={{
+                width: `${(currentFlowIndex / (WORKSHOP_STATUS_FLOW.length - 1)) * 100}%`,
+              }}
+            />
+          ) : null}
+        </div>
         <div className="relative grid grid-cols-5 gap-1">
           {WORKSHOP_STATUS_FLOW.map((status) => {
             const tone = stepTone(status, workshop.status);
+            const isCurrent = status === workshop.status;
             return (
-              <div
+              <Can
                 key={status}
-                className="flex flex-col items-center gap-2 text-center"
+                permission={PERMISSIONS.WORKSHOPS_UPDATE}
+                fallback={
+                  <WorkshopStatusCheckpoint
+                    status={status}
+                    tone={tone}
+                    clickable={false}
+                    disabled
+                    onSelect={() => undefined}
+                  />
+                }
               >
-                <div
-                  className={cn(
-                    "relative z-10 size-3.5 rounded-full border-[3px] bg-card shadow-sm",
-                    tone === "done" && "border-emerald-500 bg-emerald-500",
-                    tone === "current" && "border-sky-500 bg-sky-500",
-                    tone === "upcoming" && "border-muted-foreground/30",
-                    tone === "cancelled" && "border-rose-400/60"
-                  )}
-                  aria-hidden
+                <WorkshopStatusCheckpoint
+                  status={status}
+                  tone={tone}
+                  clickable={!isCurrent}
+                  disabled={isPending}
+                  onSelect={() => openConfirm("jump", status)}
                 />
-                <span
-                  className={cn(
-                    "text-[11px] font-medium",
-                    tone === "current"
-                      ? "text-foreground"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {MANAGER_WORKSHOP_STATUS_LABELS[status]}
-                </span>
-              </div>
+              </Can>
             );
           })}
         </div>
       </div>
-
-      {!scheduledGuard.ok && nextStatus === WORKSHOP_STATUSES.SCHEDULED ? (
-        <p className="mb-3 text-sm text-amber-700 dark:text-amber-300">
-          {scheduledGuard.error}
-        </p>
-      ) : null}
 
       <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
         <div className="flex flex-wrap gap-2">
@@ -255,7 +321,7 @@ export function WorkshopStatusStepper({
               </Button>
               <Button
                 type="button"
-                disabled={nextDisabled || isPending}
+                disabled={!nextStatus || isPending}
                 onClick={() => {
                   if (nextStatus) {
                     openConfirm("next", nextStatus);

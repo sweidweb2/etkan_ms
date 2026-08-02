@@ -6,8 +6,12 @@ import { cn } from "@/lib/utils";
 
 const MIN_VISIBLE_MS = 450;
 const FINISH_MS = 280;
-/** Abort if a started navigation never settles (e.g. prevented link click). */
-const STUCK_ABORT_MS = 4000;
+/**
+ * Abort only when a click never changes the URL (cancelled / same-page).
+ * Must be long enough for slow RSC navigations — path often stays put until
+ * the server payload returns.
+ */
+const STUCK_ABORT_MS = 60_000;
 
 function isModifiedClick(event: MouseEvent) {
   return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
@@ -27,6 +31,11 @@ function currentPath() {
   return `${window.location.pathname}${window.location.search}`;
 }
 
+type BeginOptions = {
+  /** Sync paint on user click; defer when patching history during React commit. */
+  immediate?: boolean;
+};
+
 /**
  * Global top progress bar for App Router navigations (panel + public).
  * Starts on internal link clicks and history.pushState (router.push).
@@ -43,6 +52,7 @@ export function RouteTopLoader() {
   const routeKeyRef = useRef(routeKey);
   const navTokenRef = useRef(0);
   const startedAtRef = useRef(0);
+  const pathAtStartRef = useRef("");
   const finishTimerRef = useRef<number | null>(null);
   const showTimerRef = useRef<number | null>(null);
   const settleTimerRef = useRef<number | null>(null);
@@ -65,7 +75,7 @@ export function RouteTopLoader() {
     navTokenRef.current = 0;
   };
 
-  const begin = () => {
+  const begin = (options?: BeginOptions) => {
     clearTimer(finishTimerRef);
     clearTimer(settleTimerRef);
     clearTimer(showTimerRef);
@@ -73,17 +83,28 @@ export function RouteTopLoader() {
 
     const token = ++navTokenRef.current;
     startedAtRef.current = Date.now();
+    pathAtStartRef.current = currentPath();
 
-    // Defer paint updates — Next may invoke pushState inside useInsertionEffect.
-    showTimerRef.current = window.setTimeout(() => {
+    const show = () => {
       if (navTokenRef.current !== token) return;
       setIsFinishing(false);
       setIsLoading(true);
-    }, 0);
+    };
+
+    if (options?.immediate) {
+      show();
+    } else {
+      // Defer — Next may invoke pushState inside useInsertionEffect.
+      showTimerRef.current = window.setTimeout(show, 0);
+    }
 
     stuckTimerRef.current = window.setTimeout(() => {
       if (navTokenRef.current !== token) return;
-      reset();
+      // Still on the same URL → navigation never started (prevented click).
+      // If the path changed, settle should have called end(); leave alone.
+      if (currentPath() === pathAtStartRef.current) {
+        reset();
+      }
     }, STUCK_ABORT_MS);
   };
 
@@ -112,9 +133,7 @@ export function RouteTopLoader() {
     }, waitForMin);
   };
 
-  // Internal <a> navigations (sidebar, breadcrumbs, links).
-  // Bubble phase so nested buttons can preventDefault/stopPropagation first
-  // (e.g. Edit on a card that is wrapped in a Link).
+  // Capture phase: start the bar the moment the user clicks, before React handlers.
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       if (event.button !== 0 || isModifiedClick(event) || event.defaultPrevented) {
@@ -130,18 +149,23 @@ export function RouteTopLoader() {
       if (anchor.hasAttribute("download")) return;
 
       const href = anchor.getAttribute("href");
-      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
+      if (
+        !href ||
+        href.startsWith("#") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:")
+      ) {
         return;
       }
 
       const next = getSameOriginPath(href);
       if (!next || next === currentPath()) return;
 
-      begin();
+      begin({ immediate: true });
     };
 
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, []);
 
   // router.push / back / forward

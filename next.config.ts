@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
       dynamic: 0,
       static: 300,
     },
+    // Default is 1mb; workshop documents allow 10mb plus multipart overhead.
+    serverActions: {
+      bodySizeLimit: "12mb",
+    },
   },
 };
 

@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  CalendarDaysIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
@@ -11,7 +13,8 @@ import {
 import { Can } from "@/components/auth/can";
 import { AddWorkshopDialog } from "@/components/manager/workshops/add-workshop-dialog";
 import { WorkshopCard } from "@/components/manager/workshops/workshop-card";
-import { Button } from "@/components/ui/button";
+import { WorkshopPaymentsTotalsSection } from "@/components/manager/workshops/workshop-payments-totals-section";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -28,7 +31,13 @@ import {
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import type { ManagerWorkshopRow } from "@/types/manager-workshop";
+import { ROUTES } from "@/lib/constants/routes";
+import { cn } from "@/lib/utils";
+import type {
+  ManagerWorkshopPaymentLedgerRow,
+  ManagerWorkshopPaymentsTotals,
+  ManagerWorkshopRow,
+} from "@/types/manager-workshop";
 
 const PAGE_SIZE = 12;
 const STATUS_ALL = "all";
@@ -55,10 +64,14 @@ function matchesSearch(workshop: ManagerWorkshopRow, query: string) {
 
 type ManageWorkshopsPanelProps = {
   initialWorkshops: ManagerWorkshopRow[];
+  payments: ManagerWorkshopPaymentLedgerRow[];
+  paymentTotals: ManagerWorkshopPaymentsTotals;
 };
 
 export function ManageWorkshopsPanel({
   initialWorkshops,
+  payments,
+  paymentTotals,
 }: ManageWorkshopsPanelProps) {
   const router = useRouter();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -93,16 +106,27 @@ export function ManageWorkshopsPanel({
             Create and manage workshop offerings.
           </p>
         </div>
-        <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
-          <Button
-            type="button"
-            className="shrink-0"
-            onClick={() => setIsCreateOpen(true)}
-          >
-            <PlusIcon data-icon="inline-start" />
-            Create workshop
-          </Button>
-        </Can>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+            <Link
+              href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}
+              className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}
+            >
+              <CalendarDaysIcon data-icon="inline-start" />
+              Schedules
+            </Link>
+          </Can>
+          <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
+            <Button
+              type="button"
+              className="shrink-0"
+              onClick={() => setIsCreateOpen(true)}
+            >
+              <PlusIcon data-icon="inline-start" />
+              Create workshop
+            </Button>
+          </Can>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -193,6 +217,11 @@ export function ManageWorkshopsPanel({
           </div>
         </div>
       ) : null}
+
+      <WorkshopPaymentsTotalsSection
+        payments={payments}
+        totals={paymentTotals}
+      />
 
       <AddWorkshopDialog
         open={isCreateOpen}

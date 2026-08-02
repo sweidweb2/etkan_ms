@@ -65,9 +65,11 @@ import type {
   ManagerWorkshopDocumentRow,
   ManagerWorkshopInstructorCandidate,
   ManagerWorkshopInstructorRow,
+  ManagerWorkshopPaymentLedgerRow,
   ManagerWorkshopPaymentRow,
   ManagerWorkshopPaymentSummary,
   ManagerWorkshopPaymentsPageData,
+  ManagerWorkshopPaymentsTotals,
   ManagerWorkshopRow,
 } from "@/types/manager-workshop";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -371,6 +373,70 @@ export async function listWorkshopsForManager(
   }
 
   return (result.data ?? []).map(mapWorkshopRecordToRow);
+}
+
+export function buildWorkshopPaymentsTotals(
+  payments: ManagerWorkshopPaymentLedgerRow[]
+): ManagerWorkshopPaymentsTotals {
+  let credits = 0;
+  let debits = 0;
+  const workshopIds = new Set<string>();
+
+  for (const payment of payments) {
+    workshopIds.add(payment.workshop_id);
+    if (payment.type === WORKSHOP_PAYMENT_TYPES.CREDIT) {
+      credits += payment.amount;
+    } else {
+      debits += payment.amount;
+    }
+  }
+
+  return {
+    credits,
+    debits,
+    net: credits - debits,
+    payment_count: payments.length,
+    workshops_with_payments: workshopIds.size,
+  };
+}
+
+export async function listAllWorkshopPaymentsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<{
+  payments: ManagerWorkshopPaymentLedgerRow[];
+  totals: ManagerWorkshopPaymentsTotals;
+}> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
+
+  const result =
+    await workshopPaymentRepository.listAllWorkshopPayments(adminClient);
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  const payments: ManagerWorkshopPaymentLedgerRow[] = (result.data ?? []).map(
+    (record) => {
+      const workshopRelation = record.workshops as
+        | { name: string }
+        | { name: string }[]
+        | null;
+      const workshopName = Array.isArray(workshopRelation)
+        ? (workshopRelation[0]?.name ?? "—")
+        : (workshopRelation?.name ?? "—");
+
+      return {
+        ...mapWorkshopPaymentRecord(record),
+        workshop_name: workshopName,
+      };
+    }
+  );
+
+  return {
+    payments,
+    totals: buildWorkshopPaymentsTotals(payments),
+  };
 }
 
 export async function getWorkshopForManager(

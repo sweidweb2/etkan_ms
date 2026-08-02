@@ -1,15 +1,26 @@
 import { ManageWorkshopsPanel } from "@/components/manager/workshops/manage-workshops-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listWorkshopsForManager } from "@/services/workshop.service";
+import {
+  listAllWorkshopPaymentsForManager,
+  listWorkshopsForManager,
+} from "@/services/workshop.service";
 
 export default async function ManagerWorkshopsPage() {
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
-  const workshops = await listWorkshopsForManager(
-    adminClient,
-    user?.id ?? null
-  );
+  const actorUserId = user?.id ?? null;
 
-  return <ManageWorkshopsPanel initialWorkshops={workshops} />;
+  const [workshops, paymentsPage] = await Promise.all([
+    listWorkshopsForManager(adminClient, actorUserId),
+    listAllWorkshopPaymentsForManager(adminClient, actorUserId),
+  ]);
+
+  return (
+    <ManageWorkshopsPanel
+      initialWorkshops={workshops}
+      payments={paymentsPage.payments}
+      paymentTotals={paymentsPage.totals}
+    />
+  );
 }

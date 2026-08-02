@@ -5,17 +5,11 @@ import { useRouter } from "next/navigation";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { removeWorkshopInstructorAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { AddWorkshopInstructorDialog } from "@/components/manager/workshops/add-workshop-instructor-dialog";
 import { EditWorkshopInstructorDialog } from "@/components/manager/workshops/edit-workshop-instructor-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -168,19 +162,20 @@ export function WorkshopInstructorsSection({
         </DialogContent>
       </Dialog>
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-lg">Instructors</CardTitle>
-          <CardAction>
-            <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-              <Button type="button" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add instructor
-              </Button>
-            </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="pt-4 pb-4">
+      <ClassTabCollapsibleSection
+        title="Instructors"
+        storageKey={`workshop-details-instructors:${workshopId}`}
+        defaultOpen
+        action={
+          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+            <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add instructor
+            </Button>
+          </Can>
+        }
+      >
+        <div className="px-3 py-4 sm:px-4">
           {instructors.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No instructors assigned yet.
@@ -259,8 +254,8 @@ export function WorkshopInstructorsSection({
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </ClassTabCollapsibleSection>
     </>
   );
 }
