@@ -141,7 +141,16 @@ export function ManageWorkshopsPanel({
 
       {pageItems.length === 0 ? (
         <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-          No workshops match your filters.
+          {initialWorkshops.length === 0 ? (
+            <>
+              <p>No workshops yet.</p>
+              <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
+                <p className="mt-1">Create a workshop to get started.</p>
+              </Can>
+            </>
+          ) : (
+            <p>No workshops match your filters.</p>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

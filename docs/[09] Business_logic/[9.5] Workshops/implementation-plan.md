@@ -125,10 +125,10 @@ Already done: tables, empty page, nav, RBAC seed, backup list.
 
 **Tasks**
 
-- [ ] Detail button → `ROUTES.MANAGER_INSTRUCTOR_SCHEDULES` (gated by `instructor_schedules.view` if desired)
-- [ ] Empty/error states, toasts, pending-aware dialogs (project form-dialog rules)
-- [ ] Permission checks on all mutations via `Can` / service `requirePermission`
-- [ ] Smoke: list → detail → status → instructors → docs → payments → schedules link
+- [x] Detail button → `ROUTES.MANAGER_INSTRUCTOR_SCHEDULES` (gated by `instructor_schedules.view` if desired)
+- [x] Empty/error states, toasts, pending-aware dialogs (project form-dialog rules)
+- [x] Permission checks on all mutations via `Can` / service `requirePermission`
+- [x] Smoke: list → detail → status → instructors → docs → payments → schedules link
 
 **Exit:** Feature usable end-to-end in manager panel.
 

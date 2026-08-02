@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { PencilIcon, Trash2Icon, WalletIcon } from "lucide-react";
+import { CalendarDaysIcon, PencilIcon, Trash2Icon, WalletIcon } from "lucide-react";
 import { deleteWorkshopAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
@@ -235,7 +235,7 @@ export function WorkshopDetailsPanel({
             <CardTitle className="text-xl">{workshop.name}</CardTitle>
             <WorkshopStatusBadge status={workshop.status} className="w-fit" />
           </div>
-          <CardAction className="flex items-center gap-2 self-center">
+          <CardAction className="flex flex-wrap items-center gap-2 self-center">
             <Button
               type="button"
               variant="outline"
@@ -247,6 +247,16 @@ export function WorkshopDetailsPanel({
               Payments
               {paymentCount > 0 ? ` (${paymentCount})` : ""}
             </Button>
+            <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+              <Button
+                type="button"
+                variant="outline"
+                render={<Link href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES} />}
+              >
+                <CalendarDaysIcon data-icon="inline-start" />
+                Schedules
+              </Button>
+            </Can>
             <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
               <Button type="button" onClick={() => setIsEditOpen(true)}>
                 <PencilIcon data-icon="inline-start" />
