@@ -115,6 +115,25 @@ Table weekly_schedule_slots {
   }
 }
 
+Table instructor_schedule_slots {
+  id uuid [pk, default: `gen_random_uuid()`]
+  entity_type text [not null, note: 'instructor | (extensible)']
+  record_id uuid [not null, note: 'Polymorphic id by entity_type']
+  name text [not null]
+  type text [not null, note: 'free | busy']
+  slot_date date [not null]
+  start_time time [not null]
+  end_time time [not null]
+  color text [not null, default: '#BAE6FD', note: '#RRGGBB hex']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (entity_type, record_id, name, slot_date, start_time, end_time) [unique]
+    (entity_type, record_id, slot_date)
+  }
+}
+
 Table attendee {
   id uuid [pk, default: `gen_random_uuid()`]
   session_id uuid [not null]

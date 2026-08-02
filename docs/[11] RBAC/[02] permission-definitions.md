@@ -89,6 +89,15 @@ Format: `key` — label — access
 | `instructors.view` | View instructors | read |
 | `instructors.capabilities.update` | Update instructor subject capabilities | write |
 
+### Instructor schedules
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `instructor_schedules.view` | View instructor schedules | read |
+| `instructor_schedules.create` | Create instructor schedule slot | write |
+| `instructor_schedules.update` | Edit instructor schedule slot | write |
+| `instructor_schedules.delete` | Delete instructor schedule slot | write |
+
 ### Classes
 
 | Key | Label | Access |
@@ -290,6 +299,10 @@ subjects.update
 subjects.delete
 instructors.view
 instructors.capabilities.update
+instructor_schedules.view
+instructor_schedules.create
+instructor_schedules.update
+instructor_schedules.delete
 classes.view
 classes.create
 classes.update

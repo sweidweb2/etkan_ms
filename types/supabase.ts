@@ -1522,6 +1522,48 @@ export type Database = {
         }
         Relationships: []
       }
+      instructor_schedule_slots: {
+        Row: {
+          color: string
+          created_at: string
+          end_time: string
+          entity_type: string
+          id: string
+          name: string
+          record_id: string
+          slot_date: string
+          start_time: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          end_time: string
+          entity_type: string
+          id?: string
+          name: string
+          record_id: string
+          slot_date: string
+          start_time: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          end_time?: string
+          entity_type?: string
+          id?: string
+          name?: string
+          record_id?: string
+          slot_date?: string
+          start_time?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

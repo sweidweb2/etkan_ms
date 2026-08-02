@@ -1,0 +1,1282 @@
+"use client";
+
+import * as React from "react";
+import { useEffect, useMemo, useRef, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { format, parseISO } from "date-fns";
+import FullCalendar from "@fullcalendar/react";
+import type {
+  CalendarApi,
+  DateSelectInfo,
+  DatesSetInfo,
+  EventClickInfo,
+  EventDragStartInfo,
+  EventDropInfo,
+  EventInput,
+  EventResizeDoneInfo,
+} from "@fullcalendar/react";
+import themePlugin from "@fullcalendar/react/themes/monarch";
+import interactionPlugin from "@fullcalendar/react/interaction";
+import dayGridPlugin from "@fullcalendar/react/daygrid";
+import timeGridPlugin from "@fullcalendar/react/timegrid";
+import listPlugin from "@fullcalendar/react/list";
+import {
+  CircleCheckIcon,
+  CircleXIcon,
+  CopyIcon,
+  PlusIcon,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  copyInstructorScheduleSlotsAction,
+  createInstructorScheduleSlotAction,
+  deleteInstructorScheduleSlotAction,
+  previewCopyLastWeekInstructorScheduleAction,
+  updateInstructorScheduleSlotAction,
+} from "@/app/manager/instructor-schedules/actions";
+import { Can } from "@/components/auth/can";
+import { usePermissions } from "@/components/auth/permissions-provider";
+import { AddInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/add-instructor-schedule-slot-dialog";
+import { CopyLastWeekInstructorScheduleDialog } from "@/components/manager/instructor-schedules/copy-last-week-instructor-schedule-dialog";
+import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROUTES } from "@/lib/constants/routes";
+import {
+  formatDateFromDate,
+  formatTimeFromDate,
+  getSundayWeekBounds,
+  instructorScheduleSessionsToEvents,
+  isTempScheduleId,
+  TEMP_SCHEDULE_ID_PREFIX,
+  type CreateSlotDefaults,
+} from "@/lib/manager/instructor-schedule-calendar";
+import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
+import {
+  getInstructorScheduleSlotStrongColor,
+  INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS,
+  INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
+  type CreateInstructorScheduleSlotInput,
+  type UpdateInstructorScheduleSlotInput,
+} from "@/lib/validators/manager/instructor-schedule-slot";
+import type {
+  CopyInstructorSchedulePreview,
+  InstructorScheduleSlotType,
+  ManagerInstructorScheduleSession,
+  ManagerInstructorSchedulesPageData,
+} from "@/types/manager-instructor-schedule";
+
+import "@fullcalendar/react/skeleton.css";
+import "@fullcalendar/react/themes/monarch/theme.css";
+import "@/components/manager/schedule/fullcalendar-dark.css";
+
+const DUP_GHOST_ID_PREFIX = "__dup_ghost_";
+
+function makeTempId(): string {
+  return `${TEMP_SCHEDULE_ID_PREFIX}${crypto.randomUUID()}`;
+}
+
+type ScheduleTypeFilter = "all" | InstructorScheduleSlotType;
+
+const TYPE_FILTER_OPTIONS: { value: ScheduleTypeFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  ...INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES.map((type) => ({
+    value: type,
+    label: INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS[type],
+  })),
+];
+
+const TYPE_STAT_ICONS: Record<InstructorScheduleSlotType, LucideIcon> = {
+  free: CircleCheckIcon,
+  busy: CircleXIcon,
+};
+
+type DragSourceSnapshot = {
+  session: ManagerInstructorScheduleSession;
+  start: Date;
+  end: Date | null;
+};
+
+type InstructorSchedulesPanelProps = {
+  data: ManagerInstructorSchedulesPageData;
+};
+
+function getSessionFromEventProps(event: {
+  extendedProps: Record<string, unknown>;
+}): ManagerInstructorScheduleSession | null {
+  const session = event.extendedProps.session as
+    | ManagerInstructorScheduleSession
+    | undefined;
+  return session ?? null;
+}
+
+function getSessionFromEvent(
+  info: EventClickInfo
+): ManagerInstructorScheduleSession | null {
+  return getSessionFromEventProps(info.event);
+}
+
+function buildCreateDefaultsFromDates(
+  start: Date,
+  end: Date,
+  allDay: boolean
+): CreateSlotDefaults {
+  const slotDate = formatDateFromDate(start);
+
+  if (allDay) {
+    return {
+      slot_date: slotDate,
+      start_time: "09:00",
+      end_time: "10:30",
+    };
+  }
+
+  const startTime = formatTimeFromDate(start);
+  let endTime = formatTimeFromDate(end);
+
+  if (endTime <= startTime) {
+    const next = new Date(start);
+    next.setMinutes(next.getMinutes() + 90);
+    endTime = formatTimeFromDate(next);
+  }
+
+  return {
+    slot_date: slotDate,
+    start_time: startTime,
+    end_time: endTime,
+  };
+}
+
+function buildDuplicatePayload(
+  source: ManagerInstructorScheduleSession,
+  dropStart: Date | null,
+  dropEnd: Date | null,
+  allDay: boolean
+): CreateInstructorScheduleSlotInput | null {
+  if (!dropStart) {
+    return null;
+  }
+
+  if (allDay) {
+    return {
+      record_id: source.recordId,
+      name: source.name,
+      type: source.type,
+      slot_date: formatDateFromDate(dropStart),
+      start_time: source.startTime,
+      end_time: source.endTime,
+      color: source.color,
+    };
+  }
+
+  const startTime = formatTimeFromDate(dropStart);
+  let endTime = dropEnd ? formatTimeFromDate(dropEnd) : source.endTime;
+
+  if (endTime <= startTime) {
+    endTime = source.endTime;
+    if (endTime <= startTime) {
+      const next = new Date(dropStart);
+      next.setMinutes(next.getMinutes() + 90);
+      endTime = formatTimeFromDate(next);
+    }
+  }
+
+  return {
+    record_id: source.recordId,
+    name: source.name,
+    type: source.type,
+    slot_date: formatDateFromDate(dropStart),
+    start_time: startTime,
+    end_time: endTime,
+    color: source.color,
+  };
+}
+
+function buildDuplicateGhostEvent(
+  session: ManagerInstructorScheduleSession,
+  start: Date,
+  end: Date | null
+): EventInput {
+  const color = session.color;
+  return {
+    id: `${DUP_GHOST_ID_PREFIX}${session.id}`,
+    title: session.name,
+    start,
+    end: end ?? undefined,
+    color,
+    contrastColor: getInstructorScheduleSlotStrongColor(color),
+    editable: false,
+    startEditable: false,
+    durationEditable: false,
+    classNames: ["fc-schedule-dup-ghost"],
+    extendedProps: {
+      isDuplicateGhost: true,
+    },
+  };
+}
+
+function formatSlotDateLabel(value: string): string {
+  try {
+    return format(parseISO(value), "EEE, MMM d, yyyy");
+  } catch {
+    return value;
+  }
+}
+
+function sessionFromCreateInput(
+  values: CreateInstructorScheduleSlotInput,
+  id: string
+): ManagerInstructorScheduleSession {
+  return {
+    id,
+    recordId: values.record_id,
+    name: values.name,
+    type: values.type,
+    slotDate: values.slot_date,
+    startTime: values.start_time,
+    endTime: values.end_time,
+    color: values.color,
+  };
+}
+
+function toCreateFormData(values: CreateInstructorScheduleSlotInput): FormData {
+  const formData = new FormData();
+  formData.set("record_id", values.record_id);
+  formData.set("name", values.name);
+  formData.set("type", values.type);
+  formData.set("slot_date", values.slot_date);
+  formData.set("start_time", values.start_time);
+  formData.set("end_time", values.end_time);
+  formData.set("color", values.color);
+  return formData;
+}
+
+function toUpdateFormData(values: UpdateInstructorScheduleSlotInput): FormData {
+  const formData = new FormData();
+  formData.set("id", values.id);
+  formData.set("record_id", values.record_id);
+  formData.set("name", values.name);
+  formData.set("type", values.type);
+  formData.set("slot_date", values.slot_date);
+  formData.set("start_time", values.start_time);
+  formData.set("end_time", values.end_time);
+  formData.set("color", values.color);
+  return formData;
+}
+
+export function InstructorSchedulesPanel({
+  data,
+}: InstructorSchedulesPanelProps) {
+  const router = useRouter();
+  const calendarRef = useRef<React.ComponentRef<typeof FullCalendar> | null>(
+    null
+  );
+  const permissions = usePermissions();
+  const canCreate = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
+  );
+  const canUpdate = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_UPDATE
+  );
+  const [, startTransition] = useTransition();
+
+  const [sessions, setSessions] = React.useState(data.sessions);
+  const [selectedInstructorId, setSelectedInstructorId] = React.useState(
+    () => data.instructors[0]?.id ?? ""
+  );
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isEditOpen, setIsEditOpen] = React.useState(false);
+  const [isCopyOpen, setIsCopyOpen] = React.useState(false);
+  const [createDefaults, setCreateDefaults] =
+    React.useState<CreateSlotDefaults | null>(null);
+  const [deleteTarget, setDeleteTarget] =
+    React.useState<ManagerInstructorScheduleSession | null>(null);
+  const [selectedSession, setSelectedSession] =
+    React.useState<ManagerInstructorScheduleSession | null>(null);
+  const [weekStart, setWeekStart] = React.useState(() =>
+    getSundayWeekBounds(formatDateFromDate(new Date())).weekStart
+  );
+  const [copyPreview, setCopyPreview] =
+    React.useState<CopyInstructorSchedulePreview | null>(null);
+  const [isLoadingCopyPreview, setIsLoadingCopyPreview] = React.useState(false);
+  const [copyPreviewError, setCopyPreviewError] = React.useState<string | null>(
+    null
+  );
+  const [isAltDuplicating, setIsAltDuplicating] = React.useState(false);
+  const [typeFilter, setTypeFilter] = React.useState<ScheduleTypeFilter>("all");
+  const isAltDupDragRef = useRef(false);
+  const dragSourceRef = useRef<DragSourceSnapshot | null>(null);
+  const pendingTempIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    setSessions((prev) => {
+      const pendingTemps = prev.filter((session) =>
+        pendingTempIdsRef.current.has(session.id)
+      );
+      return [...data.sessions, ...pendingTemps];
+    });
+  }, [data.sessions]);
+
+  const resolvedInstructorId = data.instructors.some(
+    (instructor) => instructor.id === selectedInstructorId
+  )
+    ? selectedInstructorId
+    : (data.instructors[0]?.id ?? "");
+
+  if (resolvedInstructorId !== selectedInstructorId) {
+    setSelectedInstructorId(resolvedInstructorId);
+  }
+
+  const selectedInstructor = useMemo(
+    () =>
+      data.instructors.find(
+        (instructor) => instructor.id === selectedInstructorId
+      ) ?? null,
+    [data.instructors, selectedInstructorId]
+  );
+
+  const instructorSessions = useMemo(
+    () =>
+      selectedInstructorId
+        ? sessions.filter((session) => session.recordId === selectedInstructorId)
+        : [],
+    [sessions, selectedInstructorId]
+  );
+
+  const events = useMemo<EventInput[]>(() => {
+    const filtered =
+      typeFilter === "all"
+        ? instructorSessions
+        : instructorSessions.filter((session) => session.type === typeFilter);
+    return instructorScheduleSessionsToEvents(filtered);
+  }, [instructorSessions, typeFilter]);
+
+  const weekTypeCounts = useMemo(() => {
+    const bounds = getSundayWeekBounds(weekStart);
+    const counts: Record<InstructorScheduleSlotType, number> = {
+      free: 0,
+      busy: 0,
+    };
+
+    for (const session of instructorSessions) {
+      if (
+        session.slotDate < bounds.weekStart ||
+        session.slotDate > bounds.weekEnd
+      ) {
+        continue;
+      }
+      counts[session.type] += 1;
+    }
+
+    return counts;
+  }, [instructorSessions, weekStart]);
+
+  function softRefresh() {
+    startTransition(() => {
+      router.refresh();
+    });
+  }
+
+  function trackPendingTemp(tempId: string) {
+    pendingTempIdsRef.current.add(tempId);
+  }
+
+  function untrackPendingTemp(tempId: string) {
+    pendingTempIdsRef.current.delete(tempId);
+  }
+
+  function ensureCreatedTypeVisible(type: InstructorScheduleSlotType) {
+    if (typeFilter !== "all" && typeFilter !== type) {
+      setTypeFilter(type);
+    }
+  }
+
+  function showDuplicateGhost(snapshot: DragSourceSnapshot) {
+    const api = calendarRef.current?.getApi?.() as CalendarApi | undefined;
+    if (!api) {
+      return;
+    }
+
+    const ghostId = `${DUP_GHOST_ID_PREFIX}${snapshot.session.id}`;
+    api.getEventById(ghostId)?.remove();
+    api.addEvent(
+      buildDuplicateGhostEvent(snapshot.session, snapshot.start, snapshot.end)
+    );
+    isAltDupDragRef.current = true;
+    setIsAltDuplicating(true);
+  }
+
+  function clearDuplicateGhostVisual() {
+    const api = calendarRef.current?.getApi?.() as CalendarApi | undefined;
+    if (api) {
+      for (const event of api.getEvents()) {
+        if (
+          event.id.startsWith(DUP_GHOST_ID_PREFIX) ||
+          event.extendedProps.isDuplicateGhost
+        ) {
+          event.remove();
+        }
+      }
+    }
+    setIsAltDuplicating(false);
+  }
+
+  function clearDuplicateDragState() {
+    clearDuplicateGhostVisual();
+    dragSourceRef.current = null;
+    window.setTimeout(() => {
+      isAltDupDragRef.current = false;
+    }, 0);
+  }
+
+  React.useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Alt" || !canCreate) {
+        return;
+      }
+      const snapshot = dragSourceRef.current;
+      if (!snapshot || isAltDupDragRef.current) {
+        return;
+      }
+      showDuplicateGhost(snapshot);
+    }
+
+    function onKeyUp(event: KeyboardEvent) {
+      if (event.key !== "Alt") {
+        return;
+      }
+      if (!dragSourceRef.current) {
+        return;
+      }
+      isAltDupDragRef.current = false;
+      clearDuplicateGhostVisual();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [canCreate]);
+
+  const handleDeleteOpenChange = usePendingAwareOpenChange(
+    false,
+    (nextOpen) => {
+      if (!nextOpen) {
+        setDeleteTarget(null);
+      }
+    }
+  );
+
+  function openEditSession(session: ManagerInstructorScheduleSession) {
+    if (isTempScheduleId(session.id)) {
+      showInfoToast("Still saving this slot…");
+      return;
+    }
+
+    setSelectedSession(session);
+    setIsEditOpen(true);
+  }
+
+  function openCreate(defaults?: CreateSlotDefaults | null) {
+    if (!selectedInstructorId) {
+      showErrorToast("Select an instructor first.");
+      return;
+    }
+
+    setCreateDefaults(defaults ?? null);
+    setIsCreateOpen(true);
+  }
+
+  async function handleOptimisticCreate(
+    values: CreateInstructorScheduleSlotInput
+  ) {
+    const tempId = makeTempId();
+    const optimistic = sessionFromCreateInput(values, tempId);
+    trackPendingTemp(tempId);
+    ensureCreatedTypeVisible(values.type);
+    setSessions((prev) => [...prev, optimistic]);
+
+    const result = await createInstructorScheduleSlotAction(
+      {},
+      toCreateFormData(values)
+    );
+
+    if (!result.success || !result.session) {
+      untrackPendingTemp(tempId);
+      setSessions((prev) => prev.filter((session) => session.id !== tempId));
+      showErrorToast(result.error ?? "Unable to create slot.");
+      return;
+    }
+
+    setSessions((prev) =>
+      prev.map((session) => (session.id === tempId ? result.session! : session))
+    );
+    untrackPendingTemp(tempId);
+    showSuccessToast(result.message ?? "Slot created.");
+  }
+
+  async function handleOptimisticUpdate(
+    values: UpdateInstructorScheduleSlotInput
+  ) {
+    if (isTempScheduleId(values.id)) {
+      showInfoToast("Still saving this slot…");
+      return;
+    }
+
+    const previous = sessions.find((session) => session.id === values.id);
+    if (!previous) {
+      showErrorToast("Unable to update slot.");
+      return;
+    }
+
+    const next = sessionFromCreateInput(
+      {
+        record_id: values.record_id,
+        name: values.name,
+        type: values.type,
+        slot_date: values.slot_date,
+        start_time: values.start_time,
+        end_time: values.end_time,
+        color: values.color,
+      },
+      values.id
+    );
+
+    setSessions((prev) =>
+      prev.map((session) => (session.id === values.id ? next : session))
+    );
+    if (selectedSession?.id === values.id) {
+      setSelectedSession(next);
+    }
+
+    const result = await updateInstructorScheduleSlotAction(
+      {},
+      toUpdateFormData(values)
+    );
+
+    if (!result.success) {
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === values.id ? previous : session
+        )
+      );
+      if (selectedSession?.id === values.id) {
+        setSelectedSession(previous);
+      }
+      showErrorToast(result.error ?? "Unable to update slot.");
+      return;
+    }
+
+    if (result.session) {
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === values.id ? result.session! : session
+        )
+      );
+      if (selectedSession?.id === values.id) {
+        setSelectedSession(result.session);
+      }
+    }
+
+    showSuccessToast(result.message ?? "Slot updated.");
+  }
+
+  async function handleOptimisticCopy(preview: CopyInstructorSchedulePreview) {
+    const tempIds = preview.willCreate.map(() => makeTempId());
+    const optimisticSessions = preview.willCreate.map((item, index) => ({
+      id: tempIds[index]!,
+      recordId: preview.recordId,
+      name: item.name,
+      type: item.type,
+      slotDate: item.slotDate,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      color: item.color,
+    }));
+
+    for (const tempId of tempIds) {
+      trackPendingTemp(tempId);
+    }
+    setSessions((prev) => [...prev, ...optimisticSessions]);
+
+    const formData = new FormData();
+    formData.set("record_id", preview.recordId);
+    formData.set("week_start", preview.weekStart);
+    const result = await copyInstructorScheduleSlotsAction({}, formData);
+
+    if (!result.success) {
+      const tempIdSet = new Set(tempIds);
+      for (const tempId of tempIds) {
+        untrackPendingTemp(tempId);
+      }
+      setSessions((prev) =>
+        prev.filter((session) => !tempIdSet.has(session.id))
+      );
+      showErrorToast(result.error ?? "Unable to copy last week.");
+      return;
+    }
+
+    for (const tempId of tempIds) {
+      untrackPendingTemp(tempId);
+    }
+    showSuccessToast(result.message ?? "Last week copied.");
+    softRefresh();
+  }
+
+  function handleConfirmDelete() {
+    if (!deleteTarget) {
+      return;
+    }
+
+    if (isTempScheduleId(deleteTarget.id)) {
+      showInfoToast("Still saving this slot…");
+      setDeleteTarget(null);
+      return;
+    }
+
+    const removed = deleteTarget;
+    setDeleteTarget(null);
+    setIsEditOpen(false);
+    setSelectedSession(null);
+    setSessions((prev) =>
+      prev.filter((session) => session.id !== removed.id)
+    );
+
+    void (async () => {
+      const formData = new FormData();
+      formData.set("id", removed.id);
+      const result = await deleteInstructorScheduleSlotAction({}, formData);
+
+      if (!result.success) {
+        setSessions((prev) => [...prev, removed]);
+        showErrorToast(result.error ?? "Unable to delete slot.");
+        return;
+      }
+
+      showSuccessToast(result.message ?? "Slot deleted.");
+    })();
+  }
+
+  function handleEventClick(info: EventClickInfo) {
+    if (info.event.extendedProps.isDuplicateGhost) {
+      return;
+    }
+
+    const session = getSessionFromEvent(info);
+    if (!session) {
+      return;
+    }
+
+    info.jsEvent.preventDefault();
+    openEditSession(session);
+  }
+
+  function handleDateSelect(info: DateSelectInfo) {
+    if (!canCreate || !selectedInstructorId) {
+      info.view.calendar.unselect();
+      return;
+    }
+
+    openCreate(
+      buildCreateDefaultsFromDates(info.start, info.end, info.allDay)
+    );
+    info.view.calendar.unselect();
+  }
+
+  function handleEventDragStart(info: EventDragStartInfo) {
+    if (info.event.extendedProps.isDuplicateGhost) {
+      return;
+    }
+
+    const session = getSessionFromEventProps(info.event);
+    if (!session || !info.event.start || isTempScheduleId(session.id)) {
+      dragSourceRef.current = null;
+      return;
+    }
+
+    const snapshot: DragSourceSnapshot = {
+      session,
+      start: info.event.start,
+      end: info.event.end,
+    };
+    dragSourceRef.current = snapshot;
+
+    if (canCreate && info.jsEvent.altKey) {
+      showDuplicateGhost(snapshot);
+    } else {
+      isAltDupDragRef.current = false;
+      clearDuplicateGhostVisual();
+    }
+  }
+
+  function handleEventDragStop() {
+    clearDuplicateDragState();
+  }
+
+  function handleEventDrop(info: EventDropInfo) {
+    const dropStart = info.event.start;
+    const dropEnd = info.event.end;
+    const allDay = info.event.allDay;
+    const wantsDuplicate = info.jsEvent.altKey || isAltDupDragRef.current;
+    const source = getSessionFromEventProps(info.oldEvent);
+    const previousStart = info.oldEvent.start;
+    const previousEnd = info.oldEvent.end;
+
+    clearDuplicateGhostVisual();
+
+    if (!source || isTempScheduleId(source.id)) {
+      info.revert();
+      return;
+    }
+
+    if (wantsDuplicate) {
+      info.revert();
+
+      if (!canCreate) {
+        return;
+      }
+
+      const payload = buildDuplicatePayload(
+        source,
+        dropStart,
+        dropEnd,
+        allDay
+      );
+      if (!payload) {
+        return;
+      }
+
+      void handleOptimisticCreate(payload);
+      return;
+    }
+
+    if (!canUpdate) {
+      info.revert();
+      return;
+    }
+
+    if (!dropStart) {
+      info.revert();
+      return;
+    }
+
+    const slotDate = formatDateFromDate(dropStart);
+    let startTime: string;
+    let endTime: string;
+
+    if (allDay) {
+      startTime = source.startTime;
+      endTime = source.endTime;
+    } else {
+      startTime = formatTimeFromDate(dropStart);
+      endTime = dropEnd ? formatTimeFromDate(dropEnd) : source.endTime;
+      if (endTime <= startTime) {
+        endTime = source.endTime;
+        if (endTime <= startTime) {
+          const next = new Date(dropStart);
+          next.setMinutes(next.getMinutes() + 90);
+          endTime = formatTimeFromDate(next);
+        }
+      }
+    }
+
+    if (endTime <= startTime) {
+      info.revert();
+      showErrorToast("End time must be after start time.");
+      return;
+    }
+
+    const previous = source;
+    const optimistic: ManagerInstructorScheduleSession = {
+      ...source,
+      slotDate,
+      startTime,
+      endTime,
+    };
+
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === source.id ? optimistic : session
+      )
+    );
+    if (selectedSession?.id === source.id) {
+      setSelectedSession(optimistic);
+    }
+
+    const formData = new FormData();
+    formData.set("id", source.id);
+    formData.set("record_id", source.recordId);
+    formData.set("name", source.name);
+    formData.set("type", source.type);
+    formData.set("slot_date", slotDate);
+    formData.set("start_time", startTime);
+    formData.set("end_time", endTime);
+    formData.set("color", source.color);
+
+    startTransition(() => {
+      void (async () => {
+        const result = await updateInstructorScheduleSlotAction({}, formData);
+        if (!result.success) {
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === source.id ? previous : session
+            )
+          );
+          if (selectedSession?.id === source.id) {
+            setSelectedSession(previous);
+          }
+          if (previousStart) {
+            info.event.setDates(previousStart, previousEnd);
+          } else {
+            info.revert();
+          }
+          showErrorToast(result.error ?? "Unable to move slot.");
+          return;
+        }
+
+        if (result.session) {
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === source.id ? result.session! : session
+            )
+          );
+          if (selectedSession?.id === source.id) {
+            setSelectedSession(result.session);
+          }
+        }
+
+        showSuccessToast(result.message ?? "Slot moved.");
+      })();
+    });
+  }
+
+  function handleEventResize(info: EventResizeDoneInfo) {
+    if (!canUpdate || info.event.extendedProps.isDuplicateGhost) {
+      info.revert();
+      return;
+    }
+
+    const session =
+      getSessionFromEventProps(info.oldEvent) ??
+      getSessionFromEventProps(info.event);
+    const start = info.event.start;
+    const end = info.event.end;
+
+    if (!session || !start || !end || isTempScheduleId(session.id)) {
+      info.revert();
+      return;
+    }
+
+    const slotDate = formatDateFromDate(start);
+    const startTime = formatTimeFromDate(start);
+    const endTime = formatTimeFromDate(end);
+
+    if (endTime <= startTime) {
+      info.revert();
+      showErrorToast("End time must be after start time.");
+      return;
+    }
+
+    const previousStart = info.oldEvent.start;
+    const previousEnd = info.oldEvent.end;
+    const previous = session;
+    const optimistic: ManagerInstructorScheduleSession = {
+      ...session,
+      slotDate,
+      startTime,
+      endTime,
+    };
+
+    setSessions((prev) =>
+      prev.map((item) => (item.id === session.id ? optimistic : item))
+    );
+    if (selectedSession?.id === session.id) {
+      setSelectedSession(optimistic);
+    }
+
+    const formData = new FormData();
+    formData.set("id", session.id);
+    formData.set("record_id", session.recordId);
+    formData.set("name", session.name);
+    formData.set("type", session.type);
+    formData.set("slot_date", slotDate);
+    formData.set("start_time", startTime);
+    formData.set("end_time", endTime);
+    formData.set("color", session.color);
+
+    startTransition(() => {
+      void (async () => {
+        const result = await updateInstructorScheduleSlotAction({}, formData);
+        if (!result.success) {
+          setSessions((prev) =>
+            prev.map((item) => (item.id === session.id ? previous : item))
+          );
+          if (selectedSession?.id === session.id) {
+            setSelectedSession(previous);
+          }
+          if (previousStart) {
+            info.event.setDates(previousStart, previousEnd);
+          } else {
+            info.revert();
+          }
+          showErrorToast(result.error ?? "Unable to update slot time.");
+          return;
+        }
+
+        if (result.session) {
+          setSessions((prev) =>
+            prev.map((item) =>
+              item.id === session.id ? result.session! : item
+            )
+          );
+          if (selectedSession?.id === session.id) {
+            setSelectedSession(result.session);
+          }
+        }
+
+        showSuccessToast(result.message ?? "Slot time updated.");
+      })();
+    });
+  }
+
+  function handleDatesSet(info: DatesSetInfo) {
+    const bounds = getSundayWeekBounds(formatDateFromDate(info.start));
+    setWeekStart(bounds.weekStart);
+  }
+
+  async function handleOpenCopyLastWeek() {
+    if (!canCreate || !selectedInstructorId) {
+      return;
+    }
+
+    let anchor = weekStart;
+    const api = calendarRef.current?.getApi?.() as CalendarApi | undefined;
+    if (api) {
+      anchor = getSundayWeekBounds(formatDateFromDate(api.getDate())).weekStart;
+      setWeekStart(anchor);
+    }
+
+    setIsCopyOpen(true);
+    setCopyPreview(null);
+    setCopyPreviewError(null);
+    setIsLoadingCopyPreview(true);
+
+    try {
+      const result = await previewCopyLastWeekInstructorScheduleAction(
+        selectedInstructorId,
+        anchor
+      );
+      if (!result.success) {
+        setCopyPreviewError(result.error);
+        return;
+      }
+
+      setCopyPreview(result.preview);
+    } catch {
+      setCopyPreviewError("Unable to load copy preview. Please try again.");
+    } finally {
+      setIsLoadingCopyPreview(false);
+    }
+  }
+
+  if (data.instructors.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Instructor schedules
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Free and busy slots per instructor.
+          </p>
+        </div>
+        <div className="rounded-xl border px-6 py-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            No instructors yet. Add instructors first, then manage their
+            schedules here.
+          </p>
+          <Link
+            href={ROUTES.MANAGER_INSTRUCTORS}
+            className={cn(buttonVariants({ variant: "outline" }), "mt-4")}
+          >
+            Manage instructors
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Instructor schedules
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Free and busy slots for each instructor. Click a slot to edit it
+            {canCreate
+              ? ", drag to select a range to add one, or hold Alt and drag a slot to duplicate it"
+              : ""}
+            {canUpdate
+              ? ", drag a slot to move it, or drag the top/bottom edge to change duration"
+              : ""}
+            .
+          </p>
+        </div>
+        <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
+          <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!selectedInstructorId}
+              onClick={() => {
+                void handleOpenCopyLastWeek();
+              }}
+            >
+              <CopyIcon data-icon="inline-start" />
+              Copy last week
+            </Button>
+            <Button
+              type="button"
+              disabled={!selectedInstructorId}
+              onClick={() => openCreate(null)}
+            >
+              <PlusIcon data-icon="inline-start" />
+              Add slot
+            </Button>
+          </div>
+        </Can>
+      </div>
+
+      <div
+        role="tablist"
+        aria-label="Instructors"
+        className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+      >
+        {data.instructors.map((instructor) => {
+          const selected = instructor.id === selectedInstructorId;
+          return (
+            <button
+              key={instructor.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setSelectedInstructorId(instructor.id)}
+              className={cn(
+                "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+                "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
+                selected &&
+                  "border-border bg-background text-foreground shadow-sm"
+              )}
+            >
+              {instructor.username ?? "Unknown"}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div
+          aria-label="Slot counts for this week"
+          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+        >
+          {INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES.map((type) => {
+            const Icon = TYPE_STAT_ICONS[type];
+            const count = weekTypeCounts[type];
+            return (
+              <div
+                key={type}
+                className="inline-flex items-center gap-1.5 rounded-full border border-transparent px-3.5 py-1.5 text-sm text-muted-foreground"
+              >
+                <Icon className="size-3.5 shrink-0" aria-hidden />
+                <span className="font-semibold tabular-nums text-foreground">
+                  {count}
+                </span>
+                <span className="font-medium">
+                  {INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS[type]}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Filter by slot type"
+          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+        >
+          {TYPE_FILTER_OPTIONS.map((option) => {
+            const selected = typeFilter === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setTypeFilter(option.value)}
+                className={cn(
+                  "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+                  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
+                  selected &&
+                    "border-border bg-background text-foreground shadow-sm"
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <AddInstructorScheduleSlotDialog
+        open={isCreateOpen}
+        onOpenChange={(next) => {
+          setIsCreateOpen(next);
+          if (!next) {
+            setCreateDefaults(null);
+          }
+        }}
+        onCreate={handleOptimisticCreate}
+        defaults={
+          selectedInstructorId
+            ? {
+                record_id: selectedInstructorId,
+                ...createDefaults,
+              }
+            : null
+        }
+        instructorLabel={selectedInstructor?.username}
+      />
+
+      <EditInstructorScheduleSlotDialog
+        open={isEditOpen}
+        onOpenChange={(next) => {
+          setIsEditOpen(next);
+          if (!next && !deleteTarget) {
+            setSelectedSession(null);
+          }
+        }}
+        session={selectedSession}
+        onUpdate={handleOptimisticUpdate}
+        onDeleteRequest={(session) => {
+          setDeleteTarget(session);
+        }}
+      />
+
+      <CopyLastWeekInstructorScheduleDialog
+        open={isCopyOpen}
+        onOpenChange={setIsCopyOpen}
+        preview={copyPreview}
+        isLoadingPreview={isLoadingCopyPreview}
+        previewError={copyPreviewError}
+        onCopy={handleOptimisticCopy}
+      />
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={handleDeleteOpenChange}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete schedule slot</DialogTitle>
+            <DialogDescription>
+              This will permanently remove{" "}
+              {deleteTarget
+                ? `${deleteTarget.name} on ${formatSlotDateLabel(deleteTarget.slotDate)}`
+                : "this slot"}
+              . This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleDeleteOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div
+        className={cn(
+          "fc-schedule-theme min-h-[42rem]",
+          isAltDuplicating && "is-alt-duplicating"
+        )}
+      >
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[
+            themePlugin,
+            interactionPlugin,
+            dayGridPlugin,
+            timeGridPlugin,
+            listPlugin,
+          ]}
+          initialView="timeGridWeek"
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "timeGridWeek,timeGridDay,dayGridMonth,listWeek",
+          }}
+          firstDay={0}
+          height="auto"
+          expandRows
+          nowIndicator
+          weekends
+          slotMinTime="05:00:00"
+          slotMaxTime="24:00:00"
+          slotDuration="00:30:00"
+          scrollTime="07:00:00"
+          allDaySlot={false}
+          events={events}
+          editable={canCreate || canUpdate}
+          eventStartEditable={canCreate || canUpdate}
+          eventDurationEditable={canUpdate}
+          eventResizableFromStart={canUpdate}
+          selectable={canCreate && Boolean(selectedInstructorId)}
+          selectMirror={canCreate && Boolean(selectedInstructorId)}
+          select={handleDateSelect}
+          eventDragStart={handleEventDragStart}
+          eventDragStop={handleEventDragStop}
+          eventDrop={handleEventDrop}
+          eventResize={handleEventResize}
+          datesSet={handleDatesSet}
+          eventClick={handleEventClick}
+          eventTimeFormat={{
+            hour: "numeric",
+            minute: "2-digit",
+            meridiem: "short",
+          }}
+          dayHeaderFormat={{ weekday: "short", day: "numeric" }}
+          eventDisplay="block"
+        />
+      </div>
+    </div>
+  );
+}

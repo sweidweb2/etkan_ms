@@ -30,6 +30,7 @@ export const PERMISSION_FEATURES = [
   "semesters",
   "equipment",
   "schedule",
+  "instructor_schedules",
   "notifications",
   "emailing",
   "accounting",
@@ -60,6 +61,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   semesters: "Semesters",
   equipment: "Equipment",
   schedule: "Schedule",
+  instructor_schedules: "Instructor Schedules",
   notifications: "Notifications",
   emailing: "Emailing",
   accounting: "Accounting",
@@ -152,6 +154,11 @@ export const PERMISSIONS = {
   SCHEDULE_CREATE: "schedule.create",
   SCHEDULE_UPDATE: "schedule.update",
   SCHEDULE_DELETE: "schedule.delete",
+
+  INSTRUCTOR_SCHEDULES_VIEW: "instructor_schedules.view",
+  INSTRUCTOR_SCHEDULES_CREATE: "instructor_schedules.create",
+  INSTRUCTOR_SCHEDULES_UPDATE: "instructor_schedules.update",
+  INSTRUCTOR_SCHEDULES_DELETE: "instructor_schedules.delete",
 
   NOTIFICATIONS_VIEW: "notifications.view",
   NOTIFICATIONS_CREATE: "notifications.create",
@@ -611,6 +618,31 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SCHEDULE_DELETE,
     feature: "schedule",
     label: "Delete schedule slot",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW,
+    feature: "instructor_schedules",
+    label: "View instructor schedules",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE,
+    feature: "instructor_schedules",
+    label: "Create instructor schedule slot",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.INSTRUCTOR_SCHEDULES_UPDATE,
+    feature: "instructor_schedules",
+    label: "Edit instructor schedule slot",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.INSTRUCTOR_SCHEDULES_DELETE,
+    feature: "instructor_schedules",
+    label: "Delete instructor schedule slot",
     access: PERMISSION_ACCESS.WRITE,
   },
 

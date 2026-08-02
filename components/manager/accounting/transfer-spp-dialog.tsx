@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { transferSppAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -96,12 +96,17 @@ export function TransferSppDialog({
   const [selectedPhaseId, setSelectedPhaseId] = useState(
     phaseOptions[0]?.id ?? ""
   );
+  const defaultPhaseId = phaseOptions[0]?.id ?? "";
+  const selectionResetToken = open ? defaultPhaseId : null;
+  const [prevSelectionResetToken, setPrevSelectionResetToken] =
+    useState(selectionResetToken);
 
-  useEffect(() => {
-    if (open) {
-      setSelectedPhaseId(phaseOptions[0]?.id ?? "");
+  if (selectionResetToken !== prevSelectionResetToken) {
+    setPrevSelectionResetToken(selectionResetToken);
+    if (selectionResetToken !== null) {
+      setSelectedPhaseId(defaultPhaseId);
     }
-  }, [open, phaseOptions]);
+  }
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {

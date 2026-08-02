@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import type { FormEvent } from "react";
 import { addInstructorsAction } from "@/app/manager/instructors/actions";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -44,17 +44,17 @@ export function AddInstructorsDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   const [selected, setSelected] = useState<ManagerInstructorCandidateRow[]>([]);
   const [selectionError, setSelectionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) {
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
+    if (!nextOpen) {
       setSelected([]);
       setSelectionError(null);
     }
-  }, [open]);
+    onOpenChange(nextOpen);
+  });
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {

@@ -2,14 +2,14 @@
 
 import {
   useActionState,
-  useEffect,
   useMemo,
   useState,
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { CalendarDaysIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import Link from "next/link";
 import {
   removeInstructorAction,
   saveInstructorCapabilitiesAction,
@@ -19,7 +19,7 @@ import { usePermissions } from "@/components/auth/permissions-provider";
 import { AddInstructorsDialog } from "@/components/manager/instructors/add-instructors-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type {
   ManagerInstructorCapabilityPair,
@@ -97,24 +98,31 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
   const [baselineKeys, setBaselineKeys] = useState(() =>
     toCapabilitySet(data.capabilities)
   );
+  const capabilitiesKey = data.capabilities
+    .map((pair) => pairKey(pair.user_id, pair.subject_id))
+    .sort()
+    .join("|");
+  const [syncedCapabilitiesKey, setSyncedCapabilitiesKey] =
+    useState(capabilitiesKey);
 
-  useEffect(() => {
+  if (capabilitiesKey !== syncedCapabilitiesKey) {
+    setSyncedCapabilitiesKey(capabilitiesKey);
     const next = toCapabilitySet(data.capabilities);
     setDraftKeys(next);
     setBaselineKeys(next);
-  }, [data.capabilities]);
+  }
 
   useActionStateToast(saveState, isSavePending);
   useActionStateToast(removeState, isRemovePending);
 
-  useEffect(() => {
-    if (!saveState.success || isSavePending || !saveState.capabilities) {
+  useActionStateSuccess(saveState, isSavePending, (nextState) => {
+    if (!nextState.capabilities) {
       return;
     }
-    const next = toCapabilitySet(saveState.capabilities);
+    const next = toCapabilitySet(nextState.capabilities);
     setDraftKeys(next);
     setBaselineKeys(next);
-  }, [saveState, isSavePending]);
+  });
 
   useActionStateSuccess(removeState, isRemovePending, () => {
     setRemoveTarget(null);
@@ -185,13 +193,24 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Manage instructors
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Users marked as instructors and the subjects they can teach.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Manage instructors
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Users marked as instructors and the subjects they can teach.
+          </p>
+        </div>
+        <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+          <Link
+            href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}
+            className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}
+          >
+            <CalendarDaysIcon data-icon="inline-start" />
+            Instructor schedules
+          </Link>
+        </Can>
       </div>
 
       <section className="space-y-3">

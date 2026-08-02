@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { repairMissingSppAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -100,12 +100,16 @@ export function AssignMissingSppDialog({
   }, [row, phaseOptions]);
 
   const [selectedPhaseId, setSelectedPhaseId] = useState(defaultPhaseId);
+  const selectionResetToken = open ? defaultPhaseId : null;
+  const [prevSelectionResetToken, setPrevSelectionResetToken] =
+    useState(selectionResetToken);
 
-  useEffect(() => {
-    if (open) {
+  if (selectionResetToken !== prevSelectionResetToken) {
+    setPrevSelectionResetToken(selectionResetToken);
+    if (selectionResetToken !== null) {
       setSelectedPhaseId(defaultPhaseId);
     }
-  }, [open, defaultPhaseId]);
+  }
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {

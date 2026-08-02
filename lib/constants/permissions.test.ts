@@ -57,8 +57,8 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 101 keys (includes instructors)", () => {
-    expect(PERMISSION_KEYS).toHaveLength(101);
+  it("keeps the catalog size at 105 keys (includes instructor schedules)", () => {
+    expect(PERMISSION_KEYS).toHaveLength(105);
     expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW)).toBe(
       true
@@ -70,5 +70,6 @@ describe("permissions", () => {
     expect(isPermissionKey(PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE)).toBe(
       true
     );
+    expect(isPermissionKey(PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW)).toBe(true);
   });
 });
