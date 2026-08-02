@@ -31,6 +31,7 @@ export const PERMISSION_FEATURES = [
   "equipment",
   "schedule",
   "instructor_schedules",
+  "workshops",
   "notifications",
   "emailing",
   "accounting",
@@ -62,6 +63,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   equipment: "Equipment",
   schedule: "Schedule",
   instructor_schedules: "Instructor Schedules",
+  workshops: "Workshops",
   notifications: "Notifications",
   emailing: "Emailing",
   accounting: "Accounting",
@@ -159,6 +161,11 @@ export const PERMISSIONS = {
   INSTRUCTOR_SCHEDULES_CREATE: "instructor_schedules.create",
   INSTRUCTOR_SCHEDULES_UPDATE: "instructor_schedules.update",
   INSTRUCTOR_SCHEDULES_DELETE: "instructor_schedules.delete",
+
+  WORKSHOPS_VIEW: "workshops.view",
+  WORKSHOPS_CREATE: "workshops.create",
+  WORKSHOPS_UPDATE: "workshops.update",
+  WORKSHOPS_DELETE: "workshops.delete",
 
   NOTIFICATIONS_VIEW: "notifications.view",
   NOTIFICATIONS_CREATE: "notifications.create",
@@ -643,6 +650,31 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.INSTRUCTOR_SCHEDULES_DELETE,
     feature: "instructor_schedules",
     label: "Delete instructor schedule slot",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.WORKSHOPS_VIEW,
+    feature: "workshops",
+    label: "View workshops",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.WORKSHOPS_CREATE,
+    feature: "workshops",
+    label: "Create workshop",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.WORKSHOPS_UPDATE,
+    feature: "workshops",
+    label: "Edit workshop",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.WORKSHOPS_DELETE,
+    feature: "workshops",
+    label: "Delete workshop",
     access: PERMISSION_ACCESS.WRITE,
   },
 

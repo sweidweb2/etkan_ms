@@ -134,6 +134,83 @@ Table instructor_schedule_slots {
   }
 }
 
+Table workshops {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name text [not null]
+  subject text [note: 'Free-text topic (not FK to subjects)']
+  status text [not null, default: 'draft', note: 'draft | proposal | scheduled | in_progress | completed | cancelled']
+  target_audience text
+  nb_participants integer
+  proposal_notes text
+  number_of_sessions integer
+  price numeric(12,2)
+  start_date date
+  end_date date
+  delivery_place text
+  created_by uuid [ref: > profiles.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (status)
+    (start_date)
+    (created_by)
+    (deleted_at)
+  }
+}
+
+Table workshop_instructors {
+  id uuid [pk, default: `gen_random_uuid()`]
+  workshop_id uuid [not null, ref: > workshops.id]
+  user_id uuid [not null, ref: > profiles.id]
+  role text [not null, note: 'lead | assistant | guest']
+  wage_type text [not null, note: 'fixed | per_session | percentage']
+  wage_amount numeric(12,2)
+  notes text
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (workshop_id, user_id) [unique]
+    (workshop_id)
+    (user_id)
+  }
+}
+
+Table workshop_documents {
+  id uuid [pk, default: `gen_random_uuid()`]
+  workshop_id uuid [not null, ref: > workshops.id]
+  name text [not null]
+  storage_path text [not null]
+  file_size bigint
+  mime_type text
+  uploaded_by uuid [ref: > profiles.id]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (workshop_id, storage_path) [unique]
+    (workshop_id)
+  }
+}
+
+Table workshop_payments {
+  id uuid [pk, default: `gen_random_uuid()`]
+  workshop_id uuid [not null, ref: > workshops.id]
+  amount numeric(12,2) [not null]
+  type text [not null, note: 'debit | credit']
+  payment_date date [not null]
+  payment_method text
+  notes text
+  created_by uuid [ref: > profiles.id]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (workshop_id)
+    (payment_date)
+    (type)
+  }
+}
+
 Table attendee {
   id uuid [pk, default: `gen_random_uuid()`]
   session_id uuid [not null]

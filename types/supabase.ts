@@ -492,6 +492,48 @@ export type Database = {
           },
         ]
       }
+      instructor_schedule_slots: {
+        Row: {
+          color: string
+          created_at: string
+          end_time: string
+          entity_type: string
+          id: string
+          name: string
+          record_id: string
+          slot_date: string
+          start_time: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          end_time: string
+          entity_type: string
+          id?: string
+          name: string
+          record_id: string
+          slot_date: string
+          start_time: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          end_time?: string
+          entity_type?: string
+          id?: string
+          name?: string
+          record_id?: string
+          slot_date?: string
+          start_time?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       instructor_subject_capability: {
         Row: {
           created_at: string
@@ -1014,7 +1056,7 @@ export type Database = {
           {
             foreignKeyName: "student_financial_adjustments_student_payment_phase_id_fkey"
             columns: ["student_payment_phase_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "student_payment_phases"
             referencedColumns: ["id"]
           },
@@ -1522,47 +1564,217 @@ export type Database = {
         }
         Relationships: []
       }
-      instructor_schedule_slots: {
+      workshop_documents: {
         Row: {
-          color: string
           created_at: string
-          end_time: string
-          entity_type: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          name: string
+          storage_path: string
+          uploaded_by: string | null
+          workshop_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          storage_path: string
+          uploaded_by?: string | null
+          workshop_id: string
+        }
+        Update: {
+          created_at?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          storage_path?: string
+          uploaded_by?: string | null
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_documents_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workshop_instructors: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          role: string
+          user_id: string
+          wage_amount: number | null
+          wage_type: string
+          workshop_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role: string
+          user_id: string
+          wage_amount?: number | null
+          wage_type: string
+          workshop_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role?: string
+          user_id?: string
+          wage_amount?: number | null
+          wage_type?: string
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_instructors_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_instructors_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workshop_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          type: string
+          workshop_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_date: string
+          payment_method?: string | null
+          type: string
+          workshop_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          type?: string
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_payments_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workshops: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          delivery_place: string | null
+          end_date: string | null
           id: string
           name: string
-          record_id: string
-          slot_date: string
-          start_time: string
-          type: string
+          nb_participants: number | null
+          number_of_sessions: number | null
+          price: number | null
+          proposal_notes: string | null
+          start_date: string | null
+          status: string
+          subject: string | null
+          target_audience: string | null
           updated_at: string
         }
         Insert: {
-          color?: string
           created_at?: string
-          end_time: string
-          entity_type: string
+          created_by?: string | null
+          deleted_at?: string | null
+          delivery_place?: string | null
+          end_date?: string | null
           id?: string
           name: string
-          record_id: string
-          slot_date: string
-          start_time: string
-          type: string
+          nb_participants?: number | null
+          number_of_sessions?: number | null
+          price?: number | null
+          proposal_notes?: string | null
+          start_date?: string | null
+          status?: string
+          subject?: string | null
+          target_audience?: string | null
           updated_at?: string
         }
         Update: {
-          color?: string
           created_at?: string
-          end_time?: string
-          entity_type?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          delivery_place?: string | null
+          end_date?: string | null
           id?: string
           name?: string
-          record_id?: string
-          slot_date?: string
-          start_time?: string
-          type?: string
+          nb_participants?: number | null
+          number_of_sessions?: number | null
+          price?: number | null
+          proposal_notes?: string | null
+          start_date?: string | null
+          status?: string
+          subject?: string | null
+          target_audience?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workshops_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1571,12 +1783,12 @@ export type Database = {
     Functions: {
       create_email_sent_with_reference: {
         Args: {
-          p_title: string
           p_body: string
+          p_created_by: string
           p_locale: string
           p_template_id: string
-          p_created_by: string | null
-          p_year?: number | null
+          p_title: string
+          p_year?: number
         }
         Returns: {
           body: string
@@ -1590,6 +1802,12 @@ export type Database = {
           title: string
           updated_at: string
           year: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "email_sent"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       mark_overdue_pending_work_missing: { Args: never; Returns: undefined }

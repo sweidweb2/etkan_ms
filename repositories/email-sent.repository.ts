@@ -26,7 +26,8 @@ export async function createEmailSentWithReference(
     p_body: input.body,
     p_locale: input.locale,
     p_template_id: input.templateId,
-    p_created_by: input.createdBy,
+    // RPC accepts null at runtime; generated Args currently type it as string.
+    p_created_by: input.createdBy as string,
     ...(input.year !== undefined ? { p_year: input.year } : {}),
   });
 

@@ -70,6 +70,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "school",
         },
         {
+          title: "Manage workshops",
+          href: ROUTES.MANAGER_WORKSHOPS,
+          icon: "presentation",
+        },
+        {
           title: "Manage classes",
           href: ROUTES.MANAGER_CLASSES,
           icon: "school",

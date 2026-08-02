@@ -32,7 +32,7 @@ Search, filter, and list↔detail are part of the matching `*.view` key (not sep
 
 Kept as separate groups (match manager domains):
 
-Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cron Jobs · Settings · RBAC
+Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Workshops · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cron Jobs · Settings · RBAC
 
 Collapsed into `*.view` (not separate permissions): search, filter, schedule/alerts widgets on dashboard, student detail sub-tabs (classes/grades/borrows summaries).
 
@@ -97,6 +97,15 @@ Format: `key` — label — access
 | `instructor_schedules.create` | Create instructor schedule slot | write |
 | `instructor_schedules.update` | Edit instructor schedule slot | write |
 | `instructor_schedules.delete` | Delete instructor schedule slot | write |
+
+### Workshops
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `workshops.view` | View workshops | read |
+| `workshops.create` | Create workshop | write |
+| `workshops.update` | Edit workshop | write |
+| `workshops.delete` | Delete workshop | write |
 
 ### Classes
 
@@ -303,6 +312,10 @@ instructor_schedules.view
 instructor_schedules.create
 instructor_schedules.update
 instructor_schedules.delete
+workshops.view
+workshops.create
+workshops.update
+workshops.delete
 classes.view
 classes.create
 classes.update
@@ -389,7 +402,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 101 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update.
+**Count:** 109 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update · workshops includes full CRUD.
 
 ---
 

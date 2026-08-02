@@ -10,6 +10,7 @@ export type PanelNavIconKey =
   | "mail"
   | "send"
   | "school"
+  | "presentation"
   | "package"
   | "layers"
   | "settings"
