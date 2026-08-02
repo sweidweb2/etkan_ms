@@ -99,18 +99,19 @@ async function seedRbac(): Promise<void> {
   console.log(`  Permissions catalog: ${catalogKeys.size}`);
   console.log(`  Manager grants:      ${managerKeys.length}`);
 
-  const adminBackupPermissions = [
+  const adminSeedPermissions = [
     PERMISSIONS.BACKUP_VIEW,
     PERMISSIONS.BACKUP_EXPORT_TABLE,
     PERMISSIONS.BACKUP_EXPORT_FULL,
     PERMISSIONS.BACKUP_DOWNLOAD,
+    PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
   ] as const;
 
   const { error: adminReplaceError } =
     await permissionRepository.replaceRolePermissions(
       adminClient,
       ROLES.ADMIN,
-      [...adminBackupPermissions]
+      [...adminSeedPermissions]
     );
 
   if (adminReplaceError) {
@@ -134,13 +135,13 @@ async function seedRbac(): Promise<void> {
   const adminKeys = new Set(
     (adminGrants ?? []).map((row) => row.permission_key)
   );
-  for (const key of adminBackupPermissions) {
+  for (const key of adminSeedPermissions) {
     if (!adminKeys.has(key)) {
       throw new Error(`Admin missing permission grant: ${key}`);
     }
   }
 
-  console.log(`  Admin backup grants: ${adminBackupPermissions.length}`);
+  console.log(`  Admin grants:          ${adminSeedPermissions.length}`);
   console.log("  Other roles:         empty (no role_permissions rows)");
 }
 

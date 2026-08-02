@@ -65,6 +65,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "library",
         },
         {
+          title: "Manage instructors",
+          href: ROUTES.MANAGER_INSTRUCTORS,
+          icon: "school",
+        },
+        {
           title: "Manage classes",
           href: ROUTES.MANAGER_CLASSES,
           icon: "school",
@@ -90,6 +95,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           title: "Accounting",
           href: ROUTES.MANAGER_ACCOUNTING,
           icon: "calculator",
+        },
+        {
+          title: "Income statement",
+          href: ROUTES.MANAGER_INCOME_STATEMENT,
+          icon: "reports",
         },
         {
           title: "Schedule",

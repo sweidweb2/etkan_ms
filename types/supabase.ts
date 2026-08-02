@@ -492,6 +492,42 @@ export type Database = {
           },
         ]
       }
+      instructor_subject_capability: {
+        Row: {
+          created_at: string
+          id: string
+          subject_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          subject_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          subject_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instructor_subject_capability_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_subject_capability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           action_href: string | null
@@ -633,18 +669,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_instructor: boolean
           role: string
           username: string | null
         }
         Insert: {
           created_at?: string | null
           id: string
+          is_instructor?: boolean
           role?: string
           username?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_instructor?: boolean
           role?: string
           username?: string | null
         }
@@ -1404,6 +1443,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          recorded_by: string
+          transaction_date: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          created_at?: string
+          description: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          recorded_by: string
+          transaction_date: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          recorded_by?: string
+          transaction_date?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       weekly_schedule_slots: {
         Row: {

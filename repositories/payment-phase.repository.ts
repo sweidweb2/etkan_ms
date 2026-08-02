@@ -58,6 +58,31 @@ export async function findPaymentPhaseById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function listPaymentPhaseNamesByIds(
+  client: Supabase,
+  ids: string[]
+) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client.from("payment_phases").select("id, name").in("id", ids);
+}
+
+export async function listPaymentPhaseAmountsByIds(
+  client: Supabase,
+  ids: string[]
+) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("payment_phases")
+    .select("id, name, amount, duration_months, status")
+    .in("id", ids);
+}
+
 export async function findOpenedPaymentPhaseBySemesterId(
   client: Supabase,
   semesterId: string

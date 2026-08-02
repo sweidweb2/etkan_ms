@@ -7,6 +7,10 @@ import {
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
 import { buildInitialSppInsert } from "@/lib/manager/accounting/spp-insert";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  STUDENT_STATUS_VALUES,
+  type StudentStatusValue,
+} from "@/lib/constants/manager-student-status";
 import { cancelPaymentPhaseSchema } from "@/lib/validators/manager/cancel-payment-phase";
 import { createPaymentPhaseSchema } from "@/lib/validators/manager/create-payment-phase";
 import { repairMissingSppSchema } from "@/lib/validators/manager/repair-missing-spp";
@@ -36,6 +40,7 @@ import {
 } from "@/services/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
+  ManagerBilledWithoutClassRow,
   ManagerMissingSppRow,
   ManagerPaymentPhaseRow,
   ManagerPaymentPhaseSemesterOption,
@@ -673,6 +678,131 @@ export async function listSppSemesterMismatchForManager(
       ...row,
       student_label: studentMeta?.label ?? row.student_id,
       student_profile_id: studentMeta?.student_profile_id ?? null,
+    };
+  });
+}
+
+/**
+ * Active non-cancelled SPPs on non-cancelled phases for students who are not
+ * members of any in-progress class.
+ */
+export async function listStudentsBilledWithoutActiveClassForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerBilledWithoutClassRow[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+
+  const [
+    { data: phasesData, error: phasesError },
+    { data: inProgressClasses, error: classesError },
+  ] = await Promise.all([
+    paymentPhaseRepository.listPaymentPhases(adminClient),
+    classRepository.listInProgressClasses(adminClient),
+  ]);
+
+  if (phasesError) {
+    throw new Error(phasesError.message);
+  }
+
+  if (classesError) {
+    throw new Error(classesError.message);
+  }
+
+  const phases = ((phasesData ?? []) as PaymentPhaseListRecord[]).filter(
+    (phase) => phase.status !== PAYMENT_PHASE_STATUSES.CANCELLED
+  );
+
+  if (phases.length === 0) {
+    return [];
+  }
+
+  const inProgressClassIds = (inProgressClasses ?? []).map((row) => row.id);
+  const memberUserIds = new Set<string>();
+
+  if (inProgressClassIds.length > 0) {
+    const { data: memberships, error: membershipError } =
+      await studentClassRepository.listMemberUserIdsByClassIds(
+        adminClient,
+        inProgressClassIds
+      );
+
+    if (membershipError) {
+      throw new Error(membershipError.message);
+    }
+
+    for (const row of memberships ?? []) {
+      memberUserIds.add(row.user_id);
+    }
+  }
+
+  const phaseIds = phases.map((phase) => phase.id);
+  const phaseById = new Map(phases.map((phase) => [phase.id, phase]));
+
+  const { data: sppRows, error: sppError } =
+    await studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
+      adminClient,
+      phaseIds
+    );
+
+  if (sppError) {
+    throw new Error(sppError.message);
+  }
+
+  const billedSpps = (sppRows ?? []).filter(
+    (row) =>
+      row.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED &&
+      !memberUserIds.has(row.student_id)
+  );
+
+  if (billedSpps.length === 0) {
+    return [];
+  }
+
+  const studentIds = [...new Set(billedSpps.map((row) => row.student_id))];
+  const [{ data: studentProfiles }, meta] = await Promise.all([
+    studentProfileRepository.listStudentProfileDetailsByUserIds(
+      adminClient,
+      studentIds
+    ),
+    buildStudentMetaByUserId(adminClient, studentIds),
+  ]);
+
+  const profileByUserId = new Map(
+    (studentProfiles ?? []).map((profile) => [profile.user_id, profile])
+  );
+
+  return billedSpps.map((spp) => {
+    const phase = phaseById.get(spp.payment_phase_id)!;
+    const studentMeta = meta.get(spp.student_id);
+    const profile = profileByUserId.get(spp.student_id);
+    const rawStatus = profile?.status;
+    const studentStatus =
+      rawStatus &&
+      (STUDENT_STATUS_VALUES as readonly string[]).includes(rawStatus)
+        ? (rawStatus as StudentStatusValue)
+        : null;
+
+    return {
+      spp_id: spp.id,
+      student_id: spp.student_id,
+      student_profile_id: studentMeta?.student_profile_id ?? null,
+      student_label: studentMeta?.label ?? spp.student_id,
+      student_status: studentStatus,
+      phone: profile?.phone ?? null,
+      payment_phase_id: phase.id,
+      payment_phase_name: phase.name,
+      phase_status: isPaymentPhaseStatus(phase.status)
+        ? phase.status
+        : PAYMENT_PHASE_STATUSES.OPENED,
+      spp_status: isStudentPaymentPhaseStatus(spp.status)
+        ? spp.status
+        : STUDENT_PAYMENT_PHASE_STATUSES.PENDING,
+      phase_semester_id: phase.semester_id,
+      phase_semester_name: phase.semesters?.name ?? "Unknown semester",
     };
   });
 }

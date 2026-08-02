@@ -62,13 +62,6 @@ export function SiteFooter() {
             >
               {t("nav.login")}
             </Link>
-            <Link
-              href={ROUTES.SIGNUP}
-              suppressHydrationWarning
-              className={authLinkClassName}
-            >
-              {t("nav.register")}
-            </Link>
           </div>
         </div>
       </div>

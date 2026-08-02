@@ -24,7 +24,10 @@ export const ROUTES = {
   MANAGER_STUDENT_DETAIL: "/manager/students/[id]",
   MANAGER_SUBJECTS: "/manager/subjects",
   MANAGER_SUBJECT_DETAIL: "/manager/subjects/[id]",
+  MANAGER_INSTRUCTORS: "/manager/instructors",
   MANAGER_ACCOUNTING: "/manager/accounting",
+  MANAGER_INCOME_STATEMENT: "/manager/income-statement",
+  MANAGER_INCOME_STATEMENT_ANALYTICS: "/manager/income-statement/analytics",
   MANAGER_ACCOUNTING_PHASE_DETAIL: "/manager/accounting/phases/[id]",
   MANAGER_ACCOUNTING_SPP_DETAIL:
     "/manager/accounting/phases/[id]/students/[sppId]",

@@ -514,12 +514,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                     </p>
                     <div className="mt-8">
                       <Link
-                        href={
-                          dashboardHref ??
-                          (item.id === "teamwork"
-                            ? ROUTES.SIGNUP
-                            : ROUTES.CAREERS)
-                        }
+                        href={dashboardHref ?? ROUTES.CAREERS}
                         tabIndex={isActive ? undefined : -1}
                         suppressHydrationWarning
                         className={cn(

@@ -86,6 +86,17 @@ export async function findSppById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function listSppsByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("student_payment_phases")
+    .select("id, student_id, payment_phase_id, status")
+    .in("id", ids);
+}
+
 export async function createStudentPaymentPhase(
   client: Supabase,
   input: CreateStudentPaymentPhaseRecordInput

@@ -78,10 +78,12 @@ export function AddUserDialog({
       email: "",
       password: "",
       role: ROLES.TEACHER,
+      is_instructor: false,
     },
   });
 
   const selectedRole = watch("role");
+  const isInstructor = watch("is_instructor");
 
   useEffect(() => {
     if (!open) {
@@ -90,6 +92,7 @@ export function AddUserDialog({
         email: "",
         password: "",
         role: ROLES.TEACHER,
+        is_instructor: false,
       });
     }
   }, [open, reset]);
@@ -105,6 +108,7 @@ export function AddUserDialog({
     formData.set("email", values.email.trim());
     formData.set("password", values.password);
     formData.set("role", values.role);
+    formData.set("is_instructor", String(values.is_instructor));
 
     startTransition(() => {
       formAction(formData);
@@ -232,6 +236,24 @@ export function AddUserDialog({
               <p className="text-sm text-destructive">{roleError}</p>
             ) : null}
           </div>
+
+          <label
+            htmlFor="add-user-is-instructor"
+            className="flex items-center gap-2 text-sm"
+          >
+            <input
+              id="add-user-is-instructor"
+              type="checkbox"
+              checked={isInstructor}
+              disabled={isPending}
+              onChange={(event) =>
+                setValue("is_instructor", event.target.checked, {
+                  shouldValidate: true,
+                })
+              }
+            />
+            Instructor
+          </label>
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">

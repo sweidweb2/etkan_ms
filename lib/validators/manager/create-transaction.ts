@@ -1,0 +1,165 @@
+import { z } from "zod";
+import {
+  PAYMENT_METHOD_VALUES,
+  TRANSACTION_CATEGORIES,
+  TRANSACTION_TYPE_VALUES,
+  getTransactionCategoriesForType,
+  type TransactionType,
+} from "@/lib/manager/accounting/constants";
+import type { FieldErrors } from "@/types/auth";
+
+export const createTransactionFormSchema = z
+  .object({
+    transaction_date: z
+      .string()
+      .trim()
+      .min(1, { message: "Date is required." })
+      .regex(/^\d{4}-\d{2}-\d{2}$/, {
+        message: "Date must be YYYY-MM-DD.",
+      }),
+    type: z.enum(TRANSACTION_TYPE_VALUES, {
+      message: "Select credit or debit.",
+    }),
+    amount: z.coerce
+      .number()
+      .positive({ message: "Amount must be greater than zero." })
+      .max(1_000_000, { message: "Amount must be at most 1,000,000." }),
+    description: z
+      .string()
+      .trim()
+      .min(1, { message: "Description is required." })
+      .max(200, { message: "Description must be at most 200 characters." }),
+    category: z.string().trim().min(1, { message: "Select a category." }),
+    category_custom: z
+      .string()
+      .trim()
+      .max(80, { message: "Custom category must be at most 80 characters." })
+      .optional()
+      .or(z.literal("")),
+    payment_method: z
+      .union([
+        z.enum(PAYMENT_METHOD_VALUES),
+        z.literal(""),
+        z.literal("__none__"),
+      ])
+      .optional(),
+    recorded_by: z
+      .string()
+      .trim()
+      .min(1, { message: "Recorded by is required." })
+      .max(120, { message: "Recorded by must be at most 120 characters." }),
+    notes: z
+      .string()
+      .trim()
+      .max(500, { message: "Notes must be at most 500 characters." })
+      .optional()
+      .or(z.literal("")),
+  })
+  .superRefine((values, ctx) => {
+    const allowed = getTransactionCategoriesForType(
+      values.type as TransactionType
+    ) as readonly string[];
+
+    if (!allowed.includes(values.category)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["category"],
+        message: "Select a category for this transaction type.",
+      });
+      return;
+    }
+
+    if (values.category === TRANSACTION_CATEGORIES.OTHER) {
+      const custom = values.category_custom?.trim() ?? "";
+      if (!custom) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["category_custom"],
+          message: "Enter a custom category.",
+        });
+      }
+    }
+  });
+
+export type CreateTransactionFormInput = z.input<
+  typeof createTransactionFormSchema
+>;
+export type CreateTransactionFormValues = z.output<
+  typeof createTransactionFormSchema
+>;
+
+export type CreateTransactionInput = {
+  transaction_date: string;
+  type: TransactionType;
+  amount: number;
+  description: string;
+  category: string;
+  payment_method: string | null;
+  recorded_by: string;
+  notes?: string | null;
+};
+
+export function resolveCreateTransactionInput(
+  values: CreateTransactionFormValues
+): CreateTransactionInput {
+  const category =
+    values.category === TRANSACTION_CATEGORIES.OTHER
+      ? (values.category_custom?.trim() ?? "")
+      : values.category;
+
+  const paymentMethod =
+    !values.payment_method || values.payment_method === "__none__"
+      ? null
+      : values.payment_method;
+
+  return {
+    transaction_date: values.transaction_date,
+    type: values.type,
+    amount: values.amount,
+    description: values.description,
+    category,
+    payment_method: paymentMethod,
+    recorded_by: values.recorded_by,
+    notes: values.notes,
+  };
+}
+
+/** @deprecated use createTransactionFormSchema */
+export const createTransactionSchema = createTransactionFormSchema;
+
+export function parseCreateTransactionFormData(formData: FormData):
+  | { success: true; data: CreateTransactionInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = createTransactionFormSchema.safeParse({
+    transaction_date: formData.get("transaction_date"),
+    type: formData.get("type"),
+    amount: formData.get("amount"),
+    description: formData.get("description"),
+    category: formData.get("category") ?? TRANSACTION_CATEGORIES.OTHER,
+    category_custom: formData.get("category_custom") ?? "",
+    payment_method: String(formData.get("payment_method") ?? ""),
+    recorded_by: formData.get("recorded_by"),
+    notes: formData.get("notes") ?? "",
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const data = resolveCreateTransactionInput(parsed.data);
+  if (!data.category) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        category_custom: ["Enter a custom category."],
+      },
+    };
+  }
+
+  return { success: true, data };
+}

@@ -75,6 +75,14 @@ export async function listPaymentIdsBySppIds(client: Supabase, sppIds: string[])
     .in("student_payment_phase_id", sppIds);
 }
 
+export async function listAllPayments(client: Supabase) {
+  return client
+    .from("student_payments")
+    .select(PAYMENT_COLUMNS)
+    .order("payment_date", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
 export async function findPaymentById(client: Supabase, id: string) {
   return client
     .from("student_payments")

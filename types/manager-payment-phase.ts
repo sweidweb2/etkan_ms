@@ -1,4 +1,5 @@
 import type { FieldErrors } from "@/types/auth";
+import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
 import type {
   PaymentPhaseStatus,
   StudentPaymentPhaseStatus,
@@ -47,6 +48,22 @@ export type ManagerSppSemesterMismatchRow = {
   current_class_name: string;
   current_semester_id: string | null;
   current_semester_name: string;
+};
+
+/** Active (non-cancelled) SPP while student has no in-progress class membership. */
+export type ManagerBilledWithoutClassRow = {
+  spp_id: string;
+  student_id: string;
+  student_profile_id: string | null;
+  student_label: string;
+  student_status: StudentStatusValue | null;
+  phone: string | null;
+  payment_phase_id: string;
+  payment_phase_name: string;
+  phase_status: PaymentPhaseStatus;
+  spp_status: StudentPaymentPhaseStatus;
+  phase_semester_id: string;
+  phase_semester_name: string;
 };
 
 export type ManagerPaymentPhaseSemesterOption = {

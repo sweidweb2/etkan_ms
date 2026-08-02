@@ -54,6 +54,7 @@ const validStaffInput = {
   email: "teacher@school.com",
   password: "secret123",
   role: ROLES.TEACHER,
+  is_instructor: false,
 };
 
 describe("listUsersForManager", () => {
@@ -74,6 +75,7 @@ describe("listUsersForManager", () => {
           id: "user-1",
           username: "teacher1",
           role: ROLES.TEACHER,
+          is_instructor: false,
           created_at: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -105,6 +107,7 @@ describe("listUsersForManager", () => {
         id: "user-1",
         username: "teacher1",
         role: ROLES.TEACHER,
+        is_instructor: false,
         created_at: "2026-01-01T00:00:00.000Z",
         email: "teacher@school.com",
       },
@@ -228,7 +231,7 @@ describe("createStaffUser", () => {
     });
 
     vi.mocked(profileRepository.createProfile).mockResolvedValue({
-      data: { id: "user-1", role: ROLES.TEACHER },
+      data: { id: "user-1", role: ROLES.TEACHER, is_instructor: false },
       error: null,
       count: null,
       status: 200,

@@ -15,6 +15,7 @@ export const createStaffUserSchema = z.object({
   role: z.enum(MANAGER_CREATABLE_ROLES, {
     message: "Please select a role.",
   }),
+  is_instructor: z.boolean(),
 });
 
 export type CreateStaffUserInput = z.infer<typeof createStaffUserSchema>;
@@ -27,6 +28,7 @@ export function parseCreateStaffUserFormData(formData: FormData):
     email: formData.get("email"),
     password: formData.get("password"),
     role: formData.get("role"),
+    is_instructor: formData.get("is_instructor") === "true",
   });
 
   if (!parsed.success) {

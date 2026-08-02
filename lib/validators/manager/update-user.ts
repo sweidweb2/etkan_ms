@@ -19,6 +19,7 @@ export const updateManagerUserSchema = z
     role: z.enum(MANAGER_USER_EDITABLE_ROLES, {
       message: "Please select a role.",
     }),
+    is_instructor: z.boolean(),
     fullName: z.string().optional(),
     birthDate: birthDateField,
     phone: phoneField,
@@ -74,6 +75,7 @@ export function parseUpdateManagerUserFormData(formData: FormData):
     username: formData.get("username"),
     email: formData.get("email"),
     role: formData.get("role"),
+    is_instructor: formData.get("is_instructor") === "true",
     fullName: formData.get("fullName") ?? undefined,
     birthDate: formData.get("birthDate") ?? "",
     phone: formData.get("phone") ?? "",

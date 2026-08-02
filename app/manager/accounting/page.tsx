@@ -7,6 +7,7 @@ import {
   listPaymentPhaseSemesterOptionsForManager,
   listPaymentPhasesForManager,
   listSppSemesterMismatchForManager,
+  listStudentsBilledWithoutActiveClassForManager,
 } from "@/services/payment-phase.service";
 import { listStudentsWithoutInProgressClassForManager } from "@/services/student.service";
 
@@ -21,6 +22,7 @@ export default async function ManagerAccountingPage() {
     semesterOptions,
     studentsWithoutActiveClass,
     sppSemesterMismatches,
+    billedWithoutClass,
   ] = await Promise.all([
     listPaymentPhasesForManager(adminClient, actorUserId),
     listMissingSppForOpenedPhases(adminClient, actorUserId),
@@ -31,13 +33,23 @@ export default async function ManagerAccountingPage() {
       PERMISSIONS.ACCOUNTING_VIEW
     ),
     listSppSemesterMismatchForManager(adminClient, actorUserId),
+    listStudentsBilledWithoutActiveClassForManager(adminClient, actorUserId),
   ]);
+
+  const billedStudentIds = new Set(
+    billedWithoutClass.map((row) => row.student_id)
+  );
+  const withoutClassOrPhase = studentsWithoutActiveClass.filter(
+    (row) => !billedStudentIds.has(row.user_id)
+  );
 
   return (
     <ManageAccountingPanel
       initialPhases={phases}
       initialMissing={missing}
       initialStudentsWithoutActiveClass={studentsWithoutActiveClass}
+      initialWithoutClassOrPhase={withoutClassOrPhase}
+      initialBilledWithoutClass={billedWithoutClass}
       initialSppSemesterMismatches={sppSemesterMismatches}
       semesterOptions={semesterOptions}
     />

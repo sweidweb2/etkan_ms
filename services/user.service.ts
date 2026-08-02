@@ -15,6 +15,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
 import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
 import * as authRepository from "@/repositories/auth.repository";
+import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
@@ -130,6 +131,7 @@ async function mapProfileToManagerUserRow(
     id: string;
     username: string | null;
     role: string;
+    is_instructor: boolean;
     created_at: string | null;
   }
 ): Promise<ManagerUserRow | null> {
@@ -146,6 +148,7 @@ async function mapProfileToManagerUserRow(
     id: profile.id,
     username: profile.username,
     role: profile.role as RoleValue,
+    is_instructor: profile.is_instructor,
     created_at: profile.created_at ?? authData.user.created_at,
     email: authData.user.email ?? "",
   };
@@ -241,6 +244,7 @@ export async function createStaffUser(
     email: string;
     password: string;
     role: string;
+    is_instructor: boolean;
   }
 ): Promise<CreateStaffUserResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.USERS_CREATE);
@@ -258,7 +262,7 @@ export async function createStaffUser(
     };
   }
 
-  const { username, email, password, role } = parsed.data;
+  const { username, email, password, role, is_instructor } = parsed.data;
 
   if (!MANAGER_CREATABLE_ROLES.includes(role)) {
     return {
@@ -344,6 +348,7 @@ export async function createStaffUser(
         id: authUserId,
         username: normalizedUsername,
         role,
+        is_instructor,
       }
     );
 
@@ -357,6 +362,7 @@ export async function createStaffUser(
       id: authUserId,
       username: normalizedUsername,
       role,
+      is_instructor,
       created_at: authData.user.created_at,
       email: normalizedEmail,
     };
@@ -381,6 +387,7 @@ export async function createStaffUser(
         username: normalizedUsername,
         role,
         email: normalizedEmail,
+        is_instructor,
       },
       metadata: { note: "Staff account created." },
     });
@@ -409,6 +416,7 @@ export async function updateManagerUser(
     username: string;
     email: string;
     role: string;
+    is_instructor: boolean;
     fullName?: string;
     birthDate?: string | null;
     phone?: string | null;
@@ -424,6 +432,7 @@ export async function updateManagerUser(
     username: input.username,
     email: input.email,
     role: input.role,
+    is_instructor: input.is_instructor,
     fullName: input.fullName,
     birthDate: input.birthDate ?? "",
     phone: input.phone ?? "",
@@ -439,7 +448,7 @@ export async function updateManagerUser(
   }
 
   const { userId } = input;
-  const { username, email, role } = parsed.data;
+  const { username, email, role, is_instructor } = parsed.data;
   const normalizedUsername = username.trim();
   const normalizedEmail = email.trim();
   const normalizedFullName = normalizeOptionalString(parsed.data.fullName);
@@ -499,12 +508,14 @@ export async function updateManagerUser(
   }
 
   const previousRole = existingProfile.data.role as RoleValue;
+  const previousIsInstructor = existingProfile.data.is_instructor;
   const previousEmail = authUserResult.data.user.email ?? null;
 
   const { data: updatedProfile, error: profileError } =
     await profileRepository.updateProfileById(adminClient, userId, {
       username: normalizedUsername,
       role,
+      is_instructor,
     });
 
   if (profileError || !updatedProfile) {
@@ -514,6 +525,21 @@ export async function updateManagerUser(
         profileError?.message ?? "Failed to update profile."
       ),
     };
+  }
+
+  if (previousIsInstructor && !is_instructor) {
+    const { error: capabilityError } =
+      await instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId(
+        adminClient,
+        userId
+      );
+
+    if (capabilityError) {
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(capabilityError.message),
+      };
+    }
   }
 
   const { error: authError } = await authRepository.updateAuthUserByAdmin(
@@ -665,6 +691,7 @@ export async function updateManagerUser(
     id: userId,
     username: updatedProfile.username,
     role,
+    is_instructor,
     created_at:
       updatedProfile.created_at ?? authUserResult.data.user.created_at,
     email: normalizedEmail,
@@ -688,11 +715,13 @@ export async function updateManagerUser(
       username: existingProfile.data.username,
       role: previousRole,
       email: previousEmail,
+      is_instructor: previousIsInstructor,
     },
     new_data: {
       username: normalizedUsername,
       role,
       email: normalizedEmail,
+      is_instructor,
       ...(studentProfileId
         ? {
             student_profile_id: studentProfileId,

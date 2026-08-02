@@ -63,6 +63,14 @@ export async function listAdjustmentIdsBySppIds(
     .in("student_payment_phase_id", sppIds);
 }
 
+export async function listAllFinancialAdjustments(client: Supabase) {
+  return client
+    .from("student_financial_adjustments")
+    .select(ADJUSTMENT_COLUMNS)
+    .order("effective_date", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
 export async function findAdjustmentBySppId(client: Supabase, sppId: string) {
   return client
     .from("student_financial_adjustments")

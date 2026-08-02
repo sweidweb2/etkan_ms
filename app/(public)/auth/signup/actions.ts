@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { PUBLIC_SIGNUP_ENABLED } from "@/lib/constants/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkAuthRateLimit } from "@/lib/rate-limit/auth-rate-limit";
 import { parseSignupFormData } from "@/lib/validators/auth/form-data";
@@ -12,6 +13,10 @@ export async function signupAction(
   _prevState: SignupActionState,
   formData: FormData
 ): Promise<SignupActionState> {
+  if (!PUBLIC_SIGNUP_ENABLED) {
+    return { error: "Public registration is currently disabled." };
+  }
+
   const parsed = parseSignupFormData(formData);
 
   if (!parsed.success) {

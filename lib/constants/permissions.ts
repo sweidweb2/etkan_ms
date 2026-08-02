@@ -20,6 +20,7 @@ export const PERMISSION_FEATURES = [
   "students",
   "relationships",
   "subjects",
+  "instructors",
   "classes",
   "sessions",
   "attendance",
@@ -49,6 +50,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   students: "Students",
   relationships: "Relationships",
   subjects: "Subjects",
+  instructors: "Instructors",
   classes: "Classes",
   sessions: "Sessions",
   attendance: "Attendance",
@@ -91,6 +93,9 @@ export const PERMISSIONS = {
   SUBJECTS_CREATE: "subjects.create",
   SUBJECTS_UPDATE: "subjects.update",
   SUBJECTS_DELETE: "subjects.delete",
+
+  INSTRUCTORS_VIEW: "instructors.view",
+  INSTRUCTORS_CAPABILITIES_UPDATE: "instructors.capabilities.update",
 
   CLASSES_VIEW: "classes.view",
   CLASSES_CREATE: "classes.create",
@@ -159,6 +164,10 @@ export const PERMISSIONS = {
   EMAILING_RESEND: "emailing.resend",
 
   ACCOUNTING_VIEW: "accounting.view",
+  ACCOUNTING_INCOME_STATEMENT_VIEW: "accounting.income_statement.view",
+  ACCOUNTING_TRANSACTIONS_CREATE: "accounting.transactions.create",
+  ACCOUNTING_TRANSACTIONS_UPDATE: "accounting.transactions.update",
+  ACCOUNTING_TRANSACTIONS_DELETE: "accounting.transactions.delete",
   ACCOUNTING_PAYMENT_PHASES_CREATE: "accounting.payment_phases.create",
   ACCOUNTING_PAYMENT_PHASES_UPDATE: "accounting.payment_phases.update",
   ACCOUNTING_PAYMENT_PHASES_CANCEL: "accounting.payment_phases.cancel",
@@ -298,6 +307,19 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SUBJECTS_DELETE,
     feature: "subjects",
     label: "Delete subject",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.INSTRUCTORS_VIEW,
+    feature: "instructors",
+    label: "View instructors",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE,
+    feature: "instructors",
+    label: "Update instructor subject capabilities",
     access: PERMISSION_ACCESS.WRITE,
   },
 
@@ -647,6 +669,30 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "accounting",
     label: "View accounting page",
     access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
+    feature: "accounting",
+    label: "View income statement",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_TRANSACTIONS_CREATE,
+    feature: "accounting",
+    label: "Record external transaction",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE,
+    feature: "accounting",
+    label: "Edit external transaction",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_TRANSACTIONS_DELETE,
+    feature: "accounting",
+    label: "Delete external transaction",
+    access: PERMISSION_ACCESS.WRITE,
   },
   {
     key: PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE,

@@ -82,6 +82,13 @@ Format: `key` — label — access
 | `subjects.update` | Edit subject | write |
 | `subjects.delete` | Delete subject | write |
 
+### Instructors
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `instructors.view` | View instructors | read |
+| `instructors.capabilities.update` | Update instructor subject capabilities | write |
+
 ### Classes
 
 | Key | Label | Access |
@@ -197,6 +204,10 @@ Format: `key` — label — access
 | Key | Label | Access |
 |-----|-------|--------|
 | `accounting.view` | View accounting page | read |
+| `accounting.income_statement.view` | View income statement | read |
+| `accounting.transactions.create` | Record external transaction | write |
+| `accounting.transactions.update` | Edit external transaction | write |
+| `accounting.transactions.delete` | Delete external transaction | write |
 | `accounting.payment_phases.create` | Create payment phase | write |
 | `accounting.payment_phases.update` | Edit payment phase | write |
 | `accounting.payment_phases.cancel` | Cancel payment phase | write |
@@ -277,6 +288,8 @@ subjects.view
 subjects.create
 subjects.update
 subjects.delete
+instructors.view
+instructors.capabilities.update
 classes.view
 classes.create
 classes.update
@@ -333,6 +346,10 @@ emailing.view
 emailing.send
 emailing.resend
 accounting.view
+accounting.income_statement.view
+accounting.transactions.create
+accounting.transactions.update
+accounting.transactions.delete
 accounting.payment_phases.create
 accounting.payment_phases.update
 accounting.payment_phases.cancel
@@ -359,7 +376,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 94 keys · all unique · naming consistent · accounting includes phase/payment/adjustment writes.
+**Count:** 101 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update.
 
 ---
 

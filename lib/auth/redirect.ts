@@ -1,11 +1,14 @@
 import { canAccessPath } from "@/lib/auth/path-access";
+import { PUBLIC_SIGNUP_ENABLED } from "@/lib/constants/auth";
 import type { RoleValue } from "@/lib/constants/roles";
 import {
   getDashboardRouteForRole,
   ROUTES,
 } from "@/lib/constants/routes";
 
-const AUTH_ONLY_PATHS = [ROUTES.LOGIN, ROUTES.SIGNUP] as const;
+const AUTH_ONLY_PATHS = PUBLIC_SIGNUP_ENABLED
+  ? ([ROUTES.LOGIN, ROUTES.SIGNUP] as const)
+  : ([ROUTES.LOGIN] as const);
 
 export function getSafeRedirectPath(path: string | null | undefined): string {
   if (path && path.startsWith("/") && !path.startsWith("//")) {

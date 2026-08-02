@@ -12,7 +12,7 @@
 
 | Layer | What |
 |-------|------|
-| Catalog | 94 keys in `lib/constants/permissions.ts` + `[02]` (includes `rbac.manage` + accounting) |
+| Catalog | 101 keys in `lib/constants/permissions.ts` + `[02]` (includes instructors + accounting + income statement + transactions) |
 | Storage | `permissions` + `role_permissions` migration; `npm run seed:rbac` |
 | Engine | `assertPermission` / `getUnauthorizedError` / `getUserPermissionsCached` |
 | Backend | Manager services gate by permission + user id (no leftover manager-role bypasses) |
@@ -27,7 +27,7 @@
 
 ### Catalog and seed
 
-- Single source of truth: code catalog ↔ `[02]` (94 keys).
+- Single source of truth: code catalog ↔ `[02]` (101 keys).
 - Seed gives **manager** every key; **admin** backup export keys only; other roles empty until granted in UI.
 - Re-run anytime: `npm run seed:rbac`.
 

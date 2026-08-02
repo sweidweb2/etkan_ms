@@ -1,10 +1,11 @@
 import { ROUTES } from "@/lib/constants/routes";
 
-export const PUBLIC_AUTH_ROUTES = [
-  ROUTES.LOGIN,
-  ROUTES.SIGNUP,
-  ROUTES.CALLBACK,
-] as const;
+/** Public self-registration. Flip to `true` to re-enable the signup route and action. */
+export const PUBLIC_SIGNUP_ENABLED = false;
+
+export const PUBLIC_AUTH_ROUTES = PUBLIC_SIGNUP_ENABLED
+  ? ([ROUTES.LOGIN, ROUTES.SIGNUP, ROUTES.CALLBACK] as const)
+  : ([ROUTES.LOGIN, ROUTES.CALLBACK] as const);
 
 export function isPublicAuthRoute(pathname: string): boolean {
   return PUBLIC_AUTH_ROUTES.some(
@@ -13,5 +14,8 @@ export function isPublicAuthRoute(pathname: string): boolean {
 }
 
 export function isGuestOnlyAuthRoute(pathname: string): boolean {
-  return pathname === ROUTES.LOGIN || pathname === ROUTES.SIGNUP;
+  return (
+    pathname === ROUTES.LOGIN ||
+    (PUBLIC_SIGNUP_ENABLED && pathname === ROUTES.SIGNUP)
+  );
 }

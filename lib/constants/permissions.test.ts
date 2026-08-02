@@ -57,8 +57,18 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 94 keys (includes rbac.manage + accounting)", () => {
-    expect(PERMISSION_KEYS).toHaveLength(94);
+  it("keeps the catalog size at 101 keys (includes instructors)", () => {
+    expect(PERMISSION_KEYS).toHaveLength(101);
     expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW)).toBe(
+      true
+    );
+    expect(isPermissionKey(PERMISSIONS.ACCOUNTING_TRANSACTIONS_CREATE)).toBe(
+      true
+    );
+    expect(isPermissionKey(PERMISSIONS.INSTRUCTORS_VIEW)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE)).toBe(
+      true
+    );
   });
 });

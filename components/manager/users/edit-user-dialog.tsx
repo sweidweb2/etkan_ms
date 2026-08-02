@@ -62,6 +62,7 @@ function getDefaultValues(user: ManagerUserRow): UpdateManagerUserInput {
     username: user.username ?? "",
     email: user.email,
     role: user.role,
+    is_instructor: user.is_instructor,
     fullName: user.student_full_name ?? "",
     birthDate: user.student_birth_date ?? "",
     phone: user.student_phone ?? "",
@@ -101,6 +102,7 @@ export function EditUserDialog({
 
   const selectedRole = watch("role");
   const selectedStatus = watch("status");
+  const isInstructor = watch("is_instructor");
   const isStudentRole = selectedRole === ROLES.STUDENT;
 
   useEffect(() => {
@@ -122,6 +124,7 @@ export function EditUserDialog({
     formData.set("username", values.username.trim());
     formData.set("email", values.email.trim());
     formData.set("role", values.role);
+    formData.set("is_instructor", String(values.is_instructor));
 
     if (values.role === ROLES.STUDENT) {
       formData.set("fullName", values.fullName?.trim() ?? "");
@@ -249,6 +252,24 @@ export function EditUserDialog({
               <p className="text-sm text-destructive">{roleError}</p>
             ) : null}
           </div>
+
+          <label
+            htmlFor="edit-user-is-instructor"
+            className="flex items-center gap-2 text-sm"
+          >
+            <input
+              id="edit-user-is-instructor"
+              type="checkbox"
+              checked={isInstructor}
+              disabled={isPending}
+              onChange={(event) =>
+                setValue("is_instructor", event.target.checked, {
+                  shouldValidate: true,
+                })
+              }
+            />
+            Instructor
+          </label>
 
           {isStudentRole ? (
             <>

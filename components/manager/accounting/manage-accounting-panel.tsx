@@ -8,14 +8,16 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
+  PencilIcon,
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AssignMissingSppDialog } from "@/components/manager/accounting/assign-missing-spp-dialog";
+import { AccountingExceptionTabs } from "@/components/manager/accounting/accounting-exception-tabs";
 import { CreatePaymentPhaseDialog } from "@/components/manager/accounting/create-payment-phase-dialog";
+import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
-import { StudentsWithoutActiveClassCard } from "@/components/manager/shared/students-without-active-class-card";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
@@ -38,10 +40,7 @@ import { formatPaymentPhaseMoney, PAYMENT_PHASE_STATUS_LABELS } from "@/lib/cons
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingPhaseDetailRoute,
-  getManagerAccountingSppDetailRoute,
-  getManagerClassDetailRoute,
   getManagerSemesterDetailRoute,
-  getManagerStudentDetailRoute,
 } from "@/lib/constants/routes";
 import {
   PAYMENT_PHASE_STATUSES,
@@ -51,6 +50,7 @@ import {
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
+  ManagerBilledWithoutClassRow,
   ManagerMissingSppRow,
   ManagerPaymentPhaseRow,
   ManagerPaymentPhaseSemesterOption,
@@ -155,6 +155,8 @@ type ManageAccountingPanelProps = {
   initialPhases: ManagerPaymentPhaseRow[];
   initialMissing: ManagerMissingSppRow[];
   initialStudentsWithoutActiveClass: ManagerStudentWithoutActiveClassRow[];
+  initialWithoutClassOrPhase: ManagerStudentWithoutActiveClassRow[];
+  initialBilledWithoutClass: ManagerBilledWithoutClassRow[];
   initialSppSemesterMismatches: ManagerSppSemesterMismatchRow[];
   semesterOptions: ManagerPaymentPhaseSemesterOption[];
 };
@@ -163,6 +165,8 @@ export function ManageAccountingPanel({
   initialPhases,
   initialMissing,
   initialStudentsWithoutActiveClass,
+  initialWithoutClassOrPhase,
+  initialBilledWithoutClass,
   initialSppSemesterMismatches,
   semesterOptions,
 }: ManageAccountingPanelProps) {
@@ -170,9 +174,14 @@ export function ManageAccountingPanel({
   const phases = initialPhases;
   const missing = initialMissing;
   const studentsWithoutActiveClass = initialStudentsWithoutActiveClass;
+  const withoutClassOrPhase = initialWithoutClassOrPhase;
+  const billedWithoutClass = initialBilledWithoutClass;
   const sppSemesterMismatches = initialSppSemesterMismatches;
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editPhase, setEditPhase] = useState<ManagerPaymentPhaseRow | null>(
+    null
+  );
   const [assignRow, setAssignRow] = useState<ManagerMissingSppRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
@@ -189,6 +198,14 @@ export function ManageAccountingPanel({
       ).length,
       missingAssignments: missing.length,
       studentsWithoutActiveClass: studentsWithoutActiveClass.length,
+      sppPaidCount: phases.reduce(
+        (sum, phase) => sum + phase.spp_paid_count,
+        0
+      ),
+      sppActiveCount: phases.reduce(
+        (sum, phase) => sum + phase.spp_active_count,
+        0
+      ),
     };
   }, [phases, missing, studentsWithoutActiveClass]);
 
@@ -262,12 +279,6 @@ export function ManageAccountingPanel({
               Open payment phases by semester and assign enrolled students.
             </p>
           </div>
-          <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE}>
-            <Button type="button" onClick={() => setIsCreateOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Create payment phase
-            </Button>
-          </Can>
         </div>
 
         <CreatePaymentPhaseDialog
@@ -276,6 +287,22 @@ export function ManageAccountingPanel({
           semesterOptions={semesterOptions}
           onCreated={handleCreated}
         />
+
+        {editPhase ? (
+          <EditPaymentPhaseDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setEditPhase(null);
+              }
+            }}
+            phase={editPhase}
+            onUpdated={() => {
+              setEditPhase(null);
+              router.refresh();
+            }}
+          />
+        ) : null}
 
         <AssignMissingSppDialog
           open={assignRow !== null}
@@ -290,11 +317,11 @@ export function ManageAccountingPanel({
 
         <ClassTabCollapsibleSection
           title="Overview"
-          description="Quick counts for phases, gaps, and students without an active class."
+          description="Quick counts for phases, students on SPPs, gaps, and students without an active class."
           storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_OVERVIEW}
           defaultOpen
         >
-          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
             <UserStatCard
               label="Payment phases"
               value={stats.totalPhases}
@@ -304,6 +331,11 @@ export function ManageAccountingPanel({
               label="Opened"
               value={stats.openedPhases}
               accentClassName="border-l-emerald-500"
+            />
+            <UserStatCard
+              label="Students"
+              value={stats.sppActiveCount}
+              accentClassName="border-l-violet-500"
             />
             <UserStatCard
               label="Missing assignments"
@@ -318,11 +350,30 @@ export function ManageAccountingPanel({
           </div>
         </ClassTabCollapsibleSection>
 
+        <div className="flex justify-end">
+          <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE}>
+            <Button type="button" onClick={() => setIsCreateOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Create payment phase
+            </Button>
+          </Can>
+        </div>
+
         <ClassTabCollapsibleSection
           title="Payment phases"
           description="Opened, closed, and cancelled phases by semester."
           storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_PAYMENT_PHASES}
           defaultOpen
+          action={
+            <div className="rounded-lg border-l-4 border-l-emerald-500 bg-card px-3 py-1.5 ring-1 ring-foreground/10">
+              <p className="text-[11px] leading-tight text-muted-foreground">
+                SPP paid / active
+              </p>
+              <p className="text-sm font-semibold tabular-nums tracking-tight">
+                {stats.sppPaidCount}/{stats.sppActiveCount}
+              </p>
+            </div>
+          }
         >
           <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
               <div className="relative max-w-md flex-1">
@@ -363,6 +414,7 @@ export function ManageAccountingPanel({
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium text-right">Amount</th>
                     <th className="px-4 py-3 font-medium text-right">Upfront</th>
+                    <th className="px-4 py-3 font-medium text-right">Duration</th>
                     <th className="px-4 py-3 font-medium">Dates</th>
                     <th className="px-4 py-3 font-medium text-right">
                       SPP paid / active
@@ -374,7 +426,7 @@ export function ManageAccountingPanel({
                   {paginatedPhases.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={9}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         {phases.length === 0
@@ -425,6 +477,11 @@ export function ManageAccountingPanel({
                         <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">
                           {formatPaymentPhaseMoney(phase.upfront_amount)}
                         </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                          {phase.duration_months === 1
+                            ? "1 month"
+                            : `${phase.duration_months} months`}
+                        </td>
                         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                           {format(new Date(phase.start_date), "MMM d, yyyy")}
                           {" – "}
@@ -437,7 +494,25 @@ export function ManageAccountingPanel({
                           className="px-4 py-3"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <div className="flex items-center justify-end">
+                          <div className="flex items-center justify-end gap-0.5">
+                            {phase.status !== PAYMENT_PHASE_STATUSES.CANCELLED ? (
+                              <Can
+                                permission={
+                                  PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_UPDATE
+                                }
+                              >
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`Edit ${phase.name}`}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  onClick={() => setEditPhase(phase)}
+                                >
+                                  <PencilIcon />
+                                </Button>
+                              </Can>
+                            ) : null}
                             <Button
                               render={
                                 <Link
@@ -544,238 +619,12 @@ export function ManageAccountingPanel({
             </div>
         </ClassTabCollapsibleSection>
 
-        <ClassTabCollapsibleSection
-          title="Missing student payment phases"
-          description="Enrolled students on opened phases who still need an assignment."
-          storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_MISSING_SPP}
-          defaultOpen
-        >
-          <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Semester</th>
-                    <th className="px-4 py-3 font-medium">Billing class</th>
-                    <th className="px-4 py-3 font-medium">Phase</th>
-                    <th className="px-4 py-3 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {missing.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        All enrolled students on opened phases have an
-                        assignment.
-                      </td>
-                    </tr>
-                  ) : (
-                    missing.map((row) => (
-                      <tr
-                        key={`${row.payment_phase_id}:${row.student_id}`}
-                        className="border-b last:border-b-0 hover:bg-muted/30"
-                      >
-                        <td className="max-w-[14rem] px-4 py-3 font-medium">
-                          <TruncatedCell
-                            value={row.student_label}
-                            maxLength={32}
-                          />
-                        </td>
-                        <td className="max-w-[12rem] px-4 py-3">
-                          <TruncatedCell
-                            value={row.semester_name}
-                            maxLength={28}
-                          />
-                        </td>
-                        <td className="max-w-[12rem] px-4 py-3">
-                          <TruncatedCell
-                            value={row.billing_class_name}
-                            maxLength={28}
-                          />
-                        </td>
-                        <td className="max-w-[12rem] px-4 py-3">
-                          <TruncatedCell
-                            value={row.payment_phase_name}
-                            maxLength={28}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end">
-                            <Can
-                              permission={
-                                PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE
-                              }
-                            >
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setAssignRow(row)}
-                              >
-                                Assign
-                              </Button>
-                            </Can>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-        </ClassTabCollapsibleSection>
-
-        <ClassTabCollapsibleSection
-          title="SPP semester mismatch"
-          description="Students with an active billing record on a payment phase whose semester does not match their current in-progress class."
-          storageKey={
-            COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_SPP_SEMESTER_MISMATCH
-          }
-          defaultOpen
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Student</th>
-                  <th className="px-4 py-3 font-medium">SPP phase / semester</th>
-                  <th className="px-4 py-3 font-medium">
-                    Current class / semester
-                  </th>
-                  <th className="px-4 py-3 font-medium text-right">Links</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sppSemesterMismatches.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No semester mismatches between active SPPs and current
-                      classes.
-                    </td>
-                  </tr>
-                ) : (
-                  sppSemesterMismatches.map((row) => (
-                    <tr
-                      key={row.spp_id}
-                      className="border-b last:border-b-0 hover:bg-muted/30"
-                    >
-                      <td className="max-w-[14rem] px-4 py-3 font-medium">
-                        <TruncatedCell
-                          value={row.student_label}
-                          maxLength={32}
-                        />
-                      </td>
-                      <td className="max-w-[16rem] px-4 py-3">
-                        <div className="flex flex-col gap-0.5">
-                          <TruncatedCell
-                            value={row.payment_phase_name}
-                            maxLength={28}
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {row.phase_semester_name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="max-w-[16rem] px-4 py-3">
-                        <div className="flex flex-col gap-0.5">
-                          <TruncatedCell
-                            value={row.current_class_name}
-                            maxLength={28}
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {row.current_semester_name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          {row.student_profile_id ? (
-                            <Button
-                              render={
-                                <Link
-                                  href={getManagerStudentDetailRoute(
-                                    row.student_profile_id
-                                  )}
-                                />
-                              }
-                              nativeButton={false}
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`View ${row.student_label}`}
-                              className="text-muted-foreground hover:text-foreground"
-                            >
-                              <EyeIcon />
-                            </Button>
-                          ) : null}
-                          <Button
-                            render={
-                              <Link
-                                href={getManagerAccountingPhaseDetailRoute(
-                                  row.payment_phase_id
-                                )}
-                              />
-                            }
-                            nativeButton={false}
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            Phase
-                          </Button>
-                          <Button
-                            render={
-                              <Link
-                                href={getManagerAccountingSppDetailRoute(
-                                  row.payment_phase_id,
-                                  row.spp_id
-                                )}
-                              />
-                            }
-                            nativeButton={false}
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            SPP
-                          </Button>
-                          <Button
-                            render={
-                              <Link
-                                href={getManagerClassDetailRoute(
-                                  row.current_class_id
-                                )}
-                              />
-                            }
-                            nativeButton={false}
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            Class
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </ClassTabCollapsibleSection>
-
-        <StudentsWithoutActiveClassCard
-          students={studentsWithoutActiveClass}
-          description="Students who are not members of any in-progress class. They may still have billing or payment-phase records."
-          storageKey={
-            COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_STUDENTS_WITHOUT_ACTIVE_CLASS
-          }
-          defaultOpen
+        <AccountingExceptionTabs
+          billedWithoutClass={billedWithoutClass}
+          withoutClassOrPhase={withoutClassOrPhase}
+          semesterMismatches={sppSemesterMismatches}
+          missingSpp={missing}
+          onAssignMissing={setAssignRow}
         />
       </div>
     </TooltipProvider>

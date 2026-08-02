@@ -184,24 +184,16 @@ export function SiteNavbarClient({
   }
 
   const isLoginPage = pathname === ROUTES.LOGIN;
-  const isSignupPage = pathname === ROUTES.SIGNUP;
   const sheetSide = dir === "rtl" ? "left" : "right";
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const authButtons = dashboardHref ? (
     <AuthNavLink href={dashboardHref}>{t("nav.dashboard")}</AuthNavLink>
-  ) : (
-    <>
-      {!isLoginPage ? (
-        <AuthNavLink href={ROUTES.LOGIN} variant="ghost">
-          {t("nav.login")}
-        </AuthNavLink>
-      ) : null}
-      {!isSignupPage ? (
-        <AuthNavLink href={ROUTES.SIGNUP}>{t("nav.register")}</AuthNavLink>
-      ) : null}
-    </>
-  );
+  ) : !isLoginPage ? (
+    <AuthNavLink href={ROUTES.LOGIN} variant="ghost">
+      {t("nav.login")}
+    </AuthNavLink>
+  ) : null;
 
   const mobileMenu = (
     <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -256,20 +248,11 @@ export function SiteNavbarClient({
             <MobileNavLink href={dashboardHref} onNavigate={closeMobileMenu}>
               {t("nav.dashboard")}
             </MobileNavLink>
-          ) : (
-            <>
-              {!isLoginPage ? (
-                <MobileNavLink href={ROUTES.LOGIN} onNavigate={closeMobileMenu}>
-                  {t("nav.login")}
-                </MobileNavLink>
-              ) : null}
-              {!isSignupPage ? (
-                <MobileNavLink href={ROUTES.SIGNUP} onNavigate={closeMobileMenu}>
-                  {t("nav.register")}
-                </MobileNavLink>
-              ) : null}
-            </>
-          )}
+          ) : !isLoginPage ? (
+            <MobileNavLink href={ROUTES.LOGIN} onNavigate={closeMobileMenu}>
+              {t("nav.login")}
+            </MobileNavLink>
+          ) : null}
         </nav>
       </SheetContent>
     </Sheet>

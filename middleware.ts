@@ -12,7 +12,10 @@ import {
   getPanelRootForRole,
   ROUTES,
 } from "@/lib/constants/routes";
-import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
+import {
+  applyAuthCookies,
+  createSupabaseMiddlewareClient,
+} from "@/lib/supabase/middleware";
 import { resolveUserRole } from "@/services/role.service";
 import { getMaintenanceMode } from "@/repositories/app-settings.repository";
 
@@ -33,10 +36,13 @@ function isTeacherOrStudentPanelPath(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  const { supabase, response } = createSupabaseMiddlewareClient(request);
+  const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const redirect = (url: URL) =>
+    applyAuthCookies(NextResponse.redirect(url), getResponse());
 
   const { pathname } = request.nextUrl;
   const maintenanceMode = await getMaintenanceMode(supabase);
@@ -50,22 +56,22 @@ export async function middleware(request: NextRequest) {
       if (user && isGuestOnlyAuthRoute(pathname)) {
         const role = await resolveUserRole(supabase, user);
         if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
-          return NextResponse.redirect(new URL(MAINTENANCE_PATH, request.url));
+          return redirect(new URL(MAINTENANCE_PATH, request.url));
         }
         const next = request.nextUrl.searchParams.get("next");
         const redirectTo = getPostLoginRedirect(role, next);
-        return NextResponse.redirect(new URL(redirectTo, request.url));
+        return redirect(new URL(redirectTo, request.url));
       }
-      return response;
+      return getResponse();
     }
 
     if (user) {
       const role = await resolveUserRole(supabase, user);
       if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
-        return NextResponse.redirect(new URL(MAINTENANCE_PATH, request.url));
+        return redirect(new URL(MAINTENANCE_PATH, request.url));
       }
     } else if (isTeacherOrStudentPanelPath(pathname)) {
-      return NextResponse.redirect(new URL(MAINTENANCE_PATH, request.url));
+      return redirect(new URL(MAINTENANCE_PATH, request.url));
     }
   }
 
@@ -74,13 +80,13 @@ export async function middleware(request: NextRequest) {
       const role = await resolveUserRole(supabase, user);
       const next = request.nextUrl.searchParams.get("next");
       const redirectTo = getPostLoginRedirect(role, next);
-      return NextResponse.redirect(new URL(redirectTo, request.url));
+      return redirect(new URL(redirectTo, request.url));
     }
-    return response;
+    return getResponse();
   }
 
   if (pathname === ROUTES.HOME) {
-    return response;
+    return getResponse();
   }
 
   if (isPanelPath(pathname)) {
@@ -93,28 +99,24 @@ export async function middleware(request: NextRequest) {
         loginUrl.searchParams.set("next", pathname);
       }
 
-      return NextResponse.redirect(loginUrl);
+      return redirect(loginUrl);
     }
 
     const role = await resolveUserRole(supabase, user);
     const panelRoot = getPanelRootForRole(role);
 
     if (pathname === panelRoot) {
-      return NextResponse.redirect(
-        new URL(getDashboardRouteForRole(role), request.url)
-      );
+      return redirect(new URL(getDashboardRouteForRole(role), request.url));
     }
 
     if (!canAccessPath(pathname, role)) {
-      return NextResponse.redirect(
-        new URL(getDashboardRouteForRole(role), request.url)
-      );
+      return redirect(new URL(getDashboardRouteForRole(role), request.url));
     }
 
-    return response;
+    return getResponse();
   }
 
-  return response;
+  return getResponse();
 }
 
 export const config = {

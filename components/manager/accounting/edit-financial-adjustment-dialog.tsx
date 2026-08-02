@@ -155,37 +155,41 @@ export function EditFinancialAdjustmentDialog({
           className="flex flex-col gap-4"
           noValidate
         >
-          <div className="flex flex-col gap-2">
-            <FieldLabel htmlFor="edit-adj-type" label="Type" hint="Required" />
-            <Select
-              value={selectedType}
-              items={typeSelectItems}
-              onValueChange={(value) => {
-                if (!value) return;
-                setValue("type", value as UpdateFinancialAdjustmentInput["type"], {
-                  shouldValidate: true,
-                });
-              }}
-              disabled={isPending || !adjustment}
-            >
-              <SelectTrigger id="edit-adj-type" aria-invalid={!!typeError}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FINANCIAL_ADJUSTMENT_TYPE_VALUES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {FINANCIAL_ADJUSTMENT_TYPE_LABELS[type]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {typeError ? (
-              <p className="text-sm text-destructive">{typeError}</p>
-            ) : null}
-          </div>
-
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-2">
+              <FieldLabel htmlFor="edit-adj-type" label="Type" hint="Required" />
+              <Select
+                value={selectedType}
+                items={typeSelectItems}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  setValue("type", value as UpdateFinancialAdjustmentInput["type"], {
+                    shouldValidate: true,
+                  });
+                }}
+                disabled={isPending || !adjustment}
+              >
+                <SelectTrigger
+                  id="edit-adj-type"
+                  className="w-full"
+                  aria-invalid={!!typeError}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FINANCIAL_ADJUSTMENT_TYPE_VALUES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {FINANCIAL_ADJUSTMENT_TYPE_LABELS[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {typeError ? (
+                <p className="text-sm text-destructive">{typeError}</p>
+              ) : null}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-2">
               <FieldLabel
                 htmlFor="edit-adj-value-type"
                 label="Value type"
@@ -206,6 +210,7 @@ export function EditFinancialAdjustmentDialog({
               >
                 <SelectTrigger
                   id="edit-adj-value-type"
+                  className="w-full"
                   aria-invalid={!!valueTypeError}
                 >
                   <SelectValue />
@@ -222,37 +227,37 @@ export function EditFinancialAdjustmentDialog({
                 <p className="text-sm text-destructive">{valueTypeError}</p>
               ) : null}
             </div>
+          </div>
 
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="edit-adj-value"
-                label="Value"
-                hint={
-                  selectedValueType ===
-                  FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE
-                    ? "Required · 0–100"
-                    : "Required"
-                }
-              />
-              <Input
-                id="edit-adj-value"
-                type="number"
-                min={0}
-                max={
-                  selectedValueType ===
-                  FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE
-                    ? 100
-                    : undefined
-                }
-                step={0.01}
-                aria-invalid={!!valueError}
-                disabled={isPending || !adjustment}
-                {...register("value")}
-              />
-              {valueError ? (
-                <p className="text-sm text-destructive">{valueError}</p>
-              ) : null}
-            </div>
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-adj-value"
+              label="Value"
+              hint={
+                selectedValueType ===
+                FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE
+                  ? "Required · 0–100"
+                  : "Required"
+              }
+            />
+            <Input
+              id="edit-adj-value"
+              type="number"
+              min={0}
+              max={
+                selectedValueType ===
+                FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE
+                  ? 100
+                  : undefined
+              }
+              step={0.01}
+              aria-invalid={!!valueError}
+              disabled={isPending || !adjustment}
+              {...register("value")}
+            />
+            {valueError ? (
+              <p className="text-sm text-destructive">{valueError}</p>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-2">

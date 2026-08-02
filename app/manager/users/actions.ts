@@ -1,10 +1,12 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   revalidateManagerPeopleLists,
   revalidateManagerUsersList,
 } from "@/lib/cache/manager-list-cache";
+import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStaffUserFormData } from "@/lib/validators/manager/create-user";
 import { parseUpdateManagerUserFormData } from "@/lib/validators/manager/update-user";
@@ -47,6 +49,7 @@ export async function createStaffUserAction(
   }
 
   revalidateManagerUsersList();
+  revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
 
   return {
     success: true,
@@ -88,6 +91,7 @@ export async function updateUserAction(
   }
 
   revalidateManagerPeopleLists();
+  revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
 
   return {
     success: true,

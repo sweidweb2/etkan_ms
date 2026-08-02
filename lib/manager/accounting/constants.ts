@@ -104,3 +104,111 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   [PAYMENT_METHODS.CARD]: "Card",
   [PAYMENT_METHODS.OTHER]: "Other",
 };
+
+export const TRANSACTION_TYPES = {
+  CREDIT: "credit",
+  DEBIT: "debit",
+} as const;
+
+export type TransactionType =
+  (typeof TRANSACTION_TYPES)[keyof typeof TRANSACTION_TYPES];
+
+export const TRANSACTION_TYPE_VALUES = [
+  TRANSACTION_TYPES.CREDIT,
+  TRANSACTION_TYPES.DEBIT,
+] as const;
+
+export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
+  [TRANSACTION_TYPES.CREDIT]: "Credit",
+  [TRANSACTION_TYPES.DEBIT]: "Debit",
+};
+
+export const TRANSACTION_CATEGORIES = {
+  // Shared
+  OTHER: "other",
+  // Credit
+  DONATION: "donation",
+  GRANT: "grant",
+  SPONSORSHIP: "sponsorship",
+  INVESTMENT_RETURN: "investment_return",
+  REFUND: "refund",
+  // Debit
+  RENT: "rent",
+  UTILITIES: "utilities",
+  SALARIES: "salaries",
+  SUPPLIES: "supplies",
+  EQUIPMENT: "equipment",
+  MAINTENANCE: "maintenance",
+  MARKETING: "marketing",
+  BANK_FEES: "bank_fees",
+  TRAVEL: "travel",
+  INSURANCE: "insurance",
+} as const;
+
+export type TransactionCategory =
+  (typeof TRANSACTION_CATEGORIES)[keyof typeof TRANSACTION_CATEGORIES];
+
+export const TRANSACTION_CREDIT_CATEGORY_VALUES = [
+  TRANSACTION_CATEGORIES.DONATION,
+  TRANSACTION_CATEGORIES.GRANT,
+  TRANSACTION_CATEGORIES.SPONSORSHIP,
+  TRANSACTION_CATEGORIES.INVESTMENT_RETURN,
+  TRANSACTION_CATEGORIES.REFUND,
+  TRANSACTION_CATEGORIES.OTHER,
+] as const;
+
+export const TRANSACTION_DEBIT_CATEGORY_VALUES = [
+  TRANSACTION_CATEGORIES.RENT,
+  TRANSACTION_CATEGORIES.UTILITIES,
+  TRANSACTION_CATEGORIES.SALARIES,
+  TRANSACTION_CATEGORIES.SUPPLIES,
+  TRANSACTION_CATEGORIES.EQUIPMENT,
+  TRANSACTION_CATEGORIES.MAINTENANCE,
+  TRANSACTION_CATEGORIES.MARKETING,
+  TRANSACTION_CATEGORIES.BANK_FEES,
+  TRANSACTION_CATEGORIES.TRAVEL,
+  TRANSACTION_CATEGORIES.INSURANCE,
+  TRANSACTION_CATEGORIES.OTHER,
+] as const;
+
+export const TRANSACTION_CATEGORY_VALUES = [
+  ...TRANSACTION_CREDIT_CATEGORY_VALUES,
+  ...TRANSACTION_DEBIT_CATEGORY_VALUES.filter(
+    (value) => value !== TRANSACTION_CATEGORIES.OTHER
+  ),
+] as const;
+
+export const TRANSACTION_CATEGORY_LABELS: Record<TransactionCategory, string> =
+  {
+    [TRANSACTION_CATEGORIES.DONATION]: "Donation",
+    [TRANSACTION_CATEGORIES.GRANT]: "Grant",
+    [TRANSACTION_CATEGORIES.SPONSORSHIP]: "Sponsorship",
+    [TRANSACTION_CATEGORIES.INVESTMENT_RETURN]: "Investment return",
+    [TRANSACTION_CATEGORIES.REFUND]: "Refund",
+    [TRANSACTION_CATEGORIES.RENT]: "Rent",
+    [TRANSACTION_CATEGORIES.UTILITIES]: "Utilities",
+    [TRANSACTION_CATEGORIES.SALARIES]: "Salaries",
+    [TRANSACTION_CATEGORIES.SUPPLIES]: "Supplies",
+    [TRANSACTION_CATEGORIES.EQUIPMENT]: "Equipment",
+    [TRANSACTION_CATEGORIES.MAINTENANCE]: "Maintenance",
+    [TRANSACTION_CATEGORIES.MARKETING]: "Marketing",
+    [TRANSACTION_CATEGORIES.BANK_FEES]: "Bank fees",
+    [TRANSACTION_CATEGORIES.TRAVEL]: "Travel",
+    [TRANSACTION_CATEGORIES.INSURANCE]: "Insurance",
+    [TRANSACTION_CATEGORIES.OTHER]: "Other",
+  };
+
+export function getTransactionCategoriesForType(type: TransactionType) {
+  return type === TRANSACTION_TYPES.CREDIT
+    ? TRANSACTION_CREDIT_CATEGORY_VALUES
+    : TRANSACTION_DEBIT_CATEGORY_VALUES;
+}
+
+export function formatTransactionCategory(category: string): string {
+  if (
+    (TRANSACTION_CATEGORY_VALUES as readonly string[]).includes(category)
+  ) {
+    return TRANSACTION_CATEGORY_LABELS[category as TransactionCategory];
+  }
+  return category;
+}

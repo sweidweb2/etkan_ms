@@ -6,6 +6,7 @@ export interface ManagerUserRow {
   id: string;
   username: string | null;
   role: RoleValue;
+  is_instructor: boolean;
   created_at: string;
   email: string;
   /** Present when a student_profiles row exists (kept even if role is no longer student). */
