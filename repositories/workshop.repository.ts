@@ -116,6 +116,22 @@ export async function updateWorkshopById(
     .single();
 }
 
+export async function updateWorkshopStatusById(
+  client: Supabase,
+  id: string,
+  status: string
+) {
+  return client
+    .from("workshops")
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(WORKSHOP_COLUMNS)
+    .single();
+}
+
 export async function deleteWorkshopById(client: Supabase, id: string) {
   return client.from("workshops").delete().eq("id", id);
 }

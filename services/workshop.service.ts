@@ -5,8 +5,13 @@ import {
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import { changeWorkshopStatusSchema } from "@/lib/validators/manager/change-workshop-status";
 import { createWorkshopSchema } from "@/lib/validators/manager/create-workshop";
 import { updateWorkshopSchema } from "@/lib/validators/manager/update-workshop";
+import {
+  assertWorkshopStatusTransition,
+  formatLocalDateYmd,
+} from "@/lib/manager/workshops/status-transitions";
 import * as workshopRepository from "@/repositories/workshop.repository";
 import type { WorkshopRecord } from "@/repositories/workshop.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
@@ -67,6 +72,22 @@ export type DeleteWorkshopFailure = {
 };
 
 export type DeleteWorkshopResult = DeleteWorkshopSuccess | DeleteWorkshopFailure;
+
+export type ChangeWorkshopStatusSuccess = {
+  success: true;
+  workshop: ManagerWorkshopRow;
+  message: string;
+};
+
+export type ChangeWorkshopStatusFailure = {
+  success: false;
+  error: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type ChangeWorkshopStatusResult =
+  | ChangeWorkshopStatusSuccess
+  | ChangeWorkshopStatusFailure;
 
 export const WORKSHOP_HAS_PAYMENTS_DELETE_ERROR =
   "Remove workshop payments before deleting this workshop.";
@@ -329,6 +350,91 @@ export async function updateWorkshopForManager(
     success: true,
     workshop,
     message: "Workshop updated.",
+  };
+}
+
+export async function changeWorkshopStatusForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<ChangeWorkshopStatusResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = changeWorkshopStatusSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  const { id, status: nextStatus } = parsed.data;
+
+  const existing = await workshopRepository.findWorkshopById(adminClient, id);
+
+  if (existing.error) {
+    return {
+      success: false,
+      error: "Unable to update workshop status. Please try again.",
+    };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+
+  const currentStatus = mapWorkshopStatus(existing.data.status);
+  const transition = assertWorkshopStatusTransition({
+    from: currentStatus,
+    to: nextStatus,
+    startDate: existing.data.start_date,
+    endDate: existing.data.end_date,
+    today: formatLocalDateYmd(),
+  });
+
+  if (!transition.ok) {
+    return { success: false, error: transition.error };
+  }
+
+  const { data, error } = await workshopRepository.updateWorkshopStatusById(
+    adminClient,
+    id,
+    nextStatus
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: "Unable to update workshop status. Please try again.",
+    };
+  }
+
+  const workshop = mapWorkshopRecordToRow(data);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "workshops",
+    record_id: data.id,
+    old_data: { status: currentStatus },
+    new_data: { status: workshop.status },
+    metadata: { note: "Workshop status changed." },
+  });
+
+  return {
+    success: true,
+    workshop,
+    message: "Workshop status updated.",
   };
 }
 

@@ -9,14 +9,17 @@ import {
 } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { parseChangeWorkshopStatusFormData } from "@/lib/validators/manager/change-workshop-status";
 import { parseCreateWorkshopFormData } from "@/lib/validators/manager/create-workshop";
 import { parseUpdateWorkshopFormData } from "@/lib/validators/manager/update-workshop";
 import {
+  changeWorkshopStatusForManager,
   createWorkshopForManager,
   deleteWorkshopForManager,
   updateWorkshopForManager,
 } from "@/services/workshop.service";
 import type {
+  ChangeWorkshopStatusActionState,
   CreateWorkshopActionState,
   DeleteWorkshopActionState,
   UpdateWorkshopActionState,
@@ -139,4 +142,46 @@ export async function deleteWorkshopAction(
   redirect(
     appendQueryParam(ROUTES.MANAGER_WORKSHOPS, "toast", "workshop_deleted")
   );
+}
+
+export async function changeWorkshopStatusAction(
+  _prevState: ChangeWorkshopStatusActionState,
+  formData: FormData
+): Promise<ChangeWorkshopStatusActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseChangeWorkshopStatusFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await changeWorkshopStatusForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
+
+  return {
+    success: true,
+    message: result.message,
+    workshop: result.workshop,
+  };
 }

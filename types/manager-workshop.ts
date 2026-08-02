@@ -98,3 +98,11 @@ export type DeleteWorkshopActionState = {
   error?: string;
   message?: string;
 };
+
+export type ChangeWorkshopStatusActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  workshop?: ManagerWorkshopRow;
+};

@@ -43,7 +43,7 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
   const detailHref = getManagerWorkshopDetailRoute(workshop.id);
 
   return (
-    <Card className="group relative flex h-full flex-col overflow-hidden gap-0 py-0 transition-all duration-200 hover:border-sky-400/45 hover:shadow-[0_12px_32px_rgba(14,165,233,0.16)]">
+    <Card className="group relative flex h-full cursor-pointer flex-col overflow-hidden gap-0 py-0 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-400/60 hover:shadow-[0_16px_36px_rgba(14,165,233,0.22)]">
       <Link
         href={detailHref}
         aria-label={`View ${workshop.name}`}

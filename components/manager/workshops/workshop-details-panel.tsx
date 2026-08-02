@@ -8,6 +8,7 @@ import { deleteWorkshopAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
+import { WorkshopStatusStepper } from "@/components/manager/workshops/workshop-status-stepper";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
@@ -148,6 +149,14 @@ export function WorkshopDetailsPanel({
         onOpenChange={setIsEditOpen}
         workshop={workshop}
         onWorkshopUpdated={(updated) => {
+          setWorkshop(updated);
+          router.refresh();
+        }}
+      />
+
+      <WorkshopStatusStepper
+        workshop={workshop}
+        onStatusChanged={(updated) => {
           setWorkshop(updated);
           router.refresh();
         }}

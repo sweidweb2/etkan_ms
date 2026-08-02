@@ -66,11 +66,11 @@ Already done: tables, empty page, nav, RBAC seed, backup list.
 
 **Tasks**
 
-- [ ] Status transition helpers: next / previous / cancel; allowed graph
-- [ ] Rule: move to `scheduled` only if `start_date > today` (and `end_date >= start_date` if present)
-- [ ] Service action: `changeWorkshopStatus` with confirmation payload from client
-- [ ] UI: checkpoint stepper on detail; confirm modal for next, back, and cancel
-- [ ] Vitest: valid/invalid transitions + scheduled date rule
+- [x] Status transition helpers: next / previous / cancel; allowed graph
+- [x] Rule: move to `scheduled` only if `start_date > today` (and `end_date >= start_date` if present)
+- [x] Service action: `changeWorkshopStatus` with confirmation payload from client
+- [x] UI: checkpoint stepper on detail; confirm modal for next, back, and cancel
+- [x] Vitest: valid/invalid transitions + scheduled date rule
 
 **Exit:** Status changes only via confirmed stepper (or cancel), with date guard.
 

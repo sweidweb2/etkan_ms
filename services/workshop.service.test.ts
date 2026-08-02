@@ -6,6 +6,7 @@ import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
   WORKSHOP_HAS_PAYMENTS_DELETE_ERROR,
+  changeWorkshopStatusForManager,
   createWorkshopForManager,
   deleteWorkshopForManager,
   getWorkshopForManager,
@@ -338,5 +339,150 @@ describe("getWorkshopForManager", () => {
 
     expect(detail?.payment_count).toBe(3);
     expect(detail?.workshop.id).toBe(workshopId);
+  });
+});
+
+describe("changeWorkshopStatusForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("returns unauthorized when actor is missing", async () => {
+    const result = await changeWorkshopStatusForManager(
+      adminClient,
+      null,
+      actor,
+      { id: workshopId, status: WORKSHOP_STATUSES.PROPOSAL }
+    );
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+  });
+
+  it("rejects non-adjacent status jumps", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await changeWorkshopStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: workshopId, status: WORKSHOP_STATUSES.IN_PROGRESS }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/one step/i);
+    }
+  });
+
+  it("rejects move to scheduled without a future start date", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: {
+        ...workshopRecord,
+        status: WORKSHOP_STATUSES.PROPOSAL,
+        start_date: null,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await changeWorkshopStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: workshopId, status: WORKSHOP_STATUSES.SCHEDULED }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/start date/i);
+    }
+  });
+
+  it("advances to the next status", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.updateWorkshopStatusById).mockResolvedValue({
+      data: { ...workshopRecord, status: WORKSHOP_STATUSES.PROPOSAL },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await changeWorkshopStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: workshopId, status: WORKSHOP_STATUSES.PROPOSAL }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.workshop.status).toBe(WORKSHOP_STATUSES.PROPOSAL);
+    }
+  });
+
+  it("cancels and reopens as draft", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValueOnce({
+      data: { ...workshopRecord, status: WORKSHOP_STATUSES.PROPOSAL },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.updateWorkshopStatusById).mockResolvedValueOnce({
+      data: { ...workshopRecord, status: WORKSHOP_STATUSES.CANCELLED },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const cancelResult = await changeWorkshopStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: workshopId, status: WORKSHOP_STATUSES.CANCELLED }
+    );
+    expect(cancelResult.success).toBe(true);
+
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValueOnce({
+      data: { ...workshopRecord, status: WORKSHOP_STATUSES.CANCELLED },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.updateWorkshopStatusById).mockResolvedValueOnce({
+      data: { ...workshopRecord, status: WORKSHOP_STATUSES.DRAFT },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const reopenResult = await changeWorkshopStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: workshopId, status: WORKSHOP_STATUSES.DRAFT }
+    );
+    expect(reopenResult.success).toBe(true);
+    if (reopenResult.success) {
+      expect(reopenResult.workshop.status).toBe(WORKSHOP_STATUSES.DRAFT);
+    }
   });
 });
