@@ -2,7 +2,7 @@
 
 Default grants applied by `npm run seed:rbac` from `lib/constants/role-seed-permissions.ts`.
 
-Shared workshop access package (`WORKSHOP_ACCESS_SEED_PERMISSIONS`) is included for **every** role:
+Shared workshop access package (`WORKSHOP_ACCESS_SEED_PERMISSIONS`) is included for **every non-manager role**:
 
 - `workshops.view`
 - `workshops.sessions.create` / `update` / `delete`
@@ -10,42 +10,13 @@ Shared workshop access package (`WORKSHOP_ACCESS_SEED_PERMISSIONS`) is included 
 - `instructors.view` (covers reading instructor capabilities)
 - `instructor_schedules.view`
 
-Shared instructor portal package (`INSTRUCTOR_PORTAL_SEED_PERMISSIONS`) is included for **every** role (feature entry still requires `profiles.is_instructor = true`):
-
-- `instructor_portal.view`
-- `instructor_portal.schedule.view`
-- `instructor_portal.workshops.view`
-- `instructor_portal.workshops.update`
-- `instructor_portal.workshops.sessions.create` / `update` / `delete`
-- `instructor_portal.workshops.documents.create` / `update` / `delete`
-- `instructor_portal.capabilities.view`
+The old `instructor_portal.*` package was removed. Workshop/instructor UI for non-managers will be wired later via shared manager routes when needed.
 
 ---
 
 ## Manager
 
-Full catalog (`PERMISSION_KEYS`) — every permission, including all workshop module writes and instructor feature keys:
-
-### Workshops
-- `workshops.view`
-- `workshops.create`
-- `workshops.update`
-- `workshops.delete`
-- `workshops.change_status`
-- `workshops.instructors.create`
-- `workshops.instructors.update`
-- `workshops.instructors.delete`
-- `workshops.documents.create`
-- `workshops.documents.update`
-- `workshops.documents.delete`
-- `workshops.sessions.create`
-- `workshops.sessions.update`
-- `workshops.sessions.delete`
-- `workshops.payments.create`
-- `workshops.payments.update`
-- `workshops.payments.delete`
-
-Plus all other features (dashboard, users, students, subjects, classes, sessions, attendance, tasks, final exams, grades, semesters, equipment, schedule, instructor schedules, workshops, instructor portal, notifications, emailing, accounting, reports, analytics, backup, logs, cloudflare AI usage, cron jobs, settings, rbac).
+Full catalog (`PERMISSION_KEYS`) — every permission.
 
 ---
 
@@ -60,175 +31,37 @@ Plus all other features (dashboard, users, students, subjects, classes, sessions
 - `backup.export_full`
 - `backup.download`
 
-### Instructors
-- `instructors.view`
-
-### Instructor Schedules
-- `instructor_schedules.view`
-
-### Workshops
-- `workshops.view`
-- `workshops.documents.create`
-- `workshops.documents.update`
-- `workshops.documents.delete`
-- `workshops.sessions.create`
-- `workshops.sessions.update`
-- `workshops.sessions.delete`
+### Plus
+- Shared workshop access package
 
 ---
 
 ## CEO
 
-### Dashboard
-- `dashboard.view`
+Read/analysis-oriented manager grants plus full workshop module writes (create/update/delete, status, instructors, documents, sessions, payments) and instructor schedule CRUD. Includes shared workshop access package.
 
-### Users
-- `users.view`
-
-### Students
-- `students.view`
-
-### Subjects
-- `subjects.view`
-- `subjects.create`
-- `subjects.update`
-
-### Instructors
-- `instructors.view`
-- `instructors.capabilities.update`
-
-### Classes
-- `classes.view`
-- `classes.view_analytics`
-
-### Sessions
-- `sessions.view`
-
-### Attendance
-- `attendance.view`
-
-### Tasks
-- `tasks.view`
-
-### Final Exams
-- `final_exams.view`
-
-### Grades
-- `grades.view`
-
-### Semesters
-- `semesters.view`
-
-### Schedule
-- `schedule.view`
-
-### Instructor Schedules
-- `instructor_schedules.view`
-- `instructor_schedules.create`
-- `instructor_schedules.update`
-- `instructor_schedules.delete`
-
-### Workshops
-- `workshops.view`
-- `workshops.create`
-- `workshops.update`
-- `workshops.delete`
-- `workshops.change_status`
-- `workshops.instructors.create`
-- `workshops.instructors.update`
-- `workshops.instructors.delete`
-- `workshops.documents.create`
-- `workshops.documents.update`
-- `workshops.documents.delete`
-- `workshops.sessions.create`
-- `workshops.sessions.update`
-- `workshops.sessions.delete`
-- `workshops.payments.create`
-- `workshops.payments.update`
-- `workshops.payments.delete`
-
-### Accounting
-- `accounting.view`
-- `accounting.income_statement.view`
-
-### Analytics
-- `analytics.view`
-
-### Cloudflare AI usage
-- `cloudflare_ai_usage.view`
+Key groups: dashboard, users, students, subjects (view/create/update), instructors (+ capabilities update), classes (+ analytics), sessions, attendance, tasks, final exams, grades, semesters, schedule, instructor schedules (CRUD), workshops (full module), accounting (+ income statement), analytics, cloudflare AI usage.
 
 ---
 
 ## Co-manager
 
-### Instructors
-- `instructors.view`
-
-### Instructor Schedules
-- `instructor_schedules.view`
-
-### Workshops
-- `workshops.view`
-- `workshops.documents.create`
-- `workshops.documents.update`
-- `workshops.documents.delete`
-- `workshops.sessions.create`
-- `workshops.sessions.update`
-- `workshops.sessions.delete`
+Shared workshop access package only.
 
 ---
 
 ## Teacher
 
-### Instructors
-- `instructors.view`
-
-### Instructor Schedules
-- `instructor_schedules.view`
-
-### Workshops
-- `workshops.view`
-- `workshops.documents.create`
-- `workshops.documents.update`
-- `workshops.documents.delete`
-- `workshops.sessions.create`
-- `workshops.sessions.update`
-- `workshops.sessions.delete`
+Shared workshop access package only.
 
 ---
 
 ## Trainer
 
-### Instructors
-- `instructors.view`
-
-### Instructor Schedules
-- `instructor_schedules.view`
-
-### Workshops
-- `workshops.view`
-- `workshops.documents.create`
-- `workshops.documents.update`
-- `workshops.documents.delete`
-- `workshops.sessions.create`
-- `workshops.sessions.update`
-- `workshops.sessions.delete`
+Shared workshop access package only.
 
 ---
 
 ## Student
 
-### Instructors
-- `instructors.view`
-
-### Instructor Schedules
-- `instructor_schedules.view`
-
-### Workshops
-- `workshops.view`
-- `workshops.documents.create`
-- `workshops.documents.update`
-- `workshops.documents.delete`
-- `workshops.sessions.create`
-- `workshops.sessions.update`
-- `workshops.sessions.delete`
+Shared workshop access package only.

@@ -32,7 +32,7 @@ Search, filter, and list↔detail are part of the matching `*.view` key (not sep
 
 Kept as separate groups (match manager domains):
 
-Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Workshops · Instructor Portal · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cron Jobs · Settings · RBAC
+Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Workshops · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cron Jobs · Settings · RBAC
 
 Collapsed into `*.view` (not separate permissions): search, filter, schedule/alerts widgets on dashboard, student detail sub-tabs (classes/grades/borrows summaries).
 
@@ -119,25 +119,6 @@ Format: `key` — label — access
 | `workshops.payments.create` | Create workshop payment | write |
 | `workshops.payments.update` | Edit workshop payment | write |
 | `workshops.payments.delete` | Delete workshop payment | write |
-
-### Instructor Portal
-
-Feature routes for users with `profiles.is_instructor = true` (not a role). Workshop keys mirror the manager workshops module for the instructor’s assigned offerings only.
-
-| Key | Label | Access |
-|-----|-------|--------|
-| `instructor_portal.view` | View instructor overview | read |
-| `instructor_portal.schedule.view` | View instructor schedule | read |
-| `instructor_portal.workshops.view` | View instructor workshops | read |
-| `instructor_portal.workshops.update` | Edit instructor workshops | write |
-| `instructor_portal.workshops.sessions.create` | Create instructor workshop session | write |
-| `instructor_portal.workshops.sessions.update` | Edit instructor workshop session | write |
-| `instructor_portal.workshops.sessions.delete` | Delete instructor workshop session | write |
-| `instructor_portal.workshops.documents.create` | Upload instructor workshop document | write |
-| `instructor_portal.workshops.documents.update` | Rename instructor workshop document | write |
-| `instructor_portal.workshops.documents.delete` | Delete instructor workshop document | write |
-| `instructor_portal.sessions.view` | View instructor sessions (legacy) | read |
-| `instructor_portal.capabilities.view` | View instructor capabilities | read |
 
 ### Classes
 
@@ -368,18 +349,6 @@ workshops.sessions.delete
 workshops.payments.create
 workshops.payments.update
 workshops.payments.delete
-instructor_portal.view
-instructor_portal.schedule.view
-instructor_portal.workshops.view
-instructor_portal.workshops.update
-instructor_portal.workshops.sessions.create
-instructor_portal.workshops.sessions.update
-instructor_portal.workshops.sessions.delete
-instructor_portal.workshops.documents.create
-instructor_portal.workshops.documents.update
-instructor_portal.workshops.documents.delete
-instructor_portal.sessions.view
-instructor_portal.capabilities.view
 classes.view
 classes.create
 classes.update
@@ -468,7 +437,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 136 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes · instructor portal includes overview/schedule/capabilities plus workshop module writes (update / sessions / documents) for assigned offerings.
+**Count:** 124 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes.
 
 ---
 

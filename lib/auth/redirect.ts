@@ -16,15 +16,14 @@ export function getSafeRedirectPath(path: string | null | undefined): string {
 
 export function getPostLoginRedirect(
   role: RoleValue,
-  nextPath?: string | null,
-  options?: { isInstructor?: boolean }
+  nextPath?: string | null
 ): string {
   const safeNext = nextPath ? getSafeRedirectPath(nextPath) : null;
 
   if (
     safeNext &&
     !AUTH_ONLY_PATHS.includes(safeNext as (typeof AUTH_ONLY_PATHS)[number]) &&
-    canAccessPath(safeNext, role, { isInstructor: options?.isInstructor })
+    canAccessPath(safeNext, role)
   ) {
     return safeNext;
   }

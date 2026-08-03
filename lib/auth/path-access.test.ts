@@ -42,22 +42,6 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.TEACHER_DASHBOARD, ROLES.TRAINER)).toBe(false);
   });
 
-  it("allows instructor feature routes only when isInstructor is true", () => {
-    expect(
-      canAccessPath(ROUTES.INSTRUCTOR_DASHBOARD, ROLES.TEACHER, {
-        isInstructor: true,
-      })
-    ).toBe(true);
-    expect(
-      canAccessPath(ROUTES.INSTRUCTOR_DASHBOARD, ROLES.TEACHER, {
-        isInstructor: false,
-      })
-    ).toBe(false);
-    expect(canAccessPath(ROUTES.INSTRUCTOR_DASHBOARD, ROLES.MANAGER)).toBe(
-      false
-    );
-  });
-
   it("allows non-panel routes for any role", () => {
     expect(canAccessPath(ROUTES.HOME, ROLES.STUDENT)).toBe(true);
     expect(canAccessPath(ROUTES.HOME, ROLES.ADMIN)).toBe(true);

@@ -3,13 +3,11 @@ import { filterPanelNavigation } from "@/lib/auth/filter-panel-navigation";
 import { requireRole } from "@/lib/auth/require-role";
 import {
   getSessionDisplayName,
-  getSessionIsInstructor,
   getSessionUser,
 } from "@/lib/auth/session";
 import type { PermissionKey } from "@/lib/constants/permissions";
 import { ROLES } from "@/lib/constants/roles";
 import { getPanelConfigForRole } from "@/lib/panels/config";
-import { withInstructorNavGroup } from "@/lib/panels/instructor-sidebar-nav";
 import { getUserPermissionsCached } from "@/services/authorization.service";
 
 type RolePanelLayoutProps = {
@@ -29,11 +27,10 @@ export async function RolePanelLayout({
     await assertAccess();
   }
 
-  const [displayName, panelConfig, user, isInstructor] = await Promise.all([
+  const [displayName, panelConfig, user] = await Promise.all([
     getSessionDisplayName(),
     Promise.resolve(getPanelConfigForRole(role)),
     getSessionUser(),
-    getSessionIsInstructor(),
   ]);
 
   let permissionsArray: PermissionKey[] = [];
@@ -43,11 +40,6 @@ export async function RolePanelLayout({
     const permissions = await getUserPermissionsCached(user.id);
     permissionsArray = [...permissions];
 
-    if (isInstructor) {
-      navigation = withInstructorNavGroup(navigation);
-    }
-
-    // Filter after injecting Instructor group so portal view keys apply.
     if (role === ROLES.MANAGER) {
       navigation = filterPanelNavigation(navigation, permissions);
     }

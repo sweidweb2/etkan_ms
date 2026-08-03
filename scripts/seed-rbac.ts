@@ -29,6 +29,18 @@ async function seedRbac(): Promise<void> {
     throw new Error(`Failed to upsert permissions: ${upsertError.message}`);
   }
 
+  const { error: orphanError } =
+    await permissionRepository.deletePermissionsNotInKeys(
+      adminClient,
+      PERMISSION_KEYS
+    );
+
+  if (orphanError) {
+    throw new Error(
+      `Failed to delete orphaned permissions: ${orphanError.message}`
+    );
+  }
+
   const { data: catalog, error: catalogError } =
     await permissionRepository.listPermissions(adminClient);
 

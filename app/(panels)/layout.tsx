@@ -4,9 +4,9 @@ import { getSessionRole } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 
 /**
- * Shared shell for all role panels and instructor feature routes.
+ * Shared shell for all role panels.
  * Keeping one layout parent means sidebar/header stay mounted when
- * navigating between e.g. `/ceo/*` and `/instructor/*`.
+ * navigating between role panel segments.
  */
 export default async function PanelsLayout({
   children,

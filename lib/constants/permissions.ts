@@ -32,7 +32,6 @@ export const PERMISSION_FEATURES = [
   "schedule",
   "instructor_schedules",
   "workshops",
-  "instructor_portal",
   "notifications",
   "emailing",
   "accounting",
@@ -66,7 +65,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   schedule: "Schedule",
   instructor_schedules: "Instructor Schedules",
   workshops: "Workshops",
-  instructor_portal: "Instructor Portal",
   notifications: "Notifications",
   emailing: "Emailing",
   accounting: "Accounting",
@@ -183,25 +181,6 @@ export const PERMISSIONS = {
   WORKSHOPS_PAYMENTS_CREATE: "workshops.payments.create",
   WORKSHOPS_PAYMENTS_UPDATE: "workshops.payments.update",
   WORKSHOPS_PAYMENTS_DELETE: "workshops.payments.delete",
-
-  INSTRUCTOR_PORTAL_VIEW: "instructor_portal.view",
-  INSTRUCTOR_PORTAL_SCHEDULE_VIEW: "instructor_portal.schedule.view",
-  INSTRUCTOR_PORTAL_WORKSHOPS_VIEW: "instructor_portal.workshops.view",
-  INSTRUCTOR_PORTAL_WORKSHOPS_UPDATE: "instructor_portal.workshops.update",
-  INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_CREATE:
-    "instructor_portal.workshops.sessions.create",
-  INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_UPDATE:
-    "instructor_portal.workshops.sessions.update",
-  INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_DELETE:
-    "instructor_portal.workshops.sessions.delete",
-  INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_CREATE:
-    "instructor_portal.workshops.documents.create",
-  INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_UPDATE:
-    "instructor_portal.workshops.documents.update",
-  INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_DELETE:
-    "instructor_portal.workshops.documents.delete",
-  INSTRUCTOR_PORTAL_SESSIONS_VIEW: "instructor_portal.sessions.view",
-  INSTRUCTOR_PORTAL_CAPABILITIES_VIEW: "instructor_portal.capabilities.view",
 
   NOTIFICATIONS_VIEW: "notifications.view",
   NOTIFICATIONS_CREATE: "notifications.create",
@@ -793,79 +772,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "workshops",
     label: "Delete workshop payment",
     access: PERMISSION_ACCESS.WRITE,
-  },
-
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_VIEW,
-    feature: "instructor_portal",
-    label: "View instructor portal",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_SCHEDULE_VIEW,
-    feature: "instructor_portal",
-    label: "View instructor schedule",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_VIEW,
-    feature: "instructor_portal",
-    label: "View instructor workshops",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_UPDATE,
-    feature: "instructor_portal",
-    label: "Edit instructor workshops",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_CREATE,
-    feature: "instructor_portal",
-    label: "Create instructor workshop session",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_UPDATE,
-    feature: "instructor_portal",
-    label: "Edit instructor workshop session",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_DELETE,
-    feature: "instructor_portal",
-    label: "Delete instructor workshop session",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_CREATE,
-    feature: "instructor_portal",
-    label: "Upload instructor workshop document",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_UPDATE,
-    feature: "instructor_portal",
-    label: "Rename instructor workshop document",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_DELETE,
-    feature: "instructor_portal",
-    label: "Delete instructor workshop document",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_SESSIONS_VIEW,
-    feature: "instructor_portal",
-    label: "View instructor sessions",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.INSTRUCTOR_PORTAL_CAPABILITIES_VIEW,
-    feature: "instructor_portal",
-    label: "View instructor capabilities",
-    access: PERMISSION_ACCESS.READ,
   },
 
   {

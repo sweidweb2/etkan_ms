@@ -8,6 +8,7 @@ import { ROLES, type RoleValue } from "@/lib/constants/roles";
 /**
  * Shared workshop access package seeded to every role (including student).
  * Sessions/documents CRUD + workshop/instructor/schedule reads.
+ * Manager workshop routes stay manager-panel only until cross-role access is wired.
  */
 export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
   PERMISSIONS.WORKSHOPS_VIEW,
@@ -19,24 +20,6 @@ export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
   PERMISSIONS.WORKSHOPS_DOCUMENTS_DELETE,
   PERMISSIONS.INSTRUCTORS_VIEW,
   PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW,
-] as const satisfies readonly PermissionKey[];
-
-/**
- * Shared instructor portal package seeded to every role.
- * Access still requires `profiles.is_instructor = true` at the portal gate.
- */
-export const INSTRUCTOR_PORTAL_SEED_PERMISSIONS = [
-  PERMISSIONS.INSTRUCTOR_PORTAL_VIEW,
-  PERMISSIONS.INSTRUCTOR_PORTAL_SCHEDULE_VIEW,
-  PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_VIEW,
-  PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_UPDATE,
-  PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_CREATE,
-  PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_UPDATE,
-  PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_SESSIONS_DELETE,
-  PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_CREATE,
-  PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_UPDATE,
-  PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_DOCUMENTS_DELETE,
-  PERMISSIONS.INSTRUCTOR_PORTAL_CAPABILITIES_VIEW,
 ] as const satisfies readonly PermissionKey[];
 
 /** Extra workshop module writes kept for CEO after the workshops.update split. */
@@ -58,7 +41,7 @@ function uniquePermissionKeys(
 
 /**
  * Default permission grants applied by `npm run seed:rbac`.
- * Empty arrays mean the role starts with no `role_permissions` rows.
+ * Instructor portal keys are gone; Manager still gets the full catalog.
  */
 export const ROLE_SEED_PERMISSIONS: Record<
   RoleValue,
@@ -74,8 +57,7 @@ export const ROLE_SEED_PERMISSIONS: Record<
       PERMISSIONS.BACKUP_DOWNLOAD,
       PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
     ],
-    WORKSHOP_ACCESS_SEED_PERMISSIONS,
-    INSTRUCTOR_PORTAL_SEED_PERMISSIONS
+    WORKSHOP_ACCESS_SEED_PERMISSIONS
   ),
 
   /** Captured from live CEO grants + workshop module writes after RBAC split. */
@@ -112,24 +94,11 @@ export const ROLE_SEED_PERMISSIONS: Record<
       PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW,
     ],
     WORKSHOP_ACCESS_SEED_PERMISSIONS,
-    CEO_WORKSHOP_MODULE_WRITE_PERMISSIONS,
-    INSTRUCTOR_PORTAL_SEED_PERMISSIONS
+    CEO_WORKSHOP_MODULE_WRITE_PERMISSIONS
   ),
 
-  [ROLES.CO_MANAGER]: uniquePermissionKeys(
-    WORKSHOP_ACCESS_SEED_PERMISSIONS,
-    INSTRUCTOR_PORTAL_SEED_PERMISSIONS
-  ),
-  [ROLES.TEACHER]: uniquePermissionKeys(
-    WORKSHOP_ACCESS_SEED_PERMISSIONS,
-    INSTRUCTOR_PORTAL_SEED_PERMISSIONS
-  ),
-  [ROLES.TRAINER]: uniquePermissionKeys(
-    WORKSHOP_ACCESS_SEED_PERMISSIONS,
-    INSTRUCTOR_PORTAL_SEED_PERMISSIONS
-  ),
-  [ROLES.STUDENT]: uniquePermissionKeys(
-    WORKSHOP_ACCESS_SEED_PERMISSIONS,
-    INSTRUCTOR_PORTAL_SEED_PERMISSIONS
-  ),
+  [ROLES.CO_MANAGER]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
+  [ROLES.TEACHER]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
+  [ROLES.TRAINER]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
+  [ROLES.STUDENT]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
 };

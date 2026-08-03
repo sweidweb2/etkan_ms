@@ -57,8 +57,8 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 136 keys (includes instructor workshop module)", () => {
-    expect(PERMISSION_KEYS).toHaveLength(136);
+  it("keeps the catalog size at 124 keys (instructor portal removed)", () => {
+    expect(PERMISSION_KEYS).toHaveLength(124);
     expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW)).toBe(
       true
@@ -79,9 +79,5 @@ describe("permissions", () => {
       true
     );
     expect(isPermissionKey(PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE)).toBe(true);
-    expect(isPermissionKey(PERMISSIONS.INSTRUCTOR_PORTAL_VIEW)).toBe(true);
-    expect(isPermissionKey(PERMISSIONS.INSTRUCTOR_PORTAL_SCHEDULE_VIEW)).toBe(
-      true
-    );
   });
 });

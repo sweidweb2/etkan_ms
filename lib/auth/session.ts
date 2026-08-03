@@ -1,11 +1,7 @@
 import { cache } from "react";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/services/auth.service";
-import {
-  resolveIsInstructor,
-  resolveUserRole,
-} from "@/services/role.service";
+import { resolveUserRole } from "@/services/role.service";
 import { resolveDisplayName } from "@/services/user-display.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import type { RoleValue } from "@/lib/constants/roles";
@@ -24,23 +20,6 @@ export const getSessionRole = cache(async (): Promise<RoleValue | null> => {
   }
 
   return resolveUserRole(client, user);
-});
-
-/**
- * `profiles.is_instructor` for the signed-in user (service-role read).
- */
-export const getSessionIsInstructor = cache(async (): Promise<boolean> => {
-  const user = await getSessionUser();
-  if (!user?.id) {
-    return false;
-  }
-
-  try {
-    return await resolveIsInstructor(createSupabaseAdminClient(), user.id);
-  } catch {
-    const sessionClient = await createSupabaseServerComponentClient();
-    return resolveIsInstructor(sessionClient, user.id);
-  }
 });
 
 export async function getSessionDisplayName(): Promise<string> {

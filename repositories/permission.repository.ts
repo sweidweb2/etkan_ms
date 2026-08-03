@@ -127,3 +127,38 @@ export async function replaceRolePermissions(
     )
     .select("role, permission_key");
 }
+
+/**
+ * Delete catalog rows whose keys are not in `keepKeys`.
+ * Callers must clear `role_permissions` that reference those keys first.
+ */
+export async function deletePermissionsNotInKeys(
+  client: Supabase,
+  keepKeys: readonly PermissionKey[]
+) {
+  const keepSet = new Set<string>(keepKeys);
+  const { data: catalog, error: listError } = await listPermissions(client);
+
+  if (listError) {
+    return { data: null, error: listError };
+  }
+
+  const orphanKeys = (catalog ?? [])
+    .map((row) => row.key)
+    .filter((key) => !keepSet.has(key));
+
+  if (orphanKeys.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const { error: roleGrantError } = await client
+    .from("role_permissions")
+    .delete()
+    .in("permission_key", orphanKeys);
+
+  if (roleGrantError) {
+    return { data: null, error: roleGrantError };
+  }
+
+  return client.from("permissions").delete().in("key", orphanKeys);
+}
