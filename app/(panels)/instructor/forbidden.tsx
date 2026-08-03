@@ -6,8 +6,8 @@ export default function InstructorForbiddenPage() {
     <ErrorPage
       title="Access denied"
       description="You do not have permission to view this instructor page."
-      homeHref={ROUTES.INSTRUCTOR_DASHBOARD}
-      homeLabel="Back to overview"
+      homeHref={ROUTES.INSTRUCTOR_WORKSHOPS}
+      homeLabel="Back to my workshops"
     />
   );
 }

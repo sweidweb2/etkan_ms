@@ -11,20 +11,12 @@ type PrefixRule = {
 
 const INSTRUCTOR_ROUTE_PREFIX_RULES_UNSORTED: readonly PrefixRule[] = [
   {
-    prefix: ROUTES.INSTRUCTOR_DASHBOARD,
-    permission: PERMISSIONS.INSTRUCTOR_PORTAL_VIEW,
-  },
-  {
     prefix: ROUTES.INSTRUCTOR_SCHEDULE,
     permission: PERMISSIONS.INSTRUCTOR_PORTAL_SCHEDULE_VIEW,
   },
   {
     prefix: ROUTES.INSTRUCTOR_WORKSHOPS,
     permission: PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_VIEW,
-  },
-  {
-    prefix: ROUTES.INSTRUCTOR_SESSIONS,
-    permission: PERMISSIONS.INSTRUCTOR_PORTAL_SESSIONS_VIEW,
   },
   {
     prefix: ROUTES.INSTRUCTOR_CAPABILITIES,
@@ -60,6 +52,6 @@ export function getRequiredViewPermissionForInstructorPath(
     }
   }
 
-  // Portal root / unknown nested → portal view
-  return PERMISSIONS.INSTRUCTOR_PORTAL_VIEW;
+  // Unknown nested instructor path → workshops view
+  return PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_VIEW;
 }

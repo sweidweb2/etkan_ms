@@ -75,6 +75,18 @@ export async function findWorkshopInstructorByWorkshopAndUser(
     .maybeSingle();
 }
 
+/** Assignment rows for one instructor (all workshops they teach). */
+export async function listWorkshopInstructorsByUserId(
+  client: Supabase,
+  userId: string
+) {
+  return client
+    .from("workshop_instructors")
+    .select(WORKSHOP_INSTRUCTOR_COLUMNS)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+}
+
 export async function createWorkshopInstructor(
   client: Supabase,
   input: CreateWorkshopInstructorRecordInput

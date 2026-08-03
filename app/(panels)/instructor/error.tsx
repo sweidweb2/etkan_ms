@@ -14,8 +14,8 @@ export default function InstructorError({
       title="Something went wrong"
       description="Something went wrong on this instructor page."
       reset={reset}
-      homeHref={ROUTES.INSTRUCTOR_DASHBOARD}
-      homeLabel="Back to overview"
+      homeHref={ROUTES.INSTRUCTOR_WORKSHOPS}
+      homeLabel="Back to my workshops"
     />
   );
 }

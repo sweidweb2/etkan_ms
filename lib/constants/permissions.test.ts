@@ -57,8 +57,8 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 129 keys (includes instructor feature views)", () => {
-    expect(PERMISSION_KEYS).toHaveLength(129);
+  it("keeps the catalog size at 136 keys (includes instructor workshop module)", () => {
+    expect(PERMISSION_KEYS).toHaveLength(136);
     expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW)).toBe(
       true

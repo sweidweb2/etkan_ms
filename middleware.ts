@@ -116,9 +116,9 @@ export async function middleware(request: NextRequest) {
     if (isInstructorFeaturePath(pathname)) {
       const isInstructor = await resolveIsInstructor(supabase, user.id);
 
-      if (pathname === ROUTES.INSTRUCTOR_ROOT) {
+      if (pathname === ROUTES.INSTRUCTOR_ROOT || pathname === ROUTES.INSTRUCTOR_DASHBOARD) {
         return redirect(
-          new URL(ROUTES.INSTRUCTOR_DASHBOARD, request.url)
+          new URL(ROUTES.INSTRUCTOR_WORKSHOPS, request.url)
         );
       }
 

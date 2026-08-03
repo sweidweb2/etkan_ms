@@ -8,11 +8,6 @@ export const INSTRUCTOR_SIDEBAR_NAV_GROUP: PanelNavGroup = {
   defaultOpen: true,
   items: [
     {
-      title: "Overview",
-      href: ROUTES.INSTRUCTOR_DASHBOARD,
-      icon: "layout-dashboard",
-    },
-    {
       title: "My schedule",
       href: ROUTES.INSTRUCTOR_SCHEDULE,
       icon: "calendar-days",
@@ -21,11 +16,6 @@ export const INSTRUCTOR_SIDEBAR_NAV_GROUP: PanelNavGroup = {
       title: "My workshops",
       href: ROUTES.INSTRUCTOR_WORKSHOPS,
       icon: "presentation",
-    },
-    {
-      title: "My sessions",
-      href: ROUTES.INSTRUCTOR_SESSIONS,
-      icon: "book-open",
     },
     {
       title: "Capabilities",

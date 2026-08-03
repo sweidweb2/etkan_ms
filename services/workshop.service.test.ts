@@ -13,6 +13,7 @@ import * as workshopDocumentRepository from "@/repositories/workshop-document.re
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import * as workshopPaymentRepository from "@/repositories/workshop-payment.repository";
 import * as workshopRepository from "@/repositories/workshop.repository";
+import * as workshopSessionRepository from "@/repositories/workshop-session.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
@@ -41,6 +42,7 @@ vi.mock("@/repositories/workshop.repository");
 vi.mock("@/repositories/workshop-document.repository");
 vi.mock("@/repositories/workshop-instructor.repository");
 vi.mock("@/repositories/workshop-payment.repository");
+vi.mock("@/repositories/workshop-session.repository");
 vi.mock("@/repositories/workshop-storage.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/instructor-schedule-slot.repository");
@@ -473,6 +475,15 @@ describe("getWorkshopForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    vi.mocked(
+      workshopSessionRepository.listWorkshopSessionsByWorkshopId
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
 
     const detail = await getWorkshopForManager(
       adminClient,
@@ -496,6 +507,7 @@ describe("getWorkshopForManager", () => {
     expect(detail?.documents).toHaveLength(1);
     expect(detail?.documents[0]?.name).toBe("Syllabus");
     expect(detail?.scheduleSlots).toEqual([]);
+    expect(detail?.sessions).toEqual([]);
   });
 });
 

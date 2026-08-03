@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
-import { RolePanelLayout } from "@/components/panels/role-panel-layout";
 import { requireManagerRoutePermission } from "@/lib/auth/require-manager-route-permission";
+import { requireRole } from "@/lib/auth/require-role";
 import { ROLES } from "@/lib/constants/roles";
 
 export default async function ManagerLayout({
@@ -9,13 +9,7 @@ export default async function ManagerLayout({
   children: React.ReactNode;
 }) {
   const pathname = (await headers()).get("x-pathname") ?? "";
-
-  return (
-    <RolePanelLayout
-      role={ROLES.MANAGER}
-      assertAccess={() => requireManagerRoutePermission(pathname)}
-    >
-      {children}
-    </RolePanelLayout>
-  );
+  await requireRole(ROLES.MANAGER);
+  await requireManagerRoutePermission(pathname);
+  return children;
 }

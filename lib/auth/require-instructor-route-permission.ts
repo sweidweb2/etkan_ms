@@ -10,7 +10,7 @@ import {
 
 /**
  * Deny instructor feature deep links when the matching view permission is missing.
- * Redirects to the instructor overview when `instructor_portal.view` is held;
+ * Redirects to My workshops when `instructor_portal.workshops.view` is held;
  * otherwise `forbidden()`.
  */
 export async function requireInstructorRoutePermission(
@@ -31,8 +31,10 @@ export async function requireInstructorRoutePermission(
     return;
   }
 
-  if (hasPermissionInSet(permissions, PERMISSIONS.INSTRUCTOR_PORTAL_VIEW)) {
-    redirect(ROUTES.INSTRUCTOR_DASHBOARD);
+  if (
+    hasPermissionInSet(permissions, PERMISSIONS.INSTRUCTOR_PORTAL_WORKSHOPS_VIEW)
+  ) {
+    redirect(ROUTES.INSTRUCTOR_WORKSHOPS);
   }
 
   forbidden();

@@ -122,14 +122,21 @@ Format: `key` — label — access
 
 ### Instructor Portal
 
-Shared portal for any authenticated user with `profiles.is_instructor = true` (not a role).
+Feature routes for users with `profiles.is_instructor = true` (not a role). Workshop keys mirror the manager workshops module for the instructor’s assigned offerings only.
 
 | Key | Label | Access |
 |-----|-------|--------|
-| `instructor_portal.view` | View instructor portal | read |
+| `instructor_portal.view` | View instructor overview | read |
 | `instructor_portal.schedule.view` | View instructor schedule | read |
 | `instructor_portal.workshops.view` | View instructor workshops | read |
-| `instructor_portal.sessions.view` | View instructor sessions | read |
+| `instructor_portal.workshops.update` | Edit instructor workshops | write |
+| `instructor_portal.workshops.sessions.create` | Create instructor workshop session | write |
+| `instructor_portal.workshops.sessions.update` | Edit instructor workshop session | write |
+| `instructor_portal.workshops.sessions.delete` | Delete instructor workshop session | write |
+| `instructor_portal.workshops.documents.create` | Upload instructor workshop document | write |
+| `instructor_portal.workshops.documents.update` | Rename instructor workshop document | write |
+| `instructor_portal.workshops.documents.delete` | Delete instructor workshop document | write |
+| `instructor_portal.sessions.view` | View instructor sessions (legacy) | read |
 | `instructor_portal.capabilities.view` | View instructor capabilities | read |
 
 ### Classes
@@ -364,6 +371,13 @@ workshops.payments.delete
 instructor_portal.view
 instructor_portal.schedule.view
 instructor_portal.workshops.view
+instructor_portal.workshops.update
+instructor_portal.workshops.sessions.create
+instructor_portal.workshops.sessions.update
+instructor_portal.workshops.sessions.delete
+instructor_portal.workshops.documents.create
+instructor_portal.workshops.documents.update
+instructor_portal.workshops.documents.delete
 instructor_portal.sessions.view
 instructor_portal.capabilities.view
 classes.view
@@ -454,7 +468,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 129 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes · instructor portal includes portal + nested schedule/workshops/sessions/capabilities views.
+**Count:** 136 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes · instructor portal includes overview/schedule/capabilities plus workshop module writes (update / sessions / documents) for assigned offerings.
 
 ---
 

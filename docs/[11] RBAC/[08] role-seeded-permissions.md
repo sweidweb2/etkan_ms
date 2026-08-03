@@ -10,19 +10,21 @@ Shared workshop access package (`WORKSHOP_ACCESS_SEED_PERMISSIONS`) is included 
 - `instructors.view` (covers reading instructor capabilities)
 - `instructor_schedules.view`
 
-Shared instructor portal package (`INSTRUCTOR_PORTAL_SEED_PERMISSIONS`) is included for **every** role (portal entry still requires `profiles.is_instructor = true`):
+Shared instructor portal package (`INSTRUCTOR_PORTAL_SEED_PERMISSIONS`) is included for **every** role (feature entry still requires `profiles.is_instructor = true`):
 
 - `instructor_portal.view`
 - `instructor_portal.schedule.view`
 - `instructor_portal.workshops.view`
-- `instructor_portal.sessions.view`
+- `instructor_portal.workshops.update`
+- `instructor_portal.workshops.sessions.create` / `update` / `delete`
+- `instructor_portal.workshops.documents.create` / `update` / `delete`
 - `instructor_portal.capabilities.view`
 
 ---
 
 ## Manager
 
-Full catalog (`PERMISSION_KEYS`) — every permission, including all workshop module writes and instructor portal keys:
+Full catalog (`PERMISSION_KEYS`) — every permission, including all workshop module writes and instructor feature keys:
 
 ### Workshops
 - `workshops.view`

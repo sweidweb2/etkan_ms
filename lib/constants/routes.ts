@@ -152,6 +152,10 @@ export function getManagerWorkshopDetailRoute(workshopId: string): string {
   return `/manager/workshops/${workshopId}`;
 }
 
+export function getInstructorWorkshopDetailRoute(workshopId: string): string {
+  return `/instructor/workshops/${workshopId}`;
+}
+
 export function getManagerEquipmentDetailRoute(equipmentId: string): string {
   return `/manager/equipments/${equipmentId}`;
 }

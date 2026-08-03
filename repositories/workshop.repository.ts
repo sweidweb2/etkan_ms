@@ -64,6 +64,18 @@ export async function listWorkshops(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+export async function listWorkshopsByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [] as WorkshopRecord[], error: null };
+  }
+
+  return client
+    .from("workshops")
+    .select(WORKSHOP_COLUMNS)
+    .in("id", ids)
+    .order("created_at", { ascending: false });
+}
+
 export async function findWorkshopById(client: Supabase, id: string) {
   return client
     .from("workshops")
