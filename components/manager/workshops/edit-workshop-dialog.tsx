@@ -64,8 +64,6 @@ function toFormDefaults(workshop: ManagerWorkshopRow) {
     proposal_notes: workshop.proposal_notes ?? "",
     delivery_place: workshop.delivery_place ?? "",
     nb_participants: (workshop.nb_participants ?? "") as unknown as number | null,
-    number_of_sessions: (workshop.number_of_sessions ??
-      "") as unknown as number | null,
     price: (workshop.price ?? "") as unknown as number | null,
     start_date: workshop.start_date ?? "",
     end_date: workshop.end_date ?? "",
@@ -131,12 +129,6 @@ export function EditWorkshopDialog({
       "nb_participants",
       values.nb_participants == null ? "" : String(values.nb_participants)
     );
-    formData.set(
-      "number_of_sessions",
-      values.number_of_sessions == null
-        ? ""
-        : String(values.number_of_sessions)
-    );
     formData.set("price", values.price == null ? "" : String(values.price));
     formData.set("start_date", values.start_date ?? "");
     formData.set("end_date", values.end_date ?? "");
@@ -159,9 +151,6 @@ export function EditWorkshopDialog({
     errors.delivery_place?.message ?? state.fieldErrors?.delivery_place?.[0];
   const participantsError =
     errors.nb_participants?.message ?? state.fieldErrors?.nb_participants?.[0];
-  const sessionsError =
-    errors.number_of_sessions?.message ??
-    state.fieldErrors?.number_of_sessions?.[0];
   const priceError = errors.price?.message ?? state.fieldErrors?.price?.[0];
   const startError =
     errors.start_date?.message ?? state.fieldErrors?.start_date?.[0];
@@ -295,25 +284,6 @@ export function EditWorkshopDialog({
               />
               {participantsError ? (
                 <p className="text-sm text-destructive">{participantsError}</p>
-              ) : null}
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="edit-workshop-sessions"
-                label="Sessions"
-                hint="Optional"
-              />
-              <Input
-                id="edit-workshop-sessions"
-                type="number"
-                min={WORKSHOP_FIELD_LIMITS.number_of_sessions.min}
-                max={WORKSHOP_FIELD_LIMITS.number_of_sessions.max}
-                aria-invalid={!!sessionsError}
-                disabled={isPending}
-                {...register("number_of_sessions")}
-              />
-              {sessionsError ? (
-                <p className="text-sm text-destructive">{sessionsError}</p>
               ) : null}
             </div>
           </div>

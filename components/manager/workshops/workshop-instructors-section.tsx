@@ -166,7 +166,7 @@ export function WorkshopInstructorsSection({
         title="Instructors"
         storageKey={`workshop-details-instructors:${workshopId}`}
         action={
-          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+          <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE}>
             <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
               <PlusIcon data-icon="inline-start" />
               Add instructor
@@ -221,8 +221,8 @@ export function WorkshopInstructorsSection({
                         {instructor.notes?.trim() ? instructor.notes : "—"}
                       </td>
                       <td className="py-3 align-top">
-                        <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-                          <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1">
+                          <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_UPDATE}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -232,6 +232,8 @@ export function WorkshopInstructorsSection({
                             >
                               <PencilIcon />
                             </Button>
+                          </Can>
+                          <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_DELETE}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -241,8 +243,8 @@ export function WorkshopInstructorsSection({
                             >
                               <Trash2Icon />
                             </Button>
-                          </div>
-                        </Can>
+                          </Can>
+                        </div>
                       </td>
                     </tr>
                   ))}

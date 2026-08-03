@@ -106,3 +106,32 @@ export const WORKSHOP_PAYMENT_METHODS = PAYMENT_METHODS;
 export type WorkshopPaymentMethod = PaymentMethod;
 export const WORKSHOP_PAYMENT_METHOD_VALUES = PAYMENT_METHOD_VALUES;
 export const WORKSHOP_PAYMENT_METHOD_LABELS = PAYMENT_METHOD_LABELS;
+
+export const WORKSHOP_SESSION_STATUSES = {
+  PLANNED: "planned",
+  DONE: "done",
+} as const;
+
+export type WorkshopSessionStatus =
+  (typeof WORKSHOP_SESSION_STATUSES)[keyof typeof WORKSHOP_SESSION_STATUSES];
+
+export const WORKSHOP_SESSION_STATUS_VALUES = [
+  WORKSHOP_SESSION_STATUSES.PLANNED,
+  WORKSHOP_SESSION_STATUSES.DONE,
+] as const;
+
+export const WORKSHOP_SESSION_STATUS_LABELS: Record<
+  WorkshopSessionStatus,
+  string
+> = {
+  planned: "Planned",
+  done: "Done",
+};
+
+export const WORKSHOP_SESSION_STATUS_BADGE_CLASSES: Record<
+  WorkshopSessionStatus,
+  string
+> = {
+  planned: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  done: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+};

@@ -9,13 +9,17 @@ export const WORKSHOP_FIELD_LIMITS = {
   proposal_notes: { max: 5000 },
   delivery_place: { max: 300 },
   nb_participants: { min: 0, max: 100_000 },
-  number_of_sessions: { min: 1, max: 1_000 },
+  number_of_sessions: { min: 0, max: 1_000 },
   price: { min: 0, max: 1_000_000 },
   wage_amount: { min: 0, max: 1_000_000 },
   wage_percentage: { min: 0, max: 100 },
   instructor_notes: { max: 2_000 },
   payment_amount: { min: 0.01, max: 1_000_000 },
   payment_notes: { max: 500 },
+  session_topic: { max: 300 },
+  session_notes: { max: 5_000 },
+  session_suggestions: { max: 5_000 },
+  session_hours: { min: 0.01, max: 24 },
 } as const;
 
 /** Instructor / workshop / weekly schedule slot field bounds. */

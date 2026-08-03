@@ -34,6 +34,7 @@ export default async function ManagerWorkshopDetailPage({
       instructorCandidates={detail.instructorCandidates}
       documents={detail.documents}
       scheduleSlots={detail.scheduleSlots}
+      sessions={detail.sessions}
     />
   );
 }

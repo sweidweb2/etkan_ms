@@ -1,10 +1,15 @@
 import { PanelShell } from "@/components/panels/panel-shell";
 import { filterPanelNavigation } from "@/lib/auth/filter-panel-navigation";
 import { requireRole } from "@/lib/auth/require-role";
-import { getSessionDisplayName, getSessionUser } from "@/lib/auth/session";
-import { getPanelConfigForRole } from "@/lib/panels/config";
-import { ROLES } from "@/lib/constants/roles";
+import {
+  getSessionDisplayName,
+  getSessionIsInstructor,
+  getSessionUser,
+} from "@/lib/auth/session";
 import type { PermissionKey } from "@/lib/constants/permissions";
+import { ROLES } from "@/lib/constants/roles";
+import { getPanelConfigForRole } from "@/lib/panels/config";
+import { withInstructorNavGroup } from "@/lib/panels/instructor-sidebar-nav";
 import { getUserPermissionsCached } from "@/services/authorization.service";
 
 type RolePanelLayoutProps = {
@@ -24,19 +29,28 @@ export async function RolePanelLayout({
     await assertAccess();
   }
 
-  const [displayName, panelConfig, user] = await Promise.all([
+  const [displayName, panelConfig, user, isInstructor] = await Promise.all([
     getSessionDisplayName(),
     Promise.resolve(getPanelConfigForRole(role)),
     getSessionUser(),
+    getSessionIsInstructor(),
   ]);
 
   let permissionsArray: PermissionKey[] = [];
   let navigation = panelConfig.navigation;
 
-  if (role === ROLES.MANAGER && user?.id) {
+  if (user?.id) {
     const permissions = await getUserPermissionsCached(user.id);
     permissionsArray = [...permissions];
-    navigation = filterPanelNavigation(panelConfig.navigation, permissions);
+
+    if (isInstructor) {
+      navigation = withInstructorNavGroup(navigation);
+    }
+
+    // Filter after injecting Instructor group so portal view keys apply.
+    if (role === ROLES.MANAGER) {
+      navigation = filterPanelNavigation(navigation, permissions);
+    }
   }
 
   return (

@@ -4,11 +4,14 @@ import {
   WORKSHOP_OFFERING_TYPES,
   WORKSHOP_PAYMENT_TYPES,
   WORKSHOP_PAYMENT_TYPE_VALUES,
+  WORKSHOP_SESSION_STATUS_VALUES,
+  WORKSHOP_SESSION_STATUSES,
   WORKSHOP_WAGE_TYPE_VALUES,
   type WorkshopInstructorRole,
   type WorkshopOfferingType,
   type WorkshopPaymentMethod,
   type WorkshopPaymentType,
+  type WorkshopSessionStatus,
   type WorkshopWageType,
 } from "@/lib/constants/manager-workshop-display";
 import {
@@ -39,6 +42,11 @@ import {
   updateWorkshopPaymentSchema,
 } from "@/lib/validators/manager/workshop-payment";
 import {
+  createWorkshopSessionSchema,
+  deleteWorkshopSessionSchema,
+  updateWorkshopSessionSchema,
+} from "@/lib/validators/manager/workshop-session";
+import {
   assertWorkshopStatusTransition,
   formatLocalDateYmd,
 } from "@/lib/manager/workshops/status-transitions";
@@ -57,6 +65,8 @@ import * as workshopPaymentRepository from "@/repositories/workshop-payment.repo
 import type { WorkshopPaymentRecord } from "@/repositories/workshop-payment.repository";
 import * as workshopRepository from "@/repositories/workshop.repository";
 import type { WorkshopRecord } from "@/repositories/workshop.repository";
+import * as workshopSessionRepository from "@/repositories/workshop-session.repository";
+import type { WorkshopSessionRecord } from "@/repositories/workshop-session.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
 import {
   assertPermission,
@@ -78,6 +88,7 @@ import type {
   ManagerWorkshopPaymentSummary,
   ManagerWorkshopPaymentsTotals,
   ManagerWorkshopRow,
+  ManagerWorkshopSessionRow,
 } from "@/types/manager-workshop";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -230,6 +241,36 @@ export type DeleteWorkshopPaymentResult =
   | DeleteWorkshopPaymentSuccess
   | DeleteWorkshopPaymentFailure;
 
+export type WorkshopSessionMutationSuccess = {
+  success: true;
+  session: ManagerWorkshopSessionRow;
+  message: string;
+};
+
+export type WorkshopSessionMutationFailure = {
+  success: false;
+  error: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type WorkshopSessionMutationResult =
+  | WorkshopSessionMutationSuccess
+  | WorkshopSessionMutationFailure;
+
+export type DeleteWorkshopSessionSuccess = {
+  success: true;
+  message: string;
+};
+
+export type DeleteWorkshopSessionFailure = {
+  success: false;
+  error: string;
+};
+
+export type DeleteWorkshopSessionResult =
+  | DeleteWorkshopSessionSuccess
+  | DeleteWorkshopSessionFailure;
+
 export const WORKSHOP_HAS_PAYMENTS_DELETE_ERROR =
   "Remove workshop payments before deleting this workshop.";
 
@@ -357,6 +398,64 @@ function mapWorkshopPaymentRecord(
   };
 }
 
+function mapWorkshopSessionStatus(status: string): WorkshopSessionStatus {
+  if (
+    (WORKSHOP_SESSION_STATUS_VALUES as readonly string[]).includes(status)
+  ) {
+    return status as WorkshopSessionStatus;
+  }
+  return WORKSHOP_SESSION_STATUSES.PLANNED;
+}
+
+function mapWorkshopSessionRecord(
+  record: WorkshopSessionRecord
+): ManagerWorkshopSessionRow {
+  return {
+    id: record.id,
+    workshop_id: record.workshop_id,
+    nb_order: record.nb_order,
+    session_date: record.session_date,
+    start_time: record.start_time,
+    end_time: record.end_time,
+    nb_hours: Number(record.nb_hours),
+    topic: record.topic,
+    notes: record.notes,
+    suggestions: record.suggestions,
+    status: mapWorkshopSessionStatus(record.status),
+    participants_eval: record.participants_eval,
+    session_eval: record.session_eval,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+  };
+}
+
+async function syncWorkshopSessionCount(
+  adminClient: Supabase,
+  workshopId: string
+): Promise<string | null> {
+  const countResult =
+    await workshopSessionRepository.countWorkshopSessionsByWorkshopId(
+      adminClient,
+      workshopId
+    );
+
+  if (countResult.error) {
+    return countResult.error.message || "Unable to sync session count.";
+  }
+
+  const { error } = await workshopRepository.updateWorkshopNumberOfSessionsById(
+    adminClient,
+    workshopId,
+    countResult.count ?? 0
+  );
+
+  if (error) {
+    return error.message || "Unable to sync session count.";
+  }
+
+  return null;
+}
+
 export function buildWorkshopPaymentSummary(
   payments: ManagerWorkshopPaymentRow[],
   price: number | null
@@ -471,6 +570,7 @@ export async function getWorkshopForManager(
     candidatesResult,
     documentsResult,
     scheduleSlotsResult,
+    sessionsResult,
   ] = await Promise.all([
     workshopRepository.findWorkshopById(adminClient, workshopId),
     workshopPaymentRepository.listWorkshopPaymentsByWorkshopId(
@@ -489,6 +589,10 @@ export async function getWorkshopForManager(
     instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
       adminClient,
       ENTITY_SCHEDULE_TYPE_WORKSHOP,
+      workshopId
+    ),
+    workshopSessionRepository.listWorkshopSessionsByWorkshopId(
+      adminClient,
       workshopId
     ),
   ]);
@@ -515,6 +619,10 @@ export async function getWorkshopForManager(
 
   if (scheduleSlotsResult.error) {
     throw new Error(scheduleSlotsResult.error.message);
+  }
+
+  if (sessionsResult.error) {
+    throw new Error(sessionsResult.error.message);
   }
 
   if (!workshopResult.data) {
@@ -546,6 +654,8 @@ export async function getWorkshopForManager(
     )
   );
 
+  const sessions = (sessionsResult.data ?? []).map(mapWorkshopSessionRecord);
+
   return {
     workshop,
     payment_count: payments.length,
@@ -555,6 +665,7 @@ export async function getWorkshopForManager(
     instructorCandidates,
     documents,
     scheduleSlots,
+    sessions,
   };
 }
 
@@ -594,7 +705,7 @@ export async function createWorkshopForManager(
     target_audience: dataInput.target_audience,
     nb_participants: dataInput.nb_participants,
     proposal_notes: dataInput.proposal_notes,
-    number_of_sessions: dataInput.number_of_sessions,
+    number_of_sessions: 0,
     price: dataInput.price,
     start_date: dataInput.start_date,
     end_date: dataInput.end_date,
@@ -690,7 +801,6 @@ export async function updateWorkshopForManager(
       target_audience: dataInput.target_audience,
       nb_participants: dataInput.nb_participants,
       proposal_notes: dataInput.proposal_notes,
-      number_of_sessions: dataInput.number_of_sessions,
       price: dataInput.price,
       start_date: dataInput.start_date,
       end_date: dataInput.end_date,
@@ -828,7 +938,7 @@ export async function changeWorkshopStatusForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_CHANGE_STATUS
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1035,7 +1145,7 @@ export async function addWorkshopInstructorForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1165,7 +1275,7 @@ export async function updateWorkshopInstructorForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_INSTRUCTORS_UPDATE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1267,7 +1377,7 @@ export async function removeWorkshopInstructorForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_INSTRUCTORS_DELETE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1352,7 +1462,7 @@ export async function uploadWorkshopDocumentForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_DOCUMENTS_CREATE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1461,7 +1571,7 @@ export async function renameWorkshopDocumentForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_DOCUMENTS_UPDATE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1543,7 +1653,7 @@ export async function deleteWorkshopDocumentForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_DOCUMENTS_DELETE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1634,7 +1744,7 @@ export async function createWorkshopPaymentForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1724,7 +1834,7 @@ export async function updateWorkshopPaymentForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_PAYMENTS_UPDATE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1824,7 +1934,7 @@ export async function deleteWorkshopPaymentForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.WORKSHOPS_UPDATE
+    PERMISSIONS.WORKSHOPS_PAYMENTS_DELETE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -1894,4 +2004,337 @@ export async function deleteWorkshopPaymentForManager(
     success: true,
     message: "Payment deleted.",
   };
+}
+
+export async function createWorkshopSessionForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<WorkshopSessionMutationResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_SESSIONS_CREATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = createWorkshopSessionSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  const dataInput = parsed.data;
+  const nbHours = dataInput.nb_hours;
+
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    dataInput.workshop_id
+  );
+
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to create session.",
+    };
+  }
+
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+
+  let nbOrder = dataInput.nb_order;
+  if (nbOrder == null) {
+    const maxOrderResult =
+      await workshopSessionRepository.getMaxWorkshopSessionOrder(
+        adminClient,
+        dataInput.workshop_id
+      );
+    if (maxOrderResult.error) {
+      return {
+        success: false,
+        error: maxOrderResult.error.message || "Unable to create session.",
+      };
+    }
+    nbOrder = (maxOrderResult.data?.nb_order ?? 0) + 1;
+  }
+
+  const { data, error } = await workshopSessionRepository.createWorkshopSession(
+    adminClient,
+    {
+      workshop_id: dataInput.workshop_id,
+      nb_order: nbOrder,
+      session_date: dataInput.session_date,
+      start_time: dataInput.start_time,
+      end_time: dataInput.end_time,
+      nb_hours: nbHours,
+      topic: dataInput.topic.trim(),
+      notes: dataInput.notes,
+      suggestions: dataInput.suggestions,
+      status: dataInput.status,
+      participants_eval: dataInput.participants_eval,
+      session_eval: dataInput.session_eval,
+    }
+  );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: mapWorkshopSessionError(error?.message ?? "Unable to create session."),
+    };
+  }
+
+  const syncError = await syncWorkshopSessionCount(
+    adminClient,
+    dataInput.workshop_id
+  );
+  if (syncError) {
+    return { success: false, error: syncError };
+  }
+
+  const session = mapWorkshopSessionRecord(data);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "workshop_sessions",
+    record_id: session.id,
+    new_data: {
+      workshop_id: session.workshop_id,
+      nb_order: session.nb_order,
+      session_date: session.session_date,
+      topic: session.topic,
+      status: session.status,
+    },
+    metadata: { note: "Workshop session created." },
+  });
+
+  return {
+    success: true,
+    session,
+    message: "Session created.",
+  };
+}
+
+export async function updateWorkshopSessionForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<WorkshopSessionMutationResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_SESSIONS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = updateWorkshopSessionSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  const dataInput = parsed.data;
+  const nbHours = dataInput.nb_hours;
+
+  const existing = await workshopSessionRepository.findWorkshopSessionById(
+    adminClient,
+    dataInput.id
+  );
+
+  if (existing.error) {
+    return {
+      success: false,
+      error: existing.error.message || "Unable to update session.",
+    };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Session not found." };
+  }
+
+  if (existing.data.workshop_id !== dataInput.workshop_id) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const nbOrder = dataInput.nb_order ?? existing.data.nb_order;
+
+  const { data, error } =
+    await workshopSessionRepository.updateWorkshopSessionById(
+      adminClient,
+      dataInput.id,
+      {
+        nb_order: nbOrder,
+        session_date: dataInput.session_date,
+        start_time: dataInput.start_time,
+        end_time: dataInput.end_time,
+        nb_hours: nbHours,
+        topic: dataInput.topic.trim(),
+        notes: dataInput.notes,
+        suggestions: dataInput.suggestions,
+        status: dataInput.status,
+        participants_eval: dataInput.participants_eval,
+        session_eval: dataInput.session_eval,
+      }
+    );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: mapWorkshopSessionError(error?.message ?? "Unable to update session."),
+    };
+  }
+
+  const syncError = await syncWorkshopSessionCount(
+    adminClient,
+    dataInput.workshop_id
+  );
+  if (syncError) {
+    return { success: false, error: syncError };
+  }
+
+  const session = mapWorkshopSessionRecord(data);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "workshop_sessions",
+    record_id: session.id,
+    old_data: {
+      nb_order: existing.data.nb_order,
+      session_date: existing.data.session_date,
+      topic: existing.data.topic,
+      status: existing.data.status,
+    },
+    new_data: {
+      nb_order: session.nb_order,
+      session_date: session.session_date,
+      topic: session.topic,
+      status: session.status,
+    },
+    metadata: { note: "Workshop session updated." },
+  });
+
+  return {
+    success: true,
+    session,
+    message: "Session updated.",
+  };
+}
+
+export async function deleteWorkshopSessionForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<DeleteWorkshopSessionResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_SESSIONS_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = deleteWorkshopSessionSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+    };
+  }
+
+  const dataInput = parsed.data;
+
+  const existing = await workshopSessionRepository.findWorkshopSessionById(
+    adminClient,
+    dataInput.id
+  );
+
+  if (existing.error) {
+    return {
+      success: false,
+      error: existing.error.message || "Unable to delete session.",
+    };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Session not found." };
+  }
+
+  if (existing.data.workshop_id !== dataInput.workshop_id) {
+    return { success: false, error: "Session not found." };
+  }
+
+  const previous = mapWorkshopSessionRecord(existing.data);
+
+  const { error } = await workshopSessionRepository.deleteWorkshopSessionById(
+    adminClient,
+    dataInput.id
+  );
+
+  if (error) {
+    return {
+      success: false,
+      error: error.message || "Unable to delete session.",
+    };
+  }
+
+  const syncError = await syncWorkshopSessionCount(
+    adminClient,
+    dataInput.workshop_id
+  );
+  if (syncError) {
+    return { success: false, error: syncError };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "warning",
+    table_name: "workshop_sessions",
+    record_id: dataInput.id,
+    old_data: {
+      workshop_id: previous.workshop_id,
+      nb_order: previous.nb_order,
+      session_date: previous.session_date,
+      topic: previous.topic,
+      status: previous.status,
+    },
+    metadata: { note: "Workshop session deleted." },
+  });
+
+  return {
+    success: true,
+    message: "Session deleted.",
+  };
+}
+
+function mapWorkshopSessionError(message: string): string {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("workshop_sessions_workshop_nb_order_key") ||
+    normalized.includes("duplicate key")
+  ) {
+    return "A session with this order already exists for this workshop.";
+  }
+  if (normalized.includes("workshop_sessions_end_after_start")) {
+    return "End time must be after start time.";
+  }
+  return message || "Unable to save session.";
 }

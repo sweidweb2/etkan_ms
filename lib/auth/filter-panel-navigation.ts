@@ -1,3 +1,4 @@
+import { getRequiredViewPermissionForInstructorPath } from "@/lib/auth/instructor-route-permissions";
 import { getRequiredViewPermissionForManagerPath } from "@/lib/auth/manager-route-permissions";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import type { PermissionKey } from "@/lib/constants/permissions";
@@ -11,7 +12,9 @@ function canViewNavItem(
   item: PanelNavItem,
   permissions: ReadonlySet<PermissionKey>
 ): boolean {
-  const required = getRequiredViewPermissionForManagerPath(item.href);
+  const required =
+    getRequiredViewPermissionForInstructorPath(item.href) ??
+    getRequiredViewPermissionForManagerPath(item.href);
   if (!required) {
     return false;
   }
@@ -46,7 +49,8 @@ function filterNavGroups(
 }
 
 /**
- * Keep manager nav items whose href maps to a granted `*.view` permission.
+ * Keep nav items whose href maps to a granted view permission
+ * (instructor feature routes and/or manager routes).
  * Drops empty groups. Safe to call with a full permission set (no-op visually).
  */
 export function filterPanelNavigation(

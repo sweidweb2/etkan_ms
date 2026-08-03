@@ -1776,6 +1776,68 @@ export type Database = {
           },
         ]
       }
+      workshop_sessions: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          nb_hours: number
+          nb_order: number
+          notes: string | null
+          participants_eval: number | null
+          session_date: string
+          session_eval: number | null
+          start_time: string
+          status: string
+          suggestions: string | null
+          topic: string
+          updated_at: string
+          workshop_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          nb_hours: number
+          nb_order: number
+          notes?: string | null
+          participants_eval?: number | null
+          session_date: string
+          session_eval?: number | null
+          start_time: string
+          status?: string
+          suggestions?: string | null
+          topic: string
+          updated_at?: string
+          workshop_id: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          nb_hours?: number
+          nb_order?: number
+          notes?: string | null
+          participants_eval?: number | null
+          session_date?: string
+          session_eval?: number | null
+          start_time?: string
+          status?: string
+          suggestions?: string | null
+          topic?: string
+          updated_at?: string
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_sessions_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workshops: {
         Row: {
           created_at: string

@@ -214,6 +214,31 @@ Table workshop_payments {
   }
 }
 
+Table workshop_sessions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  workshop_id uuid [not null, ref: > workshops.id]
+  nb_order integer [not null, note: '1-based order within workshop']
+  session_date date [not null]
+  start_time time [not null]
+  end_time time [not null]
+  nb_hours numeric(5,2) [not null]
+  topic text [not null]
+  notes text
+  suggestions text
+  status text [not null, default: 'planned', note: 'planned | done']
+  participants_eval smallint [note: '1–10 optional']
+  session_eval smallint [note: '1–10 optional']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (workshop_id, nb_order) [unique]
+    (workshop_id)
+    (workshop_id, session_date)
+    (workshop_id, status)
+  }
+}
+
 Table attendee {
   id uuid [pk, default: `gen_random_uuid()`]
   session_id uuid [not null]

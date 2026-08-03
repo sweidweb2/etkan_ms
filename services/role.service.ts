@@ -33,6 +33,27 @@ export async function resolveUserRole(
   return roleFromAuthMetadata(authUser) ?? ROLES.STUDENT;
 }
 
+/** Resolve `profiles.is_instructor` for portal / path-access gates. */
+export async function resolveIsInstructor(
+  client: Supabase,
+  authUserId: string
+): Promise<boolean> {
+  if (!authUserId) {
+    return false;
+  }
+
+  const { data, error } = await profileRepository.findProfileById(
+    client,
+    authUserId
+  );
+
+  if (error || !data) {
+    return false;
+  }
+
+  return data.is_instructor === true;
+}
+
 export async function syncAuthUserRole(
   adminClient: Supabase,
   authUserId: string,

@@ -2,178 +2,48 @@
 
 Default grants applied by `npm run seed:rbac` from `lib/constants/role-seed-permissions.ts`.
 
-Roles with no bullets receive an empty grant set (no `role_permissions` rows).
+Shared workshop access package (`WORKSHOP_ACCESS_SEED_PERMISSIONS`) is included for **every** role:
+
+- `workshops.view`
+- `workshops.sessions.create` / `update` / `delete`
+- `workshops.documents.create` / `update` / `delete`
+- `instructors.view` (covers reading instructor capabilities)
+- `instructor_schedules.view`
+
+Shared instructor portal package (`INSTRUCTOR_PORTAL_SEED_PERMISSIONS`) is included for **every** role (portal entry still requires `profiles.is_instructor = true`):
+
+- `instructor_portal.view`
+- `instructor_portal.schedule.view`
+- `instructor_portal.workshops.view`
+- `instructor_portal.sessions.view`
+- `instructor_portal.capabilities.view`
 
 ---
 
 ## Manager
 
-### Dashboard
-- `dashboard.view`
-
-### Users
-- `users.view`
-- `users.create`
-- `users.update`
-
-### Students
-- `students.view`
-- `students.create`
-- `students.update`
-- `students.change_status`
-
-### Relationships
-- `relationships.view`
-- `relationships.create`
-- `relationships.update`
-
-### Subjects
-- `subjects.view`
-- `subjects.create`
-- `subjects.update`
-- `subjects.delete`
-
-### Instructors
-- `instructors.view`
-- `instructors.capabilities.update`
-
-### Classes
-- `classes.view`
-- `classes.create`
-- `classes.update`
-- `classes.change_status`
-- `classes.assign_teacher`
-- `classes.unassign_teacher`
-- `classes.add_student`
-- `classes.remove_student`
-- `classes.view_analytics`
-
-### Sessions
-- `sessions.view`
-- `sessions.create`
-- `sessions.update`
-- `sessions.delete`
-- `sessions.update_settings`
-
-### Attendance
-- `attendance.view`
-- `attendance.update`
-
-### Tasks
-- `tasks.view`
-- `tasks.create`
-- `tasks.update_student`
-
-### Final Exams
-- `final_exams.view`
-- `final_exams.create`
-- `final_exams.update`
-- `final_exams.update_student`
-
-### Grades
-- `grades.view`
-- `grades.compute`
-- `grades.compute_all`
-- `grades.compute_custom`
-- `grades.delete`
-- `grades.export_certificates`
-- `grades.export_fast_certificate`
-- `grades.preview_certificate`
-
-### Semesters
-- `semesters.view`
-- `semesters.create`
-- `semesters.update`
-- `semesters.add_student`
-- `semesters.connect_class`
-
-### Equipment
-- `equipment.view`
-- `equipment.create`
-- `equipment.update`
-- `equipment.view_borrows`
-- `equipment.borrow_create`
-- `equipment.borrow_update`
-- `equipment.borrow_return`
-
-### Schedule
-- `schedule.view`
-- `schedule.create`
-- `schedule.update`
-- `schedule.delete`
-
-### Instructor Schedules
-- `instructor_schedules.view`
-- `instructor_schedules.create`
-- `instructor_schedules.update`
-- `instructor_schedules.delete`
+Full catalog (`PERMISSION_KEYS`) — every permission, including all workshop module writes and instructor portal keys:
 
 ### Workshops
 - `workshops.view`
 - `workshops.create`
 - `workshops.update`
 - `workshops.delete`
+- `workshops.change_status`
+- `workshops.instructors.create`
+- `workshops.instructors.update`
+- `workshops.instructors.delete`
+- `workshops.documents.create`
+- `workshops.documents.update`
+- `workshops.documents.delete`
+- `workshops.sessions.create`
+- `workshops.sessions.update`
+- `workshops.sessions.delete`
+- `workshops.payments.create`
+- `workshops.payments.update`
+- `workshops.payments.delete`
 
-### Notifications
-- `notifications.view`
-- `notifications.create`
-- `notifications.update`
-- `notifications.mark_read`
-- `notifications.delete`
-
-### Emailing
-- `emailing.view`
-- `emailing.send`
-- `emailing.resend`
-
-### Accounting
-- `accounting.view`
-- `accounting.income_statement.view`
-- `accounting.transactions.create`
-- `accounting.transactions.update`
-- `accounting.transactions.delete`
-- `accounting.payment_phases.create`
-- `accounting.payment_phases.update`
-- `accounting.payment_phases.cancel`
-- `accounting.spp.transfer`
-- `accounting.spp.delete`
-- `accounting.payments.create`
-- `accounting.payments.update`
-- `accounting.payments.delete`
-- `accounting.adjustments.create`
-- `accounting.adjustments.update`
-- `accounting.adjustments.delete`
-
-### Reports
-- `reports.view`
-- `reports.export`
-- `reports.print`
-
-### Analytics
-- `analytics.view`
-
-### Backup
-- `backup.view`
-- `backup.export_table`
-- `backup.export_full`
-- `backup.download`
-
-### Logs
-- `logs.view`
-
-### Cloudflare AI usage
-- `cloudflare_ai_usage.view`
-
-### Cron Jobs
-- `cron_jobs.view`
-
-### Settings
-- `settings.view`
-- `settings.maintenance`
-- `settings.update_credentials`
-
-### RBAC
-- `rbac.manage`
+Plus all other features (dashboard, users, students, subjects, classes, sessions, attendance, tasks, final exams, grades, semesters, equipment, schedule, instructor schedules, workshops, instructor portal, notifications, emailing, accounting, reports, analytics, backup, logs, cloudflare AI usage, cron jobs, settings, rbac).
 
 ---
 
@@ -187,6 +57,21 @@ Roles with no bullets receive an empty grant set (no `role_permissions` rows).
 - `backup.export_table`
 - `backup.export_full`
 - `backup.download`
+
+### Instructors
+- `instructors.view`
+
+### Instructor Schedules
+- `instructor_schedules.view`
+
+### Workshops
+- `workshops.view`
+- `workshops.documents.create`
+- `workshops.documents.update`
+- `workshops.documents.delete`
+- `workshops.sessions.create`
+- `workshops.sessions.update`
+- `workshops.sessions.delete`
 
 ---
 
@@ -246,6 +131,19 @@ Roles with no bullets receive an empty grant set (no `role_permissions` rows).
 - `workshops.create`
 - `workshops.update`
 - `workshops.delete`
+- `workshops.change_status`
+- `workshops.instructors.create`
+- `workshops.instructors.update`
+- `workshops.instructors.delete`
+- `workshops.documents.create`
+- `workshops.documents.update`
+- `workshops.documents.delete`
+- `workshops.sessions.create`
+- `workshops.sessions.update`
+- `workshops.sessions.delete`
+- `workshops.payments.create`
+- `workshops.payments.update`
+- `workshops.payments.delete`
 
 ### Accounting
 - `accounting.view`
@@ -261,22 +159,74 @@ Roles with no bullets receive an empty grant set (no `role_permissions` rows).
 
 ## Co-manager
 
-_(none)_
+### Instructors
+- `instructors.view`
+
+### Instructor Schedules
+- `instructor_schedules.view`
+
+### Workshops
+- `workshops.view`
+- `workshops.documents.create`
+- `workshops.documents.update`
+- `workshops.documents.delete`
+- `workshops.sessions.create`
+- `workshops.sessions.update`
+- `workshops.sessions.delete`
 
 ---
 
 ## Teacher
 
-_(none)_
+### Instructors
+- `instructors.view`
+
+### Instructor Schedules
+- `instructor_schedules.view`
+
+### Workshops
+- `workshops.view`
+- `workshops.documents.create`
+- `workshops.documents.update`
+- `workshops.documents.delete`
+- `workshops.sessions.create`
+- `workshops.sessions.update`
+- `workshops.sessions.delete`
 
 ---
 
 ## Trainer
 
-_(none)_
+### Instructors
+- `instructors.view`
+
+### Instructor Schedules
+- `instructor_schedules.view`
+
+### Workshops
+- `workshops.view`
+- `workshops.documents.create`
+- `workshops.documents.update`
+- `workshops.documents.delete`
+- `workshops.sessions.create`
+- `workshops.sessions.update`
+- `workshops.sessions.delete`
 
 ---
 
 ## Student
 
-_(none)_
+### Instructors
+- `instructors.view`
+
+### Instructor Schedules
+- `instructor_schedules.view`
+
+### Workshops
+- `workshops.view`
+- `workshops.documents.create`
+- `workshops.documents.update`
+- `workshops.documents.delete`
+- `workshops.sessions.create`
+- `workshops.sessions.update`
+- `workshops.sessions.delete`

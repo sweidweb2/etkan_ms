@@ -8,7 +8,7 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { ensureStudentRegistration } from "@/services/profile.service";
-import { resolveUserRole, syncAuthUserRole } from "@/services/role.service";
+import { resolveIsInstructor, resolveUserRole, syncAuthUserRole } from "@/services/role.service";
 import type { LoginResult, SignupResult } from "@/types/auth";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -103,9 +103,11 @@ export async function login(
     }
   }
 
+  const isInstructor = await resolveIsInstructor(client, data.user.id);
+
   return {
     success: true,
-    redirectTo: getPostLoginRedirect(role, input.next),
+    redirectTo: getPostLoginRedirect(role, input.next, { isInstructor }),
   };
 }
 

@@ -307,7 +307,7 @@ export function WorkshopStatusStepper({
         action={<WorkshopStatusBadge status={workshop.status} />}
       >
         <div className="relative flex flex-col gap-6 px-3 py-4 sm:px-4">
-          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+          <Can permission={PERMISSIONS.WORKSHOPS_CHANGE_STATUS}>
             {canCancel ? (
               <Button
                 type="button"
@@ -350,7 +350,7 @@ export function WorkshopStatusStepper({
                 return (
                   <Can
                     key={status}
-                    permission={PERMISSIONS.WORKSHOPS_UPDATE}
+                    permission={PERMISSIONS.WORKSHOPS_CHANGE_STATUS}
                     fallback={
                       <WorkshopStatusCheckpoint
                         status={status}
@@ -374,7 +374,7 @@ export function WorkshopStatusStepper({
             </div>
           </div>
 
-          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+          <Can permission={PERMISSIONS.WORKSHOPS_CHANGE_STATUS}>
             <div className="flex flex-wrap items-center justify-center gap-2">
               {canReopen ? (
                 <Button

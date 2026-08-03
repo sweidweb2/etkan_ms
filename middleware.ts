@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { hasSupabaseAuthCookies } from "@/lib/auth/session-cookies";
-import { canAccessPath, isPanelPath } from "@/lib/auth/path-access";
+import {
+  canAccessPath,
+  isInstructorFeaturePath,
+  isPanelPath,
+} from "@/lib/auth/path-access";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import {
   isGuestOnlyAuthRoute,
@@ -16,8 +20,11 @@ import {
   applyAuthCookies,
   createSupabaseMiddlewareClient,
 } from "@/lib/supabase/middleware";
-import { resolveUserRole } from "@/services/role.service";
 import { getMaintenanceMode } from "@/repositories/app-settings.repository";
+import {
+  resolveIsInstructor,
+  resolveUserRole,
+} from "@/services/role.service";
 
 const MAINTENANCE_PATH = "/maintenance";
 
@@ -59,7 +66,8 @@ export async function middleware(request: NextRequest) {
           return redirect(new URL(MAINTENANCE_PATH, request.url));
         }
         const next = request.nextUrl.searchParams.get("next");
-        const redirectTo = getPostLoginRedirect(role, next);
+        const isInstructor = await resolveIsInstructor(supabase, user.id);
+        const redirectTo = getPostLoginRedirect(role, next, { isInstructor });
         return redirect(new URL(redirectTo, request.url));
       }
       return getResponse();
@@ -79,7 +87,8 @@ export async function middleware(request: NextRequest) {
     if (user && isGuestOnlyAuthRoute(pathname)) {
       const role = await resolveUserRole(supabase, user);
       const next = request.nextUrl.searchParams.get("next");
-      const redirectTo = getPostLoginRedirect(role, next);
+      const isInstructor = await resolveIsInstructor(supabase, user.id);
+      const redirectTo = getPostLoginRedirect(role, next, { isInstructor });
       return redirect(new URL(redirectTo, request.url));
     }
     return getResponse();
@@ -103,6 +112,23 @@ export async function middleware(request: NextRequest) {
     }
 
     const role = await resolveUserRole(supabase, user);
+
+    if (isInstructorFeaturePath(pathname)) {
+      const isInstructor = await resolveIsInstructor(supabase, user.id);
+
+      if (pathname === ROUTES.INSTRUCTOR_ROOT) {
+        return redirect(
+          new URL(ROUTES.INSTRUCTOR_DASHBOARD, request.url)
+        );
+      }
+
+      if (!canAccessPath(pathname, role, { isInstructor })) {
+        return redirect(new URL(getDashboardRouteForRole(role), request.url));
+      }
+
+      return getResponse();
+    }
+
     const panelRoot = getPanelRootForRole(role);
 
     if (pathname === panelRoot) {

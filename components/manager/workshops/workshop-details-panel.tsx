@@ -16,6 +16,7 @@ import { WorkshopDocumentsSection } from "@/components/manager/workshops/worksho
 import { WorkshopInstructorsSection } from "@/components/manager/workshops/workshop-instructors-section";
 import { WorkshopPaymentsSection } from "@/components/manager/workshops/workshop-payments-section";
 import { WorkshopScheduleSlotsSection } from "@/components/manager/workshops/workshop-schedule-slots-section";
+import { WorkshopSessionsSection } from "@/components/manager/workshops/workshop-sessions-section";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { WorkshopStatusStepper } from "@/components/manager/workshops/workshop-status-stepper";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -56,6 +57,7 @@ import type {
   ManagerWorkshopPaymentRow,
   ManagerWorkshopPaymentSummary,
   ManagerWorkshopRow,
+  ManagerWorkshopSessionRow,
 } from "@/types/manager-workshop";
 
 type WorkshopDetailsPanelProps = {
@@ -67,6 +69,7 @@ type WorkshopDetailsPanelProps = {
   instructorCandidates: ManagerWorkshopInstructorCandidate[];
   documents: ManagerWorkshopDocumentRow[];
   scheduleSlots: ManagerInstructorScheduleSession[];
+  sessions: ManagerWorkshopSessionRow[];
 };
 
 const initialDeleteState: DeleteWorkshopActionState = {};
@@ -118,6 +121,7 @@ export function WorkshopDetailsPanel({
   instructorCandidates,
   documents,
   scheduleSlots,
+  sessions,
 }: WorkshopDetailsPanelProps) {
   const router = useRouter();
   const [workshop, setWorkshop] = useState(initialWorkshop);
@@ -307,7 +311,7 @@ export function WorkshopDetailsPanel({
               label="Sessions"
               value={
                 workshop.number_of_sessions == null
-                  ? null
+                  ? "0"
                   : String(workshop.number_of_sessions)
               }
             />
@@ -344,6 +348,8 @@ export function WorkshopDetailsPanel({
         workshopName={workshop.name}
         scheduleSlots={scheduleSlots}
       />
+
+      <WorkshopSessionsSection workshopId={workshop.id} sessions={sessions} />
 
       <WorkshopInstructorsSection
         workshopId={workshop.id}

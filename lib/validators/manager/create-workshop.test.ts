@@ -14,7 +14,6 @@ const validInput = {
   proposal_notes: "Pilot cohort",
   delivery_place: "Main hall",
   nb_participants: 20,
-  number_of_sessions: 4,
   price: 150,
   start_date: "2026-09-01",
   end_date: "2026-09-30",
@@ -36,7 +35,6 @@ describe("createWorkshopSchema", () => {
       proposal_notes: "",
       delivery_place: "",
       nb_participants: "",
-      number_of_sessions: "",
       price: "",
       start_date: "",
       end_date: "",
@@ -84,14 +82,6 @@ describe("createWorkshopSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("rejects number_of_sessions below 1", () => {
-    const parsed = createWorkshopSchema.safeParse({
-      ...validInput,
-      number_of_sessions: 0,
-    });
-    expect(parsed.success).toBe(false);
-  });
-
   it("rejects negative price", () => {
     const parsed = createWorkshopSchema.safeParse({
       ...validInput,
@@ -109,7 +99,6 @@ describe("parseCreateWorkshopFormData", () => {
     formData.set("phone", "+961 71 234 567");
     formData.set("subject", "Design");
     formData.set("nb_participants", "20");
-    formData.set("number_of_sessions", "4");
     formData.set("price", "150");
     formData.set("start_date", "2026-09-01");
     formData.set("end_date", "2026-09-30");

@@ -4,6 +4,7 @@ import type {
   WorkshopOfferingType,
   WorkshopPaymentMethod,
   WorkshopPaymentType,
+  WorkshopSessionStatus,
   WorkshopWageType,
 } from "@/lib/constants/manager-workshop-display";
 import type { WorkshopStatusValue } from "@/lib/constants/manager-workshop-status";
@@ -60,7 +61,7 @@ export interface ManagerWorkshopDocumentRow {
   public_url?: string;
 }
 
-export interface ManagerWorkshopPaymentRow {
+export type ManagerWorkshopPaymentRow = {
   id: string;
   workshop_id: string;
   amount: number;
@@ -70,7 +71,25 @@ export interface ManagerWorkshopPaymentRow {
   notes: string | null;
   created_by: string | null;
   created_at: string;
-}
+};
+
+export type ManagerWorkshopSessionRow = {
+  id: string;
+  workshop_id: string;
+  nb_order: number;
+  session_date: string;
+  start_time: string;
+  end_time: string;
+  nb_hours: number;
+  topic: string;
+  notes: string | null;
+  suggestions: string | null;
+  status: WorkshopSessionStatus;
+  participants_eval: number | null;
+  session_eval: number | null;
+  created_at: string;
+  updated_at: string;
+};
 
 export type ManagerWorkshopsPageData = {
   workshops: ManagerWorkshopRow[];
@@ -102,6 +121,7 @@ export type ManagerWorkshopDetailPageData = {
   instructorCandidates: ManagerWorkshopInstructorCandidate[];
   documents: ManagerWorkshopDocumentRow[];
   scheduleSlots: ManagerInstructorScheduleSession[];
+  sessions: ManagerWorkshopSessionRow[];
 };
 
 export type CreateWorkshopActionState = {
@@ -203,6 +223,28 @@ export type UpdateWorkshopPaymentActionState = {
 };
 
 export type DeleteWorkshopPaymentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+};
+
+export type CreateWorkshopSessionActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  session?: ManagerWorkshopSessionRow;
+};
+
+export type UpdateWorkshopSessionActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  session?: ManagerWorkshopSessionRow;
+};
+
+export type DeleteWorkshopSessionActionState = {
   success?: boolean;
   error?: string;
   message?: string;

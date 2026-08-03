@@ -51,7 +51,6 @@ export type UpdateWorkshopRecordInput = {
   target_audience: string | null;
   nb_participants: number | null;
   proposal_notes: string | null;
-  number_of_sessions: number | null;
   price: number | null;
   start_date: string | null;
   end_date: string | null;
@@ -114,11 +113,26 @@ export async function updateWorkshopById(
       target_audience: input.target_audience,
       nb_participants: input.nb_participants,
       proposal_notes: input.proposal_notes,
-      number_of_sessions: input.number_of_sessions,
       price: input.price,
       start_date: input.start_date,
       end_date: input.end_date,
       delivery_place: input.delivery_place,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(WORKSHOP_COLUMNS)
+    .single();
+}
+
+export async function updateWorkshopNumberOfSessionsById(
+  client: Supabase,
+  id: string,
+  numberOfSessions: number
+) {
+  return client
+    .from("workshops")
+    .update({
+      number_of_sessions: numberOfSessions,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

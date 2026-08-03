@@ -57,8 +57,8 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 111 keys (includes workshops + instructor schedules)", () => {
-    expect(PERMISSION_KEYS).toHaveLength(111);
+  it("keeps the catalog size at 129 keys (includes instructor feature views)", () => {
+    expect(PERMISSION_KEYS).toHaveLength(129);
     expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW)).toBe(
       true
@@ -72,5 +72,16 @@ describe("permissions", () => {
     );
     expect(isPermissionKey(PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.WORKSHOPS_VIEW)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.WORKSHOPS_CHANGE_STATUS)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.WORKSHOPS_SESSIONS_CREATE)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.WORKSHOPS_DOCUMENTS_CREATE)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE)).toBe(
+      true
+    );
+    expect(isPermissionKey(PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.INSTRUCTOR_PORTAL_VIEW)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.INSTRUCTOR_PORTAL_SCHEDULE_VIEW)).toBe(
+      true
+    );
   });
 });

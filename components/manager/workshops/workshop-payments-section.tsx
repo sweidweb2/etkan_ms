@@ -173,7 +173,7 @@ export function WorkshopPaymentsSection({
         }
         storageKey={`workshop-details-payments:${workshopId}`}
         action={
-          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+          <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE}>
             <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
               <PlusIcon data-icon="inline-start" />
               Add payment
@@ -266,8 +266,8 @@ export function WorkshopPaymentsSection({
                           {payment.notes?.trim() ? payment.notes : "—"}
                         </td>
                         <td className="py-3 align-top">
-                          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-                            <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1">
+                            <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_UPDATE}>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -277,6 +277,8 @@ export function WorkshopPaymentsSection({
                               >
                                 <PencilIcon />
                               </Button>
+                            </Can>
+                            <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_DELETE}>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -286,8 +288,8 @@ export function WorkshopPaymentsSection({
                               >
                                 <Trash2Icon />
                               </Button>
-                            </div>
-                          </Can>
+                            </Can>
+                          </div>
                         </td>
                       </tr>
                     );

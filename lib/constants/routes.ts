@@ -90,6 +90,12 @@ export const ROUTES = {
   STUDENT_ACTIVITY: "/student/activity",
   STUDENT_ANALYTICS: "/student/analytics",
   STUDENT_NOTIFICATIONS: "/student/notifications",
+  INSTRUCTOR_ROOT: "/instructor",
+  INSTRUCTOR_DASHBOARD: "/instructor/dashboard",
+  INSTRUCTOR_SCHEDULE: "/instructor/schedule",
+  INSTRUCTOR_WORKSHOPS: "/instructor/workshops",
+  INSTRUCTOR_SESSIONS: "/instructor/sessions",
+  INSTRUCTOR_CAPABILITIES: "/instructor/capabilities",
 } as const;
 
 export type Route = (typeof ROUTES)[keyof typeof ROUTES];
@@ -199,4 +205,7 @@ export function getManagerClassSessionTaskDetailRoute(
   return `/manager/classes/${classId}/sessions/${sessionId}/tasks/${taskId}`;
 }
 
-export const PANEL_ROOTS = Object.values(ROLE_PANEL_ROOTS);
+export const PANEL_ROOTS = [
+  ...Object.values(ROLE_PANEL_ROOTS),
+  ROUTES.INSTRUCTOR_ROOT,
+] as const;

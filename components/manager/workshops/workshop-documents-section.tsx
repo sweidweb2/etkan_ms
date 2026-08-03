@@ -160,7 +160,7 @@ export function WorkshopDocumentsSection({
         title="Documents"
         storageKey={`workshop-details-documents:${workshopId}`}
         action={
-          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+          <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_CREATE}>
             <Button
               type="button"
               size="sm"
@@ -227,8 +227,8 @@ export function WorkshopDocumentsSection({
                         )}
                       </td>
                       <td className="py-3 align-top">
-                        <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-                          <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1">
+                          <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_UPDATE}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -238,6 +238,8 @@ export function WorkshopDocumentsSection({
                             >
                               <PencilIcon />
                             </Button>
+                          </Can>
+                          <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_DELETE}>
                             <Button
                               type="button"
                               variant="ghost"
@@ -247,8 +249,8 @@ export function WorkshopDocumentsSection({
                             >
                               <Trash2Icon />
                             </Button>
-                          </div>
-                        </Can>
+                          </Can>
+                        </div>
                       </td>
                     </tr>
                   ))}

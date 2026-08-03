@@ -9,11 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
-import { getSessionRole } from "@/lib/auth/session";
+import { getSessionRole, getSessionUser } from "@/lib/auth/session";
 import { PUBLIC_SIGNUP_ENABLED } from "@/lib/constants/auth";
 import { ROUTES } from "@/lib/constants/routes";
 import { getPublicLocale } from "@/lib/i18n/get-public-locale";
 import { translate } from "@/lib/i18n/messages";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/server";
+import { resolveIsInstructor } from "@/services/role.service";
 
 type LoginPageProps = {
   searchParams: Promise<{ next?: string; error?: string; message?: string }>;
@@ -24,7 +26,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const role = await getSessionRole();
 
   if (role) {
-    redirect(getPostLoginRedirect(role, params.next));
+    const user = await getSessionUser();
+    const client = await createSupabaseServerComponentClient();
+    const isInstructor = user?.id
+      ? await resolveIsInstructor(client, user.id)
+      : false;
+    redirect(getPostLoginRedirect(role, params.next, { isInstructor }));
   }
 
   const locale = await getPublicLocale();

@@ -17,7 +17,6 @@ const validInput = {
   proposal_notes: null,
   delivery_place: null,
   nb_participants: 20,
-  number_of_sessions: 4,
   price: 150,
   start_date: "2026-09-01",
   end_date: "2026-09-30",

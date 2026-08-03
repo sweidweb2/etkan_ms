@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { resolveUserRole } from "@/services/role.service";
+import {
+  resolveIsInstructor,
+  resolveUserRole,
+} from "@/services/role.service";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -15,7 +18,8 @@ export async function GET(request: Request) {
 
     if (!error && data.user) {
       const role = await resolveUserRole(supabase, data.user);
-      const redirectPath = getPostLoginRedirect(role, next);
+      const isInstructor = await resolveIsInstructor(supabase, data.user.id);
+      const redirectPath = getPostLoginRedirect(role, next, { isInstructor });
       return NextResponse.redirect(`${origin}${redirectPath}`);
     }
   }
