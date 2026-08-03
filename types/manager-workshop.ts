@@ -7,6 +7,7 @@ import type {
   WorkshopWageType,
 } from "@/lib/constants/manager-workshop-display";
 import type { WorkshopStatusValue } from "@/lib/constants/manager-workshop-status";
+import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
 
 /**
  * Workshop list/detail row.
@@ -98,6 +99,7 @@ export type ManagerWorkshopDetailPageData = {
   instructors: ManagerWorkshopInstructorRow[];
   instructorCandidates: ManagerWorkshopInstructorCandidate[];
   documents: ManagerWorkshopDocumentRow[];
+  scheduleSlots: ManagerInstructorScheduleSession[];
 };
 
 export type CreateWorkshopActionState = {

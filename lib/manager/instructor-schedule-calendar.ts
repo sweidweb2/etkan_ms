@@ -1,5 +1,6 @@
 import type { EventInput } from "@fullcalendar/react";
 import {
+  ENTITY_SCHEDULE_TYPE_WORKSHOP,
   getInstructorScheduleSlotStrongColor,
   INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
 } from "@/lib/validators/manager/instructor-schedule-slot";
@@ -43,11 +44,43 @@ export function projectInstructorSlotDate(
   return `${y}-${m}-${d}`;
 }
 
+export type ScheduleWorkshopBounds = {
+  start_date: string | null;
+  end_date: string | null;
+};
+
+export function isProjectedDateInWorkshopBounds(
+  projectedDate: string,
+  bounds: ScheduleWorkshopBounds | null | undefined
+): boolean {
+  if (!bounds) {
+    return true;
+  }
+
+  if (bounds.start_date && projectedDate < bounds.start_date) {
+    return false;
+  }
+
+  if (bounds.end_date && projectedDate >= bounds.end_date) {
+    return false;
+  }
+
+  return true;
+}
+
 type InstructorScheduleSessionsToEventsOptions = {
   weekStart: string;
-  instructorNameById?: Map<string, string>;
-  includeInstructorInTitle?: boolean;
+  entityLabelByKey?: Map<string, string>;
+  workshopBoundsById?: Map<string, ScheduleWorkshopBounds>;
+  includeEntityInTitle?: boolean;
 };
+
+function entityKey(
+  entityType: ManagerInstructorScheduleSession["entityType"],
+  recordId: string
+) {
+  return `${entityType}:${recordId}`;
+}
 
 export function instructorScheduleSessionsToEvents(
   sessions: ManagerInstructorScheduleSession[],
@@ -55,28 +88,41 @@ export function instructorScheduleSessionsToEvents(
 ): EventInput[] {
   const {
     weekStart,
-    instructorNameById,
-    includeInstructorInTitle = false,
+    entityLabelByKey,
+    workshopBoundsById,
+    includeEntityInTitle = false,
   } = options;
 
-  return sessions.map((session) => {
+  const events: EventInput[] = [];
+
+  for (const session of sessions) {
+    const projectedDate = projectInstructorSlotDate(
+      weekStart,
+      session.dayOfWeek
+    );
+
+    if (session.entityType === ENTITY_SCHEDULE_TYPE_WORKSHOP) {
+      const bounds = workshopBoundsById?.get(session.recordId);
+      if (!isProjectedDateInWorkshopBounds(projectedDate, bounds)) {
+        continue;
+      }
+    }
+
     const color = resolveEventColor(session.color);
     const contrastColor = getInstructorScheduleSlotStrongColor(color);
     const startTime = normalizeTimeForCalendar(session.startTime);
     const endTime = normalizeTimeForCalendar(session.endTime);
     const isTemp = session.id.startsWith("__temp_");
-    const projectedDate = projectInstructorSlotDate(
-      weekStart,
-      session.dayOfWeek
-    );
-    const instructorLabel =
-      instructorNameById?.get(session.recordId)?.trim() || null;
+    const entityLabel =
+      entityLabelByKey
+        ?.get(entityKey(session.entityType, session.recordId))
+        ?.trim() || null;
     const title =
-      includeInstructorInTitle && instructorLabel
-        ? `${instructorLabel} · ${session.name}`
+      includeEntityInTitle && entityLabel
+        ? `${entityLabel} · ${session.name}`
         : session.name;
 
-    return {
+    events.push({
       id: session.id,
       title,
       start: `${projectedDate}T${startTime}`,
@@ -91,6 +137,8 @@ export function instructorScheduleSessionsToEvents(
         isTemp,
         projectedDate,
       },
-    };
-  });
+    });
+  }
+
+  return events;
 }

@@ -1,6 +1,9 @@
 import type { FieldErrors } from "@/types/auth";
+import type { WorkshopStatusValue } from "@/lib/constants/manager-workshop-status";
 
 export type InstructorScheduleSlotType = "free" | "busy";
+
+export type ScheduleEntityType = "instructor" | "workshop";
 
 /** Preset pastel swatches (custom hex colors are also allowed). */
 export type InstructorScheduleSlotPresetColor =
@@ -15,8 +18,19 @@ export type ManagerInstructorScheduleTab = {
   username: string | null;
 };
 
+export type ManagerScheduleWorkshopTab = {
+  id: string;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
+  status: WorkshopStatusValue;
+  /** Eligible for creating new slots (status + end_date rules). */
+  eligible_for_create: boolean;
+};
+
 export interface ManagerInstructorScheduleSession {
   id: string;
+  entityType: ScheduleEntityType;
   recordId: string;
   name: string;
   type: InstructorScheduleSlotType;
@@ -32,6 +46,7 @@ export interface ManagerInstructorScheduleSession {
 
 export type ManagerInstructorSchedulesPageData = {
   instructors: ManagerInstructorScheduleTab[];
+  workshops: ManagerScheduleWorkshopTab[];
   sessions: ManagerInstructorScheduleSession[];
 };
 

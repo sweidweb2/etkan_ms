@@ -26,6 +26,7 @@ export const ROUTES = {
   MANAGER_SUBJECT_DETAIL: "/manager/subjects/[id]",
   MANAGER_INSTRUCTORS: "/manager/instructors",
   MANAGER_INSTRUCTOR_SCHEDULES: "/manager/instructor-schedules",
+  MANAGER_INSTRUCTOR_SCHEDULES_DETAILS: "/manager/instructor-schedules/details",
   MANAGER_WORKSHOPS: "/manager/workshops",
   MANAGER_WORKSHOPS_PAYMENTS: "/manager/workshops/payments",
   MANAGER_WORKSHOP_DETAIL: "/manager/workshops/[id]",

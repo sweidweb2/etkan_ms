@@ -23,6 +23,7 @@ import { useZodForm } from "@/hooks/use-zod-form";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { projectInstructorSlotDate } from "@/lib/manager/instructor-schedule-calendar";
 import {
+  ENTITY_SCHEDULE_TYPE_LABELS,
   updateInstructorScheduleSlotSchema,
   INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
   type UpdateInstructorScheduleSlotInput,
@@ -46,6 +47,7 @@ type EditInstructorScheduleSlotDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   session: ManagerInstructorScheduleSession | null;
+  entityLabel?: string | null;
   onUpdate: (values: UpdateInstructorScheduleSlotInput) => void | Promise<void>;
   onDeleteRequest?: (session: ManagerInstructorScheduleSession) => void;
 };
@@ -62,6 +64,7 @@ export function EditInstructorScheduleSlotDialog({
   open,
   onOpenChange,
   session,
+  entityLabel,
   onUpdate,
   onDeleteRequest,
 }: EditInstructorScheduleSlotDialogProps) {
@@ -81,6 +84,7 @@ export function EditInstructorScheduleSlotDialog({
     mode: "onBlur",
     defaultValues: {
       id: session?.id ?? "",
+      entity_type: session?.entityType ?? "instructor",
       record_id: session?.recordId ?? "",
       name: session?.name ?? "",
       type: session?.type ?? "busy",
@@ -104,6 +108,7 @@ export function EditInstructorScheduleSlotDialog({
 
     reset({
       id: session.id,
+      entity_type: session.entityType,
       record_id: session.recordId,
       name: session.name,
       type: session.type,
@@ -145,10 +150,32 @@ export function EditInstructorScheduleSlotDialog({
           noValidate
         >
           <input type="hidden" {...register("id")} />
+          <input type="hidden" {...register("entity_type")} />
           <input type="hidden" {...register("record_id")} />
           <input type="hidden" {...register("type")} />
           <input type="hidden" {...register("color")} />
           <input type="hidden" {...register("slot_date")} />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+              <p className="text-muted-foreground">Entity</p>
+              <p className="font-medium text-foreground">
+                {session
+                  ? ENTITY_SCHEDULE_TYPE_LABELS[session.entityType]
+                  : "—"}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+              <p className="text-muted-foreground">
+                {session?.entityType === "workshop"
+                  ? "Workshop"
+                  : "Instructor"}
+              </p>
+              <p className="font-medium text-foreground">
+                {entityLabel?.trim() || "—"}
+              </p>
+            </div>
+          </div>
 
           <div className="flex flex-col gap-2">
             <FieldLabel

@@ -4,13 +4,19 @@ import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { PencilIcon, Trash2Icon, WalletIcon } from "lucide-react";
+import {
+  MoreHorizontalIcon,
+  PencilIcon,
+  Trash2Icon,
+  WalletIcon,
+} from "lucide-react";
 import { deleteWorkshopAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
 import { WorkshopDocumentsSection } from "@/components/manager/workshops/workshop-documents-section";
 import { WorkshopInstructorsSection } from "@/components/manager/workshops/workshop-instructors-section";
+import { WorkshopScheduleSlotsSection } from "@/components/manager/workshops/workshop-schedule-slots-section";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { WorkshopStatusStepper } from "@/components/manager/workshops/workshop-status-stepper";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -31,6 +37,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MANAGER_WORKSHOP_STATUS_LABELS, WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
@@ -39,6 +51,7 @@ import {
 } from "@/lib/constants/routes";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
 import type {
   DeleteWorkshopActionState,
   ManagerWorkshopDocumentRow,
@@ -53,6 +66,7 @@ type WorkshopDetailsPanelProps = {
   instructors: ManagerWorkshopInstructorRow[];
   instructorCandidates: ManagerWorkshopInstructorCandidate[];
   documents: ManagerWorkshopDocumentRow[];
+  scheduleSlots: ManagerInstructorScheduleSession[];
 };
 
 const initialDeleteState: DeleteWorkshopActionState = {};
@@ -101,6 +115,7 @@ export function WorkshopDetailsPanel({
   instructors,
   instructorCandidates,
   documents,
+  scheduleSlots,
 }: WorkshopDetailsPanelProps) {
   const router = useRouter();
   const [workshop, setWorkshop] = useState(initialWorkshop);
@@ -140,19 +155,66 @@ export function WorkshopDetailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_WORKSHOPS}>
-              Manage workshops
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{workshop.name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <div className="flex items-center justify-between gap-3">
+        <Breadcrumb className="min-w-0">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href={ROUTES.MANAGER_WORKSHOPS}>
+                Manage workshops
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{workshop.name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              aria-label="Workshop actions"
+            >
+              <MoreHorizontalIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild>
+              <Link href={getManagerWorkshopPaymentsRoute(workshop.id)}>
+                <WalletIcon />
+                Payments
+                {paymentCount > 0 ? ` (${paymentCount})` : ""}
+              </Link>
+            </DropdownMenuItem>
+            <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+              <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
+                <PencilIcon />
+                Edit
+              </DropdownMenuItem>
+            </Can>
+            <Can permission={PERMISSIONS.WORKSHOPS_DELETE}>
+              <DropdownMenuItem
+                disabled={hasPayments || isDeleteActionPending}
+                title={deleteBlockedReason}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                onClick={() => {
+                  if (hasPayments || isDeleteActionPending) {
+                    return;
+                  }
+                  setIsDeleteOpen(true);
+                }}
+              >
+                <Trash2Icon />
+                Delete
+              </DropdownMenuItem>
+            </Can>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <EditWorkshopDialog
         open={isEditOpen}
@@ -209,47 +271,6 @@ export function WorkshopDetailsPanel({
         title="Details"
         description={MANAGER_WORKSHOP_STATUS_LABELS[workshop.status]}
         storageKey={`workshop-details-info:${workshop.id}`}
-        defaultOpen
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              nativeButton={false}
-              render={
-                <Link href={getManagerWorkshopPaymentsRoute(workshop.id)} />
-              }
-            >
-              <WalletIcon data-icon="inline-start" />
-              Payments
-              {paymentCount > 0 ? ` (${paymentCount})` : ""}
-            </Button>
-            <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setIsEditOpen(true)}
-              >
-                <PencilIcon data-icon="inline-start" />
-                Edit
-              </Button>
-            </Can>
-            <Can permission={PERMISSIONS.WORKSHOPS_DELETE}>
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                disabled={hasPayments || isDeleteActionPending}
-                title={deleteBlockedReason}
-                onClick={() => setIsDeleteOpen(true)}
-              >
-                <Trash2Icon data-icon="inline-start" />
-                Delete
-              </Button>
-            </Can>
-          </div>
-        }
       >
         <div className="px-3 py-4 sm:px-4">
           <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -312,41 +333,27 @@ export function WorkshopDetailsPanel({
               )}
             />
           </dl>
-          {workshop.proposal_notes ? (
-            <div className="mt-4 flex flex-col gap-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Proposal notes
-              </p>
-              <p className="whitespace-pre-wrap text-sm text-foreground">
-                {workshop.proposal_notes}
-              </p>
-            </div>
-          ) : null}
         </div>
       </ClassTabCollapsibleSection>
 
-      <ClassTabCollapsibleSection
-        title="Status"
-        description="Advance or step back one checkpoint at a time."
-        storageKey={`workshop-details-status:${workshop.id}`}
-        defaultOpen
-        action={<WorkshopStatusBadge status={workshop.status} />}
-      >
-        <div className="px-3 py-4 sm:px-4">
-          <WorkshopStatusStepper
-            workshop={workshop}
-            onStatusChanged={(updated) => {
-              setWorkshop(updated);
-              router.refresh();
-            }}
-          />
-        </div>
-      </ClassTabCollapsibleSection>
+      <WorkshopStatusStepper
+        workshop={workshop}
+        onStatusChanged={(updated) => {
+          setWorkshop(updated);
+          router.refresh();
+        }}
+      />
 
       <WorkshopInstructorsSection
         workshopId={workshop.id}
         instructors={instructors}
         candidates={instructorCandidates}
+      />
+
+      <WorkshopScheduleSlotsSection
+        workshopId={workshop.id}
+        workshopName={workshop.name}
+        scheduleSlots={scheduleSlots}
       />
 
       <WorkshopDocumentsSection

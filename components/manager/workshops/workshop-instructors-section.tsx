@@ -165,7 +165,6 @@ export function WorkshopInstructorsSection({
       <ClassTabCollapsibleSection
         title="Instructors"
         storageKey={`workshop-details-instructors:${workshopId}`}
-        defaultOpen
         action={
           <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
             <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>

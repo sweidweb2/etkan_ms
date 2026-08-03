@@ -13,6 +13,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseChangeWorkshopStatusFormData } from "@/lib/validators/manager/change-workshop-status";
 import { parseCreateWorkshopFormData } from "@/lib/validators/manager/create-workshop";
 import { parseUpdateWorkshopFormData } from "@/lib/validators/manager/update-workshop";
+import { parseUpdateWorkshopProposalNotesFormData } from "@/lib/validators/manager/update-workshop-proposal-notes";
 import {
   parseCreateWorkshopInstructorFormData,
   parseRemoveWorkshopInstructorFormData,
@@ -41,6 +42,7 @@ import {
   updateWorkshopForManager,
   updateWorkshopInstructorForManager,
   updateWorkshopPaymentForManager,
+  updateWorkshopProposalNotesForManager,
   uploadWorkshopDocumentForManager,
 } from "@/services/workshop.service";
 import type {
@@ -118,6 +120,48 @@ export async function updateWorkshopAction(
 
   const adminClient = createSupabaseAdminClient();
   const result = await updateWorkshopForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
+
+  return {
+    success: true,
+    message: result.message,
+    workshop: result.workshop,
+  };
+}
+
+export async function updateWorkshopProposalNotesAction(
+  _prevState: UpdateWorkshopActionState,
+  formData: FormData
+): Promise<UpdateWorkshopActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseUpdateWorkshopProposalNotesFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateWorkshopProposalNotesForManager(
     adminClient,
     actor.userId,
     actor,

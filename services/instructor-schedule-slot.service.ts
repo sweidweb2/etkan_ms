@@ -1,4 +1,8 @@
 import { format } from "date-fns";
+import {
+  WORKSHOP_STATUSES,
+  type WorkshopStatusValue,
+} from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
@@ -8,6 +12,8 @@ import {
   createInstructorScheduleSlotSchema,
   dayOfWeekFromIsoDate,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+  ENTITY_SCHEDULE_TYPE_VALUES,
+  ENTITY_SCHEDULE_TYPE_WORKSHOP,
   normalizeInstructorScheduleSlotColor,
   updateInstructorScheduleSlotSchema,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
@@ -15,6 +21,8 @@ import {
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import type { InstructorScheduleSlotRecord } from "@/repositories/instructor-schedule-slot.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as workshopRepository from "@/repositories/workshop.repository";
+import type { WorkshopRecord } from "@/repositories/workshop.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -25,6 +33,8 @@ import type {
   ManagerInstructorScheduleSession,
   ManagerInstructorScheduleTab,
   ManagerInstructorSchedulesPageData,
+  ManagerScheduleWorkshopTab,
+  ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -89,6 +99,10 @@ function formatDateOnly(value: string | Date): string {
   return format(value, "yyyy-MM-dd");
 }
 
+function todayIsoDate(): string {
+  return format(new Date(), "yyyy-MM-dd");
+}
+
 function isInstructorScheduleSlotType(
   value: string
 ): value is InstructorScheduleSlotType {
@@ -97,11 +111,22 @@ function isInstructorScheduleSlotType(
   );
 }
 
+function isScheduleEntityType(value: string): value is ScheduleEntityType {
+  return (ENTITY_SCHEDULE_TYPE_VALUES as readonly string[]).includes(value);
+}
+
+function isWorkshopStatus(value: string): value is WorkshopStatusValue {
+  return (Object.values(WORKSHOP_STATUSES) as string[]).includes(value);
+}
+
 function mapSlotRecordToSession(
   record: InstructorScheduleSlotRecord
 ): ManagerInstructorScheduleSession {
   return {
     id: record.id,
+    entityType: isScheduleEntityType(record.entity_type)
+      ? record.entity_type
+      : ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
     recordId: record.record_id,
     name: record.name,
     type: isInstructorScheduleSlotType(record.type) ? record.type : "busy",
@@ -111,6 +136,58 @@ function mapSlotRecordToSession(
     endTime: formatTimeForDisplay(record.end_time),
     color: normalizeInstructorScheduleSlotColor(record.color),
   };
+}
+
+export function mapInstructorScheduleSlotRecordToSession(
+  record: InstructorScheduleSlotRecord
+): ManagerInstructorScheduleSession {
+  return mapSlotRecordToSession(record);
+}
+
+export async function listScheduleSlotsByRecordForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  entityType: ScheduleEntityType,
+  recordId: string
+): Promise<ManagerInstructorScheduleSession[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+
+  const result =
+    await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
+      adminClient,
+      entityType,
+      recordId
+    );
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  return (result.data ?? []).map((record) =>
+    mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+  );
+}
+
+export function isWorkshopEligibleForScheduleCreate(
+  workshop: Pick<WorkshopRecord, "status" | "end_date">,
+  today = todayIsoDate()
+): boolean {
+  if (
+    workshop.status === WORKSHOP_STATUSES.CANCELLED ||
+    workshop.status === WORKSHOP_STATUSES.COMPLETED
+  ) {
+    return false;
+  }
+
+  if (workshop.end_date == null || workshop.end_date === "") {
+    return true;
+  }
+
+  return formatDateOnly(workshop.end_date) >= today;
 }
 
 function mapMutationError(message: string): string {
@@ -142,7 +219,7 @@ function mapMutationError(message: string): string {
     normalized.includes("instructor_schedule_slots_user_name_date_time_key") ||
     normalized.includes("duplicate key")
   ) {
-    return "A slot with this name, weekday, and time already exists for this instructor.";
+    return "A slot with this name, weekday, and time already exists for this entity.";
   }
 
   if (normalized.includes("instructor_schedule_slots_entity_type_check")) {
@@ -176,6 +253,46 @@ async function assertInstructorRecord(
   return null;
 }
 
+async function assertWorkshopRecordForSchedule(
+  adminClient: Supabase,
+  recordId: string,
+  options?: { requireEligibleForCreate?: boolean }
+): Promise<string | null> {
+  const { data, error } = await workshopRepository.findWorkshopById(
+    adminClient,
+    recordId
+  );
+
+  if (error) {
+    return "Unable to verify workshop. Please try again.";
+  }
+
+  if (!data) {
+    return "Workshop not found.";
+  }
+
+  if (options?.requireEligibleForCreate) {
+    if (!isWorkshopEligibleForScheduleCreate(data)) {
+      return "This workshop cannot receive new schedule slots (ended, completed, or cancelled).";
+    }
+  }
+
+  return null;
+}
+
+async function assertScheduleEntityRecord(
+  adminClient: Supabase,
+  entityType: ScheduleEntityType,
+  recordId: string,
+  options?: { requireEligibleForCreate?: boolean }
+): Promise<string | null> {
+  if (entityType === ENTITY_SCHEDULE_TYPE_INSTRUCTOR) {
+    return assertInstructorRecord(adminClient, recordId);
+  }
+
+  return assertWorkshopRecordForSchedule(adminClient, recordId, options);
+}
+
 export async function getInstructorSchedulesPageForManager(
   adminClient: Supabase,
   actorUserId: string | null
@@ -186,11 +303,11 @@ export async function getInstructorSchedulesPageForManager(
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
 
-  const [instructorsResult, slotsResult] = await Promise.all([
+  const [instructorsResult, workshopsResult, slotsResult] = await Promise.all([
     profileRepository.listInstructorProfiles(adminClient),
-    instructorScheduleSlotRepository.listInstructorScheduleSlotsByEntity(
-      adminClient,
-      ENTITY_SCHEDULE_TYPE_INSTRUCTOR
+    workshopRepository.listWorkshops(adminClient),
+    instructorScheduleSlotRepository.listAllInstructorScheduleSlots(
+      adminClient
     ),
   ]);
 
@@ -198,9 +315,25 @@ export async function getInstructorSchedulesPageForManager(
     throw new Error(instructorsResult.error.message);
   }
 
+  if (workshopsResult.error) {
+    throw new Error(workshopsResult.error.message);
+  }
+
   if (slotsResult.error) {
     throw new Error(slotsResult.error.message);
   }
+
+  const sessions = (slotsResult.data ?? []).map((record) =>
+    mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+  );
+
+  const workshopIdsWithSlots = new Set(
+    sessions
+      .filter(
+        (session) => session.entityType === ENTITY_SCHEDULE_TYPE_WORKSHOP
+      )
+      .map((session) => session.recordId)
+  );
 
   const instructors: ManagerInstructorScheduleTab[] = (
     instructorsResult.data ?? []
@@ -209,11 +342,33 @@ export async function getInstructorSchedulesPageForManager(
     username: row.username,
   }));
 
+  const workshops: ManagerScheduleWorkshopTab[] = (workshopsResult.data ?? [])
+    .map((row) => {
+      const status = isWorkshopStatus(row.status)
+        ? row.status
+        : WORKSHOP_STATUSES.DRAFT;
+      const eligible = isWorkshopEligibleForScheduleCreate({
+        status: row.status,
+        end_date: row.end_date,
+      });
+      return {
+        id: row.id,
+        name: row.name,
+        start_date: row.start_date ? formatDateOnly(row.start_date) : null,
+        end_date: row.end_date ? formatDateOnly(row.end_date) : null,
+        status,
+        eligible_for_create: eligible,
+      };
+    })
+    .filter(
+      (workshop) =>
+        workshop.eligible_for_create || workshopIdsWithSlots.has(workshop.id)
+    );
+
   return {
     instructors,
-    sessions: (slotsResult.data ?? []).map((record) =>
-      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
-    ),
+    workshops,
+    sessions,
   };
 }
 
@@ -222,6 +377,7 @@ export async function createInstructorScheduleSlotForManager(
   actorUserId: string | null,
   actor: AuditActor,
   input: {
+    entity_type: string;
     record_id: string;
     name: string;
     type: string;
@@ -250,23 +406,33 @@ export async function createInstructorScheduleSlotForManager(
     };
   }
 
-  const instructorError = await assertInstructorRecord(
+  const entityError = await assertScheduleEntityRecord(
     adminClient,
-    parsed.data.record_id
+    parsed.data.entity_type,
+    parsed.data.record_id,
+    { requireEligibleForCreate: true }
   );
-  if (instructorError) {
-    return { success: false, error: instructorError };
+  if (entityError) {
+    return { success: false, error: entityError };
   }
 
-  const { record_id, name, type, slot_date, start_time, end_time, color } =
-    parsed.data;
+  const {
+    entity_type,
+    record_id,
+    name,
+    type,
+    slot_date,
+    start_time,
+    end_time,
+    color,
+  } = parsed.data;
   const day_of_week = dayOfWeekFromIsoDate(slot_date);
 
   const { data, error } =
     await instructorScheduleSlotRepository.createInstructorScheduleSlot(
       adminClient,
       {
-        entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+        entity_type,
         record_id,
         name: name.trim(),
         type,
@@ -301,7 +467,7 @@ export async function createInstructorScheduleSlotForManager(
       end_time: data.end_time,
       color: data.color,
     },
-    metadata: { note: "Instructor schedule slot created." },
+    metadata: { note: "Schedule slot created." },
   });
 
   return {
@@ -317,6 +483,7 @@ export async function updateInstructorScheduleSlotForManager(
   actor: AuditActor,
   input: {
     id: string;
+    entity_type: string;
     record_id: string;
     name: string;
     type: string;
@@ -362,23 +529,16 @@ export async function updateInstructorScheduleSlotForManager(
     return { success: false, error: "Schedule slot not found." };
   }
 
-  if (existingSlot.data.entity_type !== ENTITY_SCHEDULE_TYPE_INSTRUCTOR) {
+  if (!isScheduleEntityType(existingSlot.data.entity_type)) {
     return { success: false, error: "Schedule slot not found." };
   }
 
-  const instructorError = await assertInstructorRecord(
-    adminClient,
-    parsed.data.record_id
-  );
-  if (instructorError) {
-    return { success: false, error: instructorError };
-  }
-
-  const { id, record_id, name, type, slot_date, start_time, end_time, color } =
+  // Keep entity_type + record_id immutable after create.
+  const entity_type = existingSlot.data.entity_type;
+  const record_id = existingSlot.data.record_id;
+  const { id, name, type, slot_date, start_time, end_time, color } =
     parsed.data;
 
-  // slot_date from the client encodes the weekday they placed (e.g. drag).
-  // Keep the original create/anchor slot_date; only update day_of_week.
   const preservedSlotDate = formatDateOnly(existingSlot.data.slot_date);
   const day_of_week = dayOfWeekFromIsoDate(slot_date);
 
@@ -387,7 +547,7 @@ export async function updateInstructorScheduleSlotForManager(
       adminClient,
       id,
       {
-        entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+        entity_type,
         record_id,
         name: name.trim(),
         type,
@@ -434,9 +594,8 @@ export async function updateInstructorScheduleSlotForManager(
       color: data.color,
     },
     metadata: {
-      note: "Instructor schedule slot updated.",
+      note: "Schedule slot updated.",
       changed_fields: [
-        "record_id",
         "name",
         "type",
         "day_of_week",
@@ -486,7 +645,7 @@ export async function deleteInstructorScheduleSlotForManager(
     return { success: false, error: "Schedule slot not found." };
   }
 
-  if (existingSlot.data.entity_type !== ENTITY_SCHEDULE_TYPE_INSTRUCTOR) {
+  if (!isScheduleEntityType(existingSlot.data.entity_type)) {
     return { success: false, error: "Schedule slot not found." };
   }
 
@@ -519,7 +678,7 @@ export async function deleteInstructorScheduleSlotForManager(
       end_time: existingSlot.data.end_time,
       color: existingSlot.data.color,
     },
-    metadata: { note: "Instructor schedule slot deleted." },
+    metadata: { note: "Schedule slot deleted." },
   });
 
   return { success: true, message: "Schedule slot deleted." };

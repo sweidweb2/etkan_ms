@@ -22,6 +22,7 @@ import listPlugin from "@fullcalendar/react/list";
 import {
   CircleCheckIcon,
   CircleXIcon,
+  ListIcon,
   PlusIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -32,7 +33,10 @@ import {
 } from "@/app/manager/instructor-schedules/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
-import { AddInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/add-instructor-schedule-slot-dialog";
+import {
+  AddInstructorScheduleSlotDialog,
+  type AddInstructorScheduleSlotDefaults,
+} from "@/components/manager/instructor-schedules/add-instructor-schedule-slot-dialog";
 import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
 import { ScheduleAssistantPrompt } from "@/components/manager/instructor-schedules/schedule-assistant-prompt";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -61,6 +65,8 @@ import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
   dayOfWeekFromIsoDate,
+  ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+  ENTITY_SCHEDULE_TYPE_WORKSHOP,
   getInstructorScheduleSlotStrongColor,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
@@ -71,6 +77,7 @@ import type {
   InstructorScheduleSlotType,
   ManagerInstructorScheduleSession,
   ManagerInstructorSchedulesPageData,
+  ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
 import "@fullcalendar/react/skeleton.css";
@@ -78,7 +85,7 @@ import "@fullcalendar/react/themes/monarch/theme.css";
 import "@/components/manager/schedule/fullcalendar-dark.css";
 
 const DUP_GHOST_ID_PREFIX = "__dup_ghost_";
-const ALL_INSTRUCTORS_TAB = "all";
+const ALL_ENTITIES_TAB = "all";
 const WEEKDAY_LABELS = [
   "Sunday",
   "Monday",
@@ -88,6 +95,35 @@ const WEEKDAY_LABELS = [
   "Friday",
   "Saturday",
 ] as const;
+
+type ScheduleTabSelection =
+  | { kind: "all" }
+  | { kind: "instructor"; id: string }
+  | { kind: "workshop"; id: string };
+
+function parseScheduleTabKey(value: string): ScheduleTabSelection {
+  if (value === ALL_ENTITIES_TAB) {
+    return { kind: "all" };
+  }
+  if (value.startsWith("instructor:")) {
+    return { kind: "instructor", id: value.slice("instructor:".length) };
+  }
+  if (value.startsWith("workshop:")) {
+    return { kind: "workshop", id: value.slice("workshop:".length) };
+  }
+  return { kind: "all" };
+}
+
+function scheduleTabKey(tab: ScheduleTabSelection): string {
+  if (tab.kind === "all") {
+    return ALL_ENTITIES_TAB;
+  }
+  return `${tab.kind}:${tab.id}`;
+}
+
+function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
+  return `${entityType}:${recordId}`;
+}
 
 function makeTempId(): string {
   return `${TEMP_SCHEDULE_ID_PREFIX}${crypto.randomUUID()}`;
@@ -176,6 +212,7 @@ function buildDuplicatePayload(
 
   if (allDay) {
     return {
+      entity_type: source.entityType,
       record_id: source.recordId,
       name: source.name,
       type: source.type,
@@ -199,6 +236,7 @@ function buildDuplicatePayload(
   }
 
   return {
+    entity_type: source.entityType,
     record_id: source.recordId,
     name: source.name,
     type: source.type,
@@ -235,10 +273,11 @@ function buildDuplicateGhostEvent(
 function sessionFromCreateInput(
   values: CreateInstructorScheduleSlotInput,
   id: string,
-  options?: { preserveSlotDate?: string }
+  options?: { preserveSlotDate?: string; entityType?: ScheduleEntityType }
 ): ManagerInstructorScheduleSession {
   return {
     id,
+    entityType: options?.entityType ?? values.entity_type,
     recordId: values.record_id,
     name: values.name,
     type: values.type,
@@ -252,6 +291,7 @@ function sessionFromCreateInput(
 
 function toCreateFormData(values: CreateInstructorScheduleSlotInput): FormData {
   const formData = new FormData();
+  formData.set("entity_type", values.entity_type);
   formData.set("record_id", values.record_id);
   formData.set("name", values.name);
   formData.set("type", values.type);
@@ -265,6 +305,7 @@ function toCreateFormData(values: CreateInstructorScheduleSlotInput): FormData {
 function toUpdateFormData(values: UpdateInstructorScheduleSlotInput): FormData {
   const formData = new FormData();
   formData.set("id", values.id);
+  formData.set("entity_type", values.entity_type);
   formData.set("record_id", values.record_id);
   formData.set("name", values.name);
   formData.set("type", values.type);
@@ -293,8 +334,7 @@ export function InstructorSchedulesPanel({
   const [, startTransition] = useTransition();
 
   const [sessions, setSessions] = React.useState(data.sessions);
-  const [selectedInstructorId, setSelectedInstructorId] =
-    React.useState(ALL_INSTRUCTORS_TAB);
+  const [selectedTabKey, setSelectedTabKey] = React.useState(ALL_ENTITIES_TAB);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [createDefaults, setCreateDefaults] =
@@ -321,63 +361,131 @@ export function InstructorSchedulesPanel({
     });
   }, [data.sessions]);
 
-  const isAllInstructorsSelected = selectedInstructorId === ALL_INSTRUCTORS_TAB;
-  const canCreateOnCalendar = canCreate && !isAllInstructorsSelected;
+  const selectedTab = useMemo(
+    () => parseScheduleTabKey(selectedTabKey),
+    [selectedTabKey]
+  );
 
-  const resolvedInstructorId =
-    selectedInstructorId === ALL_INSTRUCTORS_TAB ||
-    data.instructors.some(
-      (instructor) => instructor.id === selectedInstructorId
-    )
-      ? selectedInstructorId
-      : ALL_INSTRUCTORS_TAB;
+  const instructorIds = useMemo(
+    () => new Set(data.instructors.map((instructor) => instructor.id)),
+    [data.instructors]
+  );
+  const workshopIds = useMemo(
+    () => new Set(data.workshops.map((workshop) => workshop.id)),
+    [data.workshops]
+  );
 
-  if (resolvedInstructorId !== selectedInstructorId) {
-    setSelectedInstructorId(resolvedInstructorId);
+  const resolvedTabKey = useMemo(() => {
+    if (selectedTab.kind === "all") {
+      return ALL_ENTITIES_TAB;
+    }
+    if (
+      selectedTab.kind === "instructor" &&
+      instructorIds.has(selectedTab.id)
+    ) {
+      return scheduleTabKey(selectedTab);
+    }
+    if (selectedTab.kind === "workshop" && workshopIds.has(selectedTab.id)) {
+      return scheduleTabKey(selectedTab);
+    }
+    return ALL_ENTITIES_TAB;
+  }, [selectedTab, instructorIds, workshopIds]);
+
+  if (resolvedTabKey !== selectedTabKey) {
+    setSelectedTabKey(resolvedTabKey);
   }
 
-  const selectedInstructor = useMemo(
-    () =>
-      data.instructors.find(
-        (instructor) => instructor.id === selectedInstructorId
-      ) ?? null,
-    [data.instructors, selectedInstructorId]
+  const isAllEntitiesSelected = selectedTab.kind === "all";
+  const canCreateOnCalendar = canCreate;
+
+  const eligibleWorkshops = useMemo(
+    () => data.workshops.filter((workshop) => workshop.eligible_for_create),
+    [data.workshops]
   );
 
-  const instructorNameById = useMemo(() => {
+  const entityLabelByKey = useMemo(() => {
     const map = new Map<string, string>();
     for (const instructor of data.instructors) {
-      map.set(instructor.id, instructor.username?.trim() || "Unknown");
+      map.set(
+        entityMapKey(ENTITY_SCHEDULE_TYPE_INSTRUCTOR, instructor.id),
+        instructor.username?.trim() || "Unknown"
+      );
+    }
+    for (const workshop of data.workshops) {
+      map.set(
+        entityMapKey(ENTITY_SCHEDULE_TYPE_WORKSHOP, workshop.id),
+        workshop.name
+      );
     }
     return map;
-  }, [data.instructors]);
+  }, [data.instructors, data.workshops]);
 
-  const instructorSessions = useMemo(
-    () =>
-      isAllInstructorsSelected
-        ? sessions
-        : sessions.filter(
-            (session) => session.recordId === selectedInstructorId
-          ),
-    [sessions, selectedInstructorId, isAllInstructorsSelected]
-  );
+  const workshopBoundsById = useMemo(() => {
+    const map = new Map<
+      string,
+      { start_date: string | null; end_date: string | null }
+    >();
+    for (const workshop of data.workshops) {
+      map.set(workshop.id, {
+        start_date: workshop.start_date,
+        end_date: workshop.end_date,
+      });
+    }
+    return map;
+  }, [data.workshops]);
+
+  const createPrefill = useMemo((): AddInstructorScheduleSlotDefaults | null => {
+    const fromDates = createDefaults ?? undefined;
+    if (selectedTab.kind === "instructor") {
+      return {
+        entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+        record_id: selectedTab.id,
+        ...fromDates,
+      };
+    }
+    if (selectedTab.kind === "workshop") {
+      return {
+        entity_type: ENTITY_SCHEDULE_TYPE_WORKSHOP,
+        record_id: selectedTab.id,
+        ...fromDates,
+      };
+    }
+    return fromDates
+      ? {
+          ...fromDates,
+        }
+      : null;
+  }, [createDefaults, selectedTab]);
+
+  const filteredSessions = useMemo(() => {
+    if (selectedTab.kind === "all") {
+      return sessions;
+    }
+    return sessions.filter(
+      (session) =>
+        session.entityType === selectedTab.kind &&
+        session.recordId === selectedTab.id
+    );
+  }, [sessions, selectedTab]);
 
   const events = useMemo<EventInput[]>(() => {
     const filtered =
       typeFilter === "all"
-        ? instructorSessions
-        : instructorSessions.filter((session) => session.type === typeFilter);
+        ? filteredSessions
+        : filteredSessions.filter((session) => session.type === typeFilter);
     return instructorScheduleSessionsToEvents(filtered, {
       weekStart,
-      includeInstructorInTitle: isAllInstructorsSelected,
-      instructorNameById,
+      includeEntityInTitle: isAllEntitiesSelected,
+      entityLabelByKey,
+      workshopBoundsById,
     });
   }, [
-    instructorSessions,
+    filteredSessions,
     typeFilter,
     weekStart,
-    isAllInstructorsSelected,
-    instructorNameById,
+    isAllEntitiesSelected,
+    entityLabelByKey,
+    workshopBoundsById,
   ]);
 
   const weekTypeCounts = useMemo(() => {
@@ -386,12 +494,18 @@ export function InstructorSchedulesPanel({
       busy: 0,
     };
 
-    for (const session of instructorSessions) {
+    for (const session of filteredSessions) {
       counts[session.type] += 1;
     }
 
     return counts;
-  }, [instructorSessions]);
+  }, [filteredSessions]);
+
+  const selectedSessionEntityLabel = selectedSession
+    ? entityLabelByKey.get(
+        entityMapKey(selectedSession.entityType, selectedSession.recordId)
+      ) ?? null
+    : null;
 
   function trackPendingTemp(tempId: string) {
     pendingTempIdsRef.current.add(tempId);
@@ -496,11 +610,6 @@ export function InstructorSchedulesPanel({
   }
 
   function openCreate(defaults?: CreateSlotDefaults | null) {
-    if (isAllInstructorsSelected || !selectedInstructorId) {
-      showErrorToast("Select an instructor tab before adding a slot.");
-      return;
-    }
-
     setCreateDefaults(defaults ?? null);
     setIsCreateOpen(true);
   }
@@ -550,6 +659,7 @@ export function InstructorSchedulesPanel({
     const next = {
       ...sessionFromCreateInput(
         {
+          entity_type: previous.entityType,
           record_id: values.record_id,
           name: values.name,
           type: values.type,
@@ -559,7 +669,10 @@ export function InstructorSchedulesPanel({
           color: values.color,
         },
         values.id,
-        { preserveSlotDate: previous.slotDate }
+        {
+          preserveSlotDate: previous.slotDate,
+          entityType: previous.entityType,
+        }
       ),
     };
 
@@ -784,6 +897,7 @@ export function InstructorSchedulesPanel({
 
     const formData = new FormData();
     formData.set("id", source.id);
+    formData.set("entity_type", source.entityType);
     formData.set("record_id", source.recordId);
     formData.set("name", source.name);
     formData.set("type", source.type);
@@ -875,6 +989,7 @@ export function InstructorSchedulesPanel({
 
     const formData = new FormData();
     formData.set("id", session.id);
+    formData.set("entity_type", session.entityType);
     formData.set("record_id", session.recordId);
     formData.set("name", session.name);
     formData.set("type", session.type);
@@ -923,7 +1038,7 @@ export function InstructorSchedulesPanel({
     setWeekStart(bounds.weekStart);
   }
 
-  if (data.instructors.length === 0) {
+  if (data.instructors.length === 0 && data.workshops.length === 0) {
     return (
       <div className="flex flex-col gap-6">
         <div className="min-w-0">
@@ -931,20 +1046,28 @@ export function InstructorSchedulesPanel({
             Instructor schedules
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Free and busy slots per instructor.
+            Free and busy slots for instructors and workshops.
           </p>
         </div>
         <div className="rounded-xl border px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground">
-            No instructors yet. Add instructors first, then manage their
-            schedules here.
+            No instructors or workshops yet. Add one first, then manage schedule
+            slots here.
           </p>
-          <Link
-            href={ROUTES.MANAGER_INSTRUCTORS}
-            className={cn(buttonVariants({ variant: "outline" }), "mt-4")}
-          >
-            Manage instructors
-          </Link>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href={ROUTES.MANAGER_INSTRUCTORS}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              Manage instructors
+            </Link>
+            <Link
+              href={ROUTES.MANAGER_WORKSHOPS}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              Manage workshops
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -952,57 +1075,67 @@ export function InstructorSchedulesPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">
             Instructor schedules
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Weekly free and busy slots per instructor. Slots repeat every week
-            until edited or deleted
-            {canCreateOnCalendar
+            Weekly free and busy slots for instructors and workshops. Slots
+            repeat every week until edited or deleted
+            {canCreate
               ? ". Click a slot to edit it, drag to select a range to add one, or hold Alt and drag a slot to duplicate it"
-              : canCreate
-                ? ". Select an instructor tab to add slots"
-                : ". Click a slot to edit it"}
+              : ". Click a slot to edit it"}
             {canUpdate
               ? ", drag a slot to change weekday/time, or drag the top/bottom edge to change duration"
               : ""}
-            .
+            . Workshop slots only appear between the workshop start and end
+            dates.
           </p>
         </div>
+        <Link
+          href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES_DETAILS}
+          className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}
+        >
+          <ListIcon data-icon="inline-start" />
+          Slot details
+        </Link>
       </div>
 
       <ScheduleAssistantPrompt />
 
       <div
         role="tablist"
-        aria-label="Instructors"
+        aria-label="Schedule entities"
         className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
       >
         <button
           type="button"
           role="tab"
-          aria-selected={isAllInstructorsSelected}
-          onClick={() => setSelectedInstructorId(ALL_INSTRUCTORS_TAB)}
+          aria-selected={isAllEntitiesSelected}
+          onClick={() => setSelectedTabKey(ALL_ENTITIES_TAB)}
           className={cn(
             "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
             "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-            isAllInstructorsSelected &&
+            isAllEntitiesSelected &&
               "border-border bg-background text-foreground shadow-sm"
           )}
         >
           All
         </button>
         {data.instructors.map((instructor) => {
-          const selected = instructor.id === selectedInstructorId;
+          const tabKey = scheduleTabKey({
+            kind: "instructor",
+            id: instructor.id,
+          });
+          const selected = selectedTabKey === tabKey;
           return (
             <button
-              key={instructor.id}
+              key={tabKey}
               type="button"
               role="tab"
               aria-selected={selected}
-              onClick={() => setSelectedInstructorId(instructor.id)}
+              onClick={() => setSelectedTabKey(tabKey)}
               className={cn(
                 "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
                 "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
@@ -1011,6 +1144,30 @@ export function InstructorSchedulesPanel({
               )}
             >
               {instructor.username ?? "Unknown"}
+            </button>
+          );
+        })}
+        {data.workshops.map((workshop) => {
+          const tabKey = scheduleTabKey({
+            kind: "workshop",
+            id: workshop.id,
+          });
+          const selected = selectedTabKey === tabKey;
+          return (
+            <button
+              key={tabKey}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setSelectedTabKey(tabKey)}
+              className={cn(
+                "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+                "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
+                selected &&
+                  "border-border bg-background text-foreground shadow-sm"
+              )}
+            >
+              {workshop.name}
             </button>
           );
         })}
@@ -1046,12 +1203,7 @@ export function InstructorSchedulesPanel({
             <Button
               type="button"
               size="sm"
-              disabled={!canCreateOnCalendar}
-              title={
-                isAllInstructorsSelected
-                  ? "Select an instructor tab to add a slot"
-                  : undefined
-              }
+              disabled={!canCreate}
               onClick={() => openCreate(null)}
             >
               <PlusIcon data-icon="inline-start" />
@@ -1097,15 +1249,9 @@ export function InstructorSchedulesPanel({
           }
         }}
         onCreate={handleOptimisticCreate}
-        defaults={
-          !isAllInstructorsSelected && selectedInstructorId
-            ? {
-                record_id: selectedInstructorId,
-                ...createDefaults,
-              }
-            : null
-        }
-        instructorLabel={selectedInstructor?.username}
+        defaults={createPrefill}
+        instructors={data.instructors}
+        eligibleWorkshops={eligibleWorkshops}
       />
 
       <EditInstructorScheduleSlotDialog
@@ -1117,6 +1263,7 @@ export function InstructorSchedulesPanel({
           }
         }}
         session={selectedSession}
+        entityLabel={selectedSessionEntityLabel}
         onUpdate={handleOptimisticUpdate}
         onDeleteRequest={(session) => {
           setDeleteTarget(session);

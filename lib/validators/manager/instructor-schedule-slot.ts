@@ -4,6 +4,7 @@ import type { FieldErrors } from "@/types/auth";
 import type {
   InstructorScheduleSlotPresetColor,
   InstructorScheduleSlotType,
+  ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
 export const INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES = [
@@ -53,8 +54,18 @@ export const INSTRUCTOR_SCHEDULE_SLOT_COLOR_STRONG: Record<
 export const INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR =
   INSTRUCTOR_SCHEDULE_SLOT_COLORS[0];
 
-/** Backend-enforced entity_type for the instructor schedules flow. */
 export const ENTITY_SCHEDULE_TYPE_INSTRUCTOR = "instructor" as const;
+export const ENTITY_SCHEDULE_TYPE_WORKSHOP = "workshop" as const;
+
+export const ENTITY_SCHEDULE_TYPE_VALUES = [
+  ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+  ENTITY_SCHEDULE_TYPE_WORKSHOP,
+] as const satisfies readonly ScheduleEntityType[];
+
+export const ENTITY_SCHEDULE_TYPE_LABELS: Record<ScheduleEntityType, string> = {
+  instructor: "Instructor",
+  workshop: "Workshop",
+};
 
 const hexColorPattern = /^#[0-9A-Fa-f]{6}$/;
 
@@ -109,7 +120,10 @@ function timeToMinutes(value: string): number {
 
 const instructorScheduleSlotFields = z
   .object({
-    record_id: z.string().uuid({ message: "Instructor is required." }),
+    entity_type: z.enum(ENTITY_SCHEDULE_TYPE_VALUES, {
+      message: "Entity type is required.",
+    }),
+    record_id: z.string().uuid({ message: "Please select an entity." }),
     name: z
       .string()
       .trim()
@@ -178,6 +192,7 @@ export function parseCreateInstructorScheduleSlotFormData(formData: FormData):
   | { success: true; data: CreateInstructorScheduleSlotInput }
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = createInstructorScheduleSlotSchema.safeParse({
+    entity_type: formData.get("entity_type"),
     record_id: formData.get("record_id"),
     name: formData.get("name"),
     type: formData.get("type"),
@@ -203,6 +218,7 @@ export function parseUpdateInstructorScheduleSlotFormData(formData: FormData):
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = updateInstructorScheduleSlotSchema.safeParse({
     id: formData.get("id"),
+    entity_type: formData.get("entity_type"),
     record_id: formData.get("record_id"),
     name: formData.get("name"),
     type: formData.get("type"),

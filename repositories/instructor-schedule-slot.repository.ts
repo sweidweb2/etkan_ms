@@ -48,6 +48,14 @@ export async function listInstructorScheduleSlotsByEntity(
     .order("start_time", { ascending: true });
 }
 
+export async function listAllInstructorScheduleSlots(client: Supabase) {
+  return client
+    .from("instructor_schedule_slots")
+    .select(SLOT_COLUMNS)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+}
+
 export async function listInstructorScheduleSlotsByRecord(
   client: Supabase,
   entityType: string,

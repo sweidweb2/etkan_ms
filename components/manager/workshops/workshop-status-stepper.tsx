@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import {
+  BanIcon,
   CalendarDaysIcon,
   CheckIcon,
   CircleCheckIcon,
@@ -9,8 +10,14 @@ import {
   FilePenLineIcon,
   TimerIcon,
 } from "lucide-react";
-import { changeWorkshopStatusAction } from "@/app/manager/workshops/actions";
+import {
+  changeWorkshopStatusAction,
+  updateWorkshopProposalNotesAction,
+} from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
+import { FieldLabel } from "@/components/auth/field-label";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
+import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,9 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  MANAGER_WORKSHOP_STATUS_LABELS,
-} from "@/lib/constants/manager-workshop-display";
+import { MANAGER_WORKSHOP_STATUS_LABELS } from "@/lib/constants/manager-workshop-display";
 import {
   WORKSHOP_STATUSES,
   WORKSHOP_STATUS_FLOW,
@@ -43,6 +48,7 @@ import { cn } from "@/lib/utils";
 import type {
   ChangeWorkshopStatusActionState,
   ManagerWorkshopRow,
+  UpdateWorkshopActionState,
 } from "@/types/manager-workshop";
 
 type ConfirmKind = "jump" | "next" | "back" | "cancel" | "reopen";
@@ -53,7 +59,15 @@ type WorkshopStatusStepperProps = {
   onStatusChanged: (workshop: ManagerWorkshopRow) => void;
 };
 
-const initialState: ChangeWorkshopStatusActionState = {};
+const initialStatusState: ChangeWorkshopStatusActionState = {};
+const initialNotesState: UpdateWorkshopActionState = {};
+
+const textareaClassName = cn(
+  "flex min-h-[5.5rem] w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-colors",
+  "placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+  "disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20",
+  "dark:bg-input/30"
+);
 
 const STATUS_ICONS = {
   [WORKSHOP_STATUSES.DRAFT]: FilePenLineIcon,
@@ -171,15 +185,26 @@ export function WorkshopStatusStepper({
   const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null);
   const [pendingTarget, setPendingTarget] =
     useState<WorkshopStatusValue | null>(null);
-  const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
-    changeWorkshopStatusAction,
-    initialState
+  const [proposalNotes, setProposalNotes] = useState(
+    workshop.proposal_notes ?? ""
   );
-  const isPending = isActionPending || isTransitionPending;
+  const [isStatusTransitionPending, startStatusTransition] = useTransition();
+  const [isNotesTransitionPending, startNotesTransition] = useTransition();
+  const [statusState, statusFormAction, isStatusActionPending] = useActionState(
+    changeWorkshopStatusAction,
+    initialStatusState
+  );
+  const [notesState, notesFormAction, isNotesActionPending] = useActionState(
+    updateWorkshopProposalNotesAction,
+    initialNotesState
+  );
+
+  const isStatusPending = isStatusActionPending || isStatusTransitionPending;
+  const isNotesPending = isNotesActionPending || isNotesTransitionPending;
+  const isPending = isStatusPending || isNotesPending;
 
   const handleConfirmOpenChange = usePendingAwareOpenChange(
-    isPending,
+    isStatusPending,
     (open) => {
       if (!open) {
         setConfirmKind(null);
@@ -188,19 +213,34 @@ export function WorkshopStatusStepper({
     }
   );
 
-  useActionStateToast(state, isPending);
-  useActionStateSuccess(state, isPending, (next) => {
+  useEffect(() => {
+    setProposalNotes(workshop.proposal_notes ?? "");
+  }, [workshop.proposal_notes, workshop.id]);
+
+  useActionStateToast(statusState, isStatusPending);
+  useActionStateToast(notesState, isNotesPending);
+  useActionStateSuccess(statusState, isStatusPending, (next) => {
     if (next.workshop) {
       onStatusChanged(next.workshop);
     }
     setConfirmKind(null);
     setPendingTarget(null);
   });
+  useActionStateSuccess(notesState, isNotesPending, (next) => {
+    if (next.workshop) {
+      onStatusChanged(next.workshop);
+    }
+  });
 
   const nextStatus = getNextWorkshopStatus(workshop.status);
   const previousStatus = getPreviousWorkshopStatus(workshop.status);
   const canCancel = canCancelWorkshopStatus(workshop.status);
   const canReopen = canReopenWorkshopFromCancelled(workshop.status);
+  const notesDirty =
+    proposalNotes.trim() !== (workshop.proposal_notes ?? "").trim();
+  const notesError =
+    notesState.fieldErrors?.proposal_notes?.[0] ??
+    (notesState.error && !notesState.fieldErrors ? notesState.error : undefined);
 
   function openConfirm(kind: ConfirmKind, target: WorkshopStatusValue) {
     setConfirmKind(kind);
@@ -214,8 +254,17 @@ export function WorkshopStatusStepper({
     const formData = new FormData();
     formData.set("id", workshop.id);
     formData.set("status", pendingTarget);
-    startTransition(() => {
-      formAction(formData);
+    startStatusTransition(() => {
+      statusFormAction(formData);
+    });
+  }
+
+  function submitProposalNotes() {
+    const formData = new FormData();
+    formData.set("id", workshop.id);
+    formData.set("proposal_notes", proposalNotes);
+    startNotesTransition(() => {
+      notesFormAction(formData);
     });
   }
 
@@ -243,115 +292,195 @@ export function WorkshopStatusStepper({
         );
 
   return (
-    <div>
-      {workshop.status === WORKSHOP_STATUSES.CANCELLED ? (
-        <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-800 dark:text-rose-200">
-          This workshop is cancelled. Tap a status below or reopen as draft.
-        </p>
-      ) : null}
-
-      <div className="relative mb-6 px-1 pt-1">
-        <div className="absolute top-5 right-[10%] left-[10%] h-1.5 overflow-hidden rounded-full bg-muted">
-          {currentFlowIndex > 0 ? (
-            <div
-              className="h-full rounded-full bg-emerald-500/80 transition-[width] duration-300 ease-out"
-              style={{
-                width: `${(currentFlowIndex / (WORKSHOP_STATUS_FLOW.length - 1)) * 100}%`,
-              }}
-            />
-          ) : null}
-        </div>
-        <div className="relative grid grid-cols-5 gap-1">
-          {WORKSHOP_STATUS_FLOW.map((status) => {
-            const tone = stepTone(status, workshop.status);
-            const isCurrent = status === workshop.status;
-            return (
-              <Can
-                key={status}
-                permission={PERMISSIONS.WORKSHOPS_UPDATE}
-                fallback={
-                  <WorkshopStatusCheckpoint
-                    status={status}
-                    tone={tone}
-                    clickable={false}
-                    disabled
-                    onSelect={() => undefined}
-                  />
+    <>
+      <ClassTabCollapsibleSection
+        title="Status"
+        description="Advance status and keep handoff notes for the responsible entity."
+        storageKey={`workshop-details-status:${workshop.id}`}
+        defaultOpen
+        action={<WorkshopStatusBadge status={workshop.status} />}
+      >
+        <div className="relative flex flex-col gap-6 px-3 py-4 sm:px-4">
+          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+            {canCancel ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="absolute top-3 right-3 z-20 sm:top-4 sm:right-4"
+                disabled={isPending}
+                aria-label="Cancel workshop"
+                title="Cancel workshop"
+                onClick={() =>
+                  openConfirm("cancel", WORKSHOP_STATUSES.CANCELLED)
                 }
               >
-                <WorkshopStatusCheckpoint
-                  status={status}
-                  tone={tone}
-                  clickable={!isCurrent}
-                  disabled={isPending}
-                  onSelect={() => openConfirm("jump", status)}
-                />
-              </Can>
-            );
-          })}
-        </div>
-      </div>
+                <BanIcon />
+              </Button>
+            ) : null}
+          </Can>
 
-      <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-        <div className="flex flex-wrap gap-2">
-          {canReopen ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() =>
-                openConfirm("reopen", WORKSHOP_STATUSES.DRAFT)
-              }
-            >
-              Reopen as draft
-            </Button>
-          ) : (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!previousStatus || isPending}
-                onClick={() => {
-                  if (previousStatus) {
-                    openConfirm("back", previousStatus);
-                  }
-                }}
-              >
-                Back
-              </Button>
-              <Button
-                type="button"
-                disabled={!nextStatus || isPending}
-                onClick={() => {
-                  if (nextStatus) {
-                    openConfirm("next", nextStatus);
-                  }
-                }}
-              >
-                Next
-              </Button>
-              {canCancel ? (
+          {workshop.status === WORKSHOP_STATUSES.CANCELLED ? (
+            <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-800 dark:text-rose-200">
+              This workshop is cancelled. Tap a status below or reopen as draft.
+            </p>
+          ) : null}
+
+          <div className="relative px-1 pt-1">
+            <div className="absolute top-5 right-[10%] left-[10%] h-1.5 overflow-hidden rounded-full bg-muted">
+              {currentFlowIndex > 0 ? (
+                <div
+                  className="h-full rounded-full bg-emerald-500/80 transition-[width] duration-300 ease-out"
+                  style={{
+                    width: `${(currentFlowIndex / (WORKSHOP_STATUS_FLOW.length - 1)) * 100}%`,
+                  }}
+                />
+              ) : null}
+            </div>
+            <div className="relative grid grid-cols-5 gap-1">
+              {WORKSHOP_STATUS_FLOW.map((status) => {
+                const tone = stepTone(status, workshop.status);
+                const isCurrent = status === workshop.status;
+                return (
+                  <Can
+                    key={status}
+                    permission={PERMISSIONS.WORKSHOPS_UPDATE}
+                    fallback={
+                      <WorkshopStatusCheckpoint
+                        status={status}
+                        tone={tone}
+                        clickable={false}
+                        disabled
+                        onSelect={() => undefined}
+                      />
+                    }
+                  >
+                    <WorkshopStatusCheckpoint
+                      status={status}
+                      tone={tone}
+                      clickable={!isCurrent}
+                      disabled={isPending}
+                      onSelect={() => openConfirm("jump", status)}
+                    />
+                  </Can>
+                );
+              })}
+            </div>
+          </div>
+
+          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {canReopen ? (
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="outline"
                   disabled={isPending}
                   onClick={() =>
-                    openConfirm("cancel", WORKSHOP_STATUSES.CANCELLED)
+                    openConfirm("reopen", WORKSHOP_STATUSES.DRAFT)
                   }
                 >
-                  Cancel workshop
+                  Reopen as draft
                 </Button>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!previousStatus || isPending}
+                    onClick={() => {
+                      if (previousStatus) {
+                        openConfirm("back", previousStatus);
+                      }
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!nextStatus || isPending}
+                    onClick={() => {
+                      if (nextStatus) {
+                        openConfirm("next", nextStatus);
+                      }
+                    }}
+                  >
+                    Next
+                  </Button>
+                </>
+              )}
+            </div>
+          </Can>
+
+          <div className="flex flex-col gap-2 border-t pt-5">
+            <FieldLabel
+              htmlFor="workshop-status-proposal-notes"
+              label="Proposal notes"
+              hint="Responsible entity / handoff notes"
+            />
+            <Can
+              permission={PERMISSIONS.WORKSHOPS_UPDATE}
+              fallback={
+                <p className="whitespace-pre-wrap rounded-lg border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                  {workshop.proposal_notes?.trim()
+                    ? workshop.proposal_notes
+                    : "No proposal notes yet."}
+                </p>
+              }
+            >
+              <textarea
+                id="workshop-status-proposal-notes"
+                rows={4}
+                value={proposalNotes}
+                disabled={isNotesPending}
+                aria-invalid={Boolean(notesError)}
+                className={textareaClassName}
+                placeholder="Notes for the responsible entity you are handing this workshop to…"
+                onChange={(event) => setProposalNotes(event.target.value)}
+              />
+              {notesError ? (
+                <p className="text-sm text-destructive">{notesError}</p>
               ) : null}
-            </>
-          )}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isNotesPending || !notesDirty}
+                  onClick={() =>
+                    setProposalNotes(workshop.proposal_notes ?? "")
+                  }
+                >
+                  Reset
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isNotesPending || !notesDirty}
+                  onClick={submitProposalNotes}
+                >
+                  {isNotesPending ? (
+                    <>
+                      <InlineSpinner />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save notes"
+                  )}
+                </Button>
+              </div>
+            </Can>
+          </div>
         </div>
-      </Can>
+      </ClassTabCollapsibleSection>
 
       <Dialog
         open={confirmKind !== null}
         onOpenChange={handleConfirmOpenChange}
       >
-        <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+        <DialogContent
+          className="sm:max-w-md"
+          showCloseButton={!isStatusPending}
+        >
           <DialogHeader>
             <DialogTitle>{confirmTitle}</DialogTitle>
             <DialogDescription>{confirmDescription}</DialogDescription>
@@ -360,7 +489,7 @@ export function WorkshopStatusStepper({
             <Button
               type="button"
               variant="outline"
-              disabled={isPending}
+              disabled={isStatusPending}
               onClick={() => handleConfirmOpenChange(false)}
             >
               Keep current
@@ -368,10 +497,10 @@ export function WorkshopStatusStepper({
             <Button
               type="button"
               variant={confirmKind === "cancel" ? "destructive" : "default"}
-              disabled={isPending || !pendingTarget}
+              disabled={isStatusPending || !pendingTarget}
               onClick={submitStatusChange}
             >
-              {isPending ? (
+              {isStatusPending ? (
                 <>
                   <InlineSpinner className="mr-2" />
                   Updating…
@@ -383,6 +512,6 @@ export function WorkshopStatusStepper({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

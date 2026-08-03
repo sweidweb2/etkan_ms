@@ -159,7 +159,6 @@ export function WorkshopDocumentsSection({
       <ClassTabCollapsibleSection
         title="Documents"
         storageKey={`workshop-details-documents:${workshopId}`}
-        defaultOpen
         action={
           <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
             <Button

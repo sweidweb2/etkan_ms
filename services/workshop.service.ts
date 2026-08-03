@@ -17,10 +17,12 @@ import {
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ENTITY_SCHEDULE_TYPE_WORKSHOP } from "@/lib/validators/manager/instructor-schedule-slot";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { changeWorkshopStatusSchema } from "@/lib/validators/manager/change-workshop-status";
 import { createWorkshopSchema } from "@/lib/validators/manager/create-workshop";
 import { updateWorkshopSchema } from "@/lib/validators/manager/update-workshop";
+import { updateWorkshopProposalNotesSchema } from "@/lib/validators/manager/update-workshop-proposal-notes";
 import {
   createWorkshopInstructorSchema,
   removeWorkshopInstructorSchema,
@@ -45,6 +47,8 @@ import {
   getWorkshopDocumentPublicUrl,
 } from "@/lib/manager/workshops/storage-path";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
+import type { InstructorScheduleSlotRecord } from "@/repositories/instructor-schedule-slot.repository";
 import * as workshopDocumentRepository from "@/repositories/workshop-document.repository";
 import type { WorkshopDocumentRecord } from "@/repositories/workshop-document.repository";
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
@@ -62,6 +66,7 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/audit-log.service";
+import { mapInstructorScheduleSlotRecordToSession } from "@/services/instructor-schedule-slot.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerWorkshopDetailPageData,
@@ -466,6 +471,7 @@ export async function getWorkshopForManager(
     instructorsResult,
     candidatesResult,
     documentsResult,
+    scheduleSlotsResult,
   ] = await Promise.all([
     workshopRepository.findWorkshopById(adminClient, workshopId),
     workshopRepository.countWorkshopPaymentsByWorkshopId(
@@ -479,6 +485,11 @@ export async function getWorkshopForManager(
     profileRepository.listInstructorProfiles(adminClient),
     workshopDocumentRepository.listWorkshopDocumentsByWorkshopId(
       adminClient,
+      workshopId
+    ),
+    instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
+      adminClient,
+      ENTITY_SCHEDULE_TYPE_WORKSHOP,
       workshopId
     ),
   ]);
@@ -503,6 +514,10 @@ export async function getWorkshopForManager(
     throw new Error(documentsResult.error.message);
   }
 
+  if (scheduleSlotsResult.error) {
+    throw new Error(scheduleSlotsResult.error.message);
+  }
+
   if (!workshopResult.data) {
     return null;
   }
@@ -523,12 +538,19 @@ export async function getWorkshopForManager(
 
   const documents = (documentsResult.data ?? []).map(mapWorkshopDocumentRecord);
 
+  const scheduleSlots = (scheduleSlotsResult.data ?? []).map((record) =>
+    mapInstructorScheduleSlotRecordToSession(
+      record as InstructorScheduleSlotRecord
+    )
+  );
+
   return {
     workshop: mapWorkshopRecordToRow(workshopResult.data),
     payment_count: paymentCountResult.count ?? 0,
     instructors,
     instructorCandidates,
     documents,
+    scheduleSlots,
   };
 }
 
@@ -713,6 +735,83 @@ export async function updateWorkshopForManager(
     success: true,
     workshop,
     message: "Workshop updated.",
+  };
+}
+
+export async function updateWorkshopProposalNotesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<UpdateWorkshopResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = updateWorkshopProposalNotesSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  const { id, proposal_notes } = parsed.data;
+
+  const existing = await workshopRepository.findWorkshopById(adminClient, id);
+
+  if (existing.error) {
+    return {
+      success: false,
+      error: mapUpdateWorkshopError(existing.error.message),
+    };
+  }
+
+  if (!existing.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+
+  const { data, error } =
+    await workshopRepository.updateWorkshopProposalNotesById(
+      adminClient,
+      id,
+      proposal_notes
+    );
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: mapUpdateWorkshopError(error?.message ?? "Unknown error"),
+    };
+  }
+
+  const workshop = mapWorkshopRecordToRow(data);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "workshops",
+    record_id: data.id,
+    old_data: {
+      proposal_notes: existing.data.proposal_notes,
+    },
+    new_data: {
+      proposal_notes: workshop.proposal_notes,
+    },
+    metadata: { note: "Workshop proposal notes updated." },
+  });
+
+  return {
+    success: true,
+    workshop,
+    message: "Proposal notes saved.",
   };
 }
 
