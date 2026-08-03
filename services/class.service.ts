@@ -8,6 +8,7 @@ import {
   CLASS_STATUSES,
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
+import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import {
   buildGradesByTaskId,
   computeOverallAverageTaskGrade,
@@ -1064,7 +1065,11 @@ export async function listAvailableStudentsForClass(
     (membershipResult.data ?? []).map((row) => row.user_id)
   );
 
-  return students.filter((student) => !memberIds.has(student.user_id));
+  return students.filter(
+    (student) =>
+      !memberIds.has(student.user_id) &&
+      student.status !== STUDENT_STATUSES.INACTIVE
+  );
 }
 
 export async function getClassFinalExamForManager(
@@ -2201,6 +2206,16 @@ export async function addStudentToClassForManager(
       success: false,
       error: "Please fix the errors below.",
       fieldErrors: { studentProfileId: ["Student not found."] },
+    };
+  }
+
+  if (studentProfileResult.data.status === STUDENT_STATUSES.INACTIVE) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        studentProfileId: ["Inactive students cannot be added to a class."],
+      },
     };
   }
 

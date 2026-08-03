@@ -76,7 +76,6 @@ import type {
   ManagerWorkshopPaymentLedgerRow,
   ManagerWorkshopPaymentRow,
   ManagerWorkshopPaymentSummary,
-  ManagerWorkshopPaymentsPageData,
   ManagerWorkshopPaymentsTotals,
   ManagerWorkshopRow,
 } from "@/types/manager-workshop";
@@ -467,14 +466,14 @@ export async function getWorkshopForManager(
 
   const [
     workshopResult,
-    paymentCountResult,
+    paymentsResult,
     instructorsResult,
     candidatesResult,
     documentsResult,
     scheduleSlotsResult,
   ] = await Promise.all([
     workshopRepository.findWorkshopById(adminClient, workshopId),
-    workshopRepository.countWorkshopPaymentsByWorkshopId(
+    workshopPaymentRepository.listWorkshopPaymentsByWorkshopId(
       adminClient,
       workshopId
     ),
@@ -498,8 +497,8 @@ export async function getWorkshopForManager(
     throw new Error(workshopResult.error.message);
   }
 
-  if (paymentCountResult.error) {
-    throw new Error(paymentCountResult.error.message);
+  if (paymentsResult.error) {
+    throw new Error(paymentsResult.error.message);
   }
 
   if (instructorsResult.error) {
@@ -521,6 +520,9 @@ export async function getWorkshopForManager(
   if (!workshopResult.data) {
     return null;
   }
+
+  const workshop = mapWorkshopRecordToRow(workshopResult.data);
+  const payments = (paymentsResult.data ?? []).map(mapWorkshopPaymentRecord);
 
   const instructors = (
     (instructorsResult.data ?? []) as WorkshopInstructorWithProfileRecord[]
@@ -545,8 +547,10 @@ export async function getWorkshopForManager(
   );
 
   return {
-    workshop: mapWorkshopRecordToRow(workshopResult.data),
-    payment_count: paymentCountResult.count ?? 0,
+    workshop,
+    payment_count: payments.length,
+    payments,
+    payment_summary: buildWorkshopPaymentSummary(payments, workshop.price),
     instructors,
     instructorCandidates,
     documents,
@@ -1618,43 +1622,6 @@ export async function deleteWorkshopDocumentForManager(
   return {
     success: true,
     message: "Document deleted.",
-  };
-}
-
-export async function getWorkshopPaymentsPageForManager(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  workshopId: string
-): Promise<ManagerWorkshopPaymentsPageData | null> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
-
-  const [workshopResult, paymentsResult] = await Promise.all([
-    workshopRepository.findWorkshopById(adminClient, workshopId),
-    workshopPaymentRepository.listWorkshopPaymentsByWorkshopId(
-      adminClient,
-      workshopId
-    ),
-  ]);
-
-  if (workshopResult.error) {
-    throw new Error(workshopResult.error.message);
-  }
-
-  if (paymentsResult.error) {
-    throw new Error(paymentsResult.error.message);
-  }
-
-  if (!workshopResult.data) {
-    return null;
-  }
-
-  const workshop = mapWorkshopRecordToRow(workshopResult.data);
-  const payments = (paymentsResult.data ?? []).map(mapWorkshopPaymentRecord);
-
-  return {
-    workshop,
-    payments,
-    summary: buildWorkshopPaymentSummary(payments, workshop.price),
   };
 }
 

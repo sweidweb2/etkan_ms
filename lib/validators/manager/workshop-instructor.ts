@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   WORKSHOP_INSTRUCTOR_ROLE_VALUES,
   WORKSHOP_WAGE_TYPES,
@@ -16,7 +17,9 @@ function optionalTrimmedNotes() {
     return trimmed === "" ? null : trimmed;
   }, z
     .string()
-    .max(2000, { message: "Notes must be at most 2000 characters." })
+    .max(WORKSHOP_FIELD_LIMITS.instructor_notes.max, {
+      message: `Notes must be at most ${WORKSHOP_FIELD_LIMITS.instructor_notes.max} characters.`,
+    })
     .nullable());
 }
 
@@ -28,8 +31,12 @@ function optionalWageAmount() {
     return value;
   }, z.coerce
     .number()
-    .min(0, { message: "Wage amount must be 0 or greater." })
-    .max(1_000_000, { message: "Wage amount must be at most 1,000,000." })
+    .min(WORKSHOP_FIELD_LIMITS.wage_amount.min, {
+      message: "Wage amount must be 0 or greater.",
+    })
+    .max(WORKSHOP_FIELD_LIMITS.wage_amount.max, {
+      message: `Wage amount must be at most ${WORKSHOP_FIELD_LIMITS.wage_amount.max.toLocaleString()}.`,
+    })
     .nullable());
 }
 
@@ -53,11 +60,11 @@ function withWageRefine<T extends z.ZodTypeAny>(schema: T) {
     if (
       record.wage_type === WORKSHOP_WAGE_TYPES.PERCENTAGE &&
       record.wage_amount != null &&
-      record.wage_amount > 100
+      record.wage_amount > WORKSHOP_FIELD_LIMITS.wage_percentage.max
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Percentage must be at most 100.",
+        message: `Percentage must be at most ${WORKSHOP_FIELD_LIMITS.wage_percentage.max}.`,
         path: ["wage_amount"],
       });
     }

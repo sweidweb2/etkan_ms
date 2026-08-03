@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import { WORKSHOP_OFFERING_TYPE_VALUES } from "@/lib/constants/manager-workshop-display";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
@@ -84,44 +84,46 @@ export const workshopFieldsSchema = z.object({
     .string()
     .trim()
     .min(1, { message: "Workshop name is required." })
-    .max(200, { message: "Workshop name must be at most 200 characters." }),
+    .max(WORKSHOP_FIELD_LIMITS.name.max, {
+      message: `Workshop name must be at most ${WORKSHOP_FIELD_LIMITS.name.max} characters.`,
+    }),
   type: z.enum(WORKSHOP_OFFERING_TYPE_VALUES, {
     message: "Select a type: course, online, or workshop.",
   }),
   phone: optionalTrimmedString(
-    AUTH_LIMITS.phone.max,
-    `Phone must be at most ${AUTH_LIMITS.phone.max} characters.`
+    WORKSHOP_FIELD_LIMITS.phone.max,
+    `Phone must be at most ${WORKSHOP_FIELD_LIMITS.phone.max} characters.`
   ),
   subject: optionalTrimmedString(
-    200,
-    "Subject must be at most 200 characters."
+    WORKSHOP_FIELD_LIMITS.subject.max,
+    `Subject must be at most ${WORKSHOP_FIELD_LIMITS.subject.max} characters.`
   ),
   target_audience: optionalTrimmedString(
-    500,
-    "Target audience must be at most 500 characters."
+    WORKSHOP_FIELD_LIMITS.target_audience.max,
+    `Target audience must be at most ${WORKSHOP_FIELD_LIMITS.target_audience.max} characters.`
   ),
   proposal_notes: optionalTrimmedString(
-    5000,
-    "Proposal notes must be at most 5000 characters."
+    WORKSHOP_FIELD_LIMITS.proposal_notes.max,
+    `Proposal notes must be at most ${WORKSHOP_FIELD_LIMITS.proposal_notes.max} characters.`
   ),
   delivery_place: optionalTrimmedString(
-    300,
-    "Delivery place must be at most 300 characters."
+    WORKSHOP_FIELD_LIMITS.delivery_place.max,
+    `Delivery place must be at most ${WORKSHOP_FIELD_LIMITS.delivery_place.max} characters.`
   ),
   nb_participants: optionalNonNegativeInt(
     "Number of participants must be 0 or greater.",
-    100_000,
-    "Number of participants must be at most 100,000."
+    WORKSHOP_FIELD_LIMITS.nb_participants.max,
+    `Number of participants must be at most ${WORKSHOP_FIELD_LIMITS.nb_participants.max.toLocaleString()}.`
   ),
   number_of_sessions: optionalPositiveInt(
     "Number of sessions must be at least 1.",
-    1000,
-    "Number of sessions must be at most 1000."
+    WORKSHOP_FIELD_LIMITS.number_of_sessions.max,
+    `Number of sessions must be at most ${WORKSHOP_FIELD_LIMITS.number_of_sessions.max.toLocaleString()}.`
   ),
   price: optionalNonNegativeNumber(
     "Price must be 0 or greater.",
-    1_000_000,
-    "Price must be at most 1,000,000."
+    WORKSHOP_FIELD_LIMITS.price.max,
+    `Price must be at most ${WORKSHOP_FIELD_LIMITS.price.max.toLocaleString()}.`
   ),
   start_date: optionalDate("Start date must be YYYY-MM-DD."),
   end_date: optionalDate("End date must be YYYY-MM-DD."),

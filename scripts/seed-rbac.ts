@@ -1,9 +1,9 @@
 import {
   PERMISSION_DEFINITIONS,
   PERMISSION_KEYS,
-  PERMISSIONS,
 } from "@/lib/constants/permissions";
-import { ROLES } from "@/lib/constants/roles";
+import { ROLE_SEED_PERMISSIONS } from "@/lib/constants/role-seed-permissions";
+import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
 import * as permissionRepository from "@/repositories/permission.repository";
 import { createSeedAdminClient } from "@/scripts/lib/create-seed-admin-client";
 import { loadEnvLocal } from "@/scripts/lib/load-env-local";
@@ -29,19 +29,6 @@ async function seedRbac(): Promise<void> {
     throw new Error(`Failed to upsert permissions: ${upsertError.message}`);
   }
 
-  const { error: replaceError } =
-    await permissionRepository.replaceRolePermissions(
-      adminClient,
-      ROLES.MANAGER,
-      [...PERMISSION_KEYS]
-    );
-
-  if (replaceError) {
-    throw new Error(
-      `Failed to seed manager role permissions: ${replaceError.message}`
-    );
-  }
-
   const { data: catalog, error: catalogError } =
     await permissionRepository.listPermissions(adminClient);
 
@@ -62,87 +49,74 @@ async function seedRbac(): Promise<void> {
     }
   }
 
-  const { data: managerGrants, error: grantsError } =
-    await permissionRepository.listPermissionKeysByRole(
-      adminClient,
-      ROLES.MANAGER
-    );
-
-  if (grantsError) {
-    throw new Error(
-      `Failed to list manager permissions: ${grantsError.message}`
-    );
-  }
-
-  const managerKeys = (managerGrants ?? []).map((row) => row.permission_key);
-  const managerKeySet = new Set(managerKeys);
-
-  if (managerKeys.length !== PERMISSION_KEYS.length) {
-    throw new Error(
-      `Manager grant count mismatch: DB has ${managerKeys.length}, expected ${PERMISSION_KEYS.length}.`
-    );
-  }
-
-  for (const key of managerKeys) {
-    if (!catalogKeys.has(key)) {
-      throw new Error(`Orphan manager permission_key (not in catalog): ${key}`);
-    }
-  }
-
-  for (const key of PERMISSION_KEYS) {
-    if (!managerKeySet.has(key)) {
-      throw new Error(`Manager missing permission grant: ${key}`);
-    }
-  }
-
   console.log("RBAC seed complete.");
   console.log(`  Permissions catalog: ${catalogKeys.size}`);
-  console.log(`  Manager grants:      ${managerKeys.length}`);
 
-  const adminSeedPermissions = [
-    PERMISSIONS.BACKUP_VIEW,
-    PERMISSIONS.BACKUP_EXPORT_TABLE,
-    PERMISSIONS.BACKUP_EXPORT_FULL,
-    PERMISSIONS.BACKUP_DOWNLOAD,
-    PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
-  ] as const;
+  for (const role of ROLE_VALUES) {
+    const expectedKeys = [...ROLE_SEED_PERMISSIONS[role]];
 
-  const { error: adminReplaceError } =
-    await permissionRepository.replaceRolePermissions(
-      adminClient,
-      ROLES.ADMIN,
-      [...adminSeedPermissions]
-    );
+    const { error: replaceError } =
+      await permissionRepository.replaceRolePermissions(
+        adminClient,
+        role,
+        expectedKeys
+      );
 
-  if (adminReplaceError) {
-    throw new Error(
-      `Failed to seed admin role permissions: ${adminReplaceError.message}`
-    );
-  }
-
-  const { data: adminGrants, error: adminGrantsError } =
-    await permissionRepository.listPermissionKeysByRole(
-      adminClient,
-      ROLES.ADMIN
-    );
-
-  if (adminGrantsError) {
-    throw new Error(
-      `Failed to list admin permissions: ${adminGrantsError.message}`
-    );
-  }
-
-  const adminKeys = new Set(
-    (adminGrants ?? []).map((row) => row.permission_key)
-  );
-  for (const key of adminSeedPermissions) {
-    if (!adminKeys.has(key)) {
-      throw new Error(`Admin missing permission grant: ${key}`);
+    if (replaceError) {
+      throw new Error(
+        `Failed to seed ${role} role permissions: ${replaceError.message}`
+      );
     }
-  }
 
-  console.log(`  Admin grants:          ${adminSeedPermissions.length}`);
-  console.log("  Other roles:         empty (no role_permissions rows)");
+    const { data: grants, error: grantsError } =
+      await permissionRepository.listPermissionKeysByRole(adminClient, role);
+
+    if (grantsError) {
+      throw new Error(
+        `Failed to list ${role} permissions: ${grantsError.message}`
+      );
+    }
+
+    const grantedKeys = (grants ?? []).map((row) => row.permission_key);
+    const grantedSet = new Set(grantedKeys);
+
+    if (grantedKeys.length !== expectedKeys.length) {
+      throw new Error(
+        `${role} grant count mismatch: DB has ${grantedKeys.length}, expected ${expectedKeys.length}.`
+      );
+    }
+
+    for (const key of grantedKeys) {
+      if (!catalogKeys.has(key)) {
+        throw new Error(
+          `Orphan ${role} permission_key (not in catalog): ${key}`
+        );
+      }
+    }
+
+    for (const key of expectedKeys) {
+      if (!grantedSet.has(key)) {
+        throw new Error(`${role} missing permission grant: ${key}`);
+      }
+    }
+
+    const label =
+      role === ROLES.MANAGER
+        ? "Manager"
+        : role === ROLES.ADMIN
+          ? "Admin"
+          : role === ROLES.CEO
+            ? "CEO"
+            : role === ROLES.CO_MANAGER
+              ? "Co-manager"
+              : role === ROLES.TEACHER
+                ? "Teacher"
+                : role === ROLES.TRAINER
+                  ? "Trainer"
+                  : "Student";
+
+    console.log(`  ${label} grants: ${expectedKeys.length}`);
+  }
 }
 
 seedRbac().catch((error: unknown) => {

@@ -30,7 +30,6 @@ export const ROUTES = {
   MANAGER_WORKSHOPS: "/manager/workshops",
   MANAGER_WORKSHOPS_PAYMENTS: "/manager/workshops/payments",
   MANAGER_WORKSHOP_DETAIL: "/manager/workshops/[id]",
-  MANAGER_WORKSHOP_PAYMENTS: "/manager/workshops/[id]/payments",
   MANAGER_ACCOUNTING: "/manager/accounting",
   MANAGER_INCOME_STATEMENT: "/manager/income-statement",
   MANAGER_INCOME_STATEMENT_ANALYTICS: "/manager/income-statement/analytics",
@@ -145,10 +144,6 @@ export function getManagerSubjectDetailRoute(subjectId: string): string {
 
 export function getManagerWorkshopDetailRoute(workshopId: string): string {
   return `/manager/workshops/${workshopId}`;
-}
-
-export function getManagerWorkshopPaymentsRoute(workshopId: string): string {
-  return `/manager/workshops/${workshopId}/payments`;
 }
 
 export function getManagerEquipmentDetailRoute(equipmentId: string): string {

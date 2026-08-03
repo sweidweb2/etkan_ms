@@ -35,6 +35,7 @@ import {
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   canCancelWorkshopStatus,
   canReopenWorkshopFromCancelled,
@@ -435,6 +436,7 @@ export function WorkshopStatusStepper({
               <textarea
                 id="workshop-status-proposal-notes"
                 rows={4}
+                maxLength={WORKSHOP_FIELD_LIMITS.proposal_notes.max}
                 value={proposalNotes}
                 disabled={isNotesPending}
                 aria-invalid={Boolean(notesError)}

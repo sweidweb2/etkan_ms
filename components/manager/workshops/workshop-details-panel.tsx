@@ -1,14 +1,12 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   MoreHorizontalIcon,
   PencilIcon,
   Trash2Icon,
-  WalletIcon,
 } from "lucide-react";
 import { deleteWorkshopAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
@@ -16,6 +14,7 @@ import { ClassTabCollapsibleSection } from "@/components/manager/students/class-
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
 import { WorkshopDocumentsSection } from "@/components/manager/workshops/workshop-documents-section";
 import { WorkshopInstructorsSection } from "@/components/manager/workshops/workshop-instructors-section";
+import { WorkshopPaymentsSection } from "@/components/manager/workshops/workshop-payments-section";
 import { WorkshopScheduleSlotsSection } from "@/components/manager/workshops/workshop-schedule-slots-section";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { WorkshopStatusStepper } from "@/components/manager/workshops/workshop-status-stepper";
@@ -45,10 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MANAGER_WORKSHOP_STATUS_LABELS, WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import {
-  getManagerWorkshopPaymentsRoute,
-  ROUTES,
-} from "@/lib/constants/routes";
+import { ROUTES } from "@/lib/constants/routes";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
@@ -57,12 +53,16 @@ import type {
   ManagerWorkshopDocumentRow,
   ManagerWorkshopInstructorCandidate,
   ManagerWorkshopInstructorRow,
+  ManagerWorkshopPaymentRow,
+  ManagerWorkshopPaymentSummary,
   ManagerWorkshopRow,
 } from "@/types/manager-workshop";
 
 type WorkshopDetailsPanelProps = {
   workshop: ManagerWorkshopRow;
   paymentCount: number;
+  payments: ManagerWorkshopPaymentRow[];
+  paymentSummary: ManagerWorkshopPaymentSummary;
   instructors: ManagerWorkshopInstructorRow[];
   instructorCandidates: ManagerWorkshopInstructorCandidate[];
   documents: ManagerWorkshopDocumentRow[];
@@ -112,6 +112,8 @@ function formatDate(value: string | null) {
 export function WorkshopDetailsPanel({
   workshop: initialWorkshop,
   paymentCount,
+  payments,
+  paymentSummary,
   instructors,
   instructorCandidates,
   documents,
@@ -183,13 +185,6 @@ export function WorkshopDetailsPanel({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem asChild>
-              <Link href={getManagerWorkshopPaymentsRoute(workshop.id)}>
-                <WalletIcon />
-                Payments
-                {paymentCount > 0 ? ` (${paymentCount})` : ""}
-              </Link>
-            </DropdownMenuItem>
             <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
               <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
                 <PencilIcon />
@@ -359,6 +354,12 @@ export function WorkshopDetailsPanel({
       <WorkshopDocumentsSection
         workshopId={workshop.id}
         documents={documents}
+      />
+
+      <WorkshopPaymentsSection
+        workshopId={workshop.id}
+        payments={payments}
+        summary={paymentSummary}
       />
     </div>
   );

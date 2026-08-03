@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 
@@ -10,7 +11,9 @@ const optionalProposalNotes = z.preprocess((value) => {
   return trimmed === "" ? null : trimmed;
 }, z
   .string()
-  .max(5000, { message: "Proposal notes must be at most 5000 characters." })
+  .max(WORKSHOP_FIELD_LIMITS.proposal_notes.max, {
+    message: `Proposal notes must be at most ${WORKSHOP_FIELD_LIMITS.proposal_notes.max} characters.`,
+  })
   .nullable());
 
 export const updateWorkshopProposalNotesSchema = z.object({

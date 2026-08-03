@@ -61,6 +61,7 @@ import {
   TEMP_SCHEDULE_ID_PREFIX,
   type CreateSlotDefaults,
 } from "@/lib/manager/instructor-schedule-calendar";
+import { SCHEDULE_SLOT_DURATION_LIMITS } from "@/lib/constants/workshop-field-limits";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
@@ -127,6 +128,33 @@ function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
 
 function makeTempId(): string {
   return `${TEMP_SCHEDULE_ID_PREFIX}${crypto.randomUUID()}`;
+}
+
+function timeToMinutes(value: string): number {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function firstFieldError(
+  fieldErrors?: Partial<Record<string, string[]>>
+): string | undefined {
+  if (!fieldErrors) {
+    return undefined;
+  }
+  for (const messages of Object.values(fieldErrors)) {
+    const message = messages?.[0];
+    if (message) {
+      return message;
+    }
+  }
+  return undefined;
+}
+
+function actionErrorMessage(
+  result: { error?: string; fieldErrors?: Partial<Record<string, string[]>> },
+  fallback: string
+): string {
+  return firstFieldError(result.fieldErrors) ?? result.error ?? fallback;
 }
 
 type ScheduleTypeFilter = "all" | InstructorScheduleSlotType;
@@ -923,7 +951,7 @@ export function InstructorSchedulesPanel({
           } else {
             info.revert();
           }
-          showErrorToast(result.error ?? "Unable to move slot.");
+          showErrorToast(actionErrorMessage(result, "Unable to move slot."));
           return;
         }
 
@@ -961,12 +989,35 @@ export function InstructorSchedulesPanel({
     }
 
     const slotDate = formatDateFromDate(start);
+    const endDate = formatDateFromDate(end);
     const startTime = formatTimeFromDate(start);
     const endTime = formatTimeFromDate(end);
+
+    if (endDate !== slotDate) {
+      info.revert();
+      showErrorToast("Slots must stay on the same day (cannot cross midnight).");
+      return;
+    }
 
     if (endTime <= startTime) {
       info.revert();
       showErrorToast("End time must be after start time.");
+      return;
+    }
+
+    const durationMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
+    if (durationMinutes > SCHEDULE_SLOT_DURATION_LIMITS.maxMinutes) {
+      info.revert();
+      showErrorToast(
+        `Slot must be under 24 hours (max ${SCHEDULE_SLOT_DURATION_LIMITS.maxMinutes} minutes).`
+      );
+      return;
+    }
+    if (durationMinutes < SCHEDULE_SLOT_DURATION_LIMITS.minMinutes) {
+      info.revert();
+      showErrorToast(
+        `Slot must be at least ${SCHEDULE_SLOT_DURATION_LIMITS.minMinutes} minutes.`
+      );
       return;
     }
 
@@ -1013,7 +1064,9 @@ export function InstructorSchedulesPanel({
           } else {
             info.revert();
           }
-          showErrorToast(result.error ?? "Unable to update slot time.");
+          showErrorToast(
+            actionErrorMessage(result, "Unable to update slot time.")
+          );
           return;
         }
 

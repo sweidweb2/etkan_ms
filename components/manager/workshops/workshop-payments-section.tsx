@@ -6,26 +6,12 @@ import { format } from "date-fns";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { deleteWorkshopPaymentAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { AddWorkshopPaymentDialog } from "@/components/manager/workshops/add-workshop-payment-dialog";
 import { EditWorkshopPaymentDialog } from "@/components/manager/workshops/edit-workshop-payment-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -42,10 +28,6 @@ import {
 } from "@/lib/constants/manager-workshop-display";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import {
-  getManagerWorkshopDetailRoute,
-  ROUTES,
-} from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -54,13 +36,12 @@ import type {
   DeleteWorkshopPaymentActionState,
   ManagerWorkshopPaymentRow,
   ManagerWorkshopPaymentSummary,
-  ManagerWorkshopRow,
 } from "@/types/manager-workshop";
 
 const initialDeleteState: DeleteWorkshopPaymentActionState = {};
 
-type WorkshopPaymentsPanelProps = {
-  workshop: ManagerWorkshopRow;
+type WorkshopPaymentsSectionProps = {
+  workshopId: string;
   payments: ManagerWorkshopPaymentRow[];
   summary: ManagerWorkshopPaymentSummary;
 };
@@ -75,11 +56,11 @@ function formatMethod(method: ManagerWorkshopPaymentRow["payment_method"]) {
   return method;
 }
 
-export function WorkshopPaymentsPanel({
-  workshop,
+export function WorkshopPaymentsSection({
+  workshopId,
   payments,
   summary,
-}: WorkshopPaymentsPanelProps) {
+}: WorkshopPaymentsSectionProps) {
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingPayment, setEditingPayment] =
@@ -113,38 +94,18 @@ export function WorkshopPaymentsPanel({
     }
     const formData = new FormData();
     formData.set("id", deletingPayment.id);
-    formData.set("workshop_id", workshop.id);
+    formData.set("workshop_id", workshopId);
     startTransition(() => {
       deleteAction(formData);
     });
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_WORKSHOPS}>
-              Manage workshops
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href={getManagerWorkshopDetailRoute(workshop.id)}>
-              {workshop.name}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Payments</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
+    <>
       <AddWorkshopPaymentDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        workshopId={workshop.id}
+        workshopId={workshopId}
         onCreated={() => router.refresh()}
       />
 
@@ -203,46 +164,53 @@ export function WorkshopPaymentsPanel({
         </DialogContent>
       </Dialog>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <UserStatCard
-          label="Credits"
-          value={formatPaymentPhaseMoney(summary.credits)}
-          accentClassName="border-l-emerald-500"
-        />
-        <UserStatCard
-          label="Debits"
-          value={formatPaymentPhaseMoney(summary.debits)}
-          accentClassName="border-l-rose-500"
-        />
-        <UserStatCard
-          label="Net (credits − debits)"
-          value={formatPaymentPhaseMoney(summary.net)}
-          accentClassName="border-l-sky-500"
-        />
-        <UserStatCard
-          label={summary.price == null ? "Workshop price" : "Remaining vs price"}
-          value={
-            summary.price == null
-              ? "—"
-              : formatPaymentPhaseMoney(summary.remaining ?? 0)
-          }
-          accentClassName="border-l-amber-500"
-        />
-      </div>
+      <ClassTabCollapsibleSection
+        title="Payments"
+        description={
+          payments.length === 0
+            ? "No payments yet"
+            : `${payments.length} payment${payments.length === 1 ? "" : "s"}`
+        }
+        storageKey={`workshop-details-payments:${workshopId}`}
+        action={
+          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+            <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add payment
+            </Button>
+          </Can>
+        }
+      >
+        <div className="flex flex-col gap-4 px-3 py-4 sm:px-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <UserStatCard
+              label="Credits"
+              value={formatPaymentPhaseMoney(summary.credits)}
+              accentClassName="border-l-emerald-500"
+            />
+            <UserStatCard
+              label="Debits"
+              value={formatPaymentPhaseMoney(summary.debits)}
+              accentClassName="border-l-rose-500"
+            />
+            <UserStatCard
+              label="Net (credits − debits)"
+              value={formatPaymentPhaseMoney(summary.net)}
+              accentClassName="border-l-sky-500"
+            />
+            <UserStatCard
+              label={
+                summary.price == null ? "Workshop price" : "Remaining vs price"
+              }
+              value={
+                summary.price == null
+                  ? "—"
+                  : formatPaymentPhaseMoney(summary.remaining ?? 0)
+              }
+              accentClassName="border-l-amber-500"
+            />
+          </div>
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-lg">Ledger</CardTitle>
-          <CardAction>
-            <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-              <Button type="button" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add payment
-              </Button>
-            </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="pt-4 pb-4">
           {payments.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No payments recorded yet.
@@ -328,8 +296,8 @@ export function WorkshopPaymentsPanel({
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </ClassTabCollapsibleSection>
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   WORKSHOP_PAYMENT_METHOD_VALUES,
   WORKSHOP_PAYMENT_TYPE_VALUES,
@@ -30,7 +31,9 @@ function optionalNotes() {
     return trimmed === "" ? null : trimmed;
   }, z
     .string()
-    .max(500, { message: "Notes must be at most 500 characters." })
+    .max(WORKSHOP_FIELD_LIMITS.payment_notes.max, {
+      message: `Notes must be at most ${WORKSHOP_FIELD_LIMITS.payment_notes.max} characters.`,
+    })
     .nullable());
 }
 
@@ -38,7 +41,9 @@ const sharedFields = {
   amount: z.coerce
     .number()
     .positive({ message: "Amount must be greater than zero." })
-    .max(1_000_000, { message: "Amount must be at most 1,000,000." }),
+    .max(WORKSHOP_FIELD_LIMITS.payment_amount.max, {
+      message: `Amount must be at most ${WORKSHOP_FIELD_LIMITS.payment_amount.max.toLocaleString()}.`,
+    }),
   type: z.enum(WORKSHOP_PAYMENT_TYPE_VALUES, {
     message: "Select credit or debit.",
   }),

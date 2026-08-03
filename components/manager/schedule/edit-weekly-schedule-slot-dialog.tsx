@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { SCHEDULE_SLOT_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   updateWeeklyScheduleSlotSchema,
   WEEKLY_SCHEDULE_SLOT_DEFAULT_COLOR,
@@ -136,6 +137,7 @@ export function EditWeeklyScheduleSlotDialog({
             />
             <Input
               id="edit-schedule-slot-name"
+              maxLength={SCHEDULE_SLOT_FIELD_LIMITS.name.max}
               aria-invalid={!!nameError}
               disabled={isPending}
               {...register("name")}

@@ -29,6 +29,7 @@ import {
   WORKSHOP_OFFERING_TYPE_LABELS,
   WORKSHOP_OFFERING_TYPE_VALUES,
 } from "@/lib/constants/manager-workshop-display";
+import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   updateWorkshopSchema,
   type UpdateWorkshopInput,
@@ -192,6 +193,7 @@ export function EditWorkshopDialog({
             />
             <Input
               id="edit-workshop-name"
+              maxLength={WORKSHOP_FIELD_LIMITS.name.max}
               aria-invalid={!!nameError}
               disabled={isPending}
               {...register("name")}
@@ -246,6 +248,7 @@ export function EditWorkshopDialog({
               <Input
                 id="edit-workshop-phone"
                 type="tel"
+                maxLength={WORKSHOP_FIELD_LIMITS.phone.max}
                 aria-invalid={!!phoneError}
                 disabled={isPending}
                 {...register("phone")}
@@ -264,6 +267,7 @@ export function EditWorkshopDialog({
             />
             <Input
               id="edit-workshop-subject"
+              maxLength={WORKSHOP_FIELD_LIMITS.subject.max}
               aria-invalid={!!subjectError}
               disabled={isPending}
               {...register("subject")}
@@ -283,7 +287,8 @@ export function EditWorkshopDialog({
               <Input
                 id="edit-workshop-participants"
                 type="number"
-                min="0"
+                min={WORKSHOP_FIELD_LIMITS.nb_participants.min}
+                max={WORKSHOP_FIELD_LIMITS.nb_participants.max}
                 aria-invalid={!!participantsError}
                 disabled={isPending}
                 {...register("nb_participants")}
@@ -301,7 +306,8 @@ export function EditWorkshopDialog({
               <Input
                 id="edit-workshop-sessions"
                 type="number"
-                min="1"
+                min={WORKSHOP_FIELD_LIMITS.number_of_sessions.min}
+                max={WORKSHOP_FIELD_LIMITS.number_of_sessions.max}
                 aria-invalid={!!sessionsError}
                 disabled={isPending}
                 {...register("number_of_sessions")}
@@ -321,7 +327,8 @@ export function EditWorkshopDialog({
             <Input
               id="edit-workshop-price"
               type="number"
-              min="0"
+              min={WORKSHOP_FIELD_LIMITS.price.min}
+              max={WORKSHOP_FIELD_LIMITS.price.max}
               step="0.01"
               aria-invalid={!!priceError}
               disabled={isPending}
@@ -377,6 +384,7 @@ export function EditWorkshopDialog({
             />
             <Input
               id="edit-workshop-audience"
+              maxLength={WORKSHOP_FIELD_LIMITS.target_audience.max}
               aria-invalid={!!audienceError}
               disabled={isPending}
               {...register("target_audience")}
@@ -394,6 +402,7 @@ export function EditWorkshopDialog({
             />
             <Input
               id="edit-workshop-place"
+              maxLength={WORKSHOP_FIELD_LIMITS.delivery_place.max}
               aria-invalid={!!placeError}
               disabled={isPending}
               {...register("delivery_place")}
@@ -412,6 +421,7 @@ export function EditWorkshopDialog({
             <textarea
               id="edit-workshop-notes"
               rows={3}
+              maxLength={WORKSHOP_FIELD_LIMITS.proposal_notes.max}
               aria-invalid={!!notesError}
               disabled={isPending}
               className={textareaClassName}

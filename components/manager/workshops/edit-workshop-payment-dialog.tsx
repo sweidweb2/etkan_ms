@@ -32,6 +32,7 @@ import {
   WORKSHOP_PAYMENT_TYPE_VALUES,
   WORKSHOP_PAYMENT_TYPES,
 } from "@/lib/constants/manager-workshop-display";
+import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import { cn } from "@/lib/utils";
 import {
   updateWorkshopPaymentSchema,
@@ -204,7 +205,8 @@ export function EditWorkshopPaymentDialog({
                 id="edit-workshop-payment-amount"
                 type="number"
                 step="0.01"
-                min={0}
+                min={WORKSHOP_FIELD_LIMITS.payment_amount.min}
+                max={WORKSHOP_FIELD_LIMITS.payment_amount.max}
                 disabled={isPending}
                 aria-invalid={Boolean(amountError)}
                 {...register("amount")}
@@ -286,6 +288,7 @@ export function EditWorkshopPaymentDialog({
             <textarea
               id="edit-workshop-payment-notes"
               rows={3}
+              maxLength={WORKSHOP_FIELD_LIMITS.payment_notes.max}
               disabled={isPending}
               className={textareaClassName}
               aria-invalid={Boolean(notesError)}

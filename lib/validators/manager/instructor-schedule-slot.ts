@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  SCHEDULE_SLOT_DURATION_LIMITS,
+  SCHEDULE_SLOT_FIELD_LIMITS,
+} from "@/lib/constants/workshop-field-limits";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 import type {
@@ -128,7 +132,9 @@ const instructorScheduleSlotFields = z
       .string()
       .trim()
       .min(1, { message: "Name is required." })
-      .max(120, { message: "Name must be at most 120 characters." }),
+      .max(SCHEDULE_SLOT_FIELD_LIMITS.name.max, {
+        message: `Name must be at most ${SCHEDULE_SLOT_FIELD_LIMITS.name.max} characters.`,
+      }),
     type: z.enum(INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES, {
       message: "Type is required.",
     }),
@@ -150,10 +156,29 @@ const instructorScheduleSlotFields = z
       .regex(hexColorPattern, { message: "Please choose a valid color." }),
   })
   .superRefine((values, context) => {
-    if (timeToMinutes(values.end_time) <= timeToMinutes(values.start_time)) {
+    const startMinutes = timeToMinutes(values.start_time);
+    const endMinutes = timeToMinutes(values.end_time);
+    if (endMinutes <= startMinutes) {
       context.addIssue({
         code: "custom",
         message: "End time must be after start time.",
+        path: ["end_time"],
+      });
+      return;
+    }
+
+    const durationMinutes = endMinutes - startMinutes;
+    if (durationMinutes < SCHEDULE_SLOT_DURATION_LIMITS.minMinutes) {
+      context.addIssue({
+        code: "custom",
+        message: `Slot must be at least ${SCHEDULE_SLOT_DURATION_LIMITS.minMinutes} minutes.`,
+        path: ["end_time"],
+      });
+    }
+    if (durationMinutes > SCHEDULE_SLOT_DURATION_LIMITS.maxMinutes) {
+      context.addIssue({
+        code: "custom",
+        message: `Slot must be under 24 hours (max ${SCHEDULE_SLOT_DURATION_LIMITS.maxMinutes} minutes).`,
         path: ["end_time"],
       });
     }

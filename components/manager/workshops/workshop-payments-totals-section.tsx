@@ -21,7 +21,7 @@ import {
   type WorkshopPaymentMethod,
 } from "@/lib/constants/manager-workshop-display";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
-import { getManagerWorkshopPaymentsRoute } from "@/lib/constants/routes";
+import { getManagerWorkshopDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type {
   ManagerWorkshopPaymentLedgerRow,
@@ -170,7 +170,7 @@ export function WorkshopPaymentsTotalsSection({
                           </td>
                           <td className="py-3 pr-3 align-top">
                             <Link
-                              href={getManagerWorkshopPaymentsRoute(
+                              href={getManagerWorkshopDetailRoute(
                                 payment.workshop_id
                               )}
                               className="font-medium text-foreground underline-offset-4 hover:underline"

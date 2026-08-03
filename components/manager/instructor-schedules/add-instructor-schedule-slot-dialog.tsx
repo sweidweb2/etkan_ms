@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
+import { SCHEDULE_SLOT_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   createInstructorScheduleSlotSchema,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
@@ -295,6 +296,7 @@ export function AddInstructorScheduleSlotDialog({
             />
             <Input
               id="add-instructor-schedule-slot-name"
+              maxLength={SCHEDULE_SLOT_FIELD_LIMITS.name.max}
               aria-invalid={!!nameError}
               disabled={isPending}
               placeholder="e.g. Office hours, Meeting block"

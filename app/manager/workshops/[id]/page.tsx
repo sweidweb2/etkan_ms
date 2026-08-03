@@ -28,6 +28,8 @@ export default async function ManagerWorkshopDetailPage({
     <WorkshopDetailsPanel
       workshop={detail.workshop}
       paymentCount={detail.payment_count}
+      payments={detail.payments}
+      paymentSummary={detail.payment_summary}
       instructors={detail.instructors}
       instructorCandidates={detail.instructorCandidates}
       documents={detail.documents}

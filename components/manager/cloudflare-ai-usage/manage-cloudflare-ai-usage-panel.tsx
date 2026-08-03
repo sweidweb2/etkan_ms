@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MessageSquareTextIcon,
+  RefreshCwIcon,
   SearchIcon,
 } from "lucide-react";
+import { CloudflareAiUsageAnalytics } from "@/components/manager/cloudflare-ai-usage/cloudflare-ai-usage-analytics";
 import { CloudflareAiUsageDetailsDialog } from "@/components/manager/cloudflare-ai-usage/cloudflare-ai-usage-details-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +52,8 @@ function statusClassName(status: ManagerCloudflareAiUsageRow["status"]) {
 export function ManageCloudflareAiUsagePanel({
   initialRecords,
 }: ManageCloudflareAiUsagePanelProps) {
+  const router = useRouter();
+  const [isRefreshing, startRefreshTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_ALL);
   const [page, setPage] = useState(1);
@@ -85,6 +90,12 @@ export function ManageCloudflareAiUsagePanel({
     safePage * PAGE_SIZE
   );
 
+  function handleRefresh() {
+    startRefreshTransition(() => {
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -93,6 +104,8 @@ export function ManageCloudflareAiUsagePanel({
           Cloudflare Workers AI requests logged from manager assistants.
         </p>
       </div>
+
+      <CloudflareAiUsageAnalytics records={initialRecords} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
@@ -124,6 +137,17 @@ export function ManageCloudflareAiUsagePanel({
             <SelectItem value="error">Error</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Refresh usage table"
+          title="Refresh"
+          disabled={isRefreshing}
+          onClick={handleRefresh}
+        >
+          <RefreshCwIcon className={cn(isRefreshing && "animate-spin")} />
+        </Button>
       </div>
 
       <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">

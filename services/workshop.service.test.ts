@@ -28,7 +28,6 @@ import {
   deleteWorkshopForManager,
   deleteWorkshopPaymentForManager,
   getWorkshopForManager,
-  getWorkshopPaymentsPageForManager,
   listWorkshopsForManager,
   removeWorkshopInstructorForManager,
   renameWorkshopDocumentForManager,
@@ -400,7 +399,7 @@ describe("getWorkshopForManager", () => {
     vi.resetAllMocks();
   });
 
-  it("returns workshop with payment_count, instructors, and candidates", async () => {
+  it("returns workshop with payments, instructors, and candidates", async () => {
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
       data: workshopRecord,
       error: null,
@@ -409,11 +408,19 @@ describe("getWorkshopForManager", () => {
       statusText: "OK",
     });
     vi.mocked(
-      workshopRepository.countWorkshopPaymentsByWorkshopId
+      workshopPaymentRepository.listWorkshopPaymentsByWorkshopId
     ).mockResolvedValue({
-      data: null,
+      data: [
+        paymentRecord,
+        {
+          ...paymentRecord,
+          id: "66666666-6666-4666-8666-666666666666",
+          amount: 20,
+          type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        },
+      ],
       error: null,
-      count: 3,
+      count: null,
       status: 200,
       statusText: "OK",
     });
@@ -473,7 +480,10 @@ describe("getWorkshopForManager", () => {
       workshopId
     );
 
-    expect(detail?.payment_count).toBe(3);
+    expect(detail?.payment_count).toBe(2);
+    expect(detail?.payments).toHaveLength(2);
+    expect(detail?.payment_summary.net).toBe(80);
+    expect(detail?.payment_summary.remaining).toBe(70);
     expect(detail?.workshop.id).toBe(workshopId);
     expect(detail?.instructors).toHaveLength(1);
     expect(detail?.instructors[0]?.username).toBe("lead_teacher");
@@ -1161,49 +1171,6 @@ describe("buildWorkshopPaymentsTotals", () => {
       payment_count: 3,
       workshops_with_payments: 2,
     });
-  });
-});
-
-describe("getWorkshopPaymentsPageForManager", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns workshop payments and summary", async () => {
-    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
-      data: workshopRecord,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentsByWorkshopId
-    ).mockResolvedValue({
-      data: [
-        paymentRecord,
-        {
-          ...paymentRecord,
-          id: "66666666-6666-4666-8666-666666666666",
-          amount: 20,
-          type: WORKSHOP_PAYMENT_TYPES.DEBIT,
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    const page = await getWorkshopPaymentsPageForManager(
-      adminClient,
-      actor.userId,
-      workshopId
-    );
-
-    expect(page?.payments).toHaveLength(2);
-    expect(page?.summary.net).toBe(80);
-    expect(page?.summary.remaining).toBe(70);
   });
 });
 

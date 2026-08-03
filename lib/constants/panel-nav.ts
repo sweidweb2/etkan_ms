@@ -92,6 +92,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "school",
         },
         {
+          title: "Instructor schedules",
+          href: ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
+          icon: "calendar-days",
+        },
+        {
           title: "Manage workshops",
           href: ROUTES.MANAGER_WORKSHOPS,
           icon: "presentation",

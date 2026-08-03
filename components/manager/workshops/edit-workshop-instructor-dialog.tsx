@@ -30,7 +30,9 @@ import {
   WORKSHOP_INSTRUCTOR_ROLE_VALUES,
   WORKSHOP_WAGE_TYPE_LABELS,
   WORKSHOP_WAGE_TYPE_VALUES,
+  WORKSHOP_WAGE_TYPES,
 } from "@/lib/constants/manager-workshop-display";
+import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import { cn } from "@/lib/utils";
 import {
   updateWorkshopInstructorSchema,
@@ -249,7 +251,12 @@ export function EditWorkshopInstructorDialog({
               id="edit-instructor-wage-amount"
               type="number"
               step="any"
-              min={0}
+              min={WORKSHOP_FIELD_LIMITS.wage_amount.min}
+              max={
+                wageType === WORKSHOP_WAGE_TYPES.PERCENTAGE
+                  ? WORKSHOP_FIELD_LIMITS.wage_percentage.max
+                  : WORKSHOP_FIELD_LIMITS.wage_amount.max
+              }
               disabled={isPending}
               aria-invalid={Boolean(wageAmountError)}
               {...register("wage_amount")}
@@ -268,6 +275,7 @@ export function EditWorkshopInstructorDialog({
             <textarea
               id="edit-instructor-notes"
               rows={3}
+              maxLength={WORKSHOP_FIELD_LIMITS.instructor_notes.max}
               disabled={isPending}
               className={textareaClassName}
               aria-invalid={Boolean(notesError)}

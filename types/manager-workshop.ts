@@ -96,6 +96,8 @@ export type ManagerWorkshopInstructorCandidate = {
 export type ManagerWorkshopDetailPageData = {
   workshop: ManagerWorkshopRow;
   payment_count: number;
+  payments: ManagerWorkshopPaymentRow[];
+  payment_summary: ManagerWorkshopPaymentSummary;
   instructors: ManagerWorkshopInstructorRow[];
   instructorCandidates: ManagerWorkshopInstructorCandidate[];
   documents: ManagerWorkshopDocumentRow[];
@@ -182,12 +184,6 @@ export type ManagerWorkshopPaymentSummary = {
   net: number;
   price: number | null;
   remaining: number | null;
-};
-
-export type ManagerWorkshopPaymentsPageData = {
-  workshop: ManagerWorkshopRow;
-  payments: ManagerWorkshopPaymentRow[];
-  summary: ManagerWorkshopPaymentSummary;
 };
 
 export type CreateWorkshopPaymentActionState = {
