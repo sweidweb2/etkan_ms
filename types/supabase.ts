@@ -238,6 +238,68 @@ export type Database = {
           },
         ]
       }
+      cloudflare_ai_usage: {
+        Row: {
+          completion_tokens: number | null
+          created_at: string
+          error_message: string | null
+          feature: string
+          id: string
+          metadata: Json | null
+          model: string
+          prompt: string
+          prompt_tokens: number | null
+          response: string | null
+          status: string
+          tool_rounds: number
+          total_tokens: number | null
+          user_id: string | null
+          user_label: string
+        }
+        Insert: {
+          completion_tokens?: number | null
+          created_at?: string
+          error_message?: string | null
+          feature: string
+          id?: string
+          metadata?: Json | null
+          model: string
+          prompt: string
+          prompt_tokens?: number | null
+          response?: string | null
+          status: string
+          tool_rounds?: number
+          total_tokens?: number | null
+          user_id?: string | null
+          user_label?: string
+        }
+        Update: {
+          completion_tokens?: number | null
+          created_at?: string
+          error_message?: string | null
+          feature?: string
+          id?: string
+          metadata?: Json | null
+          model?: string
+          prompt?: string
+          prompt_tokens?: number | null
+          response?: string | null
+          status?: string
+          tool_rounds?: number
+          total_tokens?: number | null
+          user_id?: string | null
+          user_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cloudflare_ai_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_teacher: {
         Row: {
           assigned_at: string | null

@@ -408,6 +408,24 @@ Table audit_logs {
   created_at timestamptz [not null, default: `now()`]
 }
 
+Table cloudflare_ai_usage {
+  id uuid [pk, default: `gen_random_uuid()`]
+  created_at timestamptz [not null, default: `now()`]
+  user_id uuid
+  user_label text [not null, default: 'Unknown']
+  feature text [not null]
+  model text [not null]
+  prompt text [not null]
+  response text
+  status text [not null, note: 'success | refused | error']
+  error_message text
+  prompt_tokens integer
+  completion_tokens integer
+  total_tokens integer
+  tool_rounds integer [not null, default: 0]
+  metadata jsonb
+}
+
 Table backup_history {
   id uuid [pk, default: `gen_random_uuid()`]
   created_by uuid
@@ -478,6 +496,7 @@ Ref: notifications.recipient_id > profiles.id
 Ref: notifications.created_by > profiles.id
 
 Ref: audit_logs.user_id > profiles.id
+Ref: cloudflare_ai_usage.user_id > profiles.id
 
 Ref: backup_history.created_by > profiles.id
 

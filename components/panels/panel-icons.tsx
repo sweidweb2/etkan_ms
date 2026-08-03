@@ -21,6 +21,7 @@ import {
   Server,
   Settings,
   Shield,
+  Sparkles,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -46,6 +47,7 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   analytics: ChartColumn,
   backup: DatabaseBackup,
   logs: ScrollText,
+  sparkles: Sparkles,
   clock: Clock,
   shield: Shield,
 };

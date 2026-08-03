@@ -18,6 +18,7 @@ export type PanelNavIconKey =
   | "analytics"
   | "backup"
   | "logs"
+  | "sparkles"
   | "clock"
   | "shield";
 

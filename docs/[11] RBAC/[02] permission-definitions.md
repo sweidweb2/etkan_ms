@@ -266,6 +266,12 @@ Format: `key` — label — access
 |-----|-------|--------|
 | `logs.view` | View audit logs | read |
 
+### Cloudflare AI usage
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `cloudflare_ai_usage.view` | View Cloudflare AI usage logs | read |
+
 ### Cron Jobs
 
 | Key | Label | Access |
@@ -395,6 +401,7 @@ backup.export_table
 backup.export_full
 backup.download
 logs.view
+cloudflare_ai_usage.view
 cron_jobs.view
 settings.view
 settings.maintenance

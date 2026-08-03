@@ -60,6 +60,7 @@ export const ROUTES = {
   MANAGER_ANALYTICS: "/manager/analytics",
   MANAGER_BACKUP: "/manager/backup",
   MANAGER_LOGS: "/manager/logs",
+  MANAGER_CLOUDFLARE_AI_USAGE: "/manager/cloudflare-ai-usage",
   MANAGER_CRON_JOBS: "/manager/cron-jobs",
   MANAGER_RBAC: "/manager/rbac",
   CEO_ROOT: "/ceo",

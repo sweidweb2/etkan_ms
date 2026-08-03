@@ -40,6 +40,7 @@ import { usePermissions } from "@/components/auth/permissions-provider";
 import { AddInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/add-instructor-schedule-slot-dialog";
 import { CopyLastWeekInstructorScheduleDialog } from "@/components/manager/instructor-schedules/copy-last-week-instructor-schedule-dialog";
 import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
+import { ScheduleAssistantPrompt } from "@/components/manager/instructor-schedules/schedule-assistant-prompt";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -1040,30 +1041,9 @@ export function InstructorSchedulesPanel({
             .
           </p>
         </div>
-        <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
-          <div className="flex shrink-0 flex-row flex-nowrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!selectedInstructorId}
-              onClick={() => {
-                void handleOpenCopyLastWeek();
-              }}
-            >
-              <CopyIcon data-icon="inline-start" />
-              Copy last week
-            </Button>
-            <Button
-              type="button"
-              disabled={!selectedInstructorId}
-              onClick={() => openCreate(null)}
-            >
-              <PlusIcon data-icon="inline-start" />
-              Add slot
-            </Button>
-          </div>
-        </Can>
       </div>
+
+      <ScheduleAssistantPrompt />
 
       <div
         role="tablist"
@@ -1092,10 +1072,10 @@ export function InstructorSchedulesPanel({
         })}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="flex flex-col items-stretch gap-3 sm:grid sm:grid-cols-3 sm:items-center">
         <div
           aria-label="Slot counts for this week"
-          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:justify-self-start"
         >
           {INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES.map((type) => {
             const Icon = TYPE_STAT_ICONS[type];
@@ -1117,10 +1097,36 @@ export function InstructorSchedulesPanel({
           })}
         </div>
 
+        <div className="flex shrink-0 flex-row flex-wrap items-center justify-center gap-2 sm:justify-self-center">
+          <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!selectedInstructorId}
+              onClick={() => {
+                void handleOpenCopyLastWeek();
+              }}
+            >
+              <CopyIcon data-icon="inline-start" />
+              Copy last week
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!selectedInstructorId}
+              onClick={() => openCreate(null)}
+            >
+              <PlusIcon data-icon="inline-start" />
+              Add slot
+            </Button>
+          </Can>
+        </div>
+
         <div
           role="tablist"
           aria-label="Filter by slot type"
-          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:justify-self-end"
         >
           {TYPE_FILTER_OPTIONS.map((option) => {
             const selected = typeFilter === option.value;

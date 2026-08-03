@@ -26,6 +26,7 @@ export const BACKUP_TABLES = [
   "student_takeouts",
   "notifications",
   "audit_logs",
+  "cloudflare_ai_usage",
   "backup_history",
 ] as const;
 
@@ -59,5 +60,6 @@ export const BACKUP_TABLE_LABELS: Record<BackupTableName, string> = {
   student_takeouts: "Student takeouts",
   notifications: "Notifications",
   audit_logs: "Audit logs",
+  cloudflare_ai_usage: "Cloudflare AI usage",
   backup_history: "Backup history",
 };

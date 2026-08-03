@@ -65,16 +65,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "library",
         },
         {
-          title: "Manage instructors",
-          href: ROUTES.MANAGER_INSTRUCTORS,
-          icon: "school",
-        },
-        {
-          title: "Manage workshops",
-          href: ROUTES.MANAGER_WORKSHOPS,
-          icon: "presentation",
-        },
-        {
           title: "Manage classes",
           href: ROUTES.MANAGER_CLASSES,
           icon: "school",
@@ -88,6 +78,28 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           title: "Manage equipments",
           href: ROUTES.MANAGER_EQUIPMENTS,
           icon: "package",
+        },
+      ],
+    },
+    {
+      id: "instructors-workshops",
+      label: "Instructors & workshops",
+      defaultOpen: true,
+      items: [
+        {
+          title: "Manage instructors",
+          href: ROUTES.MANAGER_INSTRUCTORS,
+          icon: "school",
+        },
+        {
+          title: "Manage workshops",
+          href: ROUTES.MANAGER_WORKSHOPS,
+          icon: "presentation",
+        },
+        {
+          title: "AI usage",
+          href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
+          icon: "sparkles",
         },
       ],
     },
