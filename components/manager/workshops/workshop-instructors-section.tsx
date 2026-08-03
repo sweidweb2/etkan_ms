@@ -174,7 +174,7 @@ export function WorkshopInstructorsSection({
           </Can>
         }
       >
-        <div className="px-3 py-4 sm:px-4">
+        <div className="px-3 pt-4 pb-0 sm:px-4">
           {instructors.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No instructors assigned yet.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import {
   BanIcon,
   CalendarDaysIcon,
@@ -188,6 +188,10 @@ export function WorkshopStatusStepper({
   const [proposalNotes, setProposalNotes] = useState(
     workshop.proposal_notes ?? ""
   );
+  const proposalNotesSyncKey = `${workshop.id}:${workshop.proposal_notes ?? ""}`;
+  const [prevProposalNotesSyncKey, setPrevProposalNotesSyncKey] = useState(
+    proposalNotesSyncKey
+  );
   const [isStatusTransitionPending, startStatusTransition] = useTransition();
   const [isNotesTransitionPending, startNotesTransition] = useTransition();
   const [statusState, statusFormAction, isStatusActionPending] = useActionState(
@@ -213,9 +217,10 @@ export function WorkshopStatusStepper({
     }
   );
 
-  useEffect(() => {
+  if (proposalNotesSyncKey !== prevProposalNotesSyncKey) {
+    setPrevProposalNotesSyncKey(proposalNotesSyncKey);
     setProposalNotes(workshop.proposal_notes ?? "");
-  }, [workshop.proposal_notes, workshop.id]);
+  }
 
   useActionStateToast(statusState, isStatusPending);
   useActionStateToast(notesState, isNotesPending);

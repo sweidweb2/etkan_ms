@@ -52,13 +52,30 @@ export function UploadWorkshopDocumentDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [isSelectProgressActive, setIsSelectProgressActive] = useState(false);
   const [selectProgressComplete, setSelectProgressComplete] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
+
+  function resetUploadForm() {
+    formRef.current?.reset();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setSelectedFileName(null);
+    setIsSelectProgressActive(false);
+    setSelectProgressComplete(false);
+    setUploadComplete(false);
+  }
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
+    onOpenChange(nextOpen);
+    if (!nextOpen) {
+      resetUploadForm();
+    }
+  });
 
   const selectProgress = useSimulatedProgressPercent(isSelectProgressActive);
   const uploadProgress = useSimulatedProgressPercent(isPending && !uploadComplete);
@@ -75,19 +92,6 @@ export function UploadWorkshopDocumentDialog({
   const showProgress = Boolean(selectedFileName) || isPending;
 
   useActionStateToast(state, isPending);
-
-  useEffect(() => {
-    if (!open) {
-      formRef.current?.reset();
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      setSelectedFileName(null);
-      setIsSelectProgressActive(false);
-      setSelectProgressComplete(false);
-      setUploadComplete(false);
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!isSelectProgressActive || selectProgress < 92) {
@@ -108,6 +112,7 @@ export function UploadWorkshopDocumentDialog({
     setUploadComplete(true);
     window.setTimeout(() => {
       onOpenChange(false);
+      resetUploadForm();
       onUploaded();
     }, 220);
   });

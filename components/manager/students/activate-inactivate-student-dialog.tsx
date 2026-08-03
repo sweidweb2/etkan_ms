@@ -56,6 +56,7 @@ export function ActivateInactivateStudentDialog({
   const [preview, setPreview] =
     useState<StudentStatusSideEffectsPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
   const [isPreviewPending, startPreviewTransition] = useTransition();
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
@@ -64,6 +65,16 @@ export function ActivateInactivateStudentDialog({
   );
   const isPending = isActionPending || isTransitionPending || isPreviewPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) {
+      setRemoveFromClasses(false);
+      setRemoveOpenSpps(false);
+      setPreview(null);
+      setPreviewError(null);
+    }
+  }
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, (next) => {
@@ -75,15 +86,7 @@ export function ActivateInactivateStudentDialog({
   });
 
   useEffect(() => {
-    if (!open) {
-      setRemoveFromClasses(false);
-      setRemoveOpenSpps(false);
-      setPreview(null);
-      setPreviewError(null);
-      return;
-    }
-
-    if (isActivate) {
+    if (!open || isActivate) {
       return;
     }
 

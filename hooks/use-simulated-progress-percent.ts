@@ -9,14 +9,19 @@ export function useSimulatedProgressPercent(
   intervalMs = 100
 ): number {
   const [percent, setPercent] = useState(0);
+  const progressKey = isActive ? `active:${intervalMs}` : "idle";
+  const [trackedKey, setTrackedKey] = useState(progressKey);
+
+  if (progressKey !== trackedKey) {
+    setTrackedKey(progressKey);
+    setPercent(isActive ? 6 : 0);
+  }
 
   useEffect(() => {
     if (!isActive) {
-      setPercent(0);
       return;
     }
 
-    setPercent(6);
     const timerId = window.setInterval(() => {
       setPercent((current) => {
         if (current >= 92) {

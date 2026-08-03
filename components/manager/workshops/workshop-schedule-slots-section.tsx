@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
@@ -82,6 +82,7 @@ export function WorkshopScheduleSlotsSection({
 }: WorkshopScheduleSlotsSectionProps) {
   const router = useRouter();
   const [slots, setSlots] = useState(initialSlots);
+  const [prevInitialSlots, setPrevInitialSlots] = useState(initialSlots);
   const [selectedSession, setSelectedSession] =
     useState<ManagerInstructorScheduleSession | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -97,9 +98,10 @@ export function WorkshopScheduleSlotsSection({
     }
   );
 
-  useEffect(() => {
+  if (initialSlots !== prevInitialSlots) {
+    setPrevInitialSlots(initialSlots);
     setSlots(initialSlots);
-  }, [initialSlots]);
+  }
 
   async function handleUpdate(values: UpdateInstructorScheduleSlotInput) {
     const previous = slots.find((slot) => slot.id === values.id);

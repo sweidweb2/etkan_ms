@@ -344,16 +344,16 @@ export function WorkshopDetailsPanel({
         }}
       />
 
-      <WorkshopInstructorsSection
-        workshopId={workshop.id}
-        instructors={instructors}
-        candidates={instructorCandidates}
-      />
-
       <WorkshopScheduleSlotsSection
         workshopId={workshop.id}
         workshopName={workshop.name}
         scheduleSlots={scheduleSlots}
+      />
+
+      <WorkshopInstructorsSection
+        workshopId={workshop.id}
+        instructors={instructors}
+        candidates={instructorCandidates}
       />
 
       <WorkshopDocumentsSection
