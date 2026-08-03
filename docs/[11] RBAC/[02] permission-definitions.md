@@ -63,7 +63,7 @@ Format: `key` — label — access
 | `students.view` | View students | read |
 | `students.create` | Create student | write |
 | `students.update` | Edit student | write |
-| `students.change_status` | Change student status | write |
+| `students.change_status` | Activate / inactivate student (optional class leave + payment-free open SPP delete) | write |
 
 ### Relationships
 

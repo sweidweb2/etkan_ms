@@ -9,9 +9,11 @@ import {
   ChevronRightIcon,
   EyeIcon,
   PlusIcon,
+  PowerIcon,
   SearchIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
+import { ActivateInactivateStudentDialog } from "@/components/manager/students/activate-inactivate-student-dialog";
 import { AddStudentDialog } from "@/components/manager/students/add-student-dialog";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -156,6 +158,35 @@ function StudentViewAction({ student }: { student: ManagerStudentRow }) {
   );
 }
 
+function StudentStatusAction({
+  student,
+  onOpen,
+}: {
+  student: ManagerStudentRow;
+  onOpen: (student: ManagerStudentRow) => void;
+}) {
+  const isActivate = student.status !== STUDENT_STATUSES.ACTIVE;
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+      aria-label={
+        isActivate
+          ? `Activate ${student.full_name}`
+          : `Inactivate ${student.full_name}`
+      }
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen(student);
+      }}
+    >
+      <PowerIcon className="size-4" />
+    </Button>
+  );
+}
+
 export function ManageStudentsPanel({
   initialStudents,
 }: {
@@ -163,6 +194,9 @@ export function ManageStudentsPanel({
 }) {
   const router = useRouter();
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<ManagerStudentRow | null>(
+    null
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
@@ -286,6 +320,24 @@ export function ManageStudentsPanel({
           onStudentCreated={handleStudentCreated}
         />
 
+        {statusTarget ? (
+          <ActivateInactivateStudentDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setStatusTarget(null);
+              }
+            }}
+            userId={statusTarget.user_id}
+            displayName={statusTarget.full_name}
+            currentStatus={statusTarget.status}
+            onCompleted={() => {
+              setStatusTarget(null);
+              router.refresh();
+            }}
+          />
+        ) : null}
+
         <Card className="py-0">
           <CardHeader className="border-b py-3">
             <CardTitle>Students</CardTitle>
@@ -400,7 +452,15 @@ export function ManageStudentsPanel({
                           className="px-4 py-3 text-right"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <StudentViewAction student={student} />
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <Can permission={PERMISSIONS.STUDENTS_CHANGE_STATUS}>
+                              <StudentStatusAction
+                                student={student}
+                                onOpen={setStatusTarget}
+                              />
+                            </Can>
+                            <StudentViewAction student={student} />
+                          </div>
                         </td>
                       </tr>
                     ))

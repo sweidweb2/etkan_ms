@@ -280,7 +280,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.STUDENTS_CHANGE_STATUS,
     feature: "students",
-    label: "Change student status",
+    label: "Activate / inactivate student",
     access: PERMISSION_ACCESS.WRITE,
   },
 

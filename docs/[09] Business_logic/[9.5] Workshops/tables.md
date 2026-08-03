@@ -4,6 +4,8 @@ id
 name
 subject
 status(draft,proposal,scheduled,in_progress,completed,cancelled)
+type(course,online,workshop)
+phone
 target_audience
 nb_participants
 proposal_notes

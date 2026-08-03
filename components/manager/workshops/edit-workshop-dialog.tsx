@@ -14,10 +14,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
+import {
+  WORKSHOP_OFFERING_TYPE_LABELS,
+  WORKSHOP_OFFERING_TYPE_VALUES,
+} from "@/lib/constants/manager-workshop-display";
 import {
   updateWorkshopSchema,
   type UpdateWorkshopInput,
@@ -45,6 +56,8 @@ function toFormDefaults(workshop: ManagerWorkshopRow) {
   return {
     id: workshop.id,
     name: workshop.name,
+    type: workshop.type,
+    phone: workshop.phone ?? "",
     subject: workshop.subject ?? "",
     target_audience: workshop.target_audience ?? "",
     proposal_notes: workshop.proposal_notes ?? "",
@@ -79,12 +92,16 @@ export function EditWorkshopDialog({
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useZodForm({
     schema: updateWorkshopSchema,
     mode: "onBlur",
     defaultValues: toFormDefaults(workshop),
   });
+
+  const offeringType = watch("type");
 
   useEffect(() => {
     if (open) {
@@ -103,6 +120,8 @@ export function EditWorkshopDialog({
     const formData = new FormData();
     formData.set("id", values.id);
     formData.set("name", values.name.trim());
+    formData.set("type", values.type);
+    formData.set("phone", values.phone ?? "");
     formData.set("subject", values.subject ?? "");
     formData.set("target_audience", values.target_audience ?? "");
     formData.set("proposal_notes", values.proposal_notes ?? "");
@@ -127,6 +146,8 @@ export function EditWorkshopDialog({
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const typeError = errors.type?.message ?? state.fieldErrors?.type?.[0];
+  const phoneError = errors.phone?.message ?? state.fieldErrors?.phone?.[0];
   const subjectError =
     errors.subject?.message ?? state.fieldErrors?.subject?.[0];
   const audienceError =
@@ -178,6 +199,61 @@ export function EditWorkshopDialog({
             {nameError ? (
               <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="edit-workshop-type"
+                label="Type"
+                hint="Required"
+              />
+              <Select
+                value={offeringType}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  setValue("type", value as UpdateWorkshopInput["type"], {
+                    shouldValidate: true,
+                  });
+                }}
+                disabled={isPending}
+              >
+                <SelectTrigger
+                  id="edit-workshop-type"
+                  aria-invalid={!!typeError}
+                  className="w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORKSHOP_OFFERING_TYPE_VALUES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {WORKSHOP_OFFERING_TYPE_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {typeError ? (
+                <p className="text-sm text-destructive">{typeError}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="edit-workshop-phone"
+                label="Phone"
+                hint="Optional"
+              />
+              <Input
+                id="edit-workshop-phone"
+                type="tel"
+                aria-invalid={!!phoneError}
+                disabled={isPending}
+                {...register("phone")}
+              />
+              {phoneError ? (
+                <p className="text-sm text-destructive">{phoneError}</p>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">

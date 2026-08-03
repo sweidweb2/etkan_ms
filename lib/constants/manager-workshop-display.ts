@@ -10,6 +10,30 @@ import {
   type TransactionType,
 } from "@/lib/manager/accounting/constants";
 
+export const WORKSHOP_OFFERING_TYPES = {
+  COURSE: "course",
+  ONLINE: "online",
+  WORKSHOP: "workshop",
+} as const;
+
+export type WorkshopOfferingType =
+  (typeof WORKSHOP_OFFERING_TYPES)[keyof typeof WORKSHOP_OFFERING_TYPES];
+
+export const WORKSHOP_OFFERING_TYPE_VALUES = [
+  WORKSHOP_OFFERING_TYPES.COURSE,
+  WORKSHOP_OFFERING_TYPES.ONLINE,
+  WORKSHOP_OFFERING_TYPES.WORKSHOP,
+] as const;
+
+export const WORKSHOP_OFFERING_TYPE_LABELS: Record<
+  WorkshopOfferingType,
+  string
+> = {
+  course: "Course",
+  online: "Online",
+  workshop: "Workshop",
+};
+
 export const MANAGER_WORKSHOP_STATUS_LABELS: Record<WorkshopStatusValue, string> =
   {
     draft: "Draft",

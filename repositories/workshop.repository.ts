@@ -4,13 +4,15 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const WORKSHOP_COLUMNS =
-  "id, name, subject, status, target_audience, nb_participants, proposal_notes, number_of_sessions, price, start_date, end_date, delivery_place, created_by, created_at, updated_at";
+  "id, name, subject, status, type, phone, target_audience, nb_participants, proposal_notes, number_of_sessions, price, start_date, end_date, delivery_place, created_by, created_at, updated_at";
 
 export type WorkshopRecord = {
   id: string;
   name: string;
   subject: string | null;
   status: string;
+  type: string;
+  phone: string | null;
   target_audience: string | null;
   nb_participants: number | null;
   proposal_notes: string | null;
@@ -28,6 +30,8 @@ export type CreateWorkshopRecordInput = {
   name: string;
   subject?: string | null;
   status: string;
+  type: string;
+  phone?: string | null;
   target_audience?: string | null;
   nb_participants?: number | null;
   proposal_notes?: string | null;
@@ -42,6 +46,8 @@ export type CreateWorkshopRecordInput = {
 export type UpdateWorkshopRecordInput = {
   name: string;
   subject: string | null;
+  type: string;
+  phone: string | null;
   target_audience: string | null;
   nb_participants: number | null;
   proposal_notes: string | null;
@@ -77,6 +83,8 @@ export async function createWorkshop(
       name: input.name,
       subject: input.subject ?? null,
       status: input.status,
+      type: input.type,
+      phone: input.phone ?? null,
       target_audience: input.target_audience ?? null,
       nb_participants: input.nb_participants ?? null,
       proposal_notes: input.proposal_notes ?? null,
@@ -101,6 +109,8 @@ export async function updateWorkshopById(
     .update({
       name: input.name,
       subject: input.subject,
+      type: input.type,
+      phone: input.phone,
       target_audience: input.target_audience,
       nb_participants: input.nb_participants,
       proposal_notes: input.proposal_notes,

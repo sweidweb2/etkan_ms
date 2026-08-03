@@ -10,9 +10,11 @@ import {
   EyeIcon,
   PencilIcon,
   PlusIcon,
+  PowerIcon,
   SearchIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
+import { ActivateInactivateStudentDialog } from "@/components/manager/students/activate-inactivate-student-dialog";
 import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
@@ -34,6 +36,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
+import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
+import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerStudentDetailRoute,
@@ -170,6 +174,7 @@ export function ManageUsersPanel({
   const router = useRouter();
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ManagerUserRow | null>(null);
+  const [statusTarget, setStatusTarget] = useState<ManagerUserRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
@@ -314,6 +319,33 @@ export function ManageUsersPanel({
           />
         ) : null}
 
+        {statusTarget &&
+        statusTarget.role === ROLES.STUDENT &&
+        statusTarget.student_profile_id ? (
+          <ActivateInactivateStudentDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setStatusTarget(null);
+              }
+            }}
+            userId={statusTarget.id}
+            displayName={
+              statusTarget.student_full_name ??
+              statusTarget.username ??
+              statusTarget.email
+            }
+            currentStatus={
+              (statusTarget.student_status ??
+                STUDENT_STATUSES.ACTIVE) as StudentStatusValue
+            }
+            onCompleted={() => {
+              setStatusTarget(null);
+              router.refresh();
+            }}
+          />
+        ) : null}
+
         <Card className="py-0">
           <CardHeader className="border-b py-3">
             <CardTitle>Users</CardTitle>
@@ -429,6 +461,29 @@ export function ManageUsersPanel({
                                 <PencilIcon className="size-4" />
                               </Button>
                             </Can>
+                            {user.role === ROLES.STUDENT &&
+                            user.student_profile_id ? (
+                              <Can
+                                permission={PERMISSIONS.STUDENTS_CHANGE_STATUS}
+                              >
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+                                  aria-label={
+                                    (user.student_status ??
+                                      STUDENT_STATUSES.ACTIVE) ===
+                                    STUDENT_STATUSES.ACTIVE
+                                      ? `Inactivate ${user.username ?? user.email}`
+                                      : `Activate ${user.username ?? user.email}`
+                                  }
+                                  onClick={() => setStatusTarget(user)}
+                                >
+                                  <PowerIcon className="size-4" />
+                                </Button>
+                              </Can>
+                            ) : null}
                             <UserDetailsLink user={user} />
                           </div>
                         </td>

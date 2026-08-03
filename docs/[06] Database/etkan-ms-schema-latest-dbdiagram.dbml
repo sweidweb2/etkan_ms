@@ -139,6 +139,8 @@ Table workshops {
   name text [not null]
   subject text [note: 'Free-text topic (not FK to subjects)']
   status text [not null, default: 'draft', note: 'draft | proposal | scheduled | in_progress | completed | cancelled']
+  type text [not null, default: 'workshop', note: 'course | online | workshop']
+  phone text
   target_audience text
   nb_participants integer
   proposal_notes text

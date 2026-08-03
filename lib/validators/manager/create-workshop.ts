@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import { WORKSHOP_OFFERING_TYPE_VALUES } from "@/lib/constants/manager-workshop-display";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 
@@ -83,6 +85,13 @@ export const workshopFieldsSchema = z.object({
     .trim()
     .min(1, { message: "Workshop name is required." })
     .max(200, { message: "Workshop name must be at most 200 characters." }),
+  type: z.enum(WORKSHOP_OFFERING_TYPE_VALUES, {
+    message: "Select a type: course, online, or workshop.",
+  }),
+  phone: optionalTrimmedString(
+    AUTH_LIMITS.phone.max,
+    `Phone must be at most ${AUTH_LIMITS.phone.max} characters.`
+  ),
   subject: optionalTrimmedString(
     200,
     "Subject must be at most 200 characters."
@@ -147,6 +156,8 @@ export function parseCreateWorkshopFormData(formData: FormData):
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = createWorkshopSchema.safeParse({
     name: formData.get("name"),
+    type: formData.get("type"),
+    phone: formData.get("phone"),
     subject: formData.get("subject"),
     target_audience: formData.get("target_audience"),
     proposal_notes: formData.get("proposal_notes"),

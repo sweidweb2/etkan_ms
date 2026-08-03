@@ -1,9 +1,12 @@
 import {
   WORKSHOP_INSTRUCTOR_ROLE_VALUES,
+  WORKSHOP_OFFERING_TYPE_VALUES,
+  WORKSHOP_OFFERING_TYPES,
   WORKSHOP_PAYMENT_TYPES,
   WORKSHOP_PAYMENT_TYPE_VALUES,
   WORKSHOP_WAGE_TYPE_VALUES,
   type WorkshopInstructorRole,
+  type WorkshopOfferingType,
   type WorkshopPaymentMethod,
   type WorkshopPaymentType,
   type WorkshopWageType,
@@ -235,12 +238,23 @@ function mapWorkshopStatus(status: string): WorkshopStatusValue {
   return WORKSHOP_STATUSES.DRAFT;
 }
 
+function mapWorkshopOfferingType(type: string): WorkshopOfferingType {
+  if (
+    (WORKSHOP_OFFERING_TYPE_VALUES as readonly string[]).includes(type)
+  ) {
+    return type as WorkshopOfferingType;
+  }
+  return WORKSHOP_OFFERING_TYPES.WORKSHOP;
+}
+
 function mapWorkshopRecordToRow(record: WorkshopRecord): ManagerWorkshopRow {
   return {
     id: record.id,
     name: record.name,
     subject: record.subject,
     status: mapWorkshopStatus(record.status),
+    type: mapWorkshopOfferingType(record.type),
+    phone: record.phone,
     target_audience: record.target_audience,
     nb_participants: record.nb_participants,
     proposal_notes: record.proposal_notes,
@@ -549,6 +563,8 @@ export async function createWorkshopForManager(
     name: dataInput.name.trim(),
     subject: dataInput.subject,
     status: WORKSHOP_STATUSES.DRAFT,
+    type: dataInput.type,
+    phone: dataInput.phone,
     target_audience: dataInput.target_audience,
     nb_participants: dataInput.nb_participants,
     proposal_notes: dataInput.proposal_notes,
@@ -578,6 +594,8 @@ export async function createWorkshopForManager(
       name: workshop.name,
       subject: workshop.subject,
       status: workshop.status,
+      type: workshop.type,
+      phone: workshop.phone,
       price: workshop.price,
       start_date: workshop.start_date,
       end_date: workshop.end_date,
@@ -641,6 +659,8 @@ export async function updateWorkshopForManager(
     {
       name: dataInput.name.trim(),
       subject: dataInput.subject,
+      type: dataInput.type,
+      phone: dataInput.phone,
       target_audience: dataInput.target_audience,
       nb_participants: dataInput.nb_participants,
       proposal_notes: dataInput.proposal_notes,
@@ -670,6 +690,8 @@ export async function updateWorkshopForManager(
       name: existing.data.name,
       subject: existing.data.subject,
       status: existing.data.status,
+      type: existing.data.type,
+      phone: existing.data.phone,
       price: existing.data.price,
       start_date: existing.data.start_date,
       end_date: existing.data.end_date,
@@ -678,6 +700,8 @@ export async function updateWorkshopForManager(
       name: workshop.name,
       subject: workshop.subject,
       status: workshop.status,
+      type: workshop.type,
+      phone: workshop.phone,
       price: workshop.price,
       start_date: workshop.start_date,
       end_date: workshop.end_date,

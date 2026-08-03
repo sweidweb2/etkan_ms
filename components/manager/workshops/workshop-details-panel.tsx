@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MANAGER_WORKSHOP_STATUS_LABELS } from "@/lib/constants/manager-workshop-display";
+import { MANAGER_WORKSHOP_STATUS_LABELS, WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerWorkshopPaymentsRoute,
@@ -265,6 +265,11 @@ export function WorkshopDetailsPanel({
             </p>
           ) : null}
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <DetailField
+              label="Type"
+              value={WORKSHOP_OFFERING_TYPE_LABELS[workshop.type]}
+            />
+            <DetailField label="Phone" value={workshop.phone} />
             <DetailField label="Subject" value={workshop.subject} />
             <DetailField
               label="Target audience"

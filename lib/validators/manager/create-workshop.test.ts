@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { WORKSHOP_OFFERING_TYPES } from "@/lib/constants/manager-workshop-display";
 import {
   createWorkshopSchema,
   parseCreateWorkshopFormData,
@@ -6,6 +7,8 @@ import {
 
 const validInput = {
   name: "Intro to UX",
+  type: WORKSHOP_OFFERING_TYPES.WORKSHOP,
+  phone: "+961 71 234 567",
   subject: "Design",
   target_audience: "Beginners",
   proposal_notes: "Pilot cohort",
@@ -23,9 +26,11 @@ describe("createWorkshopSchema", () => {
     expect(parsed.success).toBe(true);
   });
 
-  it("accepts name-only with empty optionals", () => {
+  it("accepts name+type with empty optionals", () => {
     const parsed = createWorkshopSchema.safeParse({
       name: "Minimal workshop",
+      type: WORKSHOP_OFFERING_TYPES.COURSE,
+      phone: "",
       subject: "",
       target_audience: "",
       proposal_notes: "",
@@ -38,6 +43,8 @@ describe("createWorkshopSchema", () => {
     });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
+      expect(parsed.data.type).toBe("course");
+      expect(parsed.data.phone).toBeNull();
       expect(parsed.data.subject).toBeNull();
       expect(parsed.data.nb_participants).toBeNull();
       expect(parsed.data.price).toBeNull();
@@ -49,6 +56,22 @@ describe("createWorkshopSchema", () => {
     const parsed = createWorkshopSchema.safeParse({
       ...validInput,
       name: "  ",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects invalid type", () => {
+    const parsed = createWorkshopSchema.safeParse({
+      ...validInput,
+      type: "meeting",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects phone over max length", () => {
+    const parsed = createWorkshopSchema.safeParse({
+      ...validInput,
+      phone: "1".repeat(21),
     });
     expect(parsed.success).toBe(false);
   });
@@ -82,6 +105,8 @@ describe("parseCreateWorkshopFormData", () => {
   it("parses FormData into typed input", () => {
     const formData = new FormData();
     formData.set("name", "Intro to UX");
+    formData.set("type", "online");
+    formData.set("phone", "+961 71 234 567");
     formData.set("subject", "Design");
     formData.set("nb_participants", "20");
     formData.set("number_of_sessions", "4");
@@ -93,6 +118,8 @@ describe("parseCreateWorkshopFormData", () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.name).toBe("Intro to UX");
+      expect(parsed.data.type).toBe("online");
+      expect(parsed.data.phone).toBe("+961 71 234 567");
       expect(parsed.data.nb_participants).toBe(20);
       expect(parsed.data.price).toBe(150);
     }
@@ -101,6 +128,7 @@ describe("parseCreateWorkshopFormData", () => {
   it("returns field errors for invalid FormData", () => {
     const formData = new FormData();
     formData.set("name", "");
+    formData.set("type", "workshop");
     formData.set("price", "-5");
 
     const parsed = parseCreateWorkshopFormData(formData);

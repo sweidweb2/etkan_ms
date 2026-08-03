@@ -1784,12 +1784,14 @@ export type Database = {
           name: string
           nb_participants: number | null
           number_of_sessions: number | null
+          phone: string | null
           price: number | null
           proposal_notes: string | null
           start_date: string | null
           status: string
           subject: string | null
           target_audience: string | null
+          type: string
           updated_at: string
         }
         Insert: {
@@ -1802,12 +1804,14 @@ export type Database = {
           name: string
           nb_participants?: number | null
           number_of_sessions?: number | null
+          phone?: string | null
           price?: number | null
           proposal_notes?: string | null
           start_date?: string | null
           status?: string
           subject?: string | null
           target_audience?: string | null
+          type?: string
           updated_at?: string
         }
         Update: {
@@ -1820,12 +1824,14 @@ export type Database = {
           name?: string
           nb_participants?: number | null
           number_of_sessions?: number | null
+          phone?: string | null
           price?: number | null
           proposal_notes?: string | null
           start_date?: string | null
           status?: string
           subject?: string | null
           target_audience?: string | null
+          type?: string
           updated_at?: string
         }
         Relationships: [

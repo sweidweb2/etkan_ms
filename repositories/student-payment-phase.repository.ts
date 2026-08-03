@@ -205,3 +205,32 @@ export async function updateStudentPaymentPhasePaymentPhaseId(
     .select(SPP_COLUMNS)
     .single();
 }
+
+export type StudentPaymentPhaseWithPhaseRecord = StudentPaymentPhaseRecord & {
+  payment_phases: { id: string; name: string; status: string } | null;
+};
+
+export async function listSppsWithPhaseByStudentId(
+  client: Supabase,
+  studentId: string
+) {
+  return client
+    .from("student_payment_phases")
+    .select(
+      `${SPP_COLUMNS}, payment_phases ( id, name, status )`
+    )
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+}
+
+export async function deleteStudentPaymentPhaseById(
+  client: Supabase,
+  id: string
+) {
+  return client
+    .from("student_payment_phases")
+    .delete()
+    .eq("id", id)
+    .select(SPP_COLUMNS)
+    .maybeSingle();
+}

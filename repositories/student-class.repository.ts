@@ -64,6 +64,23 @@ export async function listStudentClassesByUserId(
     .order("joined_at", { ascending: false });
 }
 
+export type StudentClassWithClassRecord = StudentClassRecord & {
+  classes: { id: string; name: string; status: string } | null;
+};
+
+export async function listStudentClassesWithClassByUserId(
+  client: Supabase,
+  userId: string
+) {
+  return client
+    .from("student_class")
+    .select(
+      "id, user_id, class_id, joined_at, classes ( id, name, status )"
+    )
+    .eq("user_id", userId)
+    .order("joined_at", { ascending: false });
+}
+
 export async function listStudentUserIdsByClassId(
   client: Supabase,
   classId: string

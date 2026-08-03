@@ -105,3 +105,16 @@ export async function updateStudentProfileById(
     .select("id, user_id, full_name, birth_date, phone, status, created_at")
     .single();
 }
+
+export async function updateStudentProfileStatusById(
+  client: Supabase,
+  studentProfileId: string,
+  status: string
+) {
+  return client
+    .from("student_profiles")
+    .update({ status })
+    .eq("id", studentProfileId)
+    .select("id, user_id, full_name, birth_date, phone, status, created_at")
+    .single();
+}

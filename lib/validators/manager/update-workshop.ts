@@ -26,6 +26,8 @@ export function parseUpdateWorkshopFormData(formData: FormData):
   const parsed = updateWorkshopSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
+    type: formData.get("type"),
+    phone: formData.get("phone"),
     subject: formData.get("subject"),
     target_audience: formData.get("target_audience"),
     proposal_notes: formData.get("proposal_notes"),

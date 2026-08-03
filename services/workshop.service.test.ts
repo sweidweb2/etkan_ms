@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   WORKSHOP_INSTRUCTOR_ROLES,
+  WORKSHOP_OFFERING_TYPES,
   WORKSHOP_PAYMENT_METHODS,
   WORKSHOP_PAYMENT_TYPES,
   WORKSHOP_WAGE_TYPES,
@@ -73,6 +74,8 @@ const workshopRecord = {
   name: "Intro to UX",
   subject: "Design",
   status: WORKSHOP_STATUSES.DRAFT,
+  type: WORKSHOP_OFFERING_TYPES.WORKSHOP,
+  phone: "+961 71 234 567",
   target_audience: "Beginners",
   nb_participants: 20,
   proposal_notes: null,
@@ -129,6 +132,8 @@ function makePdfFile(name = "syllabus.pdf", sizeBytes = 1024) {
 
 const validCreateInput = {
   name: "Intro to UX",
+  type: WORKSHOP_OFFERING_TYPES.WORKSHOP,
+  phone: "+961 71 234 567",
   subject: "Design",
   target_audience: "Beginners",
   proposal_notes: null,

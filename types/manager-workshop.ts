@@ -1,6 +1,7 @@
 import type { FieldErrors } from "@/types/auth";
 import type {
   WorkshopInstructorRole,
+  WorkshopOfferingType,
   WorkshopPaymentMethod,
   WorkshopPaymentType,
   WorkshopWageType,
@@ -16,6 +17,8 @@ export interface ManagerWorkshopRow {
   name: string;
   subject: string | null;
   status: WorkshopStatusValue;
+  type: WorkshopOfferingType;
+  phone: string | null;
   target_audience: string | null;
   nb_participants: number | null;
   proposal_notes: string | null;

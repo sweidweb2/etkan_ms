@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { CalendarIcon, MapPinIcon, PresentationIcon } from "lucide-react";
+import { CalendarIcon, MapPinIcon, PhoneIcon, PresentationIcon } from "lucide-react";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
 import { getManagerWorkshopDetailRoute } from "@/lib/constants/routes";
 import type { ManagerWorkshopRow } from "@/types/manager-workshop";
 
@@ -59,7 +60,8 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
               {workshop.name}
             </CardTitle>
             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-              {workshop.subject ?? "No subject"}
+              {WORKSHOP_OFFERING_TYPE_LABELS[workshop.type]}
+              {workshop.subject ? ` · ${workshop.subject}` : ""}
             </p>
           </div>
           <WorkshopStatusBadge
@@ -86,6 +88,15 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
           </span>
           <span className="max-w-[9rem] shrink-0 truncate font-medium text-foreground">
             {workshop.delivery_place ?? "—"}
+          </span>
+        </div>
+        <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[11px]">
+          <PhoneIcon className="size-3 shrink-0 text-primary" />
+          <span className="min-w-0 flex-1 truncate text-muted-foreground">
+            Phone
+          </span>
+          <span className="max-w-[9rem] shrink-0 truncate font-medium text-foreground">
+            {workshop.phone ?? "—"}
           </span>
         </div>
         <div className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px]">

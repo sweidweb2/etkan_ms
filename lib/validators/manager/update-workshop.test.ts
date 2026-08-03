@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { WORKSHOP_OFFERING_TYPES } from "@/lib/constants/manager-workshop-display";
 import {
   parseUpdateWorkshopFormData,
   updateWorkshopSchema,
@@ -9,6 +10,8 @@ const workshopId = "11111111-1111-4111-8111-111111111111";
 const validInput = {
   id: workshopId,
   name: "Intro to UX",
+  type: WORKSHOP_OFFERING_TYPES.WORKSHOP,
+  phone: "+961 71 234 567",
   subject: "Design",
   target_audience: "Beginners",
   proposal_notes: null,
@@ -40,6 +43,14 @@ describe("updateWorkshopSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it("rejects invalid type", () => {
+    const parsed = updateWorkshopSchema.safeParse({
+      ...validInput,
+      type: "class",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
   it("rejects end date before start date", () => {
     const parsed = updateWorkshopSchema.safeParse({
       ...validInput,
@@ -54,12 +65,16 @@ describe("parseUpdateWorkshopFormData", () => {
     const formData = new FormData();
     formData.set("id", workshopId);
     formData.set("name", "Intro to UX");
+    formData.set("type", "course");
+    formData.set("phone", "");
     formData.set("price", "150");
 
     const parsed = parseUpdateWorkshopFormData(formData);
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.id).toBe(workshopId);
+      expect(parsed.data.type).toBe("course");
+      expect(parsed.data.phone).toBeNull();
       expect(parsed.data.price).toBe(150);
     }
   });
@@ -68,6 +83,7 @@ describe("parseUpdateWorkshopFormData", () => {
     const formData = new FormData();
     formData.set("id", "bad");
     formData.set("name", "Intro to UX");
+    formData.set("type", "workshop");
 
     const parsed = parseUpdateWorkshopFormData(formData);
     expect(parsed.success).toBe(false);

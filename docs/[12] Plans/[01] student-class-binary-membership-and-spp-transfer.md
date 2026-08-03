@@ -29,6 +29,7 @@
 ## Locked decisions (do not re-open without product change)
 
 1. **Leave keeps billing.** Leaving a class never cancels SPP or deletes payments. Student may be out of class and still billed.
+   - **Exception:** manager **inactivate** with “Delete open SPPs” (`students.change_status`) may hard-delete payment-free SPPs on **opened** phases only. Normal remove-from-class is unchanged.
 2. **Binary membership only.** No `paused` / `stopped`. Column `status` dropped from `student_class`.
 3. **Migration:** keep old `enrolled` memberships; delete `paused`/`stopped` rows; drop column.
 4. **Rejoin:** same as late join — reuse existing SPP for that semester’s sync phase if present; otherwise create when phase is `opened`/`closed` (reopen closed if unpaid after create/reuse path needs recalc).

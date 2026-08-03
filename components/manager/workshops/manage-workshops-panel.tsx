@@ -55,6 +55,8 @@ function matchesSearch(workshop: ManagerWorkshopRow, query: string) {
     workshop.subject ?? "",
     workshop.delivery_place ?? "",
     workshop.target_audience ?? "",
+    workshop.phone ?? "",
+    workshop.type,
   ]
     .join(" ")
     .toLowerCase();
