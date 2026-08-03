@@ -1,5 +1,8 @@
 # Workshop schedule assistant — API
 
+> **Superseded for the live assistant pipeline:** see [`[9.7] schedule ai/implementation-plan.md`](../[9.7]%20schedule%20ai/implementation-plan.md).  
+> Endpoint, authz, prompt limit, and SSE event shapes below still match production; the Cloudflare call pattern is the 3-router flow (not a tool loop).
+
 ## Endpoint
 
 `POST /api/manager/instructor-schedules/assistant`
@@ -31,6 +34,8 @@ type ScheduleAssistantSseEvent =
   | { type: "refused"; message: string };
 ```
 
+Prefetch catalogs are surfaced to the UI as `tool_start` / `tool_result` (e.g. `list_instructors`); there is no model tool-calling loop.
+
 ## Env (no secrets in git)
 
 | Variable | Required | Notes |
@@ -45,4 +50,9 @@ type ScheduleAssistantSseEvent =
 
 Headers: `Authorization: Bearer {TOKEN}`, `Content-Type: application/json`
 
-Payload includes `messages` + OpenAI-style `tools` for traditional function calling. Tool loop runs on the server; final answer is streamed to the client as `token` events.
+Server pipeline (see [9.7](../[9.7]%20schedule%20ai/implementation-plan.md)):
+
+1. LLM-1 classifies `route` (+ hints) — `messages` + `max_tokens` only (no `tools`).  
+2. Server prefetches closed catalogs from the route.  
+3. Exact fast-path or LLM-2 maps the prompt onto catalogs.  
+4. Deterministic formatter streams the answer as `token` events.

@@ -1,77 +1,120 @@
-import { getDay } from "date-fns";
 import {
-  SCHEDULE_ASSISTANT_TOOL_NAMES,
+  SCHEDULE_ASSISTANT_MAX_INSTRUCTORS,
+  SCHEDULE_ASSISTANT_MAX_SLOTS,
   SCHEDULE_ASSISTANT_WEEKDAYS,
   type ScheduleAssistantWeekday,
 } from "@/lib/constants/schedule-assistant";
-import { ENTITY_SCHEDULE_TYPE_INSTRUCTOR } from "@/lib/validators/manager/instructor-schedule-slot";
-import { weekdayFromYmd } from "@/lib/manager/schedule-assistant/intent";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
-  listFreeSlotsForInstructorsArgsSchema,
-  searchInstructorsBySubjectArgsSchema,
-  type ListFreeSlotsForInstructorsArgs,
-  type SearchInstructorsBySubjectArgs,
-} from "@/lib/validators/manager/schedule-assistant";
+  getSundayWeekBounds,
+  projectInstructorSlotDate,
+} from "@/lib/manager/instructor-schedule-calendar";
+import { ENTITY_SCHEDULE_TYPE_INSTRUCTOR } from "@/lib/validators/manager/instructor-schedule-slot";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
-import {
-  assertPermission,
-} from "@/services/authorization.service";
+import { assertPermission } from "@/services/authorization.service";
 import type {
-  ScheduleAssistantFreeSlot,
-  ScheduleAssistantInstructorMatch,
+  ScheduleAssistantCompactInstructor,
+  ScheduleAssistantCompactMatrixRow,
+  ScheduleAssistantCompactSlot,
+  ScheduleAssistantInstructorsCatalog,
+  ScheduleAssistantMatrixCatalog,
+  ScheduleAssistantSlotsCatalog,
+  ScheduleAssistantSubjectsCatalog,
 } from "@/types/schedule-assistant";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-function subjectMatchesQuery(subjectName: string, query: string): boolean {
-  const name = subjectName.trim().toLowerCase();
-  const q = query.trim().toLowerCase();
-  if (!name || !q) {
-    return false;
-  }
-  if (name.includes(q) || q.includes(name)) {
-    return true;
-  }
-  const nameTokens = name.split(/[^a-z0-9+]+/).filter(Boolean);
-  const queryTokens = q.split(/[^a-z0-9+]+/).filter(Boolean);
-  return queryTokens.some(
-    (token) =>
-      token.length >= 2 &&
-      nameTokens.some(
-        (nameToken) => nameToken.includes(token) || token.includes(nameToken)
-      )
-  );
+const SUBJECTS_CATALOG_MAX = 200;
+
+function normalizeUsername(value: string | null | undefined): string {
+  return (value ?? "Unknown").trim() || "Unknown";
 }
 
-export async function searchInstructorsBySubjectQuery(
+function sliceWithMeta<T>(
+  rows: T[],
+  max: number
+): { rows: T[]; truncated: boolean; total: number } {
+  const total = rows.length;
+  return {
+    rows: rows.slice(0, max),
+    truncated: total > max,
+    total,
+  };
+}
+
+export async function listInstructorsCatalog(
   adminClient: Supabase,
-  actorUserId: string | null,
-  rawArgs: unknown
-): Promise<{ instructors: ScheduleAssistantInstructorMatch[] }> {
+  actorUserId: string | null
+): Promise<ScheduleAssistantInstructorsCatalog> {
   await assertPermission(
     adminClient,
     actorUserId,
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
 
-  const parsed = searchInstructorsBySubjectArgsSchema.safeParse(rawArgs);
-  if (!parsed.success) {
-    throw new Error("Invalid search_instructors_by_subject arguments.");
+  const result = await profileRepository.listInstructorProfiles(adminClient);
+  if (result.error) {
+    throw new Error(result.error.message);
   }
 
-  return searchInstructorsBySubject(adminClient, parsed.data);
+  const instructors: ScheduleAssistantCompactInstructor[] = (result.data ?? [])
+    .map((profile) => ({
+      i: profile.id,
+      u: normalizeUsername(profile.username),
+    }))
+    .sort((a, b) => a.u.localeCompare(b.u));
+
+  const capped = sliceWithMeta(instructors, SCHEDULE_ASSISTANT_MAX_INSTRUCTORS);
+  return {
+    instructors: capped.rows,
+    truncated: capped.truncated,
+    total: capped.total,
+  };
 }
 
-export async function searchInstructorsBySubject(
+export async function listSubjectsCatalog(
   adminClient: Supabase,
-  args: SearchInstructorsBySubjectArgs
-): Promise<{ instructors: ScheduleAssistantInstructorMatch[] }> {
+  actorUserId: string | null
+): Promise<ScheduleAssistantSubjectsCatalog> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+
+  const result = await subjectRepository.listSubjects(adminClient);
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  const subjects = (result.data ?? [])
+    .map((subject) => subject.name.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
+  const capped = sliceWithMeta(subjects, SUBJECTS_CATALOG_MAX);
+  return {
+    subjects: capped.rows,
+    truncated: capped.truncated,
+    total: capped.total,
+  };
+}
+
+export async function listCapabilityMatrixCatalog(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ScheduleAssistantMatrixCatalog> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+
   const [subjectsResult, capabilitiesResult, instructorsResult] =
     await Promise.all([
       subjectRepository.listSubjects(adminClient),
@@ -91,77 +134,58 @@ export async function searchInstructorsBySubject(
     throw new Error(instructorsResult.error.message);
   }
 
-  const matchedSubjects = (subjectsResult.data ?? []).filter((subject) =>
-    subjectMatchesQuery(subject.name, args.query)
-  );
-  const matchedSubjectIds = new Set(matchedSubjects.map((s) => s.id));
   const subjectNameById = new Map(
     (subjectsResult.data ?? []).map((s) => [s.id, s.name] as const)
   );
-
-  if (matchedSubjectIds.size === 0) {
-    return { instructors: [] };
-  }
-
-  const instructorUsernameById = new Map(
+  const usernameById = new Map(
     (instructorsResult.data ?? []).map(
-      (profile) => [profile.id, profile.username ?? "Unknown"] as const
+      (profile) =>
+        [profile.id, normalizeUsername(profile.username)] as const
     )
   );
 
-  const subjectsByInstructor = new Map<string, Set<string>>();
+  const subjectsByUsername = new Map<string, Set<string>>();
   for (const pair of capabilitiesResult.data ?? []) {
-    if (!matchedSubjectIds.has(pair.subject_id)) {
-      continue;
-    }
-    if (!instructorUsernameById.has(pair.user_id)) {
-      continue;
-    }
+    const username = usernameById.get(pair.user_id);
     const subjectName = subjectNameById.get(pair.subject_id);
-    if (!subjectName) {
+    if (!username || !subjectName) {
       continue;
     }
-    const set = subjectsByInstructor.get(pair.user_id) ?? new Set<string>();
+    const set = subjectsByUsername.get(username) ?? new Set<string>();
     set.add(subjectName);
-    subjectsByInstructor.set(pair.user_id, set);
+    subjectsByUsername.set(username, set);
   }
 
-  const instructors: ScheduleAssistantInstructorMatch[] = [
-    ...subjectsByInstructor.entries(),
+  const matrix: ScheduleAssistantCompactMatrixRow[] = [
+    ...subjectsByUsername.entries(),
   ]
-    .map(([id, subjects]) => ({
-      id,
-      username: instructorUsernameById.get(id) ?? "Unknown",
-      subjects: [...subjects].sort((a, b) => a.localeCompare(b)),
+    .map(([u, sub]) => ({
+      u,
+      sub: [...sub].sort((a, b) => a.localeCompare(b)),
     }))
-    .sort((a, b) => a.username.localeCompare(b.username));
+    .sort((a, b) => a.u.localeCompare(b.u));
 
-  return { instructors };
+  const capped = sliceWithMeta(matrix, SCHEDULE_ASSISTANT_MAX_INSTRUCTORS);
+  return {
+    matrix: capped.rows,
+    truncated: capped.truncated,
+    total: capped.total,
+  };
 }
 
-export async function listFreeSlotsForInstructorsQuery(
+export async function listSlotsThisWeekCatalog(
   adminClient: Supabase,
-  actorUserId: string | null,
-  rawArgs: unknown
-): Promise<{ slots: ScheduleAssistantFreeSlot[] }> {
+  actorUserId: string | null
+): Promise<ScheduleAssistantSlotsCatalog> {
   await assertPermission(
     adminClient,
     actorUserId,
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
 
-  const parsed = listFreeSlotsForInstructorsArgsSchema.safeParse(rawArgs);
-  if (!parsed.success) {
-    throw new Error("Invalid list_free_slots_for_instructors arguments.");
-  }
+  const today = new Date().toISOString().slice(0, 10);
+  const { weekStart } = getSundayWeekBounds(today);
 
-  return listFreeSlotsForInstructors(adminClient, parsed.data);
-}
-
-export async function listFreeSlotsForInstructors(
-  adminClient: Supabase,
-  args: ListFreeSlotsForInstructorsArgs
-): Promise<{ slots: ScheduleAssistantFreeSlot[] }> {
   const [slotsResult, instructorsResult] = await Promise.all([
     instructorScheduleSlotRepository.listInstructorScheduleSlotsByEntity(
       adminClient,
@@ -177,114 +201,64 @@ export async function listFreeSlotsForInstructors(
     throw new Error(instructorsResult.error.message);
   }
 
-  const instructorUsernameById = new Map(
+  const usernameById = new Map(
     (instructorsResult.data ?? []).map(
-      (profile) => [profile.id, profile.username ?? "Unknown"] as const
+      (profile) =>
+        [profile.id, normalizeUsername(profile.username)] as const
     )
   );
 
-  const instructorIdFilter =
-    args.instructor_ids && args.instructor_ids.length > 0
-      ? new Set(args.instructor_ids)
-      : null;
-  const weekdayFilter =
-    args.weekdays && args.weekdays.length > 0
-      ? new Set(args.weekdays)
-      : null;
-
-  const slots: ScheduleAssistantFreeSlot[] = [];
+  const slots: ScheduleAssistantCompactSlot[] = [];
 
   for (const slot of slotsResult.data ?? []) {
     if (slot.type !== "free") {
       continue;
     }
-    if (instructorIdFilter && !instructorIdFilter.has(slot.record_id)) {
+    if (
+      typeof slot.day_of_week !== "number" ||
+      slot.day_of_week < 0 ||
+      slot.day_of_week > 6
+    ) {
       continue;
     }
-    if (args.from_date && slot.slot_date < args.from_date) {
-      continue;
-    }
-    if (args.to_date && slot.slot_date > args.to_date) {
-      continue;
-    }
-
-    const weekday = weekdayFromYmd(slot.slot_date);
-    if (weekdayFilter && !weekdayFilter.has(weekday)) {
+    if (!usernameById.has(slot.record_id)) {
       continue;
     }
 
-    if (!instructorUsernameById.has(slot.record_id)) {
-      continue;
-    }
+    const weekday = SCHEDULE_ASSISTANT_WEEKDAYS[
+      slot.day_of_week
+    ] as ScheduleAssistantWeekday;
+    const projectedDate = projectInstructorSlotDate(
+      weekStart,
+      slot.day_of_week
+    );
 
     slots.push({
-      instructor_id: slot.record_id,
-      instructor_username: instructorUsernameById.get(slot.record_id)!,
-      slot_date: slot.slot_date,
-      weekday,
-      start_time: slot.start_time.slice(0, 5),
-      end_time: slot.end_time.slice(0, 5),
-      name: slot.name,
+      i: slot.record_id,
+      u: usernameById.get(slot.record_id)!,
+      d: projectedDate,
+      w: weekday,
+      s: slot.start_time.slice(0, 5),
+      e: slot.end_time.slice(0, 5),
     });
   }
 
   slots.sort((a, b) => {
-    const byDate = a.slot_date.localeCompare(b.slot_date);
+    const byDate = a.d.localeCompare(b.d);
     if (byDate !== 0) {
       return byDate;
     }
-    const byStart = a.start_time.localeCompare(b.start_time);
+    const byStart = a.s.localeCompare(b.s);
     if (byStart !== 0) {
       return byStart;
     }
-    return a.instructor_username.localeCompare(b.instructor_username);
+    return a.u.localeCompare(b.u);
   });
 
-  return { slots };
-}
-
-export async function executeScheduleAssistantTool(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  name: string,
-  args: unknown
-): Promise<{ result: unknown; summary: string }> {
-  if (name === SCHEDULE_ASSISTANT_TOOL_NAMES.SEARCH_INSTRUCTORS_BY_SUBJECT) {
-    const result = await searchInstructorsBySubjectQuery(
-      adminClient,
-      actorUserId,
-      args
-    );
-    return {
-      result,
-      summary: `Found ${result.instructors.length} instructor(s).`,
-    };
-  }
-
-  if (name === SCHEDULE_ASSISTANT_TOOL_NAMES.LIST_FREE_SLOTS_FOR_INSTRUCTORS) {
-    const result = await listFreeSlotsForInstructorsQuery(
-      adminClient,
-      actorUserId,
-      args
-    );
-    return {
-      result,
-      summary: `Found ${result.slots.length} free slot(s).`,
-    };
-  }
-
-  throw new Error(`Unknown tool: ${name}`);
-}
-
-/** Exported for tests — keep weekday list stable. */
-export function isScheduleAssistantWeekday(
-  value: string
-): value is ScheduleAssistantWeekday {
-  return (SCHEDULE_ASSISTANT_WEEKDAYS as readonly string[]).includes(value);
-}
-
-/** Avoid unused import if tree-shaken oddly in tests. */
-export function weekdayIndex(ymd: string): number {
-  const [year, month, day] = ymd.split("-").map(Number);
-  return getDay(new Date(year!, month! - 1, day!));
+  const capped = sliceWithMeta(slots, SCHEDULE_ASSISTANT_MAX_SLOTS);
+  return {
+    slots: capped.rows,
+    truncated: capped.truncated,
+    total: capped.total,
+  };
 }

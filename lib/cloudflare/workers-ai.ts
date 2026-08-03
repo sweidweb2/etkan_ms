@@ -1,32 +1,8 @@
-import {
-  SCHEDULE_ASSISTANT_DEFAULT_MODEL,
-  SCHEDULE_ASSISTANT_TOOL_NAMES,
-} from "@/lib/constants/schedule-assistant";
+import { SCHEDULE_ASSISTANT_DEFAULT_MODEL } from "@/lib/constants/schedule-assistant";
 
 export type WorkersAiChatMessage = {
-  role: "system" | "user" | "assistant" | "tool";
+  role: "system" | "user" | "assistant";
   content?: string | null;
-  tool_calls?: WorkersAiToolCall[];
-  tool_call_id?: string;
-  name?: string;
-};
-
-export type WorkersAiToolCall = {
-  id: string;
-  type?: "function";
-  function: {
-    name: string;
-    arguments: string;
-  };
-};
-
-export type WorkersAiToolDefinition = {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
 };
 
 export type WorkersAiTokenUsage = {
@@ -38,7 +14,6 @@ export type WorkersAiTokenUsage = {
 export type WorkersAiRunResult = {
   response?: string | null;
   reasoning?: string | null;
-  tool_calls?: WorkersAiToolCall[];
   usage?: WorkersAiTokenUsage | null;
   model: string;
   raw: unknown;
@@ -122,75 +97,60 @@ function getConfig() {
   return { accountId, apiToken, model };
 }
 
-export const SCHEDULE_ASSISTANT_TOOL_DEFINITIONS: WorkersAiToolDefinition[] = [
-  {
-    type: "function",
-    function: {
-      name: SCHEDULE_ASSISTANT_TOOL_NAMES.SEARCH_INSTRUCTORS_BY_SUBJECT,
-      description:
-        "Search instructors who have subject capabilities matching a query (e.g. Arduino).",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "Subject or course keywords to match.",
-          },
-        },
-        required: ["query"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: SCHEDULE_ASSISTANT_TOOL_NAMES.LIST_FREE_SLOTS_FOR_INSTRUCTORS,
-      description:
-        "List free instructor schedule slots, optionally filtered by instructor ids and weekdays.",
-      parameters: {
-        type: "object",
-        properties: {
-          instructor_ids: {
-            type: "array",
-            items: { type: "string" },
-            description: "Optional instructor profile UUIDs to filter.",
-          },
-          weekdays: {
-            type: "array",
-            items: {
-              type: "string",
-              enum: [
-                "sunday",
-                "monday",
-                "tuesday",
-                "wednesday",
-                "thursday",
-                "friday",
-                "saturday",
-              ],
-            },
-            description: "Optional weekdays to keep (lowercase).",
-          },
-          from_date: {
-            type: "string",
-            description: "Optional start date YYYY-MM-DD inclusive.",
-          },
-          to_date: {
-            type: "string",
-            description: "Optional end date YYYY-MM-DD inclusive.",
-          },
-        },
-      },
-    },
-  },
-];
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Normalize Workers AI / OpenAI-compatible chat payloads.
+ * Nemotron returns `choices[0].message.{content,reasoning}` (not `response`).
+ */
+export function extractWorkersAiMessageFields(result: Record<string, unknown>): {
+  response: string | null;
+  reasoning: string | null;
+} {
+  const legacyResponse = asNonEmptyString(result.response);
+  const legacyReasoning = asNonEmptyString(result.reasoning);
+
+  const choices = Array.isArray(result.choices) ? result.choices : [];
+  const first = choices[0];
+  const message =
+    first && typeof first === "object"
+      ? ((first as Record<string, unknown>).message as
+          | Record<string, unknown>
+          | undefined)
+      : undefined;
+
+  const choiceContent = asNonEmptyString(message?.content);
+  const choiceReasoning = asNonEmptyString(
+    message?.reasoning ?? message?.reasoning_content
+  );
+
+  return {
+    response: legacyResponse ?? choiceContent,
+    reasoning: legacyReasoning ?? choiceReasoning,
+  };
+}
 
 export async function runWorkersAiChat(input: {
   messages: WorkersAiChatMessage[];
-  tools?: WorkersAiToolDefinition[];
+  max_tokens?: number;
 }): Promise<WorkersAiRunResult> {
   const { accountId, apiToken, model } = getConfig();
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+
+  const body: Record<string, unknown> = {
+    messages: input.messages,
+    stream: false,
+  };
+
+  if (typeof input.max_tokens === "number") {
+    body.max_tokens = input.max_tokens;
+  }
 
   const response = await fetch(url, {
     method: "POST",
@@ -198,22 +158,13 @@ export async function runWorkersAiChat(input: {
       Authorization: `Bearer ${apiToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      messages: input.messages,
-      tools: input.tools,
-      stream: false,
-    }),
+    body: JSON.stringify(body),
   });
 
   const payload = (await response.json()) as {
     success?: boolean;
     errors?: { message?: string }[];
-    result?: {
-      response?: string | null;
-      reasoning?: string | null;
-      tool_calls?: WorkersAiToolCall[];
-      [key: string]: unknown;
-    };
+    result?: Record<string, unknown>;
   };
 
   if (!response.ok || payload.success === false) {
@@ -224,22 +175,13 @@ export async function runWorkersAiChat(input: {
   }
 
   const result = payload.result ?? {};
+  const fields = extractWorkersAiMessageFields(result);
+
   return {
-    response: typeof result.response === "string" ? result.response : null,
-    reasoning: typeof result.reasoning === "string" ? result.reasoning : null,
-    tool_calls: Array.isArray(result.tool_calls) ? result.tool_calls : undefined,
+    response: fields.response,
+    reasoning: fields.reasoning,
     usage: extractWorkersAiUsage(payload),
     model,
     raw: payload,
   };
-}
-
-export function parseToolCallArguments(
-  raw: string
-): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return {};
-  }
 }

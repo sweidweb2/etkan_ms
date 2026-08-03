@@ -1,13 +1,16 @@
 # Workshop schedule assistant — Implementation Plan
 
+> **Superseded for the live assistant pipeline:** see [`[9.7] schedule ai/implementation-plan.md`](../[9.7]%20schedule%20ai/implementation-plan.md).  
+> This `[9.6]` pack remains historical notes for the first Cloudflare + SSE scaffold. Phase 0 of `[9.7]` wiped the old tier/tool workflow from code.
+
 ## Decisions (locked)
 
 | Topic | Decision |
 |-------|----------|
 | Model | `@cf/nvidia/nemotron-3-120b-a12b` (reasoning + tool calling) |
 | Transport | Next.js Route Handler → Cloudflare REST (no Workers AI binding) |
-| Tool loop | Server-owned traditional tool calling; max 3 recursive rounds |
-| Tools | `search_instructors_by_subject`, `list_free_slots_for_instructors` (read-only) |
+| Tool loop | ~~Server-owned traditional tool calling; max 3 recursive rounds~~ → replaced by 3-router plan in `[9.7]` |
+| Tools | ~~`search_instructors_by_subject`, `list_free_slots_for_instructors`~~ → see `[9.7]` prefetch catalogs |
 | Prompt limit | 300 characters (Zod + input `maxLength`) |
 | Authz | `instructor_schedules.view` |
 | UI phases | SSE: `reasoning` → `tool_start` / `tool_result` → `token` / `done` / `error` |

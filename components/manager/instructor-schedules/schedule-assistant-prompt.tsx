@@ -243,17 +243,15 @@ export function ScheduleAssistantPrompt() {
             />
           </div>
 
-          {reasoningLines.length > 0 ? (
+          {phase === "reasoning" && reasoningLines.length > 0 ? (
             <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-              {reasoningLines.map((line, index) => (
-                <p key={`${index}-${line.slice(0, 24)}`} className="leading-relaxed">
-                  {line}
-                </p>
-              ))}
+              <p className="leading-relaxed">
+                {reasoningLines[reasoningLines.length - 1]}
+              </p>
             </div>
           ) : null}
 
-          {toolLog.length > 0 ? (
+          {phase === "tools" && toolLog.length > 0 ? (
             <ul className="flex flex-col gap-1.5 text-xs">
               {toolLog.map((item, index) => (
                 <li
@@ -272,7 +270,7 @@ export function ScheduleAssistantPrompt() {
             </ul>
           ) : null}
 
-          {answer ? (
+          {(phase === "answering" || phase === "done") && answer ? (
             <div className="whitespace-pre-wrap rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed">
               {answer}
               {phase === "answering" ? (
@@ -281,7 +279,7 @@ export function ScheduleAssistantPrompt() {
             </div>
           ) : null}
 
-          {error ? (
+          {phase === "error" && error ? (
             <p className="text-sm text-destructive">{error}</p>
           ) : null}
         </div>

@@ -1,5 +1,8 @@
 # Workshop schedule assistant — Guardrails
 
+> **Live pipeline:** [`[9.7] schedule ai/implementation-plan.md`](../[9.7]%20schedule%20ai/implementation-plan.md).  
+> Allowed intents and refusal tone below still apply; defense-in-depth details follow the 3-router design (not the old tool whitelist).
+
 ## Allowed intent
 
 The assistant may only help with:
@@ -13,35 +16,32 @@ Anything else is out of scope.
 
 Defense in depth:
 
-### 1. Deterministic intent gate
+### 1. LLM-1 route + refuse
 
-Before calling Cloudflare:
+- LLM-1 returns `route`: `capabilities` | `availability` | `capability_availability` | `refuse` (plus light hints).  
+- Heuristic fallback may recover clear schedule/capability asks when JSON is unusable; otherwise **`refuse`**.  
+- On `refuse`: emit canned SSE refusal — no prefetch, no mapper, no answer LLM.
 
-- Detect weekday tokens (`monday`…`sunday`, abbreviations).  
-- Detect schedule/capability language (`instructor`, `free`, `available`, `course`, `subject`, `teach`, etc.) or treat remaining tokens as a possible subject query.  
-- If **neither** availability **nor** subject/capability signal → **refuse** with fixed copy (no tools).
+### 2. System prompts
 
-### 2. System prompt
-
-- Role: schedule-matching assistant only.  
+- Router and mapper prompts: schedule-matching only.  
 - Ignore jokes, poems, general chat, code generation, HR/payroll, etc.  
 - Mixed example: “find Arduino teachers Tue/Fri **and write a poem**” → answer **only** matching; never the poem.
 
-### 3. Tool whitelist
+### 3. Closed catalogs (not a tool whitelist)
 
-- Only `search_instructors_by_subject` and `list_free_slots_for_instructors`.  
-- Unknown tool names rejected.  
-- Args validated with Zod.
+- Prefetch is hardcoded from `route` (instructors, subjects/matrix, free slots as needed).  
+- LLM-2 may only map onto catalog entries; server scrubs / resolves groups against closed lists.  
+- No inventing instructors, subjects, or times outside catalogs.
 
 ### 4. Output discipline
 
-- Recommendations must use instructors/slots returned by tools.  
-- Do not invent instructors or times not in tool results.  
-- Empty tools → clear “no match” messaging.
+- Answers come from resolved groups + catalog facts (deterministic formatter by default).  
+- Empty / unmatched catalogs → clear “no match” messaging.
 
 ## Refusal copy (fixed)
 
-> I can only help find instructors by subject capability and free schedule slots. Try something like: “Arduino instructors free on Tuesday and Friday.”
+> I only help with instructor capabilities and free schedule slots. Try: "Arduino instructors free Tuesday."
 
 ## Rate limit
 

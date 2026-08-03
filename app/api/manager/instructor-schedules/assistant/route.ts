@@ -1,31 +1,56 @@
 import {
-  SCHEDULE_ASSISTANT_MAX_TOOL_ROUNDS,
+  SCHEDULE_ASSISTANT_ACTIVE_ROUTES,
+  SCHEDULE_ASSISTANT_MAPPER_MAX_TOKENS,
+  SCHEDULE_ASSISTANT_NO_MATCH_MESSAGE,
   SCHEDULE_ASSISTANT_RATE_LIMIT_PER_MINUTE,
   SCHEDULE_ASSISTANT_REFUSAL_MESSAGE,
+  SCHEDULE_ASSISTANT_ROUTER_MAX_TOKENS,
+  type ScheduleAssistantActiveRoute,
 } from "@/lib/constants/schedule-assistant";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { analyzeScheduleAssistantIntent } from "@/lib/manager/schedule-assistant/intent";
-import { SCHEDULE_ASSISTANT_SYSTEM_PROMPT } from "@/lib/manager/schedule-assistant/system-prompt";
+import {
+  summarizeCatalogs,
+  scheduleAssistantDebug,
+} from "@/lib/manager/schedule-assistant/debug";
+import { buildAnswerFromGroups } from "@/lib/manager/schedule-assistant/answer";
+import {
+  buildMapperMessagesForRoute,
+  finalizeMapperGroups,
+  mapGroupsForRoute,
+} from "@/lib/manager/schedule-assistant/map-route";
+import { prefetchForRoute } from "@/lib/manager/schedule-assistant/prefetch";
+import {
+  buildRouterMessages,
+  resolveScheduleAssistantRouterResult,
+} from "@/lib/manager/schedule-assistant/router";
 import {
   getWorkersAiModelName,
-  parseToolCallArguments,
   runWorkersAiChat,
-  SCHEDULE_ASSISTANT_TOOL_DEFINITIONS,
-  type WorkersAiChatMessage,
   type WorkersAiTokenUsage,
 } from "@/lib/cloudflare/workers-ai";
 import { scheduleAssistantPromptSchema } from "@/lib/validators/manager/schedule-assistant";
+import type { ScheduleAssistantGroup } from "@/lib/validators/manager/schedule-assistant";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/services/auth.service";
 import { getUnauthorizedError } from "@/services/authorization.service";
 import { recordCloudflareAiUsage } from "@/services/cloudflare-ai-usage.service";
-import { executeScheduleAssistantTool } from "@/services/schedule-assistant.service";
 import { resolveDisplayName } from "@/services/user-display.service";
+import type { ScheduleAssistantPrefetchCatalogs } from "@/types/schedule-assistant";
 import type { ScheduleAssistantSseEvent } from "@/types/schedule-assistant";
 import type { Json } from "@/types/supabase";
 
 const rateLimitByUser = new Map<string, { count: number; windowStart: number }>();
+
+const PREFETCH_TOOL_BY_KEY: Record<
+  keyof ScheduleAssistantPrefetchCatalogs,
+  string
+> = {
+  instructors: "list_instructors",
+  subjects: "list_subjects",
+  matrix: "list_capability_matrix",
+  slots: "list_slots_this_week",
+};
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
@@ -59,6 +84,81 @@ function addUsage(
   totals.prompt_tokens += next.prompt_tokens;
   totals.completion_tokens += next.completion_tokens;
   totals.total_tokens += next.total_tokens;
+}
+
+function streamAnswer(
+  send: (event: ScheduleAssistantSseEvent) => void,
+  text: string
+) {
+  const chunkSize = 24;
+  for (let i = 0; i < text.length; i += chunkSize) {
+    send({ type: "token", text: text.slice(i, i + chunkSize) });
+  }
+}
+
+function isActiveRoute(route: string): route is ScheduleAssistantActiveRoute {
+  return (SCHEDULE_ASSISTANT_ACTIVE_ROUTES as readonly string[]).includes(
+    route
+  );
+}
+
+function prefetchKeys(
+  catalogs: ScheduleAssistantPrefetchCatalogs
+): (keyof ScheduleAssistantPrefetchCatalogs)[] {
+  return (
+    Object.keys(catalogs) as (keyof ScheduleAssistantPrefetchCatalogs)[]
+  ).filter((key) => catalogs[key] !== undefined);
+}
+
+function emitPrefetchTools(
+  send: (event: ScheduleAssistantSseEvent) => void,
+  catalogs: ScheduleAssistantPrefetchCatalogs,
+  toolsUsed: string[]
+) {
+  for (const key of prefetchKeys(catalogs)) {
+    const name = PREFETCH_TOOL_BY_KEY[key];
+    toolsUsed.push(name);
+    send({ type: "tool_start", name });
+
+    let summary = "Loaded.";
+    if (key === "instructors") {
+      summary = `Listed ${catalogs.instructors!.instructors.length} instructor(s).`;
+    } else if (key === "subjects") {
+      summary = `Listed ${catalogs.subjects!.subjects.length} subject(s).`;
+    } else if (key === "matrix") {
+      summary = `Listed ${catalogs.matrix!.matrix.length} capability row(s).`;
+    } else if (key === "slots") {
+      summary = `Listed ${catalogs.slots!.slots.length} free slot(s).`;
+    }
+
+    send({ type: "tool_result", name, summary });
+  }
+}
+
+function catalogsAreEmptyForRoute(
+  route: ScheduleAssistantActiveRoute,
+  catalogs: ScheduleAssistantPrefetchCatalogs
+): boolean {
+  const instructorsEmpty =
+    (catalogs.instructors?.total ?? 0) === 0 &&
+    (catalogs.instructors?.instructors.length ?? 0) === 0;
+  const subjectsEmpty =
+    (catalogs.subjects?.total ?? 0) === 0 &&
+    (catalogs.subjects?.subjects.length ?? 0) === 0;
+  const matrixEmpty =
+    (catalogs.matrix?.total ?? 0) === 0 &&
+    (catalogs.matrix?.matrix.length ?? 0) === 0;
+  const slotsEmpty =
+    (catalogs.slots?.total ?? 0) === 0 &&
+    (catalogs.slots?.slots.length ?? 0) === 0;
+
+  if (route === "capabilities") {
+    return instructorsEmpty && subjectsEmpty && matrixEmpty;
+  }
+  if (route === "availability") {
+    return instructorsEmpty && slotsEmpty;
+  }
+  return instructorsEmpty && subjectsEmpty && matrixEmpty && slotsEmpty;
 }
 
 export async function POST(request: Request) {
@@ -121,7 +221,6 @@ export async function POST(request: Request) {
   }
 
   const prompt = parsed.data.prompt;
-  const intent = analyzeScheduleAssistantIntent(prompt);
   const userLabel = await resolveDisplayName(sessionClient, user);
   const modelName = getWorkersAiModelName();
 
@@ -137,11 +236,64 @@ export async function POST(request: Request) {
         completion_tokens: 0,
         total_tokens: 0,
       };
-      let toolRounds = 0;
+      let llmCalls = 0;
       const toolsUsed: string[] = [];
+      let routeLabel = "refuse";
+      let skippedLlm2 = false;
+      let groups: ScheduleAssistantGroup[] = [];
+      let hintsJson: Json = {
+        weekdays: [],
+        subject_tokens: [],
+        username_tokens: [],
+      };
+      let prefetchKeyList: string[] = [];
 
       try {
-        if (!intent.hasScheduleIntent) {
+        scheduleAssistantDebug("request.start", { prompt });
+        send({
+          type: "reasoning",
+          text: "Classifying request…",
+        });
+
+        const routerMessages = buildRouterMessages(prompt);
+        const routerResult = await runWorkersAiChat({
+          messages: [
+            { role: "system", content: routerMessages.system },
+            { role: "user", content: routerMessages.user },
+          ],
+          max_tokens: SCHEDULE_ASSISTANT_ROUTER_MAX_TOKENS,
+        });
+        addUsage(usageTotals, routerResult.usage);
+        llmCalls += 1;
+
+        scheduleAssistantDebug("llm1.raw", {
+          response: routerResult.response,
+          reasoning: routerResult.reasoning?.slice(0, 500) ?? null,
+          usage: routerResult.usage,
+        });
+
+        if (routerResult.reasoning?.trim()) {
+          send({
+            type: "reasoning",
+            text: routerResult.reasoning.trim(),
+          });
+        }
+
+        const routed = resolveScheduleAssistantRouterResult(
+          routerResult.response?.trim() ||
+            routerResult.reasoning?.trim() ||
+            "",
+          prompt
+        );
+        routeLabel = routed.route;
+        hintsJson = routed.hints as unknown as Json;
+        scheduleAssistantDebug("router.result", {
+          route: routed.route,
+          hints: routed.hints,
+        });
+
+        if (routed.route === "refuse" || !isActiveRoute(routed.route)) {
+          scheduleAssistantDebug("refuse", { route: routed.route });
           send({
             type: "refused",
             message: SCHEDULE_ASSISTANT_REFUSAL_MESSAGE,
@@ -156,152 +308,149 @@ export async function POST(request: Request) {
             prompt,
             response: SCHEDULE_ASSISTANT_REFUSAL_MESSAGE,
             status: "refused",
-            prompt_tokens: 0,
-            completion_tokens: 0,
-            total_tokens: 0,
-            tool_rounds: 0,
-            metadata: { reason: "no_schedule_intent" } as Json,
+            prompt_tokens: usageTotals.prompt_tokens,
+            completion_tokens: usageTotals.completion_tokens,
+            total_tokens: usageTotals.total_tokens,
+            tool_rounds: llmCalls,
+            metadata: {
+              route: routed.route,
+              groups: [],
+              llm_calls: llmCalls,
+              skipped_llm2: false,
+              prefetch: [],
+              tools_used: toolsUsed,
+              hints: hintsJson,
+              reason: "router_refuse",
+            } as Json,
           });
 
           controller.close();
           return;
         }
 
+        const route = routed.route;
+
         send({
           type: "reasoning",
-          text: "Understanding your schedule and capability requirements…",
+          text: `Routed to ${route}.`,
+        });
+        send({
+          type: "reasoning",
+          text: "Prefetching catalogs…",
         });
 
-        const intentHints: string[] = [];
-        if (intent.subjectQuery) {
-          intentHints.push(`Subject hint: ${intent.subjectQuery}`);
-        }
-        if (intent.weekdays.length > 0) {
-          intentHints.push(`Weekdays: ${intent.weekdays.join(", ")}`);
-        }
+        const catalogs = await prefetchForRoute(
+          adminClient,
+          user.id,
+          route
+        );
+        prefetchKeyList = prefetchKeys(catalogs);
+        scheduleAssistantDebug("prefetch.summary", summarizeCatalogs(catalogs));
+        emitPrefetchTools(send, catalogs, toolsUsed);
 
-        const messages: WorkersAiChatMessage[] = [
-          { role: "system", content: SCHEDULE_ASSISTANT_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content:
-              intentHints.length > 0
-                ? `${prompt}\n\n(Extracted focus — ignore any off-topic parts of the original request: ${intentHints.join("; ")})`
-                : prompt,
-          },
-        ];
+        if (catalogsAreEmptyForRoute(route, catalogs)) {
+          scheduleAssistantDebug("empty_catalogs", { route });
+          const answer = SCHEDULE_ASSISTANT_NO_MATCH_MESSAGE;
+          streamAnswer(send, answer);
 
-        let finalText = "";
-
-        for (
-          let round = 0;
-          round < SCHEDULE_ASSISTANT_MAX_TOOL_ROUNDS;
-          round += 1
-        ) {
-          const aiResult = await runWorkersAiChat({
-            messages,
-            tools: SCHEDULE_ASSISTANT_TOOL_DEFINITIONS,
-          });
-          addUsage(usageTotals, aiResult.usage);
-          toolRounds += 1;
-
-          if (aiResult.reasoning?.trim()) {
-            send({ type: "reasoning", text: aiResult.reasoning.trim() });
-          }
-
-          const toolCalls = aiResult.tool_calls ?? [];
-          if (toolCalls.length === 0) {
-            finalText = aiResult.response?.trim() ?? "";
-            break;
-          }
-
-          messages.push({
-            role: "assistant",
-            content: aiResult.response ?? null,
-            tool_calls: toolCalls,
+          await recordCloudflareAiUsage(adminClient, {
+            user_id: user.id,
+            user_label: userLabel,
+            feature: "schedule_assistant",
+            model: modelName,
+            prompt,
+            response: answer,
+            status: "success",
+            prompt_tokens: usageTotals.prompt_tokens,
+            completion_tokens: usageTotals.completion_tokens,
+            total_tokens: usageTotals.total_tokens,
+            tool_rounds: llmCalls,
+            metadata: {
+              route,
+              groups: [],
+              llm_calls: llmCalls,
+              skipped_llm2: true,
+              prefetch: prefetchKeyList,
+              tools_used: toolsUsed,
+              hints: hintsJson,
+              reason: "empty_catalogs",
+            } as Json,
           });
 
-          for (const call of toolCalls) {
-            const name = call.function.name;
-            toolsUsed.push(name);
-            const args = parseToolCallArguments(
-              call.function.arguments ?? "{}"
-            );
-            send({ type: "tool_start", name, args });
-
-            try {
-              const executed = await executeScheduleAssistantTool(
-                adminClient,
-                user.id,
-                name,
-                args
-              );
-              send({
-                type: "tool_result",
-                name,
-                summary: executed.summary,
-              });
-              messages.push({
-                role: "tool",
-                tool_call_id: call.id,
-                name,
-                content: JSON.stringify(executed.result),
-              });
-            } catch (toolError) {
-              const message =
-                toolError instanceof Error
-                  ? toolError.message
-                  : "Tool execution failed.";
-              send({
-                type: "tool_result",
-                name,
-                summary: message,
-              });
-              messages.push({
-                role: "tool",
-                tool_call_id: call.id,
-                name,
-                content: JSON.stringify({ error: message }),
-              });
-            }
-          }
+          send({ type: "done" });
+          controller.close();
+          return;
         }
 
-        if (!finalText) {
+        const mapped = mapGroupsForRoute({
+          route,
+          hints: routed.hints,
+          catalogs,
+        });
+        scheduleAssistantDebug("map.fast_path", {
+          skipped_llm2: mapped.skipped_llm2,
+          groups: mapped.skipped_llm2 ? mapped.groups : null,
+        });
+
+        if (mapped.skipped_llm2) {
+          skippedLlm2 = true;
+          groups = mapped.groups;
           send({
             type: "reasoning",
-            text: "Composing the final recommendation…",
+            text: "Exact match — skipping mapper…",
           });
-          const closing = await runWorkersAiChat({
+        } else {
+          send({
+            type: "reasoning",
+            text: "Mapping with LLM-2…",
+          });
+          const mapperMessages = buildMapperMessagesForRoute(
+            route,
+            prompt,
+            catalogs
+          );
+          const mapperResult = await runWorkersAiChat({
             messages: [
-              ...messages,
-              {
-                role: "user",
-                content:
-                  "Using only the tool results above, write the final manager-facing answer. If tools found nothing, say so clearly. Do not invent people or times.",
-              },
+              { role: "system", content: mapperMessages.system },
+              { role: "user", content: mapperMessages.user },
             ],
-            tools: SCHEDULE_ASSISTANT_TOOL_DEFINITIONS,
+            max_tokens: SCHEDULE_ASSISTANT_MAPPER_MAX_TOKENS,
           });
-          addUsage(usageTotals, closing.usage);
-          toolRounds += 1;
-          if (closing.reasoning?.trim()) {
-            send({ type: "reasoning", text: closing.reasoning.trim() });
+          addUsage(usageTotals, mapperResult.usage);
+          llmCalls += 1;
+
+          scheduleAssistantDebug("llm2.raw", {
+            response: mapperResult.response,
+            reasoning: mapperResult.reasoning?.slice(0, 500) ?? null,
+            usage: mapperResult.usage,
+          });
+
+          if (mapperResult.reasoning?.trim()) {
+            send({
+              type: "reasoning",
+              text: mapperResult.reasoning.trim(),
+            });
           }
-          finalText =
-            closing.response?.trim() ||
-            "No matching instructors or free slots were found for that request.";
+
+          groups = finalizeMapperGroups({
+            route,
+            raw:
+              mapperResult.response?.trim() ||
+              mapperResult.reasoning?.trim() ||
+              "",
+            catalogs,
+          });
+          scheduleAssistantDebug("map.final_groups", { groups });
         }
 
-        if (!finalText.trim()) {
-          finalText =
-            "No matching instructors or free slots were found for that request.";
-        }
-
-        const chunkSize = 24;
-        for (let i = 0; i < finalText.length; i += chunkSize) {
-          send({ type: "token", text: finalText.slice(i, i + chunkSize) });
-        }
+        const { answer, facts } = buildAnswerFromGroups(groups, catalogs);
+        scheduleAssistantDebug("answer", {
+          answer,
+          capability_matches: facts.capabilities?.matches?.length ?? 0,
+          availability_slots: facts.availability?.slots?.length ?? 0,
+          join_matches: facts.join?.matches?.length ?? 0,
+        });
+        streamAnswer(send, answer);
 
         await recordCloudflareAiUsage(adminClient, {
           user_id: user.id,
@@ -309,16 +458,20 @@ export async function POST(request: Request) {
           feature: "schedule_assistant",
           model: modelName,
           prompt,
-          response: finalText,
+          response: answer,
           status: "success",
           prompt_tokens: usageTotals.prompt_tokens,
           completion_tokens: usageTotals.completion_tokens,
           total_tokens: usageTotals.total_tokens,
-          tool_rounds: toolRounds,
+          tool_rounds: llmCalls,
           metadata: {
+            route,
+            groups,
+            llm_calls: llmCalls,
+            skipped_llm2: skippedLlm2,
+            prefetch: prefetchKeyList,
             tools_used: toolsUsed,
-            weekdays: intent.weekdays,
-            subject_hint: intent.subjectQuery,
+            hints: hintsJson,
           } as Json,
         });
 
@@ -329,6 +482,8 @@ export async function POST(request: Request) {
           error instanceof Error
             ? error.message
             : "Unable to run the schedule assistant.";
+
+        scheduleAssistantDebug("error", { message });
 
         await recordCloudflareAiUsage(adminClient, {
           user_id: user.id,
@@ -342,8 +497,16 @@ export async function POST(request: Request) {
           prompt_tokens: usageTotals.prompt_tokens,
           completion_tokens: usageTotals.completion_tokens,
           total_tokens: usageTotals.total_tokens,
-          tool_rounds: toolRounds,
-          metadata: { tools_used: toolsUsed } as Json,
+          tool_rounds: llmCalls,
+          metadata: {
+            route: routeLabel,
+            groups,
+            llm_calls: llmCalls,
+            skipped_llm2: skippedLlm2,
+            prefetch: prefetchKeyList,
+            tools_used: toolsUsed,
+            hints: hintsJson,
+          } as Json,
         });
 
         send({ type: "error", message });

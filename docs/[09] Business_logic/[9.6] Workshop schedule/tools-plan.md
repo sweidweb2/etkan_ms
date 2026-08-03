@@ -1,5 +1,9 @@
 # Workshop schedule assistant — Tools plan
 
+> **Historical only.** The live assistant no longer runs a Cloudflare tool loop.  
+> Canonical pipeline and prefetch catalogs: [`[9.7] schedule ai/implementation-plan.md`](../[9.7]%20schedule%20ai/implementation-plan.md).  
+> Keep this file as a record of the first scaffold’s intended tools.
+
 Create these **read-only** tools for the Cloudflare tool loop. No writes.
 
 ## Tool 1 — `search_instructors_by_subject`

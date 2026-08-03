@@ -15,13 +15,6 @@ import {
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -273,7 +266,7 @@ export function ManagerRbacPanel({
   const showSearchDropdown = isSearchOpen && normalizedSearch.length > 0;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-24">
       <div ref={pageTopRef}>
         <h1 className="text-2xl font-semibold tracking-tight">Permissions</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -282,236 +275,210 @@ export function ManagerRbacPanel({
         </p>
       </div>
 
-      <Card>
-        <CardHeader className="border-b bg-muted/40">
-          <CardTitle>Role permissions</CardTitle>
-          <CardDescription>
-            Select a role, then toggle permissions by feature group.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6 pt-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex w-full max-w-sm flex-col gap-2">
-                <label htmlFor="rbac-role" className="text-sm font-medium">
-                  Role
-                </label>
-                <Select value={selectedRole} onValueChange={handleRoleChange}>
-                  <SelectTrigger id="rbac-role" aria-label="Select role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLE_VALUES.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {MANAGER_USER_ROLE_LABELS[role]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Select value={selectedRole} onValueChange={handleRoleChange}>
+          <SelectTrigger
+            id="rbac-role"
+            aria-label="Select role"
+            className="w-full sm:w-48"
+          >
+            <SelectValue placeholder="Role" />
+          </SelectTrigger>
+          <SelectContent>
+            {ROLE_VALUES.map((role) => (
+              <SelectItem key={role} value={role}>
+                {MANAGER_USER_ROLE_LABELS[role]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-              <div
-                ref={searchContainerRef}
-                className="relative w-full max-w-md"
-              >
-                <label htmlFor="rbac-permission-search" className="sr-only">
-                  Find permission
-                </label>
-                <div className="relative">
-                  <SearchIcon
-                    className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden
-                  />
-                  <Input
-                    id="rbac-permission-search"
-                    type="search"
-                    role="combobox"
-                    aria-expanded={showSearchDropdown}
-                    aria-controls="rbac-permission-search-list"
-                    aria-autocomplete="list"
-                    placeholder="Find permission…"
-                    value={searchQuery}
-                    onChange={(event) => {
-                      setSearchQuery(event.target.value);
-                      setIsSearchOpen(true);
-                      setActiveSearchIndex(0);
-                    }}
-                    onFocus={() => setIsSearchOpen(true)}
-                    onKeyDown={handleSearchKeyDown}
-                    className="pl-8"
-                  />
-                </div>
+        <div ref={searchContainerRef} className="relative min-w-0 flex-1">
+          <label htmlFor="rbac-permission-search" className="sr-only">
+            Find permission
+          </label>
+          <SearchIcon
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            id="rbac-permission-search"
+            type="search"
+            role="combobox"
+            aria-expanded={showSearchDropdown}
+            aria-controls="rbac-permission-search-list"
+            aria-autocomplete="list"
+            placeholder="Find permission…"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              setIsSearchOpen(true);
+              setActiveSearchIndex(0);
+            }}
+            onFocus={() => setIsSearchOpen(true)}
+            onKeyDown={handleSearchKeyDown}
+            className="pl-9"
+          />
 
-                {showSearchDropdown ? (
-                  <ul
-                    id="rbac-permission-search-list"
-                    role="listbox"
-                    className="absolute top-full z-50 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-md"
+          {showSearchDropdown ? (
+            <ul
+              id="rbac-permission-search-list"
+              role="listbox"
+              className="absolute top-full z-50 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-md"
+            >
+              {searchResults.length === 0 ? (
+                <li className="px-3 py-2 text-sm text-muted-foreground">
+                  No permissions found
+                </li>
+              ) : (
+                searchResults.map((definition, index) => {
+                  const isActive = index === activeSearchIndex;
+                  return (
+                    <li
+                      key={definition.key}
+                      role="option"
+                      aria-selected={isActive}
+                    >
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground",
+                          isActive && "bg-accent text-accent-foreground"
+                        )}
+                        onMouseEnter={() => setActiveSearchIndex(index)}
+                        onClick={() => scrollToPermission(definition.key)}
+                      >
+                        <span className="font-medium">{definition.label}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {definition.key}
+                          <span className="ml-2 text-[10px] uppercase tracking-wide">
+                            {PERMISSION_FEATURE_LABELS[definition.feature]}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {grouped.map(({ feature, definitions }) => {
+          const allChecked = definitions.every((definition) =>
+            draftSet.has(definition.key)
+          );
+          const someChecked =
+            !allChecked &&
+            definitions.some((definition) => draftSet.has(definition.key));
+
+          return (
+            <section key={feature} className="rounded-lg border border-border">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-3">
+                <h2 className="text-sm font-semibold">
+                  {PERMISSION_FEATURE_LABELS[feature]}
+                </h2>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={allChecked || isActionPending}
+                    onClick={() => setFeatureKeys(feature, true)}
                   >
-                    {searchResults.length === 0 ? (
-                      <li className="px-3 py-2 text-sm text-muted-foreground">
-                        No permissions found
-                      </li>
-                    ) : (
-                      searchResults.map((definition, index) => {
-                        const isActive = index === activeSearchIndex;
-                        return (
-                          <li
-                            key={definition.key}
-                            role="option"
-                            aria-selected={isActive}
-                          >
-                            <button
-                              type="button"
-                              className={cn(
-                                "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground",
-                                isActive && "bg-accent text-accent-foreground"
-                              )}
-                              onMouseEnter={() => setActiveSearchIndex(index)}
-                              onClick={() =>
-                                scrollToPermission(definition.key)
-                              }
-                            >
-                              <span className="font-medium">
-                                {definition.label}
-                              </span>
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {definition.key}
-                                <span className="ml-2 text-[10px] uppercase tracking-wide">
-                                  {
-                                    PERMISSION_FEATURE_LABELS[
-                                      definition.feature
-                                    ]
-                                  }
-                                </span>
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })
-                    )}
-                  </ul>
-                ) : null}
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={
+                      (!allChecked && !someChecked) || isActionPending
+                    }
+                    onClick={() => setFeatureKeys(feature, false)}
+                  >
+                    Clear
+                  </Button>
+                </div>
               </div>
-            </div>
-
-            <Can permission={PERMISSIONS.RBAC_MANAGE}>
-              <form action={formAction} className="flex flex-wrap gap-2">
-                <input type="hidden" name="role" value={selectedRole} />
-                {draftKeys.map((key) => (
-                  <input
-                    key={key}
-                    type="hidden"
-                    name="permissionKeys"
-                    value={key}
-                  />
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isActionPending || !isDirty}
-                  onClick={resetDraft}
-                >
-                  Reset
-                </Button>
-                <Button type="submit" disabled={isActionPending || !isDirty}>
-                  {isActionPending ? <InlineSpinner /> : null}
-                  Save permissions
-                </Button>
-              </form>
-            </Can>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            {grouped.map(({ feature, definitions }) => {
-              const allChecked = definitions.every((definition) =>
-                draftSet.has(definition.key)
-              );
-              const someChecked =
-                !allChecked &&
-                definitions.some((definition) => draftSet.has(definition.key));
-
-              return (
-                <section
-                  key={feature}
-                  className="rounded-lg border border-border"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-3">
-                    <h2 className="text-sm font-semibold">
-                      {PERMISSION_FEATURE_LABELS[feature]}
-                    </h2>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={allChecked || isActionPending}
-                        onClick={() => setFeatureKeys(feature, true)}
-                      >
-                        Select all
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={
-                          (!allChecked && !someChecked) || isActionPending
+              <ul className="divide-y divide-border">
+                {definitions.map((definition) => {
+                  const checked = draftSet.has(definition.key);
+                  const isHighlighted = highlightedKey === definition.key;
+                  return (
+                    <li
+                      key={definition.key}
+                      id={permissionRowId(definition.key)}
+                      className={cn(
+                        "flex items-start gap-3 px-4 py-3 scroll-mt-24 transition-colors",
+                        isHighlighted &&
+                          "bg-primary/10 ring-2 ring-primary/40 ring-inset"
+                      )}
+                    >
+                      <input
+                        id={`perm-${definition.key}`}
+                        type="checkbox"
+                        checked={checked}
+                        disabled={isActionPending}
+                        onChange={(event) =>
+                          toggleKey(definition.key, event.target.checked)
                         }
-                        onClick={() => setFeatureKeys(feature, false)}
+                        className="mt-0.5 size-4 shrink-0 rounded border border-input accent-primary"
+                        aria-label={definition.label}
+                      />
+                      <label
+                        htmlFor={`perm-${definition.key}`}
+                        className="min-w-0 flex-1 cursor-pointer"
                       >
-                        Clear
-                      </Button>
-                    </div>
-                  </div>
-                  <ul className="divide-y divide-border">
-                    {definitions.map((definition) => {
-                      const checked = draftSet.has(definition.key);
-                      const isHighlighted = highlightedKey === definition.key;
-                      return (
-                        <li
-                          key={definition.key}
-                          id={permissionRowId(definition.key)}
-                          className={cn(
-                            "flex items-start gap-3 px-4 py-3 scroll-mt-24 transition-colors",
-                            isHighlighted &&
-                              "bg-primary/10 ring-2 ring-primary/40 ring-inset"
-                          )}
-                        >
-                          <input
-                            id={`perm-${definition.key}`}
-                            type="checkbox"
-                            checked={checked}
-                            disabled={isActionPending}
-                            onChange={(event) =>
-                              toggleKey(definition.key, event.target.checked)
-                            }
-                            className="mt-0.5 size-4 shrink-0 rounded border border-input accent-primary"
-                            aria-label={definition.label}
-                          />
-                          <label
-                            htmlFor={`perm-${definition.key}`}
-                            className="min-w-0 flex-1 cursor-pointer"
-                          >
-                            <span className="block text-sm font-medium">
-                              {definition.label}
-                            </span>
-                            <span className="mt-0.5 block font-mono text-xs text-muted-foreground">
-                              {definition.key}
-                              <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                                {definition.access}
-                              </span>
-                            </span>
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                        <span className="block text-sm font-medium">
+                          {definition.label}
+                        </span>
+                        <span className="mt-0.5 block font-mono text-xs text-muted-foreground">
+                          {definition.key}
+                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                            {definition.access}
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+
+      <Can permission={PERMISSIONS.RBAC_MANAGE}>
+        <form
+          action={formAction}
+          className="fixed right-4 bottom-6 z-40 flex items-center gap-2 rounded-xl border border-border bg-background/95 p-2 shadow-lg backdrop-blur-sm sm:right-6"
+        >
+          <input type="hidden" name="role" value={selectedRole} />
+          {draftKeys.map((key) => (
+            <input
+              key={key}
+              type="hidden"
+              name="permissionKeys"
+              value={key}
+            />
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isActionPending || !isDirty}
+            onClick={resetDraft}
+          >
+            Reset
+          </Button>
+          <Button type="submit" disabled={isActionPending || !isDirty}>
+            {isActionPending ? <InlineSpinner /> : null}
+            Save permissions
+          </Button>
+        </form>
+      </Can>
 
       {showScrollTop ? (
         <Button
