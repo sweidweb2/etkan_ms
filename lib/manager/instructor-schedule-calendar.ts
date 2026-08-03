@@ -29,21 +29,58 @@ function resolveEventColor(color: string | null | undefined): string {
   return INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR;
 }
 
+/** Project a recurring weekday onto the Sunday-start week containing weekStartIso. */
+export function projectInstructorSlotDate(
+  weekStartIso: string,
+  dayOfWeek: number
+): string {
+  const [year, month, day] = weekStartIso.slice(0, 10).split("-").map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  utc.setUTCDate(utc.getUTCDate() + dayOfWeek);
+  const y = utc.getUTCFullYear();
+  const m = String(utc.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(utc.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+type InstructorScheduleSessionsToEventsOptions = {
+  weekStart: string;
+  instructorNameById?: Map<string, string>;
+  includeInstructorInTitle?: boolean;
+};
+
 export function instructorScheduleSessionsToEvents(
-  sessions: ManagerInstructorScheduleSession[]
+  sessions: ManagerInstructorScheduleSession[],
+  options: InstructorScheduleSessionsToEventsOptions
 ): EventInput[] {
+  const {
+    weekStart,
+    instructorNameById,
+    includeInstructorInTitle = false,
+  } = options;
+
   return sessions.map((session) => {
     const color = resolveEventColor(session.color);
     const contrastColor = getInstructorScheduleSlotStrongColor(color);
     const startTime = normalizeTimeForCalendar(session.startTime);
     const endTime = normalizeTimeForCalendar(session.endTime);
     const isTemp = session.id.startsWith("__temp_");
+    const projectedDate = projectInstructorSlotDate(
+      weekStart,
+      session.dayOfWeek
+    );
+    const instructorLabel =
+      instructorNameById?.get(session.recordId)?.trim() || null;
+    const title =
+      includeInstructorInTitle && instructorLabel
+        ? `${instructorLabel} · ${session.name}`
+        : session.name;
 
     return {
       id: session.id,
-      title: session.name,
-      start: `${session.slotDate}T${startTime}`,
-      end: `${session.slotDate}T${endTime}`,
+      title,
+      start: `${projectedDate}T${startTime}`,
+      end: `${projectedDate}T${endTime}`,
       color,
       contrastColor,
       editable: !isTemp,
@@ -52,6 +89,7 @@ export function instructorScheduleSessionsToEvents(
       extendedProps: {
         session,
         isTemp,
+        projectedDate,
       },
     };
   });

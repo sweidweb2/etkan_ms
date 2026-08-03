@@ -188,6 +188,7 @@ export const PERMISSIONS = {
   ACCOUNTING_PAYMENT_PHASES_UPDATE: "accounting.payment_phases.update",
   ACCOUNTING_PAYMENT_PHASES_CANCEL: "accounting.payment_phases.cancel",
   ACCOUNTING_SPP_TRANSFER: "accounting.spp.transfer",
+  ACCOUNTING_SPP_DELETE: "accounting.spp.delete",
   ACCOUNTING_PAYMENTS_CREATE: "accounting.payments.create",
   ACCOUNTING_PAYMENTS_UPDATE: "accounting.payments.update",
   ACCOUNTING_PAYMENTS_DELETE: "accounting.payments.delete",
@@ -784,6 +785,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_SPP_TRANSFER,
     feature: "accounting",
     label: "Transfer student payment phase",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_SPP_DELETE,
+    feature: "accounting",
+    label: "Delete student payment phase",
     access: PERMISSION_ACCESS.WRITE,
   },
   {

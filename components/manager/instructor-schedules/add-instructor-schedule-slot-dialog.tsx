@@ -195,8 +195,8 @@ export function AddInstructorScheduleSlotDialog({
           <div className="flex flex-col gap-2">
             <FieldLabel
               htmlFor="add-instructor-schedule-slot-date"
-              label="Date"
-              hint="Required"
+              label="Anchor date"
+              hint="Sets weekday · repeats weekly"
             />
             <Input
               id="add-instructor-schedule-slot-date"
@@ -208,6 +208,10 @@ export function AddInstructorScheduleSlotDialog({
             {slotDateError ? (
               <p className="text-sm text-destructive">{slotDateError}</p>
             ) : null}
+            <p className="text-xs text-muted-foreground">
+              This date remembers when the slot was created and which weekday it
+              repeats on every week.
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

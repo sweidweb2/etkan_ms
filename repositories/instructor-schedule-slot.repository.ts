@@ -4,7 +4,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const SLOT_COLUMNS =
-  "id, entity_type, record_id, name, type, slot_date, start_time, end_time, color, created_at, updated_at";
+  "id, entity_type, record_id, name, type, slot_date, day_of_week, start_time, end_time, color, created_at, updated_at";
 
 export type InstructorScheduleSlotRecord = {
   id: string;
@@ -13,6 +13,7 @@ export type InstructorScheduleSlotRecord = {
   name: string;
   type: string;
   slot_date: string;
+  day_of_week: number;
   start_time: string;
   end_time: string;
   color: string;
@@ -26,6 +27,7 @@ export type CreateInstructorScheduleSlotRecordInput = {
   name: string;
   type: string;
   slot_date: string;
+  day_of_week: number;
   start_time: string;
   end_time: string;
   color: string;
@@ -42,7 +44,7 @@ export async function listInstructorScheduleSlotsByEntity(
     .from("instructor_schedule_slots")
     .select(SLOT_COLUMNS)
     .eq("entity_type", entityType)
-    .order("slot_date", { ascending: true })
+    .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
 }
 
@@ -56,25 +58,7 @@ export async function listInstructorScheduleSlotsByRecord(
     .select(SLOT_COLUMNS)
     .eq("entity_type", entityType)
     .eq("record_id", recordId)
-    .order("slot_date", { ascending: true })
-    .order("start_time", { ascending: true });
-}
-
-export async function listInstructorScheduleSlotsInDateRangeForRecord(
-  client: Supabase,
-  entityType: string,
-  recordId: string,
-  fromDate: string,
-  toDate: string
-) {
-  return client
-    .from("instructor_schedule_slots")
-    .select(SLOT_COLUMNS)
-    .eq("entity_type", entityType)
-    .eq("record_id", recordId)
-    .gte("slot_date", fromDate)
-    .lte("slot_date", toDate)
-    .order("slot_date", { ascending: true })
+    .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
 }
 
@@ -103,6 +87,7 @@ export async function createInstructorScheduleSlot(
       name: input.name,
       type: input.type,
       slot_date: input.slot_date,
+      day_of_week: input.day_of_week,
       start_time: input.start_time,
       end_time: input.end_time,
       color: input.color,
@@ -110,34 +95,6 @@ export async function createInstructorScheduleSlot(
     })
     .select(SLOT_COLUMNS)
     .single();
-}
-
-export async function createInstructorScheduleSlots(
-  client: Supabase,
-  inputs: CreateInstructorScheduleSlotRecordInput[]
-) {
-  if (inputs.length === 0) {
-    return { data: [] as InstructorScheduleSlotRecord[], error: null };
-  }
-
-  const now = new Date().toISOString();
-
-  return client
-    .from("instructor_schedule_slots")
-    .insert(
-      inputs.map((input) => ({
-        entity_type: input.entity_type,
-        record_id: input.record_id,
-        name: input.name,
-        type: input.type,
-        slot_date: input.slot_date,
-        start_time: input.start_time,
-        end_time: input.end_time,
-        color: input.color,
-        updated_at: now,
-      }))
-    )
-    .select(SLOT_COLUMNS);
 }
 
 export async function updateInstructorScheduleSlot(
@@ -155,6 +112,7 @@ export async function updateInstructorScheduleSlot(
       name: input.name,
       type: input.type,
       slot_date: input.slot_date,
+      day_of_week: input.day_of_week,
       start_time: input.start_time,
       end_time: input.end_time,
       color: input.color,

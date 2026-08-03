@@ -230,6 +230,7 @@ Format: `key` — label — access
 | `accounting.payment_phases.update` | Edit payment phase | write |
 | `accounting.payment_phases.cancel` | Cancel payment phase | write |
 | `accounting.spp.transfer` | Transfer student payment phase | write |
+| `accounting.spp.delete` | Delete student payment phase (payment-free only) | write |
 | `accounting.payments.create` | Record student payment | write |
 | `accounting.payments.update` | Edit student payment | write |
 | `accounting.payments.delete` | Delete student payment | write |
@@ -386,6 +387,7 @@ accounting.payment_phases.create
 accounting.payment_phases.update
 accounting.payment_phases.cancel
 accounting.spp.transfer
+accounting.spp.delete
 accounting.payments.create
 accounting.payments.update
 accounting.payments.delete
@@ -409,7 +411,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 109 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update · workshops includes full CRUD.
+**Count:** 111 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update · workshops includes full CRUD.
 
 ---
 

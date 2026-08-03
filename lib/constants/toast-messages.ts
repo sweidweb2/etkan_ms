@@ -15,6 +15,7 @@ export const TOAST_MESSAGES = {
     session_deleted: "Session deleted.",
     subject_deleted: "Subject deleted.",
     workshop_deleted: "Workshop deleted.",
+    spp_deleted: "Student payment phase deleted.",
   },
   error: {
     auth_callback_failed:

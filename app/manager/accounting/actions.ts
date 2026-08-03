@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import {
@@ -8,6 +9,7 @@ import {
   ROUTES,
 } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { appendQueryParam } from "@/lib/url/append-query-param";
 import { parseCancelPaymentPhaseFormData } from "@/lib/validators/manager/cancel-payment-phase";
 import { parseCreatePaymentPhaseFormData } from "@/lib/validators/manager/create-payment-phase";
 import {
@@ -17,6 +19,7 @@ import {
 import { parseCreateStudentPaymentFormData } from "@/lib/validators/manager/create-student-payment";
 import { parseDeleteFinancialAdjustmentFormData } from "@/lib/validators/manager/delete-financial-adjustment";
 import { parseDeleteStudentPaymentFormData } from "@/lib/validators/manager/delete-student-payment";
+import { parseDeleteStudentPaymentPhaseFormData } from "@/lib/validators/manager/delete-student-payment-phase";
 import { parseRepairMissingSppFormData } from "@/lib/validators/manager/repair-missing-spp";
 import { parseTransferSppFormData } from "@/lib/validators/manager/transfer-spp";
 import { parseUpdatePaymentPhaseFormData } from "@/lib/validators/manager/update-payment-phase";
@@ -41,6 +44,7 @@ import {
 } from "@/services/student-financial-adjustment.service";
 import {
   createStudentPaymentForManager,
+  deleteSppForManager,
   deleteStudentPaymentForManager,
   updateStudentPaymentForManager,
 } from "@/services/student-payment.service";
@@ -60,6 +64,7 @@ import type {
 import type {
   CreateStudentPaymentActionState,
   DeleteStudentPaymentActionState,
+  DeleteStudentPaymentPhaseActionState,
   UpdateStudentPaymentActionState,
 } from "@/types/manager-student-payment";
 
@@ -412,6 +417,49 @@ export async function deleteStudentPaymentAction(
     student_payment_phase_id: result.student_payment_phase_id,
     payment_phase_id: result.payment_phase_id,
   };
+}
+
+export async function deleteStudentPaymentPhaseAction(
+  _prevState: DeleteStudentPaymentPhaseActionState,
+  formData: FormData
+): Promise<DeleteStudentPaymentPhaseActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseDeleteStudentPaymentPhaseFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteSppForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+
+  redirect(
+    appendQueryParam(
+      getManagerAccountingPhaseDetailRoute(result.payment_phase_id),
+      "toast",
+      "spp_deleted"
+    )
+  );
 }
 
 export async function createFinancialAdjustmentAction(

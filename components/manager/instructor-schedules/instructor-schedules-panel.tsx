@@ -3,11 +3,8 @@
 import * as React from "react";
 import { useEffect, useMemo, useRef, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { format, parseISO } from "date-fns";
 import FullCalendar from "@fullcalendar/react";
 import type {
-  CalendarApi,
   DateSelectInfo,
   DatesSetInfo,
   EventClickInfo,
@@ -16,6 +13,7 @@ import type {
   EventInput,
   EventResizeDoneInfo,
 } from "@fullcalendar/react";
+import type { CalendarApi } from "@fullcalendar/react";
 import themePlugin from "@fullcalendar/react/themes/monarch";
 import interactionPlugin from "@fullcalendar/react/interaction";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
@@ -24,21 +22,17 @@ import listPlugin from "@fullcalendar/react/list";
 import {
   CircleCheckIcon,
   CircleXIcon,
-  CopyIcon,
   PlusIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
-  copyInstructorScheduleSlotsAction,
   createInstructorScheduleSlotAction,
   deleteInstructorScheduleSlotAction,
-  previewCopyLastWeekInstructorScheduleAction,
   updateInstructorScheduleSlotAction,
 } from "@/app/manager/instructor-schedules/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { AddInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/add-instructor-schedule-slot-dialog";
-import { CopyLastWeekInstructorScheduleDialog } from "@/components/manager/instructor-schedules/copy-last-week-instructor-schedule-dialog";
 import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
 import { ScheduleAssistantPrompt } from "@/components/manager/instructor-schedules/schedule-assistant-prompt";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -66,6 +60,7 @@ import {
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
+  dayOfWeekFromIsoDate,
   getInstructorScheduleSlotStrongColor,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
@@ -73,7 +68,6 @@ import {
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
-  CopyInstructorSchedulePreview,
   InstructorScheduleSlotType,
   ManagerInstructorScheduleSession,
   ManagerInstructorSchedulesPageData,
@@ -84,6 +78,16 @@ import "@fullcalendar/react/themes/monarch/theme.css";
 import "@/components/manager/schedule/fullcalendar-dark.css";
 
 const DUP_GHOST_ID_PREFIX = "__dup_ghost_";
+const ALL_INSTRUCTORS_TAB = "all";
+const WEEKDAY_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
 
 function makeTempId(): string {
   return `${TEMP_SCHEDULE_ID_PREFIX}${crypto.randomUUID()}`;
@@ -228,24 +232,18 @@ function buildDuplicateGhostEvent(
   };
 }
 
-function formatSlotDateLabel(value: string): string {
-  try {
-    return format(parseISO(value), "EEE, MMM d, yyyy");
-  } catch {
-    return value;
-  }
-}
-
 function sessionFromCreateInput(
   values: CreateInstructorScheduleSlotInput,
-  id: string
+  id: string,
+  options?: { preserveSlotDate?: string }
 ): ManagerInstructorScheduleSession {
   return {
     id,
     recordId: values.record_id,
     name: values.name,
     type: values.type,
-    slotDate: values.slot_date,
+    slotDate: options?.preserveSlotDate ?? values.slot_date,
+    dayOfWeek: dayOfWeekFromIsoDate(values.slot_date),
     startTime: values.start_time,
     endTime: values.end_time,
     color: values.color,
@@ -280,7 +278,6 @@ function toUpdateFormData(values: UpdateInstructorScheduleSlotInput): FormData {
 export function InstructorSchedulesPanel({
   data,
 }: InstructorSchedulesPanelProps) {
-  const router = useRouter();
   const calendarRef = useRef<React.ComponentRef<typeof FullCalendar> | null>(
     null
   );
@@ -296,12 +293,10 @@ export function InstructorSchedulesPanel({
   const [, startTransition] = useTransition();
 
   const [sessions, setSessions] = React.useState(data.sessions);
-  const [selectedInstructorId, setSelectedInstructorId] = React.useState(
-    () => data.instructors[0]?.id ?? ""
-  );
+  const [selectedInstructorId, setSelectedInstructorId] =
+    React.useState(ALL_INSTRUCTORS_TAB);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
-  const [isCopyOpen, setIsCopyOpen] = React.useState(false);
   const [createDefaults, setCreateDefaults] =
     React.useState<CreateSlotDefaults | null>(null);
   const [deleteTarget, setDeleteTarget] =
@@ -310,12 +305,6 @@ export function InstructorSchedulesPanel({
     React.useState<ManagerInstructorScheduleSession | null>(null);
   const [weekStart, setWeekStart] = React.useState(() =>
     getSundayWeekBounds(formatDateFromDate(new Date())).weekStart
-  );
-  const [copyPreview, setCopyPreview] =
-    React.useState<CopyInstructorSchedulePreview | null>(null);
-  const [isLoadingCopyPreview, setIsLoadingCopyPreview] = React.useState(false);
-  const [copyPreviewError, setCopyPreviewError] = React.useState<string | null>(
-    null
   );
   const [isAltDuplicating, setIsAltDuplicating] = React.useState(false);
   const [typeFilter, setTypeFilter] = React.useState<ScheduleTypeFilter>("all");
@@ -332,11 +321,16 @@ export function InstructorSchedulesPanel({
     });
   }, [data.sessions]);
 
-  const resolvedInstructorId = data.instructors.some(
-    (instructor) => instructor.id === selectedInstructorId
-  )
-    ? selectedInstructorId
-    : (data.instructors[0]?.id ?? "");
+  const isAllInstructorsSelected = selectedInstructorId === ALL_INSTRUCTORS_TAB;
+  const canCreateOnCalendar = canCreate && !isAllInstructorsSelected;
+
+  const resolvedInstructorId =
+    selectedInstructorId === ALL_INSTRUCTORS_TAB ||
+    data.instructors.some(
+      (instructor) => instructor.id === selectedInstructorId
+    )
+      ? selectedInstructorId
+      : ALL_INSTRUCTORS_TAB;
 
   if (resolvedInstructorId !== selectedInstructorId) {
     setSelectedInstructorId(resolvedInstructorId);
@@ -350,12 +344,22 @@ export function InstructorSchedulesPanel({
     [data.instructors, selectedInstructorId]
   );
 
+  const instructorNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const instructor of data.instructors) {
+      map.set(instructor.id, instructor.username?.trim() || "Unknown");
+    }
+    return map;
+  }, [data.instructors]);
+
   const instructorSessions = useMemo(
     () =>
-      selectedInstructorId
-        ? sessions.filter((session) => session.recordId === selectedInstructorId)
-        : [],
-    [sessions, selectedInstructorId]
+      isAllInstructorsSelected
+        ? sessions
+        : sessions.filter(
+            (session) => session.recordId === selectedInstructorId
+          ),
+    [sessions, selectedInstructorId, isAllInstructorsSelected]
   );
 
   const events = useMemo<EventInput[]>(() => {
@@ -363,34 +367,31 @@ export function InstructorSchedulesPanel({
       typeFilter === "all"
         ? instructorSessions
         : instructorSessions.filter((session) => session.type === typeFilter);
-    return instructorScheduleSessionsToEvents(filtered);
-  }, [instructorSessions, typeFilter]);
+    return instructorScheduleSessionsToEvents(filtered, {
+      weekStart,
+      includeInstructorInTitle: isAllInstructorsSelected,
+      instructorNameById,
+    });
+  }, [
+    instructorSessions,
+    typeFilter,
+    weekStart,
+    isAllInstructorsSelected,
+    instructorNameById,
+  ]);
 
   const weekTypeCounts = useMemo(() => {
-    const bounds = getSundayWeekBounds(weekStart);
     const counts: Record<InstructorScheduleSlotType, number> = {
       free: 0,
       busy: 0,
     };
 
     for (const session of instructorSessions) {
-      if (
-        session.slotDate < bounds.weekStart ||
-        session.slotDate > bounds.weekEnd
-      ) {
-        continue;
-      }
       counts[session.type] += 1;
     }
 
     return counts;
-  }, [instructorSessions, weekStart]);
-
-  function softRefresh() {
-    startTransition(() => {
-      router.refresh();
-    });
-  }
+  }, [instructorSessions]);
 
   function trackPendingTemp(tempId: string) {
     pendingTempIdsRef.current.add(tempId);
@@ -446,7 +447,7 @@ export function InstructorSchedulesPanel({
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Alt" || !canCreate) {
+      if (event.key !== "Alt" || !canCreateOnCalendar) {
         return;
       }
       const snapshot = dragSourceRef.current;
@@ -473,7 +474,7 @@ export function InstructorSchedulesPanel({
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [canCreate]);
+  }, [canCreateOnCalendar]);
 
   const handleDeleteOpenChange = usePendingAwareOpenChange(
     false,
@@ -495,8 +496,8 @@ export function InstructorSchedulesPanel({
   }
 
   function openCreate(defaults?: CreateSlotDefaults | null) {
-    if (!selectedInstructorId) {
-      showErrorToast("Select an instructor first.");
+    if (isAllInstructorsSelected || !selectedInstructorId) {
+      showErrorToast("Select an instructor tab before adding a slot.");
       return;
     }
 
@@ -546,18 +547,21 @@ export function InstructorSchedulesPanel({
       return;
     }
 
-    const next = sessionFromCreateInput(
-      {
-        record_id: values.record_id,
-        name: values.name,
-        type: values.type,
-        slot_date: values.slot_date,
-        start_time: values.start_time,
-        end_time: values.end_time,
-        color: values.color,
-      },
-      values.id
-    );
+    const next = {
+      ...sessionFromCreateInput(
+        {
+          record_id: values.record_id,
+          name: values.name,
+          type: values.type,
+          slot_date: values.slot_date,
+          start_time: values.start_time,
+          end_time: values.end_time,
+          color: values.color,
+        },
+        values.id,
+        { preserveSlotDate: previous.slotDate }
+      ),
+    };
 
     setSessions((prev) =>
       prev.map((session) => (session.id === values.id ? next : session))
@@ -596,48 +600,6 @@ export function InstructorSchedulesPanel({
     }
 
     showSuccessToast(result.message ?? "Slot updated.");
-  }
-
-  async function handleOptimisticCopy(preview: CopyInstructorSchedulePreview) {
-    const tempIds = preview.willCreate.map(() => makeTempId());
-    const optimisticSessions = preview.willCreate.map((item, index) => ({
-      id: tempIds[index]!,
-      recordId: preview.recordId,
-      name: item.name,
-      type: item.type,
-      slotDate: item.slotDate,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      color: item.color,
-    }));
-
-    for (const tempId of tempIds) {
-      trackPendingTemp(tempId);
-    }
-    setSessions((prev) => [...prev, ...optimisticSessions]);
-
-    const formData = new FormData();
-    formData.set("record_id", preview.recordId);
-    formData.set("week_start", preview.weekStart);
-    const result = await copyInstructorScheduleSlotsAction({}, formData);
-
-    if (!result.success) {
-      const tempIdSet = new Set(tempIds);
-      for (const tempId of tempIds) {
-        untrackPendingTemp(tempId);
-      }
-      setSessions((prev) =>
-        prev.filter((session) => !tempIdSet.has(session.id))
-      );
-      showErrorToast(result.error ?? "Unable to copy last week.");
-      return;
-    }
-
-    for (const tempId of tempIds) {
-      untrackPendingTemp(tempId);
-    }
-    showSuccessToast(result.message ?? "Last week copied.");
-    softRefresh();
   }
 
   function handleConfirmDelete() {
@@ -689,7 +651,7 @@ export function InstructorSchedulesPanel({
   }
 
   function handleDateSelect(info: DateSelectInfo) {
-    if (!canCreate || !selectedInstructorId) {
+    if (!canCreateOnCalendar) {
       info.view.calendar.unselect();
       return;
     }
@@ -718,7 +680,7 @@ export function InstructorSchedulesPanel({
     };
     dragSourceRef.current = snapshot;
 
-    if (canCreate && info.jsEvent.altKey) {
+    if (canCreateOnCalendar && info.jsEvent.altKey) {
       showDuplicateGhost(snapshot);
     } else {
       isAltDupDragRef.current = false;
@@ -749,7 +711,7 @@ export function InstructorSchedulesPanel({
     if (wantsDuplicate) {
       info.revert();
 
-      if (!canCreate) {
+      if (!canCreateOnCalendar) {
         return;
       }
 
@@ -806,7 +768,7 @@ export function InstructorSchedulesPanel({
     const previous = source;
     const optimistic: ManagerInstructorScheduleSession = {
       ...source,
-      slotDate,
+      dayOfWeek: dayOfWeekFromIsoDate(slotDate),
       startTime,
       endTime,
     };
@@ -899,7 +861,7 @@ export function InstructorSchedulesPanel({
     const previous = session;
     const optimistic: ManagerInstructorScheduleSession = {
       ...session,
-      slotDate,
+      dayOfWeek: dayOfWeekFromIsoDate(slotDate),
       startTime,
       endTime,
     };
@@ -961,41 +923,6 @@ export function InstructorSchedulesPanel({
     setWeekStart(bounds.weekStart);
   }
 
-  async function handleOpenCopyLastWeek() {
-    if (!canCreate || !selectedInstructorId) {
-      return;
-    }
-
-    let anchor = weekStart;
-    const api = calendarRef.current?.getApi?.() as CalendarApi | undefined;
-    if (api) {
-      anchor = getSundayWeekBounds(formatDateFromDate(api.getDate())).weekStart;
-      setWeekStart(anchor);
-    }
-
-    setIsCopyOpen(true);
-    setCopyPreview(null);
-    setCopyPreviewError(null);
-    setIsLoadingCopyPreview(true);
-
-    try {
-      const result = await previewCopyLastWeekInstructorScheduleAction(
-        selectedInstructorId,
-        anchor
-      );
-      if (!result.success) {
-        setCopyPreviewError(result.error);
-        return;
-      }
-
-      setCopyPreview(result.preview);
-    } catch {
-      setCopyPreviewError("Unable to load copy preview. Please try again.");
-    } finally {
-      setIsLoadingCopyPreview(false);
-    }
-  }
-
   if (data.instructors.length === 0) {
     return (
       <div className="flex flex-col gap-6">
@@ -1031,12 +958,15 @@ export function InstructorSchedulesPanel({
             Instructor schedules
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Free and busy slots for each instructor. Click a slot to edit it
-            {canCreate
-              ? ", drag to select a range to add one, or hold Alt and drag a slot to duplicate it"
-              : ""}
+            Weekly free and busy slots per instructor. Slots repeat every week
+            until edited or deleted
+            {canCreateOnCalendar
+              ? ". Click a slot to edit it, drag to select a range to add one, or hold Alt and drag a slot to duplicate it"
+              : canCreate
+                ? ". Select an instructor tab to add slots"
+                : ". Click a slot to edit it"}
             {canUpdate
-              ? ", drag a slot to move it, or drag the top/bottom edge to change duration"
+              ? ", drag a slot to change weekday/time, or drag the top/bottom edge to change duration"
               : ""}
             .
           </p>
@@ -1050,6 +980,20 @@ export function InstructorSchedulesPanel({
         aria-label="Instructors"
         className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
       >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={isAllInstructorsSelected}
+          onClick={() => setSelectedInstructorId(ALL_INSTRUCTORS_TAB)}
+          className={cn(
+            "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+            "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
+            isAllInstructorsSelected &&
+              "border-border bg-background text-foreground shadow-sm"
+          )}
+        >
+          All
+        </button>
         {data.instructors.map((instructor) => {
           const selected = instructor.id === selectedInstructorId;
           return (
@@ -1074,7 +1018,7 @@ export function InstructorSchedulesPanel({
 
       <div className="flex flex-col items-stretch gap-3 sm:grid sm:grid-cols-3 sm:items-center">
         <div
-          aria-label="Slot counts for this week"
+          aria-label="Slot counts"
           className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:justify-self-start"
         >
           {INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES.map((type) => {
@@ -1101,20 +1045,13 @@ export function InstructorSchedulesPanel({
           <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
             <Button
               type="button"
-              variant="outline"
               size="sm"
-              disabled={!selectedInstructorId}
-              onClick={() => {
-                void handleOpenCopyLastWeek();
-              }}
-            >
-              <CopyIcon data-icon="inline-start" />
-              Copy last week
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={!selectedInstructorId}
+              disabled={!canCreateOnCalendar}
+              title={
+                isAllInstructorsSelected
+                  ? "Select an instructor tab to add a slot"
+                  : undefined
+              }
               onClick={() => openCreate(null)}
             >
               <PlusIcon data-icon="inline-start" />
@@ -1161,7 +1098,7 @@ export function InstructorSchedulesPanel({
         }}
         onCreate={handleOptimisticCreate}
         defaults={
-          selectedInstructorId
+          !isAllInstructorsSelected && selectedInstructorId
             ? {
                 record_id: selectedInstructorId,
                 ...createDefaults,
@@ -1186,15 +1123,6 @@ export function InstructorSchedulesPanel({
         }}
       />
 
-      <CopyLastWeekInstructorScheduleDialog
-        open={isCopyOpen}
-        onOpenChange={setIsCopyOpen}
-        preview={copyPreview}
-        isLoadingPreview={isLoadingCopyPreview}
-        previewError={copyPreviewError}
-        onCopy={handleOptimisticCopy}
-      />
-
       <Dialog
         open={deleteTarget !== null}
         onOpenChange={handleDeleteOpenChange}
@@ -1205,8 +1133,8 @@ export function InstructorSchedulesPanel({
             <DialogDescription>
               This will permanently remove{" "}
               {deleteTarget
-                ? `${deleteTarget.name} on ${formatSlotDateLabel(deleteTarget.slotDate)}`
-                : "this slot"}
+                ? `${deleteTarget.name} (every ${WEEKDAY_LABELS[deleteTarget.dayOfWeek] ?? "week"})`
+                : "this weekly slot"}
               . This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
@@ -1261,12 +1189,12 @@ export function InstructorSchedulesPanel({
           scrollTime="07:00:00"
           allDaySlot={false}
           events={events}
-          editable={canCreate || canUpdate}
-          eventStartEditable={canCreate || canUpdate}
+          editable={canCreateOnCalendar || canUpdate}
+          eventStartEditable={canCreateOnCalendar || canUpdate}
           eventDurationEditable={canUpdate}
           eventResizableFromStart={canUpdate}
-          selectable={canCreate && Boolean(selectedInstructorId)}
-          selectMirror={canCreate && Boolean(selectedInstructorId)}
+          selectable={canCreateOnCalendar}
+          selectMirror={canCreateOnCalendar}
           select={handleDateSelect}
           eventDragStart={handleEventDragStart}
           eventDragStop={handleEventDragStop}

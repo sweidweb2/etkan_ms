@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
+import { format, parseISO } from "date-fns";
 import { Trash2Icon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { projectInstructorSlotDate } from "@/lib/manager/instructor-schedule-calendar";
 import {
   updateInstructorScheduleSlotSchema,
   INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
@@ -30,6 +32,16 @@ import type {
   ManagerInstructorScheduleSession,
 } from "@/types/manager-instructor-schedule";
 
+const WEEKDAY_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
 type EditInstructorScheduleSlotDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,6 +49,14 @@ type EditInstructorScheduleSlotDialogProps = {
   onUpdate: (values: UpdateInstructorScheduleSlotInput) => void | Promise<void>;
   onDeleteRequest?: (session: ManagerInstructorScheduleSession) => void;
 };
+
+function formatAnchorDate(value: string): string {
+  try {
+    return format(parseISO(value), "EEE, MMM d, yyyy");
+  } catch {
+    return value;
+  }
+}
 
 export function EditInstructorScheduleSlotDialog({
   open,
@@ -64,7 +84,10 @@ export function EditInstructorScheduleSlotDialog({
       record_id: session?.recordId ?? "",
       name: session?.name ?? "",
       type: session?.type ?? "busy",
-      slot_date: session?.slotDate ?? "",
+      // Encode weekday for the update action without changing the anchor date.
+      slot_date: session
+        ? projectInstructorSlotDate("1970-01-04", session.dayOfWeek)
+        : "",
       start_time: session?.startTime ?? "09:00",
       end_time: session?.endTime ?? "10:30",
       color: session?.color ?? INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
@@ -84,7 +107,7 @@ export function EditInstructorScheduleSlotDialog({
       record_id: session.recordId,
       name: session.name,
       type: session.type,
-      slot_date: session.slotDate,
+      slot_date: projectInstructorSlotDate("1970-01-04", session.dayOfWeek),
       start_time: session.startTime,
       end_time: session.endTime,
       color: session.color || INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
@@ -100,7 +123,6 @@ export function EditInstructorScheduleSlotDialog({
 
   const nameError = errors.name?.message;
   const typeError = errors.type?.message;
-  const slotDateError = errors.slot_date?.message;
   const startTimeError = errors.start_time?.message;
   const endTimeError = errors.end_time?.message;
   const colorError = errors.color?.message;
@@ -111,7 +133,8 @@ export function EditInstructorScheduleSlotDialog({
         <DialogHeader>
           <DialogTitle>Edit schedule slot</DialogTitle>
           <DialogDescription>
-            Update the instructor schedule slot details.
+            Update this weekly recurring slot. It appears every{" "}
+            {session ? (WEEKDAY_LABELS[session.dayOfWeek] ?? "week") : "week"}.
           </DialogDescription>
         </DialogHeader>
 
@@ -125,6 +148,7 @@ export function EditInstructorScheduleSlotDialog({
           <input type="hidden" {...register("record_id")} />
           <input type="hidden" {...register("type")} />
           <input type="hidden" {...register("color")} />
+          <input type="hidden" {...register("slot_date")} />
 
           <div className="flex flex-col gap-2">
             <FieldLabel
@@ -184,22 +208,14 @@ export function EditInstructorScheduleSlotDialog({
             ) : null}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-instructor-schedule-slot-date"
-              label="Date"
-              hint="Required"
-            />
-            <Input
-              id="edit-instructor-schedule-slot-date"
-              type="date"
-              aria-invalid={!!slotDateError}
-              disabled={isPending}
-              {...register("slot_date")}
-            />
-            {slotDateError ? (
-              <p className="text-sm text-destructive">{slotDateError}</p>
-            ) : null}
+          <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+            <p className="text-muted-foreground">Created / anchor date</p>
+            <p className="font-medium text-foreground">
+              {session ? formatAnchorDate(session.slotDate) : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Informative only. Drag the slot on the calendar to change weekday.
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

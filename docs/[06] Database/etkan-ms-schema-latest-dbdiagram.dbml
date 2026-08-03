@@ -121,7 +121,8 @@ Table instructor_schedule_slots {
   record_id uuid [not null, note: 'Polymorphic id by entity_type']
   name text [not null]
   type text [not null, note: 'free | busy']
-  slot_date date [not null]
+  slot_date date [not null, note: 'Created/anchor date (informative)']
+  day_of_week smallint [not null, note: '0=Sunday … 6=Saturday; weekly recurrence']
   start_time time [not null]
   end_time time [not null]
   color text [not null, default: '#BAE6FD', note: '#RRGGBB hex']
@@ -129,8 +130,8 @@ Table instructor_schedule_slots {
   updated_at timestamptz [not null, default: `now()`]
 
   indexes {
-    (entity_type, record_id, name, slot_date, start_time, end_time) [unique]
-    (entity_type, record_id, slot_date)
+    (entity_type, record_id, name, day_of_week, start_time, end_time) [unique]
+    (entity_type, record_id, day_of_week)
   }
 }
 

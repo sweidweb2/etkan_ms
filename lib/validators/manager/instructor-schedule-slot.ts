@@ -156,14 +156,6 @@ export const instructorScheduleSlotIdSchema = z.object({
   id: z.string().uuid({ message: "Schedule slot id is required." }),
 });
 
-export const copyInstructorScheduleSlotsSchema = z.object({
-  record_id: z.string().uuid({ message: "Instructor is required." }),
-  week_start: z
-    .string()
-    .trim()
-    .regex(datePattern, { message: "Week start must use YYYY-MM-DD format." }),
-});
-
 export type CreateInstructorScheduleSlotInput = z.infer<
   typeof createInstructorScheduleSlotSchema
 >;
@@ -176,9 +168,11 @@ export type InstructorScheduleSlotIdInput = z.infer<
   typeof instructorScheduleSlotIdSchema
 >;
 
-export type CopyInstructorScheduleSlotsInput = z.infer<
-  typeof copyInstructorScheduleSlotsSchema
->;
+/** Sunday = 0 … Saturday = 6, matching Postgres EXTRACT(DOW). */
+export function dayOfWeekFromIsoDate(isoDate: string): number {
+  const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
 
 export function parseCreateInstructorScheduleSlotFormData(formData: FormData):
   | { success: true; data: CreateInstructorScheduleSlotInput }
@@ -234,25 +228,6 @@ export function parseInstructorScheduleSlotIdFormData(formData: FormData):
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = instructorScheduleSlotIdSchema.safeParse({
     id: formData.get("id"),
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
-}
-
-export function parseCopyInstructorScheduleSlotsFormData(formData: FormData):
-  | { success: true; data: CopyInstructorScheduleSlotsInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = copyInstructorScheduleSlotsSchema.safeParse({
-    record_id: formData.get("record_id"),
-    week_start: formData.get("week_start"),
   });
 
   if (!parsed.success) {

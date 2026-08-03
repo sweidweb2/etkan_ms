@@ -7,14 +7,26 @@ import {
   CalendarDaysIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  MoreHorizontalIcon,
   PlusIcon,
+  ReceiptIcon,
   SearchIcon,
 } from "lucide-react";
+import {
+  Tabs as TabsPrimitive,
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
 import { AddWorkshopDialog } from "@/components/manager/workshops/add-workshop-dialog";
 import { WorkshopCard } from "@/components/manager/workshops/workshop-card";
-import { WorkshopPaymentsTotalsSection } from "@/components/manager/workshops/workshop-payments-totals-section";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -25,6 +37,9 @@ import {
 } from "@/components/ui/select";
 import {
   MANAGER_WORKSHOP_STATUS_LABELS,
+  WORKSHOP_OFFERING_TYPE_LABELS,
+  WORKSHOP_OFFERING_TYPES,
+  type WorkshopOfferingType,
 } from "@/lib/constants/manager-workshop-display";
 import {
   WORKSHOP_STATUS_VALUES,
@@ -33,16 +48,25 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-import type {
-  ManagerWorkshopPaymentLedgerRow,
-  ManagerWorkshopPaymentsTotals,
-  ManagerWorkshopRow,
-} from "@/types/manager-workshop";
+import type { ManagerWorkshopRow } from "@/types/manager-workshop";
 
 const PAGE_SIZE = 12;
 const STATUS_ALL = "all";
 
+const TYPE_TAB_ORDER = [
+  WORKSHOP_OFFERING_TYPES.WORKSHOP,
+  WORKSHOP_OFFERING_TYPES.ONLINE,
+  WORKSHOP_OFFERING_TYPES.COURSE,
+] as const satisfies readonly WorkshopOfferingType[];
+
 type StatusFilter = typeof STATUS_ALL | WorkshopStatusValue;
+
+const TAB_TRIGGER_CLASS = cn(
+  "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm",
+  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
+  "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
+  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+);
 
 function matchesSearch(workshop: ManagerWorkshopRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -66,29 +90,43 @@ function matchesSearch(workshop: ManagerWorkshopRow, query: string) {
 
 type ManageWorkshopsPanelProps = {
   initialWorkshops: ManagerWorkshopRow[];
-  payments: ManagerWorkshopPaymentLedgerRow[];
-  paymentTotals: ManagerWorkshopPaymentsTotals;
 };
 
 export function ManageWorkshopsPanel({
   initialWorkshops,
-  payments,
-  paymentTotals,
 }: ManageWorkshopsPanelProps) {
   const router = useRouter();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [typeTab, setTypeTab] = useState<WorkshopOfferingType>(
+    WORKSHOP_OFFERING_TYPES.WORKSHOP
+  );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(STATUS_ALL);
   const [page, setPage] = useState(1);
 
+  const typeCounts = useMemo(() => {
+    const counts: Record<WorkshopOfferingType, number> = {
+      workshop: 0,
+      online: 0,
+      course: 0,
+    };
+    for (const workshop of initialWorkshops) {
+      counts[workshop.type] += 1;
+    }
+    return counts;
+  }, [initialWorkshops]);
+
   const filtered = useMemo(() => {
     return initialWorkshops.filter((workshop) => {
+      if (workshop.type !== typeTab) {
+        return false;
+      }
       if (statusFilter !== STATUS_ALL && workshop.status !== statusFilter) {
         return false;
       }
       return matchesSearch(workshop, search);
     });
-  }, [initialWorkshops, search, statusFilter]);
+  }, [initialWorkshops, search, statusFilter, typeTab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -96,6 +134,12 @@ export function ManageWorkshopsPanel({
     (safePage - 1) * PAGE_SIZE,
     safePage * PAGE_SIZE
   );
+
+  const typeLabel = WORKSHOP_OFFERING_TYPE_LABELS[typeTab];
+  const typeLabelPlural =
+    typeTab === WORKSHOP_OFFERING_TYPES.ONLINE
+      ? "online offerings"
+      : `${typeLabel.toLowerCase()}s`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -108,28 +152,68 @@ export function ManageWorkshopsPanel({
             Create and manage workshop offerings.
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
-            <Link
-              href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}
-              className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}
-            >
-              <CalendarDaysIcon data-icon="inline-start" />
-              Schedules
-            </Link>
-          </Can>
-          <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               type="button"
+              variant="outline"
+              size="icon"
               className="shrink-0"
-              onClick={() => setIsCreateOpen(true)}
+              aria-label="Workshop actions"
             >
-              <PlusIcon data-icon="inline-start" />
-              Create workshop
+              <MoreHorizontalIcon />
             </Button>
-          </Can>
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild>
+              <Link href={ROUTES.MANAGER_WORKSHOPS_PAYMENTS}>
+                <ReceiptIcon />
+                Total payments
+              </Link>
+            </DropdownMenuItem>
+            <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+              <DropdownMenuItem asChild>
+                <Link href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}>
+                  <CalendarDaysIcon />
+                  Schedules
+                </Link>
+              </DropdownMenuItem>
+            </Can>
+            <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
+              <DropdownMenuItem onClick={() => setIsCreateOpen(true)}>
+                <PlusIcon />
+                Create workshop
+              </DropdownMenuItem>
+            </Can>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      <TabsPrimitive
+        value={typeTab}
+        onValueChange={(value) => {
+          setTypeTab(value as WorkshopOfferingType);
+          setPage(1);
+        }}
+        className="flex flex-col gap-3"
+      >
+        <TabsListPrimitive className="mx-auto flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+          {TYPE_TAB_ORDER.map((type) => (
+            <TabsTriggerPrimitive
+              key={type}
+              value={type}
+              className={TAB_TRIGGER_CLASS}
+            >
+              {type === WORKSHOP_OFFERING_TYPES.WORKSHOP
+                ? "Workshops"
+                : WORKSHOP_OFFERING_TYPE_LABELS[type]}
+              <span className="ml-1.5 rounded-md bg-muted px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+                {typeCounts[type]}
+              </span>
+            </TabsTriggerPrimitive>
+          ))}
+        </TabsListPrimitive>
+      </TabsPrimitive>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
@@ -140,7 +224,7 @@ export function ManageWorkshopsPanel({
               setSearch(event.target.value);
               setPage(1);
             }}
-            placeholder="Search workshops…"
+            placeholder={`Search ${typeLabelPlural}…`}
             className="pl-9"
           />
         </div>
@@ -167,15 +251,17 @@ export function ManageWorkshopsPanel({
 
       {pageItems.length === 0 ? (
         <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-          {initialWorkshops.length === 0 ? (
+          {typeCounts[typeTab] === 0 ? (
             <>
-              <p>No workshops yet.</p>
+              <p>No {typeLabelPlural} yet.</p>
               <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
-                <p className="mt-1">Create a workshop to get started.</p>
+                <p className="mt-1">
+                  Create a {typeLabel.toLowerCase()} to get started.
+                </p>
               </Can>
             </>
           ) : (
-            <p>No workshops match your filters.</p>
+            <p>No {typeLabelPlural} match your filters.</p>
           )}
         </div>
       ) : (
@@ -219,11 +305,6 @@ export function ManageWorkshopsPanel({
           </div>
         </div>
       ) : null}
-
-      <WorkshopPaymentsTotalsSection
-        payments={payments}
-        totals={paymentTotals}
-      />
 
       <AddWorkshopDialog
         open={isCreateOpen}

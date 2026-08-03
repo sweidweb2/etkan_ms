@@ -8,6 +8,7 @@ import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import {
   deleteFinancialAdjustmentAction,
   deleteStudentPaymentAction,
+  deleteStudentPaymentPhaseAction,
 } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
 import { CreateFinancialAdjustmentDialog } from "@/components/manager/accounting/create-financial-adjustment-dialog";
@@ -78,12 +79,16 @@ import type {
 } from "@/types/manager-financial-adjustment";
 import type {
   DeleteStudentPaymentActionState,
+  DeleteStudentPaymentPhaseActionState,
   ManagerSppDetail,
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
 
 const initialDeletePaymentState: DeleteStudentPaymentActionState = {};
 const initialDeleteAdjustmentState: DeleteFinancialAdjustmentActionState = {};
+const initialDeleteSppState: DeleteStudentPaymentPhaseActionState = {};
+const SPP_HAS_PAYMENTS_DELETE_ERROR =
+  "Delete all payments on this SPP first.";
 
 type SppDetailsPanelProps = {
   spp: ManagerSppDetail;
@@ -155,6 +160,7 @@ export function SppDetailsPanel({
   const [isCreateAdjustmentOpen, setIsCreateAdjustmentOpen] = useState(false);
   const [isEditAdjustmentOpen, setIsEditAdjustmentOpen] = useState(false);
   const [isDeleteAdjustmentOpen, setIsDeleteAdjustmentOpen] = useState(false);
+  const [isDeleteSppOpen, setIsDeleteSppOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isTransitionPending, startTransition] = useTransition();
 
@@ -168,11 +174,16 @@ export function SppDetailsPanel({
     deleteFinancialAdjustmentAction,
     initialDeleteAdjustmentState
   );
+  const [deleteSppState, deleteSppAction, isDeleteSppPending] = useActionState(
+    deleteStudentPaymentPhaseAction,
+    initialDeleteSppState
+  );
 
   const isDeletePaymentActionPending =
     isDeletePaymentPending || isTransitionPending;
   const isDeleteAdjustmentActionPending =
     isDeleteAdjustmentPending || isTransitionPending;
+  const isDeleteSppActionPending = isDeleteSppPending || isTransitionPending;
 
   const handleDeletePaymentOpenChange = usePendingAwareOpenChange(
     isDeletePaymentActionPending,
@@ -186,6 +197,11 @@ export function SppDetailsPanel({
   const handleDeleteAdjustmentOpenChange = usePendingAwareOpenChange(
     isDeleteAdjustmentActionPending,
     setIsDeleteAdjustmentOpen
+  );
+
+  const handleDeleteSppOpenChange = usePendingAwareOpenChange(
+    isDeleteSppActionPending,
+    setIsDeleteSppOpen
   );
 
   useActionStateToast(deletePaymentState, isDeletePaymentActionPending);
@@ -203,6 +219,8 @@ export function SppDetailsPanel({
       router.refresh();
     }
   );
+
+  useActionStateToast(deleteSppState, isDeleteSppActionPending);
 
   if (initialSpp !== prevSpp) {
     setPrevSpp(initialSpp);
@@ -243,30 +261,59 @@ export function SppDetailsPanel({
     });
   }
 
+  function handleConfirmDeleteSpp() {
+    if (payments.length > 0) return;
+    const formData = new FormData();
+    formData.set("id", spp.id);
+    startTransition(() => {
+      deleteSppAction(formData);
+    });
+  }
+
+  const hasPayments = payments.length > 0;
+  const sppDeleteBlockedReason = hasPayments
+    ? SPP_HAS_PAYMENTS_DELETE_ERROR
+    : undefined;
+
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={ROUTES.MANAGER_ACCOUNTING}>
-                Accounting
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink
-                href={getManagerAccountingPhaseDetailRoute(spp.payment_phase_id)}
-              >
-                {spp.payment_phase_name}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{spp.student_label}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href={ROUTES.MANAGER_ACCOUNTING}>
+                  Accounting
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  href={getManagerAccountingPhaseDetailRoute(spp.payment_phase_id)}
+                >
+                  {spp.payment_phase_name}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{spp.student_label}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <Can permission={PERMISSIONS.ACCOUNTING_SPP_DELETE}>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={hasPayments || isDeleteSppActionPending}
+              title={sppDeleteBlockedReason}
+              onClick={() => setIsDeleteSppOpen(true)}
+            >
+              <Trash2Icon data-icon="inline-start" />
+              Delete SPP
+            </Button>
+          </Can>
+        </div>
 
         <CreateStudentPaymentDialog
           open={isCreatePaymentOpen}
@@ -385,6 +432,42 @@ export function SppDetailsPanel({
               >
                 {isDeleteAdjustmentActionPending ? <InlineSpinner /> : null}
                 Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isDeleteSppOpen} onOpenChange={handleDeleteSppOpenChange}>
+          <DialogContent
+            className="sm:max-w-md"
+            showCloseButton={!isDeleteSppActionPending}
+          >
+            <DialogHeader>
+              <DialogTitle>Delete student payment phase</DialogTitle>
+              <DialogDescription>
+                Permanently deletes this SPP for {spp.student_label}, including
+                any financial adjustment and attached form. Payments must already
+                be removed. The parent payment phase balances will recalculate.
+                This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDeleteSppOpenChange(false)}
+                disabled={isDeleteSppActionPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmDeleteSpp}
+                disabled={isDeleteSppActionPending || hasPayments}
+              >
+                {isDeleteSppActionPending ? <InlineSpinner /> : null}
+                Delete SPP
               </Button>
             </DialogFooter>
           </DialogContent>

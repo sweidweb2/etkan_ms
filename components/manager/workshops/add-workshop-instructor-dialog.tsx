@@ -118,7 +118,7 @@ export function AddWorkshopInstructorDialog({
   }, [open, reset, workshopId]);
 
   useActionStateSuccess(state, isPending, () => {
-    onOpenChange(false);
+    handleOpenChange(false);
     onAdded();
   });
 
@@ -131,6 +131,21 @@ export function AddWorkshopInstructorDialog({
       candidate.username.toLowerCase().includes(query)
     );
   }, [candidateFilter, candidates]);
+
+  const instructorSelectItems = useMemo(
+    () =>
+      candidates.map((candidate) => ({
+        value: candidate.id,
+        label: candidate.username,
+      })),
+    [candidates]
+  );
+
+  const selectedInstructorLabel = useMemo(
+    () =>
+      candidates.find((candidate) => candidate.id === userId)?.username ?? null,
+    [candidates, userId]
+  );
 
   function onSubmit(values: CreateWorkshopInstructorInput) {
     const formData = new FormData();
@@ -193,7 +208,8 @@ export function AddWorkshopInstructorDialog({
               />
             ) : null}
             <Select
-              value={userId || undefined}
+              value={userId || null}
+              items={instructorSelectItems}
               onValueChange={(value) => {
                 if (!value) return;
                 setValue("user_id", value, { shouldValidate: true });
@@ -204,7 +220,9 @@ export function AddWorkshopInstructorDialog({
                 aria-invalid={Boolean(userError)}
                 className="w-full"
               >
-                <SelectValue placeholder="Select instructor" />
+                <SelectValue placeholder="Select instructor">
+                  {selectedInstructorLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {filteredCandidates.map((candidate) => (

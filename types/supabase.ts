@@ -558,6 +558,7 @@ export type Database = {
         Row: {
           color: string
           created_at: string
+          day_of_week: number
           end_time: string
           entity_type: string
           id: string
@@ -571,6 +572,7 @@ export type Database = {
         Insert: {
           color?: string
           created_at?: string
+          day_of_week: number
           end_time: string
           entity_type: string
           id?: string
@@ -584,6 +586,7 @@ export type Database = {
         Update: {
           color?: string
           created_at?: string
+          day_of_week?: number
           end_time?: string
           entity_type?: string
           id?: string

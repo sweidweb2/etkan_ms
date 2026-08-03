@@ -58,7 +58,7 @@ export function AddInstructorsDialog({
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {
-    onOpenChange(false);
+    handleOpenChange(false);
     onAdded();
   });
 

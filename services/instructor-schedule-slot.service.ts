@@ -1,22 +1,19 @@
-import { addDays, format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { getSundayWeekBounds } from "@/lib/manager/weekly-schedule-calendar";
 import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/authorization.service";
 import {
   createInstructorScheduleSlotSchema,
+  dayOfWeekFromIsoDate,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
   normalizeInstructorScheduleSlotColor,
   updateInstructorScheduleSlotSchema,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
-import type {
-  CreateInstructorScheduleSlotRecordInput,
-  InstructorScheduleSlotRecord,
-} from "@/repositories/instructor-schedule-slot.repository";
+import type { InstructorScheduleSlotRecord } from "@/repositories/instructor-schedule-slot.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import {
   recordManagerAuditLog,
@@ -24,9 +21,6 @@ import {
 } from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
-  CopyInstructorSchedulePreview,
-  CopyInstructorScheduleSlotPreviewItem,
-  CopyInstructorScheduleSlotSkipItem,
   InstructorScheduleSlotType,
   ManagerInstructorScheduleSession,
   ManagerInstructorScheduleTab,
@@ -83,22 +77,6 @@ export type DeleteInstructorScheduleSlotResult =
   | DeleteInstructorScheduleSlotSuccess
   | DeleteInstructorScheduleSlotFailure;
 
-export type CopyInstructorScheduleSuccess = {
-  success: true;
-  message: string;
-  createdCount: number;
-  skippedCount: number;
-};
-
-export type CopyInstructorScheduleFailure = {
-  success: false;
-  error: string;
-};
-
-export type CopyInstructorScheduleResult =
-  | CopyInstructorScheduleSuccess
-  | CopyInstructorScheduleFailure;
-
 function formatTimeForDisplay(value: string): string {
   return value.slice(0, 5);
 }
@@ -128,24 +106,11 @@ function mapSlotRecordToSession(
     name: record.name,
     type: isInstructorScheduleSlotType(record.type) ? record.type : "busy",
     slotDate: formatDateOnly(record.slot_date),
+    dayOfWeek: record.day_of_week,
     startTime: formatTimeForDisplay(record.start_time),
     endTime: formatTimeForDisplay(record.end_time),
     color: normalizeInstructorScheduleSlotColor(record.color),
   };
-}
-
-function slotIdentityKey(input: {
-  name: string;
-  slotDate: string;
-  startTime: string;
-  endTime: string;
-}): string {
-  return [
-    input.name.trim().toLowerCase(),
-    formatDateOnly(input.slotDate),
-    formatTimeForDisplay(input.startTime),
-    formatTimeForDisplay(input.endTime),
-  ].join("|");
 }
 
 function mapMutationError(message: string): string {
@@ -163,14 +128,21 @@ function mapMutationError(message: string): string {
     return "Color must be a valid hex code.";
   }
 
+  if (normalized.includes("instructor_schedule_slots_day_of_week_check")) {
+    return "Weekday must be between Sunday and Saturday.";
+  }
+
   if (
+    normalized.includes(
+      "instructor_schedule_slots_entity_record_name_dow_time_key"
+    ) ||
     normalized.includes(
       "instructor_schedule_slots_entity_record_name_date_time_key"
     ) ||
     normalized.includes("instructor_schedule_slots_user_name_date_time_key") ||
     normalized.includes("duplicate key")
   ) {
-    return "A slot with this name, date, and time already exists for this instructor.";
+    return "A slot with this name, weekday, and time already exists for this instructor.";
   }
 
   if (normalized.includes("instructor_schedule_slots_entity_type_check")) {
@@ -204,87 +176,6 @@ async function assertInstructorRecord(
   return null;
 }
 
-async function buildCopyPreview(
-  adminClient: Supabase,
-  recordId: string,
-  weekAnchorIso: string
-): Promise<CopyInstructorSchedulePreview> {
-  const bounds = getSundayWeekBounds(weekAnchorIso);
-
-  const [lastWeekResult, thisWeekResult] = await Promise.all([
-    instructorScheduleSlotRepository.listInstructorScheduleSlotsInDateRangeForRecord(
-      adminClient,
-      ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-      recordId,
-      bounds.lastWeekStart,
-      bounds.lastWeekEnd
-    ),
-    instructorScheduleSlotRepository.listInstructorScheduleSlotsInDateRangeForRecord(
-      adminClient,
-      ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-      recordId,
-      bounds.weekStart,
-      bounds.weekEnd
-    ),
-  ]);
-
-  if (lastWeekResult.error) {
-    throw new Error(lastWeekResult.error.message);
-  }
-
-  if (thisWeekResult.error) {
-    throw new Error(thisWeekResult.error.message);
-  }
-
-  const existingKeys = new Set(
-    (thisWeekResult.data ?? []).map((row) =>
-      slotIdentityKey({
-        name: row.name,
-        slotDate: row.slot_date,
-        startTime: row.start_time,
-        endTime: row.end_time,
-      })
-    )
-  );
-
-  const willCreate: CopyInstructorScheduleSlotPreviewItem[] = [];
-  const willSkip: CopyInstructorScheduleSlotSkipItem[] = [];
-
-  for (const source of lastWeekResult.data ?? []) {
-    const sourceDate = formatDateOnly(source.slot_date);
-    const targetDate = format(addDays(parseISO(sourceDate), 7), "yyyy-MM-dd");
-    const item: CopyInstructorScheduleSlotPreviewItem = {
-      recordId,
-      name: source.name,
-      type: isInstructorScheduleSlotType(source.type) ? source.type : "busy",
-      slotDate: targetDate,
-      startTime: formatTimeForDisplay(source.start_time),
-      endTime: formatTimeForDisplay(source.end_time),
-      color: normalizeInstructorScheduleSlotColor(source.color),
-      sourceSlotDate: sourceDate,
-    };
-
-    const key = slotIdentityKey(item);
-    if (existingKeys.has(key)) {
-      willSkip.push({
-        ...item,
-        reason: "Already exists on this week",
-      });
-      continue;
-    }
-
-    willCreate.push(item);
-    existingKeys.add(key);
-  }
-
-  return {
-    recordId,
-    ...bounds,
-    willCreate,
-    willSkip,
-  };
-}
-
 export async function getInstructorSchedulesPageForManager(
   adminClient: Supabase,
   actorUserId: string | null
@@ -297,7 +188,10 @@ export async function getInstructorSchedulesPageForManager(
 
   const [instructorsResult, slotsResult] = await Promise.all([
     profileRepository.listInstructorProfiles(adminClient),
-    instructorScheduleSlotRepository.listInstructorScheduleSlotsByEntity(adminClient, ENTITY_SCHEDULE_TYPE_INSTRUCTOR),
+    instructorScheduleSlotRepository.listInstructorScheduleSlotsByEntity(
+      adminClient,
+      ENTITY_SCHEDULE_TYPE_INSTRUCTOR
+    ),
   ]);
 
   if (instructorsResult.error) {
@@ -366,6 +260,7 @@ export async function createInstructorScheduleSlotForManager(
 
   const { record_id, name, type, slot_date, start_time, end_time, color } =
     parsed.data;
+  const day_of_week = dayOfWeekFromIsoDate(slot_date);
 
   const { data, error } =
     await instructorScheduleSlotRepository.createInstructorScheduleSlot(
@@ -376,6 +271,7 @@ export async function createInstructorScheduleSlotForManager(
         name: name.trim(),
         type,
         slot_date,
+        day_of_week,
         start_time,
         end_time,
         color: normalizeInstructorScheduleSlotColor(color),
@@ -400,6 +296,7 @@ export async function createInstructorScheduleSlotForManager(
       name: data.name,
       type: data.type,
       slot_date: data.slot_date,
+      day_of_week: data.day_of_week,
       start_time: data.start_time,
       end_time: data.end_time,
       color: data.color,
@@ -480,6 +377,11 @@ export async function updateInstructorScheduleSlotForManager(
   const { id, record_id, name, type, slot_date, start_time, end_time, color } =
     parsed.data;
 
+  // slot_date from the client encodes the weekday they placed (e.g. drag).
+  // Keep the original create/anchor slot_date; only update day_of_week.
+  const preservedSlotDate = formatDateOnly(existingSlot.data.slot_date);
+  const day_of_week = dayOfWeekFromIsoDate(slot_date);
+
   const { data, error } =
     await instructorScheduleSlotRepository.updateInstructorScheduleSlot(
       adminClient,
@@ -489,7 +391,8 @@ export async function updateInstructorScheduleSlotForManager(
         record_id,
         name: name.trim(),
         type,
-        slot_date,
+        slot_date: preservedSlotDate,
+        day_of_week,
         start_time,
         end_time,
         color: normalizeInstructorScheduleSlotColor(color),
@@ -514,6 +417,7 @@ export async function updateInstructorScheduleSlotForManager(
       name: existingSlot.data.name,
       type: existingSlot.data.type,
       slot_date: existingSlot.data.slot_date,
+      day_of_week: existingSlot.data.day_of_week,
       start_time: existingSlot.data.start_time,
       end_time: existingSlot.data.end_time,
       color: existingSlot.data.color,
@@ -524,6 +428,7 @@ export async function updateInstructorScheduleSlotForManager(
       name: data.name,
       type: data.type,
       slot_date: data.slot_date,
+      day_of_week: data.day_of_week,
       start_time: data.start_time,
       end_time: data.end_time,
       color: data.color,
@@ -534,7 +439,7 @@ export async function updateInstructorScheduleSlotForManager(
         "record_id",
         "name",
         "type",
-        "slot_date",
+        "day_of_week",
         "start_time",
         "end_time",
         "color",
@@ -609,6 +514,7 @@ export async function deleteInstructorScheduleSlotForManager(
       name: existingSlot.data.name,
       type: existingSlot.data.type,
       slot_date: existingSlot.data.slot_date,
+      day_of_week: existingSlot.data.day_of_week,
       start_time: existingSlot.data.start_time,
       end_time: existingSlot.data.end_time,
       color: existingSlot.data.color,
@@ -617,149 +523,4 @@ export async function deleteInstructorScheduleSlotForManager(
   });
 
   return { success: true, message: "Schedule slot deleted." };
-}
-
-export async function previewCopyLastWeekInstructorScheduleForManager(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  recordId: string,
-  weekAnchorIso: string
-): Promise<
-  | { success: true; preview: CopyInstructorSchedulePreview }
-  | { success: false; error: string }
-> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const instructorError = await assertInstructorRecord(adminClient, recordId);
-  if (instructorError) {
-    return { success: false, error: instructorError };
-  }
-
-  try {
-    const preview = await buildCopyPreview(
-      adminClient,
-      recordId,
-      weekAnchorIso
-    );
-    return { success: true, preview };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unable to preview copy. Please try again.",
-    };
-  }
-}
-
-export async function copyLastWeekInstructorScheduleForManager(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  actor: AuditActor,
-  recordId: string,
-  weekAnchorIso: string
-): Promise<CopyInstructorScheduleResult> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const instructorError = await assertInstructorRecord(adminClient, recordId);
-  if (instructorError) {
-    return { success: false, error: instructorError };
-  }
-
-  let preview: CopyInstructorSchedulePreview;
-  try {
-    preview = await buildCopyPreview(adminClient, recordId, weekAnchorIso);
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unable to copy last week. Please try again.",
-    };
-  }
-
-  if (preview.willCreate.length === 0) {
-    return {
-      success: true,
-      createdCount: 0,
-      skippedCount: preview.willSkip.length,
-      message:
-        preview.willSkip.length > 0
-          ? `Nothing to copy. ${preview.willSkip.length} slot${preview.willSkip.length === 1 ? "" : "s"} already exist this week.`
-          : "Nothing to copy. Last week has no slots.",
-    };
-  }
-
-  const inputs: CreateInstructorScheduleSlotRecordInput[] =
-    preview.willCreate.map((item) => ({
-      entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-      record_id: recordId,
-      name: item.name,
-      type: item.type,
-      slot_date: item.slotDate,
-      start_time: item.startTime,
-      end_time: item.endTime,
-      color: item.color,
-    }));
-
-  const { data, error } =
-    await instructorScheduleSlotRepository.createInstructorScheduleSlots(
-      adminClient,
-      inputs
-    );
-
-  if (error) {
-    return {
-      success: false,
-      error: mapMutationError(error.message),
-    };
-  }
-
-  const created = data ?? [];
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "insert",
-    severity: "info",
-    table_name: "instructor_schedule_slots",
-    record_id: created[0]?.id ?? null,
-    new_data: {
-      created_count: created.length,
-      entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-      record_id: recordId,
-      week_start: preview.weekStart,
-      last_week_start: preview.lastWeekStart,
-    },
-    metadata: {
-      note: "Copied instructor schedule slots from last week.",
-      created_count: created.length,
-      skipped_count: preview.willSkip.length,
-    },
-  });
-
-  return {
-    success: true,
-    createdCount: created.length,
-    skippedCount: preview.willSkip.length,
-    message: `Copied ${created.length} slot${created.length === 1 ? "" : "s"} from last week${
-      preview.willSkip.length > 0
-        ? ` (${preview.willSkip.length} skipped)`
-        : ""
-    }.`,
-  };
 }

@@ -68,3 +68,11 @@ export type DeleteStudentPaymentActionState = {
   student_payment_phase_id?: string;
   payment_phase_id?: string;
 };
+
+export type DeleteStudentPaymentPhaseActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  payment_phase_id?: string;
+};

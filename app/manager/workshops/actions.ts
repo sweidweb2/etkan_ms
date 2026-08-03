@@ -499,6 +499,7 @@ export async function createWorkshopPaymentAction(
   }
 
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
   revalidatePath(getManagerWorkshopDetailRoute(result.payment.workshop_id));
   revalidatePath(getManagerWorkshopPaymentsRoute(result.payment.workshop_id));
 
@@ -542,6 +543,7 @@ export async function updateWorkshopPaymentAction(
   }
 
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
   revalidatePath(getManagerWorkshopDetailRoute(result.payment.workshop_id));
   revalidatePath(getManagerWorkshopPaymentsRoute(result.payment.workshop_id));
 
@@ -583,6 +585,7 @@ export async function deleteWorkshopPaymentAction(
   }
 
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
   revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
   revalidatePath(getManagerWorkshopPaymentsRoute(parsed.data.workshop_id));
 

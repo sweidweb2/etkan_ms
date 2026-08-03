@@ -88,6 +88,7 @@ Financial summary (always recalculated):
 | Student joins a non–in-progress class | No payment sync |
 | Student leaves / is removed from a class | Delete `student_class` only. **Keep** SPP + payments + adjustments. Recalc phase status (student may still be billed while out of class) |
 | Student **inactivated** with “Delete open SPPs” | **Explicit override** via `students.change_status`: delete SPPs on **opened** phases only when they have **zero payments** (adjustments/forms cascade). Never delete SPPs that have payments from this flow. |
+| Manual SPP delete (phase → SPP detail) | Allowed via `accounting.spp.delete` only when the SPP has **zero payments** (adjustments/forms cascade). Distinct from leave-keeps-billing. |
 | Student changes class (transfer) | Membership move only; **keep** SPP as-is (no cancel, no auto-create on destination). Manager may **transfer SPP** manually between payment phases |
 | Class status becomes `in_progress` | At most **one** in-progress class per semester (reject second). Backfill/reuse SPPs for current members on the semester’s sync phase |
 | Semester has `cancelled` phase only | Late join does **not** auto-create; manager must create/open a new phase |

@@ -182,12 +182,13 @@ export function WorkshopInstructorsSection({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[36rem] border-collapse text-sm">
+              <table className="w-full min-w-[40rem] border-collapse text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="pb-2 pr-3 font-medium">Instructor</th>
                     <th className="pb-2 pr-3 font-medium">Role</th>
-                    <th className="pb-2 pr-3 font-medium">Wage</th>
+                    <th className="pb-2 pr-3 font-medium">Wage type</th>
+                    <th className="pb-2 pr-3 font-medium">Wage amount</th>
                     <th className="pb-2 pr-3 font-medium">Notes</th>
                     <th className="pb-2 font-medium">
                       <span className="sr-only">Actions</span>
@@ -209,17 +210,13 @@ export function WorkshopInstructorsSection({
                         {WORKSHOP_INSTRUCTOR_ROLE_LABELS[instructor.role]}
                       </td>
                       <td className="py-3 pr-3 align-top text-foreground">
-                        <div className="flex flex-col gap-0.5">
-                          <span>
-                            {WORKSHOP_WAGE_TYPE_LABELS[instructor.wage_type]}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {formatWageAmount(
-                              instructor.wage_amount,
-                              instructor.wage_type
-                            )}
-                          </span>
-                        </div>
+                        {WORKSHOP_WAGE_TYPE_LABELS[instructor.wage_type]}
+                      </td>
+                      <td className="py-3 pr-3 align-top text-foreground">
+                        {formatWageAmount(
+                          instructor.wage_amount,
+                          instructor.wage_type
+                        )}
                       </td>
                       <td className="py-3 pr-3 align-top text-muted-foreground">
                         {instructor.notes?.trim() ? instructor.notes : "—"}

@@ -27,6 +27,7 @@ export const ROUTES = {
   MANAGER_INSTRUCTORS: "/manager/instructors",
   MANAGER_INSTRUCTOR_SCHEDULES: "/manager/instructor-schedules",
   MANAGER_WORKSHOPS: "/manager/workshops",
+  MANAGER_WORKSHOPS_PAYMENTS: "/manager/workshops/payments",
   MANAGER_WORKSHOP_DETAIL: "/manager/workshops/[id]",
   MANAGER_WORKSHOP_PAYMENTS: "/manager/workshops/[id]/payments",
   MANAGER_ACCOUNTING: "/manager/accounting",

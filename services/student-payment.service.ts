@@ -11,7 +11,9 @@ import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/reso
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createStudentPaymentSchema } from "@/lib/validators/manager/create-student-payment";
 import { deleteStudentPaymentSchema } from "@/lib/validators/manager/delete-student-payment";
+import { deleteStudentPaymentPhaseSchema } from "@/lib/validators/manager/delete-student-payment-phase";
 import { updateStudentPaymentSchema } from "@/lib/validators/manager/update-student-payment";
+import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { PaymentPhaseListRecord } from "@/repositories/payment-phase.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -20,7 +22,10 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import type { StudentPaymentRecord } from "@/repositories/student-payment.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import { recalcSppAndPhaseStatus } from "@/services/accounting-recalc.service";
+import {
+  recalcPhaseStatusFromSpps,
+  recalcSppAndPhaseStatus,
+} from "@/services/accounting-recalc.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -661,5 +666,131 @@ export async function deleteStudentPaymentForManager(
     message: "Payment deleted.",
     student_payment_phase_id: spp.id,
     payment_phase_id: spp.payment_phase_id,
+  };
+}
+
+export type DeleteSppResult =
+  | {
+      success: true;
+      payment_phase_id: string;
+      message: string;
+    }
+  | {
+      success: false;
+      error: string;
+      fieldErrors?: FieldErrors;
+    };
+
+export async function deleteSppForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<DeleteSppResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_SPP_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = deleteStudentPaymentPhaseSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  const { data: spp, error: sppError } =
+    await studentPaymentPhaseRepository.findSppById(
+      adminClient,
+      parsed.data.id
+    );
+
+  if (sppError) {
+    return {
+      success: false,
+      error: "Unable to delete student payment phase. Please try again.",
+    };
+  }
+
+  if (!spp) {
+    return { success: false, error: "Student payment phase not found." };
+  }
+
+  const { data: paymentRows, error: paymentCountError } =
+    await studentPaymentRepository.listPaymentSppIdsBySppIds(adminClient, [
+      spp.id,
+    ]);
+
+  if (paymentCountError) {
+    return {
+      success: false,
+      error: "Unable to verify payments for this student payment phase.",
+    };
+  }
+
+  if ((paymentRows ?? []).length > 0) {
+    return {
+      success: false,
+      error:
+        "This student payment phase has payments. Delete all payments first.",
+    };
+  }
+
+  const paymentPhaseId = spp.payment_phase_id;
+
+  const { data: deleted, error: deleteError } =
+    await studentPaymentPhaseRepository.deleteStudentPaymentPhaseById(
+      adminClient,
+      spp.id
+    );
+
+  if (deleteError || !deleted) {
+    return {
+      success: false,
+      error:
+        deleteError?.message ??
+        "Unable to delete student payment phase. Please try again.",
+    };
+  }
+
+  try {
+    await recalcPhaseStatusFromSpps(adminClient, paymentPhaseId);
+  } catch {
+    return {
+      success: false,
+      error:
+        "Student payment phase deleted, but the parent phase could not be recalculated.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "warning",
+    table_name: "student_payment_phases",
+    record_id: deleted.id,
+    old_data: {
+      student_id: deleted.student_id,
+      payment_phase_id: paymentPhaseId,
+      status: deleted.status,
+      original_amount: deleted.original_amount,
+      final_amount_due: deleted.final_amount_due,
+      total_paid: deleted.total_paid,
+    },
+    new_data: null,
+    metadata: {
+      note: "Student payment phase deleted from accounting detail.",
+    },
+  });
+
+  return {
+    success: true,
+    payment_phase_id: paymentPhaseId,
+    message: "Student payment phase deleted.",
   };
 }

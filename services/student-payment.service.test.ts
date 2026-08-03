@@ -6,11 +6,13 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as accountingRecalcService from "@/services/accounting-recalc.service";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
   createStudentPaymentForManager,
   deleteStudentPaymentForManager,
+  deleteSppForManager,
   getSppDetailForManager,
 } from "@/services/student-payment.service";
 
@@ -24,6 +26,14 @@ vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("@/services/accounting-recalc.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/accounting-recalc.service")>();
+  return {
+    ...actual,
+    recalcPhaseStatusFromSpps: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 vi.mock("@/services/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -581,6 +591,114 @@ describe("deleteStudentPaymentForManager", () => {
       adminClient,
       phaseId,
       "opened"
+    );
+  });
+});
+
+describe("deleteSppForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    vi.mocked(
+      accountingRecalcService.recalcPhaseStatusFromSpps
+    ).mockResolvedValue(undefined as never);
+  });
+
+  it("rejects when unauthorized", async () => {
+    const result = await deleteSppForManager(adminClient, null, actor, {
+      id: sppId,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("Unauthorized.");
+    }
+    expect(
+      studentPaymentPhaseRepository.deleteStudentPaymentPhaseById
+    ).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the SPP has payments", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentRepository.listPaymentSppIdsBySppIds
+    ).mockResolvedValue({
+      data: [{ student_payment_phase_id: sppId }],
+      error: null,
+    } as never);
+
+    const result = await deleteSppForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: sppId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/has payments/i);
+    }
+    expect(
+      studentPaymentPhaseRepository.deleteStudentPaymentPhaseById
+    ).not.toHaveBeenCalled();
+  });
+
+  it("deletes a payment-free SPP, recalculates the phase, and audits", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentRepository.listPaymentSppIdsBySppIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.deleteStudentPaymentPhaseById
+    ).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await deleteSppForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: sppId }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.payment_phase_id).toBe(phaseId);
+      expect(result.message).toMatch(/deleted/i);
+    }
+    expect(
+      studentPaymentPhaseRepository.deleteStudentPaymentPhaseById
+    ).toHaveBeenCalledWith(adminClient, sppId);
+    expect(
+      accountingRecalcService.recalcPhaseStatusFromSpps
+    ).toHaveBeenCalledWith(adminClient, phaseId);
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "delete",
+        table_name: "student_payment_phases",
+        record_id: sppId,
+      })
     );
   });
 });
