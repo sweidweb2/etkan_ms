@@ -71,6 +71,7 @@ import * as workshopStorageRepository from "@/repositories/workshop-storage.repo
 import {
   assertPermission,
   getUnauthorizedError,
+  hasPermission,
 } from "@/services/authorization.service";
 import {
   recordManagerAuditLog,
@@ -524,7 +525,11 @@ export async function listAllWorkshopPaymentsForManager(
   payments: ManagerWorkshopPaymentLedgerRow[];
   totals: ManagerWorkshopPaymentsTotals;
 }> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW
+  );
 
   const result =
     await workshopPaymentRepository.listAllWorkshopPayments(adminClient);
@@ -630,8 +635,23 @@ export async function getWorkshopForManager(
   }
 
   const workshop = mapWorkshopRecordToRow(workshopResult.data);
-  const payments = (paymentsResult.data ?? []).map(mapWorkshopPaymentRecord);
+  const allPayments = (paymentsResult.data ?? []).map(mapWorkshopPaymentRecord);
+  const canViewPayments = actorUserId
+    ? await hasPermission(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW
+      )
+    : false;
+  const canViewScheduleSlots = actorUserId
+    ? await hasPermission(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+      )
+    : false;
 
+  const payments = canViewPayments ? allPayments : [];
   const instructors = (
     (instructorsResult.data ?? []) as WorkshopInstructorWithProfileRecord[]
   ).map(mapWorkshopInstructorRecord);
@@ -648,19 +668,23 @@ export async function getWorkshopForManager(
 
   const documents = (documentsResult.data ?? []).map(mapWorkshopDocumentRecord);
 
-  const scheduleSlots = (scheduleSlotsResult.data ?? []).map((record) =>
-    mapInstructorScheduleSlotRecordToSession(
-      record as InstructorScheduleSlotRecord
-    )
-  );
+  const scheduleSlots = canViewScheduleSlots
+    ? (scheduleSlotsResult.data ?? []).map((record) =>
+        mapInstructorScheduleSlotRecordToSession(
+          record as InstructorScheduleSlotRecord
+        )
+      )
+    : [];
 
   const sessions = (sessionsResult.data ?? []).map(mapWorkshopSessionRecord);
 
   return {
     workshop,
-    payment_count: payments.length,
+    payment_count: allPayments.length,
     payments,
-    payment_summary: buildWorkshopPaymentSummary(payments, workshop.price),
+    payment_summary: canViewPayments
+      ? buildWorkshopPaymentSummary(allPayments, workshop.price)
+      : buildWorkshopPaymentSummary([], workshop.price),
     instructors,
     instructorCandidates,
     documents,

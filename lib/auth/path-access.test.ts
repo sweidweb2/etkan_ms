@@ -42,6 +42,23 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.TEACHER_DASHBOARD, ROLES.TRAINER)).toBe(false);
   });
 
+  it("allows shared workshop paths for any role", () => {
+    expect(canAccessPath(ROUTES.MANAGER_WORKSHOPS, ROLES.TRAINER)).toBe(true);
+    expect(
+      canAccessPath(`${ROUTES.MANAGER_WORKSHOPS}/abc`, ROLES.TEACHER)
+    ).toBe(true);
+    expect(
+      canAccessPath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS, ROLES.STUDENT)
+    ).toBe(true);
+  });
+
+  it("still denies non-shared manager paths for other roles", () => {
+    expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.TRAINER)).toBe(false);
+    expect(canAccessPath(ROUTES.MANAGER_INSTRUCTORS, ROLES.TEACHER)).toBe(
+      false
+    );
+  });
+
   it("allows non-panel routes for any role", () => {
     expect(canAccessPath(ROUTES.HOME, ROLES.STUDENT)).toBe(true);
     expect(canAccessPath(ROUTES.HOME, ROLES.ADMIN)).toBe(true);

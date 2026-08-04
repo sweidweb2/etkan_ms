@@ -13,13 +13,27 @@ function dashboardNavigation(href: string): PanelNavigation {
   };
 }
 
+/** Shared across roles; filtered by `workshops.view` + `is_instructor`. */
+const MANAGE_WORKSHOPS_NAV_ITEM: PanelNavItem = {
+  title: "Manage workshops",
+  href: ROUTES.MANAGER_WORKSHOPS,
+  icon: "presentation",
+};
+
+function withManageWorkshops(navigation: PanelNavigation): PanelNavigation {
+  return {
+    ...navigation,
+    items: [...(navigation.items ?? []), MANAGE_WORKSHOPS_NAV_ITEM],
+  };
+}
+
 export const ADMIN_PANEL_NAV = dashboardNavigation(ROUTES.ADMIN_DASHBOARD).items!;
-export const CO_MANAGER_PANEL_NAVIGATION = dashboardNavigation(
-  ROUTES.CO_MANAGER_DASHBOARD
+export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops(
+  dashboardNavigation(ROUTES.CO_MANAGER_DASHBOARD)
 );
 export const CO_MANAGER_PANEL_NAV = CO_MANAGER_PANEL_NAVIGATION.items!;
-export const TRAINER_PANEL_NAVIGATION = dashboardNavigation(
-  ROUTES.TRAINER_DASHBOARD
+export const TRAINER_PANEL_NAVIGATION = withManageWorkshops(
+  dashboardNavigation(ROUTES.TRAINER_DASHBOARD)
 );
 export const TRAINER_PANEL_NAV = TRAINER_PANEL_NAVIGATION.items!;
 
@@ -198,7 +212,7 @@ export const MANAGER_PANEL_NAV: PanelNavItem[] = [
   ...(MANAGER_PANEL_NAVIGATION.groups?.flatMap((group) => group.items) ?? []),
 ];
 
-export const CEO_PANEL_NAVIGATION: PanelNavigation = {
+export const CEO_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
   items: [
     {
       title: "Dashboard",
@@ -241,11 +255,11 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
       icon: "reports",
     },
   ],
-};
+});
 
 /** @deprecated Use `CEO_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const CEO_PANEL_NAV: PanelNavItem[] = CEO_PANEL_NAVIGATION.items!;
-export const TEACHER_PANEL_NAVIGATION: PanelNavigation = {
+export const TEACHER_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
   items: [
     {
       title: "Dashboard",
@@ -283,11 +297,11 @@ export const TEACHER_PANEL_NAVIGATION: PanelNavigation = {
       icon: "analytics",
     },
   ],
-};
+});
 
 /** @deprecated Use `TEACHER_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const TEACHER_PANEL_NAV: PanelNavItem[] = TEACHER_PANEL_NAVIGATION.items!;
-export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
+export const STUDENT_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
   items: [
     {
       title: "Dashboard",
@@ -320,8 +334,10 @@ export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
       icon: "bell",
     },
   ],
-};
+});
 
 /** @deprecated Use `STUDENT_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const STUDENT_PANEL_NAV: PanelNavItem[] = STUDENT_PANEL_NAVIGATION.items!;
-export const ADMIN_PANEL_NAVIGATION = dashboardNavigation(ROUTES.ADMIN_DASHBOARD);
+export const ADMIN_PANEL_NAVIGATION = withManageWorkshops(
+  dashboardNavigation(ROUTES.ADMIN_DASHBOARD)
+);

@@ -1,8 +1,10 @@
 import { forbidden, redirect } from "next/navigation";
 import { getRequiredViewPermissionForManagerPath } from "@/lib/auth/manager-route-permissions";
-import { getSessionUser } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ROUTES } from "@/lib/constants/routes";
+import { getSessionRole, getSessionUser } from "@/lib/auth/session";
+import {
+  getDashboardRouteForRole,
+  ROUTES,
+} from "@/lib/constants/routes";
 import {
   getUserPermissionsCached,
   hasPermissionInSet,
@@ -10,7 +12,7 @@ import {
 
 /**
  * Deny manager deep links when the matching view permission is missing.
- * Redirects to the dashboard when `dashboard.view` is held; otherwise `forbidden()`.
+ * Redirects to the session role's dashboard when known; otherwise `forbidden()`.
  */
 export async function requireManagerRoutePermission(
   pathname: string
@@ -30,8 +32,9 @@ export async function requireManagerRoutePermission(
     return;
   }
 
-  if (hasPermissionInSet(permissions, PERMISSIONS.DASHBOARD_VIEW)) {
-    redirect(ROUTES.MANAGER_DASHBOARD);
+  const role = await getSessionRole();
+  if (role) {
+    redirect(getDashboardRouteForRole(role));
   }
 
   forbidden();

@@ -8,7 +8,8 @@ import { ROLES, type RoleValue } from "@/lib/constants/roles";
 /**
  * Shared workshop access package seeded to every role (including student).
  * Sessions/documents CRUD + workshop/instructor/schedule reads.
- * Manager workshop routes stay manager-panel only until cross-role access is wired.
+ * Does not include workshops.payments.view (payments stay manager/CEO unless granted).
+ * Cross-role UI uses shared `/manager/workshops*` routes when `is_instructor` + view.
  */
 export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
   PERMISSIONS.WORKSHOPS_VIEW,
@@ -28,6 +29,7 @@ const CEO_WORKSHOP_MODULE_WRITE_PERMISSIONS = [
   PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE,
   PERMISSIONS.WORKSHOPS_INSTRUCTORS_UPDATE,
   PERMISSIONS.WORKSHOPS_INSTRUCTORS_DELETE,
+  PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW,
   PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE,
   PERMISSIONS.WORKSHOPS_PAYMENTS_UPDATE,
   PERMISSIONS.WORKSHOPS_PAYMENTS_DELETE,

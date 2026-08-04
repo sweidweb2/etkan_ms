@@ -74,9 +74,53 @@ describe("filterPanelNavigation", () => {
 
     const filtered = filterPanelNavigation(
       MANAGER_PANEL_NAVIGATION,
-      allViews
+      allViews,
+      { isInstructor: true }
     );
 
     expect(hrefs(filtered).length).toBe(hrefs(MANAGER_PANEL_NAVIGATION).length);
+  });
+
+  it("hides manage workshops without isInstructor even with workshops.view", () => {
+    const permissions = new Set<PermissionKey>([
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.WORKSHOPS_VIEW,
+    ]);
+
+    const filtered = filterPanelNavigation(
+      MANAGER_PANEL_NAVIGATION,
+      permissions,
+      { isInstructor: false }
+    );
+    const paths = hrefs(filtered);
+
+    expect(paths).toContain(ROUTES.MANAGER_DASHBOARD);
+    expect(paths).not.toContain(ROUTES.MANAGER_WORKSHOPS);
+  });
+
+  it("keeps role-native links and workshops when instructor + workshops.view", () => {
+    const permissions = new Set<PermissionKey>([PERMISSIONS.WORKSHOPS_VIEW]);
+    const trainerNav: PanelNavigation = {
+      items: [
+        {
+          title: "Dashboard",
+          href: ROUTES.TRAINER_DASHBOARD,
+          icon: "layout-dashboard",
+        },
+        {
+          title: "Manage workshops",
+          href: ROUTES.MANAGER_WORKSHOPS,
+          icon: "presentation",
+        },
+      ],
+    };
+
+    const filtered = filterPanelNavigation(trainerNav, permissions, {
+      isInstructor: true,
+    });
+    const paths = hrefs(filtered);
+
+    expect(paths).toContain(ROUTES.TRAINER_DASHBOARD);
+    expect(paths).toContain(ROUTES.MANAGER_WORKSHOPS);
   });
 });

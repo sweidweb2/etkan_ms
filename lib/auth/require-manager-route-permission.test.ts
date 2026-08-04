@@ -16,6 +16,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/auth/session", () => ({
   getSessionUser: vi.fn(),
+  getSessionRole: vi.fn(),
 }));
 
 vi.mock("@/services/authorization.service", () => ({
@@ -26,8 +27,9 @@ vi.mock("@/services/authorization.service", () => ({
   ),
 }));
 
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionRole, getSessionUser } from "@/lib/auth/session";
 import { requireManagerRoutePermission } from "@/lib/auth/require-manager-route-permission";
+import { ROLES } from "@/lib/constants/roles";
 import { getUserPermissionsCached } from "@/services/authorization.service";
 
 describe("requireManagerRoutePermission", () => {
@@ -48,8 +50,22 @@ describe("requireManagerRoutePermission", () => {
     expect(forbiddenMock).not.toHaveBeenCalled();
   });
 
-  it("redirects to dashboard when denied but dashboard.view is held", async () => {
+  it("redirects to the session role dashboard when denied", async () => {
     vi.mocked(getSessionUser).mockResolvedValue({ id: "user-1" } as never);
+    vi.mocked(getSessionRole).mockResolvedValue(ROLES.TRAINER);
+    vi.mocked(getUserPermissionsCached).mockResolvedValue(
+      new Set([PERMISSIONS.WORKSHOPS_VIEW])
+    );
+
+    await expect(
+      requireManagerRoutePermission(ROUTES.MANAGER_WORKSHOPS_PAYMENTS)
+    ).rejects.toThrow(`NEXT_REDIRECT:${ROUTES.TRAINER_DASHBOARD}`);
+    expect(redirectMock).toHaveBeenCalledWith(ROUTES.TRAINER_DASHBOARD);
+  });
+
+  it("redirects managers to manager dashboard when denied", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "user-1" } as never);
+    vi.mocked(getSessionRole).mockResolvedValue(ROLES.MANAGER);
     vi.mocked(getUserPermissionsCached).mockResolvedValue(
       new Set([PERMISSIONS.DASHBOARD_VIEW, PERMISSIONS.SUBJECTS_VIEW])
     );
@@ -60,8 +76,9 @@ describe("requireManagerRoutePermission", () => {
     expect(redirectMock).toHaveBeenCalledWith(ROUTES.MANAGER_DASHBOARD);
   });
 
-  it("calls forbidden when denied without dashboard.view", async () => {
+  it("calls forbidden when denied without a session role", async () => {
     vi.mocked(getSessionUser).mockResolvedValue({ id: "user-1" } as never);
+    vi.mocked(getSessionRole).mockResolvedValue(null);
     vi.mocked(getUserPermissionsCached).mockResolvedValue(
       new Set([PERMISSIONS.SUBJECTS_VIEW])
     );

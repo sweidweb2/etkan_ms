@@ -1,3 +1,4 @@
+import { isSharedManagerWorkshopPath } from "@/lib/auth/shared-manager-routes";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { getPanelRootForRole, PANEL_ROOTS } from "@/lib/constants/routes";
 
@@ -8,6 +9,10 @@ export function isPanelPath(pathname: string): boolean {
 }
 
 export function canAccessPath(pathname: string, role: RoleValue): boolean {
+  if (isSharedManagerWorkshopPath(pathname)) {
+    return true;
+  }
+
   const allowedRoot = getPanelRootForRole(role);
 
   for (const root of PANEL_ROOTS) {

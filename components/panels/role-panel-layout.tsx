@@ -3,6 +3,7 @@ import { filterPanelNavigation } from "@/lib/auth/filter-panel-navigation";
 import { requireRole } from "@/lib/auth/require-role";
 import {
   getSessionDisplayName,
+  getSessionIsInstructor,
   getSessionUser,
 } from "@/lib/auth/session";
 import type { PermissionKey } from "@/lib/constants/permissions";
@@ -27,10 +28,11 @@ export async function RolePanelLayout({
     await assertAccess();
   }
 
-  const [displayName, panelConfig, user] = await Promise.all([
+  const [displayName, panelConfig, user, isInstructor] = await Promise.all([
     getSessionDisplayName(),
     Promise.resolve(getPanelConfigForRole(role)),
     getSessionUser(),
+    getSessionIsInstructor(),
   ]);
 
   let permissionsArray: PermissionKey[] = [];
@@ -39,10 +41,9 @@ export async function RolePanelLayout({
   if (user?.id) {
     const permissions = await getUserPermissionsCached(user.id);
     permissionsArray = [...permissions];
-
-    if (role === ROLES.MANAGER) {
-      navigation = filterPanelNavigation(navigation, permissions);
-    }
+    navigation = filterPanelNavigation(navigation, permissions, {
+      isInstructor,
+    });
   }
 
   return (

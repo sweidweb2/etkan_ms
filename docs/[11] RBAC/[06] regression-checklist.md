@@ -91,5 +91,8 @@ Without the matching write/export permission:
 
 ## E — Cross-panel
 
-- [ ] Teacher/student cannot open `/manager` (role panel exclusivity)
+- [ ] Teacher/student cannot open `/manager/users` (non-shared manager paths stay exclusive)
+- [ ] Instructor (`is_instructor` + `workshops.view`) on trainer/teacher/etc. sees Manage workshops and can open `/manager/workshops`
+- [ ] Non-instructor with `workshops.view` does not see workshops nav; deep link to `/manager/workshops` redirects to their dashboard
+- [ ] `/manager/workshops/payments` requires `workshops.payments.view`
 - [ ] Login redirect and maintenance behavior unchanged

@@ -165,17 +165,19 @@ export function ManageWorkshopsPanel({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem asChild>
-              <Link href={ROUTES.MANAGER_WORKSHOPS_PAYMENTS}>
-                <ReceiptIcon />
-                Total payments
-              </Link>
-            </DropdownMenuItem>
+            <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW}>
+              <DropdownMenuItem asChild>
+                <Link href={ROUTES.MANAGER_WORKSHOPS_PAYMENTS}>
+                  <ReceiptIcon />
+                  Total payments
+                </Link>
+              </DropdownMenuItem>
+            </Can>
             <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
               <DropdownMenuItem asChild>
                 <Link href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}>
                   <CalendarDaysIcon />
-                  Schedules
+                  View schedule
                 </Link>
               </DropdownMenuItem>
             </Can>

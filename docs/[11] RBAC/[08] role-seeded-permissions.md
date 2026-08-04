@@ -10,7 +10,9 @@ Shared workshop access package (`WORKSHOP_ACCESS_SEED_PERMISSIONS`) is included 
 - `instructors.view` (covers reading instructor capabilities)
 - `instructor_schedules.view`
 
-The old `instructor_portal.*` package was removed. Workshop/instructor UI for non-managers will be wired later via shared manager routes when needed.
+The old `instructor_portal.*` package was removed. Shared **Manage workshops** UI is available at `/manager/workshops*` for any role when `profiles.is_instructor` is true and the user holds the matching view permission(s). Sidebar item requires `is_instructor` + `workshops.view`.
+
+`workshops.payments.view` is **not** in the shared package (manager full catalog + CEO workshop write package only, unless granted in the RBAC UI).
 
 ---
 
@@ -38,7 +40,7 @@ Full catalog (`PERMISSION_KEYS`) — every permission.
 
 ## CEO
 
-Read/analysis-oriented manager grants plus full workshop module writes (create/update/delete, status, instructors, documents, sessions, payments) and instructor schedule CRUD. Includes shared workshop access package.
+Read/analysis-oriented manager grants plus full workshop module writes (create/update/delete, status, instructors, documents, sessions, payments including `workshops.payments.view`) and instructor schedule CRUD. Includes shared workshop access package.
 
 Key groups: dashboard, users, students, subjects (view/create/update), instructors (+ capabilities update), classes (+ analytics), sessions, attendance, tasks, final exams, grades, semesters, schedule, instructor schedules (CRUD), workshops (full module), accounting (+ income statement), analytics, cloudflare AI usage.
 

@@ -266,107 +266,121 @@ export function WorkshopDetailsPanel({
         </DialogContent>
       </Dialog>
 
-      <ClassTabCollapsibleSection
-        title="Details"
-        description={MANAGER_WORKSHOP_STATUS_LABELS[workshop.status]}
-        storageKey={`workshop-details-info:${workshop.id}`}
-      >
-        <div className="px-3 py-4 sm:px-4">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold tracking-tight">
-              {workshop.name}
-            </h2>
-            <WorkshopStatusBadge status={workshop.status} className="w-fit" />
+      <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
+        <ClassTabCollapsibleSection
+          title="Details"
+          description={MANAGER_WORKSHOP_STATUS_LABELS[workshop.status]}
+          storageKey={`workshop-details-info:${workshop.id}`}
+        >
+          <div className="px-3 py-4 sm:px-4">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">
+                {workshop.name}
+              </h2>
+              <WorkshopStatusBadge status={workshop.status} className="w-fit" />
+            </div>
+            {hasPayments ? (
+              <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                {WORKSHOP_HAS_PAYMENTS_DELETE_ERROR} ({paymentCount} payment
+                {paymentCount === 1 ? "" : "s"}).
+              </p>
+            ) : null}
+            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailField
+                label="Type"
+                value={WORKSHOP_OFFERING_TYPE_LABELS[workshop.type]}
+              />
+              <DetailField label="Phone" value={workshop.phone} />
+              <DetailField label="Subject" value={workshop.subject} />
+              <DetailField
+                label="Target audience"
+                value={workshop.target_audience}
+              />
+              <DetailField
+                label="Delivery place"
+                value={workshop.delivery_place}
+              />
+              <DetailField
+                label="Participants"
+                value={
+                  workshop.nb_participants == null
+                    ? null
+                    : String(workshop.nb_participants)
+                }
+              />
+              <DetailField
+                label="Sessions"
+                value={
+                  workshop.number_of_sessions == null
+                    ? "0"
+                    : String(workshop.number_of_sessions)
+                }
+              />
+              <DetailField label="Price" value={formatMoney(workshop.price)} />
+              <DetailField
+                label="Start date"
+                value={formatDate(workshop.start_date)}
+              />
+              <DetailField
+                label="End date"
+                value={formatDate(workshop.end_date)}
+              />
+              <DetailField
+                label="Created"
+                value={format(
+                  new Date(workshop.created_at),
+                  "MMM d, yyyy 'at' h:mm a"
+                )}
+              />
+            </dl>
           </div>
-          {hasPayments ? (
-            <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-              {WORKSHOP_HAS_PAYMENTS_DELETE_ERROR} ({paymentCount} payment
-              {paymentCount === 1 ? "" : "s"}).
-            </p>
-          ) : null}
-          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailField
-              label="Type"
-              value={WORKSHOP_OFFERING_TYPE_LABELS[workshop.type]}
-            />
-            <DetailField label="Phone" value={workshop.phone} />
-            <DetailField label="Subject" value={workshop.subject} />
-            <DetailField
-              label="Target audience"
-              value={workshop.target_audience}
-            />
-            <DetailField
-              label="Delivery place"
-              value={workshop.delivery_place}
-            />
-            <DetailField
-              label="Participants"
-              value={
-                workshop.nb_participants == null
-                  ? null
-                  : String(workshop.nb_participants)
-              }
-            />
-            <DetailField
-              label="Sessions"
-              value={
-                workshop.number_of_sessions == null
-                  ? "0"
-                  : String(workshop.number_of_sessions)
-              }
-            />
-            <DetailField label="Price" value={formatMoney(workshop.price)} />
-            <DetailField
-              label="Start date"
-              value={formatDate(workshop.start_date)}
-            />
-            <DetailField
-              label="End date"
-              value={formatDate(workshop.end_date)}
-            />
-            <DetailField
-              label="Created"
-              value={format(
-                new Date(workshop.created_at),
-                "MMM d, yyyy 'at' h:mm a"
-              )}
-            />
-          </dl>
-        </div>
-      </ClassTabCollapsibleSection>
+        </ClassTabCollapsibleSection>
+      </Can>
 
-      <WorkshopStatusStepper
-        workshop={workshop}
-        onStatusChanged={(updated) => {
-          setWorkshop(updated);
-          router.refresh();
-        }}
-      />
+      <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
+        <WorkshopStatusStepper
+          workshop={workshop}
+          onStatusChanged={(updated) => {
+            setWorkshop(updated);
+            router.refresh();
+          }}
+        />
+      </Can>
 
-      <WorkshopScheduleSlotsSection
-        workshopId={workshop.id}
-        workshopName={workshop.name}
-        scheduleSlots={scheduleSlots}
-      />
+      <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+        <WorkshopScheduleSlotsSection
+          workshopId={workshop.id}
+          workshopName={workshop.name}
+          scheduleSlots={scheduleSlots}
+        />
+      </Can>
 
-      <WorkshopSessionsSection workshopId={workshop.id} sessions={sessions} />
+      <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
+        <WorkshopSessionsSection workshopId={workshop.id} sessions={sessions} />
+      </Can>
 
-      <WorkshopInstructorsSection
-        workshopId={workshop.id}
-        instructors={instructors}
-        candidates={instructorCandidates}
-      />
+      <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
+        <WorkshopInstructorsSection
+          workshopId={workshop.id}
+          instructors={instructors}
+          candidates={instructorCandidates}
+        />
+      </Can>
 
-      <WorkshopDocumentsSection
-        workshopId={workshop.id}
-        documents={documents}
-      />
+      <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
+        <WorkshopDocumentsSection
+          workshopId={workshop.id}
+          documents={documents}
+        />
+      </Can>
 
-      <WorkshopPaymentsSection
-        workshopId={workshop.id}
-        payments={payments}
-        summary={paymentSummary}
-      />
+      <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW}>
+        <WorkshopPaymentsSection
+          workshopId={workshop.id}
+          payments={payments}
+          summary={paymentSummary}
+        />
+      </Can>
     </div>
   );
 }

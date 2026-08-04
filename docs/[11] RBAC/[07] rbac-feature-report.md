@@ -49,8 +49,10 @@
 
 ### Route and panel access
 
-- Role still owns panel root (teacher cannot open `/manager`).
-- Inside manager, path map enforces view permissions (nested class grades/sessions/tasks, equipment borrow, RBAC page).
+- Role still owns panel root for most paths (teacher cannot open `/manager/users`).
+- **Exception:** shared workshop paths (`/manager/workshops`, detail, `/manager/workshops/payments`) are allowlisted for any role; non-managers also need `is_instructor` + the path’s view permission.
+- Sidebar **Manage workshops** (all roles) requires `is_instructor` + `workshops.view`.
+- Inside manager (and shared workshop pages), path map enforces view permissions (nested class grades/sessions/tasks, equipment borrow, RBAC page, `workshops.payments.view` for payments overview).
 - Unknown `/manager/...` paths fail closed (`forbidden`).
 - Middleware sets `x-pathname` for the layout gate.
 

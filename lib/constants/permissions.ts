@@ -178,6 +178,7 @@ export const PERMISSIONS = {
   WORKSHOPS_SESSIONS_CREATE: "workshops.sessions.create",
   WORKSHOPS_SESSIONS_UPDATE: "workshops.sessions.update",
   WORKSHOPS_SESSIONS_DELETE: "workshops.sessions.delete",
+  WORKSHOPS_PAYMENTS_VIEW: "workshops.payments.view",
   WORKSHOPS_PAYMENTS_CREATE: "workshops.payments.create",
   WORKSHOPS_PAYMENTS_UPDATE: "workshops.payments.update",
   WORKSHOPS_PAYMENTS_DELETE: "workshops.payments.delete",
@@ -754,6 +755,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "workshops",
     label: "Delete workshop session",
     access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW,
+    feature: "workshops",
+    label: "View workshop payments",
+    access: PERMISSION_ACCESS.READ,
   },
   {
     key: PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE,
