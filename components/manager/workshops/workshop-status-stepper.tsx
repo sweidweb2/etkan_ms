@@ -302,7 +302,7 @@ export function WorkshopStatusStepper({
       <ClassTabCollapsibleSection
         title="Status"
         description="Advance status and keep handoff notes for the responsible entity."
-        storageKey={`workshop-details-status:${workshop.id}`}
+        storageKey={`workshop-details-status-v2:${workshop.id}`}
         defaultOpen
         action={<WorkshopStatusBadge status={workshop.status} />}
       >

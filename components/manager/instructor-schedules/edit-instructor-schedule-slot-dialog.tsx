@@ -101,6 +101,8 @@ export function EditInstructorScheduleSlotDialog({
 
   const selectedType = watch("type");
   const selectedColor = watch("color");
+  const isWorkshopMirror = Boolean(session?.sourceWorkshopId);
+  const fieldsDisabled = isPending || isWorkshopMirror;
 
   useEffect(() => {
     if (!open || !session) {
@@ -121,6 +123,9 @@ export function EditInstructorScheduleSlotDialog({
   }, [open, reset, session]);
 
   function onSubmit(values: UpdateInstructorScheduleSlotInput) {
+    if (isWorkshopMirror) {
+      return;
+    }
     onOpenChange(false);
     startTransition(() => {
       void onUpdate(values);
@@ -137,10 +142,15 @@ export function EditInstructorScheduleSlotDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Edit schedule slot</DialogTitle>
+          <DialogTitle>
+            {isWorkshopMirror ? "Workshop schedule slot" : "Edit schedule slot"}
+          </DialogTitle>
           <DialogDescription>
-            Update this weekly recurring slot. It appears every{" "}
-            {session ? (WEEKDAY_LABELS[session.dayOfWeek] ?? "week") : "week"}.
+            {isWorkshopMirror
+              ? "This busy slot is mirrored from a workshop schedule. Edit or remove it from the workshop calendar."
+              : `Update this weekly recurring slot. It appears every ${
+                  session ? (WEEKDAY_LABELS[session.dayOfWeek] ?? "week") : "week"
+                }.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,6 +166,12 @@ export function EditInstructorScheduleSlotDialog({
           <input type="hidden" {...register("type")} />
           <input type="hidden" {...register("color")} />
           <input type="hidden" {...register("slot_date")} />
+
+          {isWorkshopMirror ? (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-foreground">
+              From workshop schedule — read only on the instructor calendar.
+            </div>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
@@ -182,13 +198,14 @@ export function EditInstructorScheduleSlotDialog({
             <FieldLabel
               htmlFor="edit-instructor-schedule-slot-name"
               label="Name"
-              hint="Required"
+              hint={isWorkshopMirror ? "" : "Required"}
             />
             <Input
               id="edit-instructor-schedule-slot-name"
               maxLength={SCHEDULE_SLOT_FIELD_LIMITS.name.max}
               aria-invalid={!!nameError}
-              disabled={isPending}
+              disabled={fieldsDisabled}
+              readOnly={isWorkshopMirror}
               {...register("name")}
             />
             {nameError ? (
@@ -200,12 +217,12 @@ export function EditInstructorScheduleSlotDialog({
             <FieldLabel
               htmlFor="edit-instructor-schedule-slot-type"
               label="Type"
-              hint="Required"
+              hint={isWorkshopMirror ? "" : "Required"}
             />
             <InstructorScheduleSlotTypePicker
               id="edit-instructor-schedule-slot-type"
               value={selectedType}
-              disabled={isPending}
+              disabled={fieldsDisabled}
               invalid={!!typeError}
               onChange={(type: InstructorScheduleSlotType) => {
                 setValue("type", type, { shouldValidate: true });
@@ -220,12 +237,12 @@ export function EditInstructorScheduleSlotDialog({
             <FieldLabel
               htmlFor="edit-instructor-schedule-slot-color"
               label="Color"
-              hint="Required"
+              hint={isWorkshopMirror ? "" : "Required"}
             />
             <div id="edit-instructor-schedule-slot-color">
               <InstructorScheduleSlotColorPicker
                 value={selectedColor}
-                disabled={isPending}
+                disabled={fieldsDisabled}
                 invalid={!!colorError}
                 onChange={(color: string) => {
                   setValue("color", color, { shouldValidate: true });
@@ -258,7 +275,8 @@ export function EditInstructorScheduleSlotDialog({
                 id="edit-instructor-schedule-slot-start"
                 type="time"
                 aria-invalid={!!startTimeError}
-                disabled={isPending}
+                disabled={fieldsDisabled}
+                readOnly={isWorkshopMirror}
                 {...register("start_time")}
               />
               {startTimeError ? (
@@ -276,7 +294,8 @@ export function EditInstructorScheduleSlotDialog({
                 id="edit-instructor-schedule-slot-end"
                 type="time"
                 aria-invalid={!!endTimeError}
-                disabled={isPending}
+                disabled={fieldsDisabled}
+                readOnly={isWorkshopMirror}
                 {...register("end_time")}
               />
               {endTimeError ? (
@@ -287,7 +306,7 @@ export function EditInstructorScheduleSlotDialog({
         </form>
 
         <DialogFooter className="mt-2 sm:justify-between">
-          {session && onDeleteRequest ? (
+          {session && onDeleteRequest && !isWorkshopMirror ? (
             <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_DELETE}>
               <Button
                 type="button"
@@ -310,22 +329,18 @@ export function EditInstructorScheduleSlotDialog({
               disabled={isPending}
               onClick={() => handleOpenChange(false)}
             >
-              Cancel
+              {isWorkshopMirror ? "Close" : "Cancel"}
             </Button>
-            <Button
-              type="submit"
-              form="edit-instructor-schedule-slot-form"
-              disabled={!session || isPending}
-            >
-              {isPending ? (
-                <>
-                  <InlineSpinner />
-                  Saving changes
-                </>
-              ) : (
-                "Save changes"
-              )}
-            </Button>
+            {!isWorkshopMirror ? (
+              <Button
+                type="submit"
+                form="edit-instructor-schedule-slot-form"
+                disabled={!session || isPending}
+              >
+                {isPending ? <InlineSpinner /> : null}
+                Save
+              </Button>
+            ) : null}
           </div>
         </DialogFooter>
       </DialogContent>

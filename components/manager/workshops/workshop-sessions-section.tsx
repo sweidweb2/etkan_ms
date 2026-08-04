@@ -362,7 +362,8 @@ export function WorkshopSessionsSection({
             ? "No sessions yet"
             : `${sessions.length} session${sessions.length === 1 ? "" : "s"}`
         }
-        storageKey={`workshop-details-sessions:${workshopId}`}
+        storageKey={`workshop-details-sessions-v2:${workshopId}`}
+        defaultOpen
         action={
           <Can permission={PERMISSIONS.WORKSHOPS_SESSIONS_CREATE}>
             <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>

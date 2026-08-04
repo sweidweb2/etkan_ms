@@ -292,7 +292,7 @@ function TabsContents({
             ref={(el) => {
               itemRefs.current[index] = el;
             }}
-            className="w-full shrink-0 px-2 h-full"
+            className="w-full shrink-0 px-2"
           >
             {child}
           </div>

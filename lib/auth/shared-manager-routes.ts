@@ -1,12 +1,22 @@
 import { ROUTES } from "@/lib/constants/routes";
 
 /**
- * Manager workshop paths that other roles may enter when they are instructors
- * and hold the matching view permission. Keep this list intentionally small.
+ * Workshop / schedule paths that other roles may enter when they are
+ * instructors and hold the matching view permission.
  */
 const SHARED_MANAGER_WORKSHOP_PREFIXES = [
   ROUTES.MANAGER_WORKSHOPS_PAYMENTS,
   ROUTES.MANAGER_WORKSHOPS,
+  ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
+] as const;
+
+/**
+ * Shared manager paths that do **not** require `is_instructor`
+ * (managers/CEOs manage the flag; they need not be instructors themselves).
+ */
+const SHARED_MANAGER_NO_INSTRUCTOR_FLAG_PREFIXES = [
+  ROUTES.MANAGER_INSTRUCTORS,
+  ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
 ] as const;
 
 function pathMatchesPrefix(pathname: string, prefix: string): boolean {
@@ -16,5 +26,24 @@ function pathMatchesPrefix(pathname: string, prefix: string): boolean {
 export function isSharedManagerWorkshopPath(pathname: string): boolean {
   return SHARED_MANAGER_WORKSHOP_PREFIXES.some((prefix) =>
     pathMatchesPrefix(pathname, prefix)
+  );
+}
+
+export function isSharedManagerInstructorsPath(pathname: string): boolean {
+  return pathMatchesPrefix(pathname, ROUTES.MANAGER_INSTRUCTORS);
+}
+
+export function isSharedManagerCloudflareAiUsagePath(
+  pathname: string
+): boolean {
+  return pathMatchesPrefix(pathname, ROUTES.MANAGER_CLOUDFLARE_AI_USAGE);
+}
+
+export function isSharedManagerPath(pathname: string): boolean {
+  return (
+    isSharedManagerWorkshopPath(pathname) ||
+    SHARED_MANAGER_NO_INSTRUCTOR_FLAG_PREFIXES.some((prefix) =>
+      pathMatchesPrefix(pathname, prefix)
+    )
   );
 }

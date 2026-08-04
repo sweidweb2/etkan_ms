@@ -40,8 +40,25 @@ function formatCapabilityLines(
     });
 }
 
+/** Convert compact `HH:mm` (24h) to `h:mm AM/PM`. */
+function formatTime12h(value: string): string {
+  const [hoursRaw, minutesRaw = "00"] = value.slice(0, 5).split(":");
+  const hours24 = Number(hoursRaw);
+  if (!Number.isFinite(hours24) || hours24 < 0 || hours24 > 23) {
+    return value.slice(0, 5);
+  }
+  const minutes = minutesRaw.padStart(2, "0").slice(0, 2);
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+  return `${hours12}:${minutes} ${period}`;
+}
+
+function formatSlotWindow(slot: ScheduleAssistantCompactSlot): string {
+  return `${slot.w} ${formatTime12h(slot.s)}–${formatTime12h(slot.e)}`;
+}
+
 function formatSlotLine(slot: ScheduleAssistantCompactSlot): string {
-  return `${slot.u}: ${slot.w} ${slot.d} ${slot.s}–${slot.e}`;
+  return `${slot.u}: ${formatSlotWindow(slot)}`;
 }
 
 function formatAvailabilityLines(slots: ScheduleAssistantCompactSlot[]): string[] {
@@ -85,7 +102,7 @@ function formatJoinLines(
       ? [...match.sub].sort((a, b) => a.localeCompare(b)).join(", ")
       : "";
     const label = subjects ? `${slot.u} (${subjects})` : slot.u;
-    return `${label}: ${slot.w} ${slot.d} ${slot.s}–${slot.e}`;
+    return `${label}: ${formatSlotWindow(slot)}`;
   });
 }
 

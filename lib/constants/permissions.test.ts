@@ -57,8 +57,8 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 124 keys (instructor portal removed)", () => {
-    expect(PERMISSION_KEYS).toHaveLength(125);
+  it("keeps the catalog size at 127 keys", () => {
+    expect(PERMISSION_KEYS).toHaveLength(127);
     expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW)).toBe(
       true
@@ -67,6 +67,8 @@ describe("permissions", () => {
       true
     );
     expect(isPermissionKey(PERMISSIONS.INSTRUCTORS_VIEW)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.INSTRUCTORS_CREATE)).toBe(true);
+    expect(isPermissionKey(PERMISSIONS.INSTRUCTORS_DELETE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE)).toBe(
       true
     );

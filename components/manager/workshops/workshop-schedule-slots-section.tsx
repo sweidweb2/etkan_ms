@@ -250,7 +250,8 @@ export function WorkshopScheduleSlotsSection({
             ? "No weekly slots yet"
             : `${slots.length} weekly slot${slots.length === 1 ? "" : "s"}`
         }
-        storageKey={`workshop-details-schedule-slots:${workshopId}`}
+        storageKey={`workshop-details-schedule-slots-v2:${workshopId}`}
+        defaultOpen
         action={
           <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
             <Link

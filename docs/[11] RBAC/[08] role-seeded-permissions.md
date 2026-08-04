@@ -2,17 +2,7 @@
 
 Default grants applied by `npm run seed:rbac` from `lib/constants/role-seed-permissions.ts`.
 
-Shared workshop access package (`WORKSHOP_ACCESS_SEED_PERMISSIONS`) is included for **every non-manager role**:
-
-- `workshops.view`
-- `workshops.sessions.create` / `update` / `delete`
-- `workshops.documents.create` / `update` / `delete`
-- `instructors.view` (covers reading instructor capabilities)
-- `instructor_schedules.view`
-
-The old `instructor_portal.*` package was removed. Shared **Manage workshops** UI is available at `/manager/workshops*` for any role when `profiles.is_instructor` is true and the user holds the matching view permission(s). Sidebar item requires `is_instructor` + `workshops.view`.
-
-`workshops.payments.view` is **not** in the shared package (manager full catalog + CEO workshop write package only, unless granted in the RBAC UI).
+Seed **replaces** each role’s grants (clears previous, then writes the package below).
 
 ---
 
@@ -22,48 +12,60 @@ Full catalog (`PERMISSION_KEYS`) — every permission.
 
 ---
 
-## Admin
-
-### Accounting
-- `accounting.income_statement.view`
-
-### Backup
-- `backup.view`
-- `backup.export_table`
-- `backup.export_full`
-- `backup.download`
-
-### Plus
-- Shared workshop access package
-
----
-
 ## CEO
 
-Read/analysis-oriented manager grants plus full workshop module writes (create/update/delete, status, instructors, documents, sessions, payments including `workshops.payments.view`) and instructor schedule CRUD. Includes shared workshop access package.
+Full instructors / instructor schedules / workshops module (incl. payments) plus AI usage for Schedule assistant (`CEO_WORKSHOP_SEED_PERMISSIONS`):
 
-Key groups: dashboard, users, students, subjects (view/create/update), instructors (+ capabilities update), classes (+ analytics), sessions, attendance, tasks, final exams, grades, semesters, schedule, instructor schedules (CRUD), workshops (full module), accounting (+ income statement), analytics, cloudflare AI usage.
+```
+instructors.view
+instructors.create
+instructors.delete
+instructors.capabilities.update
+instructor_schedules.view
+instructor_schedules.create
+instructor_schedules.update
+instructor_schedules.delete
+workshops.view
+workshops.create
+workshops.update
+workshops.delete
+workshops.change_status
+workshops.instructors.create
+workshops.instructors.update
+workshops.instructors.delete
+workshops.documents.create
+workshops.documents.update
+workshops.documents.delete
+workshops.sessions.create
+workshops.sessions.update
+workshops.sessions.delete
+workshops.payments.view
+workshops.payments.create
+workshops.payments.update
+workshops.payments.delete
+cloudflare_ai_usage.view
+```
+
+Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`.  
+Manage instructors and AI usage do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
+Schedule assistant UI/API and AI usage page require `cloudflare_ai_usage.view`.
 
 ---
 
-## Co-manager
+## Other roles (admin, co-manager, teacher, trainer, student)
 
-Shared workshop access package only.
+Shared workshop access package only (`WORKSHOP_ACCESS_SEED_PERMISSIONS`):
 
----
+```
+workshops.view
+workshops.sessions.create
+workshops.sessions.update
+workshops.sessions.delete
+workshops.documents.create
+workshops.documents.update
+workshops.documents.delete
+instructors.view
+instructor_schedules.view
+```
 
-## Teacher
-
-Shared workshop access package only.
-
----
-
-## Trainer
-
-Shared workshop access package only.
-
----
-
-## Student
-
-Shared workshop access package only.
+Shared **Manage workshops** UI is available at `/manager/workshops*` when `profiles.is_instructor` is true and the user holds the matching view permission(s). Sidebar requires `is_instructor` + `workshops.view`.

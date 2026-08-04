@@ -58,6 +58,7 @@ vi.mock("@/services/authorization.service", () => ({
   getUnauthorizedError: vi.fn(async (_c, userId) =>
     userId ? null : "Unauthorized."
   ),
+  hasPermission: vi.fn(async (_c, userId) => Boolean(userId)),
 }));
 
 const adminClient = {} as never;
@@ -374,6 +375,24 @@ describe("deleteWorkshopForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    vi.mocked(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsByEntityRecord
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
 
     const result = await deleteWorkshopForManager(
       adminClient,
@@ -386,6 +405,12 @@ describe("deleteWorkshopForManager", () => {
       success: true,
       message: "Workshop deleted.",
     });
+    expect(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
+    ).toHaveBeenCalledWith(adminClient, workshopId);
+    expect(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsByEntityRecord
+    ).toHaveBeenCalledWith(adminClient, "workshop", workshopId);
     expect(
       workshopStorageRepository.removeWorkshopStorageObjects
     ).toHaveBeenCalledWith(adminClient, ["workshops/w1/doc.pdf"]);
@@ -823,6 +848,15 @@ describe("addWorkshopInstructorForManager", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
 
     const result = await addWorkshopInstructorForManager(
       adminClient,
@@ -836,6 +870,109 @@ describe("addWorkshopInstructorForManager", () => {
       expect(result.instructor.user_id).toBe(instructorUserId);
       expect(result.message).toBe("Instructor added.");
     }
+    expect(
+      instructorScheduleSlotRepository.createInstructorScheduleSlots
+    ).not.toHaveBeenCalled();
+  });
+
+  it("mirrors workshop schedule slots as instructor busy slots", async () => {
+    const workshopSlot = {
+      id: "66666666-6666-4666-8666-666666666666",
+      entity_type: "workshop",
+      record_id: workshopId,
+      name: "Session block",
+      type: "free",
+      slot_date: "2026-09-01",
+      day_of_week: 1,
+      start_time: "09:00:00",
+      end_time: "11:00:00",
+      color: "#ff0000",
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    };
+
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: instructorUserId,
+        username: "lead_teacher",
+        role: "teacher",
+        is_instructor: true,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopInstructorRepository.findWorkshopInstructorByWorkshopAndUser
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopInstructorRepository.createWorkshopInstructor
+    ).mockResolvedValue({
+      data: instructorAssignmentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+    ).mockResolvedValue({
+      data: [workshopSlot],
+      error: null,
+      count: 1,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.createInstructorScheduleSlots
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 1,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await addWorkshopInstructorForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      validAddInstructorInput
+    );
+
+    expect(result.success).toBe(true);
+    expect(
+      instructorScheduleSlotRepository.createInstructorScheduleSlots
+    ).toHaveBeenCalledWith(adminClient, [
+      {
+        entity_type: "instructor",
+        record_id: instructorUserId,
+        name: "Session block",
+        type: "busy",
+        slot_date: "2026-09-01",
+        day_of_week: 1,
+        start_time: "09:00:00",
+        end_time: "11:00:00",
+        color: "#ff0000",
+        source_workshop_id: workshopId,
+        source_slot_id: workshopSlot.id,
+      },
+    ]);
   });
 });
 
@@ -909,6 +1046,15 @@ describe("removeWorkshopInstructorForManager", () => {
       statusText: "OK",
     } as never);
     vi.mocked(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopAndUser
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: 1,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
       workshopInstructorRepository.deleteWorkshopInstructorById
     ).mockResolvedValue({
       data: null,
@@ -929,6 +1075,9 @@ describe("removeWorkshopInstructorForManager", () => {
       success: true,
       message: "Instructor removed.",
     });
+    expect(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopAndUser
+    ).toHaveBeenCalledWith(adminClient, workshopId, instructorUserId);
   });
 });
 
@@ -1044,6 +1193,25 @@ describe("changeWorkshopStatusForManager", () => {
   });
 
   it("cancels and reopens as draft", async () => {
+    vi.mocked(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValueOnce({
       data: { ...workshopRecord, status: WORKSHOP_STATUSES.PROPOSAL },
       error: null,
@@ -1066,6 +1234,9 @@ describe("changeWorkshopStatusForManager", () => {
       { id: workshopId, status: WORKSHOP_STATUSES.CANCELLED }
     );
     expect(cancelResult.success).toBe(true);
+    expect(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
+    ).toHaveBeenCalledWith(adminClient, workshopId);
 
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValueOnce({
       data: { ...workshopRecord, status: WORKSHOP_STATUSES.CANCELLED },
@@ -1092,6 +1263,9 @@ describe("changeWorkshopStatusForManager", () => {
     if (reopenResult.success) {
       expect(reopenResult.workshop.status).toBe(WORKSHOP_STATUSES.DRAFT);
     }
+    expect(
+      workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
+    ).toHaveBeenCalledWith(adminClient, workshopId);
   });
 });
 

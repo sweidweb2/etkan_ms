@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
@@ -9,7 +9,15 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { deleteWorkshopAction } from "@/app/manager/workshops/actions";
+import {
+  Tabs as TabsPrimitive,
+  TabsContent as TabsContentPrimitive,
+  TabsContents as TabsContentsPrimitive,
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
+import { usePermissions } from "@/components/auth/permissions-provider";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
 import { WorkshopDocumentsSection } from "@/components/manager/workshops/workshop-documents-section";
@@ -43,9 +51,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { MANAGER_WORKSHOP_STATUS_LABELS, WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
+import { cn } from "@/lib/utils";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
@@ -59,6 +69,19 @@ import type {
   ManagerWorkshopRow,
   ManagerWorkshopSessionRow,
 } from "@/types/manager-workshop";
+
+type WorkshopDetailsTabValue =
+  | "schedule"
+  | "instructors"
+  | "documents"
+  | "payments";
+
+const TAB_TRIGGER_CLASS = cn(
+  "inline-flex items-center rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 sm:px-5",
+  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
+  "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
+  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+);
 
 type WorkshopDetailsPanelProps = {
   workshop: ManagerWorkshopRow;
@@ -124,6 +147,7 @@ export function WorkshopDetailsPanel({
   sessions,
 }: WorkshopDetailsPanelProps) {
   const router = useRouter();
+  const permissions = usePermissions();
   const [workshop, setWorkshop] = useState(initialWorkshop);
   const [prevWorkshop, setPrevWorkshop] = useState(initialWorkshop);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -145,6 +169,37 @@ export function WorkshopDetailsPanel({
     setPrevWorkshop(initialWorkshop);
     setWorkshop(initialWorkshop);
   }
+
+  const canViewWorkshop = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.WORKSHOPS_VIEW
+  );
+  const canViewSchedule = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+  const canViewPayments = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW
+  );
+  const availableTabs = useMemo(() => {
+    const tabs: WorkshopDetailsTabValue[] = [];
+    if (canViewSchedule) {
+      tabs.push("schedule");
+    }
+    if (canViewWorkshop) {
+      tabs.push("instructors", "documents");
+    }
+    if (canViewPayments) {
+      tabs.push("payments");
+    }
+    return tabs;
+  }, [canViewPayments, canViewSchedule, canViewWorkshop]);
+  const [activeTab, setActiveTab] =
+    useState<WorkshopDetailsTabValue>("schedule");
+  const resolvedTab = availableTabs.includes(activeTab)
+    ? activeTab
+    : (availableTabs[0] ?? "schedule");
 
   const hasPayments = paymentCount > 0;
   const deleteBlockedReason = hasPayments
@@ -270,7 +325,8 @@ export function WorkshopDetailsPanel({
         <ClassTabCollapsibleSection
           title="Details"
           description={MANAGER_WORKSHOP_STATUS_LABELS[workshop.status]}
-          storageKey={`workshop-details-info:${workshop.id}`}
+          storageKey={`workshop-details-info-v2:${workshop.id}`}
+          defaultOpen
         >
           <div className="px-3 py-4 sm:px-4">
             <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -347,40 +403,94 @@ export function WorkshopDetailsPanel({
         />
       </Can>
 
-      <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
-        <WorkshopScheduleSlotsSection
-          workshopId={workshop.id}
-          workshopName={workshop.name}
-          scheduleSlots={scheduleSlots}
-        />
-      </Can>
-
       <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
         <WorkshopSessionsSection workshopId={workshop.id} sessions={sessions} />
       </Can>
 
-      <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
-        <WorkshopInstructorsSection
-          workshopId={workshop.id}
-          instructors={instructors}
-          candidates={instructorCandidates}
-        />
-      </Can>
+      {availableTabs.length > 0 ? (
+        <TabsPrimitive
+          value={resolvedTab}
+          onValueChange={(value) =>
+            setActiveTab(value as WorkshopDetailsTabValue)
+          }
+          className="flex flex-col gap-4"
+        >
+          <div className="flex items-center justify-center">
+            <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+              {canViewSchedule ? (
+                <TabsTriggerPrimitive
+                  value="schedule"
+                  className={TAB_TRIGGER_CLASS}
+                >
+                  Schedule
+                </TabsTriggerPrimitive>
+              ) : null}
+              {canViewWorkshop ? (
+                <>
+                  <TabsTriggerPrimitive
+                    value="instructors"
+                    className={TAB_TRIGGER_CLASS}
+                  >
+                    Instructors
+                  </TabsTriggerPrimitive>
+                  <TabsTriggerPrimitive
+                    value="documents"
+                    className={TAB_TRIGGER_CLASS}
+                  >
+                    Documents
+                  </TabsTriggerPrimitive>
+                </>
+              ) : null}
+              {canViewPayments ? (
+                <TabsTriggerPrimitive
+                  value="payments"
+                  className={TAB_TRIGGER_CLASS}
+                >
+                  Payments
+                </TabsTriggerPrimitive>
+              ) : null}
+            </TabsListPrimitive>
+          </div>
 
-      <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
-        <WorkshopDocumentsSection
-          workshopId={workshop.id}
-          documents={documents}
-        />
-      </Can>
-
-      <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW}>
-        <WorkshopPaymentsSection
-          workshopId={workshop.id}
-          payments={payments}
-          summary={paymentSummary}
-        />
-      </Can>
+          <TabsContentsPrimitive>
+            {canViewSchedule ? (
+              <TabsContentPrimitive value="schedule" className="outline-none">
+                <WorkshopScheduleSlotsSection
+                  workshopId={workshop.id}
+                  workshopName={workshop.name}
+                  scheduleSlots={scheduleSlots}
+                />
+              </TabsContentPrimitive>
+            ) : null}
+            {canViewWorkshop ? (
+              <TabsContentPrimitive value="instructors" className="outline-none">
+                <WorkshopInstructorsSection
+                  workshopId={workshop.id}
+                  instructors={instructors}
+                  candidates={instructorCandidates}
+                />
+              </TabsContentPrimitive>
+            ) : null}
+            {canViewWorkshop ? (
+              <TabsContentPrimitive value="documents" className="outline-none">
+                <WorkshopDocumentsSection
+                  workshopId={workshop.id}
+                  documents={documents}
+                />
+              </TabsContentPrimitive>
+            ) : null}
+            {canViewPayments ? (
+              <TabsContentPrimitive value="payments" className="outline-none">
+                <WorkshopPaymentsSection
+                  workshopId={workshop.id}
+                  payments={payments}
+                  summary={paymentSummary}
+                />
+              </TabsContentPrimitive>
+            ) : null}
+          </TabsContentsPrimitive>
+        </TabsPrimitive>
+      ) : null}
     </div>
   );
 }

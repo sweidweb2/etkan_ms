@@ -565,6 +565,8 @@ export type Database = {
           name: string
           record_id: string
           slot_date: string
+          source_slot_id: string | null
+          source_workshop_id: string | null
           start_time: string
           type: string
           updated_at: string
@@ -579,6 +581,8 @@ export type Database = {
           name: string
           record_id: string
           slot_date: string
+          source_slot_id?: string | null
+          source_workshop_id?: string | null
           start_time: string
           type: string
           updated_at?: string
@@ -593,11 +597,28 @@ export type Database = {
           name?: string
           record_id?: string
           slot_date?: string
+          source_slot_id?: string | null
+          source_workshop_id?: string | null
           start_time?: string
           type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instructor_schedule_slots_source_slot_id_fkey"
+            columns: ["source_slot_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_schedule_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_schedule_slots_source_workshop_id_fkey"
+            columns: ["source_workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       instructor_subject_capability: {
         Row: {

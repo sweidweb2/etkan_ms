@@ -87,6 +87,8 @@ Format: `key` — label — access
 | Key | Label | Access |
 |-----|-------|--------|
 | `instructors.view` | View instructors | read |
+| `instructors.create` | Add instructors (`is_instructor` on) | write |
+| `instructors.delete` | Remove instructors (`is_instructor` off) | write |
 | `instructors.capabilities.update` | Update instructor subject capabilities | write |
 
 ### Instructor schedules
@@ -328,7 +330,8 @@ subjects.update
 subjects.delete
 <!-- ======================================== -->
 instructors.view
-
+instructors.create
+instructors.delete
 instructors.capabilities.update
 
 instructor_schedules.view
@@ -450,7 +453,57 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 124 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view + capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes.
+**Count:** 127 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`).
+
+### is_instructor — shared seed package
+
+Roles with `profiles.is_instructor` use these grants for shared Manage workshops UI (seed: `WORKSHOP_ACCESS_SEED_PERMISSIONS`). Nav/route also requires the flag + matching `*.view`.
+
+```
+workshops.view
+workshops.sessions.create
+workshops.sessions.update
+workshops.sessions.delete
+workshops.documents.create
+workshops.documents.update
+workshops.documents.delete
+instructors.view
+instructor_schedules.view
+```
+
+### CEO — workshop / instructor module seed
+
+CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant).
+
+```
+instructors.view
+instructors.create
+instructors.delete
+instructors.capabilities.update
+instructor_schedules.view
+instructor_schedules.create
+instructor_schedules.update
+instructor_schedules.delete
+workshops.view
+workshops.create
+workshops.update
+workshops.delete
+workshops.change_status
+workshops.instructors.create
+workshops.instructors.update
+workshops.instructors.delete
+workshops.documents.create
+workshops.documents.update
+workshops.documents.delete
+workshops.sessions.create
+workshops.sessions.update
+workshops.sessions.delete
+workshops.payments.view
+workshops.payments.create
+workshops.payments.update
+workshops.payments.delete
+cloudflare_ai_usage.view
+```
 
 ---
 

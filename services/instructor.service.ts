@@ -245,7 +245,7 @@ export async function removeInstructorForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE
+    PERMISSIONS.INSTRUCTORS_DELETE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };
@@ -316,7 +316,7 @@ export async function addInstructorsForManager(
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
-    PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE
+    PERMISSIONS.INSTRUCTORS_CREATE
   );
   if (unauthorized) {
     return { success: false, error: unauthorized };

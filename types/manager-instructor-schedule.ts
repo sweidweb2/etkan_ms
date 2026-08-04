@@ -42,6 +42,10 @@ export interface ManagerInstructorScheduleSession {
   endTime: string;
   /** #RRGGBB hex */
   color: string;
+  /** Set when this instructor slot was mirrored from a workshop. */
+  sourceWorkshopId: string | null;
+  /** Workshop schedule slot this mirror was copied from. */
+  sourceSlotId: string | null;
 }
 
 export type ManagerInstructorSchedulesPageData = {

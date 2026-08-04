@@ -113,6 +113,8 @@ export function instructorScheduleSessionsToEvents(
     const startTime = normalizeTimeForCalendar(session.startTime);
     const endTime = normalizeTimeForCalendar(session.endTime);
     const isTemp = session.id.startsWith("__temp_");
+    const isWorkshopMirror = Boolean(session.sourceWorkshopId);
+    const canEditEvent = !isTemp && !isWorkshopMirror;
     const entityLabel =
       entityLabelByKey
         ?.get(entityKey(session.entityType, session.recordId))
@@ -129,12 +131,13 @@ export function instructorScheduleSessionsToEvents(
       end: `${projectedDate}T${endTime}`,
       color,
       contrastColor,
-      editable: !isTemp,
-      startEditable: !isTemp,
-      durationEditable: !isTemp,
+      editable: canEditEvent,
+      startEditable: canEditEvent,
+      durationEditable: canEditEvent,
       extendedProps: {
         session,
         isTemp,
+        isWorkshopMirror,
         projectedDate,
       },
     });

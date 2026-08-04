@@ -224,7 +224,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
             </p>
           </div>
 
-          <Can permission={PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE}>
+          <Can permission={PERMISSIONS.INSTRUCTORS_CREATE}>
             <Button
               type="button"
               className="shrink-0"
@@ -278,11 +278,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
                       {format(new Date(instructor.created_at), "MMM d, yyyy")}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Can
-                        permission={
-                          PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE
-                        }
-                      >
+                      <Can permission={PERMISSIONS.INSTRUCTORS_DELETE}>
                         <Button
                           type="button"
                           variant="destructive"

@@ -19,6 +19,7 @@ import { StudentStatusBadge } from "@/components/manager/students/student-status
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CopyTextButton } from "@/components/ui/copy-text-button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -428,10 +429,19 @@ export function ManageStudentsPanel({
                           />
                         </td>
                         <td className="max-w-[14rem] px-4 py-3">
-                          <TruncatedCell
-                            value={student.email}
-                            maxLength={COLUMN_LIMITS.email}
-                          />
+                          <div className="flex min-w-0 items-center gap-1">
+                            <TruncatedCell
+                              value={student.email}
+                              maxLength={COLUMN_LIMITS.email}
+                              className="min-w-0"
+                            />
+                            <CopyTextButton
+                              value={student.email}
+                              label={`Copy email for ${student.full_name}`}
+                              successMessage="Email copied to clipboard."
+                              errorMessage="Unable to copy email."
+                            />
+                          </div>
                         </td>
                         <td className="max-w-[9rem] px-4 py-3">
                           <TruncatedCell

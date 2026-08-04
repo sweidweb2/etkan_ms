@@ -86,7 +86,6 @@ import "@fullcalendar/react/themes/monarch/theme.css";
 import "@/components/manager/schedule/fullcalendar-dark.css";
 
 const DUP_GHOST_ID_PREFIX = "__dup_ghost_";
-const ALL_ENTITIES_TAB = "all";
 const WEEKDAY_LABELS = [
   "Sunday",
   "Monday",
@@ -97,29 +96,29 @@ const WEEKDAY_LABELS = [
   "Saturday",
 ] as const;
 
-type ScheduleTabSelection =
-  | { kind: "all" }
+type ScheduleEntitySelection =
   | { kind: "instructor"; id: string }
   | { kind: "workshop"; id: string };
 
-function parseScheduleTabKey(value: string): ScheduleTabSelection {
-  if (value === ALL_ENTITIES_TAB) {
-    return { kind: "all" };
-  }
+function parseEntityFilterKey(value: string): ScheduleEntitySelection | null {
   if (value.startsWith("instructor:")) {
     return { kind: "instructor", id: value.slice("instructor:".length) };
   }
   if (value.startsWith("workshop:")) {
     return { kind: "workshop", id: value.slice("workshop:".length) };
   }
-  return { kind: "all" };
+  return null;
 }
 
-function scheduleTabKey(tab: ScheduleTabSelection): string {
-  if (tab.kind === "all") {
-    return ALL_ENTITIES_TAB;
+function entityFilterKey(selection: ScheduleEntitySelection): string {
+  return `${selection.kind}:${selection.id}`;
+}
+
+function toggleEntityFilterKey(prev: string[], key: string): string[] {
+  if (prev.includes(key)) {
+    return prev.filter((item) => item !== key);
   }
-  return `${tab.kind}:${tab.id}`;
+  return [...prev, key];
 }
 
 function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
@@ -314,6 +313,8 @@ function sessionFromCreateInput(
     startTime: values.start_time,
     endTime: values.end_time,
     color: values.color,
+    sourceWorkshopId: null,
+    sourceSlotId: null,
   };
 }
 
@@ -362,7 +363,10 @@ export function InstructorSchedulesPanel({
   const [, startTransition] = useTransition();
 
   const [sessions, setSessions] = React.useState(data.sessions);
-  const [selectedTabKey, setSelectedTabKey] = React.useState(ALL_ENTITIES_TAB);
+  /** Empty = All entities. Non-empty = union of selected instructor/workshop keys. */
+  const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
+    []
+  );
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [createDefaults, setCreateDefaults] =
@@ -389,11 +393,6 @@ export function InstructorSchedulesPanel({
     });
   }, [data.sessions]);
 
-  const selectedTab = useMemo(
-    () => parseScheduleTabKey(selectedTabKey),
-    [selectedTabKey]
-  );
-
   const instructorIds = useMemo(
     () => new Set(data.instructors.map((instructor) => instructor.id)),
     [data.instructors]
@@ -403,27 +402,31 @@ export function InstructorSchedulesPanel({
     [data.workshops]
   );
 
-  const resolvedTabKey = useMemo(() => {
-    if (selectedTab.kind === "all") {
-      return ALL_ENTITIES_TAB;
-    }
-    if (
-      selectedTab.kind === "instructor" &&
-      instructorIds.has(selectedTab.id)
-    ) {
-      return scheduleTabKey(selectedTab);
-    }
-    if (selectedTab.kind === "workshop" && workshopIds.has(selectedTab.id)) {
-      return scheduleTabKey(selectedTab);
-    }
-    return ALL_ENTITIES_TAB;
-  }, [selectedTab, instructorIds, workshopIds]);
+  const resolvedEntityKeys = useMemo(() => {
+    return selectedEntityKeys.filter((key) => {
+      const parsed = parseEntityFilterKey(key);
+      if (!parsed) {
+        return false;
+      }
+      if (parsed.kind === "instructor") {
+        return instructorIds.has(parsed.id);
+      }
+      return workshopIds.has(parsed.id);
+    });
+  }, [selectedEntityKeys, instructorIds, workshopIds]);
 
-  if (resolvedTabKey !== selectedTabKey) {
-    setSelectedTabKey(resolvedTabKey);
+  if (
+    resolvedEntityKeys.length !== selectedEntityKeys.length ||
+    resolvedEntityKeys.some((key, index) => key !== selectedEntityKeys[index])
+  ) {
+    setSelectedEntityKeys(resolvedEntityKeys);
   }
 
-  const isAllEntitiesSelected = selectedTab.kind === "all";
+  const isAllEntitiesSelected = resolvedEntityKeys.length === 0;
+  const selectedEntityKeySet = useMemo(
+    () => new Set(resolvedEntityKeys),
+    [resolvedEntityKeys]
+  );
   const canCreateOnCalendar = canCreate;
 
   const eligibleWorkshops = useMemo(
@@ -464,37 +467,43 @@ export function InstructorSchedulesPanel({
 
   const createPrefill = useMemo((): AddInstructorScheduleSlotDefaults | null => {
     const fromDates = createDefaults ?? undefined;
-    if (selectedTab.kind === "instructor") {
-      return {
-        entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-        record_id: selectedTab.id,
-        ...fromDates,
-      };
-    }
-    if (selectedTab.kind === "workshop") {
-      return {
-        entity_type: ENTITY_SCHEDULE_TYPE_WORKSHOP,
-        record_id: selectedTab.id,
-        ...fromDates,
-      };
+    if (resolvedEntityKeys.length === 1) {
+      const only = parseEntityFilterKey(resolvedEntityKeys[0]!);
+      if (only?.kind === "instructor") {
+        return {
+          entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+          record_id: only.id,
+          ...fromDates,
+        };
+      }
+      if (only?.kind === "workshop") {
+        return {
+          entity_type: ENTITY_SCHEDULE_TYPE_WORKSHOP,
+          record_id: only.id,
+          ...fromDates,
+        };
+      }
     }
     return fromDates
       ? {
           ...fromDates,
         }
       : null;
-  }, [createDefaults, selectedTab]);
+  }, [createDefaults, resolvedEntityKeys]);
 
   const filteredSessions = useMemo(() => {
-    if (selectedTab.kind === "all") {
+    if (isAllEntitiesSelected) {
       return sessions;
     }
-    return sessions.filter(
-      (session) =>
-        session.entityType === selectedTab.kind &&
-        session.recordId === selectedTab.id
+    return sessions.filter((session) =>
+      selectedEntityKeySet.has(
+        entityFilterKey({
+          kind: session.entityType,
+          id: session.recordId,
+        })
+      )
     );
-  }, [sessions, selectedTab]);
+  }, [sessions, isAllEntitiesSelected, selectedEntityKeySet]);
 
   const events = useMemo<EventInput[]>(() => {
     const filtered =
@@ -503,7 +512,7 @@ export function InstructorSchedulesPanel({
         : filteredSessions.filter((session) => session.type === typeFilter);
     return instructorScheduleSessionsToEvents(filtered, {
       weekStart,
-      includeEntityInTitle: isAllEntitiesSelected,
+      includeEntityInTitle: resolvedEntityKeys.length !== 1,
       entityLabelByKey,
       workshopBoundsById,
     });
@@ -511,7 +520,7 @@ export function InstructorSchedulesPanel({
     filteredSessions,
     typeFilter,
     weekStart,
-    isAllEntitiesSelected,
+    resolvedEntityKeys.length,
     entityLabelByKey,
     workshopBoundsById,
   ]);
@@ -814,6 +823,11 @@ export function InstructorSchedulesPanel({
       return;
     }
 
+    if (session.sourceWorkshopId) {
+      dragSourceRef.current = null;
+      return;
+    }
+
     const snapshot: DragSourceSnapshot = {
       session,
       start: info.event.start,
@@ -846,6 +860,14 @@ export function InstructorSchedulesPanel({
 
     if (!source || isTempScheduleId(source.id)) {
       info.revert();
+      return;
+    }
+
+    if (source.sourceWorkshopId) {
+      info.revert();
+      showErrorToast(
+        "This slot is mirrored from a workshop schedule and cannot be moved here."
+      );
       return;
     }
 
@@ -985,6 +1007,14 @@ export function InstructorSchedulesPanel({
 
     if (!session || !start || !end || isTempScheduleId(session.id)) {
       info.revert();
+      return;
+    }
+
+    if (session.sourceWorkshopId) {
+      info.revert();
+      showErrorToast(
+        "This slot is mirrored from a workshop schedule and cannot be resized here."
+      );
       return;
     }
 
@@ -1155,75 +1185,93 @@ export function InstructorSchedulesPanel({
         </Link>
       </div>
 
-      <ScheduleAssistantPrompt />
+      <Can permission={PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW}>
+        <ScheduleAssistantPrompt />
+      </Can>
 
-      <div
-        role="tablist"
-        aria-label="Schedule entities"
-        className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={isAllEntitiesSelected}
-          onClick={() => setSelectedTabKey(ALL_ENTITIES_TAB)}
-          className={cn(
-            "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
-            "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-            isAllEntitiesSelected &&
-              "border-border bg-background text-foreground shadow-sm"
-          )}
+      <div className="flex flex-col gap-2">
+        <div
+          role="group"
+          aria-label="Filter by instructor"
+          className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
         >
-          All
-        </button>
-        {data.instructors.map((instructor) => {
-          const tabKey = scheduleTabKey({
-            kind: "instructor",
-            id: instructor.id,
-          });
-          const selected = selectedTabKey === tabKey;
-          return (
-            <button
-              key={tabKey}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => setSelectedTabKey(tabKey)}
-              className={cn(
-                "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
-                "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-                selected &&
-                  "border-border bg-background text-foreground shadow-sm"
-              )}
-            >
-              {instructor.username ?? "Unknown"}
-            </button>
-          );
-        })}
-        {data.workshops.map((workshop) => {
-          const tabKey = scheduleTabKey({
-            kind: "workshop",
-            id: workshop.id,
-          });
-          const selected = selectedTabKey === tabKey;
-          return (
-            <button
-              key={tabKey}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => setSelectedTabKey(tabKey)}
-              className={cn(
-                "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
-                "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-                selected &&
-                  "border-border bg-background text-foreground shadow-sm"
-              )}
-            >
-              {workshop.name}
-            </button>
-          );
-        })}
+          <button
+            type="button"
+            aria-pressed={isAllEntitiesSelected}
+            onClick={() => setSelectedEntityKeys([])}
+            className={cn(
+              "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+              "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
+              isAllEntitiesSelected &&
+                "border-border bg-background text-foreground shadow-sm"
+            )}
+          >
+            All
+          </button>
+          {data.instructors.map((instructor) => {
+            const tabKey = entityFilterKey({
+              kind: "instructor",
+              id: instructor.id,
+            });
+            const selected = selectedEntityKeySet.has(tabKey);
+            return (
+              <button
+                key={tabKey}
+                type="button"
+                aria-pressed={selected}
+                onClick={() =>
+                  setSelectedEntityKeys((prev) =>
+                    toggleEntityFilterKey(prev, tabKey)
+                  )
+                }
+                className={cn(
+                  "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+                  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
+                  selected &&
+                    "border-border bg-background text-foreground shadow-sm"
+                )}
+              >
+                {instructor.username ?? "Unknown"}
+              </button>
+            );
+          })}
+        </div>
+
+        {data.workshops.length > 0 ? (
+          <div
+            role="group"
+            aria-label="Filter by workshop"
+            className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+          >
+            {data.workshops.map((workshop) => {
+              const tabKey = entityFilterKey({
+                kind: "workshop",
+                id: workshop.id,
+              });
+              const selected = selectedEntityKeySet.has(tabKey);
+              return (
+                <button
+                  key={tabKey}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() =>
+                    setSelectedEntityKeys((prev) =>
+                      toggleEntityFilterKey(prev, tabKey)
+                    )
+                  }
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+                    "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
+                    selected &&
+                      "border-border bg-background text-foreground shadow-sm"
+                  )}
+                >
+                  {workshop.name}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-col items-stretch gap-3 sm:grid sm:grid-cols-3 sm:items-center">

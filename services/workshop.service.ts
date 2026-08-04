@@ -20,6 +20,13 @@ import {
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  deleteAllMirrorsForWorkshop,
+  deleteAllWorkshopEntitySlots,
+  deleteMirrorsForWorkshopInstructor,
+  mirrorWorkshopSlotsToInstructor,
+  recopyAllMirrorsForWorkshop,
+} from "@/lib/manager/workshops/mirror-instructor-schedule";
 import { ENTITY_SCHEDULE_TYPE_WORKSHOP } from "@/lib/validators/manager/instructor-schedule-slot";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { changeWorkshopStatusSchema } from "@/lib/validators/manager/change-workshop-status";
@@ -1019,6 +1026,24 @@ export async function changeWorkshopStatusForManager(
     };
   }
 
+  if (nextStatus === WORKSHOP_STATUSES.CANCELLED) {
+    const mirrorClear = await deleteAllMirrorsForWorkshop(adminClient, id);
+    if (mirrorClear.error) {
+      return {
+        success: false,
+        error: mirrorClear.error,
+      };
+    }
+  } else if (currentStatus === WORKSHOP_STATUSES.CANCELLED) {
+    const mirrorRecopy = await recopyAllMirrorsForWorkshop(adminClient, id);
+    if (mirrorRecopy.error) {
+      return {
+        success: false,
+        error: mirrorRecopy.error,
+      };
+    }
+  }
+
   const workshop = mapWorkshopRecordToRow(data);
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -1116,6 +1141,25 @@ export async function deleteWorkshopForManager(
     return {
       success: false,
       error: "Unable to remove workshop documents from storage. Please try again.",
+    };
+  }
+
+  const mirrorClear = await deleteAllMirrorsForWorkshop(adminClient, workshopId);
+  if (mirrorClear.error) {
+    return {
+      success: false,
+      error: mirrorClear.error,
+    };
+  }
+
+  const workshopSlotsClear = await deleteAllWorkshopEntitySlots(
+    adminClient,
+    workshopId
+  );
+  if (workshopSlotsClear.error) {
+    return {
+      success: false,
+      error: workshopSlotsClear.error,
     };
   }
 
@@ -1268,6 +1312,23 @@ export async function addWorkshopInstructorForManager(
     data as WorkshopInstructorWithProfileRecord
   );
 
+  const mirrorResult = await mirrorWorkshopSlotsToInstructor(
+    adminClient,
+    dataInput.workshop_id,
+    dataInput.user_id
+  );
+
+  if (mirrorResult.error) {
+    await workshopInstructorRepository.deleteWorkshopInstructorById(
+      adminClient,
+      instructor.id
+    );
+    return {
+      success: false,
+      error: mirrorResult.error,
+    };
+  }
+
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
     severity: "info",
@@ -1280,7 +1341,10 @@ export async function addWorkshopInstructorForManager(
       wage_type: instructor.wage_type,
       wage_amount: instructor.wage_amount,
     },
-    metadata: { note: "Workshop instructor assigned." },
+    metadata: {
+      note: "Workshop instructor assigned.",
+      mirrored_busy_slots: mirrorResult.count ?? 0,
+    },
   });
 
   return {
@@ -1443,6 +1507,19 @@ export async function removeWorkshopInstructorForManager(
     existing.data as WorkshopInstructorWithProfileRecord
   );
 
+  const mirrorDeleteResult = await deleteMirrorsForWorkshopInstructor(
+    adminClient,
+    previous.workshop_id,
+    previous.user_id
+  );
+
+  if (mirrorDeleteResult.error) {
+    return {
+      success: false,
+      error: mirrorDeleteResult.error,
+    };
+  }
+
   const { error } =
     await workshopInstructorRepository.deleteWorkshopInstructorById(
       adminClient,
@@ -1468,7 +1545,9 @@ export async function removeWorkshopInstructorForManager(
       wage_type: previous.wage_type,
       wage_amount: previous.wage_amount,
     },
-    metadata: { note: "Workshop instructor removed." },
+    metadata: {
+      note: "Workshop instructor removed.",
+    },
   });
 
   return {

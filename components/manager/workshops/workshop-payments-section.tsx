@@ -171,7 +171,8 @@ export function WorkshopPaymentsSection({
             ? "No payments yet"
             : `${payments.length} payment${payments.length === 1 ? "" : "s"}`
         }
-        storageKey={`workshop-details-payments:${workshopId}`}
+        storageKey={`workshop-details-payments-v2:${workshopId}`}
+        defaultOpen
         action={
           <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE}>
             <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>

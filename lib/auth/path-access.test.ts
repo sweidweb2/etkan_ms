@@ -35,7 +35,7 @@ describe("canAccessPath", () => {
   it("denies cross-role panel access", () => {
     expect(canAccessPath(ROUTES.ADMIN_DASHBOARD, ROLES.MANAGER)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.STUDENT)).toBe(false);
-    expect(canAccessPath(ROUTES.CEO_DASHBOARD, ROLES.TEACHER)).toBe(false);
+    expect(canAccessPath(ROUTES.CEO_ROOT, ROLES.TEACHER)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_DASHBOARD, ROLES.CO_MANAGER)).toBe(
       false
     );
@@ -50,13 +50,17 @@ describe("canAccessPath", () => {
     expect(
       canAccessPath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS, ROLES.STUDENT)
     ).toBe(true);
+    expect(
+      canAccessPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES, ROLES.TRAINER)
+    ).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_INSTRUCTORS, ROLES.CEO)).toBe(true);
+    expect(
+      canAccessPath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE, ROLES.CEO)
+    ).toBe(true);
   });
 
   it("still denies non-shared manager paths for other roles", () => {
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.TRAINER)).toBe(false);
-    expect(canAccessPath(ROUTES.MANAGER_INSTRUCTORS, ROLES.TEACHER)).toBe(
-      false
-    );
   });
 
   it("allows non-panel routes for any role", () => {

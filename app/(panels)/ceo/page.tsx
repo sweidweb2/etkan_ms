@@ -2,5 +2,5 @@ import { redirect } from "next/navigation";
 import { ROUTES } from "@/lib/constants/routes";
 
 export default function CeoPage() {
-  redirect(ROUTES.CEO_DASHBOARD);
+  redirect(ROUTES.MANAGER_WORKSHOPS);
 }

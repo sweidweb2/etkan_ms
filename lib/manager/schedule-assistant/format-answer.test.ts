@@ -76,7 +76,7 @@ describe("formatAnswerFromFacts", () => {
         },
       })
     ).toBe(
-      "ali: friday 2026-08-07 09:00–11:00\nbob: friday 2026-08-07 10:00–12:00"
+      "ali: friday 9:00 AM–11:00 AM\nbob: friday 10:00 AM–12:00 PM"
     );
   });
 
@@ -88,7 +88,7 @@ describe("formatAnswerFromFacts", () => {
           slots: [catalogs.slots!.slots[0]!],
         },
       })
-    ).toBe("ali (Arduino Basics): friday 2026-08-07 09:00–11:00");
+    ).toBe("ali (Arduino Basics): friday 9:00 AM–11:00 AM");
   });
 
   it("returns no-match when empty", () => {
@@ -157,7 +157,7 @@ describe("buildAnswerFromGroups", () => {
       catalogs
     );
     expect(result.answer).toBe(
-      "ali (Arduino Basics): friday 2026-08-07 09:00–11:00"
+      "ali (Arduino Basics): friday 9:00 AM–11:00 AM"
     );
   });
 });

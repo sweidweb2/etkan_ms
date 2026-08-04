@@ -215,44 +215,14 @@ export const MANAGER_PANEL_NAV: PanelNavItem[] = [
 export const CEO_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
   items: [
     {
-      title: "Dashboard",
-      href: ROUTES.CEO_DASHBOARD,
-      icon: "layout-dashboard",
-    },
-    {
-      title: "Users analysis",
-      href: ROUTES.CEO_USERS_ANALYSIS,
-      icon: "users",
-    },
-    {
-      title: "Teachers analysis",
-      href: ROUTES.CEO_TEACHERS_ANALYSIS,
-      icon: "book-open",
-    },
-    {
-      title: "Classes analysis",
-      href: ROUTES.CEO_CLASSES_ANALYSIS,
+      title: "Manage instructors",
+      href: ROUTES.MANAGER_INSTRUCTORS,
       icon: "school",
     },
     {
-      title: "Subjects analysis",
-      href: ROUTES.CEO_SUBJECTS_ANALYSIS,
-      icon: "library",
-    },
-    {
-      title: "Accounting analysis",
-      href: ROUTES.CEO_ACCOUNTING_ANALYSIS,
-      icon: "calculator",
-    },
-    {
-      title: "Notifications",
-      href: ROUTES.CEO_NOTIFICATIONS,
-      icon: "bell",
-    },
-    {
-      title: "Tasks analysis",
-      href: ROUTES.CEO_TASKS_ANALYSIS,
-      icon: "reports",
+      title: "AI usage",
+      href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
+      icon: "sparkles",
     },
   ],
 });

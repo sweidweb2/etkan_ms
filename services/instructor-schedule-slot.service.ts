@@ -9,6 +9,11 @@ import {
   getUnauthorizedError,
 } from "@/services/authorization.service";
 import {
+  deleteMirrorsForWorkshopSlot,
+  mirrorWorkshopSlotToAllInstructors,
+  updateMirrorsForWorkshopSlot,
+} from "@/lib/manager/workshops/mirror-instructor-schedule";
+import {
   createInstructorScheduleSlotSchema,
   dayOfWeekFromIsoDate,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
@@ -135,6 +140,8 @@ function mapSlotRecordToSession(
     startTime: formatTimeForDisplay(record.start_time),
     endTime: formatTimeForDisplay(record.end_time),
     color: normalizeInstructorScheduleSlotColor(record.color),
+    sourceWorkshopId: record.source_workshop_id ?? null,
+    sourceSlotId: record.source_slot_id ?? null,
   };
 }
 
@@ -451,28 +458,47 @@ export async function createInstructorScheduleSlotForManager(
     };
   }
 
+  const created = data as InstructorScheduleSlotRecord;
+
+  if (created.entity_type === ENTITY_SCHEDULE_TYPE_WORKSHOP) {
+    const mirrorResult = await mirrorWorkshopSlotToAllInstructors(
+      adminClient,
+      created
+    );
+    if (mirrorResult.error) {
+      await instructorScheduleSlotRepository.deleteInstructorScheduleSlotById(
+        adminClient,
+        created.id
+      );
+      return {
+        success: false,
+        error: mirrorResult.error,
+      };
+    }
+  }
+
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
     severity: "info",
     table_name: "instructor_schedule_slots",
-    record_id: data.id,
+    record_id: created.id,
     new_data: {
-      entity_type: data.entity_type,
-      record_id: data.record_id,
-      name: data.name,
-      type: data.type,
-      slot_date: data.slot_date,
-      day_of_week: data.day_of_week,
-      start_time: data.start_time,
-      end_time: data.end_time,
-      color: data.color,
+      entity_type: created.entity_type,
+      record_id: created.record_id,
+      name: created.name,
+      type: created.type,
+      slot_date: created.slot_date,
+      day_of_week: created.day_of_week,
+      start_time: created.start_time,
+      end_time: created.end_time,
+      color: created.color,
     },
     metadata: { note: "Schedule slot created." },
   });
 
   return {
     success: true,
-    session: mapSlotRecordToSession(data as InstructorScheduleSlotRecord),
+    session: mapSlotRecordToSession(created),
     message: "Schedule slot created.",
   };
 }
@@ -533,6 +559,14 @@ export async function updateInstructorScheduleSlotForManager(
     return { success: false, error: "Schedule slot not found." };
   }
 
+  if (existingSlot.data.source_workshop_id) {
+    return {
+      success: false,
+      error:
+        "This slot is mirrored from a workshop schedule and cannot be edited here.",
+    };
+  }
+
   // Keep entity_type + record_id immutable after create.
   const entity_type = existingSlot.data.entity_type;
   const record_id = existingSlot.data.record_id;
@@ -556,6 +590,8 @@ export async function updateInstructorScheduleSlotForManager(
         start_time,
         end_time,
         color: normalizeInstructorScheduleSlotColor(color),
+        source_workshop_id: existingSlot.data.source_workshop_id ?? null,
+        source_slot_id: existingSlot.data.source_slot_id ?? null,
       }
     );
 
@@ -566,11 +602,26 @@ export async function updateInstructorScheduleSlotForManager(
     };
   }
 
+  const updated = data as InstructorScheduleSlotRecord;
+
+  if (updated.entity_type === ENTITY_SCHEDULE_TYPE_WORKSHOP) {
+    const mirrorResult = await updateMirrorsForWorkshopSlot(
+      adminClient,
+      updated
+    );
+    if (mirrorResult.error) {
+      return {
+        success: false,
+        error: mirrorResult.error,
+      };
+    }
+  }
+
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "info",
     table_name: "instructor_schedule_slots",
-    record_id: data.id,
+    record_id: updated.id,
     old_data: {
       entity_type: existingSlot.data.entity_type,
       record_id: existingSlot.data.record_id,
@@ -583,15 +634,15 @@ export async function updateInstructorScheduleSlotForManager(
       color: existingSlot.data.color,
     },
     new_data: {
-      entity_type: data.entity_type,
-      record_id: data.record_id,
-      name: data.name,
-      type: data.type,
-      slot_date: data.slot_date,
-      day_of_week: data.day_of_week,
-      start_time: data.start_time,
-      end_time: data.end_time,
-      color: data.color,
+      entity_type: updated.entity_type,
+      record_id: updated.record_id,
+      name: updated.name,
+      type: updated.type,
+      slot_date: updated.slot_date,
+      day_of_week: updated.day_of_week,
+      start_time: updated.start_time,
+      end_time: updated.end_time,
+      color: updated.color,
     },
     metadata: {
       note: "Schedule slot updated.",
@@ -608,7 +659,7 @@ export async function updateInstructorScheduleSlotForManager(
 
   return {
     success: true,
-    session: mapSlotRecordToSession(data as InstructorScheduleSlotRecord),
+    session: mapSlotRecordToSession(updated),
     message: "Schedule slot updated.",
   };
 }
@@ -647,6 +698,30 @@ export async function deleteInstructorScheduleSlotForManager(
 
   if (!isScheduleEntityType(existingSlot.data.entity_type)) {
     return { success: false, error: "Schedule slot not found." };
+  }
+
+  if (existingSlot.data.source_workshop_id) {
+    return {
+      success: false,
+      error:
+        "This slot is mirrored from a workshop schedule and cannot be deleted here.",
+    };
+  }
+
+  const deletingWorkshopEntity =
+    existingSlot.data.entity_type === ENTITY_SCHEDULE_TYPE_WORKSHOP;
+
+  if (deletingWorkshopEntity) {
+    const mirrorResult = await deleteMirrorsForWorkshopSlot(
+      adminClient,
+      slotId
+    );
+    if (mirrorResult.error) {
+      return {
+        success: false,
+        error: mirrorResult.error,
+      };
+    }
   }
 
   const { error } =

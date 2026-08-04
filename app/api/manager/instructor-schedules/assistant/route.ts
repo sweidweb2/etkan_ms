@@ -173,12 +173,24 @@ export async function POST(request: Request) {
   }
 
   const adminClient = createSupabaseAdminClient();
-  const unauthorized = await getUnauthorizedError(
+  const unauthorizedSchedule = await getUnauthorizedError(
     adminClient,
     user.id,
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
-  if (unauthorized) {
+  if (unauthorizedSchedule) {
+    return new Response(JSON.stringify({ message: "Forbidden." }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const unauthorizedAi = await getUnauthorizedError(
+    adminClient,
+    user.id,
+    PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW
+  );
+  if (unauthorizedAi) {
     return new Response(JSON.stringify({ message: "Forbidden." }), {
       status: 403,
       headers: { "Content-Type": "application/json" },

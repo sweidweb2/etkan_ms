@@ -1,7 +1,10 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireManagerRoutePermission } from "@/lib/auth/require-manager-route-permission";
-import { isSharedManagerWorkshopPath } from "@/lib/auth/shared-manager-routes";
+import {
+  isSharedManagerPath,
+  isSharedManagerWorkshopPath,
+} from "@/lib/auth/shared-manager-routes";
 import {
   getSessionIsInstructor,
   getSessionRole,
@@ -29,13 +32,17 @@ export default async function ManagerLayout({
     return children;
   }
 
-  if (!isSharedManagerWorkshopPath(pathname)) {
+  if (!isSharedManagerPath(pathname)) {
     redirect(getDashboardRouteForRole(role));
   }
 
-  const isInstructor = await getSessionIsInstructor();
-  if (!isInstructor) {
-    redirect(getDashboardRouteForRole(role));
+  // Workshop / schedule shared UI still requires the instructor flag.
+  // Manage instructors + AI usage do not (CEO/managers need not be instructors).
+  if (isSharedManagerWorkshopPath(pathname)) {
+    const isInstructor = await getSessionIsInstructor();
+    if (!isInstructor) {
+      redirect(getDashboardRouteForRole(role));
+    }
   }
 
   await requireManagerRoutePermission(pathname);
