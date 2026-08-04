@@ -38,6 +38,7 @@ const initialDeleteState: DeleteWorkshopDocumentActionState = {};
 type WorkshopDocumentsSectionProps = {
   workshopId: string;
   documents: ManagerWorkshopDocumentRow[];
+  mutationsLocked?: boolean;
 };
 
 function formatFileSize(bytes: number | null) {
@@ -56,6 +57,7 @@ function formatFileSize(bytes: number | null) {
 export function WorkshopDocumentsSection({
   workshopId,
   documents,
+  mutationsLocked = false,
 }: WorkshopDocumentsSectionProps) {
   const router = useRouter();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -161,16 +163,18 @@ export function WorkshopDocumentsSection({
         storageKey={`workshop-details-documents-v2:${workshopId}`}
         defaultOpen
         action={
-          <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_CREATE}>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setIsUploadOpen(true)}
-            >
-              <PlusIcon data-icon="inline-start" />
-              Upload
-            </Button>
-          </Can>
+          mutationsLocked ? undefined : (
+            <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_CREATE}>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setIsUploadOpen(true)}
+              >
+                <PlusIcon data-icon="inline-start" />
+                Upload
+              </Button>
+            </Can>
+          )
         }
       >
         <div className="px-3 py-4 sm:px-4">
@@ -228,30 +232,32 @@ export function WorkshopDocumentsSection({
                         )}
                       </td>
                       <td className="py-3 align-top">
-                        <div className="flex items-center justify-end gap-1">
-                          <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_UPDATE}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Rename ${document.name}`}
-                              onClick={() => setRenamingDocument(document)}
-                            >
-                              <PencilIcon />
-                            </Button>
-                          </Can>
-                          <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_DELETE}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Delete ${document.name}`}
-                              onClick={() => setDeletingDocument(document)}
-                            >
-                              <Trash2Icon />
-                            </Button>
-                          </Can>
-                        </div>
+                        {!mutationsLocked ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_UPDATE}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Rename ${document.name}`}
+                                onClick={() => setRenamingDocument(document)}
+                              >
+                                <PencilIcon />
+                              </Button>
+                            </Can>
+                            <Can permission={PERMISSIONS.WORKSHOPS_DOCUMENTS_DELETE}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Delete ${document.name}`}
+                                onClick={() => setDeletingDocument(document)}
+                              >
+                                <Trash2Icon />
+                              </Button>
+                            </Can>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

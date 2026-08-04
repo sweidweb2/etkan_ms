@@ -155,12 +155,16 @@ export async function updateWorkshopNumberOfSessionsById(
 export async function updateWorkshopStatusById(
   client: Supabase,
   id: string,
-  status: string
+  status: string,
+  options?: { end_date?: string | null }
 ) {
   return client
     .from("workshops")
     .update({
       status,
+      ...(options && "end_date" in options
+        ? { end_date: options.end_date ?? null }
+        : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

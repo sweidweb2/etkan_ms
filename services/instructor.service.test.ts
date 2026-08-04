@@ -1,15 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
-import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
+import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as profileRepository from "@/repositories/profile.repository";
-import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import { removeInstructorForManager } from "@/services/instructor.service";
 
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/subject.repository");
 vi.mock("@/repositories/instructor-subject-capability.repository");
-vi.mock("@/repositories/workshop-instructor.repository");
+vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
+  clearInstructorWorkshopRelatedData: vi.fn(),
+}));
 
 vi.mock("@/services/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -30,7 +31,7 @@ describe("removeInstructorForManager", () => {
     vi.resetAllMocks();
   });
 
-  it("deletes workshop instructor rows when removing instructor flag", async () => {
+  it("clears instructor-related data then removes instructor flag", async () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: instructorId,
@@ -44,23 +45,8 @@ describe("removeInstructorForManager", () => {
       status: 200,
       statusText: "OK",
     });
-    vi.mocked(
-      instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId
-    ).mockResolvedValue({
-      data: null,
+    vi.mocked(clearInstructorWorkshopRelatedData).mockResolvedValue({
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      workshopInstructorRepository.deleteWorkshopInstructorsByUserId
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
     vi.mocked(
       profileRepository.updateProfileInstructorFlag
@@ -86,8 +72,14 @@ describe("removeInstructorForManager", () => {
       message: "Instructor removed.",
       userId: instructorId,
     });
-    expect(
-      workshopInstructorRepository.deleteWorkshopInstructorsByUserId
-    ).toHaveBeenCalledWith(adminClient, instructorId);
+    expect(clearInstructorWorkshopRelatedData).toHaveBeenCalledWith(
+      adminClient,
+      instructorId
+    );
+    expect(profileRepository.updateProfileInstructorFlag).toHaveBeenCalledWith(
+      adminClient,
+      instructorId,
+      false
+    );
   });
 });

@@ -45,21 +45,38 @@ const ok = {
   statusText: "OK",
 } as const;
 
+const emptyList = {
+  data: [],
+  error: null,
+  count: 0,
+  status: 200,
+  statusText: "OK",
+} as const;
+
+function mockListByRecord(workshopSlots = [workshopSlot]) {
+  vi.mocked(
+    instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+  ).mockImplementation(async (_c, entityType) => {
+    if (entityType === "workshop") {
+      return {
+        data: workshopSlots,
+        error: null,
+        count: workshopSlots.length,
+        status: 200,
+        statusText: "OK",
+      } as never;
+    }
+    return emptyList as never;
+  });
+}
+
 describe("mirror-instructor-schedule", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("mirrorWorkshopSlotsToInstructor inserts busy mirrors with source columns", async () => {
-    vi.mocked(
-      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
-    ).mockResolvedValue({
-      data: [workshopSlot],
-      error: null,
-      count: 1,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    mockListByRecord();
     vi.mocked(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
     ).mockResolvedValue({
@@ -109,6 +126,7 @@ describe("mirror-instructor-schedule", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    mockListByRecord();
     vi.mocked(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
     ).mockResolvedValue({
@@ -141,6 +159,16 @@ describe("mirror-instructor-schedule", () => {
   });
 
   it("updateMirrorsForWorkshopSlot patches by source_slot_id", async () => {
+    vi.mocked(
+      workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
+    ).mockResolvedValue({
+      data: [{ user_id: instructorUserId }],
+      error: null,
+      count: 1,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    mockListByRecord();
     vi.mocked(
       instructorScheduleSlotRepository.updateInstructorScheduleSlotsBySourceSlotId
     ).mockResolvedValue({
@@ -223,7 +251,7 @@ describe("mirror-instructor-schedule", () => {
     ).toHaveBeenCalledWith(admin, "workshop", workshopId);
   });
 
-  it("recopyAllMirrorsForWorkshop clears then recopies per instructor", async () => {
+  it("recopyAllMirrorsForWorkshop clears then inserts one batch", async () => {
     vi.mocked(
       instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
     ).mockResolvedValue(ok as never);
@@ -236,15 +264,7 @@ describe("mirror-instructor-schedule", () => {
       status: 200,
       statusText: "OK",
     } as never);
-    vi.mocked(
-      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
-    ).mockResolvedValue({
-      data: [workshopSlot],
-      error: null,
-      count: 1,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    mockListByRecord();
     vi.mocked(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
     ).mockResolvedValue({
@@ -263,6 +283,63 @@ describe("mirror-instructor-schedule", () => {
     ).toHaveBeenCalledWith(admin, workshopId);
     expect(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
-    ).toHaveBeenCalled();
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      instructorScheduleSlotRepository.createInstructorScheduleSlots
+    ).toHaveBeenCalledWith(admin, [
+      expect.objectContaining({
+        record_id: instructorUserId,
+        source_workshop_id: workshopId,
+        source_slot_id: slotId,
+        type: "busy",
+      }),
+    ]);
+  });
+
+  it("mirrorWorkshopSlotsToInstructor rejects overlapping instructor slots", async () => {
+    vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+    ).mockImplementation(async (_c, entityType) => {
+      if (entityType === "workshop") {
+        return {
+          data: [workshopSlot],
+          error: null,
+          count: 1,
+          status: 200,
+          statusText: "OK",
+        } as never;
+      }
+      return {
+        data: [
+          {
+            ...workshopSlot,
+            id: "existing-busy",
+            entity_type: "instructor",
+            record_id: instructorUserId,
+            name: "Other",
+            type: "busy",
+            source_workshop_id: null,
+            source_slot_id: null,
+          },
+        ],
+        error: null,
+        count: 1,
+        status: 200,
+        statusText: "OK",
+      } as never;
+    });
+
+    const result = await mirrorWorkshopSlotsToInstructor(
+      admin,
+      workshopId,
+      instructorUserId
+    );
+
+    expect(result.error).toBe(
+      "This time overlaps an existing schedule slot."
+    );
+    expect(
+      instructorScheduleSlotRepository.createInstructorScheduleSlots
+    ).not.toHaveBeenCalled();
   });
 });

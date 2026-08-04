@@ -38,6 +38,7 @@ type WorkshopInstructorsSectionProps = {
   workshopId: string;
   instructors: ManagerWorkshopInstructorRow[];
   candidates: ManagerWorkshopInstructorCandidate[];
+  mutationsLocked?: boolean;
 };
 
 function formatWageAmount(
@@ -61,6 +62,7 @@ export function WorkshopInstructorsSection({
   workshopId,
   instructors,
   candidates,
+  mutationsLocked = false,
 }: WorkshopInstructorsSectionProps) {
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -167,12 +169,14 @@ export function WorkshopInstructorsSection({
         storageKey={`workshop-details-instructors-v2:${workshopId}`}
         defaultOpen
         action={
-          <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE}>
-            <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add instructor
-            </Button>
-          </Can>
+          mutationsLocked ? undefined : (
+            <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE}>
+              <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add instructor
+              </Button>
+            </Can>
+          )
         }
       >
         <div className="px-3 pt-4 pb-0 sm:px-4">
@@ -222,30 +226,32 @@ export function WorkshopInstructorsSection({
                         {instructor.notes?.trim() ? instructor.notes : "—"}
                       </td>
                       <td className="py-3 align-top">
-                        <div className="flex items-center justify-end gap-1">
-                          <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_UPDATE}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Edit ${instructor.username ?? "instructor"}`}
-                              onClick={() => setEditingInstructor(instructor)}
-                            >
-                              <PencilIcon />
-                            </Button>
-                          </Can>
-                          <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_DELETE}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Remove ${instructor.username ?? "instructor"}`}
-                              onClick={() => setRemovingInstructor(instructor)}
-                            >
-                              <Trash2Icon />
-                            </Button>
-                          </Can>
-                        </div>
+                        {!mutationsLocked ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_UPDATE}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Edit ${instructor.username ?? "instructor"}`}
+                                onClick={() => setEditingInstructor(instructor)}
+                              >
+                                <PencilIcon />
+                              </Button>
+                            </Can>
+                            <Can permission={PERMISSIONS.WORKSHOPS_INSTRUCTORS_DELETE}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Remove ${instructor.username ?? "instructor"}`}
+                                onClick={() => setRemovingInstructor(instructor)}
+                              >
+                                <Trash2Icon />
+                              </Button>
+                            </Can>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

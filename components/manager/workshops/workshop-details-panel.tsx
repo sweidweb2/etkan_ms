@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { MANAGER_WORKSHOP_STATUS_LABELS, WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
+import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
@@ -207,6 +208,9 @@ export function WorkshopDetailsPanel({
   const deleteBlockedReason = hasPayments
     ? WORKSHOP_HAS_PAYMENTS_DELETE_ERROR
     : undefined;
+  const contentMutationsLocked =
+    workshop.status === WORKSHOP_STATUSES.COMPLETED ||
+    workshop.status === WORKSHOP_STATUSES.CANCELLED;
 
   function handleConfirmDelete() {
     const formData = new FormData();
@@ -414,7 +418,11 @@ export function WorkshopDetailsPanel({
       </Can>
 
       <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
-        <WorkshopSessionsSection workshopId={workshop.id} sessions={sessions} />
+        <WorkshopSessionsSection
+          workshopId={workshop.id}
+          sessions={sessions}
+          mutationsLocked={contentMutationsLocked}
+        />
       </Can>
 
       {availableTabs.length > 0 ? (
@@ -469,6 +477,7 @@ export function WorkshopDetailsPanel({
                   workshopId={workshop.id}
                   workshopName={workshop.name}
                   scheduleSlots={scheduleSlots}
+                  mutationsLocked={contentMutationsLocked}
                 />
               </TabsContentPrimitive>
             ) : null}
@@ -478,6 +487,7 @@ export function WorkshopDetailsPanel({
                   workshopId={workshop.id}
                   instructors={instructors}
                   candidates={instructorCandidates}
+                  mutationsLocked={contentMutationsLocked}
                 />
               </TabsContentPrimitive>
             ) : null}
@@ -486,6 +496,7 @@ export function WorkshopDetailsPanel({
                 <WorkshopDocumentsSection
                   workshopId={workshop.id}
                   documents={documents}
+                  mutationsLocked={contentMutationsLocked}
                 />
               </TabsContentPrimitive>
             ) : null}
@@ -495,6 +506,7 @@ export function WorkshopDetailsPanel({
                   workshopId={workshop.id}
                   payments={payments}
                   summary={paymentSummary}
+                  mutationsLocked={contentMutationsLocked}
                 />
               </TabsContentPrimitive>
             ) : null}

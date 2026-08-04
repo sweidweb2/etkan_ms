@@ -1,10 +1,10 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { RoleValue } from "@/lib/constants/roles";
 import * as authRepository from "@/repositories/auth.repository";
+import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
-import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import {
   assertPermission,
   getUnauthorizedError,
@@ -268,23 +268,12 @@ export async function removeInstructorForManager(
     return { success: false, error: "This user is not an instructor." };
   }
 
-  const { error: capabilityError } =
-    await instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId(
-      adminClient,
-      trimmedId
-    );
-  if (capabilityError) {
-    return { success: false, error: capabilityError.message };
-  }
-
-  // Profile hard-delete cascades workshop_instructors via FK; flag-off needs explicit cleanup.
-  const { error: workshopInstructorError } =
-    await workshopInstructorRepository.deleteWorkshopInstructorsByUserId(
-      adminClient,
-      trimmedId
-    );
-  if (workshopInstructorError) {
-    return { success: false, error: workshopInstructorError.message };
+  const relatedClear = await clearInstructorWorkshopRelatedData(
+    adminClient,
+    trimmedId
+  );
+  if (relatedClear.error) {
+    return { success: false, error: relatedClear.error };
   }
 
   const { error: profileError } =

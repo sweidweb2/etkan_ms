@@ -102,6 +102,15 @@ describe("createInstructorScheduleSlotForManager workshop fan-out", () => {
       statusText: "OK",
     } as never);
     vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
       workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
     ).mockResolvedValue({
       data: [{ user_id: instructorUserId }],
@@ -165,6 +174,13 @@ describe("updateInstructorScheduleSlotForManager", () => {
       end_time: "12:00:00",
     };
 
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
     vi.mocked(
       instructorScheduleSlotRepository.findInstructorScheduleSlotById
     ).mockResolvedValue({
@@ -180,6 +196,35 @@ describe("updateInstructorScheduleSlotForManager", () => {
       data: updated,
       error: null,
       count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+    ).mockImplementation(async (_c, entityType) => {
+      if (entityType === "workshop") {
+        return {
+          data: [createdWorkshopSlot],
+          error: null,
+          count: 1,
+          status: 200,
+          statusText: "OK",
+        } as never;
+      }
+      return {
+        data: [],
+        error: null,
+        count: 0,
+        status: 200,
+        statusText: "OK",
+      } as never;
+    });
+    vi.mocked(
+      workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
+    ).mockResolvedValue({
+      data: [{ user_id: instructorUserId }],
+      error: null,
+      count: 1,
       status: 200,
       statusText: "OK",
     } as never);
@@ -221,6 +266,115 @@ describe("updateInstructorScheduleSlotForManager", () => {
         type: "busy",
         start_time: "10:00:00",
         end_time: "12:00:00",
+      })
+    );
+  });
+
+  it("rolls back workshop slot when mirror update fails", async () => {
+    const updated = {
+      ...createdWorkshopSlot,
+      name: "Updated block",
+      start_time: "10:00:00",
+      end_time: "12:00:00",
+    };
+
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.findInstructorScheduleSlotById
+    ).mockResolvedValue({
+      data: createdWorkshopSlot,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.updateInstructorScheduleSlot
+    ).mockResolvedValue({
+      data: updated,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+    ).mockImplementation(async (_c, entityType) => {
+      if (entityType === "workshop") {
+        return {
+          data: [createdWorkshopSlot],
+          error: null,
+          count: 1,
+          status: 200,
+          statusText: "OK",
+        } as never;
+      }
+      return {
+        data: [],
+        error: null,
+        count: 0,
+        status: 200,
+        statusText: "OK",
+      } as never;
+    });
+    vi.mocked(
+      workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
+    ).mockResolvedValue({
+      data: [{ user_id: instructorUserId }],
+      error: null,
+      count: 1,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.updateInstructorScheduleSlotsBySourceSlotId
+    ).mockResolvedValue({
+      data: null,
+      error: { message: "mirror sync failed" },
+      count: null,
+      status: 500,
+      statusText: "Error",
+    } as never);
+
+    const result = await updateInstructorScheduleSlotForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: slotId,
+        entity_type: "workshop",
+        record_id: workshopId,
+        name: "Updated block",
+        type: "free",
+        slot_date: "1970-01-05",
+        start_time: "10:00",
+        end_time: "12:00",
+        color: "#BAE6FD",
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/mirror sync failed|Unable to sync/i);
+    }
+    expect(
+      instructorScheduleSlotRepository.updateInstructorScheduleSlot
+    ).toHaveBeenCalledTimes(2);
+    expect(
+      instructorScheduleSlotRepository.updateInstructorScheduleSlot
+    ).toHaveBeenLastCalledWith(
+      adminClient,
+      slotId,
+      expect.objectContaining({
+        name: createdWorkshopSlot.name,
+        start_time: "09:00",
+        end_time: "11:00",
       })
     );
   });
@@ -315,6 +469,13 @@ describe("deleteInstructorScheduleSlotForManager", () => {
   });
 
   it("deletes mirrors before deleting a workshop slot", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
     vi.mocked(
       instructorScheduleSlotRepository.findInstructorScheduleSlotById
     ).mockResolvedValue({

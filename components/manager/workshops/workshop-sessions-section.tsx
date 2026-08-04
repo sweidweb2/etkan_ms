@@ -61,6 +61,7 @@ const initialDeleteState: DeleteWorkshopSessionActionState = {};
 type WorkshopSessionsSectionProps = {
   workshopId: string;
   sessions: ManagerWorkshopSessionRow[];
+  mutationsLocked?: boolean;
 };
 
 function formatDate(value: string) {
@@ -78,6 +79,7 @@ function formatTime(value: string) {
 export function WorkshopSessionsSection({
   workshopId,
   sessions,
+  mutationsLocked = false,
 }: WorkshopSessionsSectionProps) {
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -301,12 +303,14 @@ export function WorkshopSessionsSection({
         storageKey={`workshop-details-sessions-v2:${workshopId}`}
         defaultOpen
         action={
-          <Can permission={PERMISSIONS.WORKSHOPS_SESSIONS_CREATE}>
-            <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add session
-            </Button>
-          </Can>
+          mutationsLocked ? undefined : (
+            <Can permission={PERMISSIONS.WORKSHOPS_SESSIONS_CREATE}>
+              <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add session
+              </Button>
+            </Can>
+          )
         }
       >
         <div className="flex flex-col gap-4 px-3 py-4 sm:px-4">
@@ -411,28 +415,32 @@ export function WorkshopSessionsSection({
                           >
                             <MessageSquareIcon className="size-4" />
                           </Button>
-                          <Can permission={PERMISSIONS.WORKSHOPS_SESSIONS_UPDATE}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Edit session ${session.nb_order}`}
-                              onClick={() => setEditingSession(session)}
-                            >
-                              <PencilIcon className="size-4" />
-                            </Button>
-                          </Can>
-                          <Can permission={PERMISSIONS.WORKSHOPS_SESSIONS_DELETE}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Delete session ${session.nb_order}`}
-                              onClick={() => setDeletingSession(session)}
-                            >
-                              <Trash2Icon className="size-4" />
-                            </Button>
-                          </Can>
+                          {!mutationsLocked ? (
+                            <>
+                              <Can permission={PERMISSIONS.WORKSHOPS_SESSIONS_UPDATE}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`Edit session ${session.nb_order}`}
+                                  onClick={() => setEditingSession(session)}
+                                >
+                                  <PencilIcon className="size-4" />
+                                </Button>
+                              </Can>
+                              <Can permission={PERMISSIONS.WORKSHOPS_SESSIONS_DELETE}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`Delete session ${session.nb_order}`}
+                                  onClick={() => setDeletingSession(session)}
+                                >
+                                  <Trash2Icon className="size-4" />
+                                </Button>
+                              </Can>
+                            </>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

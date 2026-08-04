@@ -14,6 +14,14 @@ import {
   updateMirrorsForWorkshopSlot,
 } from "@/lib/manager/workshops/mirror-instructor-schedule";
 import {
+  findOverlappingScheduleSlot,
+  SCHEDULE_SLOT_OVERLAP_MESSAGE,
+} from "@/lib/manager/instructor-schedules/slot-overlap";
+import {
+  isWorkshopContentMutationLocked,
+  WORKSHOP_CONTENT_LOCKED_MESSAGE,
+} from "@/lib/manager/workshops/status-transitions";
+import {
   createInstructorScheduleSlotSchema,
   dayOfWeekFromIsoDate,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
@@ -263,7 +271,10 @@ async function assertInstructorRecord(
 async function assertWorkshopRecordForSchedule(
   adminClient: Supabase,
   recordId: string,
-  options?: { requireEligibleForCreate?: boolean }
+  options?: {
+    requireEligibleForCreate?: boolean;
+    requireMutableContent?: boolean;
+  }
 ): Promise<string | null> {
   const { data, error } = await workshopRepository.findWorkshopById(
     adminClient,
@@ -276,6 +287,12 @@ async function assertWorkshopRecordForSchedule(
 
   if (!data) {
     return "Workshop not found.";
+  }
+
+  if (options?.requireMutableContent) {
+    if (isWorkshopContentMutationLocked(data.status)) {
+      return WORKSHOP_CONTENT_LOCKED_MESSAGE;
+    }
   }
 
   if (options?.requireEligibleForCreate) {
@@ -330,17 +347,20 @@ export async function getInstructorSchedulesPageForManager(
     throw new Error(slotsResult.error.message);
   }
 
-  const sessions = (slotsResult.data ?? []).map((record) =>
-    mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
-  );
-
-  const workshopIdsWithSlots = new Set(
-    sessions
-      .filter(
-        (session) => session.entityType === ENTITY_SCHEDULE_TYPE_WORKSHOP
-      )
-      .map((session) => session.recordId)
-  );
+  const sessions = (slotsResult.data ?? [])
+    .map((record) => mapSlotRecordToSession(record as InstructorScheduleSlotRecord))
+    .filter((session) => {
+      if (session.entityType !== ENTITY_SCHEDULE_TYPE_WORKSHOP) {
+        return true;
+      }
+      const workshop = (workshopsResult.data ?? []).find(
+        (row) => row.id === session.recordId
+      );
+      if (!workshop) {
+        return false;
+      }
+      return !isWorkshopContentMutationLocked(workshop.status);
+    });
 
   const instructors: ManagerInstructorScheduleTab[] = (
     instructorsResult.data ?? []
@@ -367,10 +387,7 @@ export async function getInstructorSchedulesPageForManager(
         eligible_for_create: eligible,
       };
     })
-    .filter(
-      (workshop) =>
-        workshop.eligible_for_create || workshopIdsWithSlots.has(workshop.id)
-    );
+    .filter((workshop) => workshop.eligible_for_create);
 
   return {
     instructors,
@@ -434,6 +451,26 @@ export async function createInstructorScheduleSlotForManager(
     color,
   } = parsed.data;
   const day_of_week = dayOfWeekFromIsoDate(slot_date);
+
+  const existingForEntity =
+    await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
+      adminClient,
+      entity_type,
+      record_id
+    );
+  if (existingForEntity.error) {
+    return {
+      success: false,
+      error: "Unable to create schedule slot. Please try again.",
+    };
+  }
+  const overlap = findOverlappingScheduleSlot(
+    (existingForEntity.data ?? []) as InstructorScheduleSlotRecord[],
+    { day_of_week, start_time, end_time }
+  );
+  if (overlap) {
+    return { success: false, error: SCHEDULE_SLOT_OVERLAP_MESSAGE };
+  }
 
   const { data, error } =
     await instructorScheduleSlotRepository.createInstructorScheduleSlot(
@@ -570,11 +607,44 @@ export async function updateInstructorScheduleSlotForManager(
   // Keep entity_type + record_id immutable after create.
   const entity_type = existingSlot.data.entity_type;
   const record_id = existingSlot.data.record_id;
+
+  if (entity_type === ENTITY_SCHEDULE_TYPE_WORKSHOP) {
+    const workshopError = await assertWorkshopRecordForSchedule(
+      adminClient,
+      record_id,
+      { requireMutableContent: true }
+    );
+    if (workshopError) {
+      return { success: false, error: workshopError };
+    }
+  }
+
   const { id, name, type, slot_date, start_time, end_time, color } =
     parsed.data;
 
   const preservedSlotDate = formatDateOnly(existingSlot.data.slot_date);
   const day_of_week = dayOfWeekFromIsoDate(slot_date);
+
+  const existingForEntity =
+    await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
+      adminClient,
+      entity_type,
+      record_id
+    );
+  if (existingForEntity.error) {
+    return {
+      success: false,
+      error: "Unable to update schedule slot. Please try again.",
+    };
+  }
+  const overlap = findOverlappingScheduleSlot(
+    (existingForEntity.data ?? []) as InstructorScheduleSlotRecord[],
+    { day_of_week, start_time, end_time },
+    { excludeId: id }
+  );
+  if (overlap) {
+    return { success: false, error: SCHEDULE_SLOT_OVERLAP_MESSAGE };
+  }
 
   const { data, error } =
     await instructorScheduleSlotRepository.updateInstructorScheduleSlot(
@@ -610,6 +680,25 @@ export async function updateInstructorScheduleSlotForManager(
       updated
     );
     if (mirrorResult.error) {
+      await instructorScheduleSlotRepository.updateInstructorScheduleSlot(
+        adminClient,
+        id,
+        {
+          entity_type: existingSlot.data.entity_type,
+          record_id: existingSlot.data.record_id,
+          name: existingSlot.data.name,
+          type: isInstructorScheduleSlotType(existingSlot.data.type)
+            ? existingSlot.data.type
+            : "busy",
+          slot_date: formatDateOnly(existingSlot.data.slot_date),
+          day_of_week: existingSlot.data.day_of_week,
+          start_time: formatTimeForDisplay(existingSlot.data.start_time),
+          end_time: formatTimeForDisplay(existingSlot.data.end_time),
+          color: existingSlot.data.color,
+          source_workshop_id: existingSlot.data.source_workshop_id ?? null,
+          source_slot_id: existingSlot.data.source_slot_id ?? null,
+        }
+      );
       return {
         success: false,
         error: mirrorResult.error,
@@ -712,6 +801,15 @@ export async function deleteInstructorScheduleSlotForManager(
     existingSlot.data.entity_type === ENTITY_SCHEDULE_TYPE_WORKSHOP;
 
   if (deletingWorkshopEntity) {
+    const workshopError = await assertWorkshopRecordForSchedule(
+      adminClient,
+      existingSlot.data.record_id,
+      { requireMutableContent: true }
+    );
+    if (workshopError) {
+      return { success: false, error: workshopError };
+    }
+
     const mirrorResult = await deleteMirrorsForWorkshopSlot(
       adminClient,
       slotId

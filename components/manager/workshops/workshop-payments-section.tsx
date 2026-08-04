@@ -44,6 +44,7 @@ type WorkshopPaymentsSectionProps = {
   workshopId: string;
   payments: ManagerWorkshopPaymentRow[];
   summary: ManagerWorkshopPaymentSummary;
+  mutationsLocked?: boolean;
 };
 
 function formatMethod(method: ManagerWorkshopPaymentRow["payment_method"]) {
@@ -60,6 +61,7 @@ export function WorkshopPaymentsSection({
   workshopId,
   payments,
   summary,
+  mutationsLocked = false,
 }: WorkshopPaymentsSectionProps) {
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -174,12 +176,14 @@ export function WorkshopPaymentsSection({
         storageKey={`workshop-details-payments-v2:${workshopId}`}
         defaultOpen
         action={
-          <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE}>
-            <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add payment
-            </Button>
-          </Can>
+          mutationsLocked ? undefined : (
+            <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE}>
+              <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add payment
+              </Button>
+            </Can>
+          )
         }
       >
         <div className="flex flex-col gap-4 px-3 py-4 sm:px-4">
@@ -267,30 +271,36 @@ export function WorkshopPaymentsSection({
                           {payment.notes?.trim() ? payment.notes : "—"}
                         </td>
                         <td className="py-3 align-top">
-                          <div className="flex items-center justify-end gap-1">
-                            <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_UPDATE}>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Edit payment"
-                                onClick={() => setEditingPayment(payment)}
+                          {!mutationsLocked ? (
+                            <div className="flex items-center justify-end gap-1">
+                              <Can
+                                permission={PERMISSIONS.WORKSHOPS_PAYMENTS_UPDATE}
                               >
-                                <PencilIcon />
-                              </Button>
-                            </Can>
-                            <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_DELETE}>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Delete payment"
-                                onClick={() => setDeletingPayment(payment)}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Edit payment"
+                                  onClick={() => setEditingPayment(payment)}
+                                >
+                                  <PencilIcon />
+                                </Button>
+                              </Can>
+                              <Can
+                                permission={PERMISSIONS.WORKSHOPS_PAYMENTS_DELETE}
                               >
-                                <Trash2Icon />
-                              </Button>
-                            </Can>
-                          </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Delete payment"
+                                  onClick={() => setDeletingPayment(payment)}
+                                >
+                                  <Trash2Icon />
+                                </Button>
+                              </Can>
+                            </div>
+                          ) : null}
                         </td>
                       </tr>
                     );

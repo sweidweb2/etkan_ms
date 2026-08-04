@@ -749,6 +749,13 @@ describe("renameWorkshopDocumentForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
     vi.mocked(
       workshopDocumentRepository.updateWorkshopDocumentNameById
     ).mockResolvedValue({
@@ -788,6 +795,13 @@ describe("deleteWorkshopDocumentForManager", () => {
       workshopDocumentRepository.findWorkshopDocumentById
     ).mockResolvedValue({
       data: documentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
       error: null,
       count: null,
       status: 200,
@@ -1043,13 +1057,24 @@ describe("addWorkshopInstructorForManager", () => {
     } as never);
     vi.mocked(
       instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
-    ).mockResolvedValue({
-      data: [workshopSlot],
-      error: null,
-      count: 1,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    ).mockImplementation(async (_c, entityType) => {
+      if (entityType === "workshop") {
+        return {
+          data: [workshopSlot],
+          error: null,
+          count: 1,
+          status: 200,
+          statusText: "OK",
+        } as never;
+      }
+      return {
+        data: [],
+        error: null,
+        count: 0,
+        status: 200,
+        statusText: "OK",
+      } as never;
+    });
     vi.mocked(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
     ).mockResolvedValue({
@@ -1104,6 +1129,13 @@ describe("updateWorkshopInstructorForManager", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
     vi.mocked(
       workshopInstructorRepository.updateWorkshopInstructorById
     ).mockResolvedValue({
@@ -1157,6 +1189,13 @@ describe("removeWorkshopInstructorForManager", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
     vi.mocked(
       instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopAndUser
     ).mockResolvedValue({
@@ -1197,6 +1236,42 @@ describe("changeWorkshopStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    vi.mocked(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      instructorScheduleSlotRepository.createInstructorScheduleSlots
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
   });
 
   it("returns unauthorized when actor is missing", async () => {
@@ -1305,25 +1380,6 @@ describe("changeWorkshopStatusForManager", () => {
   });
 
   it("cancels and reopens as draft", async () => {
-    vi.mocked(
-      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-      count: 0,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-      count: 0,
-      status: 200,
-      statusText: "OK",
-    } as never);
-
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValueOnce({
       data: { ...workshopRecord, status: WORKSHOP_STATUSES.PROPOSAL },
       error: null,
@@ -1378,6 +1434,75 @@ describe("changeWorkshopStatusForManager", () => {
     expect(
       workshopInstructorRepository.listWorkshopInstructorsByWorkshopId
     ).toHaveBeenCalledWith(adminClient, workshopId);
+  });
+
+  it("clears mirrors when completing a workshop", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: { ...workshopRecord, status: WORKSHOP_STATUSES.IN_PROGRESS },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.updateWorkshopStatusById).mockResolvedValue({
+      data: { ...workshopRecord, status: WORKSHOP_STATUSES.COMPLETED },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await changeWorkshopStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: workshopId, status: WORKSHOP_STATUSES.COMPLETED }
+    );
+
+    expect(result.success).toBe(true);
+    expect(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
+    ).toHaveBeenCalledWith(adminClient, workshopId);
+  });
+
+  it("stamps end_date to today when completing without an end date", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: {
+        ...workshopRecord,
+        status: WORKSHOP_STATUSES.IN_PROGRESS,
+        end_date: null,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.updateWorkshopStatusById).mockResolvedValue({
+      data: {
+        ...workshopRecord,
+        status: WORKSHOP_STATUSES.COMPLETED,
+        end_date: "2026-08-04",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await changeWorkshopStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: workshopId, status: WORKSHOP_STATUSES.COMPLETED }
+    );
+
+    expect(result.success).toBe(true);
+    expect(workshopRepository.updateWorkshopStatusById).toHaveBeenCalledWith(
+      adminClient,
+      workshopId,
+      WORKSHOP_STATUSES.COMPLETED,
+      expect.objectContaining({ end_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) })
+    );
   });
 });
 
@@ -1564,6 +1689,13 @@ describe("updateWorkshopPaymentForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
     vi.mocked(
       workshopPaymentRepository.updateWorkshopPaymentById
     ).mockResolvedValue({
@@ -1610,6 +1742,13 @@ describe("deleteWorkshopPaymentForManager", () => {
   it("deletes a payment", async () => {
     vi.mocked(workshopPaymentRepository.findWorkshopPaymentById).mockResolvedValue({
       data: paymentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
       error: null,
       count: null,
       status: 200,

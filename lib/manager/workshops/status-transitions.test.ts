@@ -7,6 +7,7 @@ import {
   formatLocalDateYmd,
   getNextWorkshopStatus,
   getPreviousWorkshopStatus,
+  isWorkshopContentMutationLocked,
 } from "@/lib/manager/workshops/status-transitions";
 
 describe("getNextWorkshopStatus / getPreviousWorkshopStatus", () => {
@@ -29,6 +30,18 @@ describe("canCancelWorkshopStatus / canReopenWorkshopFromCancelled", () => {
     expect(canCancelWorkshopStatus(WORKSHOP_STATUSES.IN_PROGRESS)).toBe(true);
     expect(canCancelWorkshopStatus(WORKSHOP_STATUSES.COMPLETED)).toBe(false);
     expect(canCancelWorkshopStatus(WORKSHOP_STATUSES.CANCELLED)).toBe(false);
+  });
+
+  it("locks content mutations when completed or cancelled", () => {
+    expect(isWorkshopContentMutationLocked(WORKSHOP_STATUSES.COMPLETED)).toBe(
+      true
+    );
+    expect(isWorkshopContentMutationLocked(WORKSHOP_STATUSES.CANCELLED)).toBe(
+      true
+    );
+    expect(isWorkshopContentMutationLocked(WORKSHOP_STATUSES.IN_PROGRESS)).toBe(
+      false
+    );
   });
 
   it("allows reopen only from cancelled", () => {

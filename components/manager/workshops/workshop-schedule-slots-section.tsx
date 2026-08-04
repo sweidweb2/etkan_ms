@@ -51,6 +51,7 @@ type WorkshopScheduleSlotsSectionProps = {
   workshopId: string;
   workshopName: string;
   scheduleSlots: ManagerInstructorScheduleSession[];
+  mutationsLocked?: boolean;
 };
 
 function formatAnchorDate(value: string): string {
@@ -79,6 +80,7 @@ export function WorkshopScheduleSlotsSection({
   workshopId,
   workshopName,
   scheduleSlots: initialSlots,
+  mutationsLocked = false,
 }: WorkshopScheduleSlotsSectionProps) {
   const router = useRouter();
   const [slots, setSlots] = useState(initialSlots);
@@ -320,37 +322,39 @@ export function WorkshopScheduleSlotsSection({
                         {formatAnchorDate(slot.slotDate)}
                       </td>
                       <td className="py-3 align-top">
-                        <div className="flex items-center justify-end gap-1">
-                          <Can
-                            permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_UPDATE}
-                          >
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Edit ${slot.name}`}
-                              onClick={() => {
-                                setSelectedSession(slot);
-                                setIsEditOpen(true);
-                              }}
+                        {!mutationsLocked ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Can
+                              permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_UPDATE}
                             >
-                              <PencilIcon />
-                            </Button>
-                          </Can>
-                          <Can
-                            permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_DELETE}
-                          >
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Delete ${slot.name}`}
-                              onClick={() => setDeleteTarget(slot)}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Edit ${slot.name}`}
+                                onClick={() => {
+                                  setSelectedSession(slot);
+                                  setIsEditOpen(true);
+                                }}
+                              >
+                                <PencilIcon />
+                              </Button>
+                            </Can>
+                            <Can
+                              permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_DELETE}
                             >
-                              <Trash2Icon />
-                            </Button>
-                          </Can>
-                        </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Delete ${slot.name}`}
+                                onClick={() => setDeleteTarget(slot)}
+                              >
+                                <Trash2Icon />
+                              </Button>
+                            </Can>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

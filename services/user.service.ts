@@ -15,10 +15,9 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
 import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
 import * as authRepository from "@/repositories/auth.repository";
-import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
+import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -529,30 +528,14 @@ export async function updateManagerUser(
   }
 
   if (previousIsInstructor && !is_instructor) {
-    const { error: capabilityError } =
-      await instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId(
-        adminClient,
-        userId
-      );
-
-    if (capabilityError) {
+    const relatedClear = await clearInstructorWorkshopRelatedData(
+      adminClient,
+      userId
+    );
+    if (relatedClear.error) {
       return {
         success: false,
-        error: mapUpdateManagerUserError(capabilityError.message),
-      };
-    }
-
-    // Profile hard-delete cascades workshop_instructors via FK; flag-off needs explicit cleanup.
-    const { error: workshopInstructorError } =
-      await workshopInstructorRepository.deleteWorkshopInstructorsByUserId(
-        adminClient,
-        userId
-      );
-
-    if (workshopInstructorError) {
-      return {
-        success: false,
-        error: mapUpdateManagerUserError(workshopInstructorError.message),
+        error: mapUpdateManagerUserError(relatedClear.error),
       };
     }
   }

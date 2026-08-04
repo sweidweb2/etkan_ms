@@ -58,6 +58,8 @@ import {
 import {
   assertWorkshopStatusTransition,
   formatLocalDateYmd,
+  isWorkshopContentMutationLocked,
+  WORKSHOP_CONTENT_LOCKED_MESSAGE,
 } from "@/lib/manager/workshops/status-transitions";
 import {
   buildWorkshopDocumentStoragePath,
@@ -144,6 +146,13 @@ export type DeleteWorkshopFailure = {
 };
 
 export type DeleteWorkshopResult = DeleteWorkshopSuccess | DeleteWorkshopFailure;
+
+function contentLockErrorForWorkshopStatus(status: string): string | null {
+  if (isWorkshopContentMutationLocked(status)) {
+    return WORKSHOP_CONTENT_LOCKED_MESSAGE;
+  }
+  return null;
+}
 
 export type ChangeWorkshopStatusSuccess = {
   success: true;
@@ -1102,6 +1111,70 @@ export async function changeWorkshopStatusForManager(
     return { success: false, error: transition.error };
   }
 
+  const isTerminalStatus =
+    nextStatus === WORKSHOP_STATUSES.CANCELLED ||
+    nextStatus === WORKSHOP_STATUSES.COMPLETED;
+
+  if (isTerminalStatus) {
+    const mirrorClear = await deleteAllMirrorsForWorkshop(adminClient, id);
+    if (mirrorClear.error) {
+      return {
+        success: false,
+        error: mirrorClear.error,
+      };
+    }
+
+    const shouldStampEndDate =
+      nextStatus === WORKSHOP_STATUSES.COMPLETED &&
+      (existing.data.end_date == null || existing.data.end_date === "");
+    const stampedEndDate = shouldStampEndDate
+      ? formatLocalDateYmd()
+      : undefined;
+
+    const { data, error } = await workshopRepository.updateWorkshopStatusById(
+      adminClient,
+      id,
+      nextStatus,
+      stampedEndDate !== undefined ? { end_date: stampedEndDate } : undefined
+    );
+
+    if (error || !data) {
+      await recopyAllMirrorsForWorkshop(adminClient, id);
+      return {
+        success: false,
+        error: "Unable to update workshop status. Please try again.",
+      };
+    }
+
+    const workshop = mapWorkshopRecordToRow(data);
+
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "update",
+      severity: "info",
+      table_name: "workshops",
+      record_id: data.id,
+      old_data: {
+        status: currentStatus,
+        ...(shouldStampEndDate ? { end_date: existing.data.end_date } : {}),
+      },
+      new_data: {
+        status: workshop.status,
+        ...(shouldStampEndDate ? { end_date: workshop.end_date } : {}),
+      },
+      metadata: {
+        note: shouldStampEndDate
+          ? "Workshop status changed; end date set to today."
+          : "Workshop status changed.",
+      },
+    });
+
+    return {
+      success: true,
+      workshop,
+      message: "Workshop status updated.",
+    };
+  }
+
   const { data, error } = await workshopRepository.updateWorkshopStatusById(
     adminClient,
     id,
@@ -1115,22 +1188,17 @@ export async function changeWorkshopStatusForManager(
     };
   }
 
-  if (nextStatus === WORKSHOP_STATUSES.CANCELLED) {
-    const mirrorClear = await deleteAllMirrorsForWorkshop(adminClient, id);
-    if (mirrorClear.error) {
-      return {
-        success: false,
-        error: mirrorClear.error,
-      };
-    }
-  } else if (currentStatus === WORKSHOP_STATUSES.CANCELLED) {
-    const mirrorRecopy = await recopyAllMirrorsForWorkshop(adminClient, id);
-    if (mirrorRecopy.error) {
-      return {
-        success: false,
-        error: mirrorRecopy.error,
-      };
-    }
+  const mirrorSync = await recopyAllMirrorsForWorkshop(adminClient, id);
+  if (mirrorSync.error) {
+    await workshopRepository.updateWorkshopStatusById(
+      adminClient,
+      id,
+      currentStatus
+    );
+    return {
+      success: false,
+      error: mirrorSync.error,
+    };
   }
 
   const workshop = mapWorkshopRecordToRow(data);
@@ -1336,6 +1404,11 @@ export async function addWorkshopInstructorForManager(
     return { success: false, error: "Workshop not found." };
   }
 
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
+  }
+
   const profileResult = await profileRepository.findProfileById(
     adminClient,
     dataInput.user_id
@@ -1491,6 +1564,24 @@ export async function updateWorkshopInstructorForManager(
     return { success: false, error: "Instructor assignment not found." };
   }
 
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    existing.data.workshop_id
+  );
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to update instructor.",
+    };
+  }
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
+  }
+
   const previous = mapWorkshopInstructorRecord(
     existing.data as WorkshopInstructorWithProfileRecord
   );
@@ -1592,6 +1683,24 @@ export async function removeWorkshopInstructorForManager(
     return { success: false, error: "Instructor assignment not found." };
   }
 
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    existing.data.workshop_id
+  );
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to remove instructor.",
+    };
+  }
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
+  }
+
   const previous = mapWorkshopInstructorRecord(
     existing.data as WorkshopInstructorWithProfileRecord
   );
@@ -1616,6 +1725,11 @@ export async function removeWorkshopInstructorForManager(
     );
 
   if (error) {
+    await mirrorWorkshopSlotsToInstructor(
+      adminClient,
+      previous.workshop_id,
+      previous.user_id
+    );
     return {
       success: false,
       error: error.message || "Unable to remove instructor.",
@@ -1686,6 +1800,11 @@ export async function uploadWorkshopDocumentForManager(
 
   if (!workshopResult.data) {
     return { success: false, error: "Workshop not found." };
+  }
+
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
   }
 
   const storagePath = buildWorkshopDocumentStoragePath(
@@ -1801,6 +1920,24 @@ export async function renameWorkshopDocumentForManager(
     return { success: false, error: "Document not found." };
   }
 
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    existing.data.workshop_id
+  );
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to rename document.",
+    };
+  }
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
+  }
+
   const previousName = existing.data.name;
 
   const { data, error } =
@@ -1880,6 +2017,24 @@ export async function deleteWorkshopDocumentForManager(
 
   if (existing.data.workshop_id !== dataInput.workshop_id) {
     return { success: false, error: "Document not found." };
+  }
+
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    existing.data.workshop_id
+  );
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to delete document.",
+    };
+  }
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
   }
 
   const storageResult =
@@ -1968,6 +2123,11 @@ export async function createWorkshopPaymentForManager(
 
   if (!workshopResult.data) {
     return { success: false, error: "Workshop not found." };
+  }
+
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
   }
 
   const { data, error } = await workshopPaymentRepository.createWorkshopPayment(
@@ -2062,6 +2222,26 @@ export async function updateWorkshopPaymentForManager(
 
   if (existing.data.workshop_id !== dataInput.workshop_id) {
     return { success: false, error: "Payment not found." };
+  }
+
+  const workshopForUpdate = await workshopRepository.findWorkshopById(
+    adminClient,
+    existing.data.workshop_id
+  );
+  if (workshopForUpdate.error) {
+    return {
+      success: false,
+      error: workshopForUpdate.error.message || "Unable to update payment.",
+    };
+  }
+  if (!workshopForUpdate.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+  const updateLocked = contentLockErrorForWorkshopStatus(
+    workshopForUpdate.data.status
+  );
+  if (updateLocked) {
+    return { success: false, error: updateLocked };
   }
 
   const previous = mapWorkshopPaymentRecord(existing.data);
@@ -2163,6 +2343,24 @@ export async function deleteWorkshopPaymentForManager(
     return { success: false, error: "Payment not found." };
   }
 
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    existing.data.workshop_id
+  );
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to delete payment.",
+    };
+  }
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
+  }
+
   const previous = mapWorkshopPaymentRecord(existing.data);
 
   const { error } = await workshopPaymentRepository.deleteWorkshopPaymentById(
@@ -2240,6 +2438,11 @@ export async function createWorkshopSessionForManager(
 
   if (!workshopResult.data) {
     return { success: false, error: "Workshop not found." };
+  }
+
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
   }
 
   let nbOrder = dataInput.nb_order;
@@ -2363,6 +2566,24 @@ export async function updateWorkshopSessionForManager(
     return { success: false, error: "Session not found." };
   }
 
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    existing.data.workshop_id
+  );
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to update session.",
+    };
+  }
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
+  }
+
   const nbOrder = dataInput.nb_order ?? existing.data.nb_order;
 
   const { data, error } =
@@ -2472,6 +2693,24 @@ export async function deleteWorkshopSessionForManager(
 
   if (existing.data.workshop_id !== dataInput.workshop_id) {
     return { success: false, error: "Session not found." };
+  }
+
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    existing.data.workshop_id
+  );
+  if (workshopResult.error) {
+    return {
+      success: false,
+      error: workshopResult.error.message || "Unable to delete session.",
+    };
+  }
+  if (!workshopResult.data) {
+    return { success: false, error: "Workshop not found." };
+  }
+  const locked = contentLockErrorForWorkshopStatus(workshopResult.data.status);
+  if (locked) {
+    return { success: false, error: locked };
   }
 
   const previous = mapWorkshopSessionRecord(existing.data);

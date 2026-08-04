@@ -1,11 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
 import { ROLES } from "@/lib/constants/roles";
+import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as authRepository from "@/repositories/auth.repository";
-import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import * as auditLogService from "@/services/audit-log.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import * as roleService from "@/services/role.service";
@@ -18,8 +17,9 @@ import {
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-profile.repository");
-vi.mock("@/repositories/instructor-subject-capability.repository");
-vi.mock("@/repositories/workshop-instructor.repository");
+vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
+  clearInstructorWorkshopRelatedData: vi.fn(),
+}));
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -329,7 +329,7 @@ describe("updateManagerUser", () => {
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
-  it("deletes workshop instructor rows when is_instructor flips off", async () => {
+  it("clears instructor-related data when is_instructor flips off", async () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: "user-1",
@@ -374,23 +374,8 @@ describe("updateManagerUser", () => {
       status: 200,
       statusText: "OK",
     });
-    vi.mocked(
-      instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId
-    ).mockResolvedValue({
-      data: null,
+    vi.mocked(clearInstructorWorkshopRelatedData).mockResolvedValue({
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      workshopInstructorRepository.deleteWorkshopInstructorsByUserId
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
     vi.mocked(authRepository.updateAuthUserByAdmin).mockResolvedValue({
       data: { user: authUser },
@@ -420,11 +405,9 @@ describe("updateManagerUser", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(
-      workshopInstructorRepository.deleteWorkshopInstructorsByUserId
-    ).toHaveBeenCalledWith(adminClient, "user-1");
-    expect(
-      instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId
-    ).toHaveBeenCalledWith(adminClient, "user-1");
+    expect(clearInstructorWorkshopRelatedData).toHaveBeenCalledWith(
+      adminClient,
+      "user-1"
+    );
   });
 });

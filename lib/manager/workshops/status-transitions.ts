@@ -63,6 +63,17 @@ export function canReopenWorkshopFromCancelled(
   return current === WORKSHOP_STATUSES.CANCELLED;
 }
 
+/** Cancelled or completed workshops cannot mutate sessions, instructors, documents, payments, or schedule slots. */
+export const WORKSHOP_CONTENT_LOCKED_MESSAGE =
+  "This workshop is cancelled or completed. Sessions, instructors, documents, payments, and schedule slots cannot be changed.";
+
+export function isWorkshopContentMutationLocked(status: string): boolean {
+  return (
+    status === WORKSHOP_STATUSES.COMPLETED ||
+    status === WORKSHOP_STATUSES.CANCELLED
+  );
+}
+
 export function assertWorkshopStatusTransition(
   input: WorkshopStatusTransitionInput
 ): WorkshopStatusTransitionResult {
