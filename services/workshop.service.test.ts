@@ -7,6 +7,7 @@ import {
   WORKSHOP_WAGE_TYPES,
 } from "@/lib/constants/manager-workshop-display";
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
+import { ROLES } from "@/lib/constants/roles";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import * as workshopDocumentRepository from "@/repositories/workshop-document.repository";
@@ -169,7 +170,14 @@ describe("listWorkshopsForManager", () => {
     );
   });
 
-  it("returns workshops", async () => {
+  it("returns all workshops for manager", async () => {
+    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+      data: { role: ROLES.MANAGER },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
     vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
       data: [workshopRecord],
       error: null,
@@ -183,6 +191,75 @@ describe("listWorkshopsForManager", () => {
     expect(workshops).toHaveLength(1);
     expect(workshops[0]?.name).toBe("Intro to UX");
     expect(workshops[0]?.status).toBe(WORKSHOP_STATUSES.DRAFT);
+    expect(workshopRepository.listWorkshops).toHaveBeenCalled();
+  });
+
+  it("returns all workshops for CEO", async () => {
+    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+      data: { role: ROLES.CEO },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
+      data: [workshopRecord],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const workshops = await listWorkshopsForManager(adminClient, actor.userId);
+
+    expect(workshops).toHaveLength(1);
+    expect(workshopRepository.listWorkshops).toHaveBeenCalled();
+    expect(
+      workshopInstructorRepository.listWorkshopInstructorsByUserId
+    ).not.toHaveBeenCalled();
+  });
+
+  it("returns only assigned workshops for other roles", async () => {
+    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+      data: { role: ROLES.TEACHER },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopInstructorRepository.listWorkshopInstructorsByUserId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: assignmentId,
+          workshop_id: workshopId,
+          user_id: actor.userId,
+          role: WORKSHOP_INSTRUCTOR_ROLES.LEAD,
+          wage_type: WORKSHOP_WAGE_TYPES.FIXED,
+          wage_amount: 500,
+          notes: null,
+          created_at: "2026-01-02T00:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.listWorkshopsByIds).mockResolvedValue({
+      data: [workshopRecord],
+      error: null,
+    });
+
+    const workshops = await listWorkshopsForManager(adminClient, actor.userId);
+
+    expect(workshops).toHaveLength(1);
+    expect(workshopRepository.listWorkshopsByIds).toHaveBeenCalledWith(
+      adminClient,
+      [workshopId]
+    );
+    expect(workshopRepository.listWorkshops).not.toHaveBeenCalled();
   });
 });
 
@@ -424,6 +501,13 @@ describe("deleteWorkshopForManager", () => {
 describe("getWorkshopForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+      data: { role: ROLES.MANAGER },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
   });
 
   it("returns workshop with payments, instructors, and candidates", async () => {
@@ -533,6 +617,34 @@ describe("getWorkshopForManager", () => {
     expect(detail?.documents[0]?.name).toBe("Syllabus");
     expect(detail?.scheduleSlots).toEqual([]);
     expect(detail?.sessions).toEqual([]);
+  });
+
+  it("returns null when a non-manager/CEO is not assigned to the workshop", async () => {
+    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+      data: { role: ROLES.TEACHER },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopInstructorRepository.findWorkshopInstructorByWorkshopAndUser
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const detail = await getWorkshopForManager(
+      adminClient,
+      actor.userId,
+      workshopId
+    );
+
+    expect(detail).toBeNull();
+    expect(workshopRepository.findWorkshopById).not.toHaveBeenCalled();
   });
 });
 

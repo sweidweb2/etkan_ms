@@ -78,6 +78,19 @@ describe("getRequiredViewPermissionForManagerPath", () => {
     ).toBe(PERMISSIONS.EQUIPMENT_VIEW);
   });
 
+  it("maps instructor schedule details before calendar view", () => {
+    expect(
+      getRequiredViewPermissionForManagerPath(
+        ROUTES.MANAGER_INSTRUCTOR_SCHEDULES_DETAILS
+      )
+    ).toBe(PERMISSIONS.INSTRUCTOR_SCHEDULES_DETAILS_VIEW);
+    expect(
+      getRequiredViewPermissionForManagerPath(
+        ROUTES.MANAGER_INSTRUCTOR_SCHEDULES
+      )
+    ).toBe(PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW);
+  });
+
   it("returns null for non-manager and unknown manager paths", () => {
     expect(getRequiredViewPermissionForManagerPath(ROUTES.HOME)).toBeNull();
     expect(

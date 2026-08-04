@@ -1176,13 +1176,15 @@ export function InstructorSchedulesPanel({
             dates.
           </p>
         </div>
-        <Link
-          href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES_DETAILS}
-          className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}
-        >
-          <ListIcon data-icon="inline-start" />
-          Slot details
-        </Link>
+        <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_DETAILS_VIEW}>
+          <Link
+            href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES_DETAILS}
+            className={cn(buttonVariants({ variant: "outline" }), "shrink-0")}
+          >
+            <ListIcon data-icon="inline-start" />
+            Slot details
+          </Link>
+        </Can>
       </div>
 
       <Can permission={PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW}>

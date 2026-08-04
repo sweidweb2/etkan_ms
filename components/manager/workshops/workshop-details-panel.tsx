@@ -4,10 +4,12 @@ import { useActionState, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
+  CalendarDaysIcon,
   MoreHorizontalIcon,
   PencilIcon,
   Trash2Icon,
 } from "lucide-react";
+import Link from "next/link";
 import { deleteWorkshopAction } from "@/app/manager/workshops/actions";
 import {
   Tabs as TabsPrimitive,
@@ -244,6 +246,14 @@ export function WorkshopDetailsPanel({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+              <DropdownMenuItem asChild>
+                <Link href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}>
+                  <CalendarDaysIcon />
+                  Open calendar
+                </Link>
+              </DropdownMenuItem>
+            </Can>
             <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
               <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
                 <PencilIcon />

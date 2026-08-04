@@ -22,6 +22,7 @@ instructors.create
 instructors.delete
 instructors.capabilities.update
 instructor_schedules.view
+instructor_schedules.details.view
 instructor_schedules.create
 instructor_schedules.update
 instructor_schedules.delete
@@ -48,7 +49,8 @@ cloudflare_ai_usage.view
 
 Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`.  
 Manage instructors and AI usage do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
-Schedule assistant UI/API and AI usage page require `cloudflare_ai_usage.view`.
+Schedule assistant UI/API and AI usage page require `cloudflare_ai_usage.view`.  
+Slot details table (`/manager/instructor-schedules/details`) requires `instructor_schedules.details.view` (manager + CEO seed only for now).
 
 ---
 
@@ -69,3 +71,5 @@ instructor_schedules.view
 ```
 
 Shared **Manage workshops** UI is available at `/manager/workshops*` when `profiles.is_instructor` is true and the user holds the matching view permission(s). Sidebar requires `is_instructor` + `workshops.view`.
+
+**List / detail scoping:** Manager and CEO see **all** workshops. Other roles only see workshops where they are assigned in `workshop_instructors`.

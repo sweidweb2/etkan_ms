@@ -162,6 +162,7 @@ export const PERMISSIONS = {
   SCHEDULE_DELETE: "schedule.delete",
 
   INSTRUCTOR_SCHEDULES_VIEW: "instructor_schedules.view",
+  INSTRUCTOR_SCHEDULES_DETAILS_VIEW: "instructor_schedules.details.view",
   INSTRUCTOR_SCHEDULES_CREATE: "instructor_schedules.create",
   INSTRUCTOR_SCHEDULES_UPDATE: "instructor_schedules.update",
   INSTRUCTOR_SCHEDULES_DELETE: "instructor_schedules.delete",
@@ -665,6 +666,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW,
     feature: "instructor_schedules",
     label: "View instructor schedules",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.INSTRUCTOR_SCHEDULES_DETAILS_VIEW,
+    feature: "instructor_schedules",
+    label: "View instructor schedule slot details",
     access: PERMISSION_ACCESS.READ,
   },
   {

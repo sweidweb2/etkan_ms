@@ -20,6 +20,7 @@ import {
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
   deleteAllMirrorsForWorkshop,
   deleteAllWorkshopEntitySlots,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/manager/workshops/mirror-instructor-schedule";
 import { ENTITY_SCHEDULE_TYPE_WORKSHOP } from "@/lib/validators/manager/instructor-schedule-slot";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import { roleSchema } from "@/lib/validators/role";
 import { changeWorkshopStatusSchema } from "@/lib/validators/manager/change-workshop-status";
 import { createWorkshopSchema } from "@/lib/validators/manager/create-workshop";
 import { updateWorkshopSchema } from "@/lib/validators/manager/update-workshop";
@@ -485,13 +487,87 @@ export function buildWorkshopPaymentSummary(
   return { credits, debits, net, price, remaining };
 }
 
+/** Manager and CEO see every workshop; other roles only assigned ones. */
+function roleCanViewAllWorkshops(role: RoleValue | null | undefined): boolean {
+  return role === ROLES.MANAGER || role === ROLES.CEO;
+}
+
+async function resolveActorRole(
+  adminClient: Supabase,
+  actorUserId: string
+): Promise<RoleValue | null> {
+  const result = await profileRepository.findRoleById(adminClient, actorUserId);
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+  const parsed = roleSchema.safeParse(result.data?.role);
+  return parsed.success ? parsed.data : null;
+}
+
+async function actorCanAccessWorkshop(
+  adminClient: Supabase,
+  actorUserId: string,
+  workshopId: string
+): Promise<boolean> {
+  const role = await resolveActorRole(adminClient, actorUserId);
+  if (roleCanViewAllWorkshops(role)) {
+    return true;
+  }
+
+  const assignment =
+    await workshopInstructorRepository.findWorkshopInstructorByWorkshopAndUser(
+      adminClient,
+      workshopId,
+      actorUserId
+    );
+
+  if (assignment.error) {
+    throw new Error(assignment.error.message);
+  }
+
+  return Boolean(assignment.data);
+}
+
 export async function listWorkshopsForManager(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<ManagerWorkshopRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
 
-  const result = await workshopRepository.listWorkshops(adminClient);
+  if (!actorUserId) {
+    return [];
+  }
+
+  const role = await resolveActorRole(adminClient, actorUserId);
+
+  if (roleCanViewAllWorkshops(role)) {
+    const result = await workshopRepository.listWorkshops(adminClient);
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    return (result.data ?? []).map(mapWorkshopRecordToRow);
+  }
+
+  const assignmentsResult =
+    await workshopInstructorRepository.listWorkshopInstructorsByUserId(
+      adminClient,
+      actorUserId
+    );
+
+  if (assignmentsResult.error) {
+    throw new Error(assignmentsResult.error.message);
+  }
+
+  const workshopIds = [
+    ...new Set(
+      (assignmentsResult.data ?? []).map((row) => row.workshop_id)
+    ),
+  ];
+
+  const result = await workshopRepository.listWorkshopsByIds(
+    adminClient,
+    workshopIds
+  );
 
   if (result.error) {
     throw new Error(result.error.message);
@@ -574,6 +650,19 @@ export async function getWorkshopForManager(
   workshopId: string
 ): Promise<ManagerWorkshopDetailPageData | null> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
+
+  if (!actorUserId) {
+    return null;
+  }
+
+  const canAccess = await actorCanAccessWorkshop(
+    adminClient,
+    actorUserId,
+    workshopId
+  );
+  if (!canAccess) {
+    return null;
+  }
 
   const [
     workshopResult,
