@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useTransition } from "react";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { InstructorScheduleSlotColorPicker } from "@/components/manager/instructor-schedules/instructor-schedule-slot-color-picker";
-import { InstructorScheduleSlotTypePicker } from "@/components/manager/instructor-schedules/instructor-schedule-slot-type-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,11 +29,11 @@ import {
   ENTITY_SCHEDULE_TYPE_LABELS,
   ENTITY_SCHEDULE_TYPE_VALUES,
   ENTITY_SCHEDULE_TYPE_WORKSHOP,
-  INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
+  resolveInstructorScheduleSlotType,
+  todayIsoDateLocal,
   type CreateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
-  InstructorScheduleSlotType,
   ManagerInstructorScheduleTab,
   ManagerScheduleWorkshopTab,
   ScheduleEntityType,
@@ -44,10 +42,8 @@ import type {
 export type AddInstructorScheduleSlotDefaults = {
   entity_type?: ScheduleEntityType;
   record_id?: string;
-  slot_date?: string;
   start_time?: string;
   end_time?: string;
-  type?: InstructorScheduleSlotType;
 };
 
 type AddInstructorScheduleSlotDialogProps = {
@@ -58,14 +54,6 @@ type AddInstructorScheduleSlotDialogProps = {
   instructors: ManagerInstructorScheduleTab[];
   eligibleWorkshops: ManagerScheduleWorkshopTab[];
 };
-
-function todayIso(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 export function AddInstructorScheduleSlotDialog({
   open,
@@ -93,16 +81,11 @@ export function AddInstructorScheduleSlotDialog({
       entity_type: defaults?.entity_type ?? ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
       record_id: defaults?.record_id ?? "",
       name: "",
-      type: defaults?.type ?? "busy",
-      slot_date: defaults?.slot_date ?? todayIso(),
       start_time: defaults?.start_time ?? "09:00",
       end_time: defaults?.end_time ?? "10:30",
-      color: INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
     },
   });
 
-  const selectedType = watch("type");
-  const selectedColor = watch("color");
   const selectedEntityType = watch("entity_type");
   const selectedRecordId = watch("record_id");
 
@@ -138,37 +121,42 @@ export function AddInstructorScheduleSlotDialog({
       return;
     }
 
-    const nextEntityType =
-      defaults?.entity_type ?? ENTITY_SCHEDULE_TYPE_INSTRUCTOR;
-    const nextRecordId = defaults?.record_id ?? "";
-
     reset({
-      entity_type: nextEntityType,
-      record_id: nextRecordId,
+      entity_type: defaults?.entity_type ?? ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+      record_id: defaults?.record_id ?? "",
       name: "",
-      type: defaults?.type ?? "busy",
-      slot_date: defaults?.slot_date ?? todayIso(),
       start_time: defaults?.start_time ?? "09:00",
       end_time: defaults?.end_time ?? "10:30",
-      color: INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
     });
   }, [open, defaults, reset]);
 
-  function onSubmit(values: CreateInstructorScheduleSlotInput) {
+  function onSubmit(values: {
+    entity_type: ScheduleEntityType;
+    record_id: string;
+    name: string;
+    start_time: string;
+    end_time: string;
+    slot_date?: string;
+  }) {
+    const payload: CreateInstructorScheduleSlotInput = {
+      ...values,
+      type: resolveInstructorScheduleSlotType({
+        entityType: values.entity_type,
+      }),
+      // Anchor date is always "now" for form creates (weekday from today).
+      slot_date: todayIsoDateLocal(),
+    };
     onOpenChange(false);
     startTransition(() => {
-      void onCreate(values);
+      void onCreate(payload);
     });
   }
 
   const entityTypeError = errors.entity_type?.message;
   const recordIdError = errors.record_id?.message;
   const nameError = errors.name?.message;
-  const typeError = errors.type?.message;
-  const slotDateError = errors.slot_date?.message;
   const startTimeError = errors.start_time?.message;
   const endTimeError = errors.end_time?.message;
-  const colorError = errors.color?.message;
 
   const canSubmit =
     Boolean(selectedEntityType) &&
@@ -181,7 +169,8 @@ export function AddInstructorScheduleSlotDialog({
         <DialogHeader>
           <DialogTitle>Add schedule slot</DialogTitle>
           <DialogDescription>
-            Create a weekly free/busy slot for an instructor or workshop.
+            Instructor slots are free availability. Workshop slots are busy and
+            mirror onto assigned instructors.
           </DialogDescription>
         </DialogHeader>
 
@@ -193,8 +182,6 @@ export function AddInstructorScheduleSlotDialog({
         >
           <input type="hidden" {...register("entity_type")} />
           <input type="hidden" {...register("record_id")} />
-          <input type="hidden" {...register("type")} />
-          <input type="hidden" {...register("color")} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
@@ -305,69 +292,6 @@ export function AddInstructorScheduleSlotDialog({
             {nameError ? (
               <p className="text-sm text-destructive">{nameError}</p>
             ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-instructor-schedule-slot-type"
-              label="Type"
-              hint="Required"
-            />
-            <InstructorScheduleSlotTypePicker
-              id="add-instructor-schedule-slot-type"
-              value={selectedType}
-              disabled={isPending}
-              invalid={!!typeError}
-              onChange={(type: InstructorScheduleSlotType) => {
-                setValue("type", type, { shouldValidate: true });
-              }}
-            />
-            {typeError ? (
-              <p className="text-sm text-destructive">{typeError}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-instructor-schedule-slot-color"
-              label="Color"
-              hint="Required"
-            />
-            <div id="add-instructor-schedule-slot-color">
-              <InstructorScheduleSlotColorPicker
-                value={selectedColor}
-                disabled={isPending}
-                invalid={!!colorError}
-                onChange={(color: string) => {
-                  setValue("color", color, { shouldValidate: true });
-                }}
-              />
-            </div>
-            {colorError ? (
-              <p className="text-sm text-destructive">{colorError}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-instructor-schedule-slot-date"
-              label="Anchor date"
-              hint="Sets weekday · repeats weekly"
-            />
-            <Input
-              id="add-instructor-schedule-slot-date"
-              type="date"
-              aria-invalid={!!slotDateError}
-              disabled={isPending}
-              {...register("slot_date")}
-            />
-            {slotDateError ? (
-              <p className="text-sm text-destructive">{slotDateError}</p>
-            ) : null}
-            <p className="text-xs text-muted-foreground">
-              Remembers when the slot was created and which weekday it repeats
-              on. Workshop slots also respect the workshop start/end dates.
-            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

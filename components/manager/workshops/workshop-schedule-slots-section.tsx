@@ -72,7 +72,6 @@ function toUpdateFormData(values: UpdateInstructorScheduleSlotInput): FormData {
   formData.set("slot_date", values.slot_date);
   formData.set("start_time", values.start_time);
   formData.set("end_time", values.end_time);
-  formData.set("color", values.color);
   return formData;
 }
 
@@ -119,7 +118,6 @@ export function WorkshopScheduleSlotsSection({
       dayOfWeek: dayOfWeekFromIsoDate(values.slot_date),
       startTime: values.start_time,
       endTime: values.end_time,
-      color: values.color,
     };
 
     setSlots((prev) =>

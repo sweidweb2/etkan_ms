@@ -371,6 +371,7 @@ export function PaymentPhaseDetailsPanel({
             }
           }}
           sppId={recordPaymentSppId ?? ""}
+          maxAmount={phase.amount}
           defaultReceivedBy={actorLabel}
           onCreated={handlePaymentCreated}
         />

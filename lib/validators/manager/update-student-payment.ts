@@ -25,8 +25,8 @@ export const updateStudentPaymentSchema = z.object({
       message: "Payment date must be YYYY-MM-DD.",
     }),
   amount: z.coerce
-    .number()
-    .min(0, { message: "Amount must be 0 or greater." })
+    .number({ message: "Amount is required." })
+    .gt(0, { message: "Amount must be greater than 0." })
     .max(1_000_000, { message: "Amount must be at most 1,000,000." }),
   payment_method: z.enum(PAYMENT_METHOD_VALUES, {
     message: "Payment method is required.",
@@ -37,12 +37,6 @@ export const updateStudentPaymentSchema = z.object({
     .min(1, { message: "Received by is required." })
     .max(120, { message: "Received by must be at most 120 characters." }),
   received_by_management: z.boolean(),
-  receipt_number: z
-    .string()
-    .trim()
-    .max(80, { message: "Receipt number must be at most 80 characters." })
-    .optional()
-    .or(z.literal("")),
   notes: z
     .string()
     .trim()
@@ -68,7 +62,6 @@ export function parseUpdateStudentPaymentFormData(formData: FormData):
     received_by_management: parseManagementFlag(
       formData.get("received_by_management")
     ),
-    receipt_number: formData.get("receipt_number") ?? "",
     notes: formData.get("notes") ?? "",
   });
 

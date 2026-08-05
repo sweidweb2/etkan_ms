@@ -77,11 +77,10 @@ export function EditStudentPaymentDialog({
       id: payment?.id ?? "",
       student_payment_phase_id: payment?.student_payment_phase_id ?? "",
       payment_date: payment?.payment_date ?? "",
-      amount: payment?.amount ?? 0,
+      amount: payment?.amount ?? undefined,
       payment_method: payment?.payment_method ?? "cash",
       received_by: payment?.received_by ?? "",
       received_by_management: payment?.received_by_management ?? true,
-      receipt_number: payment?.receipt_number ?? "",
       notes: payment?.notes ?? "",
     },
   });
@@ -103,7 +102,6 @@ export function EditStudentPaymentDialog({
         payment_method: payment.payment_method,
         received_by: payment.received_by,
         received_by_management: payment.received_by_management,
-        receipt_number: payment.receipt_number ?? "",
         notes: payment.notes ?? "",
       });
     }
@@ -128,7 +126,6 @@ export function EditStudentPaymentDialog({
       "received_by_management",
       values.received_by_management ? "true" : "false"
     );
-    formData.set("receipt_number", values.receipt_number?.trim() ?? "");
     formData.set("notes", values.notes?.trim() ?? "");
 
     startTransition(() => {
@@ -188,7 +185,7 @@ export function EditStudentPaymentDialog({
               <Input
                 id="edit-payment-amount"
                 type="number"
-                min={0}
+                min={0.01}
                 step={0.01}
                 aria-invalid={!!amountError}
                 disabled={isPending || !payment}
@@ -269,19 +266,6 @@ export function EditStudentPaymentDialog({
             />
             Confirmed by management
           </label>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-payment-receipt"
-              label="Receipt number"
-              hint="Optional"
-            />
-            <Input
-              id="edit-payment-receipt"
-              disabled={isPending || !payment}
-              {...register("receipt_number")}
-            />
-          </div>
 
           <div className="flex flex-col gap-2">
             <FieldLabel

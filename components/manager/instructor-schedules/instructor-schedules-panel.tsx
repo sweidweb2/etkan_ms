@@ -48,6 +48,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
@@ -68,9 +75,11 @@ import {
   dayOfWeekFromIsoDate,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
   ENTITY_SCHEDULE_TYPE_WORKSHOP,
+  getInstructorScheduleSlotDisplayColor,
   getInstructorScheduleSlotStrongColor,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
+  resolveInstructorScheduleSlotType,
   type CreateInstructorScheduleSlotInput,
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
@@ -114,13 +123,6 @@ function entityFilterKey(selection: ScheduleEntitySelection): string {
   return `${selection.kind}:${selection.id}`;
 }
 
-function toggleEntityFilterKey(prev: string[], key: string): string[] {
-  if (prev.includes(key)) {
-    return prev.filter((item) => item !== key);
-  }
-  return [...prev, key];
-}
-
 function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
   return `${entityType}:${recordId}`;
 }
@@ -157,6 +159,9 @@ function actionErrorMessage(
 }
 
 type ScheduleTypeFilter = "all" | InstructorScheduleSlotType;
+type EntityBrowseKind = "instructor" | "workshop";
+
+const ENTITY_FILTER_ALL = "all";
 
 const TYPE_FILTER_OPTIONS: { value: ScheduleTypeFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -242,11 +247,13 @@ function buildDuplicatePayload(
       entity_type: source.entityType,
       record_id: source.recordId,
       name: source.name,
-      type: source.type,
+      type: resolveInstructorScheduleSlotType({
+        entityType: source.entityType,
+        sourceWorkshopId: source.sourceWorkshopId,
+      }),
       slot_date: formatDateFromDate(dropStart),
       start_time: source.startTime,
       end_time: source.endTime,
-      color: source.color,
     };
   }
 
@@ -266,11 +273,13 @@ function buildDuplicatePayload(
     entity_type: source.entityType,
     record_id: source.recordId,
     name: source.name,
-    type: source.type,
+    type: resolveInstructorScheduleSlotType({
+      entityType: source.entityType,
+      sourceWorkshopId: source.sourceWorkshopId,
+    }),
     slot_date: formatDateFromDate(dropStart),
     start_time: startTime,
     end_time: endTime,
-    color: source.color,
   };
 }
 
@@ -312,7 +321,11 @@ function sessionFromCreateInput(
     dayOfWeek: dayOfWeekFromIsoDate(values.slot_date),
     startTime: values.start_time,
     endTime: values.end_time,
-    color: values.color,
+    color: getInstructorScheduleSlotDisplayColor({
+      entityType: options?.entityType ?? values.entity_type,
+      recordId: values.record_id,
+      sourceWorkshopId: null,
+    }),
     sourceWorkshopId: null,
     sourceSlotId: null,
   };
@@ -327,7 +340,6 @@ function toCreateFormData(values: CreateInstructorScheduleSlotInput): FormData {
   formData.set("slot_date", values.slot_date);
   formData.set("start_time", values.start_time);
   formData.set("end_time", values.end_time);
-  formData.set("color", values.color);
   return formData;
 }
 
@@ -341,7 +353,6 @@ function toUpdateFormData(values: UpdateInstructorScheduleSlotInput): FormData {
   formData.set("slot_date", values.slot_date);
   formData.set("start_time", values.start_time);
   formData.set("end_time", values.end_time);
-  formData.set("color", values.color);
   return formData;
 }
 
@@ -363,10 +374,12 @@ export function InstructorSchedulesPanel({
   const [, startTransition] = useTransition();
 
   const [sessions, setSessions] = React.useState(data.sessions);
-  /** Empty = All entities. Non-empty = union of selected instructor/workshop keys. */
+  /** Empty = All entities. At most one instructor/workshop key selected. */
   const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
     []
   );
+  const [entityBrowseKind, setEntityBrowseKind] =
+    React.useState<EntityBrowseKind>("instructor");
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [createDefaults, setCreateDefaults] =
@@ -467,28 +480,31 @@ export function InstructorSchedulesPanel({
 
   const createPrefill = useMemo((): AddInstructorScheduleSlotDefaults | null => {
     const fromDates = createDefaults ?? undefined;
+    const timeDefaults = fromDates
+      ? {
+          start_time: fromDates.start_time,
+          end_time: fromDates.end_time,
+        }
+      : undefined;
+
     if (resolvedEntityKeys.length === 1) {
       const only = parseEntityFilterKey(resolvedEntityKeys[0]!);
       if (only?.kind === "instructor") {
         return {
           entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
           record_id: only.id,
-          ...fromDates,
+          ...timeDefaults,
         };
       }
       if (only?.kind === "workshop") {
         return {
           entity_type: ENTITY_SCHEDULE_TYPE_WORKSHOP,
           record_id: only.id,
-          ...fromDates,
+          ...timeDefaults,
         };
       }
     }
-    return fromDates
-      ? {
-          ...fromDates,
-        }
-      : null;
+    return timeDefaults ?? null;
   }, [createDefaults, resolvedEntityKeys]);
 
   const filteredSessions = useMemo(() => {
@@ -703,7 +719,6 @@ export function InstructorSchedulesPanel({
           slot_date: values.slot_date,
           start_time: values.start_time,
           end_time: values.end_time,
-          color: values.color,
         },
         values.id,
         {
@@ -954,7 +969,6 @@ export function InstructorSchedulesPanel({
     formData.set("slot_date", slotDate);
     formData.set("start_time", startTime);
     formData.set("end_time", endTime);
-    formData.set("color", source.color);
 
     startTransition(() => {
       void (async () => {
@@ -1077,7 +1091,6 @@ export function InstructorSchedulesPanel({
     formData.set("slot_date", slotDate);
     formData.set("start_time", startTime);
     formData.set("end_time", endTime);
-    formData.set("color", session.color);
 
     startTransition(() => {
       void (async () => {
@@ -1191,18 +1204,18 @@ export function InstructorSchedulesPanel({
         <ScheduleAssistantPrompt />
       </Can>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex max-w-full flex-col gap-2">
         <div
           role="group"
           aria-label="Filter by instructor"
-          className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+          className="inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 [scrollbar-width:thin]"
         >
           <button
             type="button"
             aria-pressed={isAllEntitiesSelected}
             onClick={() => setSelectedEntityKeys([])}
             className={cn(
-              "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+              "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
               "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
               isAllEntitiesSelected &&
                 "border-border bg-background text-foreground shadow-sm"
@@ -1227,7 +1240,7 @@ export function InstructorSchedulesPanel({
                   )
                 }
                 className={cn(
-                  "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+                  "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
                   "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
                   selected &&
                     "border-border bg-background text-foreground shadow-sm"
@@ -1243,7 +1256,7 @@ export function InstructorSchedulesPanel({
           <div
             role="group"
             aria-label="Filter by workshop"
-            className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
+            className="inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 [scrollbar-width:thin]"
           >
             {data.workshops.map((workshop) => {
               const tabKey = entityFilterKey({
@@ -1262,7 +1275,7 @@ export function InstructorSchedulesPanel({
                     )
                   }
                   className={cn(
-                    "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
+                    "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
                     "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
                     selected &&
                       "border-border bg-background text-foreground shadow-sm"

@@ -163,7 +163,6 @@ describe("schedule-assistant catalog loaders", () => {
           day_of_week: 5,
           start_time: "09:00:00",
           end_time: "11:00:00",
-          color: "#22c55e",
           created_at: "2026-01-01T00:00:00.000Z",
           updated_at: "2026-01-01T00:00:00.000Z",
         },
@@ -177,7 +176,6 @@ describe("schedule-assistant catalog loaders", () => {
           day_of_week: 5,
           start_time: "12:00:00",
           end_time: "13:00:00",
-          color: "#ef4444",
           created_at: "2026-01-01T00:00:00.000Z",
           updated_at: "2026-01-01T00:00:00.000Z",
         },
@@ -220,7 +218,6 @@ describe("schedule-assistant catalog loaders", () => {
         day_of_week: index % 7,
         start_time: `${String(8 + (index % 8)).padStart(2, "0")}:00:00`,
         end_time: `${String(9 + (index % 8)).padStart(2, "0")}:00:00`,
-        color: "#22c55e",
         created_at: "2026-01-01T00:00:00.000Z",
         updated_at: "2026-01-01T00:00:00.000Z",
       })

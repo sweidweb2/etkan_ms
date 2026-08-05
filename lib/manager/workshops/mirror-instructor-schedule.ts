@@ -35,7 +35,6 @@ function toBusyMirrorInput(
     day_of_week: workshopSlot.day_of_week,
     start_time: workshopSlot.start_time,
     end_time: workshopSlot.end_time,
-    color: workshopSlot.color,
     source_workshop_id: workshopSlot.record_id,
     source_slot_id: workshopSlot.id,
   };
@@ -100,7 +99,6 @@ async function assertNoOverlapForMirrorInputs(
         day_of_week: input.day_of_week,
         start_time: input.start_time,
         end_time: input.end_time,
-        color: input.color,
         source_workshop_id: input.source_workshop_id ?? null,
         source_slot_id: input.source_slot_id ?? null,
         created_at: "",
@@ -293,7 +291,6 @@ export async function updateMirrorsForWorkshopSlot(
         day_of_week: workshopSlot.day_of_week,
         start_time: workshopSlot.start_time,
         end_time: workshopSlot.end_time,
-        color: workshopSlot.color,
       }
     );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useTransition } from "react";
 import { createStudentPaymentAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -31,7 +31,7 @@ import {
   PAYMENT_METHODS,
 } from "@/lib/manager/accounting/constants";
 import {
-  createStudentPaymentSchema,
+  createStudentPaymentFormSchema,
   type CreateStudentPaymentInput,
 } from "@/lib/validators/manager/create-student-payment";
 import type { CreateStudentPaymentActionState } from "@/types/manager-student-payment";
@@ -42,6 +42,7 @@ type CreateStudentPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sppId: string;
+  maxAmount: number;
   defaultReceivedBy: string;
   onCreated: () => void;
 };
@@ -50,6 +51,7 @@ export function CreateStudentPaymentDialog({
   open,
   onOpenChange,
   sppId,
+  maxAmount,
   defaultReceivedBy,
   onCreated,
 }: CreateStudentPaymentDialogProps) {
@@ -63,6 +65,11 @@ export function CreateStudentPaymentDialog({
 
   useActionStateToast(state, isPending);
 
+  const schema = useMemo(
+    () => createStudentPaymentFormSchema(maxAmount),
+    [maxAmount]
+  );
+
   const {
     register,
     handleSubmit,
@@ -71,16 +78,15 @@ export function CreateStudentPaymentDialog({
     watch,
     formState: { errors },
   } = useZodForm({
-    schema: createStudentPaymentSchema,
+    schema,
     mode: "onBlur",
     defaultValues: {
       student_payment_phase_id: sppId,
       payment_date: "",
-      amount: 0,
-      payment_method: PAYMENT_METHODS.CASH,
+      amount: undefined,
+      payment_method: PAYMENT_METHODS.WHISH,
       received_by: defaultReceivedBy,
       received_by_management: true,
-      receipt_number: "",
       notes: "",
     },
   });
@@ -97,11 +103,10 @@ export function CreateStudentPaymentDialog({
       reset({
         student_payment_phase_id: sppId,
         payment_date: new Date().toISOString().slice(0, 10),
-        amount: 0,
-        payment_method: PAYMENT_METHODS.CASH,
+        amount: undefined,
+        payment_method: PAYMENT_METHODS.WHISH,
         received_by: defaultReceivedBy,
         received_by_management: true,
-        receipt_number: "",
         notes: "",
       });
     }
@@ -123,7 +128,6 @@ export function CreateStudentPaymentDialog({
       "received_by_management",
       values.received_by_management ? "true" : "false"
     );
-    formData.set("receipt_number", values.receipt_number?.trim() ?? "");
     formData.set("notes", values.notes?.trim() ?? "");
 
     startTransition(() => {
@@ -183,7 +187,8 @@ export function CreateStudentPaymentDialog({
               <Input
                 id="create-payment-amount"
                 type="number"
-                min={0}
+                min={0.01}
+                max={maxAmount}
                 step={0.01}
                 aria-invalid={!!amountError}
                 disabled={isPending}
@@ -262,19 +267,6 @@ export function CreateStudentPaymentDialog({
             />
             Confirmed by management
           </label>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="create-payment-receipt"
-              label="Receipt number"
-              hint="Optional"
-            />
-            <Input
-              id="create-payment-receipt"
-              disabled={isPending}
-              {...register("receipt_number")}
-            />
-          </div>
 
           <div className="flex flex-col gap-2">
             <FieldLabel

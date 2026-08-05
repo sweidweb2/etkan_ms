@@ -25,12 +25,11 @@ const workshopSlot = {
   entity_type: "workshop",
   record_id: workshopId,
   name: "Session block",
-  type: "free",
+  type: "busy",
   slot_date: "2026-09-01",
   day_of_week: 1,
   start_time: "09:00:00",
   end_time: "11:00:00",
-  color: "#ff0000",
   source_workshop_id: null,
   source_slot_id: null,
   created_at: "2026-01-01T00:00:00.000Z",
@@ -106,7 +105,6 @@ describe("mirror-instructor-schedule", () => {
         day_of_week: 1,
         start_time: "09:00:00",
         end_time: "11:00:00",
-        color: "#ff0000",
         source_workshop_id: workshopId,
         source_slot_id: slotId,
       },
@@ -191,7 +189,6 @@ describe("mirror-instructor-schedule", () => {
       day_of_week: 1,
       start_time: "09:00:00",
       end_time: "11:00:00",
-      color: "#ff0000",
     });
   });
 

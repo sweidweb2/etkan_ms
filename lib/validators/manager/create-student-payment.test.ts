@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createStudentPaymentFormSchema,
   createStudentPaymentSchema,
   parseCreateStudentPaymentFormData,
 } from "@/lib/validators/manager/create-student-payment";
@@ -11,7 +12,6 @@ const validInput = {
   payment_method: "cash",
   received_by: "Manager",
   received_by_management: true,
-  receipt_number: "",
   notes: "",
 };
 
@@ -38,6 +38,15 @@ describe("createStudentPaymentSchema", () => {
     ).toBe(false);
   });
 
+  it("rejects zero amount", () => {
+    expect(
+      createStudentPaymentSchema.safeParse({
+        ...validInput,
+        amount: 0,
+      }).success
+    ).toBe(false);
+  });
+
   it("rejects negative amount", () => {
     expect(
       createStudentPaymentSchema.safeParse({
@@ -45,6 +54,23 @@ describe("createStudentPaymentSchema", () => {
         amount: -1,
       }).success
     ).toBe(false);
+  });
+});
+
+describe("createStudentPaymentFormSchema", () => {
+  it("rejects amount above phase price", () => {
+    const schema = createStudentPaymentFormSchema(100);
+    expect(
+      schema.safeParse({
+        ...validInput,
+        amount: 100.01,
+      }).success
+    ).toBe(false);
+  });
+
+  it("accepts amount equal to phase price", () => {
+    const schema = createStudentPaymentFormSchema(500);
+    expect(schema.safeParse(validInput).success).toBe(true);
   });
 });
 

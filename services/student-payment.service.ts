@@ -291,7 +291,6 @@ export async function createStudentPaymentForManager(
     payment_method: string;
     received_by: string;
     received_by_management: boolean;
-    receipt_number?: string | null;
     notes?: string | null;
   }
 ): Promise<CreateStudentPaymentResult> {
@@ -349,6 +348,18 @@ export async function createStudentPaymentForManager(
     return { success: false, error: blocked };
   }
 
+  if (parsed.data.amount <= 0 || parsed.data.amount > phase.amount) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: [
+          "Amount must be greater than 0 and at most the payment phase price.",
+        ],
+      },
+    };
+  }
+
   const { data: created, error: createError } =
     await studentPaymentRepository.createStudentPayment(adminClient, {
       student_payment_phase_id: parsed.data.student_payment_phase_id,
@@ -357,7 +368,7 @@ export async function createStudentPaymentForManager(
       payment_method: parsed.data.payment_method,
       received_by: parsed.data.received_by.trim(),
       received_by_management: parsed.data.received_by_management,
-      receipt_number: normalizeOptionalString(parsed.data.receipt_number),
+      receipt_number: null,
       notes: normalizeOptionalString(parsed.data.notes),
     });
 
@@ -412,7 +423,6 @@ export async function updateStudentPaymentForManager(
     payment_method: string;
     received_by: string;
     received_by_management: boolean;
-    receipt_number?: string | null;
     notes?: string | null;
   }
 ): Promise<UpdateStudentPaymentResult> {
@@ -486,6 +496,18 @@ export async function updateStudentPaymentForManager(
     return { success: false, error: blocked };
   }
 
+  if (parsed.data.amount <= 0 || parsed.data.amount > phase.amount) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        amount: [
+          "Amount must be greater than 0 and at most the payment phase price.",
+        ],
+      },
+    };
+  }
+
   const { data: updated, error: updateError } =
     await studentPaymentRepository.updateStudentPayment(
       adminClient,
@@ -496,7 +518,7 @@ export async function updateStudentPaymentForManager(
         payment_method: parsed.data.payment_method,
         received_by: parsed.data.received_by.trim(),
         received_by_management: parsed.data.received_by_management,
-        receipt_number: normalizeOptionalString(parsed.data.receipt_number),
+        receipt_number: null,
         notes: normalizeOptionalString(parsed.data.notes),
       }
     );

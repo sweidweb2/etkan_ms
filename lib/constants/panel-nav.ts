@@ -212,7 +212,7 @@ export const MANAGER_PANEL_NAV: PanelNavItem[] = [
   ...(MANAGER_PANEL_NAVIGATION.groups?.flatMap((group) => group.items) ?? []),
 ];
 
-export const CEO_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
+export const CEO_PANEL_NAVIGATION: PanelNavigation = {
   items: [
     {
       title: "Manage instructors",
@@ -220,12 +220,18 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
       icon: "school",
     },
     {
+      title: "Instructor schedules",
+      href: ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
+      icon: "calendar-days",
+    },
+    MANAGE_WORKSHOPS_NAV_ITEM,
+    {
       title: "AI usage",
       href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
       icon: "sparkles",
     },
   ],
-});
+};
 
 /** @deprecated Use `CEO_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const CEO_PANEL_NAV: PanelNavItem[] = CEO_PANEL_NAVIGATION.items!;

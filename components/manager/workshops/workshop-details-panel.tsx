@@ -20,7 +20,6 @@ import {
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
-import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
 import { WorkshopDocumentsSection } from "@/components/manager/workshops/workshop-documents-section";
 import { WorkshopInstructorsSection } from "@/components/manager/workshops/workshop-instructors-section";
@@ -29,6 +28,7 @@ import { WorkshopScheduleSlotsSection } from "@/components/manager/workshops/wor
 import { WorkshopSessionsSection } from "@/components/manager/workshops/workshop-sessions-section";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { WorkshopStatusStepper } from "@/components/manager/workshops/workshop-status-stepper";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
@@ -54,7 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
-import { MANAGER_WORKSHOP_STATUS_LABELS, WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
+import { WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
@@ -75,6 +75,7 @@ import type {
 
 type WorkshopDetailsTabValue =
   | "schedule"
+  | "sessions"
   | "instructors"
   | "documents"
   | "payments";
@@ -111,11 +112,11 @@ function DetailField({
   value?: string | null;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground">{value?.trim() ? value : "—"}</dd>
+    <div className="flex min-w-0 items-baseline justify-between gap-2 border-b border-border/60 py-1 last:border-b-0">
+      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right text-sm font-medium text-foreground">
+        {value?.trim() ? value : "—"}
+      </dd>
     </div>
   );
 }
@@ -191,7 +192,7 @@ export function WorkshopDetailsPanel({
       tabs.push("schedule");
     }
     if (canViewWorkshop) {
-      tabs.push("instructors", "documents");
+      tabs.push("sessions", "instructors", "documents");
     }
     if (canViewPayments) {
       tabs.push("payments");
@@ -256,12 +257,6 @@ export function WorkshopDetailsPanel({
                   <CalendarDaysIcon />
                   Open calendar
                 </Link>
-              </DropdownMenuItem>
-            </Can>
-            <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-              <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
-                <PencilIcon />
-                Edit
               </DropdownMenuItem>
             </Can>
             <Can permission={PERMISSIONS.WORKSHOPS_DELETE}>
@@ -337,72 +332,95 @@ export function WorkshopDetailsPanel({
 
       <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
         <ClassTabCollapsibleSection
-          title="Details"
-          description={MANAGER_WORKSHOP_STATUS_LABELS[workshop.status]}
+          title={workshop.name}
+          description="Workshop overview and details."
           storageKey={`workshop-details-info-v2:${workshop.id}`}
           defaultOpen
-        >
-          <div className="px-3 py-4 sm:px-4">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-semibold tracking-tight">
-                {workshop.name}
-              </h2>
-              <WorkshopStatusBadge status={workshop.status} className="w-fit" />
+          action={
+            <div className="flex items-center gap-2">
+              <WorkshopStatusBadge
+                status={workshop.status}
+                className="w-fit"
+              />
+              <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-8 shrink-0"
+                  aria-label="Edit workshop"
+                  onClick={() => setIsEditOpen(true)}
+                >
+                  <PencilIcon className="size-4" />
+                </Button>
+              </Can>
             </div>
+          }
+        >
+          <div className="px-3 py-3 sm:px-4">
             {hasPayments ? (
-              <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+              <p className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-200">
                 {WORKSHOP_HAS_PAYMENTS_DELETE_ERROR} ({paymentCount} payment
                 {paymentCount === 1 ? "" : "s"}).
               </p>
             ) : null}
-            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailField
-                label="Type"
-                value={WORKSHOP_OFFERING_TYPE_LABELS[workshop.type]}
-              />
-              <DetailField label="Phone" value={workshop.phone} />
-              <DetailField label="Subject" value={workshop.subject} />
-              <DetailField
-                label="Target audience"
-                value={workshop.target_audience}
-              />
-              <DetailField
-                label="Delivery place"
-                value={workshop.delivery_place}
-              />
-              <DetailField
-                label="Participants"
-                value={
-                  workshop.nb_participants == null
-                    ? null
-                    : String(workshop.nb_participants)
-                }
-              />
-              <DetailField
-                label="Sessions"
-                value={
-                  workshop.number_of_sessions == null
-                    ? "0"
-                    : String(workshop.number_of_sessions)
-                }
-              />
-              <DetailField label="Price" value={formatMoney(workshop.price)} />
-              <DetailField
-                label="Start date"
-                value={formatDate(workshop.start_date)}
-              />
-              <DetailField
-                label="End date"
-                value={formatDate(workshop.end_date)}
-              />
-              <DetailField
-                label="Created"
-                value={format(
-                  new Date(workshop.created_at),
-                  "MMM d, yyyy 'at' h:mm a"
-                )}
-              />
-            </dl>
+            <div className="grid gap-x-5 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+              <dl className="min-w-0">
+                <DetailField
+                  label="Type"
+                  value={WORKSHOP_OFFERING_TYPE_LABELS[workshop.type]}
+                />
+                <DetailField label="Subject" value={workshop.subject} />
+                <DetailField label="Phone" value={workshop.phone} />
+                <DetailField
+                  label="Audience"
+                  value={workshop.target_audience}
+                />
+              </dl>
+              <dl className="min-w-0">
+                <DetailField
+                  label="Place"
+                  value={workshop.delivery_place}
+                />
+                <DetailField
+                  label="Participants"
+                  value={
+                    workshop.nb_participants == null
+                      ? null
+                      : String(workshop.nb_participants)
+                  }
+                />
+                <DetailField
+                  label="Sessions"
+                  value={
+                    workshop.number_of_sessions == null
+                      ? "0"
+                      : String(workshop.number_of_sessions)
+                  }
+                />
+                <DetailField
+                  label="Price"
+                  value={formatMoney(workshop.price)}
+                />
+              </dl>
+              <dl className="min-w-0 sm:col-span-2 lg:col-span-1">
+                <DetailField
+                  label="Start"
+                  value={formatDate(workshop.start_date)}
+                />
+                <DetailField
+                  label="End"
+                  value={formatDate(workshop.end_date)}
+                />
+                <DetailField
+                  label="Created"
+                  value={format(
+                    new Date(workshop.created_at),
+                    "MMM d, yyyy 'at' h:mm a"
+                  )}
+                />
+              </dl>
+            </div>
           </div>
         </ClassTabCollapsibleSection>
       </Can>
@@ -414,14 +432,6 @@ export function WorkshopDetailsPanel({
             setWorkshop(updated);
             router.refresh();
           }}
-        />
-      </Can>
-
-      <Can permission={PERMISSIONS.WORKSHOPS_VIEW}>
-        <WorkshopSessionsSection
-          workshopId={workshop.id}
-          sessions={sessions}
-          mutationsLocked={contentMutationsLocked}
         />
       </Can>
 
@@ -445,6 +455,12 @@ export function WorkshopDetailsPanel({
               ) : null}
               {canViewWorkshop ? (
                 <>
+                  <TabsTriggerPrimitive
+                    value="sessions"
+                    className={TAB_TRIGGER_CLASS}
+                  >
+                    Sessions
+                  </TabsTriggerPrimitive>
                   <TabsTriggerPrimitive
                     value="instructors"
                     className={TAB_TRIGGER_CLASS}
@@ -477,6 +493,15 @@ export function WorkshopDetailsPanel({
                   workshopId={workshop.id}
                   workshopName={workshop.name}
                   scheduleSlots={scheduleSlots}
+                  mutationsLocked={contentMutationsLocked}
+                />
+              </TabsContentPrimitive>
+            ) : null}
+            {canViewWorkshop ? (
+              <TabsContentPrimitive value="sessions" className="outline-none">
+                <WorkshopSessionsSection
+                  workshopId={workshop.id}
+                  sessions={sessions}
                   mutationsLocked={contentMutationsLocked}
                 />
               </TabsContentPrimitive>

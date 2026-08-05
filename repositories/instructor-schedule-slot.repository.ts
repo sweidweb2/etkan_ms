@@ -4,7 +4,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const SLOT_COLUMNS =
-  "id, entity_type, record_id, name, type, slot_date, day_of_week, start_time, end_time, color, source_workshop_id, source_slot_id, created_at, updated_at";
+  "id, entity_type, record_id, name, type, slot_date, day_of_week, start_time, end_time, source_workshop_id, source_slot_id, created_at, updated_at";
 
 export type InstructorScheduleSlotRecord = {
   id: string;
@@ -16,7 +16,6 @@ export type InstructorScheduleSlotRecord = {
   day_of_week: number;
   start_time: string;
   end_time: string;
-  color: string;
   source_workshop_id: string | null;
   source_slot_id: string | null;
   created_at: string;
@@ -32,7 +31,6 @@ export type CreateInstructorScheduleSlotRecordInput = {
   day_of_week: number;
   start_time: string;
   end_time: string;
-  color: string;
   source_workshop_id?: string | null;
   source_slot_id?: string | null;
 };
@@ -112,7 +110,6 @@ export async function createInstructorScheduleSlot(
       day_of_week: input.day_of_week,
       start_time: input.start_time,
       end_time: input.end_time,
-      color: input.color,
       source_workshop_id: input.source_workshop_id ?? null,
       source_slot_id: input.source_slot_id ?? null,
       updated_at: now,
@@ -139,7 +136,6 @@ export async function updateInstructorScheduleSlot(
       day_of_week: input.day_of_week,
       start_time: input.start_time,
       end_time: input.end_time,
-      color: input.color,
       source_workshop_id: input.source_workshop_id ?? null,
       source_slot_id: input.source_slot_id ?? null,
       updated_at: now,
@@ -159,7 +155,6 @@ export async function updateInstructorScheduleSlotsBySourceSlotId(
     day_of_week: number;
     start_time: string;
     end_time: string;
-    color: string;
   }
 ) {
   const now = new Date().toISOString();
@@ -173,7 +168,6 @@ export async function updateInstructorScheduleSlotsBySourceSlotId(
       day_of_week: patch.day_of_week,
       start_time: patch.start_time,
       end_time: patch.end_time,
-      color: patch.color,
       updated_at: now,
     })
     .eq("source_slot_id", sourceSlotId)
@@ -256,7 +250,6 @@ export async function createInstructorScheduleSlots(
     day_of_week: input.day_of_week,
     start_time: input.start_time,
     end_time: input.end_time,
-    color: input.color,
     source_workshop_id: input.source_workshop_id ?? null,
     source_slot_id: input.source_slot_id ?? null,
     updated_at: now,

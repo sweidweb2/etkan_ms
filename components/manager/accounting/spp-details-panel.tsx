@@ -319,6 +319,7 @@ export function SppDetailsPanel({
           open={isCreatePaymentOpen}
           onOpenChange={setIsCreatePaymentOpen}
           sppId={spp.id}
+          maxAmount={spp.phase_amount}
           defaultReceivedBy={actorLabel}
           onCreated={handleChanged}
         />
@@ -752,7 +753,6 @@ export function SppDetailsPanel({
                     <th className="px-4 py-3 font-medium">Method</th>
                     <th className="px-4 py-3 font-medium">Received by</th>
                     <th className="px-4 py-3 font-medium">Management</th>
-                    <th className="px-4 py-3 font-medium">Receipt</th>
                     <th className="px-4 py-3 font-medium">Notes</th>
                     <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
@@ -761,7 +761,7 @@ export function SppDetailsPanel({
                   {payments.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={7}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         No payments recorded yet.
@@ -797,12 +797,6 @@ export function SppDetailsPanel({
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                           {payment.received_by_management ? "Yes" : "No"}
-                        </td>
-                        <td className="max-w-[8rem] px-4 py-3 text-muted-foreground">
-                          <TruncatedCell
-                            value={payment.receipt_number ?? "—"}
-                            maxLength={16}
-                          />
                         </td>
                         <td className="max-w-[10rem] px-4 py-3 text-muted-foreground">
                           <TruncatedCell

@@ -1,13 +1,12 @@
 import { ROUTES } from "@/lib/constants/routes";
 
 /**
- * Workshop / schedule paths that other roles may enter when they are
+ * Workshop paths that other roles may enter when they are
  * instructors and hold the matching view permission.
  */
 const SHARED_MANAGER_WORKSHOP_PREFIXES = [
   ROUTES.MANAGER_WORKSHOPS_PAYMENTS,
   ROUTES.MANAGER_WORKSHOPS,
-  ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
 ] as const;
 
 /**
@@ -16,6 +15,7 @@ const SHARED_MANAGER_WORKSHOP_PREFIXES = [
  */
 const SHARED_MANAGER_NO_INSTRUCTOR_FLAG_PREFIXES = [
   ROUTES.MANAGER_INSTRUCTORS,
+  ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
   ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
 ] as const;
 

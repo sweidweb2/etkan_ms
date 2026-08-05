@@ -6,8 +6,6 @@ import { Trash2Icon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { InstructorScheduleSlotColorPicker } from "@/components/manager/instructor-schedules/instructor-schedule-slot-color-picker";
-import { InstructorScheduleSlotTypePicker } from "@/components/manager/instructor-schedules/instructor-schedule-slot-type-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,14 +23,12 @@ import { SCHEDULE_SLOT_FIELD_LIMITS } from "@/lib/constants/workshop-field-limit
 import { projectInstructorSlotDate } from "@/lib/manager/instructor-schedule-calendar";
 import {
   ENTITY_SCHEDULE_TYPE_LABELS,
+  INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS,
+  resolveInstructorScheduleSlotType,
   updateInstructorScheduleSlotSchema,
-  INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
-import type {
-  InstructorScheduleSlotType,
-  ManagerInstructorScheduleSession,
-} from "@/types/manager-instructor-schedule";
+import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
 
 const WEEKDAY_LABELS = [
   "Sunday",
@@ -77,8 +73,6 @@ export function EditInstructorScheduleSlotDialog({
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
     formState: { errors },
   } = useZodForm({
     schema: updateInstructorScheduleSlotSchema,
@@ -88,21 +82,29 @@ export function EditInstructorScheduleSlotDialog({
       entity_type: session?.entityType ?? "instructor",
       record_id: session?.recordId ?? "",
       name: session?.name ?? "",
-      type: session?.type ?? "busy",
+      type: session
+        ? resolveInstructorScheduleSlotType({
+            entityType: session.entityType,
+            sourceWorkshopId: session.sourceWorkshopId,
+          })
+        : "free",
       // Encode weekday for the update action without changing the anchor date.
       slot_date: session
         ? projectInstructorSlotDate("1970-01-04", session.dayOfWeek)
         : "",
       start_time: session?.startTime ?? "09:00",
       end_time: session?.endTime ?? "10:30",
-      color: session?.color ?? INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
     },
   });
 
-  const selectedType = watch("type");
-  const selectedColor = watch("color");
   const isWorkshopMirror = Boolean(session?.sourceWorkshopId);
   const fieldsDisabled = isPending || isWorkshopMirror;
+  const lockedType = session
+    ? resolveInstructorScheduleSlotType({
+        entityType: session.entityType,
+        sourceWorkshopId: session.sourceWorkshopId,
+      })
+    : "free";
 
   useEffect(() => {
     if (!open || !session) {
@@ -114,11 +116,13 @@ export function EditInstructorScheduleSlotDialog({
       entity_type: session.entityType,
       record_id: session.recordId,
       name: session.name,
-      type: session.type,
+      type: resolveInstructorScheduleSlotType({
+        entityType: session.entityType,
+        sourceWorkshopId: session.sourceWorkshopId,
+      }),
       slot_date: projectInstructorSlotDate("1970-01-04", session.dayOfWeek),
       start_time: session.startTime,
       end_time: session.endTime,
-      color: session.color || INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR,
     });
   }, [open, reset, session]);
 
@@ -133,10 +137,8 @@ export function EditInstructorScheduleSlotDialog({
   }
 
   const nameError = errors.name?.message;
-  const typeError = errors.type?.message;
   const startTimeError = errors.start_time?.message;
   const endTimeError = errors.end_time?.message;
-  const colorError = errors.color?.message;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -164,7 +166,6 @@ export function EditInstructorScheduleSlotDialog({
           <input type="hidden" {...register("entity_type")} />
           <input type="hidden" {...register("record_id")} />
           <input type="hidden" {...register("type")} />
-          <input type="hidden" {...register("color")} />
           <input type="hidden" {...register("slot_date")} />
 
           {isWorkshopMirror ? (
@@ -213,45 +214,11 @@ export function EditInstructorScheduleSlotDialog({
             ) : null}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-instructor-schedule-slot-type"
-              label="Type"
-              hint={isWorkshopMirror ? "" : "Required"}
-            />
-            <InstructorScheduleSlotTypePicker
-              id="edit-instructor-schedule-slot-type"
-              value={selectedType}
-              disabled={fieldsDisabled}
-              invalid={!!typeError}
-              onChange={(type: InstructorScheduleSlotType) => {
-                setValue("type", type, { shouldValidate: true });
-              }}
-            />
-            {typeError ? (
-              <p className="text-sm text-destructive">{typeError}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="edit-instructor-schedule-slot-color"
-              label="Color"
-              hint={isWorkshopMirror ? "" : "Required"}
-            />
-            <div id="edit-instructor-schedule-slot-color">
-              <InstructorScheduleSlotColorPicker
-                value={selectedColor}
-                disabled={fieldsDisabled}
-                invalid={!!colorError}
-                onChange={(color: string) => {
-                  setValue("color", color, { shouldValidate: true });
-                }}
-              />
-            </div>
-            {colorError ? (
-              <p className="text-sm text-destructive">{colorError}</p>
-            ) : null}
+          <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+            <p className="text-muted-foreground">Type</p>
+            <p className="font-medium text-foreground">
+              {INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS[lockedType]}
+            </p>
           </div>
 
           <div className="flex flex-col gap-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">

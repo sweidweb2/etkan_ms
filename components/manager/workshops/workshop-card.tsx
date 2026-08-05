@@ -3,21 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { format } from "date-fns";
-import {
-  CalendarIcon,
-  MapPinIcon,
-  PencilIcon,
-  PhoneIcon,
-  PresentationIcon,
-} from "lucide-react";
+import { PencilIcon, PresentationIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -30,26 +22,6 @@ import type { ManagerWorkshopRow } from "@/types/manager-workshop";
 type WorkshopCardProps = {
   workshop: ManagerWorkshopRow;
 };
-
-function formatMoney(value: number | null) {
-  if (value == null) {
-    return "—";
-  }
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function formatDateRange(start: string | null, end: string | null) {
-  if (!start && !end) {
-    return "Dates TBD";
-  }
-  const startLabel = start ? format(new Date(start), "MMM d, yyyy") : "—";
-  const endLabel = end ? format(new Date(end), "MMM d, yyyy") : "—";
-  return `${startLabel} → ${endLabel}`;
-}
 
 export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
   const router = useRouter();
@@ -77,7 +49,7 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
           }}
         />
       ) : null}
-      <Card className="group relative flex h-full cursor-pointer flex-col overflow-hidden gap-0 py-0 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-400/60 hover:shadow-[0_16px_36px_rgba(14,165,233,0.22)]">
+      <Card className="group relative flex h-full flex-col overflow-hidden gap-0 py-0 transition-all duration-200 hover:border-sky-400/45 hover:shadow-[0_12px_32px_rgba(14,165,233,0.16)]">
         <Link
           href={detailHref}
           aria-label={`View ${workshop.name}`}
@@ -94,74 +66,33 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
               </CardTitle>
               <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                 {WORKSHOP_OFFERING_TYPE_LABELS[workshop.type]}
-                {workshop.subject ? ` · ${workshop.subject}` : ""}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-7 pointer-events-auto relative z-10"
-                  aria-label={`Edit ${workshop.name}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setIsEditOpen(true);
-                  }}
-                >
-                  <PencilIcon className="size-3.5" />
-                </Button>
-              </Can>
-              <WorkshopStatusBadge
-                status={workshop.status}
-                className="shrink-0 text-[10px]"
-              />
-            </div>
+            <WorkshopStatusBadge
+              status={workshop.status}
+              className="shrink-0"
+            />
           </div>
         </CardHeader>
 
-        <CardContent className="relative z-10 flex flex-1 flex-col gap-1.5 px-3 py-2.5 pointer-events-none">
-          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[11px]">
-            <CalendarIcon className="size-3 shrink-0 text-primary" />
-            <span className="min-w-0 flex-1 truncate text-muted-foreground">
-              Schedule
-            </span>
-            <span className="shrink-0 font-medium text-foreground">
-              {formatDateRange(workshop.start_date, workshop.end_date)}
-            </span>
-          </div>
-          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[11px]">
-            <MapPinIcon className="size-3 shrink-0 text-primary" />
-            <span className="min-w-0 flex-1 truncate text-muted-foreground">
-              Place
-            </span>
-            <span className="max-w-[9rem] shrink-0 truncate font-medium text-foreground">
-              {workshop.delivery_place ?? "—"}
-            </span>
-          </div>
-          <div className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[11px]">
-            <PhoneIcon className="size-3 shrink-0 text-primary" />
-            <span className="min-w-0 flex-1 truncate text-muted-foreground">
-              Phone
-            </span>
-            <span className="max-w-[9rem] shrink-0 truncate font-medium text-foreground">
-              {workshop.phone ?? "—"}
-            </span>
-          </div>
-          <div className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px]">
-            <span className="text-muted-foreground">Price </span>
-            <span className="font-semibold tabular-nums text-foreground">
-              {formatMoney(workshop.price)}
-            </span>
-          </div>
-        </CardContent>
-
-        <CardFooter className="relative z-10 mt-auto flex items-center justify-between gap-2 border-t bg-muted/20 px-3 py-2 pointer-events-none">
-          <span className="text-[11px] text-muted-foreground">
-            {format(new Date(workshop.created_at), "MMM d, yyyy")}
-          </span>
+        <CardFooter className="relative z-10 mt-auto flex items-center justify-end gap-1.5 border-t bg-muted/20 px-3 py-2 pointer-events-none">
+          <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
+              aria-label={`Edit ${workshop.name}`}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setIsEditOpen(true);
+              }}
+            >
+              <PencilIcon data-icon="inline-start" />
+              Edit
+            </Button>
+          </Can>
           <Button
             variant="outline"
             size="sm"

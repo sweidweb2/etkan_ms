@@ -104,14 +104,34 @@ export function getInstructorScheduleSlotStrongColor(
   ];
 }
 
-export function normalizeInstructorScheduleSlotColor(
-  value: string | null | undefined
-): string {
-  const normalized = (value ?? "").trim();
-  if (hexColorPattern.test(normalized)) {
-    return `#${normalized.slice(1).toUpperCase()}`;
+function hashToPresetColor(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   }
-  return INSTRUCTOR_SCHEDULE_SLOT_DEFAULT_COLOR;
+  return INSTRUCTOR_SCHEDULE_SLOT_COLORS[
+    hash % INSTRUCTOR_SCHEDULE_SLOT_COLORS.length
+  ];
+}
+
+/**
+ * Display-only pastel color:
+ * - instructor (no workshop link) → stable per instructor
+ * - workshop entity → stable per workshop
+ * - instructor mirrored from a workshop → same color as that workshop
+ */
+export function getInstructorScheduleSlotDisplayColor(options: {
+  entityType: ScheduleEntityType | string;
+  recordId: string;
+  sourceWorkshopId?: string | null;
+}): string {
+  if (options.sourceWorkshopId) {
+    return hashToPresetColor(`workshop:${options.sourceWorkshopId}`);
+  }
+  if (options.entityType === ENTITY_SCHEDULE_TYPE_WORKSHOP) {
+    return hashToPresetColor(`workshop:${options.recordId}`);
+  }
+  return hashToPresetColor(`instructor:${options.recordId}`);
 }
 
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -122,26 +142,30 @@ function timeToMinutes(value: string): number {
   return hours * 60 + minutes;
 }
 
-const instructorScheduleSlotFields = z
+/** Instructor free; workshop or workshop-mirrored instructor → busy. */
+export function resolveInstructorScheduleSlotType(options: {
+  entityType: ScheduleEntityType | string;
+  sourceWorkshopId?: string | null;
+}): InstructorScheduleSlotType {
+  if (options.sourceWorkshopId) {
+    return "busy";
+  }
+  if (options.entityType === ENTITY_SCHEDULE_TYPE_WORKSHOP) {
+    return "busy";
+  }
+  return "free";
+}
+
+export function todayIsoDateLocal(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+const instructorScheduleSlotTimeFields = z
   .object({
-    entity_type: z.enum(ENTITY_SCHEDULE_TYPE_VALUES, {
-      message: "Entity type is required.",
-    }),
-    record_id: z.string().uuid({ message: "Please select an entity." }),
-    name: z
-      .string()
-      .trim()
-      .min(1, { message: "Name is required." })
-      .max(SCHEDULE_SLOT_FIELD_LIMITS.name.max, {
-        message: `Name must be at most ${SCHEDULE_SLOT_FIELD_LIMITS.name.max} characters.`,
-      }),
-    type: z.enum(INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES, {
-      message: "Type is required.",
-    }),
-    slot_date: z
-      .string()
-      .trim()
-      .regex(datePattern, { message: "Date must use YYYY-MM-DD format." }),
     start_time: z
       .string()
       .trim()
@@ -150,10 +174,6 @@ const instructorScheduleSlotFields = z
       .string()
       .trim()
       .regex(timePattern, { message: "End time must use HH:mm format." }),
-    color: z
-      .string()
-      .trim()
-      .regex(hexColorPattern, { message: "Please choose a valid color." }),
   })
   .superRefine((values, context) => {
     const startMinutes = timeToMinutes(values.start_time);
@@ -184,20 +204,66 @@ const instructorScheduleSlotFields = z
     }
   });
 
-export const createInstructorScheduleSlotSchema = instructorScheduleSlotFields;
+/** Client create payload — type and slot_date are set by parse/service. */
+export const createInstructorScheduleSlotSchema = z
+  .object({
+    entity_type: z.enum(ENTITY_SCHEDULE_TYPE_VALUES, {
+      message: "Entity type is required.",
+    }),
+    record_id: z.string().uuid({ message: "Please select an entity." }),
+    name: z
+      .string()
+      .trim()
+      .min(1, { message: "Name is required." })
+      .max(SCHEDULE_SLOT_FIELD_LIMITS.name.max, {
+        message: `Name must be at most ${SCHEDULE_SLOT_FIELD_LIMITS.name.max} characters.`,
+      }),
+    /** Optional: calendar/dup may send; form omits → server uses today. */
+    slot_date: z
+      .string()
+      .trim()
+      .regex(datePattern, { message: "Date must use YYYY-MM-DD format." })
+      .optional(),
+  })
+  .and(instructorScheduleSlotTimeFields);
 
-export const updateInstructorScheduleSlotSchema =
-  instructorScheduleSlotFields.extend({
+export const updateInstructorScheduleSlotSchema = z
+  .object({
     id: z.string().uuid({ message: "Schedule slot id is required." }),
-  });
+    entity_type: z.enum(ENTITY_SCHEDULE_TYPE_VALUES, {
+      message: "Entity type is required.",
+    }),
+    record_id: z.string().uuid({ message: "Please select an entity." }),
+    name: z
+      .string()
+      .trim()
+      .min(1, { message: "Name is required." })
+      .max(SCHEDULE_SLOT_FIELD_LIMITS.name.max, {
+        message: `Name must be at most ${SCHEDULE_SLOT_FIELD_LIMITS.name.max} characters.`,
+      }),
+    type: z.enum(INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES, {
+      message: "Type is required.",
+    }),
+    slot_date: z
+      .string()
+      .trim()
+      .regex(datePattern, { message: "Date must use YYYY-MM-DD format." }),
+  })
+  .and(instructorScheduleSlotTimeFields);
 
 export const instructorScheduleSlotIdSchema = z.object({
   id: z.string().uuid({ message: "Schedule slot id is required." }),
 });
 
-export type CreateInstructorScheduleSlotInput = z.infer<
+export type CreateInstructorScheduleSlotFormInput = z.infer<
   typeof createInstructorScheduleSlotSchema
 >;
+
+export type CreateInstructorScheduleSlotInput =
+  CreateInstructorScheduleSlotFormInput & {
+    type: InstructorScheduleSlotType;
+    slot_date: string;
+  };
 
 export type UpdateInstructorScheduleSlotInput = z.infer<
   typeof updateInstructorScheduleSlotSchema
@@ -216,15 +282,17 @@ export function dayOfWeekFromIsoDate(isoDate: string): number {
 export function parseCreateInstructorScheduleSlotFormData(formData: FormData):
   | { success: true; data: CreateInstructorScheduleSlotInput }
   | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const rawSlotDate = formData.get("slot_date");
   const parsed = createInstructorScheduleSlotSchema.safeParse({
     entity_type: formData.get("entity_type"),
     record_id: formData.get("record_id"),
     name: formData.get("name"),
-    type: formData.get("type"),
-    slot_date: formData.get("slot_date"),
+    slot_date:
+      typeof rawSlotDate === "string" && rawSlotDate.trim() !== ""
+        ? rawSlotDate
+        : undefined,
     start_time: formData.get("start_time"),
     end_time: formData.get("end_time"),
-    color: formData.get("color"),
   });
 
   if (!parsed.success) {
@@ -235,7 +303,19 @@ export function parseCreateInstructorScheduleSlotFormData(formData: FormData):
     };
   }
 
-  return { success: true, data: parsed.data };
+  const slot_date = parsed.data.slot_date ?? todayIsoDateLocal();
+  const type = resolveInstructorScheduleSlotType({
+    entityType: parsed.data.entity_type,
+  });
+
+  return {
+    success: true,
+    data: {
+      ...parsed.data,
+      type,
+      slot_date,
+    },
+  };
 }
 
 export function parseUpdateInstructorScheduleSlotFormData(formData: FormData):
@@ -250,7 +330,6 @@ export function parseUpdateInstructorScheduleSlotFormData(formData: FormData):
     slot_date: formData.get("slot_date"),
     start_time: formData.get("start_time"),
     end_time: formData.get("end_time"),
-    color: formData.get("color"),
   });
 
   if (!parsed.success) {

@@ -304,80 +304,16 @@ describe("createStudentPaymentForManager", () => {
     );
   });
 
-  it("marks SPP paid with credit when overpaid", async () => {
-    vi.mocked(studentPaymentPhaseRepository.findSppById)
-      .mockResolvedValueOnce({
-        data: sppRecord,
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never)
-      .mockResolvedValueOnce({
-        data: sppRecord,
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never);
+  it("rejects amount above the payment phase price", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
     vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
       data: phaseRecord,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(studentPaymentRepository.createStudentPayment).mockResolvedValue({
-      data: { ...paymentRecord, amount: 1200 },
-      error: null,
-      count: null,
-      status: 201,
-      statusText: "Created",
-    } as never);
-    vi.mocked(
-      studentPaymentRepository.listPaymentAmountsBySppIds
-    ).mockResolvedValue({
-      data: [{ student_payment_phase_id: sppId, amount: 1200 }],
-      error: null,
-    } as never);
-    vi.mocked(
-      studentFinancialAdjustmentRepository.listAdjustmentsBySppIds
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials
-    ).mockResolvedValue({
-      data: {
-        ...sppRecord,
-        status: "paid",
-        total_paid: 1200,
-        remaining_amount: -200,
-      },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-    ).mockResolvedValue({
-      data: [
-        {
-          ...sppRecord,
-          status: "paid",
-          total_paid: 1200,
-          remaining_amount: -200,
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue({
-      data: { ...phaseRecord, status: "closed" },
       error: null,
       count: null,
       status: 200,
@@ -398,17 +334,11 @@ describe("createStudentPaymentForManager", () => {
       }
     );
 
-    expect(result.success).toBe(true);
-    expect(
-      studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials
-    ).toHaveBeenCalledWith(
-      adminClient,
-      sppId,
-      expect.objectContaining({
-        status: "paid",
-        remaining_amount: -200,
-      })
-    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors?.amount?.[0]).toMatch(/payment phase price/i);
+    }
+    expect(studentPaymentRepository.createStudentPayment).not.toHaveBeenCalled();
   });
 });
 

@@ -27,7 +27,8 @@ import {
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
   ENTITY_SCHEDULE_TYPE_VALUES,
   ENTITY_SCHEDULE_TYPE_WORKSHOP,
-  normalizeInstructorScheduleSlotColor,
+  getInstructorScheduleSlotDisplayColor,
+  resolveInstructorScheduleSlotType,
   updateInstructorScheduleSlotSchema,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
 } from "@/lib/validators/manager/instructor-schedule-slot";
@@ -147,7 +148,13 @@ function mapSlotRecordToSession(
     dayOfWeek: record.day_of_week,
     startTime: formatTimeForDisplay(record.start_time),
     endTime: formatTimeForDisplay(record.end_time),
-    color: normalizeInstructorScheduleSlotColor(record.color),
+    color: getInstructorScheduleSlotDisplayColor({
+      entityType: isScheduleEntityType(record.entity_type)
+        ? record.entity_type
+        : ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+      recordId: record.record_id,
+      sourceWorkshopId: record.source_workshop_id,
+    }),
     sourceWorkshopId: record.source_workshop_id ?? null,
     sourceSlotId: record.source_slot_id ?? null,
   };
@@ -214,10 +221,6 @@ function mapMutationError(message: string): string {
 
   if (normalized.includes("instructor_schedule_slots_type_check")) {
     return "Type must be free or busy.";
-  }
-
-  if (normalized.includes("instructor_schedule_slots_color_hex_check")) {
-    return "Color must be a valid hex code.";
   }
 
   if (normalized.includes("instructor_schedule_slots_day_of_week_check")) {
@@ -404,11 +407,10 @@ export async function createInstructorScheduleSlotForManager(
     entity_type: string;
     record_id: string;
     name: string;
-    type: string;
-    slot_date: string;
+    type?: string;
+    slot_date?: string;
     start_time: string;
     end_time: string;
-    color: string;
   }
 ): Promise<CreateInstructorScheduleSlotResult> {
   const unauthorized = await getUnauthorizedError(
@@ -420,7 +422,14 @@ export async function createInstructorScheduleSlotForManager(
     return { success: false, error: unauthorized };
   }
 
-  const parsed = createInstructorScheduleSlotSchema.safeParse(input);
+  const parsed = createInstructorScheduleSlotSchema.safeParse({
+    entity_type: input.entity_type,
+    record_id: input.record_id,
+    name: input.name,
+    slot_date: input.slot_date?.trim() ? input.slot_date : undefined,
+    start_time: input.start_time,
+    end_time: input.end_time,
+  });
 
   if (!parsed.success) {
     return {
@@ -440,16 +449,9 @@ export async function createInstructorScheduleSlotForManager(
     return { success: false, error: entityError };
   }
 
-  const {
-    entity_type,
-    record_id,
-    name,
-    type,
-    slot_date,
-    start_time,
-    end_time,
-    color,
-  } = parsed.data;
+  const { entity_type, record_id, name, start_time, end_time } = parsed.data;
+  const type = resolveInstructorScheduleSlotType({ entityType: entity_type });
+  const slot_date = parsed.data.slot_date ?? todayIsoDate();
   const day_of_week = dayOfWeekFromIsoDate(slot_date);
 
   const existingForEntity =
@@ -484,7 +486,6 @@ export async function createInstructorScheduleSlotForManager(
         day_of_week,
         start_time,
         end_time,
-        color: normalizeInstructorScheduleSlotColor(color),
       }
     );
 
@@ -528,7 +529,6 @@ export async function createInstructorScheduleSlotForManager(
       day_of_week: created.day_of_week,
       start_time: created.start_time,
       end_time: created.end_time,
-      color: created.color,
     },
     metadata: { note: "Schedule slot created." },
   });
@@ -553,7 +553,6 @@ export async function updateInstructorScheduleSlotForManager(
     slot_date: string;
     start_time: string;
     end_time: string;
-    color: string;
   }
 ): Promise<UpdateInstructorScheduleSlotResult> {
   const unauthorized = await getUnauthorizedError(
@@ -619,8 +618,11 @@ export async function updateInstructorScheduleSlotForManager(
     }
   }
 
-  const { id, name, type, slot_date, start_time, end_time, color } =
-    parsed.data;
+  const { id, name, slot_date, start_time, end_time } = parsed.data;
+  const type = resolveInstructorScheduleSlotType({
+    entityType: entity_type,
+    sourceWorkshopId: existingSlot.data.source_workshop_id,
+  });
 
   const preservedSlotDate = formatDateOnly(existingSlot.data.slot_date);
   const day_of_week = dayOfWeekFromIsoDate(slot_date);
@@ -659,7 +661,6 @@ export async function updateInstructorScheduleSlotForManager(
         day_of_week,
         start_time,
         end_time,
-        color: normalizeInstructorScheduleSlotColor(color),
         source_workshop_id: existingSlot.data.source_workshop_id ?? null,
         source_slot_id: existingSlot.data.source_slot_id ?? null,
       }
@@ -694,7 +695,6 @@ export async function updateInstructorScheduleSlotForManager(
           day_of_week: existingSlot.data.day_of_week,
           start_time: formatTimeForDisplay(existingSlot.data.start_time),
           end_time: formatTimeForDisplay(existingSlot.data.end_time),
-          color: existingSlot.data.color,
           source_workshop_id: existingSlot.data.source_workshop_id ?? null,
           source_slot_id: existingSlot.data.source_slot_id ?? null,
         }
@@ -720,7 +720,6 @@ export async function updateInstructorScheduleSlotForManager(
       day_of_week: existingSlot.data.day_of_week,
       start_time: existingSlot.data.start_time,
       end_time: existingSlot.data.end_time,
-      color: existingSlot.data.color,
     },
     new_data: {
       entity_type: updated.entity_type,
@@ -731,7 +730,6 @@ export async function updateInstructorScheduleSlotForManager(
       day_of_week: updated.day_of_week,
       start_time: updated.start_time,
       end_time: updated.end_time,
-      color: updated.color,
     },
     metadata: {
       note: "Schedule slot updated.",
@@ -741,7 +739,6 @@ export async function updateInstructorScheduleSlotForManager(
         "day_of_week",
         "start_time",
         "end_time",
-        "color",
       ],
     },
   });
@@ -849,7 +846,6 @@ export async function deleteInstructorScheduleSlotForManager(
       day_of_week: existingSlot.data.day_of_week,
       start_time: existingSlot.data.start_time,
       end_time: existingSlot.data.end_time,
-      color: existingSlot.data.color,
     },
     metadata: { note: "Schedule slot deleted." },
   });

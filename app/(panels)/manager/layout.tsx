@@ -36,8 +36,8 @@ export default async function ManagerLayout({
     redirect(getDashboardRouteForRole(role));
   }
 
-  // Workshop / schedule shared UI still requires the instructor flag.
-  // Manage instructors + AI usage do not (CEO/managers need not be instructors).
+  // Workshop shared UI still requires the instructor flag.
+  // Instructors list, schedules, and AI usage do not (CEO need not be an instructor).
   if (isSharedManagerWorkshopPath(pathname)) {
     const isInstructor = await getSessionIsInstructor();
     if (!isInstructor) {

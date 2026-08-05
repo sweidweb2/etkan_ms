@@ -1,238 +1,56 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { bindGlobalTopLoaderSources } from "@/lib/loaders/bind-global-top-loader";
+import { globalTopLoaderSession } from "@/lib/loaders/global-top-loader-session";
 import { cn } from "@/lib/utils";
 
-const MIN_VISIBLE_MS = 450;
-const FINISH_MS = 280;
-/**
- * Abort only when a click never changes the URL (cancelled / same-page).
- * Must be long enough for slow RSC navigations — path often stays put until
- * the server payload returns.
- */
-const STUCK_ABORT_MS = 60_000;
-
-function isModifiedClick(event: MouseEvent) {
-  return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-}
-
-function getSameOriginPath(href: string): string | null {
-  try {
-    const url = new URL(href, window.location.href);
-    if (url.origin !== window.location.origin) return null;
-    return `${url.pathname}${url.search}`;
-  } catch {
-    return null;
-  }
-}
-
-function currentPath() {
-  return `${window.location.pathname}${window.location.search}`;
-}
-
-type BeginOptions = {
-  /** Sync paint on user click; defer when patching history during React commit. */
-  immediate?: boolean;
-};
+const SERVER_SNAPSHOT = { progress: 0, visible: false } as const;
 
 /**
- * Global top progress bar for App Router navigations (panel + public).
- * Starts on internal link clicks and history.pushState (router.push).
- * Stays visible until the route settles, with a minimum display time.
+ * Global top progress bar for App Router navigations, RSC fetches (incl.
+ * refresh), and server actions. Mount once in the root layout.
  */
 export function RouteTopLoader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const routeKey = `${pathname}?${searchParams.toString()}`;
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFinishing, setIsFinishing] = useState(false);
-
   const routeKeyRef = useRef(routeKey);
-  const navTokenRef = useRef(0);
-  const startedAtRef = useRef(0);
-  const pathAtStartRef = useRef("");
-  const finishTimerRef = useRef<number | null>(null);
-  const showTimerRef = useRef<number | null>(null);
-  const settleTimerRef = useRef<number | null>(null);
-  const stuckTimerRef = useRef<number | null>(null);
+  const notifyRouteSettledRef = useRef<(() => void) | null>(null);
 
-  const clearTimer = (ref: { current: number | null }) => {
-    if (ref.current !== null) {
-      window.clearTimeout(ref.current);
-      ref.current = null;
-    }
-  };
+  const snapshot = useSyncExternalStore(
+    globalTopLoaderSession.subscribe,
+    globalTopLoaderSession.getSnapshot,
+    () => SERVER_SNAPSHOT
+  );
 
-  const reset = () => {
-    clearTimer(finishTimerRef);
-    clearTimer(settleTimerRef);
-    clearTimer(showTimerRef);
-    clearTimer(stuckTimerRef);
-    setIsLoading(false);
-    setIsFinishing(false);
-    navTokenRef.current = 0;
-  };
-
-  const begin = (options?: BeginOptions) => {
-    clearTimer(finishTimerRef);
-    clearTimer(settleTimerRef);
-    clearTimer(showTimerRef);
-    clearTimer(stuckTimerRef);
-
-    const token = ++navTokenRef.current;
-    startedAtRef.current = Date.now();
-    pathAtStartRef.current = currentPath();
-
-    const show = () => {
-      if (navTokenRef.current !== token) return;
-      setIsFinishing(false);
-      setIsLoading(true);
-    };
-
-    if (options?.immediate) {
-      show();
-    } else {
-      // Defer — Next may invoke pushState inside useInsertionEffect.
-      showTimerRef.current = window.setTimeout(show, 0);
-    }
-
-    stuckTimerRef.current = window.setTimeout(() => {
-      if (navTokenRef.current !== token) return;
-      // Still on the same URL → navigation never started (prevented click).
-      // If the path changed, settle should have called end(); leave alone.
-      if (currentPath() === pathAtStartRef.current) {
-        reset();
-      }
-    }, STUCK_ABORT_MS);
-  };
-
-  const end = () => {
-    const token = navTokenRef.current;
-    if (token === 0) return;
-
-    clearTimer(settleTimerRef);
-    clearTimer(stuckTimerRef);
-
-    const elapsed = Date.now() - startedAtRef.current;
-    const waitForMin = Math.max(0, MIN_VISIBLE_MS - elapsed);
-
-    settleTimerRef.current = window.setTimeout(() => {
-      if (navTokenRef.current !== token) return;
-
-      setIsFinishing(true);
-      setIsLoading(false);
-
-      clearTimer(finishTimerRef);
-      finishTimerRef.current = window.setTimeout(() => {
-        if (navTokenRef.current !== token) return;
-        setIsFinishing(false);
-        navTokenRef.current = 0;
-      }, FINISH_MS);
-    }, waitForMin);
-  };
-
-  // Capture phase: start the bar the moment the user clicks, before React handlers.
   useEffect(() => {
-    const onClick = (event: MouseEvent) => {
-      if (event.button !== 0 || isModifiedClick(event) || event.defaultPrevented) {
-        return;
-      }
-
-      const el = event.target;
-      if (!(el instanceof Element)) return;
-
-      const anchor = el.closest("a");
-      if (!(anchor instanceof HTMLAnchorElement)) return;
-      if (anchor.target && anchor.target !== "_self") return;
-      if (anchor.hasAttribute("download")) return;
-
-      const href = anchor.getAttribute("href");
-      if (
-        !href ||
-        href.startsWith("#") ||
-        href.startsWith("mailto:") ||
-        href.startsWith("tel:")
-      ) {
-        return;
-      }
-
-      const next = getSameOriginPath(href);
-      if (!next || next === currentPath()) return;
-
-      begin({ immediate: true });
-    };
-
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
-  }, []);
-
-  // router.push / back / forward
-  useEffect(() => {
-    const onPopState = () => {
-      begin();
-    };
-    window.addEventListener("popstate", onPopState);
-
-    const originalPushState = window.history.pushState.bind(window.history);
-    window.history.pushState = ((data, unused, url) => {
-      const prev = currentPath();
-      const result = originalPushState(data, unused, url);
-      if (url != null) {
-        const next = getSameOriginPath(String(url));
-        if (next && next !== prev) {
-          begin();
-        }
-      }
-      return result;
-    }) as History["pushState"];
-
+    const binding = bindGlobalTopLoaderSources();
+    notifyRouteSettledRef.current = binding.notifyRouteSettled;
     return () => {
-      window.removeEventListener("popstate", onPopState);
-      window.history.pushState = originalPushState;
+      notifyRouteSettledRef.current = null;
+      binding.cleanup();
     };
   }, []);
 
-  // Route settled → ensure loader ran, then finish after minimum visible time.
   useEffect(() => {
     if (routeKeyRef.current === routeKey) return;
     routeKeyRef.current = routeKey;
-
-    // Fallback when click/pushState did not start the loader (still show on settle).
-    if (navTokenRef.current === 0) {
-      begin();
-    }
-    end();
+    notifyRouteSettledRef.current?.();
   }, [routeKey]);
-
-  useEffect(() => {
-    return () => {
-      clearTimer(finishTimerRef);
-      clearTimer(showTimerRef);
-      clearTimer(settleTimerRef);
-      clearTimer(stuckTimerRef);
-    };
-  }, []);
-
-  const isVisible = isLoading || isFinishing;
 
   return (
     <div
       className={cn(
-        "pointer-events-none fixed inset-x-0 top-0 z-[200] h-1 transition-opacity duration-150",
-        isVisible ? "opacity-100" : "opacity-0"
+        "pointer-events-none fixed inset-x-0 top-0 z-[200] h-1 transition-opacity duration-200",
+        snapshot.visible ? "opacity-100" : "opacity-0"
       )}
       aria-hidden
     >
       <div
-        className={cn(
-          "route-top-loader-bar h-full bg-white",
-          "shadow-[0_0_0_1px_var(--primary),0_0_8px_rgba(62,62,117,0.5)]",
-          "dark:bg-[#C4C4E8] dark:shadow-[0_0_0_1px_var(--primary),0_0_8px_rgba(154,154,208,0.55)]",
-          isLoading && "route-top-loader-bar-active",
-          isFinishing && "route-top-loader-bar-finishing"
-        )}
+        className="h-full origin-left bg-white shadow-[0_0_0_1px_var(--primary),0_0_8px_rgba(62,62,117,0.5)] transition-transform duration-200 ease-out dark:bg-[#C4C4E8] dark:shadow-[0_0_0_1px_var(--primary),0_0_8px_rgba(154,154,208,0.55)]"
+        style={{ transform: `scaleX(${snapshot.progress / 100})` }}
       />
     </div>
   );

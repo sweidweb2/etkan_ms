@@ -24,8 +24,8 @@ export const createStudentPaymentSchema = z.object({
       message: "Payment date must be YYYY-MM-DD.",
     }),
   amount: z.coerce
-    .number()
-    .min(0, { message: "Amount must be 0 or greater." })
+    .number({ message: "Amount is required." })
+    .gt(0, { message: "Amount must be greater than 0." })
     .max(1_000_000, { message: "Amount must be at most 1,000,000." }),
   payment_method: z.enum(PAYMENT_METHOD_VALUES, {
     message: "Payment method is required.",
@@ -36,12 +36,6 @@ export const createStudentPaymentSchema = z.object({
     .min(1, { message: "Received by is required." })
     .max(120, { message: "Received by must be at most 120 characters." }),
   received_by_management: z.boolean(),
-  receipt_number: z
-    .string()
-    .trim()
-    .max(80, { message: "Receipt number must be at most 80 characters." })
-    .optional()
-    .or(z.literal("")),
   notes: z
     .string()
     .trim()
@@ -53,6 +47,20 @@ export const createStudentPaymentSchema = z.object({
 export type CreateStudentPaymentInput = z.infer<
   typeof createStudentPaymentSchema
 >;
+
+/** Client-side schema that also caps amount at the payment phase price. */
+export function createStudentPaymentFormSchema(maxAmount: number) {
+  return createStudentPaymentSchema.superRefine((data, ctx) => {
+    if (data.amount > maxAmount) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["amount"],
+        message:
+          "Amount must be greater than 0 and at most the payment phase price.",
+      });
+    }
+  });
+}
 
 export function parseCreateStudentPaymentFormData(formData: FormData):
   | { success: true; data: CreateStudentPaymentInput }
@@ -66,7 +74,6 @@ export function parseCreateStudentPaymentFormData(formData: FormData):
     received_by_management: parseManagementFlag(
       formData.get("received_by_management")
     ),
-    receipt_number: formData.get("receipt_number") ?? "",
     notes: formData.get("notes") ?? "",
   });
 

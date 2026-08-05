@@ -8,7 +8,7 @@ import {
 import { ROUTES } from "@/lib/constants/routes";
 
 describe("shared manager routes", () => {
-  it("matches workshops list, detail, payments, and instructor schedules", () => {
+  it("matches workshops list, detail, and payments as workshop paths", () => {
     expect(isSharedManagerWorkshopPath(ROUTES.MANAGER_WORKSHOPS)).toBe(true);
     expect(isSharedManagerWorkshopPath("/manager/workshops/abc-123")).toBe(
       true
@@ -18,10 +18,10 @@ describe("shared manager routes", () => {
     );
     expect(
       isSharedManagerWorkshopPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES)
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isSharedManagerWorkshopPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES_DETAILS)
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("matches manage instructors", () => {
@@ -29,6 +29,15 @@ describe("shared manager routes", () => {
       true
     );
     expect(isSharedManagerPath(ROUTES.MANAGER_INSTRUCTORS)).toBe(true);
+  });
+
+  it("matches instructor schedules without requiring workshop instructor flag", () => {
+    expect(isSharedManagerPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES)).toBe(
+      true
+    );
+    expect(
+      isSharedManagerPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES_DETAILS)
+    ).toBe(true);
   });
 
   it("matches cloudflare AI usage", () => {
