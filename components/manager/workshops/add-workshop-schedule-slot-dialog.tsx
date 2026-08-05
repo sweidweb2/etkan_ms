@@ -20,6 +20,7 @@ import {
   ENTITY_SCHEDULE_TYPE_WORKSHOP,
   resolveInstructorScheduleSlotType,
   todayIsoDateLocal,
+  type CreateInstructorScheduleSlotFormInput,
   type CreateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 
@@ -90,14 +91,7 @@ export function AddWorkshopScheduleSlotDialog({
     });
   }, [open, workshopId, workshopName, nextSessionNumber, reset]);
 
-  function onSubmit(values: {
-    entity_type: typeof ENTITY_SCHEDULE_TYPE_WORKSHOP;
-    record_id: string;
-    name: string;
-    start_time: string;
-    end_time: string;
-    slot_date?: string;
-  }) {
+  function onSubmit(values: CreateInstructorScheduleSlotFormInput) {
     const payload: CreateInstructorScheduleSlotInput = {
       entity_type: ENTITY_SCHEDULE_TYPE_WORKSHOP,
       record_id: workshopId,
