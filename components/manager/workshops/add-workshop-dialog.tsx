@@ -48,12 +48,12 @@ const emptyDefaults = {
   name: "",
   type: WORKSHOP_OFFERING_TYPES.WORKSHOP,
   phone: "",
-  subject: "",
+  subject: "ardiuno",
   target_audience: "",
   proposal_notes: "",
   delivery_place: "",
   nb_participants: "" as unknown as number | null,
-  price: "" as unknown as number | null,
+  price: 200 as unknown as number | null,
   start_date: "",
   end_date: "",
 };
@@ -233,25 +233,24 @@ export function AddWorkshopDialog({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-workshop-subject"
-              label="Subject"
-              hint="Optional"
-            />
-            <Input
-              id="add-workshop-subject"
-              maxLength={WORKSHOP_FIELD_LIMITS.subject.max}
-              aria-invalid={!!subjectError}
-              disabled={isPending}
-              {...register("subject")}
-            />
-            {subjectError ? (
-              <p className="text-sm text-destructive">{subjectError}</p>
-            ) : null}
-          </div>
-
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="add-workshop-subject"
+                label="Subject"
+                hint="Optional"
+              />
+              <Input
+                id="add-workshop-subject"
+                maxLength={WORKSHOP_FIELD_LIMITS.subject.max}
+                aria-invalid={!!subjectError}
+                disabled={isPending}
+                {...register("subject")}
+              />
+              {subjectError ? (
+                <p className="text-sm text-destructive">{subjectError}</p>
+              ) : null}
+            </div>
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="add-workshop-participants"
@@ -271,27 +270,6 @@ export function AddWorkshopDialog({
                 <p className="text-sm text-destructive">{participantsError}</p>
               ) : null}
             </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-workshop-price"
-              label="Price"
-              hint="Optional"
-            />
-            <Input
-              id="add-workshop-price"
-              type="number"
-              min={WORKSHOP_FIELD_LIMITS.price.min}
-              max={WORKSHOP_FIELD_LIMITS.price.max}
-              step="0.01"
-              aria-invalid={!!priceError}
-              disabled={isPending}
-              {...register("price")}
-            />
-            {priceError ? (
-              <p className="text-sm text-destructive">{priceError}</p>
-            ) : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -331,22 +309,44 @@ export function AddWorkshopDialog({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-workshop-audience"
-              label="Target audience"
-              hint="Optional"
-            />
-            <Input
-              id="add-workshop-audience"
-              maxLength={WORKSHOP_FIELD_LIMITS.target_audience.max}
-              aria-invalid={!!audienceError}
-              disabled={isPending}
-              {...register("target_audience")}
-            />
-            {audienceError ? (
-              <p className="text-sm text-destructive">{audienceError}</p>
-            ) : null}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="add-workshop-audience"
+                label="Target audience"
+                hint="Optional"
+              />
+              <Input
+                id="add-workshop-audience"
+                maxLength={WORKSHOP_FIELD_LIMITS.target_audience.max}
+                aria-invalid={!!audienceError}
+                disabled={isPending}
+                {...register("target_audience")}
+              />
+              {audienceError ? (
+                <p className="text-sm text-destructive">{audienceError}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="add-workshop-price"
+                label="Price"
+                hint="Optional"
+              />
+              <Input
+                id="add-workshop-price"
+                type="number"
+                min={WORKSHOP_FIELD_LIMITS.price.min}
+                max={WORKSHOP_FIELD_LIMITS.price.max}
+                step="0.01"
+                aria-invalid={!!priceError}
+                disabled={isPending}
+                {...register("price")}
+              />
+              {priceError ? (
+                <p className="text-sm text-destructive">{priceError}</p>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">

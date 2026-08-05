@@ -20,11 +20,8 @@ import dayGridPlugin from "@fullcalendar/react/daygrid";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
 import listPlugin from "@fullcalendar/react/list";
 import {
-  CircleCheckIcon,
-  CircleXIcon,
   ListIcon,
   PlusIcon,
-  type LucideIcon,
 } from "lucide-react";
 import {
   createInstructorScheduleSlotAction,
@@ -77,14 +74,11 @@ import {
   ENTITY_SCHEDULE_TYPE_WORKSHOP,
   getInstructorScheduleSlotDisplayColor,
   getInstructorScheduleSlotStrongColor,
-  INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS,
-  INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
   resolveInstructorScheduleSlotType,
   type CreateInstructorScheduleSlotInput,
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
-  InstructorScheduleSlotType,
   ManagerInstructorScheduleSession,
   ManagerInstructorSchedulesPageData,
   ScheduleEntityType,
@@ -158,23 +152,15 @@ function actionErrorMessage(
   return firstFieldError(result.fieldErrors) ?? result.error ?? fallback;
 }
 
-type ScheduleTypeFilter = "all" | InstructorScheduleSlotType;
-type EntityBrowseKind = "instructor" | "workshop";
+type EntityBrowseKind = "all" | "instructor" | "workshop";
 
 const ENTITY_FILTER_ALL = "all";
 
-const TYPE_FILTER_OPTIONS: { value: ScheduleTypeFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  ...INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES.map((type) => ({
-    value: type,
-    label: INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS[type],
-  })),
+const ENTITY_BROWSE_OPTIONS: { kind: EntityBrowseKind; label: string }[] = [
+  { kind: "all", label: "All" },
+  { kind: "instructor", label: "Instructors" },
+  { kind: "workshop", label: "Workshops" },
 ];
-
-const TYPE_STAT_ICONS: Record<InstructorScheduleSlotType, LucideIcon> = {
-  free: CircleCheckIcon,
-  busy: CircleXIcon,
-};
 
 type DragSourceSnapshot = {
   session: ManagerInstructorScheduleSession;
@@ -374,12 +360,12 @@ export function InstructorSchedulesPanel({
   const [, startTransition] = useTransition();
 
   const [sessions, setSessions] = React.useState(data.sessions);
-  /** Empty = All entities. At most one instructor/workshop key selected. */
+  /** Empty = all within the current browse kind. At most one entity key selected. */
   const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
     []
   );
   const [entityBrowseKind, setEntityBrowseKind] =
-    React.useState<EntityBrowseKind>("instructor");
+    React.useState<EntityBrowseKind>("all");
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [createDefaults, setCreateDefaults] =
@@ -392,7 +378,6 @@ export function InstructorSchedulesPanel({
     getSundayWeekBounds(formatDateFromDate(new Date())).weekStart
   );
   const [isAltDuplicating, setIsAltDuplicating] = React.useState(false);
-  const [typeFilter, setTypeFilter] = React.useState<ScheduleTypeFilter>("all");
   const isAltDupDragRef = useRef(false);
   const dragSourceRef = useRef<DragSourceSnapshot | null>(null);
   const pendingTempIdsRef = useRef<Set<string>>(new Set());
@@ -435,12 +420,72 @@ export function InstructorSchedulesPanel({
     setSelectedEntityKeys(resolvedEntityKeys);
   }
 
-  const isAllEntitiesSelected = resolvedEntityKeys.length === 0;
+  const isCategoryWideSelection = resolvedEntityKeys.length === 0;
   const selectedEntityKeySet = useMemo(
     () => new Set(resolvedEntityKeys),
     [resolvedEntityKeys]
   );
+  const showWorkshopBrowse = data.workshops.length > 0;
+  const effectiveBrowseKind: EntityBrowseKind =
+    entityBrowseKind === "workshop" && !showWorkshopBrowse
+      ? "all"
+      : entityBrowseKind;
+  const isAllBrowseSelected = effectiveBrowseKind === "all";
+  const entitySelectValue = useMemo(() => {
+    if (isAllBrowseSelected || resolvedEntityKeys.length !== 1) {
+      return ENTITY_FILTER_ALL;
+    }
+    const parsed = parseEntityFilterKey(resolvedEntityKeys[0]!);
+    if (parsed?.kind !== effectiveBrowseKind) {
+      return ENTITY_FILTER_ALL;
+    }
+    return resolvedEntityKeys[0]!;
+  }, [resolvedEntityKeys, effectiveBrowseKind, isAllBrowseSelected]);
+  const entitySelectLabel = useMemo(() => {
+    if (isAllBrowseSelected) {
+      return "All schedules";
+    }
+    if (entitySelectValue === ENTITY_FILTER_ALL) {
+      return effectiveBrowseKind === "instructor"
+        ? "All instructors"
+        : "All workshops";
+    }
+    const parsed = parseEntityFilterKey(entitySelectValue);
+    if (!parsed) {
+      return entitySelectValue;
+    }
+    if (parsed.kind === "instructor") {
+      return (
+        data.instructors.find((instructor) => instructor.id === parsed.id)
+          ?.username ?? "Unknown"
+      );
+    }
+    return (
+      data.workshops.find((workshop) => workshop.id === parsed.id)?.name ??
+      "Unknown"
+    );
+  }, [
+    entitySelectValue,
+    effectiveBrowseKind,
+    isAllBrowseSelected,
+    data.instructors,
+    data.workshops,
+  ]);
   const canCreateOnCalendar = canCreate;
+
+  function handleEntityBrowseKindChange(kind: EntityBrowseKind) {
+    setEntityBrowseKind(kind);
+    setSelectedEntityKeys([]);
+  }
+
+  function handleEntitySelectChange(value: string | null) {
+    const next = value ?? ENTITY_FILTER_ALL;
+    if (next === ENTITY_FILTER_ALL) {
+      setSelectedEntityKeys([]);
+      return;
+    }
+    setSelectedEntityKeys([next]);
+  }
 
   const eligibleWorkshops = useMemo(
     () => data.workshops.filter((workshop) => workshop.eligible_for_create),
@@ -508,9 +553,16 @@ export function InstructorSchedulesPanel({
   }, [createDefaults, resolvedEntityKeys]);
 
   const filteredSessions = useMemo(() => {
-    if (isAllEntitiesSelected) {
+    if (effectiveBrowseKind === "all") {
       return sessions;
     }
+
+    if (isCategoryWideSelection) {
+      return sessions.filter(
+        (session) => session.entityType === effectiveBrowseKind
+      );
+    }
+
     return sessions.filter((session) =>
       selectedEntityKeySet.has(
         entityFilterKey({
@@ -519,14 +571,15 @@ export function InstructorSchedulesPanel({
         })
       )
     );
-  }, [sessions, isAllEntitiesSelected, selectedEntityKeySet]);
+  }, [
+    sessions,
+    effectiveBrowseKind,
+    isCategoryWideSelection,
+    selectedEntityKeySet,
+  ]);
 
   const events = useMemo<EventInput[]>(() => {
-    const filtered =
-      typeFilter === "all"
-        ? filteredSessions
-        : filteredSessions.filter((session) => session.type === typeFilter);
-    return instructorScheduleSessionsToEvents(filtered, {
+    return instructorScheduleSessionsToEvents(filteredSessions, {
       weekStart,
       includeEntityInTitle: resolvedEntityKeys.length !== 1,
       entityLabelByKey,
@@ -534,25 +587,11 @@ export function InstructorSchedulesPanel({
     });
   }, [
     filteredSessions,
-    typeFilter,
     weekStart,
     resolvedEntityKeys.length,
     entityLabelByKey,
     workshopBoundsById,
   ]);
-
-  const weekTypeCounts = useMemo(() => {
-    const counts: Record<InstructorScheduleSlotType, number> = {
-      free: 0,
-      busy: 0,
-    };
-
-    for (const session of filteredSessions) {
-      counts[session.type] += 1;
-    }
-
-    return counts;
-  }, [filteredSessions]);
 
   const selectedSessionEntityLabel = selectedSession
     ? entityLabelByKey.get(
@@ -566,12 +605,6 @@ export function InstructorSchedulesPanel({
 
   function untrackPendingTemp(tempId: string) {
     pendingTempIdsRef.current.delete(tempId);
-  }
-
-  function ensureCreatedTypeVisible(type: InstructorScheduleSlotType) {
-    if (typeFilter !== "all" && typeFilter !== type) {
-      setTypeFilter(type);
-    }
   }
 
   function showDuplicateGhost(snapshot: DragSourceSnapshot) {
@@ -673,7 +706,6 @@ export function InstructorSchedulesPanel({
     const tempId = makeTempId();
     const optimistic = sessionFromCreateInput(values, tempId);
     trackPendingTemp(tempId);
-    ensureCreatedTypeVisible(values.type);
     setSessions((prev) => [...prev, optimistic]);
 
     const result = await createInstructorScheduleSlotAction(
@@ -1204,76 +1236,23 @@ export function InstructorSchedulesPanel({
         <ScheduleAssistantPrompt />
       </Can>
 
-      <div className="flex max-w-full flex-col gap-2">
-        <div
-          role="group"
-          aria-label="Filter by instructor"
-          className="inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 [scrollbar-width:thin]"
-        >
-          <button
-            type="button"
-            aria-pressed={isAllEntitiesSelected}
-            onClick={() => setSelectedEntityKeys([])}
-            className={cn(
-              "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
-              "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-              isAllEntitiesSelected &&
-                "border-border bg-background text-foreground shadow-sm"
-            )}
-          >
-            All
-          </button>
-          {data.instructors.map((instructor) => {
-            const tabKey = entityFilterKey({
-              kind: "instructor",
-              id: instructor.id,
-            });
-            const selected = selectedEntityKeySet.has(tabKey);
-            return (
-              <button
-                key={tabKey}
-                type="button"
-                aria-pressed={selected}
-                onClick={() =>
-                  setSelectedEntityKeys((prev) =>
-                    toggleEntityFilterKey(prev, tabKey)
-                  )
-                }
-                className={cn(
-                  "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
-                  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-                  selected &&
-                    "border-border bg-background text-foreground shadow-sm"
-                )}
-              >
-                {instructor.username ?? "Unknown"}
-              </button>
-            );
-          })}
-        </div>
-
-        {data.workshops.length > 0 ? (
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div
             role="group"
-            aria-label="Filter by workshop"
-            className="inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 [scrollbar-width:thin]"
+            aria-label="Filter by entity type"
+            className="inline-flex w-fit items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
           >
-            {data.workshops.map((workshop) => {
-              const tabKey = entityFilterKey({
-                kind: "workshop",
-                id: workshop.id,
-              });
-              const selected = selectedEntityKeySet.has(tabKey);
+            {ENTITY_BROWSE_OPTIONS.filter(
+              (option) => option.kind !== "workshop" || showWorkshopBrowse
+            ).map((option) => {
+              const selected = effectiveBrowseKind === option.kind;
               return (
                 <button
-                  key={tabKey}
+                  key={option.kind}
                   type="button"
                   aria-pressed={selected}
-                  onClick={() =>
-                    setSelectedEntityKeys((prev) =>
-                      toggleEntityFilterKey(prev, tabKey)
-                    )
-                  }
+                  onClick={() => handleEntityBrowseKindChange(option.kind)}
                   className={cn(
                     "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
                     "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
@@ -1281,79 +1260,77 @@ export function InstructorSchedulesPanel({
                       "border-border bg-background text-foreground shadow-sm"
                   )}
                 >
-                  {workshop.name}
+                  {option.label}
                 </button>
               );
             })}
           </div>
-        ) : null}
-      </div>
 
-      <div className="flex flex-col items-stretch gap-3 sm:grid sm:grid-cols-3 sm:items-center">
-        <div
-          aria-label="Slot counts"
-          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:justify-self-start"
-        >
-          {INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES.map((type) => {
-            const Icon = TYPE_STAT_ICONS[type];
-            const count = weekTypeCounts[type];
-            return (
-              <div
-                key={type}
-                className="inline-flex items-center gap-1.5 rounded-full border border-transparent px-3.5 py-1.5 text-sm text-muted-foreground"
-              >
-                <Icon className="size-3.5 shrink-0" aria-hidden />
-                <span className="font-semibold tabular-nums text-foreground">
-                  {count}
-                </span>
-                <span className="font-medium">
-                  {INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS[type]}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex shrink-0 flex-row flex-wrap items-center justify-center gap-2 sm:justify-self-center">
-          <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
-            <Button
-              type="button"
+          <Select
+            value={entitySelectValue}
+            onValueChange={handleEntitySelectChange}
+            disabled={isAllBrowseSelected}
+          >
+            <SelectTrigger
               size="sm"
-              disabled={!canCreate}
-              onClick={() => openCreate(null)}
+              className="min-w-40 max-w-full sm:min-w-48"
+              aria-label={
+                isAllBrowseSelected
+                  ? "All schedules"
+                  : effectiveBrowseKind === "instructor"
+                    ? "Filter by instructor"
+                    : "Filter by workshop"
+              }
             >
-              <PlusIcon data-icon="inline-start" />
-              Add slot
-            </Button>
-          </Can>
+              <SelectValue placeholder="All schedules">
+                {entitySelectLabel}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value={ENTITY_FILTER_ALL}>
+                {effectiveBrowseKind === "instructor"
+                  ? "All instructors"
+                  : "All workshops"}
+              </SelectItem>
+              {effectiveBrowseKind === "instructor"
+                ? data.instructors.map((instructor) => (
+                    <SelectItem
+                      key={instructor.id}
+                      value={entityFilterKey({
+                        kind: "instructor",
+                        id: instructor.id,
+                      })}
+                    >
+                      {instructor.username ?? "Unknown"}
+                    </SelectItem>
+                  ))
+                : data.workshops.map((workshop) => (
+                    <SelectItem
+                      key={workshop.id}
+                      value={entityFilterKey({
+                        kind: "workshop",
+                        id: workshop.id,
+                      })}
+                    >
+                      {workshop.name}
+                    </SelectItem>
+                  ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div
-          role="tablist"
-          aria-label="Filter by slot type"
-          className="inline-flex w-fit max-w-full flex-wrap items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:justify-self-end"
-        >
-          {TYPE_FILTER_OPTIONS.map((option) => {
-            const selected = typeFilter === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setTypeFilter(option.value)}
-                className={cn(
-                  "inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
-                  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-                  selected &&
-                    "border-border bg-background text-foreground shadow-sm"
-                )}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
+        <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
+          <Button
+            type="button"
+            size="sm"
+            className="shrink-0 self-start sm:self-auto"
+            disabled={!canCreate}
+            onClick={() => openCreate(null)}
+          >
+            <PlusIcon data-icon="inline-start" />
+            Add slot
+          </Button>
+        </Can>
       </div>
 
       <AddInstructorScheduleSlotDialog
@@ -1422,7 +1399,7 @@ export function InstructorSchedulesPanel({
 
       <div
         className={cn(
-          "fc-schedule-theme min-h-[42rem]",
+          "fc-schedule-theme fc-schedule-theme--compact-days min-h-0",
           isAltDuplicating && "is-alt-duplicating"
         )}
       >
@@ -1436,20 +1413,16 @@ export function InstructorSchedulesPanel({
             listPlugin,
           ]}
           initialView="timeGridWeek"
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "timeGridWeek,timeGridDay,dayGridMonth,listWeek",
-          }}
+          headerToolbar={false}
           firstDay={0}
           height="auto"
-          expandRows
+          expandRows={false}
           nowIndicator
           weekends
-          slotMinTime="05:00:00"
+          slotMinTime="08:00:00"
           slotMaxTime="24:00:00"
           slotDuration="00:30:00"
-          scrollTime="07:00:00"
+          scrollTime="08:00:00"
           allDaySlot={false}
           events={events}
           editable={canCreateOnCalendar || canUpdate}

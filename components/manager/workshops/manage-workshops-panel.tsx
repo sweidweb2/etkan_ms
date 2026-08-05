@@ -152,43 +152,44 @@ export function ManageWorkshopsPanel({
             Create and manage workshop offerings.
           </p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              aria-label="Workshop actions"
-            >
-              <MoreHorizontalIcon />
+        <div className="flex shrink-0 items-center gap-2">
+          <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
+            <Button type="button" onClick={() => setIsCreateOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add workshop
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW}>
-              <DropdownMenuItem asChild>
-                <Link href={ROUTES.MANAGER_WORKSHOPS_PAYMENTS}>
-                  <ReceiptIcon />
-                  Total payments
-                </Link>
-              </DropdownMenuItem>
-            </Can>
-            <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
-              <DropdownMenuItem asChild>
-                <Link href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}>
-                  <CalendarDaysIcon />
-                  View schedule
-                </Link>
-              </DropdownMenuItem>
-            </Can>
-            <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
-              <DropdownMenuItem onClick={() => setIsCreateOpen(true)}>
-                <PlusIcon />
-                Create workshop
-              </DropdownMenuItem>
-            </Can>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </Can>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Workshop actions"
+              >
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW}>
+                <DropdownMenuItem asChild>
+                  <Link href={ROUTES.MANAGER_WORKSHOPS_PAYMENTS}>
+                    <ReceiptIcon />
+                    Total payments
+                  </Link>
+                </DropdownMenuItem>
+              </Can>
+              <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+                <DropdownMenuItem asChild>
+                  <Link href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}>
+                    <CalendarDaysIcon />
+                    View schedule
+                  </Link>
+                </DropdownMenuItem>
+              </Can>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <TabsPrimitive

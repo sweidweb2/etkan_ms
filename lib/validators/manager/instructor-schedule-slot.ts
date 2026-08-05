@@ -104,21 +104,84 @@ export function getInstructorScheduleSlotStrongColor(
   ];
 }
 
-function hashToPresetColor(seed: string): string {
+function hashSeed(seed: string): number {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
     hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   }
-  return INSTRUCTOR_SCHEDULE_SLOT_COLORS[
-    hash % INSTRUCTOR_SCHEDULE_SLOT_COLORS.length
-  ];
+  return hash;
+}
+
+function clampByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function hslToHex(hue: number, saturation: number, lightness: number): string {
+  const s = saturation / 100;
+  const l = lightness / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  if (hue < 60) {
+    r = c;
+    g = x;
+  } else if (hue < 120) {
+    r = x;
+    g = c;
+  } else if (hue < 180) {
+    g = c;
+    b = x;
+  } else if (hue < 240) {
+    g = x;
+    b = c;
+  } else if (hue < 300) {
+    r = x;
+    b = c;
+  } else {
+    r = c;
+    b = x;
+  }
+
+  const toHex = (channel: number) =>
+    clampByte((channel + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
 }
 
 /**
- * Display-only pastel color:
+ * Disjoint hue bands so All-view categories never collide:
+ * - instructor free slots → cool blues/cyans
+ * - workshop entity slots → greens/ambers
+ * - instructor slots mirrored from workshops → violets/roses
+ */
+const DISPLAY_COLOR_BANDS = {
+  instructor: { start: 185, span: 55 },
+  workshop: { start: 55, span: 70 },
+  mirror: { start: 285, span: 70 },
+} as const;
+
+type DisplayColorCategory = keyof typeof DISPLAY_COLOR_BANDS;
+
+function hashToCategoryColor(category: DisplayColorCategory, id: string): string {
+  const hash = hashSeed(`${category}:${id}`);
+  const band = DISPLAY_COLOR_BANDS[category];
+  const hue = band.start + (hash % band.span);
+  const saturation = 58 + (hash % 18);
+  const lightness = 78 + ((hash >>> 8) % 8);
+  return hslToHex(hue, saturation, lightness);
+}
+
+/**
+ * Display-only pastel color (categories use disjoint palettes):
  * - instructor (no workshop link) → stable per instructor
  * - workshop entity → stable per workshop
- * - instructor mirrored from a workshop → same color as that workshop
+ * - instructor mirrored from a workshop → stable per workshop, distinct from workshop entity color
  */
 export function getInstructorScheduleSlotDisplayColor(options: {
   entityType: ScheduleEntityType | string;
@@ -126,12 +189,12 @@ export function getInstructorScheduleSlotDisplayColor(options: {
   sourceWorkshopId?: string | null;
 }): string {
   if (options.sourceWorkshopId) {
-    return hashToPresetColor(`workshop:${options.sourceWorkshopId}`);
+    return hashToCategoryColor("mirror", options.sourceWorkshopId);
   }
   if (options.entityType === ENTITY_SCHEDULE_TYPE_WORKSHOP) {
-    return hashToPresetColor(`workshop:${options.recordId}`);
+    return hashToCategoryColor("workshop", options.recordId);
   }
-  return hashToPresetColor(`instructor:${options.recordId}`);
+  return hashToCategoryColor("instructor", options.recordId);
 }
 
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;

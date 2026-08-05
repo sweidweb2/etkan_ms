@@ -4,13 +4,20 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
-import { CalendarDaysIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import {
+  CalendarDaysIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
+import {
+  createInstructorScheduleSlotAction,
   deleteInstructorScheduleSlotAction,
   updateInstructorScheduleSlotAction,
 } from "@/app/manager/instructor-schedules/actions";
 import { Can } from "@/components/auth/can";
 import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
+import { AddWorkshopScheduleSlotDialog } from "@/components/manager/workshops/add-workshop-schedule-slot-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -29,10 +36,14 @@ import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
   dayOfWeekFromIsoDate,
+  ENTITY_SCHEDULE_TYPE_WORKSHOP,
+  getInstructorScheduleSlotDisplayColor,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS,
+  type CreateInstructorScheduleSlotInput,
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
+  CreateInstructorScheduleSlotActionState,
   ManagerInstructorScheduleSession,
   UpdateInstructorScheduleSlotActionState,
 } from "@/types/manager-instructor-schedule";
@@ -46,6 +57,8 @@ const WEEKDAY_LABELS = [
   "Friday",
   "Saturday",
 ] as const;
+
+const TEMP_SLOT_ID_PREFIX = "__temp_workshop_slot_";
 
 type WorkshopScheduleSlotsSectionProps = {
   workshopId: string;
@@ -62,6 +75,21 @@ function formatAnchorDate(value: string): string {
   }
 }
 
+function makeTempId(): string {
+  return `${TEMP_SLOT_ID_PREFIX}${crypto.randomUUID()}`;
+}
+
+function toCreateFormData(values: CreateInstructorScheduleSlotInput): FormData {
+  const formData = new FormData();
+  formData.set("entity_type", values.entity_type);
+  formData.set("record_id", values.record_id);
+  formData.set("name", values.name);
+  formData.set("slot_date", values.slot_date);
+  formData.set("start_time", values.start_time);
+  formData.set("end_time", values.end_time);
+  return formData;
+}
+
 function toUpdateFormData(values: UpdateInstructorScheduleSlotInput): FormData {
   const formData = new FormData();
   formData.set("id", values.id);
@@ -75,6 +103,30 @@ function toUpdateFormData(values: UpdateInstructorScheduleSlotInput): FormData {
   return formData;
 }
 
+function sessionFromCreateInput(
+  values: CreateInstructorScheduleSlotInput,
+  id: string,
+  workshopId: string
+): ManagerInstructorScheduleSession {
+  return {
+    id,
+    entityType: ENTITY_SCHEDULE_TYPE_WORKSHOP,
+    recordId: workshopId,
+    name: values.name,
+    type: values.type,
+    slotDate: values.slot_date,
+    dayOfWeek: dayOfWeekFromIsoDate(values.slot_date),
+    startTime: values.start_time,
+    endTime: values.end_time,
+    color: getInstructorScheduleSlotDisplayColor({
+      entityType: ENTITY_SCHEDULE_TYPE_WORKSHOP,
+      recordId: workshopId,
+    }),
+    sourceWorkshopId: null,
+    sourceSlotId: null,
+  };
+}
+
 export function WorkshopScheduleSlotsSection({
   workshopId,
   workshopName,
@@ -86,6 +138,7 @@ export function WorkshopScheduleSlotsSection({
   const [prevInitialSlots, setPrevInitialSlots] = useState(initialSlots);
   const [selectedSession, setSelectedSession] =
     useState<ManagerInstructorScheduleSession | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] =
     useState<ManagerInstructorScheduleSession | null>(null);
@@ -102,6 +155,30 @@ export function WorkshopScheduleSlotsSection({
   if (initialSlots !== prevInitialSlots) {
     setPrevInitialSlots(initialSlots);
     setSlots(initialSlots);
+  }
+
+  async function handleCreate(values: CreateInstructorScheduleSlotInput) {
+    const tempId = makeTempId();
+    const optimistic = sessionFromCreateInput(values, tempId, workshopId);
+    setSlots((prev) => [...prev, optimistic]);
+
+    const result: CreateInstructorScheduleSlotActionState =
+      await createInstructorScheduleSlotAction({}, toCreateFormData(values));
+
+    if (!result.success) {
+      setSlots((prev) => prev.filter((slot) => slot.id !== tempId));
+      showErrorToast(result.error ?? "Unable to create slot.");
+      return;
+    }
+
+    if (result.session) {
+      setSlots((prev) =>
+        prev.map((slot) => (slot.id === tempId ? result.session! : slot))
+      );
+    }
+
+    showSuccessToast(result.message ?? "Slot created.");
+    router.refresh();
   }
 
   async function handleUpdate(values: UpdateInstructorScheduleSlotInput) {
@@ -139,9 +216,7 @@ export function WorkshopScheduleSlotsSection({
 
     if (result.session) {
       setSlots((prev) =>
-        prev.map((slot) =>
-          slot.id === values.id ? result.session! : slot
-        )
+        prev.map((slot) => (slot.id === values.id ? result.session! : slot))
       );
       setSelectedSession(result.session);
     }
@@ -181,6 +256,15 @@ export function WorkshopScheduleSlotsSection({
 
   return (
     <>
+      <AddWorkshopScheduleSlotDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        workshopId={workshopId}
+        workshopName={workshopName}
+        nextSessionNumber={slots.length + 1}
+        onCreate={handleCreate}
+      />
+
       <EditInstructorScheduleSlotDialog
         open={isEditOpen}
         onOpenChange={(next) => {
@@ -253,22 +337,38 @@ export function WorkshopScheduleSlotsSection({
         storageKey={`workshop-details-schedule-slots-v2:${workshopId}`}
         defaultOpen
         action={
-          <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
-            <Link
-              href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-            >
-              <CalendarDaysIcon data-icon="inline-start" />
-              Open calendar
-            </Link>
-          </Can>
+          <div className="flex items-center gap-2">
+            {!mutationsLocked ? (
+              <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setIsCreateOpen(true)}
+                >
+                  <PlusIcon data-icon="inline-start" />
+                  Add slot
+                </Button>
+              </Can>
+            ) : null}
+            <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+              <Link
+                href={ROUTES.MANAGER_INSTRUCTOR_SCHEDULES}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" })
+                )}
+              >
+                <CalendarDaysIcon data-icon="inline-start" />
+                Open calendar
+              </Link>
+            </Can>
+          </div>
         }
       >
         <div className="px-3 py-4 sm:px-4">
           {slots.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No schedule slots for this workshop yet. Add them from the
-              instructor schedules calendar.
+              No schedule slots for this workshop yet. Add a weekly slot here or
+              from the instructor schedules calendar.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -339,7 +439,9 @@ export function WorkshopScheduleSlotsSection({
                               </Button>
                             </Can>
                             <Can
-                              permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_DELETE}
+                              permission={
+                                PERMISSIONS.INSTRUCTOR_SCHEDULES_DELETE
+                              }
                             >
                               <Button
                                 type="button"

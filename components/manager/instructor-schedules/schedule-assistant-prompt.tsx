@@ -6,6 +6,7 @@ import {
   WrenchIcon,
   BrainIcon,
   MessageSquareTextIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,20 @@ type ToolLogItem = {
   pending: boolean;
 };
 
-export function ScheduleAssistantPrompt() {
+type ScheduleAssistantPromptProps = {
+  /** Persist open/closed independently when reused on another page. */
+  storageKey?: string;
+  /**
+   * Workshop-details style: no collapsible header, slight margin so rings
+   * don’t clip, themed textarea only for visual separation.
+   */
+  bare?: boolean;
+};
+
+export function ScheduleAssistantPrompt({
+  storageKey = COLLAPSIBLE_SECTION_STORAGE_KEYS.INSTRUCTOR_SCHEDULES_ASSISTANT,
+  bare = false,
+}: ScheduleAssistantPromptProps) {
   const [prompt, setPrompt] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [reasoningLines, setReasoningLines] = useState<string[]>([]);
@@ -35,7 +49,11 @@ export function ScheduleAssistantPrompt() {
   const [isPending, startTransition] = useTransition();
 
   const remaining = SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH - prompt.length;
-  const busy = isPending || phase === "reasoning" || phase === "tools" || phase === "answering";
+  const busy =
+    isPending ||
+    phase === "reasoning" ||
+    phase === "tools" ||
+    phase === "answering";
 
   function resetOutput() {
     setReasoningLines([]);
@@ -170,115 +188,164 @@ export function ScheduleAssistantPrompt() {
     });
   }
 
+  const form = (
+    <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
+      <div>
+        <textarea
+          value={prompt}
+          onChange={(event) =>
+            setPrompt(
+              event.target.value.slice(0, SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH)
+            )
+          }
+          placeholder='e.g. "Arduino instructors free on Tuesday and Friday"'
+          rows={2}
+          disabled={busy}
+          maxLength={SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH}
+          aria-label="Schedule assistant prompt"
+          className={cn(
+            "min-h-18 w-full resize-none rounded-lg px-2.5 py-2 text-sm outline-none",
+            "placeholder:text-muted-foreground focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50",
+            bare
+              ? "border border-input bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30"
+              : "border border-input bg-transparent focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30"
+          )}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <p
+          className={cn(
+            "text-xs tabular-nums text-muted-foreground",
+            remaining <= 30 && "text-amber-700 dark:text-amber-400"
+          )}
+        >
+          {prompt.length}/{SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH}
+        </p>
+        <Button type="submit" size="sm" disabled={busy || !prompt.trim()}>
+          {busy ? <LoaderCircleIcon className="animate-spin" /> : null}
+          {bare ? (
+            <>
+              <SparklesIcon data-icon="inline-start" className="size-3.5" />
+              Ask
+            </>
+          ) : (
+            "Ask"
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+
+  const results =
+    phase !== "idle" ? (
+      <div className="flex flex-col gap-3 border-t pt-3">
+        <div className="flex flex-wrap gap-2">
+          <PhaseChip
+            active={phase === "reasoning"}
+            done={
+              phase === "tools" || phase === "answering" || phase === "done"
+            }
+            icon={BrainIcon}
+            label="Reasoning"
+          />
+          <PhaseChip
+            active={phase === "tools"}
+            done={phase === "answering" || phase === "done"}
+            icon={WrenchIcon}
+            label="Tool calling"
+          />
+          <PhaseChip
+            active={phase === "answering"}
+            done={phase === "done"}
+            icon={MessageSquareTextIcon}
+            label="Answering"
+          />
+        </div>
+
+        {phase === "reasoning" && reasoningLines.length > 0 ? (
+          <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            <p className="leading-relaxed">
+              {reasoningLines[reasoningLines.length - 1]}
+            </p>
+          </div>
+        ) : null}
+
+        {phase === "tools" && toolLog.length > 0 ? (
+          <ul className="flex flex-col gap-1.5 text-xs">
+            {toolLog.map((item, index) => (
+              <li
+                key={`${item.name}-${index}`}
+                className="flex items-center gap-2 text-muted-foreground"
+              >
+                {item.pending ? (
+                  <LoaderCircleIcon className="size-3.5 animate-spin" />
+                ) : (
+                  <WrenchIcon className="size-3.5" />
+                )}
+                <span className="font-medium text-foreground">{item.name}</span>
+                {item.summary ? <span>— {item.summary}</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {(phase === "answering" || phase === "done") && answer ? (
+          <div className="whitespace-pre-wrap rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed">
+            {answer}
+            {phase === "answering" ? (
+              <span className="ml-0.5 inline-block h-4 w-1 animate-pulse bg-foreground/70 align-text-bottom" />
+            ) : null}
+          </div>
+        ) : null}
+
+        {phase === "error" && error ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : null}
+      </div>
+    ) : null;
+
+  const body = (
+    <div
+      className={cn(
+        "flex flex-col gap-3 overflow-visible",
+        !bare && "px-3 py-4 sm:px-4"
+      )}
+    >
+      {form}
+      {results}
+    </div>
+  );
+
+  if (bare) {
+    return (
+      <section className="min-w-0 overflow-hidden rounded-xl ring-1 ring-foreground/10">
+        <header className="flex items-center gap-2.5 border-b bg-muted/40 px-3 py-2.5 sm:px-4">
+          <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+            <SparklesIcon className="size-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              Schedule assistant
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Ask for instructors by subject and free weekdays. Max{" "}
+              {SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH} characters.
+            </p>
+          </div>
+        </header>
+        <div className="flex flex-col gap-3 px-3 py-4 sm:px-4">{body}</div>
+      </section>
+    );
+  }
+
   return (
     <ClassTabCollapsibleSection
       title="Schedule assistant"
       description={`Ask for instructors by subject and free weekdays. Max ${SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH} characters.`}
-      storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.INSTRUCTOR_SCHEDULES_ASSISTANT}
+      storageKey={storageKey}
       defaultOpen={false}
     >
-      <div className="flex flex-col gap-3 px-3 py-4 sm:px-4">
-        <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
-          <textarea
-            value={prompt}
-            onChange={(event) =>
-              setPrompt(
-                event.target.value.slice(0, SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH)
-              )
-            }
-            placeholder='e.g. "Arduino instructors free on Tuesday and Friday"'
-            rows={2}
-            disabled={busy}
-            maxLength={SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH}
-            className="min-h-18 w-full resize-none rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
-          />
-          <div className="flex items-center justify-between gap-3">
-            <p
-              className={cn(
-                "text-xs tabular-nums text-muted-foreground",
-                remaining <= 30 && "text-amber-700 dark:text-amber-400"
-              )}
-            >
-              {prompt.length}/{SCHEDULE_ASSISTANT_PROMPT_MAX_LENGTH}
-            </p>
-            <Button type="submit" size="sm" disabled={busy || !prompt.trim()}>
-              {busy ? <LoaderCircleIcon className="animate-spin" /> : null}
-              Ask
-            </Button>
-          </div>
-        </form>
-
-        {phase !== "idle" ? (
-          <div className="flex flex-col gap-3 border-t pt-3">
-            <div className="flex flex-wrap gap-2">
-              <PhaseChip
-                active={phase === "reasoning"}
-                done={
-                  phase === "tools" ||
-                  phase === "answering" ||
-                  phase === "done"
-                }
-                icon={BrainIcon}
-                label="Reasoning"
-              />
-              <PhaseChip
-                active={phase === "tools"}
-                done={phase === "answering" || phase === "done"}
-                icon={WrenchIcon}
-                label="Tool calling"
-              />
-              <PhaseChip
-                active={phase === "answering"}
-                done={phase === "done"}
-                icon={MessageSquareTextIcon}
-                label="Answering"
-              />
-            </div>
-
-            {phase === "reasoning" && reasoningLines.length > 0 ? (
-              <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                <p className="leading-relaxed">
-                  {reasoningLines[reasoningLines.length - 1]}
-                </p>
-              </div>
-            ) : null}
-
-            {phase === "tools" && toolLog.length > 0 ? (
-              <ul className="flex flex-col gap-1.5 text-xs">
-                {toolLog.map((item, index) => (
-                  <li
-                    key={`${item.name}-${index}`}
-                    className="flex items-center gap-2 text-muted-foreground"
-                  >
-                    {item.pending ? (
-                      <LoaderCircleIcon className="size-3.5 animate-spin" />
-                    ) : (
-                      <WrenchIcon className="size-3.5" />
-                    )}
-                    <span className="font-medium text-foreground">
-                      {item.name}
-                    </span>
-                    {item.summary ? <span>— {item.summary}</span> : null}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {(phase === "answering" || phase === "done") && answer ? (
-              <div className="whitespace-pre-wrap rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed">
-                {answer}
-                {phase === "answering" ? (
-                  <span className="ml-0.5 inline-block h-4 w-1 animate-pulse bg-foreground/70 align-text-bottom" />
-                ) : null}
-              </div>
-            ) : null}
-
-            {phase === "error" && error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      {body}
     </ClassTabCollapsibleSection>
   );
 }

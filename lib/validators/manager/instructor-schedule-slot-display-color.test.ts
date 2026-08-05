@@ -3,7 +3,6 @@ import {
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
   ENTITY_SCHEDULE_TYPE_WORKSHOP,
   getInstructorScheduleSlotDisplayColor,
-  INSTRUCTOR_SCHEDULE_SLOT_COLORS,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 
 const instructorA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -11,13 +10,15 @@ const instructorB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const workshopA = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const workshopB = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
+const hexPattern = /^#[0-9A-F]{6}$/;
+
 describe("getInstructorScheduleSlotDisplayColor", () => {
-  it("returns a pastel preset from the palette", () => {
+  it("returns a pastel hex color", () => {
     const color = getInstructorScheduleSlotDisplayColor({
       entityType: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
       recordId: instructorA,
     });
-    expect(INSTRUCTOR_SCHEDULE_SLOT_COLORS).toContain(color);
+    expect(color).toMatch(hexPattern);
   });
 
   it("keeps the same color for all slots of one instructor", () => {
@@ -44,7 +45,21 @@ describe("getInstructorScheduleSlotDisplayColor", () => {
     expect(first).toBe(second);
   });
 
-  it("matches mirrored instructor slots to their workshop color", () => {
+  it("keeps mirrored instructor slots stable per source workshop", () => {
+    const first = getInstructorScheduleSlotDisplayColor({
+      entityType: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+      recordId: instructorA,
+      sourceWorkshopId: workshopA,
+    });
+    const second = getInstructorScheduleSlotDisplayColor({
+      entityType: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+      recordId: instructorB,
+      sourceWorkshopId: workshopA,
+    });
+    expect(first).toBe(second);
+  });
+
+  it("uses a different color for mirrored slots than the workshop entity", () => {
     const workshopColor = getInstructorScheduleSlotDisplayColor({
       entityType: ENTITY_SCHEDULE_TYPE_WORKSHOP,
       recordId: workshopA,
@@ -54,10 +69,10 @@ describe("getInstructorScheduleSlotDisplayColor", () => {
       recordId: instructorA,
       sourceWorkshopId: workshopA,
     });
-    expect(mirrorColor).toBe(workshopColor);
+    expect(mirrorColor).not.toBe(workshopColor);
   });
 
-  it("can differ across instructors and workshops", () => {
+  it("uses distinct colors across instructors, workshops, and mirrors", () => {
     const colors = new Set([
       getInstructorScheduleSlotDisplayColor({
         entityType: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
@@ -75,7 +90,17 @@ describe("getInstructorScheduleSlotDisplayColor", () => {
         entityType: ENTITY_SCHEDULE_TYPE_WORKSHOP,
         recordId: workshopB,
       }),
+      getInstructorScheduleSlotDisplayColor({
+        entityType: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+        recordId: instructorA,
+        sourceWorkshopId: workshopA,
+      }),
+      getInstructorScheduleSlotDisplayColor({
+        entityType: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+        recordId: instructorA,
+        sourceWorkshopId: workshopB,
+      }),
     ]);
-    expect(colors.size).toBeGreaterThan(1);
+    expect(colors.size).toBe(6);
   });
 });
