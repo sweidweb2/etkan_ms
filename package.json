@@ -14,6 +14,7 @@
     "seed:manager": "tsx scripts/seed-manager.ts",
     "seed:demo": "tsx scripts/seed-demo-data.ts",
     "seed:rbac": "tsx scripts/seed-rbac.ts",
+    "seed:gallery": "tsx scripts/seed-gallery-images.ts",
     "wipe:equipment": "tsx scripts/wipe-equipment-data.ts",
     "smoke:authz": "tsx scripts/smoke-authorization.ts",
     "seed": "tsx scripts/seed-admin.ts && tsx scripts/seed-demo-data.ts",

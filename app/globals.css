@@ -178,6 +178,42 @@
   animation: image-skeleton-shimmer 1.35s ease-in-out infinite;
 }
 
+@keyframes gallery-marquee-up {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+@keyframes gallery-marquee-down {
+  from {
+    transform: translate3d(0, -50%, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.gallery-marquee-up {
+  animation: gallery-marquee-up var(--gallery-marquee-duration, 48s) linear
+    infinite;
+}
+
+.gallery-marquee-down {
+  animation: gallery-marquee-down var(--gallery-marquee-duration, 48s) linear
+    infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-marquee-up,
+  .gallery-marquee-down {
+    animation: none;
+    transform: none;
+  }
+}
+
 @media print {
   [data-slot="sidebar"],
   [data-slot="sidebar-gap"],

@@ -206,6 +206,15 @@ Format: `key` — label — access
 | `equipment.borrow_update` | Edit borrow | write |
 | `equipment.borrow_return` | Mark borrow returned / not returned | write |
 
+### Gallery
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `gallery.view` | View gallery images | read |
+| `gallery.create` | Create gallery image | write |
+| `gallery.update` | Edit gallery image | write |
+| `gallery.delete` | Delete gallery image | write |
+
 ### Schedule
 
 | Key | Label | Access |
@@ -410,6 +419,10 @@ equipment.view_borrows
 equipment.borrow_create
 equipment.borrow_update
 equipment.borrow_return
+gallery.view
+gallery.create
+gallery.update
+gallery.delete
 schedule.view
 schedule.create
 schedule.update

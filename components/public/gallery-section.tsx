@@ -1,247 +1,227 @@
 "use client";
 
-import Image from "next/image";
-import { useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { GravityStarsBackground } from "@/components/animate-ui/components/backgrounds/gravity-stars";
 import { useHydrated } from "@/hooks/use-hydrated";
-import type { MessageKey } from "@/lib/i18n/messages";
-import { en } from "@/lib/i18n/messages/en";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { cn } from "@/lib/utils";
+import { toEmbeddableGalleryImageUrl } from "@/lib/utils/gallery-image-url";
+import type { ManagerGalleryImageRow } from "@/types/manager-gallery-image";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, amount: 0.12, margin: "0px 0px -6% 0px" } as const;
 
-const IMAGE_SIZES =
-  "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw";
-
-const GALLERY_CATEGORIES = [
-  "roadmap",
-  "workshop",
-  "onlineCourses",
-  "archive",
-  "projects",
-  "students",
-  "teachers",
+const ASPECT_CLASSES = [
+  "aspect-[3/4]",
+  "aspect-[4/3]",
+  "aspect-square",
+  "aspect-[16/10]",
+  "aspect-[3/5]",
+  "aspect-[5/4]",
 ] as const;
 
-type GalleryCategory = (typeof GALLERY_CATEGORIES)[number];
+/** Even columns go up (bottom → top); odd columns go down (top → bottom). */
+const COLUMN_DURATIONS_UP_S = [280, 320, 350] as const;
+const COLUMN_DURATIONS_DOWN_S = [480, 540, 510] as const;
 
-const CATEGORY_LABEL_KEYS = {
-  roadmap: "gallery.filter.roadmap",
-  workshop: "gallery.filter.workshop",
-  onlineCourses: "gallery.filter.onlineCourses",
-  archive: "gallery.filter.archive",
-  projects: "gallery.filter.projects",
-  students: "gallery.filter.students",
-  teachers: "gallery.filter.teachers",
-} as const satisfies Record<GalleryCategory, MessageKey>;
+type GallerySectionProps = {
+  images: ManagerGalleryImageRow[];
+};
 
-const FILTER_TRIGGER_CLASS = cn(
-  "inline-flex items-center justify-center rounded-full px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-all duration-300 sm:px-4",
-  "text-muted-foreground hover:text-foreground",
-  "data-[active=true]:bg-[#3E3E75] data-[active=true]:text-white data-[active=true]:shadow-md",
-  "dark:data-[active=true]:bg-[#C4C4E8] dark:data-[active=true]:text-[#2A2A52]",
-  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#3E3E75]/35"
-);
+function getColumnCount(width: number) {
+  if (width < 640) return 2;
+  if (width < 1024) return 3;
+  return 4;
+}
 
-const GALLERY_ITEMS: Array<{
-  id: string;
-  src: string;
-  altKey: MessageKey;
+function useGalleryColumnCount() {
+  const [columnCount, setColumnCount] = useState(3);
+
+  useEffect(() => {
+    const update = () => setColumnCount(getColumnCount(window.innerWidth));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return columnCount;
+}
+
+function splitIntoColumns(
+  images: ManagerGalleryImageRow[],
+  columnCount: number
+) {
+  const columns: ManagerGalleryImageRow[][] = Array.from(
+    { length: columnCount },
+    () => []
+  );
+
+  images.forEach((image, index) => {
+    columns[index % columnCount]?.push(image);
+  });
+
+  return columns;
+}
+
+function GalleryColumnCard({
+  image,
+  aspectClass,
+  priority,
+}: {
+  image: ManagerGalleryImageRow;
   aspectClass: string;
-  category: GalleryCategory;
-}> = [
-  {
-    id: "1",
-    src: "https://images.unsplash.com/photo-1690683789978-3cf73960d650?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.1.alt",
-    aspectClass: "aspect-[3/4]",
-    category: "workshop",
-  },
-  {
-    id: "2",
-    src: "https://images.unsplash.com/photo-1621839673705-6617adf9e890?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.2.alt",
-    aspectClass: "aspect-[4/3]",
-    category: "onlineCourses",
-  },
-  {
-    id: "3",
-    src: "https://images.unsplash.com/photo-1704283860614-803aa8be7993?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.3.alt",
-    aspectClass: "aspect-square",
-    category: "workshop",
-  },
-  {
-    id: "4",
-    src: "https://images.unsplash.com/photo-1592659762303-90081d34b277?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.4.alt",
-    aspectClass: "aspect-[5/4]",
-    category: "roadmap",
-  },
-  {
-    id: "5",
-    src: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.5.alt",
-    aspectClass: "aspect-[3/4]",
-    category: "workshop",
-  },
-  {
-    id: "6",
-    src: "https://images.unsplash.com/photo-1553406830-ef2513450d76?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.6.alt",
-    aspectClass: "aspect-[4/5]",
-    category: "workshop",
-  },
-  {
-    id: "7",
-    src: "/public_images/solution-built-1.jpg",
-    altKey: "gallery.item.7.alt",
-    aspectClass: "aspect-[16/10]",
-    category: "projects",
-  },
-  {
-    id: "8",
-    src: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.8.alt",
-    aspectClass: "aspect-[3/4]",
-    category: "onlineCourses",
-  },
-  {
-    id: "9",
-    src: "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.9.alt",
-    aspectClass: "aspect-[5/4]",
-    category: "workshop",
-  },
-  {
-    id: "10",
-    src: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.10.alt",
-    aspectClass: "aspect-square",
-    category: "roadmap",
-  },
-  {
-    id: "11",
-    src: "https://images.unsplash.com/photo-1565043666747-69f6646db940?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.11.alt",
-    aspectClass: "aspect-[4/3]",
-    category: "projects",
-  },
-  {
-    id: "12",
-    src: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.12.alt",
-    aspectClass: "aspect-[3/4]",
-    category: "onlineCourses",
-  },
-  {
-    id: "13",
-    src: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.13.alt",
-    aspectClass: "aspect-[4/3]",
-    category: "roadmap",
-  },
-  {
-    id: "14",
-    src: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.14.alt",
-    aspectClass: "aspect-[3/4]",
-    category: "archive",
-  },
-  {
-    id: "15",
-    src: "https://images.unsplash.com/photo-1581092162384-8987c1d64718?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.15.alt",
-    aspectClass: "aspect-[5/4]",
-    category: "teachers",
-  },
-  {
-    id: "16",
-    src: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.16.alt",
-    aspectClass: "aspect-square",
-    category: "projects",
-  },
-  {
-    id: "17",
-    src: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.17.alt",
-    aspectClass: "aspect-[16/10]",
-    category: "students",
-  },
-  {
-    id: "18",
-    src: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.18.alt",
-    aspectClass: "aspect-[4/5]",
-    category: "onlineCourses",
-  },
-  {
-    id: "19",
-    src: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.19.alt",
-    aspectClass: "aspect-[3/4]",
-    category: "teachers",
-  },
-  {
-    id: "20",
-    src: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.20.alt",
-    aspectClass: "aspect-[5/4]",
-    category: "archive",
-  },
-  {
-    id: "21",
-    src: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.21.alt",
-    aspectClass: "aspect-[4/3]",
-    category: "workshop",
-  },
-  {
-    id: "22",
-    src: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.22.alt",
-    aspectClass: "aspect-square",
-    category: "archive",
-  },
-  {
-    id: "23",
-    src: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.23.alt",
-    aspectClass: "aspect-[16/10]",
-    category: "roadmap",
-  },
-  {
-    id: "24",
-    src: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=900&auto=format&fit=crop",
-    altKey: "gallery.item.24.alt",
-    aspectClass: "aspect-[3/4]",
-    category: "students",
-  },
-];
+  priority?: boolean;
+}) {
+  const src = toEmbeddableGalleryImageUrl(image.direct_url);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">(
+    "loading"
+  );
 
-export function GallerySection() {
+  return (
+    <figure
+      className={cn(
+        "relative w-full overflow-hidden bg-transparent",
+        aspectClass,
+        status === "error" && "invisible"
+      )}
+      aria-hidden={status === "error" || undefined}
+    >
+      {status === "loading" ? (
+        <div
+          className="absolute inset-0 z-10 overflow-hidden bg-muted/40"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading image"
+        >
+          <div
+            aria-hidden="true"
+            className="image-skeleton-shimmer absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+          />
+        </div>
+      ) : null}
+
+      {status !== "error" ? (
+        // Native img: Drive thumbnails must not go through next/image optimization.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={image.name}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={() => setStatus("loaded")}
+          onError={() => setStatus("error")}
+          className={cn(
+            "absolute inset-0 size-full object-cover transition-opacity duration-500 ease-out",
+            status === "loaded" ? "opacity-100" : "opacity-0"
+          )}
+        />
+      ) : null}
+    </figure>
+  );
+}
+
+function GalleryMarqueeColumn({
+  images,
+  columnIndex,
+  animate,
+}: {
+  images: ManagerGalleryImageRow[];
+  columnIndex: number;
+  animate: boolean;
+}) {
+  const [isPaused, setIsPaused] = useState(false);
+  const goesUp = columnIndex % 2 === 0;
+  const durationPool = goesUp ? COLUMN_DURATIONS_UP_S : COLUMN_DURATIONS_DOWN_S;
+  const duration =
+    durationPool[Math.floor(columnIndex / 2) % durationPool.length] ??
+    (goesUp ? 320 : 510);
+  const loopImages = useMemo(() => [...images, ...images], [images]);
+
+  if (images.length === 0) {
+    return null;
+  }
+
+  if (!animate) {
+    return (
+      <div className="flex flex-col gap-2.5 sm:gap-3">
+        {images.map((image, index) => (
+          <GalleryColumnCard
+            key={image.id}
+            image={image}
+            aspectClass={
+              ASPECT_CLASSES[(columnIndex + index) % ASPECT_CLASSES.length]
+            }
+            priority={columnIndex < 2 && index < 2}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  const trackStyle = {
+    "--gallery-marquee-duration": `${duration}s`,
+    animationPlayState: isPaused ? "paused" : "running",
+  } as CSSProperties;
+
+  return (
+    <div
+      className="relative h-full min-w-0 overflow-hidden"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocusCapture={() => setIsPaused(true)}
+      onBlurCapture={() => setIsPaused(false)}
+    >
+      <div
+        className={cn(
+          "flex flex-col gap-2.5 will-change-transform sm:gap-3",
+          goesUp ? "gallery-marquee-up" : "gallery-marquee-down"
+        )}
+        style={trackStyle}
+      >
+        {loopImages.map((image, index) => {
+          const isClone = index >= images.length;
+          return (
+            <GalleryColumnCard
+              key={`${image.id}-${isClone ? "b" : "a"}-${index}`}
+              image={image}
+              aspectClass={
+                ASPECT_CLASSES[
+                  (columnIndex + (index % images.length)) %
+                    ASPECT_CLASSES.length
+                ]
+              }
+              priority={!isClone && columnIndex < 2 && index < 2}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+
+export function GallerySection({ images }: GallerySectionProps) {
   const { t } = usePublicI18n();
   const hydrated = useHydrated();
   const reduceMotion = useReducedMotion();
   const canAnimate = hydrated && !reduceMotion;
-  const [activeCategory, setActiveCategory] =
-    useState<GalleryCategory>("roadmap");
+  const columnCount = useGalleryColumnCount();
 
-  const filteredItems = useMemo(
-    () => GALLERY_ITEMS.filter((item) => item.category === activeCategory),
-    [activeCategory]
+  const columns = useMemo(
+    () => splitIntoColumns(images, columnCount),
+    [images, columnCount]
   );
 
   return (
-    <section className="relative isolate overflow-hidden px-4 pt-28 pb-20 sm:px-6 sm:pb-28">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,var(--background),color-mix(in_oklch,var(--muted)_35%,var(--background)))]"
-      />
+    <section className="relative isolate overflow-hidden bg-background px-4 pt-28 sm:px-6">
       <GravityStarsBackground
         aria-hidden="true"
         className="absolute inset-0 text-[#3E3E75]/90 dark:text-[#C4C4E8]"
@@ -254,7 +234,7 @@ export function GallerySection() {
         gravityStrength={70}
       />
 
-      <div className="relative z-10 mx-auto max-w-7xl">
+      <div className="relative z-10 mx-auto max-w-[90rem]">
         <motion.p
           className="text-sm font-semibold tracking-[0.2em] text-[#3E3E75] uppercase dark:text-[#C4C4E8]"
           initial={canAnimate ? { opacity: 0, y: 16 } : false}
@@ -285,92 +265,40 @@ export function GallerySection() {
           {t("gallery.lead")}
         </motion.p>
 
-        <motion.div
-          className="mt-8 flex justify-center sm:mt-10"
-          initial={canAnimate ? { opacity: 0, y: 16 } : false}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={VIEWPORT}
-          transition={{ duration: 0.7, ease: EASE, delay: 0.12 }}
-        >
-          <div
-            role="tablist"
-            aria-label={t("gallery.filterLabel")}
-            className="inline-flex h-auto w-full max-w-4xl flex-wrap justify-center gap-1 rounded-full bg-muted/70 p-1.5 ring-1 ring-[#3E3E75]/10 dark:ring-[#C4C4E8]/15"
-          >
-            {GALLERY_CATEGORIES.map((category) => {
-              const isActive = activeCategory === category;
-              return (
-                <button
-                  key={category}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  data-active={isActive}
-                  className={FILTER_TRIGGER_CLASS}
-                  onClick={() => setActiveCategory(category)}
-                >
-                  {t(CATEGORY_LABEL_KEYS[category])}
-                </button>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        <AnimatePresence mode="wait">
+        {images.length === 0 ? (
+          <p className="mt-12 text-center text-sm text-muted-foreground">
+            {t("gallery.empty")}
+          </p>
+        ) : (
           <motion.div
-            key={activeCategory}
-            initial={hydrated ? { opacity: 0, y: 12 } : false}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.35, ease: EASE }}
+            className="relative mt-10 sm:mt-12"
+            initial={canAnimate ? { opacity: 0, y: 24 } : false}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={VIEWPORT}
+            transition={{ duration: 0.85, ease: EASE, delay: 0.12 }}
           >
-            {filteredItems.length === 0 ? (
-              <p className="mt-12 text-center text-sm text-muted-foreground">
-                {t("gallery.empty")}
-              </p>
-            ) : (
-              <ul
-                className="mt-10 columns-2 gap-2.5 sm:mt-12 sm:columns-3 sm:gap-3 lg:columns-4 lg:gap-3.5 xl:columns-5 xl:gap-4"
-                aria-label={t("gallery.listLabel")}
+            <div
+              className="gallery-marquee-viewport relative h-[min(280vh,200rem)] overflow-hidden"
+              aria-label={t("gallery.listLabel")}
+            >
+              <div
+                className="grid h-full gap-3 px-1 pt-10 sm:gap-4 sm:px-2 sm:pt-12"
+                style={{
+                  gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                }}
               >
-                {filteredItems.map((item, index) => {
-                  const alt = t(item.altKey) || en[item.altKey];
-
-                  return (
-                    <motion.li
-                      key={item.id}
-                      className="mb-2.5 break-inside-avoid sm:mb-3 lg:mb-3.5 xl:mb-4"
-                      initial={canAnimate ? { opacity: 0, y: 28 } : false}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={VIEWPORT}
-                      transition={{
-                        duration: 0.7,
-                        ease: EASE,
-                        delay: Math.min(index * 0.04, 0.28),
-                      }}
-                    >
-                      <figure
-                        className={cn(
-                          "group relative overflow-hidden bg-[#3E3E75]/5 ring-1 ring-[#3E3E75]/10 dark:bg-[#C4C4E8]/5 dark:ring-[#C4C4E8]/10",
-                          item.aspectClass
-                        )}
-                      >
-                        <Image
-                          src={item.src}
-                          alt={alt}
-                          fill
-                          sizes={IMAGE_SIZES}
-                          className="object-cover transition duration-500 ease-out group-hover:scale-[1.03]"
-                          priority={index < 5}
-                        />
-                      </figure>
-                    </motion.li>
-                  );
-                })}
-              </ul>
-            )}
+                {columns.map((columnImages, columnIndex) => (
+                  <GalleryMarqueeColumn
+                    key={`col-${columnCount}-${columnIndex}`}
+                    images={columnImages}
+                    columnIndex={columnIndex}
+                    animate={!!canAnimate}
+                  />
+                ))}
+              </div>
+            </div>
           </motion.div>
-        </AnimatePresence>
+        )}
       </div>
     </section>
   );

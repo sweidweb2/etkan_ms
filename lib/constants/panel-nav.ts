@@ -167,6 +167,18 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       ],
     },
     {
+      id: "options",
+      label: "Options",
+      defaultOpen: true,
+      items: [
+        {
+          title: "Manage gallery",
+          href: ROUTES.MANAGER_GALLERY,
+          icon: "images",
+        },
+      ],
+    },
+    {
       id: "system",
       label: "System",
       defaultOpen: true,

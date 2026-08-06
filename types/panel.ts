@@ -20,7 +20,8 @@ export type PanelNavIconKey =
   | "logs"
   | "sparkles"
   | "clock"
-  | "shield";
+  | "shield"
+  | "images";
 
 export type PanelNavItem = {
   title: string;

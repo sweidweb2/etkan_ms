@@ -9,6 +9,7 @@ import {
   Clock,
   DatabaseBackup,
   FileText,
+  Images,
   Layers,
   LayoutDashboard,
   Library,
@@ -50,4 +51,5 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   sparkles: Sparkles,
   clock: Clock,
   shield: Shield,
+  images: Images,
 };

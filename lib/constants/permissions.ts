@@ -29,6 +29,7 @@ export const PERMISSION_FEATURES = [
   "grades",
   "semesters",
   "equipment",
+  "gallery",
   "schedule",
   "instructor_schedules",
   "workshops",
@@ -62,6 +63,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   grades: "Grades",
   semesters: "Semesters",
   equipment: "Equipment",
+  gallery: "Gallery",
   schedule: "Schedule",
   instructor_schedules: "Instructor Schedules",
   workshops: "Workshops",
@@ -155,6 +157,11 @@ export const PERMISSIONS = {
   EQUIPMENT_BORROW_CREATE: "equipment.borrow_create",
   EQUIPMENT_BORROW_UPDATE: "equipment.borrow_update",
   EQUIPMENT_BORROW_RETURN: "equipment.borrow_return",
+
+  GALLERY_VIEW: "gallery.view",
+  GALLERY_CREATE: "gallery.create",
+  GALLERY_UPDATE: "gallery.update",
+  GALLERY_DELETE: "gallery.delete",
 
   SCHEDULE_VIEW: "schedule.view",
   SCHEDULE_CREATE: "schedule.create",
@@ -634,6 +641,31 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.EQUIPMENT_BORROW_RETURN,
     feature: "equipment",
     label: "Mark borrow returned / not returned",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.GALLERY_VIEW,
+    feature: "gallery",
+    label: "View gallery images",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.GALLERY_CREATE,
+    feature: "gallery",
+    label: "Create gallery image",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GALLERY_UPDATE,
+    feature: "gallery",
+    label: "Edit gallery image",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GALLERY_DELETE,
+    feature: "gallery",
+    label: "Delete gallery image",
     access: PERMISSION_ACCESS.WRITE,
   },
 

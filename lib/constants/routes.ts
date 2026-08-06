@@ -53,6 +53,7 @@ export const ROUTES = {
   MANAGER_EQUIPMENTS: "/manager/equipments",
   MANAGER_EQUIPMENT_DETAIL: "/manager/equipments/[id]",
   MANAGER_EQUIPMENT_BORROW: "/manager/equipments/borrow",
+  MANAGER_GALLERY: "/manager/gallery",
   MANAGER_RELATIONSHIPS: "/manager/relationships",
   MANAGER_SEMESTERS: "/manager/semesters",
   MANAGER_SEMESTERS_PROGRESS: "/manager/semesters/progress",
