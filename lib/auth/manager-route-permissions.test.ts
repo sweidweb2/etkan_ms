@@ -23,6 +23,9 @@ describe("getRequiredViewPermissionForManagerPath", () => {
     expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_SETTINGS)).toBe(
       PERMISSIONS.SETTINGS_VIEW
     );
+    expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_GALLERY)).toBe(
+      PERMISSIONS.GALLERY_VIEW
+    );
     expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_RBAC)).toBe(
       PERMISSIONS.RBAC_MANAGE
     );
