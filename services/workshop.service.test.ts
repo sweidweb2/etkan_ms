@@ -50,6 +50,12 @@ vi.mock("@/repositories/instructor-schedule-slot.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: () => adminClient,
+}));
 
 vi.mock("@/services/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -171,13 +177,6 @@ describe("listWorkshopsForManager", () => {
   });
 
   it("returns all workshops for manager", async () => {
-    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
-      data: { role: ROLES.MANAGER },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
     vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
       data: [workshopRecord],
       error: null,
@@ -186,22 +185,20 @@ describe("listWorkshopsForManager", () => {
       statusText: "OK",
     });
 
-    const workshops = await listWorkshopsForManager(adminClient, actor.userId);
+    const workshops = await listWorkshopsForManager(
+      adminClient,
+      actor.userId,
+      ROLES.MANAGER
+    );
 
     expect(workshops).toHaveLength(1);
     expect(workshops[0]?.name).toBe("Intro to UX");
     expect(workshops[0]?.status).toBe(WORKSHOP_STATUSES.DRAFT);
     expect(workshopRepository.listWorkshops).toHaveBeenCalled();
+    expect(profileRepository.findRoleById).not.toHaveBeenCalled();
   });
 
   it("returns all workshops for CEO", async () => {
-    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
-      data: { role: ROLES.CEO },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
     vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
       data: [workshopRecord],
       error: null,
@@ -210,23 +207,21 @@ describe("listWorkshopsForManager", () => {
       statusText: "OK",
     });
 
-    const workshops = await listWorkshopsForManager(adminClient, actor.userId);
+    const workshops = await listWorkshopsForManager(
+      adminClient,
+      actor.userId,
+      ROLES.CEO
+    );
 
     expect(workshops).toHaveLength(1);
     expect(workshopRepository.listWorkshops).toHaveBeenCalled();
     expect(
       workshopInstructorRepository.listWorkshopInstructorsByUserId
     ).not.toHaveBeenCalled();
+    expect(profileRepository.findRoleById).not.toHaveBeenCalled();
   });
 
   it("returns only assigned workshops for other roles", async () => {
-    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
-      data: { role: ROLES.TEACHER },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
     vi.mocked(
       workshopInstructorRepository.listWorkshopInstructorsByUserId
     ).mockResolvedValue({
@@ -252,7 +247,11 @@ describe("listWorkshopsForManager", () => {
       error: null,
     });
 
-    const workshops = await listWorkshopsForManager(adminClient, actor.userId);
+    const workshops = await listWorkshopsForManager(
+      adminClient,
+      actor.userId,
+      ROLES.TEACHER
+    );
 
     expect(workshops).toHaveLength(1);
     expect(workshopRepository.listWorkshopsByIds).toHaveBeenCalledWith(
@@ -260,6 +259,32 @@ describe("listWorkshopsForManager", () => {
       [workshopId]
     );
     expect(workshopRepository.listWorkshops).not.toHaveBeenCalled();
+    expect(profileRepository.findRoleById).not.toHaveBeenCalled();
+  });
+
+  it("falls back to profiles.role when actorRole is omitted", async () => {
+    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+      data: { role: ROLES.MANAGER },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
+      data: [workshopRecord],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const workshops = await listWorkshopsForManager(adminClient, actor.userId);
+
+    expect(workshops).toHaveLength(1);
+    expect(profileRepository.findRoleById).toHaveBeenCalledWith(
+      adminClient,
+      actor.userId
+    );
   });
 });
 

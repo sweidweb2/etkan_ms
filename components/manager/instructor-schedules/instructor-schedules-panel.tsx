@@ -81,7 +81,6 @@ import {
 import type {
   ManagerInstructorScheduleSession,
   ManagerInstructorSchedulesPageData,
-  ManagerScheduleWorkshopTab,
   ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
@@ -396,9 +395,7 @@ export function InstructorSchedulesPanel({
     : [];
 
   const [sessions, setSessions] = React.useState(data.sessions);
-  const [workshops, setWorkshops] = React.useState<ManagerScheduleWorkshopTab[]>(
-    data.workshops
-  );
+  const workshops = data.workshops;
   /** Empty = all within the current browse kind. At most one entity key selected. */
   const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
     () => initialSelectedKeys
@@ -429,10 +426,6 @@ export function InstructorSchedulesPanel({
       return [...data.sessions, ...pendingTemps];
     });
   }, [data.sessions]);
-
-  useEffect(() => {
-    setWorkshops(data.workshops);
-  }, [data.workshops]);
 
   const instructorIds = useMemo(
     () => new Set(data.instructors.map((instructor) => instructor.id)),

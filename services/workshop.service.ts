@@ -539,7 +539,9 @@ async function actorCanAccessWorkshop(
 
 export async function listWorkshopsForManager(
   adminClient: Supabase,
-  actorUserId: string | null
+  actorUserId: string | null,
+  /** Prefer session pack role to avoid a redundant profiles.role round-trip. */
+  actorRole?: RoleValue | null
 ): Promise<ManagerWorkshopRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
 
@@ -547,7 +549,10 @@ export async function listWorkshopsForManager(
     return [];
   }
 
-  const role = await resolveActorRole(adminClient, actorUserId);
+  const role =
+    actorRole !== undefined
+      ? actorRole
+      : await resolveActorRole(adminClient, actorUserId);
 
   if (roleCanViewAllWorkshops(role)) {
     const result = await workshopRepository.listWorkshops(adminClient);

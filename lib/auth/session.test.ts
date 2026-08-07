@@ -13,7 +13,7 @@ describe("getSessionPack", () => {
       createSupabaseServerComponentClient: vi.fn(async () => ({})),
     }));
     vi.doMock("@/services/auth.service", () => ({
-      getCurrentUser: vi.fn(),
+      getSessionAuthIdentity: vi.fn(),
     }));
     vi.doMock("@/services/role.service", () => ({
       resolveUserRole: vi.fn(),
@@ -27,7 +27,7 @@ describe("getSessionPack", () => {
     }));
 
     const session = await import("@/lib/auth/session");
-    const { getCurrentUser } = await import("@/services/auth.service");
+    const { getSessionAuthIdentity } = await import("@/services/auth.service");
     const { resolveUserRole, resolveIsInstructor } = await import(
       "@/services/role.service"
     );
@@ -40,7 +40,7 @@ describe("getSessionPack", () => {
 
     return {
       session,
-      getCurrentUser: vi.mocked(getCurrentUser),
+      getSessionAuthIdentity: vi.mocked(getSessionAuthIdentity),
       resolveUserRole: vi.mocked(resolveUserRole),
       resolveIsInstructor: vi.mocked(resolveIsInstructor),
       resolveDisplayName: vi.mocked(resolveDisplayName),
@@ -50,7 +50,7 @@ describe("getSessionPack", () => {
 
   it("returns an empty pack when there is no user", async () => {
     const mod = await loadSessionModule();
-    mod.getCurrentUser.mockResolvedValue(null);
+    mod.getSessionAuthIdentity.mockResolvedValue(null);
 
     const pack = await mod.session.getSessionPack();
 
@@ -70,7 +70,10 @@ describe("getSessionPack", () => {
     const user = { id: "user-pack-1" } as never;
     const permissions = new Set([PERMISSIONS.DASHBOARD_VIEW]);
 
-    mod.getCurrentUser.mockResolvedValue(user);
+    mod.getSessionAuthIdentity.mockResolvedValue({
+      user,
+      claimsRole: null,
+    });
     mod.resolveUserRole.mockResolvedValue(ROLES.MANAGER);
     mod.resolveIsInstructor.mockResolvedValue(true);
     mod.resolveDisplayName.mockResolvedValue("Ada Manager");
@@ -85,7 +88,8 @@ describe("getSessionPack", () => {
       isInstructor: true,
       permissions,
     });
-    expect(mod.getCurrentUser).toHaveBeenCalledTimes(1);
+    expect(mod.getSessionAuthIdentity).toHaveBeenCalledTimes(1);
+    expect(mod.resolveUserRole).toHaveBeenCalledWith({}, user);
     expect(mod.getUserPermissionsCached).toHaveBeenCalledWith("user-pack-1");
 
     await expect(mod.session.getSessionUser()).resolves.toEqual(user);
@@ -98,5 +102,25 @@ describe("getSessionPack", () => {
       userId: "user-pack-1",
       userLabel: "Ada Manager",
     });
+  });
+
+  it("uses JWT claims role and skips profiles.role lookup", async () => {
+    const mod = await loadSessionModule();
+    const user = { id: "user-pack-2" } as never;
+    const permissions = new Set([PERMISSIONS.WORKSHOPS_VIEW]);
+
+    mod.getSessionAuthIdentity.mockResolvedValue({
+      user,
+      claimsRole: ROLES.CEO,
+    });
+    mod.resolveIsInstructor.mockResolvedValue(false);
+    mod.resolveDisplayName.mockResolvedValue("Ceo User");
+    mod.getUserPermissionsCached.mockResolvedValue(permissions);
+
+    const pack = await mod.session.getSessionPack();
+
+    expect(pack.role).toBe(ROLES.CEO);
+    expect(mod.resolveUserRole).not.toHaveBeenCalled();
+    expect(mod.getUserPermissionsCached).toHaveBeenCalledWith("user-pack-2");
   });
 });

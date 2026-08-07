@@ -3,7 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/server";
 import type { PermissionKey } from "@/lib/constants/permissions";
 import type { RoleValue } from "@/lib/constants/roles";
-import { getCurrentUser } from "@/services/auth.service";
+import { getSessionAuthIdentity } from "@/services/auth.service";
 import { getUserPermissionsCached } from "@/services/authorization.service";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
@@ -33,17 +33,24 @@ const EMPTY_SESSION_PACK: SessionPack = {
 /**
  * Request-scoped who-am-I pack (user, role, display name, instructor, permissions).
  * Prefer this in layouts; thin helpers below project from the same cache.
+ *
+ * Auth bootstrap prefers getClaims (local JWT) over getUser (Auth round-trip),
+ * matching middleware. JWT role skips a profiles.role fetch when present.
  */
 export const getSessionPack = cache(async (): Promise<SessionPack> => {
   const client = await createSupabaseServerComponentClient();
-  const user = await getCurrentUser(client);
+  const identity = await getSessionAuthIdentity(client);
 
-  if (!user) {
+  if (!identity) {
     return EMPTY_SESSION_PACK;
   }
 
+  const { user, claimsRole } = identity;
+
   const [role, isInstructor, displayName, permissions] = await Promise.all([
-    resolveUserRole(client, user),
+    claimsRole
+      ? Promise.resolve(claimsRole)
+      : resolveUserRole(client, user),
     resolveIsInstructor(client, user.id),
     resolveDisplayName(client, user),
     getUserPermissionsCached(user.id),

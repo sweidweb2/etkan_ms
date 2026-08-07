@@ -20,6 +20,11 @@ export async function getUser(client: Supabase) {
   return client.auth.getUser();
 }
 
+/** Local JWT verify / cached JWKS — prefer over getUser for RSC session bootstrap. */
+export async function getClaims(client: Supabase) {
+  return client.auth.getClaims();
+}
+
 export async function signUp(
   client: Supabase,
   input: {

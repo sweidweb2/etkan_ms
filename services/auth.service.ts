@@ -8,9 +8,14 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { ensureStudentRegistration } from "@/services/profile.service";
-import { resolveUserRole, syncAuthUserRole } from "@/services/role.service";
+import {
+  resolveUserRole,
+  roleFromAuthMetadata,
+  roleFromJwtClaims,
+  syncAuthUserRole,
+} from "@/services/role.service";
 import type { LoginResult, SignupResult } from "@/types/auth";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -125,6 +130,59 @@ export async function getCurrentUser(client: Supabase) {
   }
 
   return data.user;
+}
+
+export type SessionAuthIdentity = {
+  user: User;
+  /** Role from verified JWT / auth metadata when present (skip profiles.role). */
+  claimsRole: RoleValue | null;
+};
+
+type JwtClaimsLike = {
+  sub: string;
+  email?: unknown;
+  app_metadata?: { role?: unknown } | null;
+  user_metadata?: Record<string, unknown> | null;
+  role?: unknown;
+};
+
+/**
+ * Prefer getClaims (no Auth round-trip) over getUser for RSC session packs.
+ * Falls back to getUser when claims are unavailable.
+ */
+export async function getSessionAuthIdentity(
+  client: Supabase
+): Promise<SessionAuthIdentity | null> {
+  const { data: claimsData, error: claimsError } =
+    await authRepository.getClaims(client);
+
+  if (!claimsError && claimsData?.claims?.sub) {
+    const claims = claimsData.claims as JwtClaimsLike;
+    const email = typeof claims.email === "string" ? claims.email : undefined;
+    const user = {
+      id: claims.sub,
+      email,
+      app_metadata: claims.app_metadata ?? {},
+      user_metadata: claims.user_metadata ?? {},
+      aud: "authenticated",
+      created_at: "",
+    } as User;
+
+    return {
+      user,
+      claimsRole: roleFromJwtClaims(claims),
+    };
+  }
+
+  const user = await getCurrentUser(client);
+  if (!user) {
+    return null;
+  }
+
+  return {
+    user,
+    claimsRole: roleFromAuthMetadata(user),
+  };
 }
 
 export async function register(

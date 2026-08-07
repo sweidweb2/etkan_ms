@@ -5,7 +5,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import { login, logout, register } from "@/services/auth.service";
+import { login, logout, register, getSessionAuthIdentity } from "@/services/auth.service";
 import * as profileService from "@/services/profile.service";
 import * as roleService from "@/services/role.service";
 
@@ -13,7 +13,16 @@ vi.mock("@/repositories/app-settings.repository");
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/services/profile.service");
-vi.mock("@/services/role.service");
+vi.mock("@/services/role.service", async () => {
+  const actual = await vi.importActual<typeof import("@/services/role.service")>(
+    "@/services/role.service"
+  );
+  return {
+    ...actual,
+    resolveUserRole: vi.fn(),
+    syncAuthUserRole: vi.fn(),
+  };
+});
 
 const authClient = {} as never;
 const adminClient = {} as never;
@@ -310,5 +319,54 @@ describe("register", () => {
       expect(result.requiresEmailConfirmation).toBe(true);
       expect(result.redirectTo).toBe(`${ROUTES.LOGIN}?message=confirm_email`);
     }
+  });
+});
+
+describe("getSessionAuthIdentity", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("prefers getClaims over getUser when JWT sub is present", async () => {
+    vi.mocked(authRepository.getClaims).mockResolvedValue({
+      data: {
+        claims: {
+          sub: "user-claims-1",
+          email: "ceo@school.com",
+          app_metadata: { role: ROLES.CEO },
+          user_metadata: { full_name: "Ceo User" },
+        },
+      },
+      error: null,
+    } as never);
+
+    const identity = await getSessionAuthIdentity(authClient);
+
+    expect(identity?.user.id).toBe("user-claims-1");
+    expect(identity?.user.email).toBe("ceo@school.com");
+    expect(identity?.claimsRole).toBe(ROLES.CEO);
+    expect(authRepository.getUser).not.toHaveBeenCalled();
+  });
+
+  it("falls back to getUser when claims are unavailable", async () => {
+    vi.mocked(authRepository.getClaims).mockResolvedValue({
+      data: { claims: null },
+      error: { message: "no claims", name: "AuthError", status: 400 },
+    } as never);
+    vi.mocked(authRepository.getUser).mockResolvedValue({
+      data: {
+        user: {
+          ...authUser,
+          app_metadata: { role: ROLES.MANAGER },
+        },
+      },
+      error: null,
+    } as never);
+
+    const identity = await getSessionAuthIdentity(authClient);
+
+    expect(identity?.user.id).toBe("user-1");
+    expect(identity?.claimsRole).toBe(ROLES.MANAGER);
+    expect(authRepository.getUser).toHaveBeenCalled();
   });
 });

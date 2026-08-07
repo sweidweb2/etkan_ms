@@ -24,3 +24,15 @@ with no pages in sidebar
 and same for the trainer,teacher,admin
 
 answer directly without talking too much
+
+When you open Manage Workshops, the server roughly does:
+
+Middleware — auth / path access (improved with getClaims, but still a floor)
+Panel layout — getSessionPack():
+auth.getUser() (Auth round-trip — not the cheap local claims path middleware uses)
+role + instructor + display name + permissions (several Supabase calls; cached only within that one request)
+Manager layout — route permission check (reuses the pack, good)
+Page — listWorkshopsForManager:
+assertPermission (cached, cheap)
+resolveActorRole again (extra profiles.role fetch even though session already has role)
+then the tiny workshops SELECT
