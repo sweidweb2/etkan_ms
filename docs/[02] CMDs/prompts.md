@@ -16,3 +16,9 @@ Implement loading states using **Skeleton + Progressive Section Loading** in Nex
 * If one section fails, show an **inline error state with a retry option** without blocking the rest of the page.
 * Prefer **streaming and server components** where possible, while keeping interactive widgets as client components.
 * The goal is to maximize **perceived performance** by making the page feel usable immediately, even if some sections are still loading.
+
+
+
+for now for student delete all pages for him so the panel only have the normal layout sidebar,header,body
+with no pages in sidebar
+and same for the trainer,teacher,admin

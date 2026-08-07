@@ -1,5 +1,5 @@
-import { RouteLoading } from "@/components/loaders/route-loading";
+import { PanelListPageSkeleton } from "@/components/loaders/skeletons";
 
-export default function WorkshopPaymentsLoading() {
-  return <RouteLoading variant="panel" />;
+export default function Loading() {
+  return <PanelListPageSkeleton />;
 }

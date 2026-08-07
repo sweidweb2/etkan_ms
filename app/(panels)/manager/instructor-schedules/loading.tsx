@@ -1,5 +1,5 @@
-import { RouteLoading } from "@/components/loaders/route-loading";
+import { PanelCalendarPageSkeleton } from "@/components/loaders/skeletons";
 
-export default function InstructorSchedulesLoading() {
-  return <RouteLoading variant="panel" />;
+export default function Loading() {
+  return <PanelCalendarPageSkeleton />;
 }

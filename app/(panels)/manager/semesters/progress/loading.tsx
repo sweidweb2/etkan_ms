@@ -1,5 +1,5 @@
-import { RouteLoading } from "@/components/loaders/route-loading";
+import { PanelCardsPageSkeleton } from "@/components/loaders/skeletons";
 
-export default function ManagerSemesterProgressLoading() {
-  return <RouteLoading variant="panel" label="Loading progress…" />;
+export default function Loading() {
+  return <PanelCardsPageSkeleton />;
 }

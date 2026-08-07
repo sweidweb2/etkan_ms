@@ -1,0 +1,46 @@
+---
+description: Panel route skeletons and progressive section loading (replace page spinners)
+globs: app/**/loading.tsx,components/loaders/skeletons/**/*,components/loaders/route-loading.tsx,components/loaders/panel-route-loading.tsx
+alwaysApply: false
+---
+
+# Panel skeletons & progressive loading
+
+Prefer **layout-shaped skeletons** over a centered “Loading page…” spinner in role panels.
+
+## Kit
+
+| Piece | Import |
+|-------|--------|
+| Primitives | `@/components/loaders/skeletons` → `SkeletonPageHeader`, `SkeletonTable`, `SkeletonCalendar`, … |
+| Page templates | `@/components/loaders/skeletons` → `PanelListPageSkeleton`, `PanelDetailPageSkeleton`, `PanelCalendarPageSkeleton`, `PanelDashboardPageSkeleton`, `PanelCardsPageSkeleton`, `PanelFormPageSkeleton` |
+
+Docs: `docs/[12] Pages/skeleton-loading-plan.md` · checklist: `docs/[12] Pages/pages.md`
+
+## Route `loading.tsx`
+
+- Panel segments: return a **page template** that matches the route (list / detail / calendar / dashboard / form / cards).
+- Always keep `TopLoaderPendingBridge` (templates already include it).
+- Auth / root may keep `RouteLoading variant="full-page"` until a public skeleton exists.
+- Do not put business logic or data fetching in `loading.tsx`.
+
+```tsx
+import { PanelListPageSkeleton } from "@/components/loaders/skeletons";
+
+export default function Loading() {
+  return <PanelListPageSkeleton />;
+}
+```
+
+## Progressive sections
+
+- After the route skeleton: stream heavy parts with `<Suspense fallback={primitive or small template}>`.
+- Shell (title / cheap chrome) can paint first; tables, calendars, and charts wait in their own boundaries.
+- Dialog-only datasets load on open — not on first paint.
+
+## Do not
+
+- Use `PanelRouteLoading` / center `PageSpinner` for new panel route fallbacks.
+- Build a fully custom skeleton per page when a shared template fits — extend primitives instead.
+- Drop the global top bar or mount a second top loader inside the panel.
+- Replace submit `InlineSpinner` with page skeletons.

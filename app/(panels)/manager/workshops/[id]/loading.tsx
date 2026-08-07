@@ -1,5 +1,5 @@
-import { RouteLoading } from "@/components/loaders/route-loading";
+import { PanelDetailPageSkeleton } from "@/components/loaders/skeletons";
 
-export default function WorkshopDetailLoading() {
-  return <RouteLoading variant="panel" />;
+export default function Loading() {
+  return <PanelDetailPageSkeleton />;
 }

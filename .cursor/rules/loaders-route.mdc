@@ -33,10 +33,12 @@ export default function AdminLoading() {
 ## When
 
 - Add `loading.tsx` next to `page.tsx` when the page has async server work and should show a fallback.
-- Use `variant="panel"` under `app/admin/`.
+- **Panel routes:** prefer shared **skeletons** from `@/components/loaders/skeletons` (see `.cursor/rules/loaders-skeletons.mdc`) instead of a centered spinner.
+- Use `variant="panel"` only for legacy fallbacks; new work should use `Panel*PageSkeleton`.
 - Use `variant="full-page"` for public/auth/root segments.
 
 ## Do not
 
 - Put business logic in `loading.tsx`.
 - Use route loading for button/action pending states — use `InlineSpinner` instead.
+- Add a new panel center spinner when a skeleton template fits.
