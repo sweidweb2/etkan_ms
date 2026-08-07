@@ -364,12 +364,14 @@ export function IncomeStatementAnalyticsPanel({
 
           <TabsContentPrimitive value="etkan" className="outline-none">
             <IncomeStatementAnalyticsEtkanTab
+              key={`etkan-${data.year}-${data.month ?? "all"}`}
               transactions={data.transactions}
             />
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="students" className="outline-none">
             <IncomeStatementAnalyticsStudentsTab
+              key={`students-${data.year}-${data.month ?? "all"}`}
               payments={data.payments}
               unpaidStudents={data.unpaidStudents}
               adjustedStudents={data.adjustedStudents}
