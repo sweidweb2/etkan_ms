@@ -15,22 +15,33 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/auth/session", () => ({
-  getSessionUser: vi.fn(),
-  getSessionRole: vi.fn(),
+  getSessionPack: vi.fn(),
 }));
 
 vi.mock("@/services/authorization.service", () => ({
-  getUserPermissionsCached: vi.fn(),
   hasPermissionInSet: vi.fn(
     (permissions: ReadonlySet<string>, permission: string) =>
       permissions.has(permission)
   ),
 }));
 
-import { getSessionRole, getSessionUser } from "@/lib/auth/session";
+import { getSessionPack } from "@/lib/auth/session";
 import { requireManagerRoutePermission } from "@/lib/auth/require-manager-route-permission";
 import { ROLES } from "@/lib/constants/roles";
-import { getUserPermissionsCached } from "@/services/authorization.service";
+
+function pack(overrides: {
+  userId?: string | null;
+  role?: (typeof ROLES)[keyof typeof ROLES] | null;
+  permissions?: ReadonlySet<string>;
+}) {
+  return {
+    user: overrides.userId ? ({ id: overrides.userId } as never) : null,
+    role: overrides.role ?? null,
+    displayName: "Test",
+    isInstructor: false,
+    permissions: overrides.permissions ?? new Set<string>(),
+  };
+}
 
 describe("requireManagerRoutePermission", () => {
   beforeEach(() => {
@@ -38,9 +49,12 @@ describe("requireManagerRoutePermission", () => {
   });
 
   it("allows access when the required view permission is present", async () => {
-    vi.mocked(getSessionUser).mockResolvedValue({ id: "user-1" } as never);
-    vi.mocked(getUserPermissionsCached).mockResolvedValue(
-      new Set([PERMISSIONS.SUBJECTS_VIEW])
+    vi.mocked(getSessionPack).mockResolvedValue(
+      pack({
+        userId: "user-1",
+        role: ROLES.MANAGER,
+        permissions: new Set([PERMISSIONS.SUBJECTS_VIEW]),
+      }) as never
     );
 
     await expect(
@@ -51,10 +65,12 @@ describe("requireManagerRoutePermission", () => {
   });
 
   it("redirects to the session role dashboard when denied", async () => {
-    vi.mocked(getSessionUser).mockResolvedValue({ id: "user-1" } as never);
-    vi.mocked(getSessionRole).mockResolvedValue(ROLES.TRAINER);
-    vi.mocked(getUserPermissionsCached).mockResolvedValue(
-      new Set([PERMISSIONS.WORKSHOPS_VIEW])
+    vi.mocked(getSessionPack).mockResolvedValue(
+      pack({
+        userId: "user-1",
+        role: ROLES.TRAINER,
+        permissions: new Set([PERMISSIONS.WORKSHOPS_VIEW]),
+      }) as never
     );
 
     await expect(
@@ -64,10 +80,15 @@ describe("requireManagerRoutePermission", () => {
   });
 
   it("redirects managers to manager dashboard when denied", async () => {
-    vi.mocked(getSessionUser).mockResolvedValue({ id: "user-1" } as never);
-    vi.mocked(getSessionRole).mockResolvedValue(ROLES.MANAGER);
-    vi.mocked(getUserPermissionsCached).mockResolvedValue(
-      new Set([PERMISSIONS.DASHBOARD_VIEW, PERMISSIONS.SUBJECTS_VIEW])
+    vi.mocked(getSessionPack).mockResolvedValue(
+      pack({
+        userId: "user-1",
+        role: ROLES.MANAGER,
+        permissions: new Set([
+          PERMISSIONS.DASHBOARD_VIEW,
+          PERMISSIONS.SUBJECTS_VIEW,
+        ]),
+      }) as never
     );
 
     await expect(
@@ -77,10 +98,12 @@ describe("requireManagerRoutePermission", () => {
   });
 
   it("calls forbidden when denied without a session role", async () => {
-    vi.mocked(getSessionUser).mockResolvedValue({ id: "user-1" } as never);
-    vi.mocked(getSessionRole).mockResolvedValue(null);
-    vi.mocked(getUserPermissionsCached).mockResolvedValue(
-      new Set([PERMISSIONS.SUBJECTS_VIEW])
+    vi.mocked(getSessionPack).mockResolvedValue(
+      pack({
+        userId: "user-1",
+        role: null,
+        permissions: new Set([PERMISSIONS.SUBJECTS_VIEW]),
+      }) as never
     );
 
     await expect(

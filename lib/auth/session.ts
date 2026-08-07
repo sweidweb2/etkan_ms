@@ -1,60 +1,84 @@
 import { cache } from "react";
+import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/server";
+import type { PermissionKey } from "@/lib/constants/permissions";
+import type { RoleValue } from "@/lib/constants/roles";
 import { getCurrentUser } from "@/services/auth.service";
+import { getUserPermissionsCached } from "@/services/authorization.service";
+import type { AuditActor } from "@/services/audit-log.service";
 import {
   resolveIsInstructor,
   resolveUserRole,
 } from "@/services/role.service";
 import { resolveDisplayName } from "@/services/user-display.service";
-import type { AuditActor } from "@/services/audit-log.service";
-import type { RoleValue } from "@/lib/constants/roles";
 
-export const getSessionUser = cache(async () => {
-  const client = await createSupabaseServerComponentClient();
-  return getCurrentUser(client);
-});
+const EMPTY_PERMISSIONS: ReadonlySet<PermissionKey> = new Set();
 
-export const getSessionRole = cache(async (): Promise<RoleValue | null> => {
-  const client = await createSupabaseServerComponentClient();
-  const user = await getCurrentUser(client);
+export type SessionPack = {
+  user: User | null;
+  role: RoleValue | null;
+  displayName: string;
+  isInstructor: boolean;
+  permissions: ReadonlySet<PermissionKey>;
+};
 
-  if (!user) {
-    return null;
-  }
+const EMPTY_SESSION_PACK: SessionPack = {
+  user: null,
+  role: null,
+  displayName: "User",
+  isInstructor: false,
+  permissions: EMPTY_PERMISSIONS,
+};
 
-  return resolveUserRole(client, user);
-});
-
-export const getSessionIsInstructor = cache(async (): Promise<boolean> => {
-  const client = await createSupabaseServerComponentClient();
-  const user = await getCurrentUser(client);
-
-  if (!user?.id) {
-    return false;
-  }
-
-  return resolveIsInstructor(client, user.id);
-});
-
-export async function getSessionDisplayName(): Promise<string> {
+/**
+ * Request-scoped who-am-I pack (user, role, display name, instructor, permissions).
+ * Prefer this in layouts; thin helpers below project from the same cache.
+ */
+export const getSessionPack = cache(async (): Promise<SessionPack> => {
   const client = await createSupabaseServerComponentClient();
   const user = await getCurrentUser(client);
 
   if (!user) {
-    return "User";
+    return EMPTY_SESSION_PACK;
   }
 
-  return resolveDisplayName(client, user);
-}
-
-export async function getSessionAuditActor(): Promise<AuditActor> {
-  const [user, userLabel] = await Promise.all([
-    getSessionUser(),
-    getSessionDisplayName(),
+  const [role, isInstructor, displayName, permissions] = await Promise.all([
+    resolveUserRole(client, user),
+    resolveIsInstructor(client, user.id),
+    resolveDisplayName(client, user),
+    getUserPermissionsCached(user.id),
   ]);
 
   return {
-    userId: user?.id ?? null,
-    userLabel: userLabel || "System",
+    user,
+    role,
+    displayName,
+    isInstructor,
+    permissions,
+  };
+});
+
+export async function getSessionUser() {
+  return (await getSessionPack()).user;
+}
+
+export async function getSessionRole(): Promise<RoleValue | null> {
+  return (await getSessionPack()).role;
+}
+
+export async function getSessionIsInstructor(): Promise<boolean> {
+  return (await getSessionPack()).isInstructor;
+}
+
+export async function getSessionDisplayName(): Promise<string> {
+  return (await getSessionPack()).displayName;
+}
+
+export async function getSessionAuditActor(): Promise<AuditActor> {
+  const pack = await getSessionPack();
+
+  return {
+    userId: pack.user?.id ?? null,
+    userLabel: pack.displayName || "System",
   };
 }

@@ -94,15 +94,20 @@ export async function getUserPermissionsCached(
   return loadUserPermissionsCached(userId);
 }
 
+/**
+ * Request-scoped permission check (uses `getUserPermissionsCached`).
+ * The `client` argument is unused for the grants load; kept for call-site compatibility.
+ */
 export async function hasPermission(
   client: Supabase,
   userId: string,
   permission: string
 ): Promise<boolean> {
+  void client;
   if (!isPermissionKey(permission)) {
     return false;
   }
-  const permissions = await getUserPermissions(client, userId);
+  const permissions = await getUserPermissionsCached(userId);
   return hasPermissionInSet(permissions, permission);
 }
 
@@ -111,7 +116,8 @@ export async function hasAnyPermission(
   userId: string,
   candidates: readonly string[]
 ): Promise<boolean> {
-  const permissions = await getUserPermissions(client, userId);
+  void client;
+  const permissions = await getUserPermissionsCached(userId);
   return hasAnyPermissionInSet(permissions, candidates);
 }
 
@@ -120,7 +126,8 @@ export async function hasAllPermissions(
   userId: string,
   candidates: readonly string[]
 ): Promise<boolean> {
-  const permissions = await getUserPermissions(client, userId);
+  void client;
+  const permissions = await getUserPermissionsCached(userId);
   return hasAllPermissionsInSet(permissions, candidates);
 }
 

@@ -152,7 +152,7 @@ Use this as the day-to-day list:
 
 - [ ] **Phase 0** — Journey list + before timings (multi-role)
 - [x] **Phase 1** — Top bar timing & coverage (all entry points, all panels)
-- [ ] **Phase 2** — Shared session/permissions pack; less repeat work on each click
+- [x] **Phase 2** — Shared session/permissions pack; less repeat work on each click
 - [ ] **Phase 3** — Page-by-page data load improvements (waves across panels)
 - [ ] **Phase 4** — After timings, regression checklist, docs/rules update
 
@@ -174,6 +174,8 @@ Use this as the day-to-day list:
 | | | | | |
 
 **Phase 1 (2026-08-07):** Show delay 150→50 ms; `TopLoaderPendingBridge` holds the bar while panel/full-page route loading is mounted; `armGlobalTopLoaderNavigation` + arm-before-`pushState` for search/`router.push` parity with Link clicks.
+
+**Phase 2 (2026-08-07):** `getSessionPack` (user + role + display name + instructor + permissions) request-scoped; session helpers project from it; `assertPermission` / `hasPermission*` use `getUserPermissionsCached`; `RolePanelLayout` + manager route gate consume the pack.
 
 ---
 

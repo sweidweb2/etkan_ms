@@ -177,11 +177,13 @@ Do these in order. Keep the app usable after each phase. Don’t skip measuring 
 
 **Goal:** Cut the fixed tax on every server action. Overlaps with `[01]` Phase 2 — share work where possible.
 
+**Status (2026-08-07):** Done via `[01]` Phase 2 — `getSessionPack` + `getUserPermissionsCached` on `assertPermission` / `hasPermission*` / `getUnauthorizedError`. Audit log still awaited (step 4 deferred).
+
 **Steps**
 
-1. Wrap `getSessionDisplayName` in React `cache` (same request as `getSessionUser`) or fold display name into one cached “session pack.”  
-2. Route mutation permission checks through **request-scoped** permission load (`getUserPermissionsCached` or equivalent) so one action doesn’t re-query role grants for every nested service call.  
-3. Keep `assertPermission` / `getUnauthorizedError` behavior identical for callers — only change how keys are loaded.  
+1. ~~Wrap `getSessionDisplayName` in React `cache`…~~ → folded into `getSessionPack`.  
+2. ~~Route mutation permission checks through `getUserPermissionsCached`.~~  
+3. ~~Keep `assertPermission` / `getUnauthorizedError` behavior identical.~~  
 4. Optionally defer non-critical audit log off the critical path (queue / fire-and-forget with care) **only** if product accepts eventual audit rows; otherwise keep await but don’t duplicate actor resolution.
 
 **Done when:** A no-op / tiny mutation’s server time drops measurably on Phase 0 journeys; security tests still pass.
@@ -244,7 +246,7 @@ Do these in order. Keep the app usable after each phase. Don’t skip measuring 
 
 - [ ] **Phase 0** — Mutation journeys + before timings (multi-feature)  
 - [ ] **Phase 1** — End double refresh / narrow `revalidatePath`  
-- [ ] **Phase 2** — Cached session pack + cached permission load on actions  
+- [x] **Phase 2** — Cached session pack + cached permission load on actions (shared with `[01]` Phase 2)  
 - [ ] **Phase 3** — Date/id-scoped repositories (income + hot lists first)  
 - [ ] **Phase 4** — Domain service trim (accounting → workshops → grades → rest)  
 - [ ] **Phase 5** — After timings, regression checklist, rules update  

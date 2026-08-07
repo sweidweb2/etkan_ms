@@ -5,6 +5,7 @@ import * as permissionRepository from "@/repositories/permission.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import {
   UNAUTHORIZED_MESSAGE,
+  assertPermission,
   getUserPermissions,
   hasAllPermissions,
   hasAnyPermission,
@@ -16,11 +17,11 @@ import {
 
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/permission.repository");
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: () => ({}),
+}));
 
 const client = {} as never;
-const managerId = "11111111-1111-4111-8111-111111111111";
-const teacherId = "22222222-2222-4222-8222-222222222222";
-const missingId = "33333333-3333-4333-8333-333333333333";
 
 const managerKeys = [
   { permission_key: PERMISSIONS.SUBJECTS_VIEW },
@@ -28,26 +29,31 @@ const managerKeys = [
   { permission_key: PERMISSIONS.SUBJECTS_DELETE },
 ];
 
+function mockManagerGrants() {
+  vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+    data: { role: ROLES.MANAGER },
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  });
+  vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
+    data: managerKeys,
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  });
+}
+
 describe("authorization.service", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("allows a manager user for granted sample permissions", async () => {
-    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
-      data: { role: ROLES.MANAGER },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
-      data: managerKeys,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
+    const managerId = "11111111-1111-4111-8111-111111111101";
+    mockManagerGrants();
 
     const permissions = await getUserPermissions(client, managerId);
 
@@ -61,6 +67,7 @@ describe("authorization.service", () => {
   });
 
   it("denies teacher/student roles with no grants", async () => {
+    const teacherId = "22222222-2222-4222-8222-222222222201";
     vi.mocked(profileRepository.findRoleById).mockResolvedValue({
       data: { role: ROLES.TEACHER },
       error: null,
@@ -85,20 +92,8 @@ describe("authorization.service", () => {
   });
 
   it("denies unknown permission keys by default", async () => {
-    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
-      data: { role: ROLES.MANAGER },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
-      data: managerKeys,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
+    const managerId = "11111111-1111-4111-8111-111111111102";
+    mockManagerGrants();
 
     expect(await hasPermission(client, managerId, "not.a.real.key")).toBe(false);
     await expect(
@@ -107,6 +102,7 @@ describe("authorization.service", () => {
   });
 
   it("denies missing user / missing profile", async () => {
+    const missingId = "33333333-3333-4333-8333-333333333301";
     vi.mocked(profileRepository.findRoleById).mockResolvedValue({
       data: null,
       error: null,
@@ -125,6 +121,7 @@ describe("authorization.service", () => {
   });
 
   it("requirePermission fails with a clear unauthorized outcome", async () => {
+    const studentId = "33333333-3333-4333-8333-333333333302";
     vi.mocked(profileRepository.findRoleById).mockResolvedValue({
       data: { role: ROLES.STUDENT },
       error: null,
@@ -141,25 +138,13 @@ describe("authorization.service", () => {
     });
 
     await expect(
-      requirePermission(client, missingId, PERMISSIONS.USERS_VIEW)
+      requirePermission(client, studentId, PERMISSIONS.USERS_VIEW)
     ).rejects.toThrow(UNAUTHORIZED_MESSAGE);
   });
 
   it("supports hasAnyPermission and hasAllPermissions", async () => {
-    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
-      data: { role: ROLES.MANAGER },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
-      data: managerKeys,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
+    const managerId = "11111111-1111-4111-8111-111111111103";
+    mockManagerGrants();
 
     expect(
       await hasAnyPermission(client, managerId, [
@@ -181,6 +166,18 @@ describe("authorization.service", () => {
         PERMISSIONS.SUBJECTS_UPDATE,
       ])
     ).toBe(false);
+  });
+
+  it("assertPermission allows granted keys for the session actor", async () => {
+    const managerId = "11111111-1111-4111-8111-111111111104";
+    mockManagerGrants();
+
+    await expect(
+      assertPermission(client, managerId, PERMISSIONS.SUBJECTS_VIEW)
+    ).resolves.toBeUndefined();
+    await expect(
+      assertPermission(client, managerId, PERMISSIONS.SUBJECTS_CREATE)
+    ).resolves.toBeUndefined();
   });
 
   it("set helpers mirror async checks without extra DB calls", () => {
