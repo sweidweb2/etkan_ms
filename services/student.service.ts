@@ -185,15 +185,49 @@ async function fetchStudentsForManager(
     return [];
   }
 
-  const students = await Promise.all(
-    studentProfiles.map((studentProfile) =>
-      mapStudentProfileToManagerStudentRow(adminClient, studentProfile)
-    )
-  );
+  const userIds = studentProfiles.map((row) => row.user_id);
+  const [profilesResult, emailsResult] = await Promise.all([
+    profileRepository.listProfilesByIds(adminClient, userIds),
+    authRepository.listAuthEmailsByIds(adminClient, userIds),
+  ]);
 
-  return students.filter(
-    (student): student is ManagerStudentRow => student !== null
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
+
+  const profileById = new Map(
+    (profilesResult.data ?? []).map((row) => [row.id, row])
   );
+  const emailById = emailsResult.data;
+
+  const students: ManagerStudentRow[] = [];
+
+  for (const studentProfile of studentProfiles) {
+    const profile = profileById.get(studentProfile.user_id);
+    if (!profile) {
+      continue;
+    }
+
+    students.push({
+      user_id: studentProfile.user_id,
+      student_profile_id: studentProfile.id,
+      username: profile.username ?? "",
+      email: emailById.get(studentProfile.user_id) ?? "",
+      full_name: studentProfile.full_name,
+      birth_date: studentProfile.birth_date,
+      phone: studentProfile.phone,
+      status: mapStudentStatus(studentProfile.status),
+      created_at:
+        studentProfile.created_at ??
+        profile.created_at ??
+        new Date(0).toISOString(),
+    });
+  }
+
+  return students;
 }
 
 const listStudentsForManagerCached = unstable_cache(

@@ -39,6 +39,53 @@ export async function listAllTransactions(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+/** Inclusive `from`, exclusive `to` on `transaction_date` (ISO date strings). */
+export async function listTransactionsBetween(
+  client: Supabase,
+  fromInclusive: string,
+  toExclusive: string
+) {
+  return client
+    .from("transactions")
+    .select(TRANSACTION_COLUMNS)
+    .gte("transaction_date", fromInclusive)
+    .lt("transaction_date", toExclusive)
+    .order("transaction_date", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
+export async function findTransactionDateBounds(client: Supabase) {
+  const [minResult, maxResult] = await Promise.all([
+    client
+      .from("transactions")
+      .select("transaction_date")
+      .order("transaction_date", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    client
+      .from("transactions")
+      .select("transaction_date")
+      .order("transaction_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (minResult.error) {
+    return { data: null, error: minResult.error };
+  }
+  if (maxResult.error) {
+    return { data: null, error: maxResult.error };
+  }
+
+  return {
+    data: {
+      min: minResult.data?.transaction_date ?? null,
+      max: maxResult.data?.transaction_date ?? null,
+    },
+    error: null,
+  };
+}
+
 export async function createTransaction(
   client: Supabase,
   input: CreateTransactionRecordInput

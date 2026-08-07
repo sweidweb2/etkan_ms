@@ -71,6 +71,53 @@ export async function listAllFinancialAdjustments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+/** Inclusive `from`, exclusive `to` on `effective_date` (ISO date strings). */
+export async function listFinancialAdjustmentsBetween(
+  client: Supabase,
+  fromInclusive: string,
+  toExclusive: string
+) {
+  return client
+    .from("student_financial_adjustments")
+    .select(ADJUSTMENT_COLUMNS)
+    .gte("effective_date", fromInclusive)
+    .lt("effective_date", toExclusive)
+    .order("effective_date", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
+export async function findFinancialAdjustmentDateBounds(client: Supabase) {
+  const [minResult, maxResult] = await Promise.all([
+    client
+      .from("student_financial_adjustments")
+      .select("effective_date")
+      .order("effective_date", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    client
+      .from("student_financial_adjustments")
+      .select("effective_date")
+      .order("effective_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (minResult.error) {
+    return { data: null, error: minResult.error };
+  }
+  if (maxResult.error) {
+    return { data: null, error: maxResult.error };
+  }
+
+  return {
+    data: {
+      min: minResult.data?.effective_date ?? null,
+      max: maxResult.data?.effective_date ?? null,
+    },
+    error: null,
+  };
+}
+
 export async function findAdjustmentBySppId(client: Supabase, sppId: string) {
   return client
     .from("student_financial_adjustments")

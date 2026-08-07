@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
-import { addStudentToClassAction } from "@/app/manager/classes/actions";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import {
+  addStudentToClassAction,
+  loadAvailableStudentsForClassAction,
+} from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { StudentMultiSelectField } from "@/components/manager/classes/student-multi-select-field";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -48,7 +51,7 @@ export function AddStudentToClassDialog({
   onOpenChange,
   classId,
   className,
-  availableStudents,
+  availableStudents: availableStudentsProp,
   onStudentsAdded,
 }: AddStudentToClassDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -60,6 +63,10 @@ export function AddStudentToClassDialog({
   const [selectedStudents, setSelectedStudents] = useState<ManagerStudentRow[]>(
     []
   );
+  const [availableStudents, setAvailableStudents] = useState(
+    availableStudentsProp
+  );
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
 
   const {
     handleSubmit,
@@ -82,6 +89,35 @@ export function AddStudentToClassDialog({
     onOpenChange(nextOpen);
   });
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (availableStudentsProp.length > 0) {
+      setAvailableStudents(availableStudentsProp);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingOptions(true);
+    void loadAvailableStudentsForClassAction(classId)
+      .then((rows) => {
+        if (!cancelled) {
+          setAvailableStudents(rows);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingOptions(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, classId, availableStudentsProp]);
+
   useActionStateToast(state, isPending);
 
   const hasAvailableStudents = availableStudents.length > 0;
@@ -91,7 +127,8 @@ export function AddStudentToClassDialog({
     state,
     isPending,
     (nextState) => {
-      const added = nextState.students ?? (nextState.student ? [nextState.student] : []);
+      const added =
+        nextState.students ?? (nextState.student ? [nextState.student] : []);
       if (!nextState.classRow || added.length === 0) {
         return;
       }
@@ -161,7 +198,12 @@ export function AddStudentToClassDialog({
               label="Students"
               hint="Required"
             />
-            {hasAvailableStudents ? (
+            {isLoadingOptions ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading students…
+              </div>
+            ) : hasAvailableStudents ? (
               <StudentMultiSelectField
                 inputId="add-student-to-class-id"
                 students={availableStudents}
@@ -193,7 +235,12 @@ export function AddStudentToClassDialog({
           <Button
             type="submit"
             form="add-student-to-class-form"
-            disabled={!hasAvailableStudents || selectedCount === 0 || isPending}
+            disabled={
+              isPending ||
+              isLoadingOptions ||
+              !hasAvailableStudents ||
+              selectedCount === 0
+            }
           >
             {isPending ? (
               <>

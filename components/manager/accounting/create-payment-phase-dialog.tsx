@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
-import { createPaymentPhaseAction } from "@/app/manager/accounting/actions";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import {
+  createPaymentPhaseAction,
+  loadPaymentPhaseSemesterOptionsAction,
+} from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -49,14 +52,12 @@ const defaultValues: CreatePaymentPhaseInput = {
 type CreatePaymentPhaseDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  semesterOptions: ManagerPaymentPhaseSemesterOption[];
   onCreated: () => void;
 };
 
 export function CreatePaymentPhaseDialog({
   open,
   onOpenChange,
-  semesterOptions,
   onCreated,
 }: CreatePaymentPhaseDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -65,6 +66,12 @@ export function CreatePaymentPhaseDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+
+  const [semesterOptions, setSemesterOptions] = useState<
+    ManagerPaymentPhaseSemesterOption[]
+  >([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
@@ -93,7 +100,34 @@ export function CreatePaymentPhaseDialog({
   useEffect(() => {
     if (!open) {
       reset(defaultValues);
+      return;
     }
+
+    let cancelled = false;
+    setIsLoadingOptions(true);
+    setOptionsError(null);
+
+    void loadPaymentPhaseSemesterOptionsAction()
+      .then((options) => {
+        if (!cancelled) {
+          setSemesterOptions(options);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOptionsError("Unable to load semesters.");
+          setSemesterOptions([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingOptions(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, reset]);
 
   useActionStateSuccess(state, isPending, () => {
@@ -129,6 +163,8 @@ export function CreatePaymentPhaseDialog({
   const endDateError =
     errors.end_date?.message ?? state.fieldErrors?.end_date?.[0];
 
+  const formDisabled = isPending || isLoadingOptions;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
@@ -155,7 +191,7 @@ export function CreatePaymentPhaseDialog({
             <Input
               id="create-payment-phase-name"
               aria-invalid={!!nameError}
-              disabled={isPending}
+              disabled={formDisabled}
               {...register("name")}
             />
             {nameError ? (
@@ -167,28 +203,39 @@ export function CreatePaymentPhaseDialog({
             <FieldLabel
               htmlFor="create-payment-phase-semester"
               label="Semester"
-              hint="Required · no opened phase"
+              hint="Required"
             />
-            {hasSemesterOptions ? (
+            {isLoadingOptions ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading semesters…
+              </div>
+            ) : (
               <Select
-                value={selectedSemesterId || null}
+                value={selectedSemesterId || undefined}
+                onValueChange={(value) =>
+                  setValue("semester_id", value ?? "", {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+                disabled={formDisabled || !hasSemesterOptions}
                 items={semesterSelectItems}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-                  setValue("semester_id", value, { shouldValidate: true });
-                }}
-                disabled={isPending}
               >
                 <SelectTrigger
                   id="create-payment-phase-semester"
-                  className="w-full"
                   aria-invalid={!!semesterError}
+                  className="w-full"
                 >
-                  <SelectValue placeholder="Select a semester" />
+                  <SelectValue
+                    placeholder={
+                      hasSemesterOptions
+                        ? "Select a semester"
+                        : "No eligible semesters"
+                    }
+                  />
                 </SelectTrigger>
-                <SelectContent align="start">
+                <SelectContent>
                   {semesterOptions.map((option) => (
                     <SelectItem key={option.id} value={option.id}>
                       {option.label}
@@ -196,12 +243,10 @@ export function CreatePaymentPhaseDialog({
                   ))}
                 </SelectContent>
               </Select>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No eligible semesters. Semesters need a code and must not already
-                have an opened phase.
-              </p>
             )}
+            {optionsError ? (
+              <p className="text-sm text-destructive">{optionsError}</p>
+            ) : null}
             {semesterError ? (
               <p className="text-sm text-destructive">{semesterError}</p>
             ) : null}
@@ -217,31 +262,30 @@ export function CreatePaymentPhaseDialog({
               <Input
                 id="create-payment-phase-amount"
                 type="number"
-                min={0}
-                step={0.01}
+                step="0.01"
+                min="0"
                 aria-invalid={!!amountError}
-                disabled={isPending}
-                {...register("amount")}
+                disabled={formDisabled}
+                {...register("amount", { valueAsNumber: true })}
               />
               {amountError ? (
                 <p className="text-sm text-destructive">{amountError}</p>
               ) : null}
             </div>
-
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="create-payment-phase-upfront"
-                label="Upfront"
+                label="Upfront amount"
                 hint="Required"
               />
               <Input
                 id="create-payment-phase-upfront"
                 type="number"
-                min={0}
-                step={0.01}
+                step="0.01"
+                min="0"
                 aria-invalid={!!upfrontError}
-                disabled={isPending}
-                {...register("upfront_amount")}
+                disabled={formDisabled}
+                {...register("upfront_amount", { valueAsNumber: true })}
               />
               {upfrontError ? (
                 <p className="text-sm text-destructive">{upfrontError}</p>
@@ -258,11 +302,10 @@ export function CreatePaymentPhaseDialog({
             <Input
               id="create-payment-phase-duration"
               type="number"
-              min={1}
-              step={1}
+              min="1"
               aria-invalid={!!durationError}
-              disabled={isPending}
-              {...register("duration_months")}
+              disabled={formDisabled}
+              {...register("duration_months", { valueAsNumber: true })}
             />
             {durationError ? (
               <p className="text-sm text-destructive">{durationError}</p>
@@ -280,14 +323,13 @@ export function CreatePaymentPhaseDialog({
                 id="create-payment-phase-start"
                 type="date"
                 aria-invalid={!!startDateError}
-                disabled={isPending}
+                disabled={formDisabled}
                 {...register("start_date")}
               />
               {startDateError ? (
                 <p className="text-sm text-destructive">{startDateError}</p>
               ) : null}
             </div>
-
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="create-payment-phase-end"
@@ -298,7 +340,7 @@ export function CreatePaymentPhaseDialog({
                 id="create-payment-phase-end"
                 type="date"
                 aria-invalid={!!endDateError}
-                disabled={isPending}
+                disabled={formDisabled}
                 {...register("end_date")}
               />
               {endDateError ? (
@@ -308,22 +350,22 @@ export function CreatePaymentPhaseDialog({
           </div>
         </form>
 
-        <DialogFooter className="mt-2 sm:justify-end">
+        <DialogFooter>
           <Button
             type="button"
             variant="outline"
-            disabled={isPending}
             onClick={() => handleOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             form="create-payment-phase-form"
-            disabled={!hasSemesterOptions || isPending}
+            disabled={formDisabled || !hasSemesterOptions}
           >
             {isPending ? <InlineSpinner /> : null}
-            Create phase
+            Create
           </Button>
         </DialogFooter>
       </DialogContent>

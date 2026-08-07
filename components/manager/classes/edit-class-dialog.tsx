@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
-import { updateClassAction } from "@/app/manager/classes/actions";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import {
+  loadClassEditOptionsAction,
+  updateClassAction,
+} from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -55,8 +58,8 @@ export function EditClassDialog({
   open,
   onOpenChange,
   classRow,
-  subjectOptions,
-  semesterOptions,
+  subjectOptions: subjectOptionsProp,
+  semesterOptions: semesterOptionsProp,
   onClassUpdated,
 }: EditClassDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -65,6 +68,9 @@ export function EditClassDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const [subjectOptions, setSubjectOptions] = useState(subjectOptionsProp);
+  const [semesterOptions, setSemesterOptions] = useState(semesterOptionsProp);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
@@ -122,6 +128,37 @@ export function EditClassDialog({
       semester_id: classRow.semester_id ?? SEMESTER_UNLINKED,
     });
   }, [classRow, open, reset]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (subjectOptionsProp.length > 0 || semesterOptionsProp.length > 0) {
+      setSubjectOptions(subjectOptionsProp);
+      setSemesterOptions(semesterOptionsProp);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingOptions(true);
+    void loadClassEditOptionsAction()
+      .then((options) => {
+        if (!cancelled) {
+          setSubjectOptions(options.subjects);
+          setSemesterOptions(options.semesters);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingOptions(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, subjectOptionsProp, semesterOptionsProp]);
 
   useActionStateSuccess(
     state,
@@ -204,33 +241,40 @@ export function EditClassDialog({
               label="Subject"
               hint="Required"
             />
-            <Select
-              value={selectedSubjectId || null}
-              items={subjectSelectItems}
-              onValueChange={(value) => {
-                if (!value) {
-                  return;
-                }
+            {isLoadingOptions ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading options…
+              </div>
+            ) : (
+              <Select
+                value={selectedSubjectId || null}
+                items={subjectSelectItems}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
 
-                setValue("subject_id", value, { shouldValidate: true });
-              }}
-              disabled={isPending}
-            >
-              <SelectTrigger
-                id="edit-class-subject"
-                className="w-full"
-                aria-invalid={!!subjectError}
+                  setValue("subject_id", value, { shouldValidate: true });
+                }}
+                disabled={isPending || subjectOptions.length === 0}
               >
-                <SelectValue placeholder="Select a subject" />
-              </SelectTrigger>
-              <SelectContent align="start">
-                {subjectOptions.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectTrigger
+                  id="edit-class-subject"
+                  className="w-full"
+                  aria-invalid={!!subjectError}
+                >
+                  <SelectValue placeholder="Select a subject" />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {subjectOptions.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {subjectError ? (
               <p className="text-sm text-destructive">{subjectError}</p>
             ) : null}
@@ -282,28 +326,35 @@ export function EditClassDialog({
               label="Semester"
               hint="Optional"
             />
-            <Select
-              value={selectedSemesterId || SEMESTER_UNLINKED}
-              items={semesterSelectItems}
-              onValueChange={(value) => {
-                setValue("semester_id", value ?? SEMESTER_UNLINKED, {
-                  shouldValidate: true,
-                });
-              }}
-              disabled={isPending}
-            >
-              <SelectTrigger id="edit-class-semester" className="w-full">
-                <SelectValue placeholder="No semester" />
-              </SelectTrigger>
-              <SelectContent align="start">
-                <SelectItem value={SEMESTER_UNLINKED}>No semester</SelectItem>
-                {semesterOptions.map((semester) => (
-                  <SelectItem key={semester.id} value={semester.id}>
-                    {semester.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isLoadingOptions ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading options…
+              </div>
+            ) : (
+              <Select
+                value={selectedSemesterId || SEMESTER_UNLINKED}
+                items={semesterSelectItems}
+                onValueChange={(value) => {
+                  setValue("semester_id", value ?? SEMESTER_UNLINKED, {
+                    shouldValidate: true,
+                  });
+                }}
+                disabled={isPending}
+              >
+                <SelectTrigger id="edit-class-semester" className="w-full">
+                  <SelectValue placeholder="No semester" />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value={SEMESTER_UNLINKED}>No semester</SelectItem>
+                  {semesterOptions.map((semester) => (
+                    <SelectItem key={semester.id} value={semester.id}>
+                      {semester.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {semesterError ? (
               <p className="text-sm text-destructive">{semesterError}</p>
             ) : null}
@@ -322,7 +373,7 @@ export function EditClassDialog({
           <Button
             type="submit"
             form="edit-class-form"
-            disabled={!classRow || isPending}
+            disabled={!classRow || isPending || isLoadingOptions}
           >
             {isPending ? (
               <>

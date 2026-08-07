@@ -16,10 +16,10 @@ import {
   buildCloudflareAiUsageDailySeries,
   summarizeCloudflareAiUsageSeries,
 } from "@/lib/manager/cloudflare-ai-usage-analytics";
-import type { ManagerCloudflareAiUsageRow } from "@/types/manager-cloudflare-ai-usage";
+import type { ManagerCloudflareAiUsageListRow } from "@/types/manager-cloudflare-ai-usage";
 
 type CloudflareAiUsageAnalyticsProps = {
-  records: ManagerCloudflareAiUsageRow[];
+  records: ManagerCloudflareAiUsageListRow[];
 };
 
 export function CloudflareAiUsageAnalytics({

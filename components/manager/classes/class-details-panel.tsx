@@ -8,7 +8,6 @@ import { Can } from "@/components/auth/can";
 import { AssignClassTeachersDropdown } from "@/components/manager/classes/assign-class-teachers-dropdown";
 import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
 import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog";
-import { ClassAnalyticsSection } from "@/components/manager/classes/class-analytics-section";
 import { ClassFinalExamSection } from "@/components/manager/classes/class-final-exam-section";
 import { ClassSessionProgressTrack } from "@/components/manager/classes/class-session-progress-track";
 import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
@@ -50,7 +49,6 @@ import {
   CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
   isClassGradesUnlocked,
 } from "@/lib/manager/class-grades-access";
-import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
@@ -76,7 +74,6 @@ type ClassDetailsPanelProps = {
   transferClassOptions: ClassTransferOption[];
   initialFinalExam: ManagerClassFinalExamRow | null;
   initialStudentGrades: ManagerStudentFinalExamGradeRow[];
-  initialAnalytics: ManagerClassAnalyticsPreview;
   initialTeachers: ManagerClassTeacherOption[];
   subjectOptions: ManagerClassSubjectOption[];
   semesterOptions: ManagerClassSemesterOption[];
@@ -115,7 +112,6 @@ export function ClassDetailsPanel({
   transferClassOptions,
   initialFinalExam,
   initialStudentGrades,
-  initialAnalytics,
   initialTeachers,
   subjectOptions,
   semesterOptions,
@@ -377,11 +373,6 @@ export function ClassDetailsPanel({
       />
 
       <ClassSessionProgressTrack classRow={classRow} sessions={sessions} />
-
-      <ClassAnalyticsSection
-        className={classRow.name}
-        analytics={initialAnalytics}
-      />
     </div>
     </TooltipProvider>
   );

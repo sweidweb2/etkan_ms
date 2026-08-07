@@ -5,13 +5,16 @@ import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { WEEKLY_SCHEDULE_SLOT_TYPE_LABELS } from "@/lib/validators/manager/weekly-schedule-slot";
-import { assertPermission } from "@/services/authorization.service";
+import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
+import * as classRepository from "@/repositories/class.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as subjectRepository from "@/repositories/subject.repository";
+import * as weeklyScheduleSlotRepository from "@/repositories/weekly-schedule-slot.repository";
+import {
+  assertPermission,
+  hasPermission,
+} from "@/services/authorization.service";
 import { listAuditLogsForManager } from "@/services/audit-log.service";
-import { listAllBorrowsForManager } from "@/services/borrow-equipment.service";
-import { listClassesForManager } from "@/services/class.service";
-import { listStudentsForManager } from "@/services/student.service";
-import { listSubjectsForManager } from "@/services/subject.service";
-import { listWeeklyScheduleSlotsForManager } from "@/services/weekly-schedule-slot.service";
 import type { ManagerAuditLogRow } from "@/types/manager-audit-log";
 import type {
   ManagerDashboardActivityItem,
@@ -38,8 +41,7 @@ function getScheduleStatus(
   endTime: string,
   now: Date
 ): ManagerDashboardScheduleStatus {
-  const current =
-    now.getHours() * 60 + now.getMinutes();
+  const current = now.getHours() * 60 + now.getMinutes();
   const start = toMinutes(startTime);
   const end = toMinutes(endTime);
 
@@ -143,10 +145,7 @@ function buildTodaySchedule(
   slots: ManagerWeeklyScheduleSession[],
   now: Date
 ): ManagerDashboardScheduleItem[] {
-  const todayIso = format(now, "yyyy-MM-dd");
-
   return slots
-    .filter((slot) => slot.slotDate === todayIso)
     .sort((left, right) => toMinutes(left.startTime) - toMinutes(right.startTime))
     .map((slot) => ({
       id: slot.id,
@@ -215,6 +214,26 @@ function buildActivity(logs: ManagerAuditLogRow[]): ManagerDashboardActivityItem
   });
 }
 
+function mapSlotRecordToSession(record: {
+  id: string;
+  name: string;
+  type: string;
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+  color: string;
+}): ManagerWeeklyScheduleSession {
+  return {
+    id: record.id,
+    name: record.name,
+    type: record.type as ManagerWeeklyScheduleSession["type"],
+    slotDate: record.slot_date,
+    startTime: record.start_time.slice(0, 5),
+    endTime: record.end_time.slice(0, 5),
+    color: record.color,
+  };
+}
+
 export async function getManagerDashboardForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -222,87 +241,142 @@ export async function getManagerDashboardForManager(
 ): Promise<ManagerDashboardData> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.DASHBOARD_VIEW);
 
-  const [
-    students,
-    classes,
-    subjects,
-    scheduleSlots,
-    borrows,
-    auditLogs,
-  ] = await Promise.all([
-    listStudentsForManager(adminClient, actorUserId),
-    listClassesForManager(adminClient, actorUserId),
-    listSubjectsForManager(adminClient, actorUserId),
-    listWeeklyScheduleSlotsForManager(adminClient, actorUserId),
-    listAllBorrowsForManager(adminClient, actorUserId),
-    listAuditLogsForManager(adminClient, actorUserId),
-  ]);
-
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const weekAgo = new Date(now);
   weekAgo.setDate(weekAgo.getDate() - 7);
+  const todayIso = format(now, "yyyy-MM-dd");
 
-  const activeStudents = students.filter(
-    (student) => student.status === STUDENT_STATUSES.ACTIVE
-  ).length;
-  const studentsThisMonth = students.filter(
-    (student) => new Date(student.created_at) >= monthStart
-  ).length;
-  const newStudentsLast7Days = students.filter(
-    (student) => new Date(student.created_at) >= weekAgo
-  ).length;
+  const [
+    canStudents,
+    canClasses,
+    canSubjects,
+    canSchedule,
+    canBorrows,
+    canLogs,
+  ] = await Promise.all([
+    hasPermission(adminClient, actorUserId ?? "", PERMISSIONS.STUDENTS_VIEW),
+    hasPermission(adminClient, actorUserId ?? "", PERMISSIONS.CLASSES_VIEW),
+    hasPermission(adminClient, actorUserId ?? "", PERMISSIONS.SUBJECTS_VIEW),
+    hasPermission(adminClient, actorUserId ?? "", PERMISSIONS.SCHEDULE_VIEW),
+    hasPermission(
+      adminClient,
+      actorUserId ?? "",
+      PERMISSIONS.EQUIPMENT_VIEW_BORROWS
+    ),
+    hasPermission(adminClient, actorUserId ?? "", PERMISSIONS.LOGS_VIEW),
+  ]);
 
-  const activeClasses = classes.filter(
-    (row) =>
-      row.status === CLASS_STATUSES.IN_PROGRESS ||
-      row.status === CLASS_STATUSES.SCHEDULED
-  ).length;
-  const classesStartingThisWeek = classes.filter(
-    (row) => row.status === CLASS_STATUSES.SCHEDULED
-  ).length;
+  const [
+    studentStatsResult,
+    classStatsResult,
+    subjectStatsResult,
+    scheduleSlotsResult,
+    openBorrowsResult,
+    auditLogs,
+  ] = await Promise.all([
+    canStudents
+      ? studentProfileRepository.countStudentDashboardStats(adminClient, {
+          activeStatus: STUDENT_STATUSES.ACTIVE,
+          monthStartIso: monthStart.toISOString(),
+          weekAgoIso: weekAgo.toISOString(),
+        })
+      : Promise.resolve({
+          data: {
+            activeCount: 0,
+            createdThisMonth: 0,
+            createdLast7Days: 0,
+          },
+          error: null,
+        }),
+    canClasses
+      ? classRepository.countClassDashboardStats(adminClient, {
+          inProgressStatus: CLASS_STATUSES.IN_PROGRESS,
+          scheduledStatus: CLASS_STATUSES.SCHEDULED,
+        })
+      : Promise.resolve({
+          data: {
+            inProgressCount: 0,
+            scheduledCount: 0,
+            activeOrScheduledSubjectCount: 0,
+          },
+          error: null,
+        }),
+    canSubjects
+      ? subjectRepository.countSubjectDashboardStats(adminClient)
+      : Promise.resolve({
+          data: { total: 0, needingLinks: 0 },
+          error: null,
+        }),
+    canSchedule
+      ? weeklyScheduleSlotRepository.listWeeklyScheduleSlotsInDateRange(
+          adminClient,
+          todayIso,
+          todayIso
+        )
+      : Promise.resolve({ data: [], error: null }),
+    canBorrows
+      ? borrowEquipmentRepository.countBorrowsByStatus(
+          adminClient,
+          BORROW_EQUIPMENT_STATUSES.BORROWED
+        )
+      : Promise.resolve({ count: 0, error: null }),
+    canLogs
+      ? listAuditLogsForManager(adminClient, actorUserId, { limit: 4 })
+      : Promise.resolve([] as ManagerAuditLogRow[]),
+  ]);
 
-  const subjectsNeedingLinks = subjects.filter(
-    (subject) =>
-      !subject.syllabus_link || !subject.reference_link || !subject.handout_link
-  ).length;
+  if (studentStatsResult.error) {
+    throw new Error(studentStatsResult.error.message);
+  }
+  if (classStatsResult.error) {
+    throw new Error(classStatsResult.error.message);
+  }
+  if (subjectStatsResult.error) {
+    throw new Error(subjectStatsResult.error.message);
+  }
+  if (scheduleSlotsResult.error) {
+    throw new Error(scheduleSlotsResult.error.message);
+  }
+  if (openBorrowsResult.error) {
+    throw new Error(openBorrowsResult.error.message);
+  }
 
-  const activeClassSubjectIds = new Set(
-    classes
-      .filter(
-        (row) =>
-          row.status === CLASS_STATUSES.IN_PROGRESS ||
-          row.status === CLASS_STATUSES.SCHEDULED
-      )
-      .map((row) => row.subject_id)
-      .filter(Boolean)
-  );
+  const studentStats = studentStatsResult.data!;
+  const classStats = classStatsResult.data!;
+  const subjectStats = subjectStatsResult.data!;
 
-  const openBorrows = borrows.filter(
-    (row) => row.status === BORROW_EQUIPMENT_STATUSES.BORROWED
-  ).length;
+  const scheduleSlots = (scheduleSlotsResult.data ?? []).map((record) => {
+    const row = record as {
+      id: string;
+      name: string;
+      type: string;
+      slot_date: string;
+      start_time: string;
+      end_time: string;
+      color: string;
+    };
+    return mapSlotRecordToSession(row);
+  });
 
   const schedule = buildTodaySchedule(scheduleSlots, now);
-  const todayIso = format(now, "yyyy-MM-dd");
-  const overlappingSlotsToday = countTodayOverlappingSlots(
-    scheduleSlots.filter((slot) => slot.slotDate === todayIso)
-  );
+  const overlappingSlotsToday = countTodayOverlappingSlots(scheduleSlots);
 
   return {
     stats: buildStats({
-      activeStudents,
-      studentsThisMonth,
-      activeClasses,
-      classesStartingThisWeek,
-      subjectsCount: subjects.length,
-      subjectsNeedingLinks,
+      activeStudents: studentStats.activeCount,
+      studentsThisMonth: studentStats.createdThisMonth,
+      activeClasses: classStats.inProgressCount + classStats.scheduledCount,
+      classesStartingThisWeek: classStats.scheduledCount,
+      subjectsCount: subjectStats.total,
+      subjectsNeedingLinks: subjectStats.needingLinks,
     }),
     alerts: buildAlerts({
-      openBorrows,
+      openBorrows: openBorrowsResult.count ?? 0,
     }),
     schedule,
     glance: buildGlance({
-      newStudentsLast7Days,
-      subjectsWithActiveClasses: activeClassSubjectIds.size,
+      newStudentsLast7Days: studentStats.createdLast7Days,
+      subjectsWithActiveClasses: classStats.activeOrScheduledSubjectCount,
       overlappingSlotsToday,
     }),
     activity: buildActivity(auditLogs),

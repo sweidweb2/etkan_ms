@@ -93,8 +93,8 @@ describe("listUsersForManager", () => {
       statusText: "OK",
     });
 
-    vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
-      data: { user: authUser },
+    vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
+      data: new Map([["user-1", "teacher@school.com"]]),
       error: null,
     });
 

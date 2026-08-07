@@ -54,6 +54,24 @@ export type ManagerInstructorSchedulesPageData = {
   sessions: ManagerInstructorScheduleSession[];
 };
 
+export type ManagerInstructorScheduleSlotStats = {
+  total: number;
+  free: number;
+  busy: number;
+  instructorSlots: number;
+  workshopSlots: number;
+};
+
+export type ManagerInstructorScheduleSlotsDetailsData = {
+  instructors: ManagerInstructorScheduleTab[];
+  workshops: ManagerScheduleWorkshopTab[];
+  sessions: ManagerInstructorScheduleSession[];
+  stats: ManagerInstructorScheduleSlotStats;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
 export type CreateInstructorScheduleSlotActionState = {
   success?: boolean;
   error?: string;

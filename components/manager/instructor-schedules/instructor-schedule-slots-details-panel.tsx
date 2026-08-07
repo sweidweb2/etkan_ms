@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -9,7 +9,9 @@ import {
   ChevronRightIcon,
   SearchIcon,
 } from "lucide-react";
+import { loadInstructorScheduleSlotsPageAction } from "@/app/manager/instructor-schedules/actions";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -46,7 +48,7 @@ import {
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
   ManagerInstructorScheduleSession,
-  ManagerInstructorSchedulesPageData,
+  ManagerInstructorScheduleSlotsDetailsData,
   ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
@@ -103,39 +105,29 @@ function formatAnchorDate(value: string): string {
   }
 }
 
-function matchesSearch(row: SlotRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  return (
-    row.name.toLowerCase().includes(normalizedQuery) ||
-    row.entityLabel.toLowerCase().includes(normalizedQuery) ||
-    ENTITY_SCHEDULE_TYPE_LABELS[row.entityType]
-      .toLowerCase()
-      .includes(normalizedQuery) ||
-    INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS[row.type]
-      .toLowerCase()
-      .includes(normalizedQuery) ||
-    (WEEKDAY_LABELS[row.dayOfWeek] ?? "").toLowerCase().includes(normalizedQuery)
-  );
-}
-
 type InstructorScheduleSlotsDetailsPanelProps = {
-  data: ManagerInstructorSchedulesPageData;
+  data: ManagerInstructorScheduleSlotsDetailsData;
 };
 
 export function InstructorScheduleSlotsDetailsPanel({
   data,
 }: InstructorScheduleSlotsDetailsPanelProps) {
+  const [isPending, startTransition] = useTransition();
+  const skipNextFetch = useRef(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>(FILTER_ALL);
   const [slotTypeFilter, setSlotTypeFilter] = useState<string>(FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
+    (PAGE_SIZE_OPTIONS.includes(
+      data.pageSize as (typeof PAGE_SIZE_OPTIONS)[number]
+    )
+      ? data.pageSize
+      : 10) as (typeof PAGE_SIZE_OPTIONS)[number]
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(data.page);
+  const [sessions, setSessions] = useState(data.sessions);
+  const [totalCount, setTotalCount] = useState(data.totalCount);
 
   const entityLabelByKey = useMemo(() => {
     const map = new Map<string, string>();
@@ -154,67 +146,64 @@ export function InstructorScheduleSlotsDetailsPanel({
     return map;
   }, [data.instructors, data.workshops]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (skipNextFetch.current) {
+      skipNextFetch.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    startTransition(() => {
+      void loadInstructorScheduleSlotsPageAction({
+        page: currentPage,
+        pageSize,
+        entityType: entityTypeFilter,
+        type: slotTypeFilter,
+        search: debouncedSearch,
+      }).then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setSessions(result.sessions);
+        setTotalCount(result.totalCount);
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    currentPage,
+    pageSize,
+    entityTypeFilter,
+    slotTypeFilter,
+    debouncedSearch,
+  ]);
+
   const rows = useMemo<SlotRow[]>(
     () =>
-      data.sessions.map((session) => ({
+      sessions.map((session) => ({
         ...session,
         entityLabel:
           entityLabelByKey.get(`${session.entityType}:${session.recordId}`) ??
           "Unknown",
       })),
-    [data.sessions, entityLabelByKey]
+    [sessions, entityLabelByKey]
   );
 
-  const stats = useMemo(() => {
-    let free = 0;
-    let busy = 0;
-    let instructorSlots = 0;
-    let workshopSlots = 0;
-
-    for (const row of rows) {
-      if (row.type === "free") {
-        free += 1;
-      } else {
-        busy += 1;
-      }
-      if (row.entityType === ENTITY_SCHEDULE_TYPE_INSTRUCTOR) {
-        instructorSlots += 1;
-      } else {
-        workshopSlots += 1;
-      }
-    }
-
-    return {
-      total: rows.length,
-      free,
-      busy,
-      instructorSlots,
-      workshopSlots,
-    };
-  }, [rows]);
-
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      const matchesEntity =
-        entityTypeFilter === FILTER_ALL || row.entityType === entityTypeFilter;
-      const matchesType =
-        slotTypeFilter === FILTER_ALL || row.type === slotTypeFilter;
-      return matchesEntity && matchesType && matchesSearch(row, searchQuery);
-    });
-  }, [rows, entityTypeFilter, slotTypeFilter, searchQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const stats = data.stats;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedRows = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredRows.slice(startIndex, startIndex + pageSize);
-  }, [filteredRows, pageSize, safeCurrentPage]);
-
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
   const rangeStart =
-    filteredRows.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredRows.length);
+    totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
 
   function handleSearchChange(value: string) {
     setSearchQuery(value);
@@ -300,8 +289,16 @@ export function InstructorScheduleSlotsDetailsPanel({
         <CardHeader className="border-b py-3">
           <CardTitle>Schedule slots</CardTitle>
           <CardAction className="self-center text-sm text-muted-foreground">
-            {filteredRows.length} match
-            {filteredRows.length === 1 ? "" : "es"}
+            {isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <InlineSpinner />
+                Loading…
+              </span>
+            ) : (
+              <>
+                {totalCount} match{totalCount === 1 ? "" : "es"}
+              </>
+            )}
           </CardAction>
         </CardHeader>
         <CardContent className="px-0 pb-0">
@@ -311,7 +308,7 @@ export function InstructorScheduleSlotsDetailsPanel({
               <Input
                 value={searchQuery}
                 onChange={(event) => handleSearchChange(event.target.value)}
-                placeholder="Search name, entity, type, or weekday…"
+                placeholder="Search by slot name…"
                 className="pl-8"
                 aria-label="Search schedule slots"
               />
@@ -373,7 +370,7 @@ export function InstructorScheduleSlotsDetailsPanel({
                 </tr>
               </thead>
               <tbody>
-                {paginatedRows.length === 0 ? (
+                {rows.length === 0 ? (
                   <tr>
                     <td
                       colSpan={8}
@@ -383,7 +380,7 @@ export function InstructorScheduleSlotsDetailsPanel({
                     </td>
                   </tr>
                 ) : (
-                  paginatedRows.map((row) => (
+                  rows.map((row) => (
                     <tr
                       key={row.id}
                       className="border-b last:border-b-0 transition-colors hover:bg-muted/30"
@@ -431,7 +428,7 @@ export function InstructorScheduleSlotsDetailsPanel({
           <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>
-                Showing {rangeStart}–{rangeEnd} of {filteredRows.length}
+                Showing {rangeStart}–{rangeEnd} of {totalCount}
               </span>
               <span aria-hidden="true">·</span>
               <div className="flex items-center gap-2">
@@ -463,7 +460,7 @@ export function InstructorScheduleSlotsDetailsPanel({
                 type="button"
                 variant="outline"
                 size="icon-sm"
-                disabled={safeCurrentPage <= 1}
+                disabled={safeCurrentPage <= 1 || isPending}
                 onClick={() => setCurrentPage((page) => page - 1)}
                 aria-label="Previous page"
               >
@@ -485,6 +482,7 @@ export function InstructorScheduleSlotsDetailsPanel({
                     variant={page === safeCurrentPage ? "default" : "outline"}
                     size="icon-sm"
                     className="min-w-7"
+                    disabled={isPending}
                     onClick={() => setCurrentPage(page)}
                     aria-label={`Page ${page}`}
                     aria-current={
@@ -500,7 +498,7 @@ export function InstructorScheduleSlotsDetailsPanel({
                 type="button"
                 variant="outline"
                 size="icon-sm"
-                disabled={safeCurrentPage >= totalPages}
+                disabled={safeCurrentPage >= totalPages || isPending}
                 onClick={() => setCurrentPage((page) => page + 1)}
                 aria-label="Next page"
               >

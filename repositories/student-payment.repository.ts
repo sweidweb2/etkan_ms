@@ -97,6 +97,53 @@ export async function listAllPayments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+/** Inclusive `from`, exclusive `to` on `payment_date` (ISO date strings). */
+export async function listPaymentsBetween(
+  client: Supabase,
+  fromInclusive: string,
+  toExclusive: string
+) {
+  return client
+    .from("student_payments")
+    .select(PAYMENT_COLUMNS)
+    .gte("payment_date", fromInclusive)
+    .lt("payment_date", toExclusive)
+    .order("payment_date", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
+export async function findPaymentDateBounds(client: Supabase) {
+  const [minResult, maxResult] = await Promise.all([
+    client
+      .from("student_payments")
+      .select("payment_date")
+      .order("payment_date", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    client
+      .from("student_payments")
+      .select("payment_date")
+      .order("payment_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (minResult.error) {
+    return { data: null, error: minResult.error };
+  }
+  if (maxResult.error) {
+    return { data: null, error: maxResult.error };
+  }
+
+  return {
+    data: {
+      min: minResult.data?.payment_date ?? null,
+      max: maxResult.data?.payment_date ?? null,
+    },
+    error: null,
+  };
+}
+
 export async function findPaymentById(client: Supabase, id: string) {
   return client
     .from("student_payments")

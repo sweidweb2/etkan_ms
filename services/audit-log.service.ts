@@ -66,11 +66,15 @@ function mapAuditLogRecordToRow(record: AuditLogRecord): ManagerAuditLogRow {
 
 export async function listAuditLogsForManager(
   adminClient: Supabase,
-  actorUserId: string | null
+  actorUserId: string | null,
+  options?: { limit?: number }
 ): Promise<ManagerAuditLogRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.LOGS_VIEW);
 
-  const { data, error } = await auditLogRepository.listAuditLogs(adminClient);
+  const { data, error } = await auditLogRepository.listAuditLogs(
+    adminClient,
+    options?.limit != null ? { limit: options.limit } : undefined
+  );
 
   if (error) {
     throw new Error(error.message);

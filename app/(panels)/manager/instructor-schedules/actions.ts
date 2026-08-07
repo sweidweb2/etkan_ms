@@ -10,13 +10,54 @@ import {
 import {
   createInstructorScheduleSlotForManager,
   deleteInstructorScheduleSlotForManager,
+  listInstructorScheduleSlotsPageForManager,
   updateInstructorScheduleSlotForManager,
 } from "@/services/instructor-schedule-slot.service";
 import type {
   CreateInstructorScheduleSlotActionState,
   DeleteInstructorScheduleSlotActionState,
+  ManagerInstructorScheduleSession,
   UpdateInstructorScheduleSlotActionState,
 } from "@/types/manager-instructor-schedule";
+
+export async function loadInstructorScheduleSlotsPageAction(input: {
+  page: number;
+  pageSize: number;
+  entityType?: string;
+  type?: string;
+  search?: string;
+}): Promise<{
+  sessions: ManagerInstructorScheduleSession[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return {
+      sessions: [],
+      totalCount: 0,
+      page: input.page,
+      pageSize: input.pageSize,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listInstructorScheduleSlotsPageForManager(
+      adminClient,
+      actor.userId,
+      input
+    );
+  } catch {
+    return {
+      sessions: [],
+      totalCount: 0,
+      page: input.page,
+      pageSize: input.pageSize,
+    };
+  }
+}
 
 export async function createInstructorScheduleSlotAction(
   _prevState: CreateInstructorScheduleSlotActionState,

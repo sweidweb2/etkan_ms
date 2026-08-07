@@ -6,6 +6,10 @@ type Supabase = SupabaseClient<Database>;
 const USAGE_COLUMNS =
   "id, created_at, user_id, user_label, feature, model, prompt, response, status, error_message, prompt_tokens, completion_tokens, total_tokens, tool_rounds, metadata";
 
+/** List/analytics columns — omit large prompt/response text. */
+const USAGE_LIST_COLUMNS =
+  "id, created_at, user_id, user_label, feature, model, status, error_message, prompt_tokens, completion_tokens, total_tokens, tool_rounds, metadata";
+
 export type CloudflareAiUsageRecord = {
   id: string;
   created_at: string;
@@ -23,6 +27,11 @@ export type CloudflareAiUsageRecord = {
   tool_rounds: number;
   metadata: Json | null;
 };
+
+export type CloudflareAiUsageListRecord = Omit<
+  CloudflareAiUsageRecord,
+  "prompt" | "response"
+>;
 
 export type CreateCloudflareAiUsageInput = {
   user_id?: string | null;
@@ -70,4 +79,28 @@ export async function listCloudflareAiUsage(client: Supabase) {
     .from("cloudflare_ai_usage")
     .select(USAGE_COLUMNS)
     .order("created_at", { ascending: false });
+}
+
+/** Slim list for the manager table (no prompt/response payloads). */
+export async function listCloudflareAiUsageSummary(
+  client: Supabase,
+  options?: { limit?: number }
+) {
+  const limit = options?.limit ?? 500;
+  return client
+    .from("cloudflare_ai_usage")
+    .select(USAGE_LIST_COLUMNS)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+}
+
+export async function findCloudflareAiUsageById(
+  client: Supabase,
+  id: string
+) {
+  return client
+    .from("cloudflare_ai_usage")
+    .select(USAGE_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
 }

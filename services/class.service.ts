@@ -1015,6 +1015,16 @@ export async function listClassStudentsForManager(
     (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
   );
 
+  const emailResult = await authRepository.listAuthEmailsByIds(
+    adminClient,
+    enrollments.map((row) => row.user_id)
+  );
+
+  if (emailResult.error) {
+    throw new Error(emailResult.error.message);
+  }
+
+  const emailById = emailResult.data;
   const rows: ManagerClassStudentRow[] = [];
 
   for (const enrollment of enrollments) {
@@ -1025,18 +1035,13 @@ export async function listClassStudentsForManager(
       continue;
     }
 
-    const authResult = await authRepository.getAuthUserById(
-      adminClient,
-      enrollment.user_id
-    );
-
     rows.push({
       id: enrollment.id,
       student_profile_id: studentProfile.id,
       user_id: enrollment.user_id,
       full_name: studentProfile.full_name,
       username: profile.username,
-      email: authResult.data.user?.email ?? "",
+      email: emailById.get(enrollment.user_id) ?? "",
       phone: studentProfile.phone,
       joined_at: enrollment.joined_at ?? "",
     });

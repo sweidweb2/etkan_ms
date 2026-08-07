@@ -58,6 +58,127 @@ export async function listAllInstructorScheduleSlots(client: Supabase) {
     .order("start_time", { ascending: true });
 }
 
+export type ListInstructorScheduleSlotsPageInput = {
+  offset: number;
+  limit: number;
+  entityType?: string;
+  type?: string;
+  search?: string;
+  /** Workshop record IDs whose slots should be excluded (content-locked). */
+  excludeWorkshopRecordIds?: string[];
+};
+
+export async function listInstructorScheduleSlotsPage(
+  client: Supabase,
+  input: ListInstructorScheduleSlotsPageInput
+) {
+  let query = client
+    .from("instructor_schedule_slots")
+    .select(SLOT_COLUMNS, { count: "exact" })
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true })
+    .range(input.offset, input.offset + input.limit - 1);
+
+  if (input.type) {
+    query = query.eq("type", input.type);
+  }
+
+  const search = input.search?.trim();
+  if (search) {
+    query = query.ilike("name", `%${search}%`);
+  }
+
+  const excludeIds = input.excludeWorkshopRecordIds ?? [];
+
+  if (input.entityType === "instructor") {
+    query = query.eq("entity_type", "instructor");
+  } else if (input.entityType === "workshop") {
+    query = query.eq("entity_type", "workshop");
+    if (excludeIds.length > 0) {
+      query = query.not("record_id", "in", `(${excludeIds.join(",")})`);
+    }
+  } else if (excludeIds.length > 0) {
+    query = query.or(
+      `entity_type.eq.instructor,and(entity_type.eq.workshop,record_id.not.in.(${excludeIds.join(",")}))`
+    );
+  }
+
+  return query;
+}
+
+export async function countInstructorScheduleSlotStats(
+  client: Supabase,
+  excludeWorkshopRecordIds: string[] = []
+) {
+  const withFilters = (filters: {
+    type?: string;
+    entityType?: string;
+  } = {}) => {
+    let query = client
+      .from("instructor_schedule_slots")
+      .select("id", { count: "exact", head: true });
+
+    if (filters.type) {
+      query = query.eq("type", filters.type);
+    }
+
+    if (filters.entityType === "instructor") {
+      query = query.eq("entity_type", "instructor");
+    } else if (filters.entityType === "workshop") {
+      query = query.eq("entity_type", "workshop");
+      if (excludeWorkshopRecordIds.length > 0) {
+        query = query.not(
+          "record_id",
+          "in",
+          `(${excludeWorkshopRecordIds.join(",")})`
+        );
+      }
+    } else if (excludeWorkshopRecordIds.length > 0) {
+      query = query.or(
+        `entity_type.eq.instructor,and(entity_type.eq.workshop,record_id.not.in.(${excludeWorkshopRecordIds.join(",")}))`
+      );
+    }
+
+    return query;
+  };
+
+  const [totalResult, freeResult, busyResult, instructorResult, workshopResult] =
+    await Promise.all([
+      withFilters(),
+      withFilters({ type: "free" }),
+      withFilters({ type: "busy" }),
+      withFilters({ entityType: "instructor" }),
+      withFilters({ entityType: "workshop" }),
+    ]);
+
+  if (totalResult.error) {
+    return { data: null, error: totalResult.error };
+  }
+  if (freeResult.error) {
+    return { data: null, error: freeResult.error };
+  }
+  if (busyResult.error) {
+    return { data: null, error: busyResult.error };
+  }
+  if (instructorResult.error) {
+    return { data: null, error: instructorResult.error };
+  }
+  if (workshopResult.error) {
+    return { data: null, error: workshopResult.error };
+  }
+
+  return {
+    data: {
+      total: totalResult.count ?? 0,
+      free: freeResult.count ?? 0,
+      busy: busyResult.count ?? 0,
+      instructorSlots: instructorResult.count ?? 0,
+      workshopSlots: workshopResult.count ?? 0,
+    },
+    error: null,
+  };
+}
+
 export async function listInstructorScheduleSlotsByRecord(
   client: Supabase,
   entityType: string,

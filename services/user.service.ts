@@ -125,35 +125,6 @@ async function notifyStaffUserCreated(
   // Intentionally no-op until email infrastructure is added.
 }
 
-async function mapProfileToManagerUserRow(
-  adminClient: Supabase,
-  profile: {
-    id: string;
-    username: string | null;
-    role: string;
-    is_instructor: boolean;
-    created_at: string | null;
-  }
-): Promise<ManagerUserRow | null> {
-  const { data: authData, error } = await authRepository.getAuthUserById(
-    adminClient,
-    profile.id
-  );
-
-  if (error || !authData.user) {
-    return null;
-  }
-
-  return {
-    id: profile.id,
-    username: profile.username,
-    role: profile.role as RoleValue,
-    is_instructor: profile.is_instructor,
-    created_at: profile.created_at ?? authData.user.created_at,
-    email: authData.user.email ?? "",
-  };
-}
-
 async function fetchUsersForManager(
   adminClient: Supabase
 ): Promise<ManagerUserRow[]> {
@@ -169,29 +140,38 @@ async function fetchUsersForManager(
     return [];
   }
 
-  const users = await Promise.all(
-    profiles.map((profile) => mapProfileToManagerUserRow(adminClient, profile))
-  );
-
-  const mappedUsers = users.filter((user): user is ManagerUserRow => user !== null);
-  const allUserIds = mappedUsers.map((user) => user.id);
-
-  const studentProfilesResult =
-    await studentProfileRepository.listStudentProfileDetailsByUserIds(
+  const allUserIds = profiles.map((profile) => profile.id);
+  const [emailsResult, studentProfilesResult] = await Promise.all([
+    authRepository.listAuthEmailsByIds(adminClient, allUserIds),
+    studentProfileRepository.listStudentProfileDetailsByUserIds(
       adminClient,
       allUserIds
-    );
+    ),
+  ]);
 
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
   if (studentProfilesResult.error) {
     throw new Error(studentProfilesResult.error.message);
   }
 
+  const emailById = emailsResult.data;
   const studentProfileByUserId = new Map(
     (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
   );
 
-  return mappedUsers.map((user) => {
-    const studentProfile = studentProfileByUserId.get(user.id);
+  return profiles.map((profile) => {
+    const user: ManagerUserRow = {
+      id: profile.id,
+      username: profile.username,
+      role: profile.role as RoleValue,
+      is_instructor: profile.is_instructor,
+      created_at: profile.created_at ?? "",
+      email: emailById.get(profile.id) ?? "",
+    };
+
+    const studentProfile = studentProfileByUserId.get(profile.id);
 
     if (!studentProfile) {
       return user.role === ROLES.STUDENT
@@ -199,8 +179,6 @@ async function fetchUsersForManager(
         : user;
     }
 
-    // Keep student_profiles attributes even when role is no longer student so
-    // demoted accounts can be switched back without losing profile data.
     return {
       ...user,
       student_profile_id: studentProfile.id,

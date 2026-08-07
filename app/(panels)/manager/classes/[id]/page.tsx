@@ -1,20 +1,18 @@
-import { notFound } from "next/navigation";
+import { ClassAnalyticsDeferred } from "@/components/manager/classes/class-analytics-deferred-section";
 import { ClassDetailsPanel } from "@/components/manager/classes/class-details-panel";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionPack } from "@/lib/auth/session";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { hasPermissionInSet } from "@/services/authorization.service";
 import {
-  getClassAnalyticsForManager,
   getClassFinalExamForManager,
   getClassForManager,
-  listAvailableStudentsForClass,
-  listClassesForManager,
   listClassSessionsForManager,
   listClassStudentsForManager,
   listClassTeacherOptionsForManager,
 } from "@/services/class.service";
 import { getClassComputedGradeLockStateForManager } from "@/services/class-computed-grade-lock.service";
-import { listSemestersForManager } from "@/services/semester.service";
-import { listSubjectsForManager } from "@/services/subject.service";
+import { notFound } from "next/navigation";
 
 type ManagerClassDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -25,62 +23,78 @@ export default async function ManagerClassDetailPage({
 }: ManagerClassDetailPageProps) {
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
-  const user = await getSessionUser();
-  const classRow = await getClassForManager(adminClient, user?.id ?? null, id);
+  const pack = await getSessionPack();
+  const actorUserId = pack.user?.id ?? null;
+  const permissions = pack.permissions;
+
+  const classRow = await getClassForManager(adminClient, actorUserId, id);
 
   if (!classRow) {
     notFound();
   }
 
+  const canSessions = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.SESSIONS_VIEW
+  );
+  const canStudents = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.CLASSES_VIEW
+  );
+  const canFinalExam = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.FINAL_EXAMS_VIEW
+  );
+  const canAnalytics = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.CLASSES_VIEW_ANALYTICS
+  );
+  const canGrades = hasPermissionInSet(permissions, PERMISSIONS.GRADES_VIEW);
+
   const [
     sessions,
     students,
-    availableStudents,
     finalExamBundle,
-    analytics,
     teachers,
-    subjects,
-    semesters,
     computedGradeLock,
-    allClasses,
   ] = await Promise.all([
-    listClassSessionsForManager(adminClient, user?.id ?? null, id),
-    listClassStudentsForManager(adminClient, user?.id ?? null, id),
-    listAvailableStudentsForClass(adminClient, user?.id ?? null, id),
-    getClassFinalExamForManager(adminClient, user?.id ?? null, id),
-    getClassAnalyticsForManager(adminClient, user?.id ?? null, id),
-    listClassTeacherOptionsForManager(adminClient, user?.id ?? null, id),
-    listSubjectsForManager(adminClient, user?.id ?? null),
-    listSemestersForManager(adminClient, user?.id ?? null),
-    getClassComputedGradeLockStateForManager(adminClient, user?.id ?? null, id),
-    listClassesForManager(adminClient, user?.id ?? null),
+    canSessions
+      ? listClassSessionsForManager(adminClient, actorUserId, id)
+      : Promise.resolve([]),
+    canStudents
+      ? listClassStudentsForManager(adminClient, actorUserId, id)
+      : Promise.resolve([]),
+    canFinalExam
+      ? getClassFinalExamForManager(adminClient, actorUserId, id)
+      : Promise.resolve({ finalExam: null, studentGrades: [] }),
+    listClassTeacherOptionsForManager(adminClient, actorUserId, id),
+    canGrades
+      ? getClassComputedGradeLockStateForManager(adminClient, actorUserId, id)
+      : Promise.resolve({ hasComputedGrades: false, lockedUserIds: [] }),
   ]);
 
   return (
-    <ClassDetailsPanel
-      classRow={classRow}
-      initialSessions={sessions}
-      initialStudents={students}
-      initialAvailableStudents={availableStudents}
-      transferClassOptions={allClasses.map((row) => ({
-        id: row.id,
-        name: row.name,
-      }))}
-      initialFinalExam={finalExamBundle.finalExam}
-      initialStudentGrades={finalExamBundle.studentGrades}
-      initialAnalytics={analytics}
-      initialTeachers={teachers}
-      subjectOptions={subjects.map((subject) => ({
-        id: subject.id,
-        name: subject.name,
-        nb_sessions: subject.nb_sessions,
-      }))}
-      semesterOptions={semesters.map((semester) => ({
-        id: semester.id,
-        name: semester.name,
-      }))}
-      hasComputedGrades={computedGradeLock.hasComputedGrades}
-      lockedUserIds={computedGradeLock.lockedUserIds}
-    />
+    <div className="flex flex-col gap-6">
+      <ClassDetailsPanel
+        classRow={classRow}
+        initialSessions={sessions}
+        initialStudents={students}
+        initialAvailableStudents={[]}
+        transferClassOptions={[]}
+        initialFinalExam={finalExamBundle.finalExam}
+        initialStudentGrades={finalExamBundle.studentGrades}
+        initialTeachers={teachers}
+        subjectOptions={[]}
+        semesterOptions={[]}
+        hasComputedGrades={computedGradeLock.hasComputedGrades}
+        lockedUserIds={computedGradeLock.lockedUserIds}
+      />
+      <ClassAnalyticsDeferred
+        classId={id}
+        className={classRow.name}
+        actorUserId={actorUserId}
+        enabled={canAnalytics}
+      />
+    </div>
   );
 }

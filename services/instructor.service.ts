@@ -12,6 +12,7 @@ import {
 import { saveInstructorCapabilitiesSchema } from "@/lib/validators/manager/save-instructor-capabilities";
 import { addInstructorsSchema } from "@/lib/validators/manager/add-instructors";
 import type {
+  ManagerInstructorCandidateRow,
   ManagerInstructorCapabilityPair,
   ManagerInstructorsPageData,
 } from "@/types/manager-instructor";
@@ -33,22 +34,24 @@ async function mapProfilesWithEmail(
     created_at: string | null;
   }[]
 ) {
-  return Promise.all(
-    profiles.map(async (profile) => {
-      const { data: authData } = await authRepository.getAuthUserById(
-        adminClient,
-        profile.id
-      );
-
-      return {
-        id: profile.id,
-        username: profile.username,
-        role: profile.role as RoleValue,
-        email: authData?.user?.email ?? "",
-        created_at: profile.created_at ?? new Date().toISOString(),
-      };
-    })
+  const emailResult = await authRepository.listAuthEmailsByIds(
+    adminClient,
+    profiles.map((profile) => profile.id)
   );
+
+  if (emailResult.error) {
+    throw new Error(emailResult.error.message);
+  }
+
+  const emailById = emailResult.data ?? new Map<string, string>();
+
+  return profiles.map((profile) => ({
+    id: profile.id,
+    username: profile.username,
+    role: profile.role as RoleValue,
+    email: emailById.get(profile.id) ?? "",
+    created_at: profile.created_at ?? new Date().toISOString(),
+  }));
 }
 
 export async function getInstructorsPageForManager(
@@ -61,25 +64,17 @@ export async function getInstructorsPageForManager(
     PERMISSIONS.INSTRUCTORS_VIEW
   );
 
-  const [
-    instructorsResult,
-    candidatesResult,
-    subjectsResult,
-    capabilitiesResult,
-  ] = await Promise.all([
-    profileRepository.listInstructorProfiles(adminClient),
-    profileRepository.listNonInstructorProfiles(adminClient),
-    subjectRepository.listSubjects(adminClient),
-    instructorSubjectCapabilityRepository.listAllInstructorSubjectCapabilities(
-      adminClient
-    ),
-  ]);
+  const [instructorsResult, subjectsResult, capabilitiesResult] =
+    await Promise.all([
+      profileRepository.listInstructorProfiles(adminClient),
+      subjectRepository.listSubjects(adminClient),
+      instructorSubjectCapabilityRepository.listAllInstructorSubjectCapabilities(
+        adminClient
+      ),
+    ]);
 
   if (instructorsResult.error) {
     throw new Error(instructorsResult.error.message);
-  }
-  if (candidatesResult.error) {
-    throw new Error(candidatesResult.error.message);
   }
   if (subjectsResult.error) {
     throw new Error(subjectsResult.error.message);
@@ -92,25 +87,14 @@ export async function getInstructorsPageForManager(
     .map((row) => ({ id: row.id, name: row.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const [instructorsMapped, candidatesMapped] = await Promise.all([
-    mapProfilesWithEmail(adminClient, instructorsResult.data ?? []),
-    mapProfilesWithEmail(adminClient, candidatesResult.data ?? []),
-  ]);
+  const instructorsMapped = await mapProfilesWithEmail(
+    adminClient,
+    instructorsResult.data ?? []
+  );
 
   const instructors = instructorsMapped.sort((a, b) =>
     (a.username ?? a.email).localeCompare(b.username ?? b.email)
   );
-
-  const candidateUsers = candidatesMapped
-    .map(({ id, username, role, email }) => ({
-      id,
-      username,
-      role,
-      email,
-    }))
-    .sort((a, b) =>
-      (a.username ?? a.email).localeCompare(b.username ?? b.email)
-    );
 
   const instructorIds = new Set(instructors.map((row) => row.id));
   const subjectIds = new Set(subjects.map((row) => row.id));
@@ -127,10 +111,47 @@ export async function getInstructorsPageForManager(
 
   return {
     instructors,
-    candidateUsers,
+    candidateUsers: [],
     subjects,
     capabilities,
   };
+}
+
+export async function listInstructorCandidatesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerInstructorCandidateRow[]> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTORS_CREATE
+  );
+  if (unauthorized) {
+    return [];
+  }
+
+  const candidatesResult =
+    await profileRepository.listNonInstructorProfiles(adminClient);
+
+  if (candidatesResult.error) {
+    throw new Error(candidatesResult.error.message);
+  }
+
+  const candidatesMapped = await mapProfilesWithEmail(
+    adminClient,
+    candidatesResult.data ?? []
+  );
+
+  return candidatesMapped
+    .map(({ id, username, role, email }) => ({
+      id,
+      username,
+      role,
+      email,
+    }))
+    .sort((a, b) =>
+      (a.username ?? a.email).localeCompare(b.username ?? b.email)
+    );
 }
 
 export type SaveInstructorCapabilitiesResult =

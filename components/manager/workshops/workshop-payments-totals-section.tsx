@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowDownLeftIcon,
@@ -13,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   WORKSHOP_PAYMENT_METHOD_LABELS,
   WORKSHOP_PAYMENT_TYPE_LABELS,
@@ -21,18 +20,22 @@ import {
   type WorkshopPaymentMethod,
 } from "@/lib/constants/manager-workshop-display";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
-import { getManagerWorkshopDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerWorkshopDetailRoute,
+  ROUTES,
+} from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type {
   ManagerWorkshopPaymentLedgerRow,
   ManagerWorkshopPaymentsTotals,
 } from "@/types/manager-workshop";
 
-const PAGE_SIZE = 10;
-
 type WorkshopPaymentsTotalsSectionProps = {
   payments: ManagerWorkshopPaymentLedgerRow[];
   totals: ManagerWorkshopPaymentsTotals;
+  totalCount: number;
+  page: number;
+  pageSize: number;
 };
 
 function formatMethod(method: ManagerWorkshopPaymentLedgerRow["payment_method"]) {
@@ -76,17 +79,24 @@ function TotalsStatCard({
   );
 }
 
+function pageHref(page: number) {
+  if (page <= 1) {
+    return ROUTES.MANAGER_WORKSHOPS_PAYMENTS;
+  }
+  return `${ROUTES.MANAGER_WORKSHOPS_PAYMENTS}?page=${page}`;
+}
+
 export function WorkshopPaymentsTotalsSection({
   payments,
   totals,
+  totalCount,
+  page,
+  pageSize,
 }: WorkshopPaymentsTotalsSectionProps) {
-  const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(payments.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safePage = Math.min(page, totalPages);
-  const pageItems = payments.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE
-  );
+  const rangeStart = totalCount === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safePage * pageSize, totalCount);
 
   return (
     <section className="flex flex-col gap-4">
@@ -135,7 +145,7 @@ export function WorkshopPaymentsTotalsSection({
           <h3 className="text-sm font-medium">Payment records</h3>
         </div>
         <div className="px-4 py-4">
-          {payments.length === 0 ? (
+          {totalCount === 0 ? (
             <p className="text-sm text-muted-foreground">
               No payments recorded across workshops yet.
             </p>
@@ -154,7 +164,7 @@ export function WorkshopPaymentsTotalsSection({
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map((payment) => {
+                    {payments.map((payment) => {
                       const isCredit =
                         payment.type === WORKSHOP_PAYMENT_TYPES.CREDIT;
                       return (
@@ -205,40 +215,44 @@ export function WorkshopPaymentsTotalsSection({
                 </table>
               </div>
 
-              {payments.length > PAGE_SIZE ? (
+              {totalCount > pageSize ? (
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm text-muted-foreground">
-                    {(safePage - 1) * PAGE_SIZE + 1}–
-                    {Math.min(safePage * PAGE_SIZE, payments.length)} of{" "}
-                    {payments.length}
+                    {rangeStart}–{rangeEnd} of {totalCount}
                   </p>
                   <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={safePage <= 1}
-                      onClick={() =>
-                        setPage((current) => Math.max(1, current - 1))
-                      }
-                    >
-                      <ChevronLeftIcon data-icon="inline-start" />
-                      Prev
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={safePage >= totalPages}
-                      onClick={() =>
-                        setPage((current) =>
-                          Math.min(totalPages, current + 1)
-                        )
-                      }
-                    >
-                      Next
-                      <ChevronRightIcon data-icon="inline-end" />
-                    </Button>
+                    {safePage <= 1 ? (
+                      <Button type="button" variant="outline" size="sm" disabled>
+                        <ChevronLeftIcon data-icon="inline-start" />
+                        Prev
+                      </Button>
+                    ) : (
+                      <Link
+                        href={pageHref(safePage - 1)}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" })
+                        )}
+                      >
+                        <ChevronLeftIcon data-icon="inline-start" />
+                        Prev
+                      </Link>
+                    )}
+                    {safePage >= totalPages ? (
+                      <Button type="button" variant="outline" size="sm" disabled>
+                        Next
+                        <ChevronRightIcon data-icon="inline-end" />
+                      </Button>
+                    ) : (
+                      <Link
+                        href={pageHref(safePage + 1)}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" })
+                        )}
+                      >
+                        Next
+                        <ChevronRightIcon data-icon="inline-end" />
+                      </Link>
+                    )}
                   </div>
                 </div>
               ) : null}

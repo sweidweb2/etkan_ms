@@ -60,6 +60,79 @@ export async function listAllWorkshopPayments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+export async function listWorkshopPaymentsPage(
+  client: Supabase,
+  input: { offset: number; limit: number }
+) {
+  return client
+    .from("workshop_payments")
+    .select(`${WORKSHOP_PAYMENT_COLUMNS}, workshops(name)`, { count: "exact" })
+    .order("payment_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .range(input.offset, input.offset + input.limit - 1);
+}
+
+/** Totals without loading full payment rows (amount/type/workshop_id only). */
+export async function aggregateWorkshopPaymentsTotals(
+  client: Supabase,
+  creditType: string,
+  debitType: string
+) {
+  const [creditsResult, debitsResult, countResult, workshopIdsResult] =
+    await Promise.all([
+      client
+        .from("workshop_payments")
+        .select("amount")
+        .eq("type", creditType),
+      client
+        .from("workshop_payments")
+        .select("amount")
+        .eq("type", debitType),
+      client
+        .from("workshop_payments")
+        .select("id", { count: "exact", head: true }),
+      client.from("workshop_payments").select("workshop_id"),
+    ]);
+
+  if (creditsResult.error) {
+    return { data: null, error: creditsResult.error };
+  }
+  if (debitsResult.error) {
+    return { data: null, error: debitsResult.error };
+  }
+  if (countResult.error) {
+    return { data: null, error: countResult.error };
+  }
+  if (workshopIdsResult.error) {
+    return { data: null, error: workshopIdsResult.error };
+  }
+
+  const credits = (creditsResult.data ?? []).reduce(
+    (sum, row) => sum + Number(row.amount ?? 0),
+    0
+  );
+  const debits = (debitsResult.data ?? []).reduce(
+    (sum, row) => sum + Number(row.amount ?? 0),
+    0
+  );
+  const workshopIds = new Set(
+    (workshopIdsResult.data ?? [])
+      .map((row) => row.workshop_id)
+      .filter(Boolean)
+  );
+
+  return {
+    data: {
+      credits,
+      debits,
+      net: credits - debits,
+      payment_count: countResult.count ?? 0,
+      workshops_with_payments: workshopIds.size,
+    },
+    error: null,
+  };
+}
+
 export async function findWorkshopPaymentById(client: Supabase, id: string) {
   return client
     .from("workshop_payments")

@@ -593,6 +593,15 @@ describe("getWorkshopForManager", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    vi.mocked(
+      workshopRepository.countWorkshopPaymentsByWorkshopId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: 2,
+      status: 200,
+      statusText: "OK",
+    });
 
     const detail = await getWorkshopForManager(
       adminClient,

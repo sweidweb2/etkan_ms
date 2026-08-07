@@ -3,9 +3,21 @@ import { InstructorScheduleSlotsDetailsPanel } from "@/components/manager/instru
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getInstructorSchedulesPageForManager } from "@/services/instructor-schedule-slot.service";
+import { getInstructorScheduleSlotsDetailsForManager } from "@/services/instructor-schedule-slot.service";
 
-export default async function ManagerInstructorScheduleSlotsDetailsPage() {
+type ManagerInstructorScheduleSlotsDetailsPageProps = {
+  searchParams: Promise<{
+    page?: string;
+    pageSize?: string;
+    entityType?: string;
+    type?: string;
+    q?: string;
+  }>;
+};
+
+export default async function ManagerInstructorScheduleSlotsDetailsPage({
+  searchParams,
+}: ManagerInstructorScheduleSlotsDetailsPageProps) {
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
 
@@ -13,9 +25,20 @@ export default async function ManagerInstructorScheduleSlotsDetailsPage() {
     redirect(ROUTES.LOGIN);
   }
 
-  const data = await getInstructorSchedulesPageForManager(
+  const params = await searchParams;
+  const page = Number(params.page) || 1;
+  const pageSize = Number(params.pageSize) || 10;
+
+  const data = await getInstructorScheduleSlotsDetailsForManager(
     adminClient,
-    user.id
+    user.id,
+    {
+      page,
+      pageSize,
+      entityType: params.entityType,
+      type: params.type,
+      search: params.q,
+    }
   );
 
   return <InstructorScheduleSlotsDetailsPanel data={data} />;

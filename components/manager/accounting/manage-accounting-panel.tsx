@@ -13,8 +13,6 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
-import { AssignMissingSppDialog } from "@/components/manager/accounting/assign-missing-spp-dialog";
-import { AccountingExceptionTabs } from "@/components/manager/accounting/accounting-exception-tabs";
 import { CreatePaymentPhaseDialog } from "@/components/manager/accounting/create-payment-phase-dialog";
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
@@ -50,13 +48,8 @@ import {
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
-  ManagerBilledWithoutClassRow,
-  ManagerMissingSppRow,
   ManagerPaymentPhaseRow,
-  ManagerPaymentPhaseSemesterOption,
-  ManagerSppSemesterMismatchRow,
 } from "@/types/manager-payment-phase";
-import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const STATUS_FILTER_ALL = "all";
@@ -153,36 +146,18 @@ function matchesPhaseSearch(phase: ManagerPaymentPhaseRow, query: string) {
 
 type ManageAccountingPanelProps = {
   initialPhases: ManagerPaymentPhaseRow[];
-  initialMissing: ManagerMissingSppRow[];
-  initialStudentsWithoutActiveClass: ManagerStudentWithoutActiveClassRow[];
-  initialWithoutClassOrPhase: ManagerStudentWithoutActiveClassRow[];
-  initialBilledWithoutClass: ManagerBilledWithoutClassRow[];
-  initialSppSemesterMismatches: ManagerSppSemesterMismatchRow[];
-  semesterOptions: ManagerPaymentPhaseSemesterOption[];
 };
 
 export function ManageAccountingPanel({
   initialPhases,
-  initialMissing,
-  initialStudentsWithoutActiveClass,
-  initialWithoutClassOrPhase,
-  initialBilledWithoutClass,
-  initialSppSemesterMismatches,
-  semesterOptions,
 }: ManageAccountingPanelProps) {
   const router = useRouter();
   const phases = initialPhases;
-  const missing = initialMissing;
-  const studentsWithoutActiveClass = initialStudentsWithoutActiveClass;
-  const withoutClassOrPhase = initialWithoutClassOrPhase;
-  const billedWithoutClass = initialBilledWithoutClass;
-  const sppSemesterMismatches = initialSppSemesterMismatches;
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editPhase, setEditPhase] = useState<ManagerPaymentPhaseRow | null>(
     null
   );
-  const [assignRow, setAssignRow] = useState<ManagerMissingSppRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
@@ -196,8 +171,6 @@ export function ManageAccountingPanel({
       openedPhases: phases.filter(
         (phase) => phase.status === PAYMENT_PHASE_STATUSES.OPENED
       ).length,
-      missingAssignments: missing.length,
-      studentsWithoutActiveClass: studentsWithoutActiveClass.length,
       sppPaidCount: phases.reduce(
         (sum, phase) => sum + phase.spp_paid_count,
         0
@@ -207,7 +180,7 @@ export function ManageAccountingPanel({
         0
       ),
     };
-  }, [phases, missing, studentsWithoutActiveClass]);
+  }, [phases]);
 
   const filteredPhases = useMemo(() => {
     return phases.filter((phase) => {
@@ -284,7 +257,6 @@ export function ManageAccountingPanel({
         <CreatePaymentPhaseDialog
           open={isCreateOpen}
           onOpenChange={setIsCreateOpen}
-          semesterOptions={semesterOptions}
           onCreated={handleCreated}
         />
 
@@ -304,24 +276,13 @@ export function ManageAccountingPanel({
           />
         ) : null}
 
-        <AssignMissingSppDialog
-          open={assignRow !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              setAssignRow(null);
-            }
-          }}
-          row={assignRow}
-          phases={phases}
-        />
-
         <ClassTabCollapsibleSection
           title="Overview"
-          description="Quick counts for phases, students on SPPs, gaps, and students without an active class."
+          description="Quick counts for phases and students on SPPs."
           storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_OVERVIEW}
           defaultOpen
         >
-          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
             <UserStatCard
               label="Payment phases"
               value={stats.totalPhases}
@@ -338,14 +299,9 @@ export function ManageAccountingPanel({
               accentClassName="border-l-violet-500"
             />
             <UserStatCard
-              label="Missing assignments"
-              value={stats.missingAssignments}
+              label="SPP paid"
+              value={stats.sppPaidCount}
               accentClassName="border-l-amber-500"
-            />
-            <UserStatCard
-              label="No active class"
-              value={stats.studentsWithoutActiveClass}
-              accentClassName="border-l-rose-500"
             />
           </div>
         </ClassTabCollapsibleSection>
@@ -618,14 +574,6 @@ export function ManageAccountingPanel({
               </div>
             </div>
         </ClassTabCollapsibleSection>
-
-        <AccountingExceptionTabs
-          billedWithoutClass={billedWithoutClass}
-          withoutClassOrPhase={withoutClassOrPhase}
-          semesterMismatches={sppSemesterMismatches}
-          missingSpp={missing}
-          onAssignMissing={setAssignRow}
-        />
       </div>
     </TooltipProvider>
   );

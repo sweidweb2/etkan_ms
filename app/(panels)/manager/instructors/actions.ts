@@ -9,14 +9,32 @@ import { parseAddInstructorsFormData } from "@/lib/validators/manager/add-instru
 import { parseSaveInstructorCapabilitiesFormData } from "@/lib/validators/manager/save-instructor-capabilities";
 import {
   addInstructorsForManager,
+  listInstructorCandidatesForManager,
   removeInstructorForManager,
   saveInstructorSubjectCapabilities,
 } from "@/services/instructor.service";
 import type {
   AddInstructorsActionState,
+  ManagerInstructorCandidateRow,
   RemoveInstructorActionState,
   SaveInstructorCapabilitiesActionState,
 } from "@/types/manager-instructor";
+
+export async function loadInstructorCandidatesAction(): Promise<
+  ManagerInstructorCandidateRow[]
+> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listInstructorCandidatesForManager(adminClient, actor.userId);
+  } catch {
+    return [];
+  }
+}
 
 export async function saveInstructorCapabilitiesAction(
   _prevState: SaveInstructorCapabilitiesActionState,

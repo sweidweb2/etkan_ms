@@ -126,7 +126,25 @@ describe("listStudentsForManager", () => {
       statusText: "OK",
     });
 
-    mockStudentLookups();
+    vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
+      data: [
+        {
+          id: "user-1",
+          username: "jane",
+          role: ROLES.STUDENT,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
+      data: new Map([["user-1", "jane@school.com"]]),
+      error: null,
+    });
 
     const students = await listStudentsForManager(adminClient, actor.userId);
 

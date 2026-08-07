@@ -7,6 +7,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
   getUnauthorizedError,
+  hasPermission,
 } from "@/services/authorization.service";
 import {
   deleteMirrorsForWorkshopSlot,
@@ -47,6 +48,7 @@ import type {
   ManagerInstructorScheduleSession,
   ManagerInstructorScheduleTab,
   ManagerInstructorSchedulesPageData,
+  ManagerInstructorScheduleSlotsDetailsData,
   ManagerScheduleWorkshopTab,
   ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
@@ -330,6 +332,12 @@ export async function getInstructorSchedulesPageForManager(
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
 
+  const canCreate = await hasPermission(
+    adminClient,
+    actorUserId ?? "",
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
+  );
+
   const [instructorsResult, workshopsResult, slotsResult] = await Promise.all([
     profileRepository.listInstructorProfiles(adminClient),
     workshopRepository.listWorkshops(adminClient),
@@ -372,30 +380,210 @@ export async function getInstructorSchedulesPageForManager(
     username: row.username,
   }));
 
-  const workshops: ManagerScheduleWorkshopTab[] = (workshopsResult.data ?? [])
-    .map((row) => {
+  const workshops: ManagerScheduleWorkshopTab[] = canCreate
+    ? (workshopsResult.data ?? [])
+        .map((row) => {
+          const status = isWorkshopStatus(row.status)
+            ? row.status
+            : WORKSHOP_STATUSES.DRAFT;
+          const eligible = isWorkshopEligibleForScheduleCreate({
+            status: row.status,
+            end_date: row.end_date,
+          });
+          return {
+            id: row.id,
+            name: row.name,
+            start_date: row.start_date ? formatDateOnly(row.start_date) : null,
+            end_date: row.end_date ? formatDateOnly(row.end_date) : null,
+            status,
+            eligible_for_create: eligible,
+          };
+        })
+        .filter((workshop) => workshop.eligible_for_create)
+    : [];
+
+  return {
+    instructors,
+    workshops,
+    sessions,
+  };
+}
+
+export type ListInstructorScheduleSlotsPageOptions = {
+  page?: number;
+  pageSize?: number;
+  entityType?: string;
+  type?: string;
+  search?: string;
+};
+
+function resolveLockedWorkshopIds(
+  workshops: Array<{ id: string; status: string }>
+): string[] {
+  return workshops
+    .filter((row) => isWorkshopContentMutationLocked(row.status))
+    .map((row) => row.id);
+}
+
+export async function getInstructorScheduleSlotsDetailsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  options: ListInstructorScheduleSlotsPageOptions = {}
+): Promise<ManagerInstructorScheduleSlotsDetailsData> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+
+  const page = Math.max(1, options.page ?? 1);
+  const pageSize = Math.min(50, Math.max(1, options.pageSize ?? 10));
+  const offset = (page - 1) * pageSize;
+
+  const [instructorsResult, workshopsResult] = await Promise.all([
+    profileRepository.listInstructorProfiles(adminClient),
+    workshopRepository.listWorkshops(adminClient),
+  ]);
+
+  if (instructorsResult.error) {
+    throw new Error(instructorsResult.error.message);
+  }
+  if (workshopsResult.error) {
+    throw new Error(workshopsResult.error.message);
+  }
+
+  const lockedWorkshopIds = resolveLockedWorkshopIds(
+    workshopsResult.data ?? []
+  );
+
+  const [slotsResult, statsResult] = await Promise.all([
+    instructorScheduleSlotRepository.listInstructorScheduleSlotsPage(
+      adminClient,
+      {
+        offset,
+        limit: pageSize,
+        entityType:
+          options.entityType && options.entityType !== "all"
+            ? options.entityType
+            : undefined,
+        type:
+          options.type && options.type !== "all" ? options.type : undefined,
+        search: options.search,
+        excludeWorkshopRecordIds: lockedWorkshopIds,
+      }
+    ),
+    instructorScheduleSlotRepository.countInstructorScheduleSlotStats(
+      adminClient,
+      lockedWorkshopIds
+    ),
+  ]);
+
+  if (slotsResult.error) {
+    throw new Error(slotsResult.error.message);
+  }
+  if (statsResult.error) {
+    throw new Error(statsResult.error.message);
+  }
+
+  const instructors: ManagerInstructorScheduleTab[] = (
+    instructorsResult.data ?? []
+  ).map((row) => ({
+    id: row.id,
+    username: row.username,
+  }));
+
+  const workshops: ManagerScheduleWorkshopTab[] = (workshopsResult.data ?? []).map(
+    (row) => {
       const status = isWorkshopStatus(row.status)
         ? row.status
         : WORKSHOP_STATUSES.DRAFT;
-      const eligible = isWorkshopEligibleForScheduleCreate({
-        status: row.status,
-        end_date: row.end_date,
-      });
       return {
         id: row.id,
         name: row.name,
         start_date: row.start_date ? formatDateOnly(row.start_date) : null,
         end_date: row.end_date ? formatDateOnly(row.end_date) : null,
         status,
-        eligible_for_create: eligible,
+        eligible_for_create: isWorkshopEligibleForScheduleCreate({
+          status: row.status,
+          end_date: row.end_date,
+        }),
       };
-    })
-    .filter((workshop) => workshop.eligible_for_create);
+    }
+  );
+
+  const sessions = (slotsResult.data ?? []).map((record) =>
+    mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+  );
 
   return {
     instructors,
     workshops,
     sessions,
+    stats: statsResult.data!,
+    totalCount: slotsResult.count ?? sessions.length,
+    page,
+    pageSize,
+  };
+}
+
+export async function listInstructorScheduleSlotsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  options: ListInstructorScheduleSlotsPageOptions = {}
+): Promise<{
+  sessions: ManagerInstructorScheduleSession[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+
+  const page = Math.max(1, options.page ?? 1);
+  const pageSize = Math.min(50, Math.max(1, options.pageSize ?? 10));
+  const offset = (page - 1) * pageSize;
+
+  const workshopsResult = await workshopRepository.listWorkshops(adminClient);
+  if (workshopsResult.error) {
+    throw new Error(workshopsResult.error.message);
+  }
+
+  const lockedWorkshopIds = resolveLockedWorkshopIds(
+    workshopsResult.data ?? []
+  );
+
+  const slotsResult =
+    await instructorScheduleSlotRepository.listInstructorScheduleSlotsPage(
+      adminClient,
+      {
+        offset,
+        limit: pageSize,
+        entityType:
+          options.entityType && options.entityType !== "all"
+            ? options.entityType
+            : undefined,
+        type: options.type && options.type !== "all" ? options.type : undefined,
+        search: options.search,
+        excludeWorkshopRecordIds: lockedWorkshopIds,
+      }
+    );
+
+  if (slotsResult.error) {
+    throw new Error(slotsResult.error.message);
+  }
+
+  const sessions = (slotsResult.data ?? []).map((record) =>
+    mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+  );
+
+  return {
+    sessions,
+    totalCount: slotsResult.count ?? sessions.length,
+    page,
+    pageSize,
   };
 }
 

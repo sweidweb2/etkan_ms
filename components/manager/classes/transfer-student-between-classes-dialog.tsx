@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
-import { transferStudentBetweenClassesAction } from "@/app/manager/classes/actions";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import {
+  loadTransferClassOptionsAction,
+  transferStudentBetweenClassesAction,
+} from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -52,7 +55,7 @@ export function TransferStudentBetweenClassesDialog({
   onOpenChange,
   fromClassId,
   student,
-  classOptions,
+  classOptions: classOptionsProp,
   onTransferred,
 }: TransferStudentBetweenClassesDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -62,6 +65,8 @@ export function TransferStudentBetweenClassesDialog({
   );
   const isPending = isActionPending || isTransitionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+  const [classOptions, setClassOptions] = useState(classOptionsProp);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
 
   useActionStateToast(state, isPending);
 
@@ -96,6 +101,35 @@ export function TransferStudentBetweenClassesDialog({
       });
     }
   }, [open, student, fromClassId, reset]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (classOptionsProp.length > 0) {
+      setClassOptions(classOptionsProp);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingOptions(true);
+    void loadTransferClassOptionsAction(fromClassId)
+      .then((rows) => {
+        if (!cancelled) {
+          setClassOptions(rows);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingOptions(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, fromClassId, classOptionsProp]);
 
   useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
@@ -138,28 +172,41 @@ export function TransferStudentBetweenClassesDialog({
               label="Destination class"
               hint="Required"
             />
-            <Select
-              value={selectedToClassId || undefined}
-              onValueChange={(value) => {
-                if (!value) return;
-                setValue("to_class_id", value, { shouldValidate: true });
-              }}
-              disabled={isPending || !student}
-            >
-              <SelectTrigger
-                id="transfer-to-class"
-                aria-invalid={!!toClassError}
+            {isLoadingOptions ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading classes…
+              </div>
+            ) : (
+              <Select
+                value={selectedToClassId || undefined}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  setValue("to_class_id", value, { shouldValidate: true });
+                }}
+                disabled={isPending || !student || destinationOptions.length === 0}
               >
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                {destinationOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectTrigger
+                  id="transfer-to-class"
+                  aria-invalid={!!toClassError}
+                >
+                  <SelectValue
+                    placeholder={
+                      destinationOptions.length > 0
+                        ? "Select class"
+                        : "No other classes"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {destinationOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {toClassError ? (
               <p className="text-sm text-destructive">{toClassError}</p>
             ) : null}
@@ -178,7 +225,12 @@ export function TransferStudentBetweenClassesDialog({
           <Button
             type="submit"
             form="transfer-student-form"
-            disabled={isPending || !student || destinationOptions.length === 0}
+            disabled={
+              isPending ||
+              isLoadingOptions ||
+              !student ||
+              destinationOptions.length === 0
+            }
           >
             {isPending ? <InlineSpinner /> : null}
             Transfer

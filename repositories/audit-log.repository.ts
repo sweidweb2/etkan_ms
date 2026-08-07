@@ -74,11 +74,20 @@ export function buildStudentAuditLogsOrFilter(
   return parts.join(",");
 }
 
-export async function listAuditLogs(client: Supabase) {
-  return client
+export async function listAuditLogs(
+  client: Supabase,
+  options?: { limit?: number }
+) {
+  let query = client
     .from("audit_logs")
     .select(AUDIT_LOG_COLUMNS)
     .order("created_at", { ascending: false });
+
+  if (options?.limit != null) {
+    query = query.limit(options.limit);
+  }
+
+  return query;
 }
 
 export async function listAuditLogsRelatedToStudent(

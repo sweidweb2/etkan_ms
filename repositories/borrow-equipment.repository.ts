@@ -50,6 +50,13 @@ export async function listAllBorrows(client: Supabase) {
     .order("borrowed_at", { ascending: false });
 }
 
+export async function countBorrowsByStatus(client: Supabase, status: string) {
+  return client
+    .from("borrow_equipment")
+    .select("id", { count: "exact", head: true })
+    .eq("status", status);
+}
+
 export type CreateBorrowRecordInput = {
   equipment_id: string;
   user_id: string;

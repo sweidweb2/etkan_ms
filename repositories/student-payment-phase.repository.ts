@@ -97,6 +97,27 @@ export async function listSppsByIds(client: Supabase, ids: string[]) {
     .in("id", ids);
 }
 
+export async function listSppsFullByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [] as StudentPaymentPhaseRecord[], error: null };
+  }
+
+  return client
+    .from("student_payment_phases")
+    .select(SPP_COLUMNS)
+    .in("id", ids);
+}
+
+/** Active SPPs with remaining balance (for unpaid analytics). */
+export async function listActiveUnpaidSpps(client: Supabase) {
+  return client
+    .from("student_payment_phases")
+    .select(SPP_COLUMNS)
+    .neq("status", "cancelled")
+    .gt("remaining_amount", 0)
+    .order("created_at", { ascending: false });
+}
+
 export async function listAllSpps(client: Supabase) {
   return client
     .from("student_payment_phases")

@@ -18,11 +18,17 @@ import type {
 type WorkshopPaymentsOverviewPanelProps = {
   payments: ManagerWorkshopPaymentLedgerRow[];
   totals: ManagerWorkshopPaymentsTotals;
+  totalCount: number;
+  page: number;
+  pageSize: number;
 };
 
 export function WorkshopPaymentsOverviewPanel({
   payments,
   totals,
+  totalCount,
+  page,
+  pageSize,
 }: WorkshopPaymentsOverviewPanelProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -40,7 +46,13 @@ export function WorkshopPaymentsOverviewPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <WorkshopPaymentsTotalsSection payments={payments} totals={totals} />
+      <WorkshopPaymentsTotalsSection
+        payments={payments}
+        totals={totals}
+        totalCount={totalCount}
+        page={page}
+        pageSize={pageSize}
+      />
     </div>
   );
 }

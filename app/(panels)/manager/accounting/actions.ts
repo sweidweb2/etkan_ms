@@ -34,6 +34,7 @@ import {
 import {
   cancelPaymentPhaseForManager,
   createPaymentPhaseForManager,
+  listPaymentPhaseSemesterOptionsForManager,
   repairMissingSppForManager,
   transferStudentPaymentPhaseForManager,
   updatePaymentPhaseForManager,
@@ -66,6 +67,7 @@ import type {
 import type {
   CancelPaymentPhaseActionState,
   CreatePaymentPhaseActionState,
+  ManagerPaymentPhaseSemesterOption,
   RepairMissingSppActionState,
   TransferSppActionState,
   UpdatePaymentPhaseActionState,
@@ -76,6 +78,18 @@ import type {
   DeleteStudentPaymentPhaseActionState,
   UpdateStudentPaymentActionState,
 } from "@/types/manager-student-payment";
+
+export async function loadPaymentPhaseSemesterOptionsAction(): Promise<
+  ManagerPaymentPhaseSemesterOption[]
+> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  return listPaymentPhaseSemesterOptionsForManager(adminClient, actor.userId);
+}
 
 export async function createPaymentPhaseAction(
   _prevState: CreatePaymentPhaseActionState,

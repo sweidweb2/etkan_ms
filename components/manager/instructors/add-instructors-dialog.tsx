@@ -1,8 +1,11 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import type { FormEvent } from "react";
-import { addInstructorsAction } from "@/app/manager/instructors/actions";
+import {
+  addInstructorsAction,
+  loadInstructorCandidatesAction,
+} from "@/app/manager/instructors/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InstructorUserMultiSelectField } from "@/components/manager/instructors/instructor-user-multi-select-field";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -35,7 +38,7 @@ type AddInstructorsDialogProps = {
 export function AddInstructorsDialog({
   open,
   onOpenChange,
-  candidateUsers,
+  candidateUsers: candidateUsersProp,
   onAdded,
 }: AddInstructorsDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -47,6 +50,8 @@ export function AddInstructorsDialog({
 
   const [selected, setSelected] = useState<ManagerInstructorCandidateRow[]>([]);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [candidateUsers, setCandidateUsers] = useState(candidateUsersProp);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
     if (!nextOpen) {
@@ -55,6 +60,35 @@ export function AddInstructorsDialog({
     }
     onOpenChange(nextOpen);
   });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (candidateUsersProp.length > 0) {
+      setCandidateUsers(candidateUsersProp);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingOptions(true);
+    void loadInstructorCandidatesAction()
+      .then((rows) => {
+        if (!cancelled) {
+          setCandidateUsers(rows);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingOptions(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, candidateUsersProp]);
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {
@@ -103,18 +137,25 @@ export function AddInstructorsDialog({
               label="Users"
               hint="Type to search by username or email"
             />
-            <InstructorUserMultiSelectField
-              users={candidateUsers}
-              selected={selected}
-              onChange={(next) => {
-                setSelected(next);
-                if (next.length > 0) {
-                  setSelectionError(null);
-                }
-              }}
-              disabled={isPending}
-              invalid={Boolean(selectionError)}
-            />
+            {isLoadingOptions ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading users…
+              </div>
+            ) : (
+              <InstructorUserMultiSelectField
+                users={candidateUsers}
+                selected={selected}
+                onChange={(next) => {
+                  setSelected(next);
+                  if (next.length > 0) {
+                    setSelectionError(null);
+                  }
+                }}
+                disabled={isPending || candidateUsers.length === 0}
+                invalid={Boolean(selectionError)}
+              />
+            )}
             {selectionError ? (
               <p className="text-sm text-destructive">{selectionError}</p>
             ) : null}
@@ -133,7 +174,9 @@ export function AddInstructorsDialog({
           <Button
             type="submit"
             form="add-instructors-form"
-            disabled={isPending || selected.length === 0}
+            disabled={
+              isPending || isLoadingOptions || selected.length === 0
+            }
           >
             {isPending ? (
               <>

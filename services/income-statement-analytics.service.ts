@@ -17,6 +17,10 @@ import {
   type StudentPaymentPhaseStatus,
   type TransactionType,
 } from "@/lib/manager/accounting/constants";
+import {
+  dateRangeForYearMonth,
+  yearsFromDateBounds,
+} from "@/lib/utils/iso-date-range";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
@@ -46,11 +50,6 @@ const MONTH_LABELS = [
   "Dec",
 ] as const;
 
-function yearFromDate(value: string): number | null {
-  const year = Number(value.slice(0, 4));
-  return Number.isFinite(year) ? year : null;
-}
-
 function monthFromDate(value: string): number | null {
   const month = Number(value.slice(5, 7));
   return month >= 1 && month <= 12 ? month : null;
@@ -59,20 +58,6 @@ function monthFromDate(value: string): number | null {
 function dayFromDate(value: string): number | null {
   const day = Number(value.slice(8, 10));
   return day >= 1 && day <= 31 ? day : null;
-}
-
-function inScope(
-  date: string,
-  year: number,
-  month: number | null
-): boolean {
-  if (yearFromDate(date) !== year) {
-    return false;
-  }
-  if (month === null) {
-    return true;
-  }
-  return monthFromDate(date) === month;
 }
 
 function isPaymentMethod(value: string): value is PaymentMethod {
@@ -104,6 +89,33 @@ function isAdjustmentValueType(
   );
 }
 
+async function loadAvailableYears(adminClient: Supabase): Promise<number[]> {
+  const currentYear = new Date().getFullYear();
+  const [paymentBounds, adjustmentBounds, transactionBounds] =
+    await Promise.all([
+      studentPaymentRepository.findPaymentDateBounds(adminClient),
+      studentFinancialAdjustmentRepository.findFinancialAdjustmentDateBounds(
+        adminClient
+      ),
+      transactionRepository.findTransactionDateBounds(adminClient),
+    ]);
+
+  if (paymentBounds.error) {
+    throw new Error(paymentBounds.error.message);
+  }
+  if (adjustmentBounds.error) {
+    throw new Error(adjustmentBounds.error.message);
+  }
+  if (transactionBounds.error) {
+    throw new Error(transactionBounds.error.message);
+  }
+
+  return yearsFromDateBounds(
+    [paymentBounds.data, adjustmentBounds.data, transactionBounds.data],
+    currentYear
+  );
+}
+
 export async function getIncomeStatementAnalyticsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -119,13 +131,44 @@ export async function getIncomeStatementAnalyticsForManager(
     PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW
   );
 
-  const [paymentsResult, adjustmentsResult, transactionsResult] =
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const availableYears = await loadAvailableYears(adminClient);
+
+  const year =
+    input.year && availableYears.includes(input.year)
+      ? input.year
+      : (availableYears[0] ?? currentYear);
+
+  const month =
+    input.month === null
+      ? null
+      : input.month !== undefined && input.month >= 1 && input.month <= 12
+        ? input.month
+        : year === currentYear
+          ? currentMonth
+          : 1;
+
+  const { fromInclusive, toExclusive } = dateRangeForYearMonth(year, month);
+
+  const [paymentsResult, adjustmentsResult, transactionsResult, unpaidSppsResult] =
     await Promise.all([
-      studentPaymentRepository.listAllPayments(adminClient),
-      studentFinancialAdjustmentRepository.listAllFinancialAdjustments(
-        adminClient
+      studentPaymentRepository.listPaymentsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
       ),
-      transactionRepository.listAllTransactions(adminClient),
+      studentFinancialAdjustmentRepository.listFinancialAdjustmentsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
+      ),
+      transactionRepository.listTransactionsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
+      ),
+      studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
     ]);
 
   if (paymentsResult.error) {
@@ -137,46 +180,14 @@ export async function getIncomeStatementAnalyticsForManager(
   if (transactionsResult.error) {
     throw new Error(transactionsResult.error.message);
   }
-
-  const paymentRows = paymentsResult.data ?? [];
-  const adjustmentRows = adjustmentsResult.data ?? [];
-  const transactionRows = transactionsResult.data ?? [];
-
-  const years = new Set<number>();
-  for (const row of paymentRows) {
-    const year = yearFromDate(row.payment_date);
-    if (year) years.add(year);
-  }
-  for (const row of adjustmentRows) {
-    const year = yearFromDate(row.effective_date);
-    if (year) years.add(year);
-  }
-  for (const row of transactionRows) {
-    const year = yearFromDate(row.transaction_date);
-    if (year) years.add(year);
+  if (unpaidSppsResult.error) {
+    throw new Error(unpaidSppsResult.error.message);
   }
 
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  years.add(currentYear);
-  const availableYears = [...years].sort((a, b) => b - a);
-
-  const year =
-    input.year && availableYears.includes(input.year)
-      ? input.year
-      : (availableYears[0] ?? currentYear);
-
-  // null = all months; undefined/missing input defaults to current month in that year
-  const month =
-    input.month === null
-      ? null
-      : input.month !== undefined &&
-          input.month >= 1 &&
-          input.month <= 12
-        ? input.month
-        : year === currentYear
-          ? currentMonth
-          : 1;
+  const scopedPayments = paymentsResult.data ?? [];
+  const scopedAdjustments = adjustmentsResult.data ?? [];
+  const scopedTransactions = transactionsResult.data ?? [];
+  const unpaidSpps = unpaidSppsResult.data ?? [];
 
   const periodKeys =
     month === null
@@ -206,13 +217,6 @@ export async function getIncomeStatementAnalyticsForManager(
   let creditsTotal = 0;
   let debitsTotal = 0;
   let adjustmentsTotal = 0;
-
-  const scopedPayments = paymentRows.filter((row) =>
-    inScope(row.payment_date, year, month)
-  );
-  const scopedTransactions = transactionRows.filter((row) =>
-    inScope(row.transaction_date, year, month)
-  );
 
   for (const row of scopedPayments) {
     const amount = Number(row.amount);
@@ -244,8 +248,7 @@ export async function getIncomeStatementAnalyticsForManager(
     }
   }
 
-  for (const row of adjustmentRows) {
-    if (!inScope(row.effective_date, year, month)) continue;
+  for (const row of scopedAdjustments) {
     const amount = Number(row.value);
     adjustmentsTotal += amount;
     const part =
@@ -267,21 +270,45 @@ export async function getIncomeStatementAnalyticsForManager(
           (point) => Number(point.key) <= daysInSelectedMonth
         );
 
-  const [allSppsResult, allPhasesResult] = await Promise.all([
-    studentPaymentPhaseRepository.listAllSpps(adminClient),
-    paymentPhaseRepository.listPaymentPhases(adminClient),
-  ]);
+  const relatedSppIds = [
+    ...new Set([
+      ...scopedPayments.map((row) => row.student_payment_phase_id),
+      ...scopedAdjustments.map((row) => row.student_payment_phase_id),
+      ...unpaidSpps.map((spp) => spp.id),
+    ]),
+  ];
 
-  if (allSppsResult.error) {
-    throw new Error(allSppsResult.error.message);
-  }
-  if (allPhasesResult.error) {
-    throw new Error(allPhasesResult.error.message);
+  const { data: relatedSpps, error: relatedSppError } =
+    await studentPaymentPhaseRepository.listSppsFullByIds(
+      adminClient,
+      relatedSppIds
+    );
+
+  if (relatedSppError) {
+    throw new Error(relatedSppError.message);
   }
 
-  const allSpps = allSppsResult.data ?? [];
+  const sppById = new Map((relatedSpps ?? []).map((spp) => [spp.id, spp]));
+  for (const spp of unpaidSpps) {
+    sppById.set(spp.id, spp);
+  }
+
+  const phaseIds = [
+    ...new Set([...sppById.values()].map((spp) => spp.payment_phase_id)),
+  ];
+
+  const { data: phases, error: phaseError } =
+    await paymentPhaseRepository.listPaymentPhaseAmountsByIds(
+      adminClient,
+      phaseIds
+    );
+
+  if (phaseError) {
+    throw new Error(phaseError.message);
+  }
+
   const phaseById = new Map(
-    (allPhasesResult.data ?? []).map((phase) => [
+    (phases ?? []).map((phase) => [
       phase.id,
       {
         name: phase.name,
@@ -298,9 +325,7 @@ export async function getIncomeStatementAnalyticsForManager(
     [...phaseById.entries()].map(([id, phase]) => [id, phase.status])
   );
 
-  const sppById = new Map(allSpps.map((spp) => [spp.id, spp]));
-
-  const studentIds = [...new Set(allSpps.map((spp) => spp.student_id))];
+  const studentIds = [...new Set([...sppById.values()].map((spp) => spp.student_id))];
   const labelByStudentId = new Map<string, string>();
 
   if (studentIds.length > 0) {
@@ -368,11 +393,8 @@ export async function getIncomeStatementAnalyticsForManager(
     scopedPayments.map((row) => row.student_payment_phase_id)
   );
 
-  const unpaidStudents = allSpps
+  const unpaidStudents = unpaidSpps
     .filter((spp) => {
-      if (spp.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
-        return false;
-      }
       if (Number(spp.remaining_amount) <= 0) {
         return false;
       }
@@ -408,7 +430,7 @@ export async function getIncomeStatementAnalyticsForManager(
     );
   }
 
-  const adjustedStudents = adjustmentRows
+  const adjustedStudents = scopedAdjustments
     .map((row) => {
       const spp = sppById.get(row.student_payment_phase_id);
       if (!spp || spp.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {

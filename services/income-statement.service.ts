@@ -13,6 +13,7 @@ import {
   type PaymentMethod,
   type TransactionType,
 } from "@/lib/manager/accounting/constants";
+import { dateRangeForYearMonth } from "@/lib/utils/iso-date-range";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
@@ -57,13 +58,29 @@ export async function getIncomeStatementForManager(
     PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW
   );
 
+  // First paint: current calendar year only (not unbounded listAll*).
+  const { fromInclusive, toExclusive } = dateRangeForYearMonth(
+    new Date().getFullYear(),
+    null
+  );
+
   const [paymentsResult, adjustmentsResult, transactionsResult] =
     await Promise.all([
-      studentPaymentRepository.listAllPayments(adminClient),
-      studentFinancialAdjustmentRepository.listAllFinancialAdjustments(
-        adminClient
+      studentPaymentRepository.listPaymentsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
       ),
-      transactionRepository.listAllTransactions(adminClient),
+      studentFinancialAdjustmentRepository.listFinancialAdjustmentsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
+      ),
+      transactionRepository.listTransactionsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
+      ),
     ]);
 
   if (paymentsResult.error) {
@@ -190,7 +207,6 @@ export async function getIncomeStatementForManager(
       ? phase.amount / Math.max(phase.duration_months, 1)
       : 0;
 
-    // Fixed = dollar amount; percentage = share of (phase amount ÷ months).
     const amountInDollars =
       valueType === FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE
         ? (value / 100) * monthlyPhaseAmount

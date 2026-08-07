@@ -194,12 +194,14 @@ Do these in order. Keep the app usable after each phase. Don’t skip measuring 
 
 **Goal:** Repository/SQL does the filtering; services stop `listAll*` + filter in JS for hot paths. Cut Auth Admin N+1 on list pages.
 
+**Status (2026-08-07):** Wave 1–3 with `[01]` Phase 3 — income scoped, Auth email batch, dashboard aggregates, instructors defer, schedule details paging, AI slim list, workshop payments aggregates + page. Still open: calendar instructor-slot listAll; optional further listAll trims.
+
 **Steps**
 
-1. **Income statement + analytics (first):** date-scoped queries for payments / transactions / adjustments; load SPPs/phases only for IDs in scope.  
+1. ~~**Income statement + analytics (first):** date-scoped queries…~~  
 2. Replace or constrain other `listAll*` used on hot manager pages (workshop payments, borrows, schedule slots) with filters or pagination.  
 3. Dashboard: prefer count/aggregate queries over “fetch all then `.filter`.”  
-4. **Auth emails:** batch/dedupe `getAuthUserById` (or store email on profile / join once); never sequential per-row Admin lookups on class roster / students / users lists.  
+4. ~~**Auth emails:** batch/dedupe…~~ (`listAuthEmailsByIds`)  
 5. Keep unit tests; add service tests for scoped date filters.  
 6. Re-check Phase 0 journeys that land on these pages after save (refresh cost collapses if the page is cheaper).
 
@@ -247,7 +249,7 @@ Do these in order. Keep the app usable after each phase. Don’t skip measuring 
 - [ ] **Phase 0** — Mutation journeys + before timings (multi-feature)  
 - [ ] **Phase 1** — End double refresh / narrow `revalidatePath`  
 - [x] **Phase 2** — Cached session pack + cached permission load on actions (shared with `[01]` Phase 2)  
-- [ ] **Phase 3** — Date/id-scoped repositories (income + hot lists first)  
+- [ ] **Phase 3** — Date/id-scoped repositories (Wave 1–3 done; calendar instructor-slot listAll optional leftover)  
 - [ ] **Phase 4** — Domain service trim (accounting → workshops → grades → rest)  
 - [ ] **Phase 5** — After timings, regression checklist, rules update  
 

@@ -1,5 +1,5 @@
 import { SCHEDULE_ASSISTANT_DEFAULT_MODEL } from "@/lib/constants/schedule-assistant";
-import type { ManagerCloudflareAiUsageRow } from "@/types/manager-cloudflare-ai-usage";
+import type { ManagerCloudflareAiUsageListRow } from "@/types/manager-cloudflare-ai-usage";
 
 /** Published Workers AI unit rates for Nemotron (USD per 1M tokens). */
 export const CLOUDFLARE_AI_ESTIMATED_INPUT_USD_PER_M = 0.5;
@@ -47,7 +47,7 @@ export function estimateCloudflareAiSpendUsd(input: {
  * (including today), aggregating requests / tokens / estimated spend.
  */
 export function buildCloudflareAiUsageDailySeries(
-  records: ManagerCloudflareAiUsageRow[],
+  records: ManagerCloudflareAiUsageListRow[],
   dayCount = 14,
   now = new Date()
 ): CloudflareAiUsageDailyPoint[] {

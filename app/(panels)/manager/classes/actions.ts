@@ -37,6 +37,8 @@ import {
   createClassForManager,
   createClassSessionForManager,
   createFinalExamForManager,
+  listAvailableStudentsForClass,
+  listClassesForManager,
   transferStudentBetweenClassesForManager,
   unassignTeacherFromClassForManager,
   updateClassForManager,
@@ -53,6 +55,8 @@ import {
   updateSessionSettingsForManager,
   updateStudentTaskForManager,
 } from "@/services/session.service";
+import { listSemestersForManager } from "@/services/semester.service";
+import { listSubjectsForManager } from "@/services/subject.service";
 import type {
   AddStudentToClassActionState,
   AssignClassTeacherActionState,
@@ -67,6 +71,7 @@ import type {
   UpdateFinalExamActionState,
   UpdateStudentFinalExamGradeActionState,
 } from "@/types/manager-class-detail";
+import type { ManagerStudentRow } from "@/types/manager-student";
 import type {
   CreateSessionTaskActionState,
   DeleteClassSessionActionState,
@@ -75,6 +80,76 @@ import type {
   UpdateSessionSettingsActionState,
   UpdateStudentTaskActionState,
 } from "@/types/manager-class-session-detail";
+
+export async function loadAvailableStudentsForClassAction(
+  classId: string
+): Promise<ManagerStudentRow[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listAvailableStudentsForClass(
+      adminClient,
+      actor.userId,
+      classId
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function loadTransferClassOptionsAction(
+  excludeClassId: string
+): Promise<Array<{ id: string; name: string }>> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    const classes = await listClassesForManager(adminClient, actor.userId);
+    return classes
+      .filter((row) => row.id !== excludeClassId)
+      .map((row) => ({ id: row.id, name: row.name }));
+  } catch {
+    return [];
+  }
+}
+
+export async function loadClassEditOptionsAction(): Promise<{
+  subjects: Array<{ id: string; name: string; nb_sessions: number }>;
+  semesters: Array<{ id: string; name: string }>;
+}> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return { subjects: [], semesters: [] };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    const [subjects, semesters] = await Promise.all([
+      listSubjectsForManager(adminClient, actor.userId),
+      listSemestersForManager(adminClient, actor.userId),
+    ]);
+    return {
+      subjects: subjects.map((subject) => ({
+        id: subject.id,
+        name: subject.name,
+        nb_sessions: subject.nb_sessions,
+      })),
+      semesters: semesters.map((semester) => ({
+        id: semester.id,
+        name: semester.name,
+      })),
+    };
+  } catch {
+    return { subjects: [], semesters: [] };
+  }
+}
 
 export async function createClassAction(
   _prevState: CreateClassActionState,

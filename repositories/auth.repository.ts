@@ -117,6 +117,55 @@ export async function getAuthUserById(client: Supabase, id: string) {
   return client.auth.admin.getUserById(id);
 }
 
+/**
+ * Resolve emails for many auth user IDs via paginated `listUsers`.
+ * Prefer this over N× `getUserById` on list pages.
+ */
+export async function listAuthEmailsByIds(
+  client: Supabase,
+  userIds: readonly string[]
+): Promise<{ data: Map<string, string>; error: Error | null }> {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  const emailById = new Map<string, string>();
+
+  if (uniqueIds.length === 0) {
+    return { data: emailById, error: null };
+  }
+
+  const needed = new Set(uniqueIds);
+  let page = 1;
+  const perPage = 1000;
+
+  while (needed.size > 0) {
+    const { data, error } = await client.auth.admin.listUsers({ page, perPage });
+
+    if (error) {
+      return { data: emailById, error };
+    }
+
+    for (const user of data.users) {
+      if (needed.has(user.id)) {
+        emailById.set(user.id, user.email ?? "");
+        needed.delete(user.id);
+      }
+    }
+
+    if (data.users.length < perPage) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  for (const id of uniqueIds) {
+    if (!emailById.has(id)) {
+      emailById.set(id, "");
+    }
+  }
+
+  return { data: emailById, error: null };
+}
+
 /** Paginates auth users until a matching email is found or pages are exhausted. */
 export async function findAuthUserByEmail(client: Supabase, email: string) {
   const normalizedEmail = email.trim().toLowerCase();
