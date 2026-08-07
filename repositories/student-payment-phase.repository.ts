@@ -97,6 +97,13 @@ export async function listSppsByIds(client: Supabase, ids: string[]) {
     .in("id", ids);
 }
 
+export async function listAllSpps(client: Supabase) {
+  return client
+    .from("student_payment_phases")
+    .select(SPP_COLUMNS)
+    .order("created_at", { ascending: false });
+}
+
 export async function createStudentPaymentPhase(
   client: Supabase,
   input: CreateStudentPaymentPhaseRecordInput

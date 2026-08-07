@@ -435,6 +435,8 @@ notifications.delete
 emailing.view
 emailing.send
 emailing.resend
+
+
 accounting.view
 accounting.income_statement.view
 accounting.transactions.create
@@ -451,6 +453,7 @@ accounting.payments.delete
 accounting.adjustments.create
 accounting.adjustments.update
 accounting.adjustments.delete
+
 reports.view
 reports.export
 reports.print
