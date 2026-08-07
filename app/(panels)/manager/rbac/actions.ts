@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSessionAuditActor, getSessionUser } from "@/lib/auth/session";
+import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -48,6 +49,8 @@ export async function updateRolePermissionsAction(
     return { success: false, error: result.error };
   }
 
+  // Role grants affect many users — drop all shell permission caches.
+  clearCachedSessionShell();
   revalidatePath(ROUTES.MANAGER_ROOT, "layout");
   return { success: true, message: result.message };
 }

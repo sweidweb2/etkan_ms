@@ -123,8 +123,9 @@ export async function getAuthUserById(client: Supabase, id: string) {
 }
 
 /**
- * Resolve emails for many auth user IDs via paginated `listUsers`.
- * Prefer this over N× `getUserById` on list pages.
+ * Resolve emails for many auth user IDs.
+ * Small batches use parallel `getUserById` (targeted).
+ * Large batches fall back to paginated `listUsers`.
  */
 export async function listAuthEmailsByIds(
   client: Supabase,
@@ -137,12 +138,57 @@ export async function listAuthEmailsByIds(
     return { data: emailById, error: null };
   }
 
+  const debugTiming =
+    process.env.NODE_ENV === "development" ||
+    process.env.ETKAN_DEBUG_TIMING === "1";
+  const t0 = performance.now();
+
+  /** Auth Admin getUserById is cheaper than scanning all users for typical list pages. */
+  const GET_BY_ID_MAX = 50;
+
+  if (uniqueIds.length <= GET_BY_ID_MAX) {
+    const results = await Promise.all(
+      uniqueIds.map(async (id) => {
+        const { data, error } = await client.auth.admin.getUserById(id);
+        return { id, data, error };
+      })
+    );
+
+    for (const row of results) {
+      if (row.error) {
+        if (debugTiming) {
+          console.info(
+            `[etkan:timing] listAuthEmailsByIds getUserById failed id=${row.id.slice(0, 8)} ${row.error.message}`
+          );
+        }
+        emailById.set(row.id, "");
+        continue;
+      }
+      emailById.set(row.id, row.data.user?.email ?? "");
+    }
+
+    if (debugTiming) {
+      console.info(
+        `[etkan:timing] listAuthEmailsByIds getUserById n=${uniqueIds.length} Σ${(performance.now() - t0).toFixed(0)}ms`
+      );
+    }
+
+    return { data: emailById, error: null };
+  }
+
   const needed = new Set(uniqueIds);
   let page = 1;
   const perPage = 1000;
 
   while (needed.size > 0) {
+    const pageStart = performance.now();
     const { data, error } = await client.auth.admin.listUsers({ page, perPage });
+
+    if (debugTiming) {
+      console.info(
+        `[etkan:timing] listAuthEmailsByIds page=${page} idsNeeded=${needed.size}/${uniqueIds.length} +${(performance.now() - pageStart).toFixed(0)}ms`
+      );
+    }
 
     if (error) {
       return { data: emailById, error };
@@ -166,6 +212,12 @@ export async function listAuthEmailsByIds(
     if (!emailById.has(id)) {
       emailById.set(id, "");
     }
+  }
+
+  if (debugTiming) {
+    console.info(
+      `[etkan:timing] listAuthEmailsByIds done pages=${page} resolved=${emailById.size} Σ${(performance.now() - t0).toFixed(0)}ms`
+    );
   }
 
   return { data: emailById, error: null };

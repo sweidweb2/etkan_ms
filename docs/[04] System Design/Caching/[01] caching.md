@@ -8,7 +8,8 @@ Feature → layer inventory: [`[03] cache-layer-inventory.md`](./[03]%20cache-la
 - **Do not cache by default.** Prefer fresh RSC → service → repository → Supabase.
 - Add caching only when there is a clear need (DB load, slow lists, or snappy back-navigation).
 - Keep repositories dumb: **no caching inside `repositories/`**.
-- Never put shared-server cache around **auth/session** or per-user secrets with a global key.
+- Never put **shared** Data Cache (`unstable_cache`) around **auth/session** with a global key.
+- **Allowed:** short **per-user process TTL** for panel shell identity (role, display name, instructor flag, permission keys) — see § Process TTL / `session-shell-cache`. Every request still verifies JWT via `getClaims`.
 
 ## Two cache types
 
@@ -37,7 +38,7 @@ Feature → layer inventory: [`[03] cache-layer-inventory.md`](./[03]%20cache-la
 
 | Avoid caching | Why |
 |---------------|-----|
-| Auth / session resolution | Correctness and security |
+| Auth session via **shared** Data Cache / global key | Correctness and cross-user leak risk |
 | Highly personalized per-row dashboards with no shared key | Wrong or leaky keys |
 | Write-heavy screens with no invalidation plan | Stale UI for everyone |
 

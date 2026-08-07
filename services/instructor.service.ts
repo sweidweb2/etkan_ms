@@ -1,5 +1,7 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { RoleValue } from "@/lib/constants/roles";
+import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
+import { timingAsync, timingMark } from "@/lib/debug/request-timing";
 import * as authRepository from "@/repositories/auth.repository";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
@@ -34,9 +36,13 @@ async function mapProfilesWithEmail(
     created_at: string | null;
   }[]
 ) {
-  const emailResult = await authRepository.listAuthEmailsByIds(
-    adminClient,
-    profiles.map((profile) => profile.id)
+  const emailResult = await timingAsync(
+    `instructors:listAuthEmailsByIds n=${profiles.length}`,
+    () =>
+      authRepository.listAuthEmailsByIds(
+        adminClient,
+        profiles.map((profile) => profile.id)
+      )
   );
 
   if (emailResult.error) {
@@ -58,20 +64,21 @@ export async function getInstructorsPageForManager(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<ManagerInstructorsPageData> {
-  await assertPermission(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.INSTRUCTORS_VIEW
+  timingMark("instructorsPage:service:start");
+  await timingAsync("instructorsPage:assertPermission", () =>
+    assertPermission(adminClient, actorUserId, PERMISSIONS.INSTRUCTORS_VIEW)
   );
 
   const [instructorsResult, subjectsResult, capabilitiesResult] =
-    await Promise.all([
-      profileRepository.listInstructorProfiles(adminClient),
-      subjectRepository.listSubjects(adminClient),
-      instructorSubjectCapabilityRepository.listAllInstructorSubjectCapabilities(
-        adminClient
-      ),
-    ]);
+    await timingAsync("instructorsPage:parallelLists", () =>
+      Promise.all([
+        profileRepository.listInstructorProfiles(adminClient),
+        subjectRepository.listSubjects(adminClient),
+        instructorSubjectCapabilityRepository.listAllInstructorSubjectCapabilities(
+          adminClient
+        ),
+      ])
+    );
 
   if (instructorsResult.error) {
     throw new Error(instructorsResult.error.message);
@@ -82,6 +89,10 @@ export async function getInstructorsPageForManager(
   if (capabilitiesResult.error) {
     throw new Error(capabilitiesResult.error.message);
   }
+
+  timingMark(
+    `instructorsPage:rows instructors=${instructorsResult.data?.length ?? 0} subjects=${subjectsResult.data?.length ?? 0} caps=${capabilitiesResult.data?.length ?? 0}`
+  );
 
   const subjects = (subjectsResult.data ?? [])
     .map((row) => ({ id: row.id, name: row.name }))
@@ -108,6 +119,8 @@ export async function getInstructorsPageForManager(
       user_id: row.user_id,
       subject_id: row.subject_id,
     }));
+
+  timingMark("instructorsPage:service:done");
 
   return {
     instructors,
@@ -307,6 +320,8 @@ export async function removeInstructorForManager(
     return { success: false, error: profileError.message };
   }
 
+  clearCachedSessionShell(trimmedId);
+
   return {
     success: true,
     message: "Instructor removed.",
@@ -375,6 +390,10 @@ export async function addInstructorsForManager(
 
   if (updateError) {
     return { success: false, error: updateError.message };
+  }
+
+  for (const id of toPromote) {
+    clearCachedSessionShell(id);
   }
 
   return {

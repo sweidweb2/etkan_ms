@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import {
   STUDENT_STATUSES,
   type StudentStatusValue,
@@ -713,6 +714,8 @@ export async function updateManagerUser(
           : "User account updated.",
     },
   });
+
+  clearCachedSessionShell(userId);
 
   return {
     success: true,

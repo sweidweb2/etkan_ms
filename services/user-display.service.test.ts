@@ -46,20 +46,17 @@ describe("resolveDisplayName", () => {
     expect(profileRepository.findProfileById).not.toHaveBeenCalled();
   });
 
-  it("falls back to auth metadata full name", async () => {
-    vi.mocked(studentProfileRepository.findStudentProfileByUserId).mockResolvedValue(
-      {
-        data: null,
-        error: null,
-      }
-    );
-
+  it("prefers auth metadata full name without hitting the DB", async () => {
     await expect(
       resolveDisplayName(
         client,
         authUser({ user_metadata: { full_name: " Metadata Name " } })
       )
     ).resolves.toBe("Metadata Name");
+    expect(
+      studentProfileRepository.findStudentProfileByUserId
+    ).not.toHaveBeenCalled();
+    expect(profileRepository.findProfileById).not.toHaveBeenCalled();
   });
 
   it("falls back to username then email prefix", async () => {

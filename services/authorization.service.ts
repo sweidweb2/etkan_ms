@@ -9,6 +9,7 @@ import {
   isPermissionKey,
   type PermissionKey,
 } from "@/lib/constants/permissions";
+import type { RoleValue } from "@/lib/constants/roles";
 import { roleSchema } from "@/lib/validators/role";
 import * as permissionRepository from "@/repositories/permission.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -27,31 +28,22 @@ type Supabase = SupabaseClient<Database>;
 
 const EMPTY_PERMISSIONS: ReadonlySet<PermissionKey> = new Set();
 
-async function loadUserPermissionsWithClient(
-  client: Supabase,
-  userId: string
-): Promise<ReadonlySet<PermissionKey>> {
+/** Request-scoped role hints so permission loads skip a second profiles.role fetch. */
+const getKnownRoleHints = cache(() => new Map<string, RoleValue>());
+
+export function rememberUserRole(userId: string, role: RoleValue): void {
   if (!userId) {
-    return EMPTY_PERMISSIONS;
+    return;
   }
+  getKnownRoleHints().set(userId, role);
+}
 
-  const { data: profile, error: profileError } =
-    await profileRepository.findRoleById(client, userId);
-
-  if (profileError || !profile?.role) {
-    return EMPTY_PERMISSIONS;
-  }
-
-  const parsedRole = roleSchema.safeParse(profile.role);
-  if (!parsedRole.success) {
-    return EMPTY_PERMISSIONS;
-  }
-
+async function loadPermissionsForRoleWithClient(
+  client: Supabase,
+  role: RoleValue
+): Promise<ReadonlySet<PermissionKey>> {
   const { data: grants, error: grantsError } =
-    await permissionRepository.listPermissionKeysByRole(
-      client,
-      parsedRole.data
-    );
+    await permissionRepository.listPermissionKeysByRole(client, role);
 
   if (grantsError || !grants) {
     return EMPTY_PERMISSIONS;
@@ -67,6 +59,35 @@ async function loadUserPermissionsWithClient(
   return keys;
 }
 
+async function loadUserPermissionsWithClient(
+  client: Supabase,
+  userId: string
+): Promise<ReadonlySet<PermissionKey>> {
+  if (!userId) {
+    return EMPTY_PERMISSIONS;
+  }
+
+  const hinted = getKnownRoleHints().get(userId);
+  if (hinted) {
+    return loadPermissionsForRoleWithClient(client, hinted);
+  }
+
+  const { data: profile, error: profileError } =
+    await profileRepository.findRoleById(client, userId);
+
+  if (profileError || !profile?.role) {
+    return EMPTY_PERMISSIONS;
+  }
+
+  const parsedRole = roleSchema.safeParse(profile.role);
+  if (!parsedRole.success) {
+    return EMPTY_PERMISSIONS;
+  }
+
+  rememberUserRole(userId, parsedRole.data);
+  return loadPermissionsForRoleWithClient(client, parsedRole.data);
+}
+
 /**
  * Load permissions for a user using the provided client (uncached).
  * Prefer this in unit tests and scripts.
@@ -78,6 +99,12 @@ export async function getUserPermissions(
   return loadUserPermissionsWithClient(client, userId);
 }
 
+const loadPermissionsForRoleCached = cache(async (role: RoleValue) => {
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const client = createSupabaseAdminClient();
+  return loadPermissionsForRoleWithClient(client, role);
+});
+
 const loadUserPermissionsCached = cache(async (userId: string) => {
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const client = createSupabaseAdminClient();
@@ -85,12 +112,27 @@ const loadUserPermissionsCached = cache(async (userId: string) => {
 });
 
 /**
+ * Request-scoped permissions by role (skips profiles.role).
+ * Prefer when JWT / session already resolved the role.
+ */
+export async function getPermissionsForRoleCached(
+  role: RoleValue
+): Promise<ReadonlySet<PermissionKey>> {
+  return loadPermissionsForRoleCached(role);
+}
+
+/**
  * Request-scoped cached load (React `cache`). Uses the admin client.
  * Use from RSC / server actions when the same user is checked many times.
+ * If `rememberUserRole` ran earlier in the request, skips profiles.role.
  */
 export async function getUserPermissionsCached(
   userId: string
 ): Promise<ReadonlySet<PermissionKey>> {
+  const hinted = getKnownRoleHints().get(userId);
+  if (hinted) {
+    return loadPermissionsForRoleCached(hinted);
+  }
   return loadUserPermissionsCached(userId);
 }
 

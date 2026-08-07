@@ -128,12 +128,23 @@ export async function middleware(request: NextRequest) {
     applyAuthCookies(NextResponse.redirect(url), getResponse());
 
   const { pathname } = request.nextUrl;
+  const debugTiming =
+    process.env.ETKAN_DEBUG_TIMING === "1" ||
+    (process.env.NODE_ENV === "development" &&
+      pathname.startsWith(ROUTES.MANAGER_INSTRUCTORS));
+  const mwStart = debugTiming ? performance.now() : 0;
 
   // Auth JWT check + maintenance flag in parallel (was sequential ~2 round-trips).
+  const authStart = debugTiming ? performance.now() : 0;
   const [auth, maintenanceMode] = await Promise.all([
     resolveMiddlewareAuth(supabase),
     resolveMaintenanceMode(supabase),
   ]);
+  if (debugTiming) {
+    console.info(
+      `[etkan:timing mw] ${pathname} auth+maintenance +${(performance.now() - authStart).toFixed(0)}ms`
+    );
+  }
 
   if (maintenanceMode) {
     const isMaintenancePage = pathname === MAINTENANCE_PATH;
@@ -190,7 +201,13 @@ export async function middleware(request: NextRequest) {
       return redirect(loginUrl);
     }
 
+    const roleStart = debugTiming ? performance.now() : 0;
     const role = await resolveRole(supabase, auth);
+    if (debugTiming) {
+      console.info(
+        `[etkan:timing mw] ${pathname} resolveRole +${(performance.now() - roleStart).toFixed(0)}ms role=${role}`
+      );
+    }
     const panelRoot = getPanelRootForRole(role);
 
     if (pathname === panelRoot) {
@@ -201,6 +218,11 @@ export async function middleware(request: NextRequest) {
       return redirect(new URL(getDashboardRouteForRole(role), request.url));
     }
 
+    if (debugTiming) {
+      console.info(
+        `[etkan:timing mw] ${pathname} total +${(performance.now() - mwStart).toFixed(0)}ms`
+      );
+    }
     return getResponse();
   }
 

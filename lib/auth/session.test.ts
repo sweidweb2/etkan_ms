@@ -15,36 +15,61 @@ describe("getSessionPack", () => {
     vi.doMock("@/services/auth.service", () => ({
       getSessionAuthIdentity: vi.fn(),
     }));
-    vi.doMock("@/services/role.service", () => ({
-      resolveUserRole: vi.fn(),
-      resolveIsInstructor: vi.fn(),
+    vi.doMock("@/repositories/profile.repository", () => ({
+      findProfileById: vi.fn(),
     }));
-    vi.doMock("@/services/user-display.service", () => ({
-      resolveDisplayName: vi.fn(),
+    vi.doMock("@/repositories/student-profile.repository", () => ({
+      findStudentProfileByUserId: vi.fn(),
     }));
     vi.doMock("@/services/authorization.service", () => ({
-      getUserPermissionsCached: vi.fn(),
+      getPermissionsForRoleCached: vi.fn(),
+      rememberUserRole: vi.fn(),
     }));
+    vi.doMock("@/lib/auth/session-shell-cache", () => ({
+      getCachedSessionShell: vi.fn(),
+      setCachedSessionShell: vi.fn(),
+      isSessionShellCompatibleWithClaims: vi.fn(
+        (_entry: unknown, claimsRole: unknown) => claimsRole == null || true
+      ),
+    }));
+    vi.doMock("@/services/role.service", async () => {
+      const actual = await vi.importActual<
+        typeof import("@/services/role.service")
+      >("@/services/role.service");
+      return actual;
+    });
+    vi.doMock("@/services/user-display.service", async () => {
+      const actual = await vi.importActual<
+        typeof import("@/services/user-display.service")
+      >("@/services/user-display.service");
+      return actual;
+    });
 
     const session = await import("@/lib/auth/session");
     const { getSessionAuthIdentity } = await import("@/services/auth.service");
-    const { resolveUserRole, resolveIsInstructor } = await import(
-      "@/services/role.service"
+    const profileRepository = await import("@/repositories/profile.repository");
+    const studentProfileRepository = await import(
+      "@/repositories/student-profile.repository"
     );
-    const { resolveDisplayName } = await import(
-      "@/services/user-display.service"
-    );
-    const { getUserPermissionsCached } = await import(
+    const { getPermissionsForRoleCached, rememberUserRole } = await import(
       "@/services/authorization.service"
     );
+    const shellCache = await import("@/lib/auth/session-shell-cache");
 
     return {
       session,
       getSessionAuthIdentity: vi.mocked(getSessionAuthIdentity),
-      resolveUserRole: vi.mocked(resolveUserRole),
-      resolveIsInstructor: vi.mocked(resolveIsInstructor),
-      resolveDisplayName: vi.mocked(resolveDisplayName),
-      getUserPermissionsCached: vi.mocked(getUserPermissionsCached),
+      findProfileById: vi.mocked(profileRepository.findProfileById),
+      findStudentProfileByUserId: vi.mocked(
+        studentProfileRepository.findStudentProfileByUserId
+      ),
+      getPermissionsForRoleCached: vi.mocked(getPermissionsForRoleCached),
+      rememberUserRole: vi.mocked(rememberUserRole),
+      getCachedSessionShell: vi.mocked(shellCache.getCachedSessionShell),
+      setCachedSessionShell: vi.mocked(shellCache.setCachedSessionShell),
+      isSessionShellCompatibleWithClaims: vi.mocked(
+        shellCache.isSessionShellCompatibleWithClaims
+      ),
     };
   }
 
@@ -61,23 +86,39 @@ describe("getSessionPack", () => {
       isInstructor: false,
       permissions: new Set(),
     });
-    expect(mod.resolveUserRole).not.toHaveBeenCalled();
-    expect(mod.getUserPermissionsCached).not.toHaveBeenCalled();
+    expect(mod.findProfileById).not.toHaveBeenCalled();
+    expect(mod.getPermissionsForRoleCached).not.toHaveBeenCalled();
   });
 
-  it("builds a signed-in pack and helpers project the same fields", async () => {
+  it("builds a signed-in pack from one profile fetch + role permissions and stores shell", async () => {
     const mod = await loadSessionModule();
-    const user = { id: "user-pack-1" } as never;
+    const user = {
+      id: "user-pack-1",
+      email: "ada@school.com",
+      user_metadata: { full_name: "Ada Manager" },
+      app_metadata: {},
+    } as never;
     const permissions = new Set([PERMISSIONS.DASHBOARD_VIEW]);
 
+    mod.getCachedSessionShell.mockReturnValue(null);
     mod.getSessionAuthIdentity.mockResolvedValue({
       user,
       claimsRole: null,
     });
-    mod.resolveUserRole.mockResolvedValue(ROLES.MANAGER);
-    mod.resolveIsInstructor.mockResolvedValue(true);
-    mod.resolveDisplayName.mockResolvedValue("Ada Manager");
-    mod.getUserPermissionsCached.mockResolvedValue(permissions);
+    mod.findProfileById.mockResolvedValue({
+      data: {
+        id: "user-pack-1",
+        username: "ada",
+        role: ROLES.MANAGER,
+        is_instructor: true,
+        created_at: "2026-01-01",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    mod.getPermissionsForRoleCached.mockResolvedValue(permissions);
 
     const pack = await mod.session.getSessionPack();
 
@@ -88,39 +129,99 @@ describe("getSessionPack", () => {
       isInstructor: true,
       permissions,
     });
-    expect(mod.getSessionAuthIdentity).toHaveBeenCalledTimes(1);
-    expect(mod.resolveUserRole).toHaveBeenCalledWith({}, user);
-    expect(mod.getUserPermissionsCached).toHaveBeenCalledWith("user-pack-1");
-
-    await expect(mod.session.getSessionUser()).resolves.toEqual(user);
-    await expect(mod.session.getSessionRole()).resolves.toBe(ROLES.MANAGER);
-    await expect(mod.session.getSessionIsInstructor()).resolves.toBe(true);
-    await expect(mod.session.getSessionDisplayName()).resolves.toBe(
-      "Ada Manager"
+    expect(mod.findProfileById).toHaveBeenCalledTimes(1);
+    expect(mod.findStudentProfileByUserId).not.toHaveBeenCalled();
+    expect(mod.rememberUserRole).toHaveBeenCalledWith(
+      "user-pack-1",
+      ROLES.MANAGER
     );
-    await expect(mod.session.getSessionAuditActor()).resolves.toEqual({
-      userId: "user-pack-1",
-      userLabel: "Ada Manager",
-    });
+    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledWith(ROLES.MANAGER);
+    expect(mod.setCachedSessionShell).toHaveBeenCalledWith(
+      "user-pack-1",
+      expect.objectContaining({
+        role: ROLES.MANAGER,
+        displayName: "Ada Manager",
+        isInstructor: true,
+        permissionKeys: [PERMISSIONS.DASHBOARD_VIEW],
+        cachedClaimsRole: null,
+      })
+    );
   });
 
-  it("uses JWT claims role and skips profiles.role lookup", async () => {
+  it("returns shell cache hit without profile or permissions DB", async () => {
     const mod = await loadSessionModule();
-    const user = { id: "user-pack-2" } as never;
-    const permissions = new Set([PERMISSIONS.WORKSHOPS_VIEW]);
+    const user = {
+      id: "user-pack-2",
+      email: "ceo@school.com",
+      user_metadata: { full_name: "Ceo User" },
+      app_metadata: { role: ROLES.CEO },
+    } as never;
 
     mod.getSessionAuthIdentity.mockResolvedValue({
       user,
       claimsRole: ROLES.CEO,
     });
-    mod.resolveIsInstructor.mockResolvedValue(false);
-    mod.resolveDisplayName.mockResolvedValue("Ceo User");
-    mod.getUserPermissionsCached.mockResolvedValue(permissions);
+    mod.getCachedSessionShell.mockReturnValue({
+      role: ROLES.CEO,
+      displayName: "Ceo User",
+      isInstructor: false,
+      permissionKeys: [PERMISSIONS.WORKSHOPS_VIEW],
+      cachedClaimsRole: ROLES.CEO,
+    });
+    mod.isSessionShellCompatibleWithClaims.mockReturnValue(true);
 
     const pack = await mod.session.getSessionPack();
 
     expect(pack.role).toBe(ROLES.CEO);
-    expect(mod.resolveUserRole).not.toHaveBeenCalled();
-    expect(mod.getUserPermissionsCached).toHaveBeenCalledWith("user-pack-2");
+    expect(pack.displayName).toBe("Ceo User");
+    expect(pack.permissions.has(PERMISSIONS.WORKSHOPS_VIEW)).toBe(true);
+    expect(mod.findProfileById).not.toHaveBeenCalled();
+    expect(mod.getPermissionsForRoleCached).not.toHaveBeenCalled();
+    expect(mod.rememberUserRole).toHaveBeenCalledWith("user-pack-2", ROLES.CEO);
+    expect(mod.setCachedSessionShell).not.toHaveBeenCalled();
+  });
+
+  it("misses shell cache when claims role is incompatible", async () => {
+    const mod = await loadSessionModule();
+    const user = {
+      id: "user-pack-3",
+      email: "ceo@school.com",
+      user_metadata: { full_name: "Ceo User" },
+      app_metadata: { role: ROLES.MANAGER },
+    } as never;
+    const permissions = new Set([PERMISSIONS.WORKSHOPS_VIEW]);
+
+    mod.getSessionAuthIdentity.mockResolvedValue({
+      user,
+      claimsRole: ROLES.MANAGER,
+    });
+    mod.getCachedSessionShell.mockReturnValue({
+      role: ROLES.CEO,
+      displayName: "Ceo User",
+      isInstructor: false,
+      permissionKeys: [PERMISSIONS.WORKSHOPS_VIEW],
+      cachedClaimsRole: ROLES.CEO,
+    });
+    mod.isSessionShellCompatibleWithClaims.mockReturnValue(false);
+    mod.findProfileById.mockResolvedValue({
+      data: {
+        id: "user-pack-3",
+        username: "mgr",
+        role: ROLES.MANAGER,
+        is_instructor: false,
+        created_at: "2026-01-01",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    mod.getPermissionsForRoleCached.mockResolvedValue(permissions);
+
+    const pack = await mod.session.getSessionPack();
+
+    expect(pack.role).toBe(ROLES.MANAGER);
+    expect(mod.findProfileById).toHaveBeenCalled();
+    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledWith(ROLES.MANAGER);
   });
 });

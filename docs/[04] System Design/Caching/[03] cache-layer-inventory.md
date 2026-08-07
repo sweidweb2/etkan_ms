@@ -76,8 +76,8 @@ See the [01 caching.md](./[01]%20caching.md) for policy/how-to and `.cursor/rule
 
 | Feature / area | Functions | Why avoid shared key |
 |----------------|-----------|----------------------|
-| Session / who-am-I | `getSessionPack`, `getSessionUser`, role helpers | Per-user secrets / correctness |
-| Permission grants for a user | `getUserPermissionsCached` | Use request-scoped only |
+| Session / who-am-I | `getSessionPack`, `getSessionUser`, role helpers | **Do not** use shared Data Cache / global key. Use request-scoped + **per-user process TTL** shell (`session-shell-cache`) |
+| Permission grants for a user | `getUserPermissionsCached` / shell permission keys | Request-scoped + session shell TTL; invalidate on RBAC / logout — **not** shared Data Cache |
 | Student / teacher “my …” views | `listStudentActivityForSelf`, future teacher schedule | Personalized |
 | Class / workshop / SPP **detail** | `getClassForManager`, `getWorkshopForManager`, `getSppDetailForManager`, session/task detail | High churn, many keys, easy to miss invalidation |
 | Grades sheets | `listClassStudentGradesForManager`, compute grade flows | Write-sensitive academic data |
@@ -97,8 +97,8 @@ See the [01 caching.md](./[01]%20caching.md) for policy/how-to and `.cursor/rule
 
 | Feature / area | Functions | Status | Notes |
 |----------------|-----------|--------|-------|
-| Session pack | `getSessionPack` (+ thin projectors: user, role, display name, instructor, audit actor) | **Shipped** | `lib/auth/session.ts` |
-| User permission set | `getUserPermissionsCached` → `hasPermission*` / `assertPermission` | **Shipped** | `authorization.service.ts` |
+| Session pack | `getSessionPack` (+ thin projectors: user, role, display name, instructor, audit actor) | **Shipped** | `lib/auth/session.ts` — request dedupe; **under** it, process-TTL shell cache across navigations |
+| User permission set | `getUserPermissionsCached` / `getPermissionsForRoleCached` → `hasPermission*` / `assertPermission` | **Shipped** | `authorization.service.ts`; shell cache + `rememberUserRole` avoid repeat profiles.role |
 | Role + instructor flags used in layouts | consumed via `getSessionPack` in `RolePanelLayout`, manager route gate | **Shipped** | Prefer pack over re-fetching pieces |
 | Multi-assert list pages | Accounting / class detail calling many services each asserting permission | **Fit** (keep using cached asserts) | Avoid uncached `getUserPermissions` on hot paths |
 | RBAC Manager page load | `listRolesWithPermissionKeys` | **Optional** | Request-dedupe if page calls it more than once; **not** shared across managers after edits without layout revalidate |
@@ -159,9 +159,10 @@ This is the **default invalidation layer** for detail and write-heavy features. 
 | Feature / area | Functions | Status | Notes |
 |----------------|-----------|--------|-------|
 | Maintenance mode flag | `getCachedMaintenanceMode` / `setCachedMaintenanceMode` | **Shipped** | `lib/auth/maintenance-mode-cache.ts`, ~15s TTL |
+| Session shell (per user) | `getCachedSessionShell` / `setCachedSessionShell` / `clearCachedSessionShell`; used by `getSessionPack` | **Shipped** | `lib/auth/session-shell-cache.ts`, **60s TTL**, keyed by JWT `sub`. Stores role, displayName, isInstructor, permission keys. Every request still runs `getClaims`. Bust on claims-role mismatch; clear on logout, RBAC save, user/instructor identity writes. Same process-memory limit as maintenance cache (not multi-region). |
 | JWT role short-circuit in middleware | `roleFromJwtClaims` / `resolveUserRoleForMiddleware` | **Shipped** (claim prefer) | Not a Data Cache; avoids profiles round-trip when claim present |
 
-**Avoid** process cache for: permission grants, money totals, grade sheets, anything that must be consistent across all server instances immediately.
+**Avoid** process cache for: money totals, grade sheets, anything that must be consistent across all server instances immediately. Permission **grants** may live in the session shell TTL above (with invalidation); do not put them in shared Data Cache.
 
 ---
 
