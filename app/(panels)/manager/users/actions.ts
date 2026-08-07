@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { revalidateManagerScheduleInstructors } from "@/lib/cache/instructor-schedule-cache";
 import {
   revalidateManagerPeopleLists,
   revalidateManagerUsersList,
@@ -50,6 +51,7 @@ export async function createStaffUserAction(
 
   revalidateManagerUsersList();
   revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
+  revalidateManagerScheduleInstructors();
 
   return {
     success: true,
@@ -92,6 +94,7 @@ export async function updateUserAction(
 
   revalidateManagerPeopleLists();
   revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
+  revalidateManagerScheduleInstructors();
 
   return {
     success: true,

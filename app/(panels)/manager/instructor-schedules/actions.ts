@@ -1,6 +1,7 @@
 "use server";
 
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { revalidateManagerScheduleSessions } from "@/lib/cache/instructor-schedule-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   parseCreateInstructorScheduleSlotFormData,
@@ -10,17 +11,13 @@ import {
 import {
   createInstructorScheduleSlotForManager,
   deleteInstructorScheduleSlotForManager,
-  listEligibleWorkshopsForInstructorScheduleForManager,
-  listInstructorScheduleCalendarSessionsForManager,
   listInstructorScheduleSlotsPageForManager,
   updateInstructorScheduleSlotForManager,
 } from "@/services/instructor-schedule-slot.service";
 import type {
   CreateInstructorScheduleSlotActionState,
   DeleteInstructorScheduleSlotActionState,
-  InstructorScheduleCalendarScope,
   ManagerInstructorScheduleSession,
-  ManagerScheduleWorkshopTab,
   UpdateInstructorScheduleSlotActionState,
 } from "@/types/manager-instructor-schedule";
 
@@ -63,47 +60,6 @@ export async function loadInstructorScheduleSlotsPageAction(input: {
   }
 }
 
-export async function loadInstructorScheduleCalendarSessionsAction(
-  scope: InstructorScheduleCalendarScope
-): Promise<{ sessions: ManagerInstructorScheduleSession[] }> {
-  const actor = await getSessionAuditActor();
-  if (!actor.userId) {
-    return { sessions: [] };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  try {
-    const sessions = await listInstructorScheduleCalendarSessionsForManager(
-      adminClient,
-      actor.userId,
-      scope
-    );
-    return { sessions };
-  } catch {
-    return { sessions: [] };
-  }
-}
-
-export async function loadEligibleWorkshopsForInstructorScheduleAction(): Promise<{
-  workshops: ManagerScheduleWorkshopTab[];
-}> {
-  const actor = await getSessionAuditActor();
-  if (!actor.userId) {
-    return { workshops: [] };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  try {
-    const workshops = await listEligibleWorkshopsForInstructorScheduleForManager(
-      adminClient,
-      actor.userId
-    );
-    return { workshops };
-  } catch {
-    return { workshops: [] };
-  }
-}
-
 export async function createInstructorScheduleSlotAction(
   _prevState: CreateInstructorScheduleSlotActionState,
   formData: FormData
@@ -134,6 +90,8 @@ export async function createInstructorScheduleSlotAction(
       fieldErrors: result.fieldErrors,
     };
   }
+
+  revalidateManagerScheduleSessions();
 
   return {
     success: true,
@@ -173,6 +131,8 @@ export async function updateInstructorScheduleSlotAction(
     };
   }
 
+  revalidateManagerScheduleSessions();
+
   return {
     success: true,
     message: result.message,
@@ -208,6 +168,8 @@ export async function deleteInstructorScheduleSlotAction(
       error: result.error,
     };
   }
+
+  revalidateManagerScheduleSessions();
 
   return {
     success: true,

@@ -1,6 +1,7 @@
 # Caching in Etkan MS
 
-Reference for when and how to cache data. Cursor rule summary: `.cursor/rules/caching.mdc`.
+Reference for when and how to cache data. Cursor rule summary: `.cursor/rules/caching.mdc`.  
+Feature → layer inventory: [`[03] cache-layer-inventory.md`](./[03]%20cache-layer-inventory.md).
 
 ## Defaults
 
@@ -153,6 +154,20 @@ Use `revalidateTag(tag, "max")` (Next.js 16 two-arg API).
 - **TTL:** none — cache until explicit invalidation only
 - **Reads:** `listRelationshipsForManager` (auth outside cache; admin client inside cache)
 - **Invalidation:** relationship create / update → `revalidateManagerRelationshipsList()` (tag + `/manager/relationships`); future delete → same helper
+
+### Instructor schedule page (fetch-all)
+
+- **Module:** `lib/cache/instructor-schedule-cache.ts`
+- **Tags:** `manager-schedule-instructors`, `manager-schedule-eligible-workshops`, `manager-schedule-sessions`
+- **TTL:** 3600s on all three
+- **Reads (one page load):**
+  - Instructors + **all** calendar sessions (locked workshops excluded) + eligible workshops when actor has CREATE
+  - Auth / CREATE gate outside caches
+- **Invalidation:**
+  - Instructor add/remove + staff user create/update → `revalidateManagerScheduleInstructors()`
+  - Slot create/update/delete → `revalidateManagerScheduleSessions()`
+  - Workshop create / update / status / delete → `revalidateManagerScheduleCalendar()` (catalogs + sessions)
+- **Client:** filters are in-memory only over the full sessions payload (no per-filter server fetch)
 
 ## Out of scope (for now)
 

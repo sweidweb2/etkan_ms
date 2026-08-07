@@ -26,13 +26,10 @@ import {
 import {
   createInstructorScheduleSlotAction,
   deleteInstructorScheduleSlotAction,
-  loadEligibleWorkshopsForInstructorScheduleAction,
-  loadInstructorScheduleCalendarSessionsAction,
   updateInstructorScheduleSlotAction,
 } from "@/app/manager/instructor-schedules/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
-import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   AddInstructorScheduleSlotDialog,
   type AddInstructorScheduleSlotDefaults,
@@ -82,7 +79,6 @@ import {
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
-  InstructorScheduleCalendarScope,
   ManagerInstructorScheduleSession,
   ManagerInstructorSchedulesPageData,
   ManagerScheduleWorkshopTab,
@@ -128,24 +124,28 @@ function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
 
 type EntityBrowseKind = "all" | "instructor" | "workshop";
 
-function buildCalendarScope(
+function filterSessionsForBrowse(
+  sessions: ManagerInstructorScheduleSession[],
   kind: EntityBrowseKind,
   selectedKeys: string[]
-): InstructorScheduleCalendarScope {
+): ManagerInstructorScheduleSession[] {
   if (kind === "all") {
-    return { kind: "all" };
+    return sessions;
   }
 
   if (selectedKeys.length === 0) {
-    return { kind };
+    return sessions.filter((session) => session.entityType === kind);
   }
 
   const parsed = parseEntityFilterKey(selectedKeys[0]!);
   if (!parsed || parsed.kind !== kind) {
-    return { kind };
+    return sessions.filter((session) => session.entityType === kind);
   }
 
-  return { kind: parsed.kind, recordId: parsed.id };
+  return sessions.filter(
+    (session) =>
+      session.entityType === parsed.kind && session.recordId === parsed.id
+  );
 }
 
 function makeTempId(): string {
@@ -384,33 +384,27 @@ export function InstructorSchedulesPanel({
   );
   const [, startTransition] = useTransition();
 
+  const initialBrowseKind: EntityBrowseKind =
+    data.initialBrowse.kind === "instructor" ? "instructor" : "all";
+  const initialSelectedKeys = data.initialBrowse.recordId
+    ? [
+        entityFilterKey({
+          kind: "instructor",
+          id: data.initialBrowse.recordId,
+        }),
+      ]
+    : [];
+
   const [sessions, setSessions] = React.useState(data.sessions);
   const [workshops, setWorkshops] = React.useState<ManagerScheduleWorkshopTab[]>(
     data.workshops
   );
-  const [workshopsLoaded, setWorkshopsLoaded] = React.useState(
-    data.workshops.length > 0
-  );
-  const [isSessionsPending, setIsSessionsPending] = React.useState(false);
-  const [isWorkshopsPending, setIsWorkshopsPending] = React.useState(false);
   /** Empty = all within the current browse kind. At most one entity key selected. */
   const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
-    () => {
-      if (data.initialBrowse.recordId) {
-        return [
-          entityFilterKey({
-            kind: "instructor",
-            id: data.initialBrowse.recordId,
-          }),
-        ];
-      }
-      return [];
-    }
+    () => initialSelectedKeys
   );
   const [entityBrowseKind, setEntityBrowseKind] =
-    React.useState<EntityBrowseKind>(() =>
-      data.initialBrowse.kind === "instructor" ? "instructor" : "all"
-    );
+    React.useState<EntityBrowseKind>(() => initialBrowseKind);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [createDefaults, setCreateDefaults] =
@@ -426,11 +420,6 @@ export function InstructorSchedulesPanel({
   const isAltDupDragRef = useRef(false);
   const dragSourceRef = useRef<DragSourceSnapshot | null>(null);
   const pendingTempIdsRef = useRef<Set<string>>(new Set());
-  const workshopsLoadedRef = useRef(workshopsLoaded);
-
-  useEffect(() => {
-    workshopsLoadedRef.current = workshopsLoaded;
-  }, [workshopsLoaded]);
 
   useEffect(() => {
     setSessions((prev) => {
@@ -440,6 +429,10 @@ export function InstructorSchedulesPanel({
       return [...data.sessions, ...pendingTemps];
     });
   }, [data.sessions]);
+
+  useEffect(() => {
+    setWorkshops(data.workshops);
+  }, [data.workshops]);
 
   const instructorIds = useMemo(
     () => new Set(data.instructors.map((instructor) => instructor.id)),
@@ -459,13 +452,9 @@ export function InstructorSchedulesPanel({
       if (parsed.kind === "instructor") {
         return instructorIds.has(parsed.id);
       }
-      // Keep workshop keys while workshops are still loading so selection is not stripped.
-      if (!workshopsLoaded) {
-        return true;
-      }
       return workshopIds.has(parsed.id);
     });
-  }, [selectedEntityKeys, instructorIds, workshopIds, workshopsLoaded]);
+  }, [selectedEntityKeys, instructorIds, workshopIds]);
 
   if (
     resolvedEntityKeys.length !== selectedEntityKeys.length ||
@@ -474,11 +463,6 @@ export function InstructorSchedulesPanel({
     setSelectedEntityKeys(resolvedEntityKeys);
   }
 
-  const isCategoryWideSelection = resolvedEntityKeys.length === 0;
-  const selectedEntityKeySet = useMemo(
-    () => new Set(resolvedEntityKeys),
-    [resolvedEntityKeys]
-  );
   const showWorkshopBrowse = canCreate || workshops.length > 0;
   const effectiveBrowseKind: EntityBrowseKind =
     entityBrowseKind === "workshop" && !showWorkshopBrowse
@@ -525,59 +509,16 @@ export function InstructorSchedulesPanel({
     workshops,
   ]);
   const canCreateOnCalendar = canCreate;
-  const filtersBusy = isSessionsPending || isWorkshopsPending;
-
-  async function ensureWorkshopsLoaded() {
-    if (workshopsLoadedRef.current) {
-      return;
-    }
-    if (!canCreate) {
-      return;
-    }
-    setIsWorkshopsPending(true);
-    try {
-      const result = await loadEligibleWorkshopsForInstructorScheduleAction();
-      setWorkshops(result.workshops);
-      setWorkshopsLoaded(true);
-      workshopsLoadedRef.current = true;
-    } finally {
-      setIsWorkshopsPending(false);
-    }
-  }
-
-  async function reloadSessionsForBrowse(
-    kind: EntityBrowseKind,
-    keys: string[]
-  ) {
-    setIsSessionsPending(true);
-    try {
-      if (kind === "workshop") {
-        await ensureWorkshopsLoaded();
-      }
-      const scope = buildCalendarScope(kind, keys);
-      const { sessions: next } =
-        await loadInstructorScheduleCalendarSessionsAction(scope);
-      setSessions(next);
-    } finally {
-      setIsSessionsPending(false);
-    }
-  }
 
   function handleEntityBrowseKindChange(kind: EntityBrowseKind) {
     setEntityBrowseKind(kind);
     setSelectedEntityKeys([]);
-    startTransition(() => {
-      void reloadSessionsForBrowse(kind, []);
-    });
   }
 
   function handleEntitySelectChange(value: string | null) {
     const next = value ?? ENTITY_FILTER_ALL;
     const nextKeys = next === ENTITY_FILTER_ALL ? [] : [next];
     setSelectedEntityKeys(nextKeys);
-    startTransition(() => {
-      void reloadSessionsForBrowse(effectiveBrowseKind, nextKeys);
-    });
   }
 
   const eligibleWorkshops = useMemo(
@@ -645,31 +586,15 @@ export function InstructorSchedulesPanel({
     return timeDefaults ?? null;
   }, [createDefaults, resolvedEntityKeys]);
 
-  const filteredSessions = useMemo(() => {
-    if (effectiveBrowseKind === "all") {
-      return sessions;
-    }
-
-    if (isCategoryWideSelection) {
-      return sessions.filter(
-        (session) => session.entityType === effectiveBrowseKind
-      );
-    }
-
-    return sessions.filter((session) =>
-      selectedEntityKeySet.has(
-        entityFilterKey({
-          kind: session.entityType,
-          id: session.recordId,
-        })
-      )
-    );
-  }, [
-    sessions,
-    effectiveBrowseKind,
-    isCategoryWideSelection,
-    selectedEntityKeySet,
-  ]);
+  const filteredSessions = useMemo(
+    () =>
+      filterSessionsForBrowse(
+        sessions,
+        effectiveBrowseKind,
+        resolvedEntityKeys
+      ),
+    [sessions, effectiveBrowseKind, resolvedEntityKeys]
+  );
 
   const events = useMemo<EventInput[]>(() => {
     return instructorScheduleSessionsToEvents(filteredSessions, {
@@ -790,12 +715,7 @@ export function InstructorSchedulesPanel({
 
   function openCreate(defaults?: CreateSlotDefaults | null) {
     setCreateDefaults(defaults ?? null);
-    startTransition(() => {
-      void (async () => {
-        await ensureWorkshopsLoaded();
-        setIsCreateOpen(true);
-      })();
-    });
+    setIsCreateOpen(true);
   }
 
   async function handleOptimisticCreate(
@@ -1265,8 +1185,7 @@ export function InstructorSchedulesPanel({
   }
 
   const hasNoScheduleEntities =
-    data.instructors.length === 0 &&
-    (workshopsLoaded ? workshops.length === 0 : !canCreate);
+    data.instructors.length === 0 && workshops.length === 0;
 
   if (hasNoScheduleEntities) {
     return (
@@ -1354,14 +1273,12 @@ export function InstructorSchedulesPanel({
                   key={option.kind}
                   type="button"
                   aria-pressed={selected}
-                  disabled={filtersBusy}
                   onClick={() => handleEntityBrowseKindChange(option.kind)}
                   className={cn(
                     "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
                     "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
                     selected &&
-                      "border-border bg-background text-foreground shadow-sm",
-                    filtersBusy && "pointer-events-none opacity-60"
+                      "border-border bg-background text-foreground shadow-sm"
                   )}
                 >
                   {option.label}
@@ -1373,7 +1290,7 @@ export function InstructorSchedulesPanel({
           <Select
             value={entitySelectValue}
             onValueChange={handleEntitySelectChange}
-            disabled={isAllBrowseSelected || filtersBusy}
+            disabled={isAllBrowseSelected}
           >
             <SelectTrigger
               size="sm"
@@ -1421,12 +1338,6 @@ export function InstructorSchedulesPanel({
                   ))}
             </SelectContent>
           </Select>
-          {filtersBusy ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <InlineSpinner className="size-3.5" />
-              Loading…
-            </span>
-          ) : null}
         </div>
 
         <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
@@ -1434,10 +1345,9 @@ export function InstructorSchedulesPanel({
             type="button"
             size="sm"
             className="shrink-0 self-start sm:self-auto"
-            disabled={!canCreate || filtersBusy}
+            disabled={!canCreate}
             onClick={() => openCreate(null)}
           >
-            {isWorkshopsPending ? <InlineSpinner /> : null}
             <PlusIcon data-icon="inline-start" />
             Add slot
           </Button>
@@ -1511,8 +1421,7 @@ export function InstructorSchedulesPanel({
       <div
         className={cn(
           "fc-schedule-theme fc-schedule-theme--compact-days relative min-h-0",
-          isAltDuplicating && "is-alt-duplicating",
-          isSessionsPending && "pointer-events-none opacity-60"
+          isAltDuplicating && "is-alt-duplicating"
         )}
       >
         <FullCalendar

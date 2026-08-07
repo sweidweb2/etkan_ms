@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { revalidateManagerScheduleInstructors } from "@/lib/cache/instructor-schedule-cache";
 import { revalidateManagerUsersList } from "@/lib/cache/manager-list-cache";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -91,6 +92,7 @@ export async function removeInstructorAction(
 
   revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
   revalidateManagerUsersList();
+  revalidateManagerScheduleInstructors();
 
   return {
     success: true,
@@ -123,6 +125,7 @@ export async function addInstructorsAction(
 
   revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
   revalidateManagerUsersList();
+  revalidateManagerScheduleInstructors();
 
   return {
     success: true,

@@ -22,3 +22,5 @@ Implement loading states using **Skeleton + Progressive Section Loading** in Nex
 for now for student delete all pages for him so the panel only have the normal layout sidebar,header,body
 with no pages in sidebar
 and same for the trainer,teacher,admin
+
+answer directly without talking too much

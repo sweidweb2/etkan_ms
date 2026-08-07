@@ -1,9 +1,12 @@
 import { format } from "date-fns";
+import { unstable_cache } from "next/cache";
 import {
   WORKSHOP_STATUSES,
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { INSTRUCTOR_SCHEDULE_CACHE_TAGS } from "@/lib/cache/instructor-schedule-cache";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertPermission,
   getUnauthorizedError,
@@ -44,7 +47,6 @@ import {
 } from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
-  InstructorScheduleCalendarScope,
   InstructorScheduleSlotType,
   ManagerInstructorScheduleSession,
   ManagerInstructorScheduleTab,
@@ -323,6 +325,48 @@ async function assertScheduleEntityRecord(
   return assertWorkshopRecordForSchedule(adminClient, recordId, options);
 }
 
+async function fetchScheduleInstructorTabs(): Promise<
+  ManagerInstructorScheduleTab[]
+> {
+  const adminClient = createSupabaseAdminClient();
+  const instructorsResult =
+    await profileRepository.listInstructorProfiles(adminClient);
+
+  if (instructorsResult.error) {
+    throw new Error(instructorsResult.error.message);
+  }
+
+  return (instructorsResult.data ?? []).map((row) => ({
+    id: row.id,
+    username: row.username,
+  }));
+}
+
+const listScheduleInstructorTabsCached = unstable_cache(
+  fetchScheduleInstructorTabs,
+  ["manager-schedule-instructors"],
+  {
+    tags: [INSTRUCTOR_SCHEDULE_CACHE_TAGS.INSTRUCTORS],
+    revalidate: 3600,
+  }
+);
+
+/**
+ * Instructor tabs for the schedule page.
+ * Auth is checked outside the cache; the list body is shared-server-cached.
+ */
+export async function listScheduleInstructorTabsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerInstructorScheduleTab[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+  return listScheduleInstructorTabsCached();
+}
+
 export async function getInstructorSchedulesPageForManager(
   adminClient: Supabase,
   actorUserId: string | null
@@ -333,43 +377,25 @@ export async function getInstructorSchedulesPageForManager(
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
 
-  const instructorsResult =
-    await profileRepository.listInstructorProfiles(adminClient);
+  const canCreate = await hasPermission(
+    adminClient,
+    actorUserId ?? "",
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
+  );
 
-  if (instructorsResult.error) {
-    throw new Error(instructorsResult.error.message);
-  }
-
-  const instructors: ManagerInstructorScheduleTab[] = (
-    instructorsResult.data ?? []
-  ).map((row) => ({
-    id: row.id,
-    username: row.username,
-  }));
+  const [instructors, sessions, workshops] = await Promise.all([
+    listScheduleInstructorTabsCached(),
+    listAllCalendarSessionsCached(),
+    canCreate
+      ? listEligibleWorkshopsForScheduleCached()
+      : Promise.resolve([] as ManagerScheduleWorkshopTab[]),
+  ]);
 
   const firstInstructorId = instructors[0]?.id ?? null;
 
-  let sessions: ManagerInstructorScheduleSession[] = [];
-  if (firstInstructorId) {
-    const slotsResult =
-      await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
-        adminClient,
-        ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-        firstInstructorId
-      );
-
-    if (slotsResult.error) {
-      throw new Error(slotsResult.error.message);
-    }
-
-    sessions = (slotsResult.data ?? []).map((record) =>
-      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
-    );
-  }
-
   return {
     instructors,
-    workshops: [],
+    workshops,
     sessions,
     initialBrowse: {
       kind: "instructor",
@@ -422,6 +448,33 @@ function mapWorkshopRowsToEligibleTabs(
     .filter((workshop) => workshop.eligible_for_create);
 }
 
+async function fetchEligibleWorkshopsForSchedule(): Promise<
+  ManagerScheduleWorkshopTab[]
+> {
+  const adminClient = createSupabaseAdminClient();
+  const workshopsResult =
+    await workshopRepository.listWorkshopsForScheduleTabs(adminClient);
+
+  if (workshopsResult.error) {
+    throw new Error(workshopsResult.error.message);
+  }
+
+  return mapWorkshopRowsToEligibleTabs(workshopsResult.data ?? []);
+}
+
+const listEligibleWorkshopsForScheduleCached = unstable_cache(
+  fetchEligibleWorkshopsForSchedule,
+  ["manager-schedule-eligible-workshops"],
+  {
+    tags: [INSTRUCTOR_SCHEDULE_CACHE_TAGS.ELIGIBLE_WORKSHOPS],
+    revalidate: 3600,
+  }
+);
+
+/**
+ * Eligible workshops for schedule create/filter tabs.
+ * Auth and CREATE gate stay outside the cache; the list body is shared-server-cached.
+ */
 export async function listEligibleWorkshopsForInstructorScheduleForManager(
   adminClient: Supabase,
   actorUserId: string | null
@@ -442,83 +495,18 @@ export async function listEligibleWorkshopsForInstructorScheduleForManager(
     return [];
   }
 
-  const workshopsResult =
-    await workshopRepository.listWorkshopsForScheduleTabs(adminClient);
-
-  if (workshopsResult.error) {
-    throw new Error(workshopsResult.error.message);
-  }
-
-  return mapWorkshopRowsToEligibleTabs(workshopsResult.data ?? []);
+  return listEligibleWorkshopsForScheduleCached();
 }
 
-export async function listInstructorScheduleCalendarSessionsForManager(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  scope: InstructorScheduleCalendarScope
-): Promise<ManagerInstructorScheduleSession[]> {
-  await assertPermission(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
-  );
-
-  if (scope.kind === "all") {
-    const lockedWorkshopIds = await resolveLockedWorkshopIdsFromDb(adminClient);
-    const slotsResult =
-      await instructorScheduleSlotRepository.listAllInstructorScheduleSlots(
-        adminClient,
-        { excludeWorkshopRecordIds: lockedWorkshopIds }
-      );
-
-    if (slotsResult.error) {
-      throw new Error(slotsResult.error.message);
-    }
-
-    return (slotsResult.data ?? []).map((record) =>
-      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
-    );
-  }
-
-  if (scope.recordId) {
-    const slotsResult =
-      await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
-        adminClient,
-        scope.kind,
-        scope.recordId
-      );
-
-    if (slotsResult.error) {
-      throw new Error(slotsResult.error.message);
-    }
-
-    return (slotsResult.data ?? []).map((record) =>
-      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
-    );
-  }
-
-  if (scope.kind === "workshop") {
-    const lockedWorkshopIds = await resolveLockedWorkshopIdsFromDb(adminClient);
-    const slotsResult =
-      await instructorScheduleSlotRepository.listInstructorScheduleSlotsByEntity(
-        adminClient,
-        ENTITY_SCHEDULE_TYPE_WORKSHOP,
-        { excludeWorkshopRecordIds: lockedWorkshopIds }
-      );
-
-    if (slotsResult.error) {
-      throw new Error(slotsResult.error.message);
-    }
-
-    return (slotsResult.data ?? []).map((record) =>
-      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
-    );
-  }
-
+async function fetchAllCalendarSessions(): Promise<
+  ManagerInstructorScheduleSession[]
+> {
+  const adminClient = createSupabaseAdminClient();
+  const lockedWorkshopIds = await resolveLockedWorkshopIdsFromDb(adminClient);
   const slotsResult =
-    await instructorScheduleSlotRepository.listInstructorScheduleSlotsByEntity(
+    await instructorScheduleSlotRepository.listAllInstructorScheduleSlots(
       adminClient,
-      ENTITY_SCHEDULE_TYPE_INSTRUCTOR
+      { excludeWorkshopRecordIds: lockedWorkshopIds }
     );
 
   if (slotsResult.error) {
@@ -529,6 +517,15 @@ export async function listInstructorScheduleCalendarSessionsForManager(
     mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
   );
 }
+
+const listAllCalendarSessionsCached = unstable_cache(
+  fetchAllCalendarSessions,
+  ["manager-schedule-sessions"],
+  {
+    tags: [INSTRUCTOR_SCHEDULE_CACHE_TAGS.SESSIONS],
+    revalidate: 3600,
+  }
+);
 
 export type ListInstructorScheduleSlotsPageOptions = {
   page?: number;

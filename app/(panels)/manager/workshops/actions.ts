@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { revalidateManagerScheduleCalendar } from "@/lib/cache/instructor-schedule-cache";
 import {
   getManagerWorkshopDetailRoute,
   ROUTES,
@@ -104,6 +105,7 @@ export async function createWorkshopAction(
   }
 
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidateManagerScheduleCalendar();
 
   return {
     success: true,
@@ -146,6 +148,7 @@ export async function updateWorkshopAction(
 
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
   revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
+  revalidateManagerScheduleCalendar();
 
   return {
     success: true,
@@ -227,6 +230,7 @@ export async function deleteWorkshopAction(
   }
 
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+  revalidateManagerScheduleCalendar();
   redirect(
     appendQueryParam(ROUTES.MANAGER_WORKSHOPS, "toast", "workshop_deleted")
   );
@@ -266,6 +270,7 @@ export async function changeWorkshopStatusAction(
 
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
   revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
+  revalidateManagerScheduleCalendar();
 
   return {
     success: true,

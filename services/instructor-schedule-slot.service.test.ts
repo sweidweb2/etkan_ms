@@ -10,7 +10,6 @@ import {
   deleteInstructorScheduleSlotForManager,
   getInstructorSchedulesPageForManager,
   listEligibleWorkshopsForInstructorScheduleForManager,
-  listInstructorScheduleCalendarSessionsForManager,
   updateInstructorScheduleSlotForManager,
 } from "@/services/instructor-schedule-slot.service";
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
@@ -21,6 +20,12 @@ vi.mock("@/repositories/workshop.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: () => adminClient,
 }));
 
 vi.mock("@/services/authorization.service", () => ({
@@ -520,12 +525,12 @@ describe("deleteInstructorScheduleSlotForManager", () => {
   });
 });
 
-describe("getInstructorSchedulesPageForManager scoped first paint", () => {
+describe("getInstructorSchedulesPageForManager fetch-all", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("loads first instructor slots only — not listAll or workshops", async () => {
+  it("loads all sessions and eligible workshops on page paint", async () => {
     const firstId = instructorUserId;
     const secondId = "c3c4d5e6-f7a8-9012-cdef-123456789012";
     vi.mocked(profileRepository.listInstructorProfiles).mockResolvedValue({
@@ -550,8 +555,15 @@ describe("getInstructorSchedulesPageForManager scoped first paint", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    vi.mocked(workshopRepository.listWorkshopLockStatuses).mockResolvedValue({
+      data: [{ id: workshopId, status: WORKSHOP_STATUSES.CANCELLED }],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
     vi.mocked(
-      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+      instructorScheduleSlotRepository.listAllInstructorScheduleSlots
     ).mockResolvedValue({
       data: [
         {
@@ -575,6 +587,21 @@ describe("getInstructorSchedulesPageForManager scoped first paint", () => {
       status: 200,
       statusText: "OK",
     } as never);
+    vi.mocked(workshopRepository.listWorkshopsForScheduleTabs).mockResolvedValue({
+      data: [
+        {
+          id: workshopId,
+          name: "Intro to UX",
+          status: WORKSHOP_STATUSES.SCHEDULED,
+          start_date: "2026-09-01",
+          end_date: "2026-12-01",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
 
     const data = await getInstructorSchedulesPageForManager(
       adminClient,
@@ -585,79 +612,18 @@ describe("getInstructorSchedulesPageForManager scoped first paint", () => {
       kind: "instructor",
       recordId: firstId,
     });
-    expect(data.workshops).toEqual([]);
+    expect(data.workshops).toHaveLength(1);
     expect(data.sessions).toHaveLength(1);
     expect(data.sessions[0]?.recordId).toBe(firstId);
-    expect(
-      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
-    ).toHaveBeenCalledWith(adminClient, "instructor", firstId);
-    expect(
-      instructorScheduleSlotRepository.listAllInstructorScheduleSlots
-    ).not.toHaveBeenCalled();
-    expect(workshopRepository.listWorkshops).not.toHaveBeenCalled();
-    expect(workshopRepository.listWorkshopsForScheduleTabs).not.toHaveBeenCalled();
-  });
-});
-
-describe("listInstructorScheduleCalendarSessionsForManager", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("passes locked workshop ids when loading all", async () => {
-    vi.mocked(workshopRepository.listWorkshopLockStatuses).mockResolvedValue({
-      data: [
-        { id: workshopId, status: WORKSHOP_STATUSES.CANCELLED },
-        { id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", status: WORKSHOP_STATUSES.SCHEDULED },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      instructorScheduleSlotRepository.listAllInstructorScheduleSlots
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-
-    await listInstructorScheduleCalendarSessionsForManager(
-      adminClient,
-      actor.userId,
-      { kind: "all" }
-    );
-
     expect(
       instructorScheduleSlotRepository.listAllInstructorScheduleSlots
     ).toHaveBeenCalledWith(adminClient, {
       excludeWorkshopRecordIds: [workshopId],
     });
-  });
-
-  it("loads a single record via listByRecord", async () => {
-    vi.mocked(
-      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-
-    await listInstructorScheduleCalendarSessionsForManager(
-      adminClient,
-      actor.userId,
-      { kind: "instructor", recordId: instructorUserId }
-    );
-
     expect(
       instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
-    ).toHaveBeenCalledWith(adminClient, "instructor", instructorUserId);
+    ).not.toHaveBeenCalled();
+    expect(workshopRepository.listWorkshopsForScheduleTabs).toHaveBeenCalled();
   });
 });
 
