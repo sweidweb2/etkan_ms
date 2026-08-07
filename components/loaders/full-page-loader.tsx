@@ -1,4 +1,5 @@
 import { PageSpinner } from "@/components/loaders/page-spinner";
+import { TopLoaderPendingBridge } from "@/components/loaders/top-loader-pending-bridge";
 import { cn } from "@/lib/utils";
 
 type FullPageLoaderProps = {
@@ -15,6 +16,7 @@ export function FullPageLoader({
       className={cn("flex min-h-dvh items-center justify-center", className)}
       aria-busy="true"
     >
+      <TopLoaderPendingBridge />
       <PageSpinner label={label} />
     </div>
   );

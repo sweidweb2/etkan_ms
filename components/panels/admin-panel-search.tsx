@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { PANEL_ICONS } from "@/components/panels/panel-icons";
 import { Input } from "@/components/ui/input";
+import { armGlobalTopLoaderNavigation } from "@/lib/loaders/bind-global-top-loader";
 import { cn } from "@/lib/utils";
 import type { PanelNavItem } from "@/types/panel";
 
@@ -58,6 +59,7 @@ export function AdminPanelSearch({ pages, className }: AdminPanelSearchProps) {
     (href: string) => {
       setQuery("");
       setIsOpen(false);
+      armGlobalTopLoaderNavigation();
       router.push(href);
     },
     [router]

@@ -65,6 +65,21 @@ type BindState = {
   fetchInflight: number;
 };
 
+type NavArmApi = {
+  ensureNavToken: (awaitRouteChange: boolean) => void;
+};
+
+/** Set while `bindGlobalTopLoaderSources` is active. */
+let activeNavArm: NavArmApi | null = null;
+
+/**
+ * Arm the top loader before `router.push` / `replace` when the click path
+ * is not an `<a>` (e.g. panel search). No-op if bindings are not mounted.
+ */
+export function armGlobalTopLoaderNavigation() {
+  activeNavArm?.ensureNavToken(true);
+}
+
 /**
  * Install click / history / fetch listeners for the global top loader.
  * Returns cleanup + `notifyRouteSettled` for the React route-key effect.
@@ -92,6 +107,8 @@ export function bindGlobalTopLoaderSources() {
       state.awaitingRouteChange = true;
     }
   };
+
+  activeNavArm = { ensureNavToken };
 
   const notifyRouteSettled = () => {
     if (state.navToken == null) return;
@@ -144,15 +161,14 @@ export function bindGlobalTopLoaderSources() {
     (original: typeof window.history.pushState) =>
     ((data, unused, url) => {
       const prev = currentPath();
-      const result = original(data, unused, url);
       if (url != null) {
         const next = getSameOriginPath(String(url));
         if (next && next !== prev) {
-          // Wait for React route-key settle + any RSC flights before releasing.
+          // Arm before history updates so router.push matches Link click timing.
           ensureNavToken(true);
         }
       }
-      return result;
+      return original(data, unused, url);
     }) as History["pushState"];
 
   window.history.pushState = patchHistory(originalPushState);
@@ -187,6 +203,9 @@ export function bindGlobalTopLoaderSources() {
     window.history.pushState = originalPushState;
     window.history.replaceState = originalReplaceState;
     window.fetch = originalFetch;
+    if (activeNavArm?.ensureNavToken === ensureNavToken) {
+      activeNavArm = null;
+    }
     if (state.navToken != null) {
       globalTopLoaderSession.end(state.navToken);
       state.navToken = null;

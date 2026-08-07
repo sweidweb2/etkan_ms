@@ -24,9 +24,9 @@ Use the thin fixed top progress bar for **global navigation and network feedback
 
 ## Progress behavior
 
-- Optional short delay (~150 ms) before show (avoids flash on instant work).
+- Optional short delay (~50 ms) before show (avoids flash on instant work).
 - Jump to ~15–20%, trickle with easing toward ~90–95% while work is pending.
-- Never hit 100% until **all** overlapping tracked ops finish.
+- Never hit 100% until **all** overlapping tracked ops finish (incl. panel/full-page route loading via `TopLoaderPendingBridge`).
 - Then animate to 100%, hold briefly, fade out, reset.
 
 ## Forms / mutations

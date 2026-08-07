@@ -27,9 +27,9 @@ The thin bar at the very top is working as built. The mismatch is about **what i
 
 | What you expect | What happens today |
 |-----------------|--------------------|
-| Bar appears the moment I click | Bar waits a short beat (~0.15s) before showing, so very short waits may never show it, and longer waits start a little late |
-| Bar stays until the new page is usable | Bar finishes when the app’s “page request” is mostly done — which can be **before** the section spinner goes away or the content fully appears |
-| Bar feels the same from sidebar, cards, and buttons | Sidebar links start tracking early; some in-page buttons that jump routes start a bit later |
+| Bar appears the moment I click | Bar waits a short beat (~50 ms) before showing (anti-flash); intentional navigations should feel acknowledged quickly |
+| Bar stays until the new page is usable | Bar stays while RSC work is in flight **and** while panel/full-page route loading (“Loading page…”) is mounted |
+| Bar feels the same from sidebar, cards, and buttons | Sidebar `Link` clicks arm on capture; `router.push` arms before `pushState`; panel search arms explicitly before navigate |
 
 So people say: “the loader is correct, but I don’t know what’s wrong.” What’s wrong is the **gap between the bar and the real page-ready moment**, plus the **real delay** behind each click.
 
@@ -151,7 +151,7 @@ Do these in order. Each phase should leave the app usable. Don’t skip testing 
 Use this as the day-to-day list:
 
 - [ ] **Phase 0** — Journey list + before timings (multi-role)
-- [ ] **Phase 1** — Top bar timing & coverage (all entry points, all panels)
+- [x] **Phase 1** — Top bar timing & coverage (all entry points, all panels)
 - [ ] **Phase 2** — Shared session/permissions pack; less repeat work on each click
 - [ ] **Phase 3** — Page-by-page data load improvements (waves across panels)
 - [ ] **Phase 4** — After timings, regression checklist, docs/rules update
@@ -173,10 +173,13 @@ Use this as the day-to-day list:
 | _e.g. Instructors → Workshops_ | CEO | _fill in_ | | |
 | | | | | |
 
+**Phase 1 (2026-08-07):** Show delay 150→50 ms; `TopLoaderPendingBridge` holds the bar while panel/full-page route loading is mounted; `armGlobalTopLoaderNavigation` + arm-before-`pushState` for search/`router.push` parity with Link clicks.
+
 ---
 
 ## Related
 
 - Top loader behavior rules: `.cursor/rules/loaders-panel-top.mdc`  
 - Page / panel spinners: `.cursor/rules/loaders-full-page.mdc`, `.cursor/rules/loaders-route.mdc`  
+- Actions / services speed (mutations): `docs/[13] Problems/[02] slow-actions-and-services.md`  
 )

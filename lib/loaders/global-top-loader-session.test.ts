@@ -31,7 +31,7 @@ describe("createGlobalTopLoaderSession", () => {
 
     expect(session.getSnapshot()).toEqual({ progress: 0, visible: false });
 
-    vi.advanceTimersByTime(149);
+    vi.advanceTimersByTime(49);
     expect(session.getSnapshot().visible).toBe(false);
 
     vi.advanceTimersByTime(1);
@@ -41,7 +41,7 @@ describe("createGlobalTopLoaderSession", () => {
   it("trickles forward but never reaches 100 while pending", () => {
     const session = createSession();
     session.start();
-    vi.advanceTimersByTime(150);
+    vi.advanceTimersByTime(50);
 
     for (let i = 0; i < 40; i += 1) {
       vi.advanceTimersByTime(320);
@@ -56,7 +56,7 @@ describe("createGlobalTopLoaderSession", () => {
   it("completes to 100 then hides after last end", () => {
     const session = createSession();
     const token = session.start();
-    vi.advanceTimersByTime(150);
+    vi.advanceTimersByTime(50);
 
     session.end(token);
     expect(session.getSnapshot().progress).toBe(100);
@@ -72,7 +72,7 @@ describe("createGlobalTopLoaderSession", () => {
   it("keeps one session across overlapping ops without restart flicker", () => {
     const session = createSession();
     const a = session.start();
-    vi.advanceTimersByTime(150);
+    vi.advanceTimersByTime(50);
     const progressAfterShow = session.getSnapshot().progress;
 
     const b = session.start();
@@ -99,7 +99,7 @@ describe("createGlobalTopLoaderSession", () => {
     const tracked = session.trackAsync(promise);
     expect(session.__getPendingCount()).toBe(1);
 
-    vi.advanceTimersByTime(150);
+    vi.advanceTimersByTime(50);
     expect(session.getSnapshot().visible).toBe(true);
 
     resolve("ok");

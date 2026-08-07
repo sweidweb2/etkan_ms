@@ -19,7 +19,7 @@ type TimerApi = {
   random: () => number;
 };
 
-const SHOW_DELAY_MS = 150;
+const SHOW_DELAY_MS = 50;
 const START_PROGRESS = 18;
 const TRICKLE_MAX = 92;
 const TRICKLE_MS = 320;
