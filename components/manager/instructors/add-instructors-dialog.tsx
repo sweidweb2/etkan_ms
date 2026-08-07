@@ -50,45 +50,41 @@ export function AddInstructorsDialog({
 
   const [selected, setSelected] = useState<ManagerInstructorCandidateRow[]>([]);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [candidateUsers, setCandidateUsers] = useState(candidateUsersProp);
-  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [fetchedCandidates, setFetchedCandidates] = useState<
+    ManagerInstructorCandidateRow[] | null
+  >(null);
+
+  const needsFetch = candidateUsersProp.length === 0;
+  const candidateUsers = needsFetch
+    ? (fetchedCandidates ?? [])
+    : candidateUsersProp;
+  const isLoadingOptions = open && needsFetch && fetchedCandidates === null;
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
     if (!nextOpen) {
       setSelected([]);
       setSelectionError(null);
+      setFetchedCandidates(null);
     }
     onOpenChange(nextOpen);
   });
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    if (candidateUsersProp.length > 0) {
-      setCandidateUsers(candidateUsersProp);
+    if (!open || !needsFetch) {
       return;
     }
 
     let cancelled = false;
-    setIsLoadingOptions(true);
-    void loadInstructorCandidatesAction()
-      .then((rows) => {
-        if (!cancelled) {
-          setCandidateUsers(rows);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingOptions(false);
-        }
-      });
+    void loadInstructorCandidatesAction().then((rows) => {
+      if (!cancelled) {
+        setFetchedCandidates(rows);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [open, candidateUsersProp]);
+  }, [open, needsFetch]);
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {

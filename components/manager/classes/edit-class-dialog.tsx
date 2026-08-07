@@ -68,11 +68,27 @@ export function EditClassDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
-  const [subjectOptions, setSubjectOptions] = useState(subjectOptionsProp);
-  const [semesterOptions, setSemesterOptions] = useState(semesterOptionsProp);
-  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [fetchedOptions, setFetchedOptions] = useState<{
+    subjects: ManagerClassSubjectOption[];
+    semesters: ManagerClassSemesterOption[];
+  } | null>(null);
 
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+  const needsFetch =
+    subjectOptionsProp.length === 0 && semesterOptionsProp.length === 0;
+  const subjectOptions = needsFetch
+    ? (fetchedOptions?.subjects ?? [])
+    : subjectOptionsProp;
+  const semesterOptions = needsFetch
+    ? (fetchedOptions?.semesters ?? [])
+    : semesterOptionsProp;
+  const isLoadingOptions = open && needsFetch && fetchedOptions === null;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
+    if (!nextOpen) {
+      setFetchedOptions(null);
+    }
+    onOpenChange(nextOpen);
+  });
 
   useActionStateToast(state, isPending);
 
@@ -130,35 +146,24 @@ export function EditClassDialog({
   }, [classRow, open, reset]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    if (subjectOptionsProp.length > 0 || semesterOptionsProp.length > 0) {
-      setSubjectOptions(subjectOptionsProp);
-      setSemesterOptions(semesterOptionsProp);
+    if (!open || !needsFetch) {
       return;
     }
 
     let cancelled = false;
-    setIsLoadingOptions(true);
-    void loadClassEditOptionsAction()
-      .then((options) => {
-        if (!cancelled) {
-          setSubjectOptions(options.subjects);
-          setSemesterOptions(options.semesters);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingOptions(false);
-        }
-      });
+    void loadClassEditOptionsAction().then((options) => {
+      if (!cancelled) {
+        setFetchedOptions({
+          subjects: options.subjects,
+          semesters: options.semesters,
+        });
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [open, subjectOptionsProp, semesterOptionsProp]);
+  }, [open, needsFetch]);
 
   useActionStateSuccess(
     state,

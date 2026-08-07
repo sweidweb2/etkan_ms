@@ -67,13 +67,21 @@ export function CreatePaymentPhaseDialog({
   );
   const isPending = isActionPending || isTransitionPending;
 
-  const [semesterOptions, setSemesterOptions] = useState<
-    ManagerPaymentPhaseSemesterOption[]
-  >([]);
-  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [fetchedSemesters, setFetchedSemesters] = useState<
+    ManagerPaymentPhaseSemesterOption[] | null
+  >(null);
   const [optionsError, setOptionsError] = useState<string | null>(null);
 
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+  const semesterOptions = fetchedSemesters ?? [];
+  const isLoadingOptions = open && fetchedSemesters === null && !optionsError;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
+    if (!nextOpen) {
+      setFetchedSemesters(null);
+      setOptionsError(null);
+    }
+    onOpenChange(nextOpen);
+  });
 
   useActionStateToast(state, isPending);
 
@@ -104,24 +112,17 @@ export function CreatePaymentPhaseDialog({
     }
 
     let cancelled = false;
-    setIsLoadingOptions(true);
-    setOptionsError(null);
-
     void loadPaymentPhaseSemesterOptionsAction()
       .then((options) => {
         if (!cancelled) {
-          setSemesterOptions(options);
+          setOptionsError(null);
+          setFetchedSemesters(options);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setOptionsError("Unable to load semesters.");
-          setSemesterOptions([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingOptions(false);
+          setFetchedSemesters([]);
         }
       });
 

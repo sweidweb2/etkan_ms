@@ -64,9 +64,22 @@ export function TransferStudentBetweenClassesDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-  const [classOptions, setClassOptions] = useState(classOptionsProp);
-  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [fetchedOptions, setFetchedOptions] = useState<
+    ClassTransferOption[] | null
+  >(null);
+
+  const needsFetch = classOptionsProp.length === 0;
+  const classOptions = needsFetch
+    ? (fetchedOptions ?? [])
+    : classOptionsProp;
+  const isLoadingOptions = open && needsFetch && fetchedOptions === null;
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
+    if (!nextOpen) {
+      setFetchedOptions(null);
+    }
+    onOpenChange(nextOpen);
+  });
 
   useActionStateToast(state, isPending);
 
@@ -103,33 +116,21 @@ export function TransferStudentBetweenClassesDialog({
   }, [open, student, fromClassId, reset]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    if (classOptionsProp.length > 0) {
-      setClassOptions(classOptionsProp);
+    if (!open || !needsFetch) {
       return;
     }
 
     let cancelled = false;
-    setIsLoadingOptions(true);
-    void loadTransferClassOptionsAction(fromClassId)
-      .then((rows) => {
-        if (!cancelled) {
-          setClassOptions(rows);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingOptions(false);
-        }
-      });
+    void loadTransferClassOptionsAction(fromClassId).then((rows) => {
+      if (!cancelled) {
+        setFetchedOptions(rows);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [open, fromClassId, classOptionsProp]);
+  }, [open, fromClassId, needsFetch]);
 
   useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);

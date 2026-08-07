@@ -63,10 +63,15 @@ export function AddStudentToClassDialog({
   const [selectedStudents, setSelectedStudents] = useState<ManagerStudentRow[]>(
     []
   );
-  const [availableStudents, setAvailableStudents] = useState(
-    availableStudentsProp
-  );
-  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [fetchedStudents, setFetchedStudents] = useState<
+    ManagerStudentRow[] | null
+  >(null);
+
+  const needsFetch = availableStudentsProp.length === 0;
+  const availableStudents = needsFetch
+    ? (fetchedStudents ?? [])
+    : availableStudentsProp;
+  const isLoadingOptions = open && needsFetch && fetchedStudents === null;
 
   const {
     handleSubmit,
@@ -84,39 +89,28 @@ export function AddStudentToClassDialog({
   const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
     if (!nextOpen) {
       setSelectedStudents([]);
+      setFetchedStudents(null);
       reset({ studentProfileIds: [] });
     }
     onOpenChange(nextOpen);
   });
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    if (availableStudentsProp.length > 0) {
-      setAvailableStudents(availableStudentsProp);
+    if (!open || !needsFetch) {
       return;
     }
 
     let cancelled = false;
-    setIsLoadingOptions(true);
-    void loadAvailableStudentsForClassAction(classId)
-      .then((rows) => {
-        if (!cancelled) {
-          setAvailableStudents(rows);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingOptions(false);
-        }
-      });
+    void loadAvailableStudentsForClassAction(classId).then((rows) => {
+      if (!cancelled) {
+        setFetchedStudents(rows);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [open, classId, availableStudentsProp]);
+  }, [open, classId, needsFetch]);
 
   useActionStateToast(state, isPending);
 
