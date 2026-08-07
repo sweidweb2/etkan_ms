@@ -1185,12 +1185,13 @@ export type Database = {
           full_name: string
           has_deceased_parent: boolean
           id: string
+          invite_id: string | null
           parent_phone: string | null
           phone: string | null
           received_financial_aid_before: boolean
           school_or_university: string | null
-          student_financial_adjustment_id: string
           student_monthly_income: number | null
+          student_payment_phase_id: string
           student_works: boolean
           total_family_income: number | null
           updated_at: string
@@ -1211,12 +1212,13 @@ export type Database = {
           full_name: string
           has_deceased_parent?: boolean
           id?: string
+          invite_id?: string | null
           parent_phone?: string | null
           phone?: string | null
           received_financial_aid_before?: boolean
           school_or_university?: string | null
-          student_financial_adjustment_id: string
           student_monthly_income?: number | null
+          student_payment_phase_id: string
           student_works?: boolean
           total_family_income?: number | null
           updated_at?: string
@@ -1237,12 +1239,13 @@ export type Database = {
           full_name?: string
           has_deceased_parent?: boolean
           id?: string
+          invite_id?: string | null
           parent_phone?: string | null
           phone?: string | null
           received_financial_aid_before?: boolean
           school_or_university?: string | null
-          student_financial_adjustment_id?: string
           student_monthly_income?: number | null
+          student_payment_phase_id?: string
           student_works?: boolean
           total_family_income?: number | null
           updated_at?: string
@@ -1250,10 +1253,69 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "student_financial_forms_student_financial_adjustment_id_fkey"
-            columns: ["student_financial_adjustment_id"]
+            foreignKeyName: "student_financial_forms_invite_id_fkey"
+            columns: ["invite_id"]
             isOneToOne: true
-            referencedRelation: "student_financial_adjustments"
+            referencedRelation: "student_financial_form_invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_financial_forms_student_payment_phase_id_fkey"
+            columns: ["student_payment_phase_id"]
+            isOneToOne: false
+            referencedRelation: "student_payment_phases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_financial_form_invites: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          form_id: string | null
+          id: string
+          student_payment_phase_id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          form_id?: string | null
+          id?: string
+          student_payment_phase_id: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          form_id?: string | null
+          id?: string
+          student_payment_phase_id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_financial_form_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_financial_form_invites_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "student_financial_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_financial_form_invites_student_payment_phase_id_fkey"
+            columns: ["student_payment_phase_id"]
+            isOneToOne: false
+            referencedRelation: "student_payment_phases"
             referencedColumns: ["id"]
           },
         ]

@@ -9,6 +9,7 @@ export const ROUTES = {
   GALLERY: "/gallery",
   LIFE: "/life",
   LIFE_BLOG_DETAIL: "/life/[id]",
+  FINANCIAL_FORM_INVITE: "/f/[token]",
   LOGIN: "/auth/login",
   SIGNUP: "/auth/signup",
   CALLBACK: "/auth/callback",
@@ -121,6 +122,10 @@ export function getCareersRoadmapDetailRoute(roadmapId: string): string {
 
 export function getLifeBlogDetailRoute(blogId: string): string {
   return `/life/${blogId}`;
+}
+
+export function getFinancialFormInviteRoute(token: string): string {
+  return `/f/${token}`;
 }
 
 export function getManagerUserDetailRoute(userId: string): string {

@@ -14,18 +14,28 @@ import {
   updateFinancialAdjustmentSchema,
 } from "@/lib/validators/manager/create-financial-adjustment";
 import { deleteFinancialAdjustmentSchema } from "@/lib/validators/manager/delete-financial-adjustment";
+import { deleteFinancialFormSchema } from "@/lib/validators/manager/delete-financial-form";
+import { deleteFinancialFormInviteSchema } from "@/lib/validators/manager/delete-financial-form-invite";
 import {
+  createFinancialFormInviteSchema,
   createFinancialFormSchema,
+  submitPublicFinancialFormSchema,
   updateFinancialFormSchema,
 } from "@/lib/validators/manager/upsert-financial-form";
+import { getFinancialFormInviteUrl } from "@/lib/manager/accounting/financial-form-invite-url";
+import { checkPublicFinancialFormSubmitRateLimit } from "@/lib/rate-limit/public-financial-form-rate-limit";
 import type { PaymentPhaseListRecord } from "@/repositories/payment-phase.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import type { FinancialAdjustmentRecord } from "@/repositories/student-financial-adjustment.repository";
 import * as adjustmentRepository from "@/repositories/student-financial-adjustment.repository";
+import type { FinancialFormInviteRecord } from "@/repositories/student-financial-form-invite.repository";
+import * as inviteRepository from "@/repositories/student-financial-form-invite.repository";
 import type { FinancialFormRecord } from "@/repositories/student-financial-form.repository";
 import * as formRepository from "@/repositories/student-financial-form.repository";
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
+import * as profileRepository from "@/repositories/profile.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import { recalcSppAndPhaseStatus } from "@/services/accounting-recalc.service";
 import {
   recordManagerAuditLog,
@@ -38,8 +48,11 @@ import {
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerFinancialAdjustmentRow,
+  ManagerFinancialFormInviteRow,
   ManagerFinancialFormRow,
+  PublicFinancialFormInviteContext,
 } from "@/types/manager-financial-adjustment";
+import { randomBytes } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -60,6 +73,10 @@ type MutationFailure = {
 
 export type GetAdjustmentResult = ManagerFinancialAdjustmentRow | null;
 
+export type GetFormsResult = ManagerFinancialFormRow[];
+
+export type GetInvitesResult = ManagerFinancialFormInviteRow[];
+
 export type CreateAdjustmentResult =
   | (MutationSuccessBase & { adjustment: ManagerFinancialAdjustmentRow })
   | MutationFailure;
@@ -72,6 +89,18 @@ export type DeleteAdjustmentResult = MutationSuccessBase | MutationFailure;
 
 export type UpsertFormResult =
   | (MutationSuccessBase & { form: ManagerFinancialFormRow })
+  | MutationFailure;
+
+export type DeleteFormResult = MutationSuccessBase | MutationFailure;
+
+export type CreateInviteResult =
+  | (MutationSuccessBase & { invite: ManagerFinancialFormInviteRow })
+  | MutationFailure;
+
+export type DeleteInviteResult = MutationSuccessBase | MutationFailure;
+
+export type PublicSubmitFormResult =
+  | { success: true; message: string }
   | MutationFailure;
 
 function isAdjustmentType(value: string): value is FinancialAdjustmentType {
@@ -105,7 +134,8 @@ function assertMutationsAllowed(
 function mapFormRecord(record: FinancialFormRecord): ManagerFinancialFormRow {
   return {
     id: record.id,
-    student_financial_adjustment_id: record.student_financial_adjustment_id,
+    student_payment_phase_id: record.student_payment_phase_id,
+    invite_id: record.invite_id,
     full_name: record.full_name,
     school_or_university: record.school_or_university,
     date_of_birth: record.date_of_birth,
@@ -139,9 +169,24 @@ function mapFormRecord(record: FinancialFormRecord): ManagerFinancialFormRow {
   };
 }
 
+function mapInviteRecord(
+  record: FinancialFormInviteRecord
+): ManagerFinancialFormInviteRow {
+  return {
+    id: record.id,
+    student_payment_phase_id: record.student_payment_phase_id,
+    token: record.token,
+    url: getFinancialFormInviteUrl(record.token),
+    created_by: record.created_by,
+    created_at: record.created_at,
+    used_at: record.used_at,
+    form_id: record.form_id,
+    is_used: record.used_at !== null,
+  };
+}
+
 function mapAdjustmentRecord(
-  record: FinancialAdjustmentRecord,
-  form: FinancialFormRecord | null
+  record: FinancialAdjustmentRecord
 ): ManagerFinancialAdjustmentRow {
   return {
     id: record.id,
@@ -156,7 +201,6 @@ function mapAdjustmentRecord(
     reason: record.reason,
     effective_date: record.effective_date,
     created_at: record.created_at,
-    form: form ? mapFormRecord(form) : null,
   };
 }
 
@@ -216,16 +260,54 @@ export async function getAdjustmentForSppForManager(
     return null;
   }
 
-  const { data: form, error: formError } =
-    await formRepository.findFormByAdjustmentId(adminClient, adjustment.id);
+  return mapAdjustmentRecord(adjustment as FinancialAdjustmentRecord);
+}
 
-  if (formError) {
-    throw new Error(formError.message);
+export async function listFormsForSppForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  sppId: string
+): Promise<GetFormsResult> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+
+  const { data: forms, error } = await formRepository.listFormsBySppId(
+    adminClient,
+    sppId
+  );
+
+  if (error) {
+    throw new Error(error.message);
   }
 
-  return mapAdjustmentRecord(
-    adjustment as FinancialAdjustmentRecord,
-    (form as FinancialFormRecord | null) ?? null
+  return ((forms as FinancialFormRecord[] | null) ?? []).map(mapFormRecord);
+}
+
+export async function listInvitesForSppForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  sppId: string
+): Promise<GetInvitesResult> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+
+  const { data: invites, error } = await inviteRepository.listInvitesBySppId(
+    adminClient,
+    sppId
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((invites as FinancialFormInviteRecord[] | null) ?? []).map(
+    mapInviteRecord
   );
 }
 
@@ -335,7 +417,7 @@ export async function createAdjustmentForManager(
   return {
     success: true,
     message: "Financial adjustment created.",
-    adjustment: mapAdjustmentRecord(created as FinancialAdjustmentRecord, null),
+    adjustment: mapAdjustmentRecord(created as FinancialAdjustmentRecord),
     student_payment_phase_id: loaded.spp.id,
     payment_phase_id: loaded.spp.payment_phase_id,
   };
@@ -434,11 +516,6 @@ export async function updateAdjustmentForManager(
     };
   }
 
-  const { data: form } = await formRepository.findFormByAdjustmentId(
-    adminClient,
-    updated.id
-  );
-
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "info",
@@ -462,10 +539,7 @@ export async function updateAdjustmentForManager(
   return {
     success: true,
     message: "Financial adjustment updated.",
-    adjustment: mapAdjustmentRecord(
-      updated as FinancialAdjustmentRecord,
-      (form as FinancialFormRecord | null) ?? null
-    ),
+    adjustment: mapAdjustmentRecord(updated as FinancialAdjustmentRecord),
     student_payment_phase_id: loaded.spp.id,
     payment_phase_id: loaded.spp.payment_phase_id,
   };
@@ -599,19 +673,9 @@ export async function createFinancialFormForManager(
     };
   }
 
-  const { data: adjustment, error: adjustmentError } =
-    await adjustmentRepository.findAdjustmentById(
-      adminClient,
-      parsed.data.student_financial_adjustment_id
-    );
-
-  if (adjustmentError || !adjustment) {
-    return { success: false, error: "Financial adjustment not found." };
-  }
-
   const loaded = await loadSppAndPhase(
     adminClient,
-    adjustment.student_payment_phase_id
+    parsed.data.student_payment_phase_id
   );
   if ("error" in loaded) {
     return { success: false, error: loaded.error };
@@ -622,21 +686,11 @@ export async function createFinancialFormForManager(
     return { success: false, error: blocked };
   }
 
-  const { data: existingForm } = await formRepository.findFormByAdjustmentId(
-    adminClient,
-    adjustment.id
-  );
-  if (existingForm) {
-    return {
-      success: false,
-      error: "This adjustment already has a financial form.",
-    };
-  }
-
   const { data: created, error: createError } = await formRepository.createForm(
     adminClient,
     {
       ...parsed.data,
+      invite_id: null,
       school_or_university: parsed.data.school_or_university,
       date_of_birth: parsed.data.date_of_birth,
       phone: parsed.data.phone,
@@ -647,13 +701,6 @@ export async function createFinancialFormForManager(
   );
 
   if (createError || !created) {
-    const message = createError?.message?.toLowerCase() ?? "";
-    if (message.includes("unique") || message.includes("duplicate")) {
-      return {
-        success: false,
-        error: "This adjustment already has a financial form.",
-      };
-    }
     return {
       success: false,
       error: "Unable to create financial form. Please try again.",
@@ -666,7 +713,7 @@ export async function createFinancialFormForManager(
     table_name: "student_financial_forms",
     record_id: created.id,
     new_data: {
-      student_financial_adjustment_id: created.student_financial_adjustment_id,
+      student_payment_phase_id: created.student_payment_phase_id,
       full_name: created.full_name,
     },
     metadata: { note: "Financial form created." },
@@ -682,7 +729,7 @@ export async function createFinancialFormForManager(
 }
 
 type CreateFinancialFormInputLike = {
-  student_financial_adjustment_id: string;
+  student_payment_phase_id: string;
   full_name: string;
   school_or_university?: string | null;
   date_of_birth?: string | null;
@@ -737,28 +784,17 @@ export async function updateFinancialFormForManager(
   }
 
   if (
-    existing.student_financial_adjustment_id !==
-    parsed.data.student_financial_adjustment_id
+    existing.student_payment_phase_id !== parsed.data.student_payment_phase_id
   ) {
     return {
       success: false,
-      error: "Form does not belong to this adjustment.",
+      error: "Form does not belong to this student payment phase.",
     };
-  }
-
-  const { data: adjustment, error: adjustmentError } =
-    await adjustmentRepository.findAdjustmentById(
-      adminClient,
-      existing.student_financial_adjustment_id
-    );
-
-  if (adjustmentError || !adjustment) {
-    return { success: false, error: "Financial adjustment not found." };
   }
 
   const loaded = await loadSppAndPhase(
     adminClient,
-    adjustment.student_payment_phase_id
+    existing.student_payment_phase_id
   );
   if ("error" in loaded) {
     return { success: false, error: loaded.error };
@@ -819,5 +855,441 @@ export async function updateFinancialFormForManager(
     form: mapFormRecord(updated as FinancialFormRecord),
     student_payment_phase_id: loaded.spp.id,
     payment_phase_id: loaded.spp.payment_phase_id,
+  };
+}
+
+export async function deleteFinancialFormForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: { id: string; student_payment_phase_id: string }
+): Promise<DeleteFormResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = deleteFinancialFormSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { data: existing, error: existingError } =
+    await formRepository.findFormById(adminClient, parsed.data.id);
+
+  if (existingError || !existing) {
+    return { success: false, error: "Financial form not found." };
+  }
+
+  if (
+    existing.student_payment_phase_id !== parsed.data.student_payment_phase_id
+  ) {
+    return {
+      success: false,
+      error: "Form does not belong to this student payment phase.",
+    };
+  }
+
+  const loaded = await loadSppAndPhase(
+    adminClient,
+    existing.student_payment_phase_id
+  );
+  if ("error" in loaded) {
+    return { success: false, error: loaded.error };
+  }
+
+  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  if (blocked) {
+    return { success: false, error: blocked };
+  }
+
+  const { error: deleteError } = await formRepository.deleteForm(
+    adminClient,
+    existing.id
+  );
+
+  if (deleteError) {
+    return {
+      success: false,
+      error: "Unable to delete financial form. Please try again.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "warning",
+    table_name: "student_financial_forms",
+    record_id: existing.id,
+    old_data: {
+      student_payment_phase_id: existing.student_payment_phase_id,
+      full_name: existing.full_name,
+      invite_id: existing.invite_id,
+    },
+    metadata: { note: "Financial form deleted." },
+  });
+
+  return {
+    success: true,
+    message: "Financial form deleted.",
+    student_payment_phase_id: loaded.spp.id,
+    payment_phase_id: loaded.spp.payment_phase_id,
+  };
+}
+
+export async function createFinancialFormInviteForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: { student_payment_phase_id: string }
+): Promise<CreateInviteResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = createFinancialFormInviteSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const loaded = await loadSppAndPhase(
+    adminClient,
+    parsed.data.student_payment_phase_id
+  );
+  if ("error" in loaded) {
+    return { success: false, error: loaded.error };
+  }
+
+  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  if (blocked) {
+    return { success: false, error: blocked };
+  }
+
+  const token = randomBytes(32).toString("base64url");
+  const { data: created, error: createError } = await inviteRepository.createInvite(
+    adminClient,
+    {
+      student_payment_phase_id: loaded.spp.id,
+      token,
+      created_by: actor.userId,
+    }
+  );
+
+  if (createError || !created) {
+    return {
+      success: false,
+      error: "Unable to create invite link. Please try again.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "student_financial_form_invites",
+    record_id: created.id,
+    new_data: {
+      student_payment_phase_id: created.student_payment_phase_id,
+    },
+    metadata: { note: "Financial form invite created." },
+  });
+
+  return {
+    success: true,
+    message: "Invite link created.",
+    invite: mapInviteRecord(created as FinancialFormInviteRecord),
+    student_payment_phase_id: loaded.spp.id,
+    payment_phase_id: loaded.spp.payment_phase_id,
+  };
+}
+
+export async function deleteFinancialFormInviteForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: { id: string; student_payment_phase_id: string }
+): Promise<DeleteInviteResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = deleteFinancialFormInviteSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { data: existing, error: existingError } =
+    await inviteRepository.findInviteById(adminClient, parsed.data.id);
+
+  if (existingError || !existing) {
+    return { success: false, error: "Invite link not found." };
+  }
+
+  if (
+    existing.student_payment_phase_id !== parsed.data.student_payment_phase_id
+  ) {
+    return {
+      success: false,
+      error: "Invite does not belong to this student payment phase.",
+    };
+  }
+
+  if (existing.used_at !== null) {
+    return {
+      success: false,
+      error: "Used invite links cannot be deleted.",
+    };
+  }
+
+  const loaded = await loadSppAndPhase(
+    adminClient,
+    existing.student_payment_phase_id
+  );
+  if ("error" in loaded) {
+    return { success: false, error: loaded.error };
+  }
+
+  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  if (blocked) {
+    return { success: false, error: blocked };
+  }
+
+  const { error: deleteError } = await inviteRepository.deleteInvite(
+    adminClient,
+    existing.id
+  );
+
+  if (deleteError) {
+    return {
+      success: false,
+      error: "Unable to delete invite link. Please try again.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "warning",
+    table_name: "student_financial_form_invites",
+    record_id: existing.id,
+    old_data: {
+      student_payment_phase_id: existing.student_payment_phase_id,
+      created_at: existing.created_at,
+    },
+    metadata: { note: "Financial form invite deleted." },
+  });
+
+  return {
+    success: true,
+    message: "Invite link deleted.",
+    student_payment_phase_id: loaded.spp.id,
+    payment_phase_id: loaded.spp.payment_phase_id,
+  };
+}
+
+async function resolvePublicStudentLabel(
+  adminClient: Supabase,
+  studentId: string
+): Promise<string> {
+  const [{ data: profile }, { data: studentProfiles }] = await Promise.all([
+    profileRepository.findProfileById(adminClient, studentId),
+    studentProfileRepository.listStudentProfilesByUserIds(adminClient, [
+      studentId,
+    ]),
+  ]);
+
+  const fullName = studentProfiles?.[0]?.full_name?.trim();
+  const username = profile?.username?.trim();
+  return fullName || username || "Student";
+}
+
+export async function getInviteFormContextByToken(
+  adminClient: Supabase,
+  token: string
+): Promise<PublicFinancialFormInviteContext | null> {
+  const { data: invite, error } = await inviteRepository.findInviteByToken(
+    adminClient,
+    token
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!invite) {
+    return null;
+  }
+
+  const loaded = await loadSppAndPhase(
+    adminClient,
+    invite.student_payment_phase_id
+  );
+  if ("error" in loaded) {
+    return null;
+  }
+
+  const student_label = await resolvePublicStudentLabel(
+    adminClient,
+    loaded.spp.student_id
+  );
+
+  return {
+    token: invite.token,
+    student_label,
+    payment_phase_name: loaded.phase.name,
+    is_used: invite.used_at !== null,
+  };
+}
+
+export async function submitFinancialFormByToken(
+  adminClient: Supabase,
+  input: {
+    token: string;
+    full_name: string;
+    school_or_university?: string | null;
+    date_of_birth?: string | null;
+    phone?: string | null;
+    parent_phone?: string | null;
+    current_gpa?: string | null;
+    received_financial_aid_before: boolean;
+    certificates?: string | null;
+    family_members?: number | null;
+    working_family_members?: number | null;
+    total_family_income?: number | null;
+    children_currently_learning?: number | null;
+    has_deceased_parent: boolean;
+    both_parents_work: boolean;
+    family_hardship: boolean;
+    family_chronic_disease: boolean;
+    affordable_monthly_payment?: number | null;
+    student_works: boolean;
+    student_monthly_income?: number | null;
+    agreed_to_rules: boolean;
+  }
+): Promise<PublicSubmitFormResult> {
+  const rateLimit = await checkPublicFinancialFormSubmitRateLimit(input.token);
+  if (!rateLimit.allowed) {
+    return { success: false, error: rateLimit.message };
+  }
+
+  const parsed = submitPublicFinancialFormSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { data: invite, error: inviteError } =
+    await inviteRepository.findInviteByToken(adminClient, parsed.data.token);
+
+  if (inviteError) {
+    return {
+      success: false,
+      error: "Unable to submit form. Please try again.",
+    };
+  }
+
+  if (!invite) {
+    return { success: false, error: "This link is no longer valid." };
+  }
+
+  if (invite.used_at) {
+    return {
+      success: false,
+      error: "This link has already been used.",
+    };
+  }
+
+  const loaded = await loadSppAndPhase(
+    adminClient,
+    invite.student_payment_phase_id
+  );
+  if ("error" in loaded) {
+    return { success: false, error: loaded.error };
+  }
+
+  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
+  if (blocked) {
+    return { success: false, error: blocked };
+  }
+
+  const { data: created, error: createError } = await formRepository.createForm(
+    adminClient,
+    {
+      student_payment_phase_id: loaded.spp.id,
+      invite_id: invite.id,
+      full_name: parsed.data.full_name,
+      school_or_university: parsed.data.school_or_university,
+      date_of_birth: parsed.data.date_of_birth,
+      phone: parsed.data.phone,
+      parent_phone: parsed.data.parent_phone,
+      current_gpa: parsed.data.current_gpa,
+      received_financial_aid_before: parsed.data.received_financial_aid_before,
+      certificates: parsed.data.certificates,
+      family_members: parsed.data.family_members,
+      working_family_members: parsed.data.working_family_members,
+      total_family_income: parsed.data.total_family_income,
+      children_currently_learning: parsed.data.children_currently_learning,
+      has_deceased_parent: parsed.data.has_deceased_parent,
+      both_parents_work: parsed.data.both_parents_work,
+      family_hardship: parsed.data.family_hardship,
+      family_chronic_disease: parsed.data.family_chronic_disease,
+      affordable_monthly_payment: parsed.data.affordable_monthly_payment,
+      student_works: parsed.data.student_works,
+      student_monthly_income: parsed.data.student_monthly_income,
+      agreed_to_rules: parsed.data.agreed_to_rules,
+    }
+  );
+
+  if (createError || !created) {
+    return {
+      success: false,
+      error: "Unable to submit form. Please try again.",
+    };
+  }
+
+  const usedAt = new Date().toISOString();
+  const { data: marked, error: markError } = await inviteRepository.markInviteUsed(
+    adminClient,
+    invite.id,
+    created.id,
+    usedAt
+  );
+
+  if (markError || !marked) {
+    return {
+      success: false,
+      error: "This link has already been used.",
+    };
+  }
+
+  return {
+    success: true,
+    message: "Financial form submitted successfully.",
   };
 }

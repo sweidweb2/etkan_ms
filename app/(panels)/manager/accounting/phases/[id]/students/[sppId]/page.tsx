@@ -2,7 +2,11 @@ import { notFound } from "next/navigation";
 import { SppDetailsPanel } from "@/components/manager/accounting/spp-details-panel";
 import { getSessionAuditActor, getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getAdjustmentForSppForManager } from "@/services/student-financial-adjustment.service";
+import {
+  getAdjustmentForSppForManager,
+  listFormsForSppForManager,
+  listInvitesForSppForManager,
+} from "@/services/student-financial-adjustment.service";
 import {
   getSppDetailForManager,
   listPaymentsForSppForManager,
@@ -32,9 +36,11 @@ export default async function ManagerSppDetailPage({
     notFound();
   }
 
-  const [payments, adjustment] = await Promise.all([
+  const [payments, adjustment, forms, invites] = await Promise.all([
     listPaymentsForSppForManager(adminClient, actorUserId, sppId),
     getAdjustmentForSppForManager(adminClient, actorUserId, sppId),
+    listFormsForSppForManager(adminClient, actorUserId, sppId),
+    listInvitesForSppForManager(adminClient, actorUserId, sppId),
   ]);
 
   return (
@@ -42,6 +48,8 @@ export default async function ManagerSppDetailPage({
       spp={spp}
       initialPayments={payments}
       initialAdjustment={adjustment}
+      initialForms={forms}
+      initialInvites={invites}
       actorLabel={actor.userLabel || "Manager"}
     />
   );

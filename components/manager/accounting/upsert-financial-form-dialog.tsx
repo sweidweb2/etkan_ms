@@ -47,7 +47,7 @@ const booleanDefaults = {
 type UpsertFinancialFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  adjustmentId: string;
+  sppId: string;
   form: ManagerFinancialFormRow | null;
   onSaved: () => void;
 };
@@ -82,7 +82,7 @@ function BoolField({
 export function UpsertFinancialFormDialog({
   open,
   onOpenChange,
-  adjustmentId,
+  sppId,
   form,
   onSaved,
 }: UpsertFinancialFormDialogProps) {
@@ -111,7 +111,7 @@ export function UpsertFinancialFormDialog({
     mode: "onBlur",
     defaultValues: {
       ...(isEdit && form ? { id: form.id } : {}),
-      student_financial_adjustment_id: adjustmentId,
+      student_payment_phase_id: sppId,
       full_name: form?.full_name ?? "",
       school_or_university: form?.school_or_university ?? "",
       date_of_birth: form?.date_of_birth ?? "",
@@ -141,7 +141,7 @@ export function UpsertFinancialFormDialog({
     if (!open) return;
     reset({
       ...(isEdit && form ? { id: form.id } : {}),
-      student_financial_adjustment_id: adjustmentId,
+      student_payment_phase_id: sppId,
       full_name: form?.full_name ?? "",
       school_or_university: form?.school_or_university ?? "",
       date_of_birth: form?.date_of_birth ?? "",
@@ -164,7 +164,7 @@ export function UpsertFinancialFormDialog({
       student_works: form?.student_works ?? false,
       agreed_to_rules: form?.agreed_to_rules ?? false,
     });
-  }, [open, adjustmentId, form, isEdit, reset]);
+  }, [open, sppId, form, isEdit, reset]);
 
   useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
@@ -188,7 +188,7 @@ export function UpsertFinancialFormDialog({
     if (isEdit && "id" in values) {
       formData.set("id", values.id);
     }
-    formData.set("student_financial_adjustment_id", adjustmentId);
+    formData.set("student_payment_phase_id", sppId);
     formData.set("full_name", values.full_name);
     appendOptional(formData, "school_or_university", values.school_or_university);
     appendOptional(formData, "date_of_birth", values.date_of_birth);
@@ -247,7 +247,8 @@ export function UpsertFinancialFormDialog({
             {isEdit ? "Edit financial form" : "Add financial form"}
           </DialogTitle>
           <DialogDescription>
-            Aid application details for this adjustment. Does not change amounts.
+            Aid application details for this student payment phase. Does not
+            change amounts.
           </DialogDescription>
         </DialogHeader>
 

@@ -52,11 +52,8 @@ function optionalTrimmedString(max: number) {
   }, z.string().max(max).nullable());
 }
 
-const formFields = {
-  student_financial_adjustment_id: z
-    .string()
-    .trim()
-    .uuid({ message: "Adjustment is required." }),
+/** Shared field shapes (no ownership keys). */
+export const financialFormContentFields = {
   full_name: z
     .string()
     .trim()
@@ -85,6 +82,14 @@ const formFields = {
   }),
 };
 
+const formFields = {
+  student_payment_phase_id: z
+    .string()
+    .trim()
+    .uuid({ message: "Student payment phase is required." }),
+  ...financialFormContentFields,
+};
+
 export const createFinancialFormSchema = z.object(formFields);
 
 export type CreateFinancialFormInput = z.infer<typeof createFinancialFormSchema>;
@@ -96,11 +101,32 @@ export const updateFinancialFormSchema = z.object({
 
 export type UpdateFinancialFormInput = z.infer<typeof updateFinancialFormSchema>;
 
-function parseFormFields(formData: FormData) {
+export const submitPublicFinancialFormSchema = z.object({
+  token: z
+    .string()
+    .trim()
+    .min(16, { message: "Invite token is required." })
+    .max(128, { message: "Invite token is invalid." }),
+  ...financialFormContentFields,
+});
+
+export type SubmitPublicFinancialFormInput = z.infer<
+  typeof submitPublicFinancialFormSchema
+>;
+
+export const createFinancialFormInviteSchema = z.object({
+  student_payment_phase_id: z
+    .string()
+    .trim()
+    .uuid({ message: "Student payment phase is required." }),
+});
+
+export type CreateFinancialFormInviteInput = z.infer<
+  typeof createFinancialFormInviteSchema
+>;
+
+export function parseFinancialFormContentFields(formData: FormData) {
   return {
-    student_financial_adjustment_id: formData.get(
-      "student_financial_adjustment_id"
-    ),
     full_name: formData.get("full_name"),
     school_or_university: formData.get("school_or_university") ?? "",
     date_of_birth: formData.get("date_of_birth") ?? "",
@@ -128,6 +154,13 @@ function parseFormFields(formData: FormData) {
   };
 }
 
+function parseFormFields(formData: FormData) {
+  return {
+    student_payment_phase_id: formData.get("student_payment_phase_id"),
+    ...parseFinancialFormContentFields(formData),
+  };
+}
+
 export function parseCreateFinancialFormFormData(formData: FormData):
   | { success: true; data: CreateFinancialFormInput }
   | { success: false; error: string; fieldErrors?: FieldErrors } {
@@ -150,6 +183,46 @@ export function parseUpdateFinancialFormFormData(formData: FormData):
   const parsed = updateFinancialFormSchema.safeParse({
     id: formData.get("id"),
     ...parseFormFields(formData),
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}
+
+export function parseCreateFinancialFormInviteFormData(formData: FormData):
+  | { success: true; data: CreateFinancialFormInviteInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = createFinancialFormInviteSchema.safeParse({
+    student_payment_phase_id: formData.get("student_payment_phase_id"),
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}
+
+export function parseSubmitPublicFinancialFormFormData(
+  formData: FormData,
+  token: string
+):
+  | { success: true; data: SubmitPublicFinancialFormInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = submitPublicFinancialFormSchema.safeParse({
+    token,
+    ...parseFinancialFormContentFields(formData),
   });
 
   if (!parsed.success) {

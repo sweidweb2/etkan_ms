@@ -18,6 +18,8 @@ import {
 } from "@/lib/validators/manager/create-financial-adjustment";
 import { parseCreateStudentPaymentFormData } from "@/lib/validators/manager/create-student-payment";
 import { parseDeleteFinancialAdjustmentFormData } from "@/lib/validators/manager/delete-financial-adjustment";
+import { parseDeleteFinancialFormFormData } from "@/lib/validators/manager/delete-financial-form";
+import { parseDeleteFinancialFormInviteFormData } from "@/lib/validators/manager/delete-financial-form-invite";
 import { parseDeleteStudentPaymentFormData } from "@/lib/validators/manager/delete-student-payment";
 import { parseDeleteStudentPaymentPhaseFormData } from "@/lib/validators/manager/delete-student-payment-phase";
 import { parseRepairMissingSppFormData } from "@/lib/validators/manager/repair-missing-spp";
@@ -26,6 +28,7 @@ import { parseUpdatePaymentPhaseFormData } from "@/lib/validators/manager/update
 import { parseUpdateStudentPaymentFormData } from "@/lib/validators/manager/update-student-payment";
 import {
   parseCreateFinancialFormFormData,
+  parseCreateFinancialFormInviteFormData,
   parseUpdateFinancialFormFormData,
 } from "@/lib/validators/manager/upsert-financial-form";
 import {
@@ -38,7 +41,10 @@ import {
 import {
   createAdjustmentForManager,
   createFinancialFormForManager,
+  createFinancialFormInviteForManager,
   deleteAdjustmentForManager,
+  deleteFinancialFormForManager,
+  deleteFinancialFormInviteForManager,
   updateAdjustmentForManager,
   updateFinancialFormForManager,
 } from "@/services/student-financial-adjustment.service";
@@ -50,7 +56,10 @@ import {
 } from "@/services/student-payment.service";
 import type {
   CreateFinancialAdjustmentActionState,
+  CreateFinancialFormInviteActionState,
   DeleteFinancialAdjustmentActionState,
+  DeleteFinancialFormActionState,
+  DeleteFinancialFormInviteActionState,
   UpdateFinancialAdjustmentActionState,
   UpsertFinancialFormActionState,
 } from "@/types/manager-financial-adjustment";
@@ -697,6 +706,151 @@ export async function updateFinancialFormAction(
     success: true,
     message: result.message,
     form: result.form,
+    student_payment_phase_id: result.student_payment_phase_id,
+    payment_phase_id: result.payment_phase_id,
+  };
+}
+
+export async function createFinancialFormInviteAction(
+  _prevState: CreateFinancialFormInviteActionState,
+  formData: FormData
+): Promise<CreateFinancialFormInviteActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateFinancialFormInviteFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createFinancialFormInviteForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidatePath(
+    getManagerAccountingSppDetailRoute(
+      result.payment_phase_id,
+      result.student_payment_phase_id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    invite: result.invite,
+    student_payment_phase_id: result.student_payment_phase_id,
+    payment_phase_id: result.payment_phase_id,
+  };
+}
+
+export async function deleteFinancialFormInviteAction(
+  _prevState: DeleteFinancialFormInviteActionState,
+  formData: FormData
+): Promise<DeleteFinancialFormInviteActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseDeleteFinancialFormInviteFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteFinancialFormInviteForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidatePath(
+    getManagerAccountingSppDetailRoute(
+      result.payment_phase_id,
+      result.student_payment_phase_id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    student_payment_phase_id: result.student_payment_phase_id,
+    payment_phase_id: result.payment_phase_id,
+  };
+}
+
+export async function deleteFinancialFormAction(
+  _prevState: DeleteFinancialFormActionState,
+  formData: FormData
+): Promise<DeleteFinancialFormActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseDeleteFinancialFormFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteFinancialFormForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidatePath(
+    getManagerAccountingSppDetailRoute(
+      result.payment_phase_id,
+      result.student_payment_phase_id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
     student_payment_phase_id: result.student_payment_phase_id,
     payment_phase_id: result.payment_phase_id,
   };

@@ -738,6 +738,75 @@ export const ar = {
   "maintenance.managerHint": "يمكن للمدير إيقافه من هنا:",
   "maintenance.settingsLink": "الإعدادات",
 
+  "scholarship.pageTitle": "طلب الاستفادة من المنحة الدراسية",
+  "scholarship.forStudent": "للطالب",
+  "scholarship.phase": "مرحلة الدفع",
+  "scholarship.amountsNote": "هذا النموذج لا يغيّر مبالغ الدفع.",
+
+  "scholarship.card1.title": "طلب الاستفادة من المنحة الدراسية",
+  "scholarship.card1.intro":
+    "تهدف هذه المنحة إلى دعم الطلاب المستحقين وتشجيعهم على الاستمرار في مسيرتهم التعليمية ضمن بيئة قائمة على الجدية والالتزام والمسؤولية. يرجى تعبئة هذا الطلب بدقة وإرفاق المستندات المطلوبة، حيث ستتم دراسة جميع الطلبات بسرية تامة وفق معايير محددة تشمل الوضع الاجتماعي والمالي، إضافةً إلى الالتزام والسلوك والأداء الأكاديمي.",
+  "scholarship.card1.conditionsTitle": "شروط الاستفادة من المنحة:",
+  "scholarship.card1.condition1":
+    "الالتزام بالحضور وعدم التغيب عن أي حصة إلا بعذر قاهر ومقبول من إدارة الأكاديمية.",
+  "scholarship.card1.condition2":
+    "إنجاز جميع الواجبات والمهام المطلوبة في مواعيدها المحددة.",
+  "scholarship.card1.condition3":
+    "الالتزام بقوانين وأنظمة الأكاديمية والمحافظة على حسن السلوك والاحترام داخل الصف وخارجه.",
+  "scholarship.card1.condition4":
+    "الحفاظ على مستوى جيد من الاجتهاد والمشاركة طوال فترة الاستفادة من المنحة.",
+  "scholarship.card1.condition5":
+    "تحتفظ إدارة الأكاديمية بحق مراجعة أو إيقاف المنحة في حال عدم الالتزام بالشروط المذكورة أو تقديم معلومات غير صحيحة في الطلب.",
+  "scholarship.card1.note":
+    "ملاحظة: تقديم الطلب لا يعني الموافقة التلقائية على المنحة، إذ تخضع جميع الطلبات للتقييم والمفاضلة وفق المعايير المعتمدة لدى إدارة الأكاديمية.",
+
+  "scholarship.card2.title": "التزامنا في إتقان",
+  "scholarship.card2.p1":
+    "في إتقان، نؤمن بأن رسالتنا تتجاوز تقديم الدروس، فنحن نسعى إلى تقديم قيمة تعليمية حقيقية تُسهم في بناء العلم والمهارة والأخلاق. ومن هذا المنطلق، لا نريد أن يكون الوضع المادي سببًا يحرم أي طالب مجتهد من فرصة التعلم والاستفادة.",
+  "scholarship.card2.p2":
+    "لهذا أطلقنا برنامج المنح الدراسية، ليس باعتباره مجرد دعم مالي، بل على أساس علاقة قائمة على الصدق والثقة والشفافية بين إتقان والطالب وولي أمره. فهذه المنحة وُجدت لتصل إلى من يحتاجها فعلًا.",
+  "scholarship.card2.p3":
+    "لذلك، نرجو تعبئة هذا الطلب فقط في حال وجود حاجة حقيقية للمنحة، وأن تكون جميع المعلومات المقدمة صحيحة وكاملة، انطلاقًا من المسؤولية الأخلاقية والشرعية، لأن هذا الدعم هو أمانة، وكل من يستفيد منه بغير حق قد يحرم طالبًا آخر هو بأمسّ الحاجة إليه.",
+  "scholarship.card2.p4":
+    "ونحن، من جهتنا، نعدكم بأننا سنبذل كل ما في وسعنا حتى لا يكون المال حاجزًا أمام طالب يرغب في التعلم بجد واجتهاد، وسنعمل على دراسة جميع الطلبات بكل عدل واحترام وسرية، سائلين الله أن يوفقنا إلى إيصال هذه المنحة إلى مستحقيها.",
+  "scholarship.card2.p5":
+    "نسأل الله أن يبارك في الجميع، وأن يجعل هذا العمل سببًا في نشر العلم والخير.",
+
+  "scholarship.form.title": "بيانات الطلب",
+  "scholarship.form.submit": "إرسال الطلب",
+  "scholarship.form.submittedTitle": "تم إرسال الطلب",
+  "scholarship.form.submittedBody":
+    "شكرًا لك. تم استلام طلب المنحة بنجاح. يمكنك إغلاق هذه الصفحة.",
+  "scholarship.form.invalidTitle": "الرابط غير صالح",
+  "scholarship.form.invalidBody":
+    "رابط طلب المنحة هذا غير صالح أو لم يعد متاحًا.",
+  "scholarship.form.usedTitle": "تم استخدام الرابط مسبقًا",
+  "scholarship.form.usedBody":
+    "استُخدم هذا الرابط مسبقًا لإرسال طلب. تواصل مع الأكاديمية إذا احتجت إلى تعديلات.",
+  "scholarship.hint.required": "مطلوب",
+  "scholarship.hint.optional": "اختياري",
+
+  "scholarship.field.fullName": "الاسم الكامل",
+  "scholarship.field.school": "المدرسة / الجامعة",
+  "scholarship.field.dob": "تاريخ الميلاد",
+  "scholarship.field.phone": "الهاتف",
+  "scholarship.field.parentPhone": "هاتف ولي الأمر",
+  "scholarship.field.gpa": "المعدل الحالي",
+  "scholarship.field.certificates": "الشهادات",
+  "scholarship.field.familyMembers": "عدد أفراد الأسرة",
+  "scholarship.field.workingFamilyMembers": "عدد الأفراد العاملين في الأسرة",
+  "scholarship.field.totalFamilyIncome": "إجمالي دخل الأسرة",
+  "scholarship.field.childrenLearning": "عدد الأبناء الملتحقين بالتعليم حاليًا",
+  "scholarship.field.affordablePayment": "القسط الشهري الذي تستطيع تحمّله",
+  "scholarship.field.studentIncome": "دخل الطالب الشهري",
+  "scholarship.field.aidBefore": "سبق أن حصلت على مساعدة مالية",
+  "scholarship.field.deceasedParent": "وجود والد متوفى",
+  "scholarship.field.bothParentsWork": "كلا الوالدين يعملان",
+  "scholarship.field.hardship": "وجود ضائقة أسرية",
+  "scholarship.field.chronicDisease": "وجود مرض مزمن في الأسرة",
+  "scholarship.field.studentWorks": "الطالب يعمل",
+  "scholarship.field.agreed": "أوافق على شروط المنحة (مطلوب)",
+
   "language.en": "EN",
   "language.ar": "ع",
 } as const satisfies Record<MessageKey, string>;

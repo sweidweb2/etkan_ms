@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteNavbarClient } from "@/components/layout/site-navbar-client";
 import { PublicSplashCursor } from "@/components/public/public-splash-cursor";
@@ -16,22 +17,27 @@ type PublicShellProps = {
  */
 export function PublicShell({ children }: PublicShellProps) {
   const { dir, locale } = usePublicI18n();
+  const pathname = usePathname();
+  const hideSiteChrome = pathname.startsWith("/f/");
 
   return (
     <div dir={dir} lang={locale} className="relative flex min-h-dvh flex-col">
-      <SiteNavbarClient initialDashboardHref={null} />
+      {hideSiteChrome ? null : (
+        <SiteNavbarClient initialDashboardHref={null} />
+      )}
       <div className="relative flex min-h-dvh flex-col">
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-        <SiteFooter />
+        {hideSiteChrome ? null : <SiteFooter />}
       </div>
-      {/* Cursor effect last in DOM but z-0 so it never covers navbar/content. */}
-      <div
-        className="pointer-events-none fixed inset-0 -z-10"
-        style={{ zIndex: 0 }}
-        aria-hidden
-      >
-        <PublicSplashCursor />
-      </div>
+      {hideSiteChrome ? null : (
+        <div
+          className="pointer-events-none fixed inset-0 -z-10"
+          style={{ zIndex: 0 }}
+          aria-hidden
+        >
+          <PublicSplashCursor />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,14 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useActionState, useState, useTransition } from "react";
-import { format } from "date-fns";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import {
   deleteFinancialAdjustmentAction,
+  deleteFinancialFormAction,
+  deleteFinancialFormInviteAction,
   deleteStudentPaymentAction,
   deleteStudentPaymentPhaseAction,
+  createFinancialFormInviteAction,
 } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
 import { CreateFinancialAdjustmentDialog } from "@/components/manager/accounting/create-financial-adjustment-dialog";
@@ -71,11 +69,17 @@ import {
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
+  CreateFinancialFormInviteActionState,
   DeleteFinancialAdjustmentActionState,
+  DeleteFinancialFormActionState,
+  DeleteFinancialFormInviteActionState,
   ManagerFinancialAdjustmentRow,
+  ManagerFinancialFormInviteRow,
+  ManagerFinancialFormRow,
 } from "@/types/manager-financial-adjustment";
 import type {
   DeleteStudentPaymentActionState,
@@ -83,10 +87,18 @@ import type {
   ManagerSppDetail,
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
+import { CopyIcon, LinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useActionState, useState, useTransition } from "react";
+import { format } from "date-fns";
 
 const initialDeletePaymentState: DeleteStudentPaymentActionState = {};
 const initialDeleteAdjustmentState: DeleteFinancialAdjustmentActionState = {};
 const initialDeleteSppState: DeleteStudentPaymentPhaseActionState = {};
+const initialDeleteFormState: DeleteFinancialFormActionState = {};
+const initialDeleteInviteState: DeleteFinancialFormInviteActionState = {};
+const initialInviteState: CreateFinancialFormInviteActionState = {};
 const SPP_HAS_PAYMENTS_DELETE_ERROR =
   "Delete all payments on this SPP first.";
 
@@ -94,6 +106,8 @@ type SppDetailsPanelProps = {
   spp: ManagerSppDetail;
   initialPayments: ManagerStudentPaymentRow[];
   initialAdjustment: ManagerFinancialAdjustmentRow | null;
+  initialForms: ManagerFinancialFormRow[];
+  initialInvites: ManagerFinancialFormInviteRow[];
   actorLabel: string;
 };
 
@@ -143,6 +157,8 @@ export function SppDetailsPanel({
   spp: initialSpp,
   initialPayments,
   initialAdjustment,
+  initialForms,
+  initialInvites,
   actorLabel,
 }: SppDetailsPanelProps) {
   const router = useRouter();
@@ -152,6 +168,10 @@ export function SppDetailsPanel({
   const [prevPayments, setPrevPayments] = useState(initialPayments);
   const [adjustment, setAdjustment] = useState(initialAdjustment);
   const [prevAdjustment, setPrevAdjustment] = useState(initialAdjustment);
+  const [forms, setForms] = useState(initialForms);
+  const [prevForms, setPrevForms] = useState(initialForms);
+  const [invites, setInvites] = useState(initialInvites);
+  const [prevInvites, setPrevInvites] = useState(initialInvites);
   const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
   const [editingPayment, setEditingPayment] =
     useState<ManagerStudentPaymentRow | null>(null);
@@ -162,6 +182,12 @@ export function SppDetailsPanel({
   const [isDeleteAdjustmentOpen, setIsDeleteAdjustmentOpen] = useState(false);
   const [isDeleteSppOpen, setIsDeleteSppOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [editingForm, setEditingForm] =
+    useState<ManagerFinancialFormRow | null>(null);
+  const [deletingForm, setDeletingForm] =
+    useState<ManagerFinancialFormRow | null>(null);
+  const [deletingInvite, setDeletingInvite] =
+    useState<ManagerFinancialFormInviteRow | null>(null);
   const [isTransitionPending, startTransition] = useTransition();
 
   const [deletePaymentState, deletePaymentAction, isDeletePaymentPending] =
@@ -178,12 +204,24 @@ export function SppDetailsPanel({
     deleteStudentPaymentPhaseAction,
     initialDeleteSppState
   );
+  const [deleteFormState, deleteFormAction, isDeleteFormPending] =
+    useActionState(deleteFinancialFormAction, initialDeleteFormState);
+  const [deleteInviteState, deleteInviteAction, isDeleteInvitePending] =
+    useActionState(deleteFinancialFormInviteAction, initialDeleteInviteState);
+  const [inviteState, inviteAction, isInvitePending] = useActionState(
+    createFinancialFormInviteAction,
+    initialInviteState
+  );
 
   const isDeletePaymentActionPending =
     isDeletePaymentPending || isTransitionPending;
   const isDeleteAdjustmentActionPending =
     isDeleteAdjustmentPending || isTransitionPending;
   const isDeleteSppActionPending = isDeleteSppPending || isTransitionPending;
+  const isDeleteFormActionPending = isDeleteFormPending || isTransitionPending;
+  const isDeleteInviteActionPending =
+    isDeleteInvitePending || isTransitionPending;
+  const isInviteActionPending = isInvitePending || isTransitionPending;
 
   const handleDeletePaymentOpenChange = usePendingAwareOpenChange(
     isDeletePaymentActionPending,
@@ -204,6 +242,24 @@ export function SppDetailsPanel({
     setIsDeleteSppOpen
   );
 
+  const handleDeleteFormOpenChange = usePendingAwareOpenChange(
+    isDeleteFormActionPending,
+    (open) => {
+      if (!open) {
+        setDeletingForm(null);
+      }
+    }
+  );
+
+  const handleDeleteInviteOpenChange = usePendingAwareOpenChange(
+    isDeleteInviteActionPending,
+    (open) => {
+      if (!open) {
+        setDeletingInvite(null);
+      }
+    }
+  );
+
   useActionStateToast(deletePaymentState, isDeletePaymentActionPending);
   useActionStateSuccess(deletePaymentState, isDeletePaymentActionPending, () => {
     setDeletingPayment(null);
@@ -222,6 +278,28 @@ export function SppDetailsPanel({
 
   useActionStateToast(deleteSppState, isDeleteSppActionPending);
 
+  useActionStateToast(deleteFormState, isDeleteFormActionPending);
+  useActionStateSuccess(deleteFormState, isDeleteFormActionPending, () => {
+    setDeletingForm(null);
+    router.refresh();
+  });
+
+  useActionStateToast(deleteInviteState, isDeleteInviteActionPending);
+  useActionStateSuccess(deleteInviteState, isDeleteInviteActionPending, () => {
+    setDeletingInvite(null);
+    router.refresh();
+  });
+
+  useActionStateToast(inviteState, isInviteActionPending);
+  useActionStateSuccess(inviteState, isInviteActionPending, () => {
+    if (inviteState.invite?.url) {
+      void navigator.clipboard.writeText(inviteState.invite.url).then(() => {
+        showSuccessToast("Invite link copied to clipboard.");
+      });
+    }
+    router.refresh();
+  });
+
   if (initialSpp !== prevSpp) {
     setPrevSpp(initialSpp);
     setSpp(initialSpp);
@@ -235,6 +313,16 @@ export function SppDetailsPanel({
   if (initialAdjustment !== prevAdjustment) {
     setPrevAdjustment(initialAdjustment);
     setAdjustment(initialAdjustment);
+  }
+
+  if (initialForms !== prevForms) {
+    setPrevForms(initialForms);
+    setForms(initialForms);
+  }
+
+  if (initialInvites !== prevInvites) {
+    setPrevInvites(initialInvites);
+    setInvites(initialInvites);
   }
 
   const handleChanged = () => {
@@ -258,6 +346,63 @@ export function SppDetailsPanel({
     formData.set("student_payment_phase_id", spp.id);
     startTransition(() => {
       deleteAdjustmentAction(formData);
+    });
+  }
+
+  function handleGenerateInvite() {
+    const formData = new FormData();
+    formData.set("student_payment_phase_id", spp.id);
+    startTransition(() => {
+      inviteAction(formData);
+    });
+  }
+
+  async function handleCopyInviteUrl(url: string) {
+    await navigator.clipboard.writeText(url);
+    showSuccessToast("Invite link copied to clipboard.");
+  }
+
+  function handleOpenWhatsApp(url: string) {
+    const text = encodeURIComponent(
+      `Please fill your financial form using this link: ${url}`
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+  }
+
+  function handleOpenCreateForm() {
+    setEditingForm(null);
+    setIsFormDialogOpen(true);
+  }
+
+  function handleOpenEditForm(nextForm: ManagerFinancialFormRow) {
+    setEditingForm(nextForm);
+    setIsFormDialogOpen(true);
+  }
+
+  function handleFormDialogOpenChange(open: boolean) {
+    setIsFormDialogOpen(open);
+    if (!open) {
+      setEditingForm(null);
+    }
+  }
+
+  function handleConfirmDeleteForm() {
+    if (!deletingForm) return;
+    const formData = new FormData();
+    formData.set("id", deletingForm.id);
+    formData.set("student_payment_phase_id", spp.id);
+    startTransition(() => {
+      deleteFormAction(formData);
+    });
+  }
+
+  function handleConfirmDeleteInvite() {
+    if (!deletingInvite) return;
+    const formData = new FormData();
+    formData.set("id", deletingInvite.id);
+    formData.set("student_payment_phase_id", spp.id);
+    startTransition(() => {
+      deleteInviteAction(formData);
     });
   }
 
@@ -347,16 +492,14 @@ export function SppDetailsPanel({
           onUpdated={handleChanged}
         />
 
-        {adjustment ? (
-          <UpsertFinancialFormDialog
-            key={adjustment.form?.id ?? `create-form-${adjustment.id}`}
-            open={isFormDialogOpen}
-            onOpenChange={setIsFormDialogOpen}
-            adjustmentId={adjustment.id}
-            form={adjustment.form}
-            onSaved={handleChanged}
-          />
-        ) : null}
+        <UpsertFinancialFormDialog
+          key={editingForm?.id ?? `create-form-${spp.id}`}
+          open={isFormDialogOpen}
+          onOpenChange={handleFormDialogOpenChange}
+          sppId={spp.id}
+          form={editingForm}
+          onSaved={handleChanged}
+        />
 
         <Dialog
           open={deletingPayment !== null}
@@ -409,11 +552,7 @@ export function SppDetailsPanel({
             <DialogHeader>
               <DialogTitle>Delete financial adjustment</DialogTitle>
               <DialogDescription>
-                Delete this adjustment
-                {adjustment?.form
-                  ? " and its financial form"
-                  : ""}
-                ? Balances will recalculate.
+                Delete this adjustment? Balances will recalculate.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="sm:justify-end">
@@ -469,6 +608,81 @@ export function SppDetailsPanel({
               >
                 {isDeleteSppActionPending ? <InlineSpinner /> : null}
                 Delete SPP
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={deletingForm !== null}
+          onOpenChange={handleDeleteFormOpenChange}
+        >
+          <DialogContent
+            className="sm:max-w-md"
+            showCloseButton={!isDeleteFormActionPending}
+          >
+            <DialogHeader>
+              <DialogTitle>Delete financial form</DialogTitle>
+              <DialogDescription>
+                Permanently delete the financial form for{" "}
+                {deletingForm?.full_name ?? "this student"}? This cannot be
+                undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDeleteFormOpenChange(false)}
+                disabled={isDeleteFormActionPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmDeleteForm}
+                disabled={isDeleteFormActionPending}
+              >
+                {isDeleteFormActionPending ? <InlineSpinner /> : null}
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={deletingInvite !== null}
+          onOpenChange={handleDeleteInviteOpenChange}
+        >
+          <DialogContent
+            className="sm:max-w-md"
+            showCloseButton={!isDeleteInviteActionPending}
+          >
+            <DialogHeader>
+              <DialogTitle>Delete invite link</DialogTitle>
+              <DialogDescription>
+                Permanently delete this active invite link? Anyone with the
+                link will no longer be able to submit a form.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDeleteInviteOpenChange(false)}
+                disabled={isDeleteInviteActionPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmDeleteInvite}
+                disabled={isDeleteInviteActionPending}
+              >
+                {isDeleteInviteActionPending ? <InlineSpinner /> : null}
+                Delete
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -562,168 +776,6 @@ export function SppDetailsPanel({
             </p>
           </div>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial adjustment</CardTitle>
-            {!spp.payments_blocked && !adjustment ? (
-              <CardAction>
-                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setIsCreateAdjustmentOpen(true)}
-                  >
-                    <PlusIcon data-icon="inline-start" />
-                    Add adjustment
-                  </Button>
-                </Can>
-              </CardAction>
-            ) : null}
-            {!spp.payments_blocked && adjustment ? (
-              <CardAction className="flex flex-wrap gap-2">
-                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsEditAdjustmentOpen(true)}
-                  >
-                    <PencilIcon data-icon="inline-start" />
-                    Edit
-                  </Button>
-                </Can>
-                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsDeleteAdjustmentOpen(true)}
-                  >
-                    <Trash2Icon data-icon="inline-start" />
-                    Delete
-                  </Button>
-                </Can>
-              </CardAction>
-            ) : null}
-          </CardHeader>
-          <CardContent>
-            {!adjustment ? (
-              <p className="text-sm text-muted-foreground">
-                No financial adjustment on this student payment phase.
-              </p>
-            ) : (
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-muted-foreground">Type</dt>
-                  <dd className="font-medium">
-                    {
-                      FINANCIAL_ADJUSTMENT_TYPE_LABELS[
-                        adjustment.type as FinancialAdjustmentType
-                      ]
-                    }
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Value type</dt>
-                  <dd className="font-medium">
-                    {
-                      FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS[
-                        adjustment.value_type as FinancialAdjustmentValueType
-                      ]
-                    }
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Value</dt>
-                  <dd className="font-medium tabular-nums">
-                    {formatAdjustmentValue(
-                      adjustment.value_type as FinancialAdjustmentValueType,
-                      adjustment.value
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Effective date</dt>
-                  <dd className="font-medium">
-                    {format(
-                      new Date(adjustment.effective_date),
-                      "MMM d, yyyy"
-                    )}
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-muted-foreground">Reason</dt>
-                  <dd className="font-medium">{adjustment.reason ?? "—"}</dd>
-                </div>
-              </dl>
-            )}
-          </CardContent>
-        </Card>
-
-        {adjustment ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Financial form</CardTitle>
-              {!spp.payments_blocked ? (
-                <CardAction>
-                  <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={adjustment.form ? "outline" : "default"}
-                      onClick={() => setIsFormDialogOpen(true)}
-                    >
-                      {adjustment.form ? (
-                        <>
-                          <PencilIcon data-icon="inline-start" />
-                          Edit form
-                        </>
-                      ) : (
-                        <>
-                          <PlusIcon data-icon="inline-start" />
-                          Add financial form
-                        </>
-                      )}
-                    </Button>
-                  </Can>
-                </CardAction>
-              ) : null}
-            </CardHeader>
-            <CardContent>
-              {!adjustment.form ? (
-                <p className="text-sm text-muted-foreground">
-                  No financial form attached. Forms do not change amounts.
-                </p>
-              ) : (
-                <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div>
-                    <dt className="text-muted-foreground">Full name</dt>
-                    <dd className="font-medium">{adjustment.form.full_name}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Agreed to rules</dt>
-                    <dd className="font-medium">
-                      {adjustment.form.agreed_to_rules ? "Yes" : "No"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">School / university</dt>
-                    <dd className="font-medium">
-                      {adjustment.form.school_or_university ?? "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Phone</dt>
-                    <dd className="font-medium">
-                      {adjustment.form.phone ?? "—"}
-                    </dd>
-                  </div>
-                </dl>
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
 
         <Card className="py-0">
           <CardHeader className="border-b py-3">
@@ -848,6 +900,294 @@ export function SppDetailsPanel({
                 </tbody>
               </table>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial adjustment</CardTitle>
+            {!spp.payments_blocked && !adjustment ? (
+              <CardAction>
+                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsCreateAdjustmentOpen(true)}
+                  >
+                    <PlusIcon data-icon="inline-start" />
+                    Add adjustment
+                  </Button>
+                </Can>
+              </CardAction>
+            ) : null}
+            {!spp.payments_blocked && adjustment ? (
+              <CardAction className="flex flex-wrap gap-2">
+                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsEditAdjustmentOpen(true)}
+                  >
+                    <PencilIcon data-icon="inline-start" />
+                    Edit
+                  </Button>
+                </Can>
+                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsDeleteAdjustmentOpen(true)}
+                  >
+                    <Trash2Icon data-icon="inline-start" />
+                    Delete
+                  </Button>
+                </Can>
+              </CardAction>
+            ) : null}
+          </CardHeader>
+          <CardContent>
+            {!adjustment ? (
+              <p className="text-sm text-muted-foreground">
+                No financial adjustment on this student payment phase.
+              </p>
+            ) : (
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground">Type</dt>
+                  <dd className="font-medium">
+                    {
+                      FINANCIAL_ADJUSTMENT_TYPE_LABELS[
+                        adjustment.type as FinancialAdjustmentType
+                      ]
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Value type</dt>
+                  <dd className="font-medium">
+                    {
+                      FINANCIAL_ADJUSTMENT_VALUE_TYPE_LABELS[
+                        adjustment.value_type as FinancialAdjustmentValueType
+                      ]
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Value</dt>
+                  <dd className="font-medium tabular-nums">
+                    {formatAdjustmentValue(
+                      adjustment.value_type as FinancialAdjustmentValueType,
+                      adjustment.value
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Effective date</dt>
+                  <dd className="font-medium">
+                    {format(
+                      new Date(adjustment.effective_date),
+                      "MMM d, yyyy"
+                    )}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">Reason</dt>
+                  <dd className="font-medium">{adjustment.reason ?? "—"}</dd>
+                </div>
+              </dl>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial form invites</CardTitle>
+            {!spp.payments_blocked ? (
+              <CardAction>
+                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleGenerateInvite}
+                    disabled={isInviteActionPending}
+                  >
+                    {isInviteActionPending ? (
+                      <InlineSpinner />
+                    ) : (
+                      <LinkIcon data-icon="inline-start" />
+                    )}
+                    Generate invite link
+                  </Button>
+                </Can>
+              </CardAction>
+            ) : null}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              One-shot public links. Each link expires after the first
+              submission.
+            </p>
+            {invites.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No invite links yet.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {invites.map((invite) => (
+                  <li
+                    key={invite.id}
+                    className="flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {invite.is_used ? "Used" : "Active"} ·{" "}
+                        {format(new Date(invite.created_at), "MMM d, yyyy HH:mm")}
+                      </p>
+                      {!invite.is_used ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {invite.url}
+                        </p>
+                      ) : null}
+                    </div>
+                    {!invite.is_used && !spp.payments_blocked ? (
+                      <div className="flex shrink-0 gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleCopyInviteUrl(invite.url)}
+                        >
+                          <CopyIcon data-icon="inline-start" />
+                          Copy
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenWhatsApp(invite.url)}
+                        >
+                          WhatsApp
+                        </Button>
+                        <Can
+                          permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}
+                        >
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            aria-label="Delete invite link"
+                            onClick={() => setDeletingInvite(invite)}
+                          >
+                            <Trash2Icon data-icon="inline-start" />
+                            Delete
+                          </Button>
+                        </Can>
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial forms</CardTitle>
+            {!spp.payments_blocked ? (
+              <CardAction>
+                <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleOpenCreateForm}
+                  >
+                    <PlusIcon data-icon="inline-start" />
+                    Add financial form
+                  </Button>
+                </Can>
+              </CardAction>
+            ) : null}
+          </CardHeader>
+          <CardContent>
+            {forms.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No financial forms yet. Forms do not change amounts.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {forms.map((formRow) => (
+                  <div
+                    key={formRow.id}
+                    className="rounded-lg border bg-card px-3 py-3 shadow-sm"
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <p className="min-w-0 truncate text-sm font-medium">
+                        {formRow.full_name}
+                      </p>
+                      {!spp.payments_blocked ? (
+                        <div className="flex shrink-0 gap-1">
+                          <Can
+                            permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_UPDATE}
+                          >
+                            <Button
+                              type="button"
+                              size="icon-sm"
+                              variant="ghost"
+                              aria-label="Edit financial form"
+                              onClick={() => handleOpenEditForm(formRow)}
+                            >
+                              <PencilIcon />
+                            </Button>
+                          </Can>
+                          <Can
+                            permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE}
+                          >
+                            <Button
+                              type="button"
+                              size="icon-sm"
+                              variant="ghost"
+                              aria-label="Delete financial form"
+                              onClick={() => setDeletingForm(formRow)}
+                            >
+                              <Trash2Icon />
+                            </Button>
+                          </Can>
+                        </div>
+                      ) : null}
+                    </div>
+                    <dl className="grid gap-2 text-xs sm:text-sm">
+                      <div>
+                        <dt className="text-muted-foreground">Agreed to rules</dt>
+                        <dd className="font-medium">
+                          {formRow.agreed_to_rules ? "Yes" : "No"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">
+                          School / university
+                        </dt>
+                        <dd className="font-medium">
+                          {formRow.school_or_university ?? "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Phone</dt>
+                        <dd className="font-medium">{formRow.phone ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Submitted</dt>
+                        <dd className="font-medium">
+                          {format(new Date(formRow.created_at), "MMM d, yyyy")}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

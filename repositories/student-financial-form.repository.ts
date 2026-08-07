@@ -4,11 +4,12 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const FORM_COLUMNS =
-  "id, student_financial_adjustment_id, full_name, school_or_university, date_of_birth, phone, parent_phone, current_gpa, received_financial_aid_before, certificates, family_members, working_family_members, total_family_income, children_currently_learning, has_deceased_parent, both_parents_work, family_hardship, family_chronic_disease, affordable_monthly_payment, student_works, student_monthly_income, agreed_to_rules, created_at, updated_at";
+  "id, student_payment_phase_id, invite_id, full_name, school_or_university, date_of_birth, phone, parent_phone, current_gpa, received_financial_aid_before, certificates, family_members, working_family_members, total_family_income, children_currently_learning, has_deceased_parent, both_parents_work, family_hardship, family_chronic_disease, affordable_monthly_payment, student_works, student_monthly_income, agreed_to_rules, created_at, updated_at";
 
 export type FinancialFormRecord = {
   id: string;
-  student_financial_adjustment_id: string;
+  student_payment_phase_id: string;
+  invite_id: string | null;
   full_name: string;
   school_or_university: string | null;
   date_of_birth: string | null;
@@ -34,7 +35,8 @@ export type FinancialFormRecord = {
 };
 
 export type CreateFinancialFormRecordInput = {
-  student_financial_adjustment_id: string;
+  student_payment_phase_id: string;
+  invite_id?: string | null;
   full_name: string;
   school_or_university: string | null;
   date_of_birth: string | null;
@@ -59,18 +61,15 @@ export type CreateFinancialFormRecordInput = {
 
 export type UpdateFinancialFormRecordInput = Omit<
   CreateFinancialFormRecordInput,
-  "student_financial_adjustment_id"
+  "student_payment_phase_id" | "invite_id"
 >;
 
-export async function findFormByAdjustmentId(
-  client: Supabase,
-  adjustmentId: string
-) {
+export async function listFormsBySppId(client: Supabase, sppId: string) {
   return client
     .from("student_financial_forms")
     .select(FORM_COLUMNS)
-    .eq("student_financial_adjustment_id", adjustmentId)
-    .maybeSingle();
+    .eq("student_payment_phase_id", sppId)
+    .order("created_at", { ascending: false });
 }
 
 export async function findFormById(client: Supabase, id: string) {
@@ -88,7 +87,8 @@ export async function createForm(
   return client
     .from("student_financial_forms")
     .insert({
-      student_financial_adjustment_id: input.student_financial_adjustment_id,
+      student_payment_phase_id: input.student_payment_phase_id,
+      invite_id: input.invite_id ?? null,
       full_name: input.full_name,
       school_or_university: input.school_or_university,
       date_of_birth: input.date_of_birth,
@@ -147,4 +147,8 @@ export async function updateForm(
     .eq("id", id)
     .select(FORM_COLUMNS)
     .single();
+}
+
+export async function deleteForm(client: Supabase, id: string) {
+  return client.from("student_financial_forms").delete().eq("id", id);
 }

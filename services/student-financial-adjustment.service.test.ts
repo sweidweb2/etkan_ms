@@ -3,8 +3,10 @@ import {
   createFinancialAdjustmentSchema,
   updateFinancialAdjustmentSchema,
 } from "@/lib/validators/manager/create-financial-adjustment";
+import { checkPublicFinancialFormSubmitRateLimit } from "@/lib/rate-limit/public-financial-form-rate-limit";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
+import * as studentFinancialFormInviteRepository from "@/repositories/student-financial-form-invite.repository";
 import * as studentFinancialFormRepository from "@/repositories/student-financial-form.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
@@ -13,7 +15,10 @@ import type { AuditActor } from "@/services/audit-log.service";
 import {
   createAdjustmentForManager,
   createFinancialFormForManager,
+  createFinancialFormInviteForManager,
   deleteAdjustmentForManager,
+  deleteFinancialFormInviteForManager,
+  submitFinancialFormByToken,
   updateAdjustmentForManager,
 } from "@/services/student-financial-adjustment.service";
 
@@ -22,6 +27,21 @@ vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-financial-adjustment.repository");
 vi.mock("@/repositories/student-financial-form.repository");
+vi.mock("@/repositories/student-financial-form-invite.repository");
+vi.mock("@/repositories/profile.repository", () => ({
+  findProfileById: vi.fn().mockResolvedValue({ data: { username: "jane" }, error: null }),
+}));
+vi.mock("@/repositories/student-profile.repository", () => ({
+  listStudentProfilesByUserIds: vi.fn().mockResolvedValue({
+    data: [{ id: "sp1", full_name: "Jane Student" }],
+    error: null,
+  }),
+}));
+vi.mock("@/lib/manager/accounting/financial-form-invite-url", () => ({
+  getFinancialFormInviteUrl: (token: string) =>
+    `http://localhost:3000/f/${token}`,
+}));
+vi.mock("@/lib/rate-limit/public-financial-form-rate-limit");
 vi.mock("@/services/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -46,6 +66,8 @@ const phaseId = "22222222-2222-4222-8222-222222222222";
 const sppId = "33333333-3333-4333-8333-333333333333";
 const adjustmentId = "55555555-5555-4555-8555-555555555555";
 const formId = "66666666-6666-4666-8666-666666666666";
+const inviteId = "77777777-7777-4777-8777-777777777777";
+const inviteToken = "test-invite-token-abcdefghijklmnopqrstuvwxyz";
 
 const phaseRecord = {
   id: phaseId,
@@ -96,7 +118,8 @@ const adjustmentRecord = {
 
 const formRecord = {
   id: formId,
-  student_financial_adjustment_id: adjustmentId,
+  student_payment_phase_id: sppId,
+  invite_id: null,
   full_name: "Jane Student",
   school_or_university: null,
   date_of_birth: null,
@@ -119,6 +142,16 @@ const formRecord = {
   agreed_to_rules: true,
   created_at: "2026-07-15T00:00:00.000Z",
   updated_at: "2026-07-15T00:00:00.000Z",
+};
+
+const inviteRecord = {
+  id: inviteId,
+  student_payment_phase_id: sppId,
+  token: inviteToken,
+  created_by: actor.userId,
+  created_at: "2026-07-15T00:00:00.000Z",
+  used_at: null,
+  form_id: null,
 };
 
 function mockOkLoad() {
@@ -376,15 +409,6 @@ describe("createAdjustmentForManager", () => {
       status: 201,
       statusText: "Created",
     } as never);
-    vi.mocked(
-      studentFinancialFormRepository.findFormByAdjustmentId
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
     mockRecalcAfterScholarship();
 
     const result = await createAdjustmentForManager(
@@ -549,10 +573,8 @@ describe("createFinancialFormForManager", () => {
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
-  it("rejects form create when adjustment is missing", async () => {
-    vi.mocked(
-      studentFinancialAdjustmentRepository.findAdjustmentById
-    ).mockResolvedValue({
+  it("rejects form create when student payment phase is missing", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
       data: null,
       error: null,
       count: null,
@@ -565,7 +587,7 @@ describe("createFinancialFormForManager", () => {
       actor.userId,
       actor,
       {
-        student_financial_adjustment_id: adjustmentId,
+        student_payment_phase_id: sppId,
         full_name: "Jane Student",
         school_or_university: null,
         date_of_birth: null,
@@ -591,29 +613,18 @@ describe("createFinancialFormForManager", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/adjustment not found/i);
+      expect(result.error).toMatch(/student payment phase not found/i);
     }
   });
 
-  it("rejects a second form for the same adjustment", async () => {
-    vi.mocked(
-      studentFinancialAdjustmentRepository.findAdjustmentById
-    ).mockResolvedValue({
-      data: adjustmentRecord,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+  it("allows multiple forms on the same student payment phase", async () => {
     mockOkLoad();
-    vi.mocked(
-      studentFinancialFormRepository.findFormByAdjustmentId
-    ).mockResolvedValue({
+    vi.mocked(studentFinancialFormRepository.createForm).mockResolvedValue({
       data: formRecord,
       error: null,
       count: null,
-      status: 200,
-      statusText: "OK",
+      status: 201,
+      statusText: "Created",
     } as never);
 
     const result = await createFinancialFormForManager(
@@ -621,7 +632,7 @@ describe("createFinancialFormForManager", () => {
       actor.userId,
       actor,
       {
-        student_financial_adjustment_id: adjustmentId,
+        student_payment_phase_id: sppId,
         full_name: "Jane Student",
         school_or_university: null,
         date_of_birth: null,
@@ -645,11 +656,288 @@ describe("createFinancialFormForManager", () => {
       }
     );
 
+    expect(result.success).toBe(true);
+    expect(studentFinancialFormRepository.createForm).toHaveBeenCalled();
+  });
+});
+
+describe("createFinancialFormInviteForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("creates an invite with a public url", async () => {
+    mockOkLoad();
+    vi.mocked(
+      studentFinancialFormInviteRepository.createInvite
+    ).mockResolvedValue({
+      data: inviteRecord,
+      error: null,
+      count: null,
+      status: 201,
+      statusText: "Created",
+    } as never);
+
+    const result = await createFinancialFormInviteForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { student_payment_phase_id: sppId }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.invite.token).toBe(inviteToken);
+      expect(result.invite.url).toContain("/f/");
+      expect(result.invite.is_used).toBe(false);
+    }
+  });
+});
+
+describe("deleteFinancialFormInviteForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("deletes an active invite", async () => {
+    mockOkLoad();
+    vi.mocked(
+      studentFinancialFormInviteRepository.findInviteById
+    ).mockResolvedValue({
+      data: inviteRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentFinancialFormInviteRepository.deleteInvite
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 204,
+      statusText: "No Content",
+    } as never);
+
+    const result = await deleteFinancialFormInviteForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: inviteId, student_payment_phase_id: sppId }
+    );
+
+    expect(result.success).toBe(true);
+    expect(studentFinancialFormInviteRepository.deleteInvite).toHaveBeenCalledWith(
+      adminClient,
+      inviteId
+    );
+  });
+
+  it("rejects deleting a used invite", async () => {
+    vi.mocked(
+      studentFinancialFormInviteRepository.findInviteById
+    ).mockResolvedValue({
+      data: {
+        ...inviteRecord,
+        used_at: "2026-07-16T00:00:00.000Z",
+        form_id: formId,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await deleteFinancialFormInviteForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: inviteId, student_payment_phase_id: sppId }
+    );
+
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/already has a financial form/i);
+      expect(result.error).toBe("Used invite links cannot be deleted.");
+    }
+    expect(
+      studentFinancialFormInviteRepository.deleteInvite
+    ).not.toHaveBeenCalled();
+  });
+});
+
+describe("submitFinancialFormByToken", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(checkPublicFinancialFormSubmitRateLimit).mockResolvedValue({
+      allowed: true,
+    });
+  });
+
+  it("creates a form and marks the invite used", async () => {
+    vi.mocked(
+      studentFinancialFormInviteRepository.findInviteByToken
+    ).mockResolvedValue({
+      data: inviteRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    mockOkLoad();
+    vi.mocked(studentFinancialFormRepository.createForm).mockResolvedValue({
+      data: { ...formRecord, invite_id: inviteId },
+      error: null,
+      count: null,
+      status: 201,
+      statusText: "Created",
+    } as never);
+    vi.mocked(
+      studentFinancialFormInviteRepository.markInviteUsed
+    ).mockResolvedValue({
+      data: {
+        ...inviteRecord,
+        used_at: "2026-07-16T00:00:00.000Z",
+        form_id: formId,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await submitFinancialFormByToken(adminClient, {
+      token: inviteToken,
+      full_name: "Jane Student",
+      school_or_university: null,
+      date_of_birth: null,
+      phone: null,
+      parent_phone: null,
+      current_gpa: null,
+      received_financial_aid_before: false,
+      certificates: null,
+      family_members: null,
+      working_family_members: null,
+      total_family_income: null,
+      children_currently_learning: null,
+      has_deceased_parent: false,
+      both_parents_work: false,
+      family_hardship: false,
+      family_chronic_disease: false,
+      affordable_monthly_payment: null,
+      student_works: false,
+      student_monthly_income: null,
+      agreed_to_rules: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(studentFinancialFormRepository.createForm).toHaveBeenCalled();
+    expect(
+      studentFinancialFormInviteRepository.markInviteUsed
+    ).toHaveBeenCalled();
+  });
+
+  it("rejects a second submit on the same token", async () => {
+    vi.mocked(
+      studentFinancialFormInviteRepository.findInviteByToken
+    ).mockResolvedValue({
+      data: {
+        ...inviteRecord,
+        used_at: "2026-07-16T00:00:00.000Z",
+        form_id: formId,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await submitFinancialFormByToken(adminClient, {
+      token: inviteToken,
+      full_name: "Jane Student",
+      school_or_university: null,
+      date_of_birth: null,
+      phone: null,
+      parent_phone: null,
+      current_gpa: null,
+      received_financial_aid_before: false,
+      certificates: null,
+      family_members: null,
+      working_family_members: null,
+      total_family_income: null,
+      children_currently_learning: null,
+      has_deceased_parent: false,
+      both_parents_work: false,
+      family_hardship: false,
+      family_chronic_disease: false,
+      affordable_monthly_payment: null,
+      student_works: false,
+      student_monthly_income: null,
+      agreed_to_rules: true,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/already been used/i);
     }
     expect(studentFinancialFormRepository.createForm).not.toHaveBeenCalled();
+  });
+
+  it("rejects submit when the student assignment is cancelled", async () => {
+    vi.mocked(
+      studentFinancialFormInviteRepository.findInviteByToken
+    ).mockResolvedValue({
+      data: inviteRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: { ...sppRecord, status: "cancelled" },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
+      data: phaseRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const result = await submitFinancialFormByToken(adminClient, {
+      token: inviteToken,
+      full_name: "Jane Student",
+      school_or_university: null,
+      date_of_birth: null,
+      phone: null,
+      parent_phone: null,
+      current_gpa: null,
+      received_financial_aid_before: false,
+      certificates: null,
+      family_members: null,
+      working_family_members: null,
+      total_family_income: null,
+      children_currently_learning: null,
+      has_deceased_parent: false,
+      both_parents_work: false,
+      family_hardship: false,
+      family_chronic_disease: false,
+      affordable_monthly_payment: null,
+      student_works: false,
+      student_monthly_income: null,
+      agreed_to_rules: true,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/cancelled student assignment/i);
+    }
   });
 });
 

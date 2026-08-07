@@ -6,7 +6,8 @@ import type {
 
 export type ManagerFinancialFormRow = {
   id: string;
-  student_financial_adjustment_id: string;
+  student_payment_phase_id: string;
+  invite_id: string | null;
   full_name: string;
   school_or_university: string | null;
   date_of_birth: string | null;
@@ -30,6 +31,18 @@ export type ManagerFinancialFormRow = {
   created_at: string;
 };
 
+export type ManagerFinancialFormInviteRow = {
+  id: string;
+  student_payment_phase_id: string;
+  token: string;
+  url: string;
+  created_by: string | null;
+  created_at: string;
+  used_at: string | null;
+  form_id: string | null;
+  is_used: boolean;
+};
+
 export type ManagerFinancialAdjustmentRow = {
   id: string;
   student_payment_phase_id: string;
@@ -39,7 +52,6 @@ export type ManagerFinancialAdjustmentRow = {
   reason: string | null;
   effective_date: string;
   created_at: string;
-  form: ManagerFinancialFormRow | null;
 };
 
 export type CreateFinancialAdjustmentActionState = {
@@ -75,4 +87,46 @@ export type UpsertFinancialFormActionState = {
   form?: ManagerFinancialFormRow;
   student_payment_phase_id?: string;
   payment_phase_id?: string;
+};
+
+export type DeleteFinancialFormActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  student_payment_phase_id?: string;
+  payment_phase_id?: string;
+};
+
+export type CreateFinancialFormInviteActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  invite?: ManagerFinancialFormInviteRow;
+  student_payment_phase_id?: string;
+  payment_phase_id?: string;
+};
+
+export type DeleteFinancialFormInviteActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  student_payment_phase_id?: string;
+  payment_phase_id?: string;
+};
+
+export type SubmitPublicFinancialFormActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type PublicFinancialFormInviteContext = {
+  token: string;
+  student_label: string;
+  payment_phase_name: string;
+  is_used: boolean;
 };

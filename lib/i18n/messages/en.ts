@@ -738,6 +738,75 @@ export const en = {
   "maintenance.managerHint": "Manager can turn it off here:",
   "maintenance.settingsLink": "Settings",
 
+  "scholarship.pageTitle": "Scholarship application",
+  "scholarship.forStudent": "For",
+  "scholarship.phase": "Payment phase",
+  "scholarship.amountsNote": "This form does not change payment amounts.",
+
+  "scholarship.card1.title": "Scholarship application",
+  "scholarship.card1.intro":
+    "This scholarship aims to support eligible students and encourage them to continue their educational journey in an environment built on seriousness, commitment, and responsibility. Please complete this application carefully and attach the required documents. All applications will be reviewed confidentially according to defined criteria that include social and financial circumstances, as well as commitment, conduct, and academic performance.",
+  "scholarship.card1.conditionsTitle": "Scholarship eligibility conditions:",
+  "scholarship.card1.condition1":
+    "Attend classes consistently and do not miss any session except for a compelling reason accepted by the academy administration.",
+  "scholarship.card1.condition2":
+    "Complete all required assignments and tasks by their stated deadlines.",
+  "scholarship.card1.condition3":
+    "Follow the academy’s rules and regulations, and maintain good conduct and respect inside and outside the classroom.",
+  "scholarship.card1.condition4":
+    "Keep a strong level of effort and participation throughout the scholarship period.",
+  "scholarship.card1.condition5":
+    "The academy administration reserves the right to review or suspend the scholarship if the stated conditions are not met, or if incorrect information is provided in the application.",
+  "scholarship.card1.note":
+    "Note: Submitting an application does not mean automatic approval. All applications are evaluated and compared according to the criteria adopted by the academy administration.",
+
+  "scholarship.card2.title": "Our commitment at Etkan",
+  "scholarship.card2.p1":
+    "At Etkan, we believe our mission goes beyond delivering lessons. We seek to offer real educational value that builds knowledge, skill, and character. From that belief, we do not want financial hardship to prevent any dedicated student from learning and benefiting.",
+  "scholarship.card2.p2":
+    "That is why we launched the scholarship program—not merely as financial aid, but as a relationship built on honesty, trust, and transparency between Etkan, the student, and their guardian. This scholarship exists to reach those who truly need it.",
+  "scholarship.card2.p3":
+    "Please complete this application only if there is a genuine need for the scholarship, and make sure every detail you provide is accurate and complete. This support is a trust: anyone who benefits from it without true need may deprive another student who needs it more.",
+  "scholarship.card2.p4":
+    "For our part, we promise to do everything we can so that money is never a barrier for a student who wants to learn with dedication. We will review every application with fairness, respect, and confidentiality, asking God to help us deliver this scholarship to those who deserve it.",
+  "scholarship.card2.p5":
+    "We ask God to bless everyone, and to make this effort a means of spreading knowledge and good.",
+
+  "scholarship.form.title": "Application details",
+  "scholarship.form.submit": "Submit application",
+  "scholarship.form.submittedTitle": "Application submitted",
+  "scholarship.form.submittedBody":
+    "Thank you. Your scholarship application was received successfully. You may close this page.",
+  "scholarship.form.invalidTitle": "Link not valid",
+  "scholarship.form.invalidBody":
+    "This scholarship application link is invalid or no longer available.",
+  "scholarship.form.usedTitle": "Link already used",
+  "scholarship.form.usedBody":
+    "This link has already been used to submit an application. Contact the academy if you need changes.",
+  "scholarship.hint.required": "Required",
+  "scholarship.hint.optional": "Optional",
+
+  "scholarship.field.fullName": "Full name",
+  "scholarship.field.school": "School / university",
+  "scholarship.field.dob": "Date of birth",
+  "scholarship.field.phone": "Phone",
+  "scholarship.field.parentPhone": "Parent phone",
+  "scholarship.field.gpa": "Current GPA",
+  "scholarship.field.certificates": "Certificates",
+  "scholarship.field.familyMembers": "Family members",
+  "scholarship.field.workingFamilyMembers": "Working family members",
+  "scholarship.field.totalFamilyIncome": "Total family income",
+  "scholarship.field.childrenLearning": "Children currently in education",
+  "scholarship.field.affordablePayment": "Affordable monthly payment",
+  "scholarship.field.studentIncome": "Student monthly income",
+  "scholarship.field.aidBefore": "Received financial aid before",
+  "scholarship.field.deceasedParent": "Has a deceased parent",
+  "scholarship.field.bothParentsWork": "Both parents work",
+  "scholarship.field.hardship": "Family hardship",
+  "scholarship.field.chronicDisease": "Chronic illness in the family",
+  "scholarship.field.studentWorks": "Student works",
+  "scholarship.field.agreed": "I agree to the scholarship rules (required)",
+
   "language.en": "EN",
   "language.ar": "ع",
 } as const;
