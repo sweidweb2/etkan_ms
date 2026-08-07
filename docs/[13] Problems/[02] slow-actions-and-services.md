@@ -65,7 +65,7 @@ Clocks 3+4 often cost as much as clock 2 — especially on accounting and worksh
 | **0** Measure | **Not done** | Before/after table empty |
 | **1** End double refresh | **Not done — #1 leftover** | ~75 `router.refresh()` sites; accounting 44 / workshops 35 `revalidatePath` |
 | **2** Session + permissions | **Done** | Shared with `[01]`; audit still awaited (deferred to Phase 4) |
-| **3** Stop loading the whole world | **Partial** | Income/analytics scoped; Auth batch on main lists; dashboard aggregates; workshop payments **paged**; AI slimmed. Still open: schedules `listAll`, borrows, logs, emailing, weekly templates, session Auth N+1, capabilities `listAll` |
+| **3** Stop loading the whole world | **Partial** | Income/analytics scoped; Auth batch on main lists; dashboard aggregates; workshop payments **paged**; AI slimmed; instructor schedules calendar first paint scoped. Still open: borrows, logs, emailing, weekly templates, session Auth N+1, capabilities `listAll` |
 | **4** Domain mutation trim | **Not done** | Bulk loops, workshop full-graph reload, grades compute-all, awaited audit |
 | **5** Polish / guardrails | **Not done** | |
 
@@ -98,7 +98,7 @@ These make Save feel stuck because Phase 1’s refresh reloads a fat page. Same 
 
 | # | Problem | Evidence | Doc / fix phase |
 |---|---------|----------|-----------------|
-| 8 | **Instructor schedules calendar `listAll`** | `getInstructorSchedulesPageForManager` → `listAllInstructorScheduleSlots` + all workshops + instructors | **Phase 3 Wave 4** |
+| 8 | **Instructor schedules calendar `listAll`** | First paint scoped to first instructor; All/workshop via deferred actions | **Fixed (Wave 4 sample)** — All still uses scoped `listAll` on filter change |
 | 9 | **Equipment borrow mega load** | `getBorrowPageDataForManager` → `listAllBorrows` + students + equipments + enrollments | **Phase 3 Wave 4** |
 | 10 | **Audit logs unbounded + fat columns** | `listAuditLogsForManager` no limit; selects `old_data` / `new_data` | **Phase 3 Wave 4** |
 | 11 | **Weekly schedule templates unbounded** | `listWeeklyScheduleSlots` with no range (“All schedules”) | **Phase 3 Wave 4** |
@@ -118,13 +118,14 @@ These make Save feel stuck because Phase 1’s refresh reloads a fat page. Same 
 - Workshop **payments overview** aggregates + **server paging** (doc previously listed `listAll` as open — **stale**)  
 - Students / users / class roster Auth batch via `listAuthEmailsByIds` (**Phase 3**)  
 - Dashboard count/aggregate helpers (**Phase 3**)  
-- Instructors page: candidates deferred to dialog open (**Phase 3**)
+- Instructors page: candidates deferred to dialog open (**Phase 3**)  
+- Instructor schedules calendar first paint scoped to first instructor; workshops soft-gated (**Wave 4 sample**)
 
 ### Cross-cut with `[01]` (not owned here, but worsens every wait)
 
 | Problem | Why it matters for this doc | Where to fix |
 |---------|----------------------------|--------------|
-| Middleware every request (`getUser` + maintenance + role) | Floor cost on action RSC / refresh too | Track under `[01]`; don’t duplicate a second “session pack” |
+| Middleware every request (`getUser` + maintenance + role) | Floor cost on action RSC / refresh too | **Improved** — middleware uses `getClaims` + parallel/cached maintenance + JWT role when present (`[01]`) |
 | Top bar honesty for **navigation** | Separate from Save spinner | `[01]` Phase 1 (done) |
 | In-page Suspense not bridged to top bar | After Save, section spinners may outlive the bar | `[01]` residual — optional |
 
@@ -157,7 +158,7 @@ These make Save feel stuck because Phase 1’s refresh reloads a fat page. Same 
 | Income statement / analytics | **Fixed** — date-scoped |
 | Workshop payments overview | **Fixed** — aggregates + paging |
 | Dashboard aggregation | **Fixed** — counts/aggregates |
-| Instructor schedules **calendar** | **Still open** — `listAllInstructorScheduleSlots` |
+| Instructor schedules **calendar** | **Fixed (sample)** — first paint `listByRecord` (first instructor); All/workshop deferred |
 | Instructor schedules **details** | **Fixed** — paged |
 | Borrows | **Still open** — `listAllBorrows` |
 | Weekly schedule templates | **Still open** |
@@ -285,7 +286,7 @@ Do these in order. Keep the app usable after each phase. Don’t skip measuring 
 
 **Steps (Wave 4 — still open; do with or right after Phase 1)**
 
-1. **Instructor schedules calendar:** replace `listAllInstructorScheduleSlots` with range/paging (or load visible window only); don’t pull all workshops/instructors if soft-gated tabs don’t need them on first paint.  
+1. ~~**Instructor schedules calendar:** replace `listAllInstructorScheduleSlots` with range/paging (or load visible window only); don’t pull all workshops/instructors if soft-gated tabs don’t need them on first paint.~~ **Done (sample):** first instructor scoped + soft-gate workshops; All still listAll on demand with locked-workshop SQL exclude.  
 2. **Borrow page:** page/filter borrows; defer students/equipments/enrollments needed only for dialogs.  
 3. **Logs:** server page + default omit or lazy-load `old_data` / `new_data`.  
 4. **Weekly schedule:** scope or page `listWeeklyScheduleSlots` templates.  
@@ -347,7 +348,7 @@ Do these in order. Keep the app usable after each phase. Don’t skip measuring 
 - [ ] **Phase 0** — Mutation journeys + before timings (multi-feature)  
 - [ ] **Phase 1** — End double refresh / narrow `revalidatePath` / wire returned rows / refresh-only domains  
 - [x] **Phase 2** — Cached session pack + cached permission load on actions (shared with `[01]`)  
-- [ ] **Phase 3** — Waves 1–3 done; **Wave 4** leftovers (schedules `listAll`, borrow, logs, weekly templates, emailing/sent, session Auth N+1, capabilities, Auth email walk)  
+- [ ] **Phase 3** — Waves 1–3 done; **Wave 4** leftovers (borrow, logs, weekly templates, emailing/sent, session Auth N+1, capabilities, Auth email walk); instructor schedules calendar sample done  
 - [ ] **Phase 4** — Domain service trim (accounting → workshops → grades bulk/audit → rest)  
 - [ ] **Phase 5** — After timings, regression checklist, rules update  
 

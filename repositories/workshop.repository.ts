@@ -64,6 +64,30 @@ export async function listWorkshops(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+/** Slim columns for instructor-schedule calendar tabs / bounds. */
+const WORKSHOP_SCHEDULE_TAB_COLUMNS =
+  "id, name, status, start_date, end_date";
+
+export type WorkshopScheduleTabRecord = {
+  id: string;
+  name: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+};
+
+export async function listWorkshopsForScheduleTabs(client: Supabase) {
+  return client
+    .from("workshops")
+    .select(WORKSHOP_SCHEDULE_TAB_COLUMNS)
+    .order("created_at", { ascending: false });
+}
+
+/** id + status only — resolve content-locked workshops without full rows. */
+export async function listWorkshopLockStatuses(client: Supabase) {
+  return client.from("workshops").select("id, status");
+}
+
 export async function listWorkshopsByIds(client: Supabase, ids: string[]) {
   if (ids.length === 0) {
     return { data: [] as WorkshopRecord[], error: null };

@@ -48,11 +48,23 @@ export interface ManagerInstructorScheduleSession {
   sourceSlotId: string | null;
 }
 
+export type ManagerInstructorScheduleInitialBrowse = {
+  kind: "instructor" | "all";
+  recordId: string | null;
+};
+
 export type ManagerInstructorSchedulesPageData = {
   instructors: ManagerInstructorScheduleTab[];
   workshops: ManagerScheduleWorkshopTab[];
   sessions: ManagerInstructorScheduleSession[];
+  initialBrowse: ManagerInstructorScheduleInitialBrowse;
 };
+
+/** Scope for deferred calendar session loads (filter changes). */
+export type InstructorScheduleCalendarScope =
+  | { kind: "all" }
+  | { kind: "instructor"; recordId?: string }
+  | { kind: "workshop"; recordId?: string };
 
 export type ManagerInstructorScheduleSlotStats = {
   total: number;

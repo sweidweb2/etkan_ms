@@ -153,7 +153,7 @@ Use this as the day-to-day list:
 - [ ] **Phase 0** — Journey list + before timings (multi-role)
 - [x] **Phase 1** — Top bar timing & coverage (all entry points, all panels)
 - [x] **Phase 2** — Shared session/permissions pack; less repeat work on each click
-- [ ] **Phase 3** — Page-by-page data load improvements (waves across panels) — **Wave 1–3 done**; leftover: calendar `listAll` weekday templates if that table grows; native teacher/student stubs OK
+- [ ] **Phase 3** — Page-by-page data load improvements (waves across panels) — **Wave 1–3 done**; **Wave 4 sample:** instructor schedules calendar first paint scoped (first instructor); All/workshop deferred; leftover: borrow, logs, weekly templates, emailing, etc.
 - [ ] **Phase 4** — After timings, regression checklist, docs/rules update
 
 ---
@@ -170,8 +170,8 @@ Use this as the day-to-day list:
 
 | Journey | Role | Before (click → usable) | After | Notes |
 |---------|------|-------------------------|-------|-------|
+| Instructor schedules (sidebar) | Manager/CEO | ~4s (listAll) | page ~200ms; was still ~1.5–2s total | Remaining was **middleware `proxy.ts`** (~1–1.9s): `getUser` + maintenance + role DB |
 | _e.g. Instructors → Workshops_ | CEO | _fill in_ | | |
-| | | | | |
 
 **Phase 1 (2026-08-07):** Show delay 150→50 ms; `TopLoaderPendingBridge` holds the bar while panel/full-page route loading is mounted; `armGlobalTopLoaderNavigation` + arm-before-`pushState` for search/`router.push` parity with Link clicks.
 
@@ -181,7 +181,11 @@ Use this as the day-to-day list:
 
 **Phase 3 Wave 2 (2026-08-07):** Workshop detail soft-gates payments / schedule slots / instructor candidates and uses payment count instead of listing when unpaid; class detail defers available-students, transfer options, and subject/semester edit options to dialog open, Suspense for analytics; dashboard uses count/aggregate queries, today-only schedule, audit log limit 4.
 
-**Phase 3 Wave 3 (2026-08-07):** Instructors page defers candidates + Auth email batch; schedule **details** uses paged queries + count stats (no listAll); calendar soft-gates workshop create tabs (still loads all weekday templates for “All schedules”); AI usage list omits prompt/response (load on details); workshop payments overview uses aggregates + server-paged rows. **Still open:** calendar `listAll` templates if that table grows large; Phase 4 polish.
+**Phase 3 Wave 3 (2026-08-07):** Instructors page defers candidates + Auth email batch; schedule **details** uses paged queries + count stats (no listAll); calendar soft-gates workshop create tabs (still loads all weekday templates for “All schedules”); AI usage list omits prompt/response (load on details); workshop payments overview uses aggregates + server-paged rows.
+
+**Phase 3 Wave 4 sample (2026-08-07):** Instructor schedules **calendar** first paint = instructors list + first instructor’s slots only (`listByRecord`); workshops soft-gated until Workshop browse / Add slot; filter changes load via `loadInstructorScheduleCalendarSessionsAction` (All excludes locked workshops in SQL).
+
+**Middleware floor (2026-08-07):** Dev timings showed `proxy.ts` ~1–1.9s vs `application-code` ~200ms after calendar scoping. Middleware now: `getClaims()` (prefer over `getUser`), parallel maintenance fetch, 15s maintenance cache, JWT role when present (skip profiles.role round-trip).
 
 ---
 

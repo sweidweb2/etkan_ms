@@ -1,4 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
+import {
+  getCachedMaintenanceMode,
+  setCachedMaintenanceMode,
+} from "@/lib/auth/maintenance-mode-cache";
 import { hasSupabaseAuthCookies } from "@/lib/auth/session-cookies";
 import { canAccessPath, isPanelPath } from "@/lib/auth/path-access";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
@@ -17,7 +21,15 @@ import {
   createSupabaseMiddlewareClient,
 } from "@/lib/supabase/middleware";
 import { getMaintenanceMode } from "@/repositories/app-settings.repository";
-import { resolveUserRole } from "@/services/role.service";
+import {
+  roleFromAuthMetadata,
+  roleFromJwtClaims,
+  resolveUserRole,
+  resolveUserRoleForMiddleware,
+} from "@/services/role.service";
+import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 
 const MAINTENANCE_PATH = "/maintenance";
 
@@ -25,6 +37,15 @@ const MAINTENANCE_BLOCKED_ROLES: ReadonlySet<RoleValue> = new Set([
   ROLES.STUDENT,
   ROLES.TEACHER,
 ]);
+
+type MiddlewareSupabase = SupabaseClient<Database>;
+
+type MiddlewareAuth = {
+  userId: string | null;
+  claimsRole: RoleValue | null;
+  /** Present when we fell back to getUser (needed for metadata-only paths). */
+  user: User | null;
+};
 
 function isTeacherOrStudentPanelPath(pathname: string): boolean {
   return (
@@ -35,17 +56,84 @@ function isTeacherOrStudentPanelPath(pathname: string): boolean {
   );
 }
 
-export async function middleware(request: NextRequest) {
-  const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
+/**
+ * Prefer getClaims (local JWT verify / cached JWKS) over getUser (Auth round-trip).
+ * Falls back to getUser when claims are unavailable.
+ */
+async function resolveMiddlewareAuth(
+  supabase: MiddlewareSupabase
+): Promise<MiddlewareAuth> {
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims();
+
+  if (!claimsError && claimsData?.claims?.sub) {
+    const claims = claimsData.claims as {
+      sub: string;
+      app_metadata?: { role?: unknown } | null;
+      user_metadata?: { role?: unknown } | null;
+      role?: unknown;
+    };
+    return {
+      userId: claims.sub,
+      claimsRole: roleFromJwtClaims(claims),
+      user: null,
+    };
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  return {
+    userId: user?.id ?? null,
+    claimsRole: user ? roleFromAuthMetadata(user) : null,
+    user,
+  };
+}
+
+async function resolveMaintenanceMode(
+  supabase: MiddlewareSupabase
+): Promise<boolean> {
+  const cached = getCachedMaintenanceMode();
+  if (cached !== null) {
+    return cached;
+  }
+  const value = await getMaintenanceMode(supabase);
+  setCachedMaintenanceMode(value);
+  return value;
+}
+
+async function resolveRole(
+  supabase: MiddlewareSupabase,
+  auth: MiddlewareAuth
+): Promise<RoleValue> {
+  if (!auth.userId) {
+    return ROLES.STUDENT;
+  }
+
+  if (auth.user) {
+    return resolveUserRole(supabase, auth.user);
+  }
+
+  return resolveUserRoleForMiddleware(supabase, {
+    userId: auth.userId,
+    claimsRole: auth.claimsRole,
+  });
+}
+
+export async function middleware(request: NextRequest) {
+  const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
 
   const redirect = (url: URL) =>
     applyAuthCookies(NextResponse.redirect(url), getResponse());
 
   const { pathname } = request.nextUrl;
-  const maintenanceMode = await getMaintenanceMode(supabase);
+
+  // Auth JWT check + maintenance flag in parallel (was sequential ~2 round-trips).
+  const [auth, maintenanceMode] = await Promise.all([
+    resolveMiddlewareAuth(supabase),
+    resolveMaintenanceMode(supabase),
+  ]);
 
   if (maintenanceMode) {
     const isMaintenancePage = pathname === MAINTENANCE_PATH;
@@ -53,8 +141,8 @@ export async function middleware(request: NextRequest) {
     const isAuthRoute = isPublicAuthRoute(pathname);
 
     if (isMaintenancePage || isManagerSettings || isAuthRoute) {
-      if (user && isGuestOnlyAuthRoute(pathname)) {
-        const role = await resolveUserRole(supabase, user);
+      if (auth.userId && isGuestOnlyAuthRoute(pathname)) {
+        const role = await resolveRole(supabase, auth);
         if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
           return redirect(new URL(MAINTENANCE_PATH, request.url));
         }
@@ -65,8 +153,8 @@ export async function middleware(request: NextRequest) {
       return getResponse();
     }
 
-    if (user) {
-      const role = await resolveUserRole(supabase, user);
+    if (auth.userId) {
+      const role = await resolveRole(supabase, auth);
       if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
         return redirect(new URL(MAINTENANCE_PATH, request.url));
       }
@@ -76,8 +164,8 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPublicAuthRoute(pathname)) {
-    if (user && isGuestOnlyAuthRoute(pathname)) {
-      const role = await resolveUserRole(supabase, user);
+    if (auth.userId && isGuestOnlyAuthRoute(pathname)) {
+      const role = await resolveRole(supabase, auth);
       const next = request.nextUrl.searchParams.get("next");
       const redirectTo = getPostLoginRedirect(role, next);
       return redirect(new URL(redirectTo, request.url));
@@ -90,7 +178,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPanelPath(pathname)) {
-    if (!user) {
+    if (!auth.userId) {
       const loginUrl = new URL(ROUTES.LOGIN, request.url);
 
       if (hasSupabaseAuthCookies(request.cookies.getAll())) {
@@ -102,7 +190,7 @@ export async function middleware(request: NextRequest) {
       return redirect(loginUrl);
     }
 
-    const role = await resolveUserRole(supabase, user);
+    const role = await resolveRole(supabase, auth);
     const panelRoot = getPanelRootForRole(role);
 
     if (pathname === panelRoot) {

@@ -44,6 +44,7 @@ import {
 } from "@/services/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
+  InstructorScheduleCalendarScope,
   InstructorScheduleSlotType,
   ManagerInstructorScheduleSession,
   ManagerInstructorScheduleTab,
@@ -332,46 +333,12 @@ export async function getInstructorSchedulesPageForManager(
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
 
-  const canCreate = await hasPermission(
-    adminClient,
-    actorUserId ?? "",
-    PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
-  );
-
-  const [instructorsResult, workshopsResult, slotsResult] = await Promise.all([
-    profileRepository.listInstructorProfiles(adminClient),
-    workshopRepository.listWorkshops(adminClient),
-    instructorScheduleSlotRepository.listAllInstructorScheduleSlots(
-      adminClient
-    ),
-  ]);
+  const instructorsResult =
+    await profileRepository.listInstructorProfiles(adminClient);
 
   if (instructorsResult.error) {
     throw new Error(instructorsResult.error.message);
   }
-
-  if (workshopsResult.error) {
-    throw new Error(workshopsResult.error.message);
-  }
-
-  if (slotsResult.error) {
-    throw new Error(slotsResult.error.message);
-  }
-
-  const sessions = (slotsResult.data ?? [])
-    .map((record) => mapSlotRecordToSession(record as InstructorScheduleSlotRecord))
-    .filter((session) => {
-      if (session.entityType !== ENTITY_SCHEDULE_TYPE_WORKSHOP) {
-        return true;
-      }
-      const workshop = (workshopsResult.data ?? []).find(
-        (row) => row.id === session.recordId
-      );
-      if (!workshop) {
-        return false;
-      }
-      return !isWorkshopContentMutationLocked(workshop.status);
-    });
 
   const instructors: ManagerInstructorScheduleTab[] = (
     instructorsResult.data ?? []
@@ -380,33 +347,187 @@ export async function getInstructorSchedulesPageForManager(
     username: row.username,
   }));
 
-  const workshops: ManagerScheduleWorkshopTab[] = canCreate
-    ? (workshopsResult.data ?? [])
-        .map((row) => {
-          const status = isWorkshopStatus(row.status)
-            ? row.status
-            : WORKSHOP_STATUSES.DRAFT;
-          const eligible = isWorkshopEligibleForScheduleCreate({
-            status: row.status,
-            end_date: row.end_date,
-          });
-          return {
-            id: row.id,
-            name: row.name,
-            start_date: row.start_date ? formatDateOnly(row.start_date) : null,
-            end_date: row.end_date ? formatDateOnly(row.end_date) : null,
-            status,
-            eligible_for_create: eligible,
-          };
-        })
-        .filter((workshop) => workshop.eligible_for_create)
-    : [];
+  const firstInstructorId = instructors[0]?.id ?? null;
+
+  let sessions: ManagerInstructorScheduleSession[] = [];
+  if (firstInstructorId) {
+    const slotsResult =
+      await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
+        adminClient,
+        ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+        firstInstructorId
+      );
+
+    if (slotsResult.error) {
+      throw new Error(slotsResult.error.message);
+    }
+
+    sessions = (slotsResult.data ?? []).map((record) =>
+      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+    );
+  }
 
   return {
     instructors,
-    workshops,
+    workshops: [],
     sessions,
+    initialBrowse: {
+      kind: "instructor",
+      recordId: firstInstructorId,
+    },
   };
+}
+
+async function resolveLockedWorkshopIdsFromDb(
+  adminClient: Supabase
+): Promise<string[]> {
+  const lockResult = await workshopRepository.listWorkshopLockStatuses(
+    adminClient
+  );
+
+  if (lockResult.error) {
+    throw new Error(lockResult.error.message);
+  }
+
+  return resolveLockedWorkshopIds(lockResult.data ?? []);
+}
+
+function mapWorkshopRowsToEligibleTabs(
+  rows: Array<{
+    id: string;
+    name: string;
+    status: string;
+    start_date: string | null;
+    end_date: string | null;
+  }>
+): ManagerScheduleWorkshopTab[] {
+  return rows
+    .map((row) => {
+      const status = isWorkshopStatus(row.status)
+        ? row.status
+        : WORKSHOP_STATUSES.DRAFT;
+      const eligible = isWorkshopEligibleForScheduleCreate({
+        status: row.status,
+        end_date: row.end_date,
+      });
+      return {
+        id: row.id,
+        name: row.name,
+        start_date: row.start_date ? formatDateOnly(row.start_date) : null,
+        end_date: row.end_date ? formatDateOnly(row.end_date) : null,
+        status,
+        eligible_for_create: eligible,
+      };
+    })
+    .filter((workshop) => workshop.eligible_for_create);
+}
+
+export async function listEligibleWorkshopsForInstructorScheduleForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerScheduleWorkshopTab[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+
+  const canCreate = await hasPermission(
+    adminClient,
+    actorUserId ?? "",
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
+  );
+
+  if (!canCreate) {
+    return [];
+  }
+
+  const workshopsResult =
+    await workshopRepository.listWorkshopsForScheduleTabs(adminClient);
+
+  if (workshopsResult.error) {
+    throw new Error(workshopsResult.error.message);
+  }
+
+  return mapWorkshopRowsToEligibleTabs(workshopsResult.data ?? []);
+}
+
+export async function listInstructorScheduleCalendarSessionsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  scope: InstructorScheduleCalendarScope
+): Promise<ManagerInstructorScheduleSession[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
+
+  if (scope.kind === "all") {
+    const lockedWorkshopIds = await resolveLockedWorkshopIdsFromDb(adminClient);
+    const slotsResult =
+      await instructorScheduleSlotRepository.listAllInstructorScheduleSlots(
+        adminClient,
+        { excludeWorkshopRecordIds: lockedWorkshopIds }
+      );
+
+    if (slotsResult.error) {
+      throw new Error(slotsResult.error.message);
+    }
+
+    return (slotsResult.data ?? []).map((record) =>
+      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+    );
+  }
+
+  if (scope.recordId) {
+    const slotsResult =
+      await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
+        adminClient,
+        scope.kind,
+        scope.recordId
+      );
+
+    if (slotsResult.error) {
+      throw new Error(slotsResult.error.message);
+    }
+
+    return (slotsResult.data ?? []).map((record) =>
+      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+    );
+  }
+
+  if (scope.kind === "workshop") {
+    const lockedWorkshopIds = await resolveLockedWorkshopIdsFromDb(adminClient);
+    const slotsResult =
+      await instructorScheduleSlotRepository.listInstructorScheduleSlotsByEntity(
+        adminClient,
+        ENTITY_SCHEDULE_TYPE_WORKSHOP,
+        { excludeWorkshopRecordIds: lockedWorkshopIds }
+      );
+
+    if (slotsResult.error) {
+      throw new Error(slotsResult.error.message);
+    }
+
+    return (slotsResult.data ?? []).map((record) =>
+      mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+    );
+  }
+
+  const slotsResult =
+    await instructorScheduleSlotRepository.listInstructorScheduleSlotsByEntity(
+      adminClient,
+      ENTITY_SCHEDULE_TYPE_INSTRUCTOR
+    );
+
+  if (slotsResult.error) {
+    throw new Error(slotsResult.error.message);
+  }
+
+  return (slotsResult.data ?? []).map((record) =>
+    mapSlotRecordToSession(record as InstructorScheduleSlotRecord)
+  );
 }
 
 export type ListInstructorScheduleSlotsPageOptions = {

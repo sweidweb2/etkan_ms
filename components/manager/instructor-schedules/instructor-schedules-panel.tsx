@@ -26,10 +26,13 @@ import {
 import {
   createInstructorScheduleSlotAction,
   deleteInstructorScheduleSlotAction,
+  loadEligibleWorkshopsForInstructorScheduleAction,
+  loadInstructorScheduleCalendarSessionsAction,
   updateInstructorScheduleSlotAction,
 } from "@/app/manager/instructor-schedules/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   AddInstructorScheduleSlotDialog,
   type AddInstructorScheduleSlotDefaults,
@@ -79,8 +82,10 @@ import {
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
+  InstructorScheduleCalendarScope,
   ManagerInstructorScheduleSession,
   ManagerInstructorSchedulesPageData,
+  ManagerScheduleWorkshopTab,
   ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
@@ -121,6 +126,28 @@ function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
   return `${entityType}:${recordId}`;
 }
 
+type EntityBrowseKind = "all" | "instructor" | "workshop";
+
+function buildCalendarScope(
+  kind: EntityBrowseKind,
+  selectedKeys: string[]
+): InstructorScheduleCalendarScope {
+  if (kind === "all") {
+    return { kind: "all" };
+  }
+
+  if (selectedKeys.length === 0) {
+    return { kind };
+  }
+
+  const parsed = parseEntityFilterKey(selectedKeys[0]!);
+  if (!parsed || parsed.kind !== kind) {
+    return { kind };
+  }
+
+  return { kind: parsed.kind, recordId: parsed.id };
+}
+
 function makeTempId(): string {
   return `${TEMP_SCHEDULE_ID_PREFIX}${crypto.randomUUID()}`;
 }
@@ -151,8 +178,6 @@ function actionErrorMessage(
 ): string {
   return firstFieldError(result.fieldErrors) ?? result.error ?? fallback;
 }
-
-type EntityBrowseKind = "all" | "instructor" | "workshop";
 
 const ENTITY_FILTER_ALL = "all";
 
@@ -360,12 +385,32 @@ export function InstructorSchedulesPanel({
   const [, startTransition] = useTransition();
 
   const [sessions, setSessions] = React.useState(data.sessions);
+  const [workshops, setWorkshops] = React.useState<ManagerScheduleWorkshopTab[]>(
+    data.workshops
+  );
+  const [workshopsLoaded, setWorkshopsLoaded] = React.useState(
+    data.workshops.length > 0
+  );
+  const [isSessionsPending, setIsSessionsPending] = React.useState(false);
+  const [isWorkshopsPending, setIsWorkshopsPending] = React.useState(false);
   /** Empty = all within the current browse kind. At most one entity key selected. */
   const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
-    []
+    () => {
+      if (data.initialBrowse.recordId) {
+        return [
+          entityFilterKey({
+            kind: "instructor",
+            id: data.initialBrowse.recordId,
+          }),
+        ];
+      }
+      return [];
+    }
   );
   const [entityBrowseKind, setEntityBrowseKind] =
-    React.useState<EntityBrowseKind>("all");
+    React.useState<EntityBrowseKind>(() =>
+      data.initialBrowse.kind === "instructor" ? "instructor" : "all"
+    );
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [createDefaults, setCreateDefaults] =
@@ -381,6 +426,11 @@ export function InstructorSchedulesPanel({
   const isAltDupDragRef = useRef(false);
   const dragSourceRef = useRef<DragSourceSnapshot | null>(null);
   const pendingTempIdsRef = useRef<Set<string>>(new Set());
+  const workshopsLoadedRef = useRef(workshopsLoaded);
+
+  useEffect(() => {
+    workshopsLoadedRef.current = workshopsLoaded;
+  }, [workshopsLoaded]);
 
   useEffect(() => {
     setSessions((prev) => {
@@ -396,8 +446,8 @@ export function InstructorSchedulesPanel({
     [data.instructors]
   );
   const workshopIds = useMemo(
-    () => new Set(data.workshops.map((workshop) => workshop.id)),
-    [data.workshops]
+    () => new Set(workshops.map((workshop) => workshop.id)),
+    [workshops]
   );
 
   const resolvedEntityKeys = useMemo(() => {
@@ -409,9 +459,13 @@ export function InstructorSchedulesPanel({
       if (parsed.kind === "instructor") {
         return instructorIds.has(parsed.id);
       }
+      // Keep workshop keys while workshops are still loading so selection is not stripped.
+      if (!workshopsLoaded) {
+        return true;
+      }
       return workshopIds.has(parsed.id);
     });
-  }, [selectedEntityKeys, instructorIds, workshopIds]);
+  }, [selectedEntityKeys, instructorIds, workshopIds, workshopsLoaded]);
 
   if (
     resolvedEntityKeys.length !== selectedEntityKeys.length ||
@@ -425,7 +479,7 @@ export function InstructorSchedulesPanel({
     () => new Set(resolvedEntityKeys),
     [resolvedEntityKeys]
   );
-  const showWorkshopBrowse = data.workshops.length > 0;
+  const showWorkshopBrowse = canCreate || workshops.length > 0;
   const effectiveBrowseKind: EntityBrowseKind =
     entityBrowseKind === "workshop" && !showWorkshopBrowse
       ? "all"
@@ -461,35 +515,74 @@ export function InstructorSchedulesPanel({
       );
     }
     return (
-      data.workshops.find((workshop) => workshop.id === parsed.id)?.name ??
-      "Unknown"
+      workshops.find((workshop) => workshop.id === parsed.id)?.name ?? "Unknown"
     );
   }, [
     entitySelectValue,
     effectiveBrowseKind,
     isAllBrowseSelected,
     data.instructors,
-    data.workshops,
+    workshops,
   ]);
   const canCreateOnCalendar = canCreate;
+  const filtersBusy = isSessionsPending || isWorkshopsPending;
+
+  async function ensureWorkshopsLoaded() {
+    if (workshopsLoadedRef.current) {
+      return;
+    }
+    if (!canCreate) {
+      return;
+    }
+    setIsWorkshopsPending(true);
+    try {
+      const result = await loadEligibleWorkshopsForInstructorScheduleAction();
+      setWorkshops(result.workshops);
+      setWorkshopsLoaded(true);
+      workshopsLoadedRef.current = true;
+    } finally {
+      setIsWorkshopsPending(false);
+    }
+  }
+
+  async function reloadSessionsForBrowse(
+    kind: EntityBrowseKind,
+    keys: string[]
+  ) {
+    setIsSessionsPending(true);
+    try {
+      if (kind === "workshop") {
+        await ensureWorkshopsLoaded();
+      }
+      const scope = buildCalendarScope(kind, keys);
+      const { sessions: next } =
+        await loadInstructorScheduleCalendarSessionsAction(scope);
+      setSessions(next);
+    } finally {
+      setIsSessionsPending(false);
+    }
+  }
 
   function handleEntityBrowseKindChange(kind: EntityBrowseKind) {
     setEntityBrowseKind(kind);
     setSelectedEntityKeys([]);
+    startTransition(() => {
+      void reloadSessionsForBrowse(kind, []);
+    });
   }
 
   function handleEntitySelectChange(value: string | null) {
     const next = value ?? ENTITY_FILTER_ALL;
-    if (next === ENTITY_FILTER_ALL) {
-      setSelectedEntityKeys([]);
-      return;
-    }
-    setSelectedEntityKeys([next]);
+    const nextKeys = next === ENTITY_FILTER_ALL ? [] : [next];
+    setSelectedEntityKeys(nextKeys);
+    startTransition(() => {
+      void reloadSessionsForBrowse(effectiveBrowseKind, nextKeys);
+    });
   }
 
   const eligibleWorkshops = useMemo(
-    () => data.workshops.filter((workshop) => workshop.eligible_for_create),
-    [data.workshops]
+    () => workshops.filter((workshop) => workshop.eligible_for_create),
+    [workshops]
   );
 
   const entityLabelByKey = useMemo(() => {
@@ -500,28 +593,28 @@ export function InstructorSchedulesPanel({
         instructor.username?.trim() || "Unknown"
       );
     }
-    for (const workshop of data.workshops) {
+    for (const workshop of workshops) {
       map.set(
         entityMapKey(ENTITY_SCHEDULE_TYPE_WORKSHOP, workshop.id),
         workshop.name
       );
     }
     return map;
-  }, [data.instructors, data.workshops]);
+  }, [data.instructors, workshops]);
 
   const workshopBoundsById = useMemo(() => {
     const map = new Map<
       string,
       { start_date: string | null; end_date: string | null }
     >();
-    for (const workshop of data.workshops) {
+    for (const workshop of workshops) {
       map.set(workshop.id, {
         start_date: workshop.start_date,
         end_date: workshop.end_date,
       });
     }
     return map;
-  }, [data.workshops]);
+  }, [workshops]);
 
   const createPrefill = useMemo((): AddInstructorScheduleSlotDefaults | null => {
     const fromDates = createDefaults ?? undefined;
@@ -697,7 +790,12 @@ export function InstructorSchedulesPanel({
 
   function openCreate(defaults?: CreateSlotDefaults | null) {
     setCreateDefaults(defaults ?? null);
-    setIsCreateOpen(true);
+    startTransition(() => {
+      void (async () => {
+        await ensureWorkshopsLoaded();
+        setIsCreateOpen(true);
+      })();
+    });
   }
 
   async function handleOptimisticCreate(
@@ -1166,7 +1264,11 @@ export function InstructorSchedulesPanel({
     setWeekStart(bounds.weekStart);
   }
 
-  if (data.instructors.length === 0 && data.workshops.length === 0) {
+  const hasNoScheduleEntities =
+    data.instructors.length === 0 &&
+    (workshopsLoaded ? workshops.length === 0 : !canCreate);
+
+  if (hasNoScheduleEntities) {
     return (
       <div className="flex flex-col gap-6">
         <div className="min-w-0">
@@ -1252,12 +1354,14 @@ export function InstructorSchedulesPanel({
                   key={option.kind}
                   type="button"
                   aria-pressed={selected}
+                  disabled={filtersBusy}
                   onClick={() => handleEntityBrowseKindChange(option.kind)}
                   className={cn(
                     "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
                     "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
                     selected &&
-                      "border-border bg-background text-foreground shadow-sm"
+                      "border-border bg-background text-foreground shadow-sm",
+                    filtersBusy && "pointer-events-none opacity-60"
                   )}
                 >
                   {option.label}
@@ -1269,7 +1373,7 @@ export function InstructorSchedulesPanel({
           <Select
             value={entitySelectValue}
             onValueChange={handleEntitySelectChange}
-            disabled={isAllBrowseSelected}
+            disabled={isAllBrowseSelected || filtersBusy}
           >
             <SelectTrigger
               size="sm"
@@ -1304,7 +1408,7 @@ export function InstructorSchedulesPanel({
                       {instructor.username ?? "Unknown"}
                     </SelectItem>
                   ))
-                : data.workshops.map((workshop) => (
+                : workshops.map((workshop) => (
                     <SelectItem
                       key={workshop.id}
                       value={entityFilterKey({
@@ -1317,6 +1421,12 @@ export function InstructorSchedulesPanel({
                   ))}
             </SelectContent>
           </Select>
+          {filtersBusy ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <InlineSpinner className="size-3.5" />
+              Loading…
+            </span>
+          ) : null}
         </div>
 
         <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE}>
@@ -1324,9 +1434,10 @@ export function InstructorSchedulesPanel({
             type="button"
             size="sm"
             className="shrink-0 self-start sm:self-auto"
-            disabled={!canCreate}
+            disabled={!canCreate || filtersBusy}
             onClick={() => openCreate(null)}
           >
+            {isWorkshopsPending ? <InlineSpinner /> : null}
             <PlusIcon data-icon="inline-start" />
             Add slot
           </Button>
@@ -1399,8 +1510,9 @@ export function InstructorSchedulesPanel({
 
       <div
         className={cn(
-          "fc-schedule-theme fc-schedule-theme--compact-days min-h-0",
-          isAltDuplicating && "is-alt-duplicating"
+          "fc-schedule-theme fc-schedule-theme--compact-days relative min-h-0",
+          isAltDuplicating && "is-alt-duplicating",
+          isSessionsPending && "pointer-events-none opacity-60"
         )}
       >
         <FullCalendar
