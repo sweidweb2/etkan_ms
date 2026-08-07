@@ -50,6 +50,13 @@ describe("shared manager routes", () => {
     ).toBe(false);
   });
 
+  it("matches income statement analytics without instructor flag", () => {
+    expect(
+      isSharedManagerPath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS)
+    ).toBe(true);
+    expect(isSharedManagerPath(ROUTES.MANAGER_INCOME_STATEMENT)).toBe(false);
+  });
+
   it("rejects other manager paths", () => {
     expect(isSharedManagerPath(ROUTES.MANAGER_USERS)).toBe(false);
     expect(isSharedManagerWorkshopPath(ROUTES.MANAGER_INSTRUCTORS)).toBe(false);

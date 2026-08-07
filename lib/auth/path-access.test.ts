@@ -57,10 +57,16 @@ describe("canAccessPath", () => {
     expect(
       canAccessPath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE, ROLES.CEO)
     ).toBe(true);
+    expect(
+      canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS, ROLES.CEO)
+    ).toBe(true);
   });
 
   it("still denies non-shared manager paths for other roles", () => {
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.TRAINER)).toBe(false);
+    expect(canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT, ROLES.CEO)).toBe(
+      false
+    );
   });
 
   it("allows non-panel routes for any role", () => {

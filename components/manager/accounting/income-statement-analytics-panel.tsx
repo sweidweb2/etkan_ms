@@ -21,6 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Can } from "@/components/auth/can";
 import {
   Tabs as TabsPrimitive,
   TabsContent as TabsContentPrimitive,
@@ -46,6 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerIncomeStatementAnalyticsData } from "@/types/manager-income-statement-analytics";
@@ -122,15 +124,24 @@ export function IncomeStatementAnalyticsPanel({
     <div className="flex flex-col gap-6">
       <Breadcrumb>
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_INCOME_STATEMENT}>
-              Income statement
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Analytics</BreadcrumbPage>
-          </BreadcrumbItem>
+          <Can
+            permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW}
+            fallback={
+              <BreadcrumbItem>
+                <BreadcrumbPage>Income analytics</BreadcrumbPage>
+              </BreadcrumbItem>
+            }
+          >
+            <BreadcrumbItem>
+              <BreadcrumbLink href={ROUTES.MANAGER_INCOME_STATEMENT}>
+                Income statement
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Analytics</BreadcrumbPage>
+            </BreadcrumbItem>
+          </Can>
         </BreadcrumbList>
       </Breadcrumb>
 

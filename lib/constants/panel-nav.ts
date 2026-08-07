@@ -138,6 +138,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "reports",
         },
         {
+          title: "Income analytics",
+          href: ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS,
+          icon: "analytics",
+        },
+        {
           title: "Schedule",
           href: ROUTES.MANAGER_SCHEDULE,
           icon: "calendar-days",
@@ -241,6 +246,11 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
       title: "AI usage",
       href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
       icon: "sparkles",
+    },
+    {
+      title: "Income analytics",
+      href: ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS,
+      icon: "analytics",
     },
   ],
 };

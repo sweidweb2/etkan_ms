@@ -94,6 +94,17 @@ describe("getRequiredViewPermissionForManagerPath", () => {
     ).toBe(PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW);
   });
 
+  it("maps income statement analytics before income statement", () => {
+    expect(
+      getRequiredViewPermissionForManagerPath(
+        ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS
+      )
+    ).toBe(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW);
+    expect(
+      getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_INCOME_STATEMENT)
+    ).toBe(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW);
+  });
+
   it("returns null for non-manager and unknown manager paths", () => {
     expect(getRequiredViewPermissionForManagerPath(ROUTES.HOME)).toBeNull();
     expect(

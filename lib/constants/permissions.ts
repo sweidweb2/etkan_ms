@@ -205,6 +205,8 @@ export const PERMISSIONS = {
 
   ACCOUNTING_VIEW: "accounting.view",
   ACCOUNTING_INCOME_STATEMENT_VIEW: "accounting.income_statement.view",
+  ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW:
+    "accounting.income_statement.analytics.view",
   ACCOUNTING_TRANSACTIONS_CREATE: "accounting.transactions.create",
   ACCOUNTING_TRANSACTIONS_UPDATE: "accounting.transactions.update",
   ACCOUNTING_TRANSACTIONS_DELETE: "accounting.transactions.delete",
@@ -894,6 +896,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
     feature: "accounting",
     label: "View income statement",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW,
+    feature: "accounting",
+    label: "View income statement analytics",
     access: PERMISSION_ACCESS.READ,
   },
   {

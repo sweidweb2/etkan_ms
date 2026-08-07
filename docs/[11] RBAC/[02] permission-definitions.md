@@ -248,6 +248,7 @@ Format: `key` — label — access
 |-----|-------|--------|
 | `accounting.view` | View accounting page | read |
 | `accounting.income_statement.view` | View income statement | read |
+| `accounting.income_statement.analytics.view` | View income statement analytics | read |
 | `accounting.transactions.create` | Record external transaction | write |
 | `accounting.transactions.update` | Edit external transaction | write |
 | `accounting.transactions.delete` | Delete external transaction | write |
@@ -439,6 +440,7 @@ emailing.resend
 
 accounting.view
 accounting.income_statement.view
+accounting.income_statement.analytics.view
 accounting.transactions.create
 accounting.transactions.update
 accounting.transactions.delete
@@ -491,7 +493,7 @@ instructor_schedules.view
 
 ### CEO — workshop / instructor module seed
 
-CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant).
+CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant) + `accounting.income_statement.analytics.view`.
 
 ```
 instructors.view
@@ -522,6 +524,7 @@ workshops.payments.create
 workshops.payments.update
 workshops.payments.delete
 cloudflare_ai_usage.view
+accounting.income_statement.analytics.view
 ```
 
 ---

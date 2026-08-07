@@ -86,13 +86,15 @@ export function IncomeStatementPanel({
             Student payments, adjustments, and external credits/debits.
           </p>
         </div>
-        <Link
-          href={ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS}
-          className={cn(buttonVariants({ variant: "outline" }))}
-        >
-          <LineChartIcon data-icon="inline-start" />
-          Analytics
-        </Link>
+        <Can permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW}>
+          <Link
+            href={ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            <LineChartIcon data-icon="inline-start" />
+            Analytics
+          </Link>
+        </Can>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

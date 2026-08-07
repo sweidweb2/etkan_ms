@@ -116,7 +116,7 @@ export async function getIncomeStatementAnalyticsForManager(
   await assertPermission(
     adminClient,
     actorUserId,
-    PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW
+    PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW
   );
 
   const [paymentsResult, adjustmentsResult, transactionsResult] =
