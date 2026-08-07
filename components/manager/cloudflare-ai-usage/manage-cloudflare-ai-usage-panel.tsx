@@ -10,10 +10,8 @@ import {
   RefreshCwIcon,
   SearchIcon,
 } from "lucide-react";
-import { loadCloudflareAiUsageDetailAction } from "@/app/manager/cloudflare-ai-usage/actions";
 import { CloudflareAiUsageAnalytics } from "@/components/manager/cloudflare-ai-usage/cloudflare-ai-usage-analytics";
 import { CloudflareAiUsageDetailsDialog } from "@/components/manager/cloudflare-ai-usage/cloudflare-ai-usage-details-dialog";
-import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,16 +22,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type {
-  ManagerCloudflareAiUsageListRow,
-  ManagerCloudflareAiUsageRow,
-} from "@/types/manager-cloudflare-ai-usage";
+import type { ManagerCloudflareAiUsageRow } from "@/types/manager-cloudflare-ai-usage";
 
 const PAGE_SIZE = 10;
 const STATUS_ALL = "all";
 
 type ManageCloudflareAiUsagePanelProps = {
-  initialRecords: ManagerCloudflareAiUsageListRow[];
+  initialRecords: ManagerCloudflareAiUsageRow[];
 };
 
 function formatTokens(value: number | null) {
@@ -43,7 +38,7 @@ function formatTokens(value: number | null) {
   return value.toLocaleString();
 }
 
-function statusClassName(status: ManagerCloudflareAiUsageListRow["status"]) {
+function statusClassName(status: ManagerCloudflareAiUsageRow["status"]) {
   if (status === "success") {
     return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400";
   }
@@ -58,13 +53,11 @@ export function ManageCloudflareAiUsagePanel({
 }: ManageCloudflareAiUsagePanelProps) {
   const router = useRouter();
   const [isRefreshing, startRefreshTransition] = useTransition();
-  const [isLoadingDetail, startDetailTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_ALL);
   const [page, setPage] = useState(1);
   const [selected, setSelected] =
     useState<ManagerCloudflareAiUsageRow | null>(null);
-  const [detailError, setDetailError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -97,20 +90,6 @@ export function ManageCloudflareAiUsagePanel({
   function handleRefresh() {
     startRefreshTransition(() => {
       router.refresh();
-    });
-  }
-
-  function handleOpenDetails(id: string) {
-    setDetailError(null);
-    startDetailTransition(() => {
-      void loadCloudflareAiUsageDetailAction(id).then((record) => {
-        if (!record) {
-          setDetailError("Unable to load usage details.");
-          setSelected(null);
-          return;
-        }
-        setSelected(record);
-      });
     });
   }
 
@@ -167,10 +146,6 @@ export function ManageCloudflareAiUsagePanel({
           <RefreshCwIcon className={cn(isRefreshing && "animate-spin")} />
         </Button>
       </div>
-
-      {detailError ? (
-        <p className="text-sm text-destructive">{detailError}</p>
-      ) : null}
 
       <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
         <div className="overflow-x-auto">
@@ -240,14 +215,9 @@ export function ManageCloudflareAiUsagePanel({
                         variant="ghost"
                         size="icon"
                         aria-label="View usage details"
-                        disabled={isLoadingDetail}
-                        onClick={() => handleOpenDetails(record.id)}
+                        onClick={() => setSelected(record)}
                       >
-                        {isLoadingDetail ? (
-                          <InlineSpinner />
-                        ) : (
-                          <MessageSquareTextIcon />
-                        )}
+                        <MessageSquareTextIcon />
                       </Button>
                     </td>
                   </tr>
