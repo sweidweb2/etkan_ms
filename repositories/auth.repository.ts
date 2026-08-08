@@ -138,11 +138,6 @@ export async function listAuthEmailsByIds(
     return { data: emailById, error: null };
   }
 
-  const debugTiming =
-    process.env.NODE_ENV === "development" ||
-    process.env.ETKAN_DEBUG_TIMING === "1";
-  const t0 = performance.now();
-
   /** Auth Admin getUserById is cheaper than scanning all users for typical list pages. */
   const GET_BY_ID_MAX = 50;
 
@@ -156,21 +151,10 @@ export async function listAuthEmailsByIds(
 
     for (const row of results) {
       if (row.error) {
-        if (debugTiming) {
-          console.info(
-            `[etkan:timing] listAuthEmailsByIds getUserById failed id=${row.id.slice(0, 8)} ${row.error.message}`
-          );
-        }
         emailById.set(row.id, "");
         continue;
       }
       emailById.set(row.id, row.data.user?.email ?? "");
-    }
-
-    if (debugTiming) {
-      console.info(
-        `[etkan:timing] listAuthEmailsByIds getUserById n=${uniqueIds.length} Σ${(performance.now() - t0).toFixed(0)}ms`
-      );
     }
 
     return { data: emailById, error: null };
@@ -181,14 +165,7 @@ export async function listAuthEmailsByIds(
   const perPage = 1000;
 
   while (needed.size > 0) {
-    const pageStart = performance.now();
     const { data, error } = await client.auth.admin.listUsers({ page, perPage });
-
-    if (debugTiming) {
-      console.info(
-        `[etkan:timing] listAuthEmailsByIds page=${page} idsNeeded=${needed.size}/${uniqueIds.length} +${(performance.now() - pageStart).toFixed(0)}ms`
-      );
-    }
 
     if (error) {
       return { data: emailById, error };
@@ -212,12 +189,6 @@ export async function listAuthEmailsByIds(
     if (!emailById.has(id)) {
       emailById.set(id, "");
     }
-  }
-
-  if (debugTiming) {
-    console.info(
-      `[etkan:timing] listAuthEmailsByIds done pages=${page} resolved=${emailById.size} Σ${(performance.now() - t0).toFixed(0)}ms`
-    );
   }
 
   return { data: emailById, error: null };

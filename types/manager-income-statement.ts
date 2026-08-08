@@ -58,3 +58,5 @@ export type CreateTransactionActionState = {
   message?: string;
   fieldErrors?: Record<string, string[] | undefined>;
 };
+
+export type UpdateTransactionActionState = CreateTransactionActionState;

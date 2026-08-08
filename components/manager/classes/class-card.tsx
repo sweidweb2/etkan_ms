@@ -1,25 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { format } from "date-fns";
-import {
-  BookOpenIcon,
-  CalendarIcon,
-  GraduationCapIcon,
-  UsersIcon,
-} from "lucide-react";
+import { BookOpenIcon } from "lucide-react";
 import {
   getClassProgressTone,
   getClassSessionCompletionRate,
 } from "@/lib/constants/manager-semester-class-progress";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
@@ -28,7 +16,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
   MANAGER_CLASS_CARD_LIMITS,
-  MANAGER_CLASS_STATUS_ICON_CLASSES,
   MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES,
 } from "@/lib/constants/manager-class-display";
 import {
@@ -66,7 +53,10 @@ function TruncatedText({
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className={cn("cursor-default truncate", className)} tabIndex={0} />
+          <span
+            className={cn("cursor-default truncate", className)}
+            tabIndex={0}
+          />
         }
       >
         {display}
@@ -82,9 +72,6 @@ export function ClassCard({ classRow }: ClassCardProps) {
   const statusClassName =
     CLASS_STATUS_BADGE_CLASSES[classRow.status] ??
     "bg-muted text-muted-foreground";
-  const statusIconClassName =
-    MANAGER_CLASS_STATUS_ICON_CLASSES[classRow.status] ??
-    "bg-muted text-muted-foreground";
   const statusSecondaryButtonClassName =
     MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES[classRow.status] ??
     "border-border bg-secondary text-secondary-foreground hover:bg-secondary/80";
@@ -93,38 +80,28 @@ export function ClassCard({ classRow }: ClassCardProps) {
 
   return (
     <TooltipProvider>
-      <Card className="group relative flex h-full flex-col overflow-hidden py-0 transition-shadow hover:border-primary/35 hover:shadow-[0_12px_32px_rgba(59,130,246,0.16)]">
+      <Card className="group relative gap-0 overflow-hidden py-0 transition-colors duration-150 hover:border-primary/40 hover:bg-muted/30">
         <Link
           href={getManagerClassDetailRoute(classRow.id)}
           aria-label={`View ${classRow.name}`}
           className="absolute inset-0 z-0 rounded-xl"
         />
-        <CardHeader className="relative z-10 gap-2 border-b bg-muted/20 py-3 pointer-events-none">
+        <div className="relative z-10 flex flex-col gap-3 px-3 py-3 pointer-events-none">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 items-start gap-3">
-              <div
-                className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                  statusIconClassName
-                )}
-              >
-                <GraduationCapIcon className="size-5" />
-              </div>
-              <div className="min-w-0">
-                <CardTitle className="text-base leading-snug">
-                  <TruncatedText
-                    value={classRow.name}
-                    maxLength={MANAGER_CLASS_CARD_LIMITS.name}
-                  />
-                </CardTitle>
-                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <BookOpenIcon className="size-3 shrink-0" />
-                  <TruncatedText
-                    value={classRow.subject_name}
-                    maxLength={MANAGER_CLASS_CARD_LIMITS.subjectName}
-                  />
-                </p>
-              </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-sm font-semibold leading-snug">
+                <TruncatedText
+                  value={classRow.name}
+                  maxLength={MANAGER_CLASS_CARD_LIMITS.name}
+                />
+              </h3>
+              <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                <BookOpenIcon className="size-3 shrink-0" />
+                <TruncatedText
+                  value={classRow.subject_name}
+                  maxLength={MANAGER_CLASS_CARD_LIMITS.subjectName}
+                />
+              </p>
             </div>
             <span
               className={cn(
@@ -135,9 +112,7 @@ export function ClassCard({ classRow }: ClassCardProps) {
               {statusLabel}
             </span>
           </div>
-        </CardHeader>
 
-        <CardContent className="relative z-10 flex flex-1 flex-col gap-3 py-4 pointer-events-none">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="text-muted-foreground">Session progress</span>
@@ -157,41 +132,6 @@ export function ClassCard({ classRow }: ClassCardProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <UsersIcon className="size-3.5 shrink-0" />
-            <span className="shrink-0">Enrollment</span>
-            <span className="min-w-0 font-medium tabular-nums text-foreground">
-              {classRow.enrollment_count}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span className="shrink-0">Teachers</span>
-            <span className="font-medium tabular-nums text-foreground">
-              {classRow.teacher_count}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CalendarIcon className="size-3.5 shrink-0" />
-            <span className="shrink-0">Created</span>
-            <span className="min-w-0 text-foreground">
-              {format(new Date(classRow.created_at), "MMM d, yyyy")}
-            </span>
-          </div>
-        </CardContent>
-
-        <CardFooter className="relative z-10 mt-auto flex-col items-stretch gap-2.5 border-t bg-muted/20 py-3 pointer-events-none">
-          <p className="min-w-0 text-xs text-muted-foreground">
-            <span className="shrink-0">Semester:</span>{" "}
-            {classRow.semester_name ? (
-              <TruncatedText
-                value={classRow.semester_name}
-                maxLength={MANAGER_CLASS_CARD_LIMITS.semesterName}
-                className="font-medium text-foreground"
-              />
-            ) : (
-              <span className="font-medium text-foreground">Unlinked</span>
-            )}
-          </p>
           <div
             className={cn(
               "pointer-events-auto relative z-10 grid w-full gap-2",
@@ -226,7 +166,7 @@ export function ClassCard({ classRow }: ClassCardProps) {
               <span className="truncate">View class</span>
             </Button>
           </div>
-        </CardFooter>
+        </div>
       </Card>
     </TooltipProvider>
   );

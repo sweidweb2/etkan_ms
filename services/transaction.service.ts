@@ -199,3 +199,180 @@ export async function createTransactionForManager(
         : "Debit recorded.",
   };
 }
+
+export type UpdateTransactionResult =
+  | {
+      success: true;
+      transaction: ManagerIncomeTransactionRow;
+      message: string;
+    }
+  | {
+      success: false;
+      error: string;
+      fieldErrors?: FieldErrors;
+    };
+
+export async function updateTransactionForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    transaction_date: string;
+    type: string;
+    amount: number;
+    description: string;
+    category: string;
+    payment_method?: string | null;
+    recorded_by: string;
+    notes?: string | null;
+  }
+): Promise<UpdateTransactionResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const existingResult = await transactionRepository.findTransactionById(
+    adminClient,
+    input.id
+  );
+  if (existingResult.error) {
+    return { success: false, error: existingResult.error.message };
+  }
+  if (!existingResult.data) {
+    return { success: false, error: "Transaction not found." };
+  }
+
+  const existing = mapTransactionRow(
+    existingResult.data as transactionRepository.TransactionRecord
+  );
+
+  if (!isTransactionType(input.type)) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { type: ["Select credit or debit."] },
+    };
+  }
+
+  const amount = Number(input.amount);
+  const category = input.category?.trim() ?? "";
+  const description = input.description?.trim() ?? "";
+  const recordedBy = input.recorded_by?.trim() ?? "";
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.transaction_date ?? "")) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { transaction_date: ["Date must be YYYY-MM-DD."] },
+    };
+  }
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { amount: ["Amount must be greater than zero."] },
+    };
+  }
+  if (!description) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { description: ["Description is required."] },
+    };
+  }
+  if (!category) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { category: ["Category is required."] },
+    };
+  }
+  if (!recordedBy) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { recorded_by: ["Recorded by is required."] },
+    };
+  }
+
+  const presets = getTransactionCategoriesForType(input.type) as readonly string[];
+  const isPreset = presets.includes(category);
+  if (isPreset && category === "other") {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { category_custom: ["Enter a custom category."] },
+    };
+  }
+
+  const paymentMethod =
+    input.payment_method && isPaymentMethod(input.payment_method)
+      ? input.payment_method
+      : null;
+
+  const { data: updated, error } = await transactionRepository.updateTransaction(
+    adminClient,
+    input.id,
+    {
+      transaction_date: input.transaction_date,
+      type: input.type,
+      amount,
+      description,
+      category,
+      payment_method: paymentMethod,
+      recorded_by: recordedBy,
+      notes: input.notes?.trim() ? input.notes.trim() : null,
+    }
+  );
+
+  if (error || !updated) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to update transaction.",
+    };
+  }
+
+  const transaction = mapTransactionRow(
+    updated as transactionRepository.TransactionRecord
+  );
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "transactions",
+    record_id: transaction.id,
+    old_data: {
+      transaction_date: existing.transaction_date,
+      type: existing.type,
+      amount: existing.amount,
+      description: existing.description,
+      category: existing.category,
+      payment_method: existing.payment_method ?? PAYMENT_METHODS.OTHER,
+      recorded_by: existing.recorded_by,
+      notes: existing.notes,
+    },
+    new_data: {
+      transaction_date: transaction.transaction_date,
+      type: transaction.type,
+      amount: transaction.amount,
+      description: transaction.description,
+      category: transaction.category,
+      payment_method: transaction.payment_method ?? PAYMENT_METHODS.OTHER,
+      recorded_by: transaction.recorded_by,
+      notes: transaction.notes,
+    },
+    metadata: { note: "External transaction updated." },
+  });
+
+  return {
+    success: true,
+    transaction,
+    message: "Transaction updated.",
+  };
+}

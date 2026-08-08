@@ -7,12 +7,14 @@ import {
   FileTextIcon,
   GraduationCapIcon,
   LineChartIcon,
+  PencilIcon,
   SlidersHorizontalIcon,
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Can } from "@/components/auth/can";
 import { CreateTransactionDialog } from "@/components/manager/accounting/create-transaction-dialog";
+import { EditTransactionDialog } from "@/components/manager/accounting/edit-transaction-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -29,7 +31,10 @@ import {
 } from "@/lib/manager/accounting/constants";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
-import type { ManagerIncomeStatementData } from "@/types/manager-income-statement";
+import type {
+  ManagerIncomeStatementData,
+  ManagerIncomeTransactionRow,
+} from "@/types/manager-income-statement";
 
 function formatAdjustmentValue(
   valueType: FinancialAdjustmentValueType,
@@ -74,6 +79,16 @@ export function IncomeStatementPanel({
 }: IncomeStatementPanelProps) {
   const { stats, adjustments, transactions } = data;
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] =
+    useState<ManagerIncomeTransactionRow | null>(null);
+
+  function handleEditOpenChange(open: boolean) {
+    setEditOpen(open);
+    if (!open) {
+      setEditingTransaction(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -140,7 +155,7 @@ export function IncomeStatementPanel({
         }
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b bg-muted/40 text-left">
                 <th className="px-4 py-3 font-medium">Date</th>
@@ -150,13 +165,16 @@ export function IncomeStatementPanel({
                 <th className="px-4 py-3 font-medium text-right">Amount</th>
                 <th className="px-4 py-3 font-medium">Method</th>
                 <th className="px-4 py-3 font-medium">Recorded by</th>
+                <th className="px-4 py-3 font-medium text-right">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {transactions.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     No external transactions recorded yet.
@@ -217,6 +235,25 @@ export function IncomeStatementPanel({
                           value={row.recorded_by}
                           maxLength={24}
                         />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Can
+                          permission={PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE}
+                        >
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="size-7"
+                            aria-label={`Edit transaction ${row.description}`}
+                            onClick={() => {
+                              setEditingTransaction(row);
+                              setEditOpen(true);
+                            }}
+                          >
+                            <PencilIcon className="size-3.5" />
+                          </Button>
+                        </Can>
                       </td>
                     </tr>
                   );
@@ -366,6 +403,11 @@ export function IncomeStatementPanel({
         open={createOpen}
         onOpenChange={setCreateOpen}
         defaultRecordedBy={defaultRecordedBy}
+      />
+      <EditTransactionDialog
+        open={editOpen}
+        onOpenChange={handleEditOpenChange}
+        transaction={editingTransaction}
       />
     </div>
   );

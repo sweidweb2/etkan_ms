@@ -127,10 +127,8 @@ export function resolveCreateTransactionInput(
 /** @deprecated use createTransactionFormSchema */
 export const createTransactionSchema = createTransactionFormSchema;
 
-export function parseCreateTransactionFormData(formData: FormData):
-  | { success: true; data: CreateTransactionInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createTransactionFormSchema.safeParse({
+function formDataToTransactionFields(formData: FormData) {
+  return {
     transaction_date: formData.get("transaction_date"),
     type: formData.get("type"),
     amount: formData.get("amount"),
@@ -140,7 +138,15 @@ export function parseCreateTransactionFormData(formData: FormData):
     payment_method: String(formData.get("payment_method") ?? ""),
     recorded_by: formData.get("recorded_by"),
     notes: formData.get("notes") ?? "",
-  });
+  };
+}
+
+export function parseCreateTransactionFormData(formData: FormData):
+  | { success: true; data: CreateTransactionInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const parsed = createTransactionFormSchema.safeParse(
+    formDataToTransactionFields(formData)
+  );
 
   if (!parsed.success) {
     return {
@@ -162,4 +168,44 @@ export function parseCreateTransactionFormData(formData: FormData):
   }
 
   return { success: true, data };
+}
+
+export const updateTransactionFormSchema = createTransactionFormSchema;
+
+export type UpdateTransactionFormValues = CreateTransactionFormValues & {
+  id: string;
+};
+
+export type UpdateTransactionInput = CreateTransactionInput & {
+  id: string;
+};
+
+export function parseUpdateTransactionFormData(formData: FormData):
+  | { success: true; data: UpdateTransactionInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const id = String(formData.get("id") ?? "").trim();
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      id
+    )
+  ) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { id: ["Invalid transaction."] },
+    };
+  }
+
+  const parsed = parseCreateTransactionFormData(formData);
+  if (!parsed.success) {
+    return parsed;
+  }
+
+  return {
+    success: true,
+    data: {
+      id,
+      ...parsed.data,
+    },
+  };
 }

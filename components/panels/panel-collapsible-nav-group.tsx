@@ -21,17 +21,36 @@ type PanelNavMenuProps = {
   items: PanelNavItem[];
 };
 
-function isNavItemActive(pathname: string, href: string): boolean {
+function matchesNavHref(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Prefer the longest matching href so nested routes don't highlight parents. */
+function resolveActiveNavHref(
+  pathname: string,
+  hrefs: readonly string[]
+): string | null {
+  let best: string | null = null;
+  for (const href of hrefs) {
+    if (!matchesNavHref(pathname, href)) continue;
+    if (!best || href.length > best.length) {
+      best = href;
+    }
+  }
+  return best;
 }
 
 export function PanelNavMenu({ items }: PanelNavMenuProps) {
   const pathname = usePathname();
+  const activeHref = resolveActiveNavHref(
+    pathname,
+    items.map((item) => item.href)
+  );
 
   return (
     <SidebarMenu>
       {items.map((item) => {
-        const isActive = isNavItemActive(pathname, item.href);
+        const isActive = item.href === activeHref;
         const Icon = PANEL_ICONS[item.icon];
 
         return (
@@ -59,7 +78,7 @@ type PanelCollapsibleNavGroupProps = {
 };
 
 function groupContainsPath(group: PanelNavGroup, pathname: string): boolean {
-  return group.items.some((item) => isNavItemActive(pathname, item.href));
+  return group.items.some((item) => matchesNavHref(pathname, item.href));
 }
 
 export function PanelCollapsibleNavGroup({

@@ -105,3 +105,33 @@ export async function createTransaction(
     .select(TRANSACTION_COLUMNS)
     .single();
 }
+
+export async function findTransactionById(client: Supabase, id: string) {
+  return client
+    .from("transactions")
+    .select(TRANSACTION_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+}
+
+export async function updateTransaction(
+  client: Supabase,
+  id: string,
+  input: CreateTransactionRecordInput
+) {
+  return client
+    .from("transactions")
+    .update({
+      transaction_date: input.transaction_date,
+      type: input.type,
+      amount: input.amount,
+      description: input.description,
+      category: input.category,
+      payment_method: input.payment_method,
+      recorded_by: input.recorded_by,
+      notes: input.notes,
+    })
+    .eq("id", id)
+    .select(TRANSACTION_COLUMNS)
+    .single();
+}
