@@ -1430,6 +1430,161 @@ export type Database = {
           },
         ]
       }
+      student_registration_applications: {
+        Row: {
+          additional_phone: string | null
+          available_days: string[]
+          blood_type: string
+          city: string
+          consent_privacy: boolean
+          consent_terms: boolean
+          created_at: string
+          date_of_birth: string
+          education_level: string
+          email: string
+          full_address: string
+          full_name: string
+          gender: string
+          graduation_year: number | null
+          guardian_name: string | null
+          guardian_phone: string | null
+          has_transportation: boolean
+          id: string
+          id_document_type: string
+          job_status: string
+          learning_goal: string
+          learning_status: string
+          notes: string | null
+          organization_name: string | null
+          phone: string
+          preferred_program: string
+          preferred_shifts: string[]
+          referral_other: string | null
+          referral_source: string
+          self_learning_notes: string | null
+          skills: string[]
+          speciality: string | null
+          status: string
+          updated_at: string
+          weekly_available_hours: number
+        }
+        Insert: {
+          additional_phone?: string | null
+          available_days?: string[]
+          blood_type: string
+          city: string
+          consent_privacy: boolean
+          consent_terms: boolean
+          created_at?: string
+          date_of_birth: string
+          education_level: string
+          email: string
+          full_address: string
+          full_name: string
+          gender: string
+          graduation_year?: number | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          has_transportation: boolean
+          id?: string
+          id_document_type: string
+          job_status: string
+          learning_goal: string
+          learning_status: string
+          notes?: string | null
+          organization_name?: string | null
+          phone: string
+          preferred_program: string
+          preferred_shifts?: string[]
+          referral_other?: string | null
+          referral_source: string
+          self_learning_notes?: string | null
+          skills?: string[]
+          speciality?: string | null
+          status?: string
+          updated_at?: string
+          weekly_available_hours: number
+        }
+        Update: {
+          additional_phone?: string | null
+          available_days?: string[]
+          blood_type?: string
+          city?: string
+          consent_privacy?: boolean
+          consent_terms?: boolean
+          created_at?: string
+          date_of_birth?: string
+          education_level?: string
+          email?: string
+          full_address?: string
+          full_name?: string
+          gender?: string
+          graduation_year?: number | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          has_transportation?: boolean
+          id?: string
+          id_document_type?: string
+          job_status?: string
+          learning_goal?: string
+          learning_status?: string
+          notes?: string | null
+          organization_name?: string | null
+          phone?: string
+          preferred_program?: string
+          preferred_shifts?: string[]
+          referral_other?: string | null
+          referral_source?: string
+          self_learning_notes?: string | null
+          skills?: string[]
+          speciality?: string | null
+          status?: string
+          updated_at?: string
+          weekly_available_hours?: number
+        }
+        Relationships: []
+      }
+      student_registration_documents: {
+        Row: {
+          application_id: string
+          created_at: string
+          file_name: string
+          file_size: number
+          id: string
+          mime_type: string
+          sort_order: number
+          storage_path: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          file_name: string
+          file_size: number
+          id?: string
+          mime_type: string
+          sort_order?: number
+          storage_path: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          sort_order?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_registration_documents_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "student_registration_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_profiles: {
         Row: {
           birth_date: string | null

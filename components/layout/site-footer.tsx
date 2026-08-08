@@ -11,6 +11,7 @@ const FOOTER_LINKS = [
   { href: ROUTES.PROJECTS, labelKey: "nav.projects" as const },
   { href: ROUTES.GALLERY, labelKey: "nav.gallery" as const },
   { href: ROUTES.LIFE, labelKey: "nav.life" as const },
+  { href: ROUTES.REGISTER, labelKey: "nav.register" as const },
 ];
 
 const linkClassName =

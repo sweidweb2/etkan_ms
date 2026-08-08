@@ -9,6 +9,7 @@ export const ROUTES = {
   GALLERY: "/gallery",
   LIFE: "/life",
   LIFE_BLOG_DETAIL: "/life/[id]",
+  REGISTER: "/register",
   FINANCIAL_FORM_INVITE: "/f/[token]",
   LOGIN: "/auth/login",
   SIGNUP: "/auth/signup",
@@ -64,6 +65,7 @@ export const ROUTES = {
   MANAGER_BACKUP: "/manager/backup",
   MANAGER_LOGS: "/manager/logs",
   MANAGER_CLOUDFLARE_AI_USAGE: "/manager/cloudflare-ai-usage",
+  MANAGER_REGISTRATIONS: "/manager/registrations",
   MANAGER_CRON_JOBS: "/manager/cron-jobs",
   MANAGER_RBAC: "/manager/rbac",
   CEO_ROOT: "/ceo",
@@ -142,6 +144,12 @@ export function getManagerSubjectDetailRoute(subjectId: string): string {
 
 export function getManagerWorkshopDetailRoute(workshopId: string): string {
   return `/manager/workshops/${workshopId}`;
+}
+
+export function getManagerRegistrationDetailRoute(
+  applicationId: string
+): string {
+  return `/manager/registrations/${applicationId}`;
 }
 
 export function getManagerEquipmentDetailRoute(equipmentId: string): string {

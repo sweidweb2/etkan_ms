@@ -41,6 +41,7 @@ export const PERMISSION_FEATURES = [
   "backup",
   "logs",
   "cloudflare_ai_usage",
+  "registrations",
   "cron_jobs",
   "settings",
   "rbac",
@@ -75,6 +76,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   backup: "Backup",
   logs: "Logs",
   cloudflare_ai_usage: "Cloudflare AI usage",
+  registrations: "Registrations",
   cron_jobs: "Cron Jobs",
   settings: "Settings",
   rbac: "RBAC",
@@ -236,6 +238,9 @@ export const PERMISSIONS = {
   LOGS_VIEW: "logs.view",
 
   CLOUDFLARE_AI_USAGE_VIEW: "cloudflare_ai_usage.view",
+
+  REGISTRATIONS_VIEW: "registrations.view",
+  REGISTRATIONS_UPDATE_STATUS: "registrations.update_status",
 
   CRON_JOBS_VIEW: "cron_jobs.view",
 
@@ -1052,6 +1057,19 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "cloudflare_ai_usage",
     label: "View Cloudflare AI usage logs",
     access: PERMISSION_ACCESS.READ,
+  },
+
+  {
+    key: PERMISSIONS.REGISTRATIONS_VIEW,
+    feature: "registrations",
+    label: "View registration applications",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.REGISTRATIONS_UPDATE_STATUS,
+    feature: "registrations",
+    label: "Update registration application status and notes",
+    access: PERMISSION_ACCESS.WRITE,
   },
 
   {

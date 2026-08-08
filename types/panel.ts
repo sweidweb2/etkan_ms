@@ -19,6 +19,7 @@ export type PanelNavIconKey =
   | "backup"
   | "logs"
   | "sparkles"
+  | "clipboard-list"
   | "clock"
   | "shield"
   | "images";

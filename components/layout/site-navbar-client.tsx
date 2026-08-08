@@ -115,6 +115,7 @@ function PrimaryNavLinks({ className }: { className?: string }) {
       <BrandNavLink href={ROUTES.PROJECTS}>{t("nav.projects")}</BrandNavLink>
       <BrandNavLink href={ROUTES.GALLERY}>{t("nav.gallery")}</BrandNavLink>
       <BrandNavLink href={ROUTES.LIFE}>{t("nav.life")}</BrandNavLink>
+      <BrandNavLink href={ROUTES.REGISTER}>{t("nav.register")}</BrandNavLink>
     </nav>
   );
 }
@@ -243,6 +244,9 @@ export function SiteNavbarClient({
           </MobileNavLink>
           <MobileNavLink href={ROUTES.LIFE} onNavigate={closeMobileMenu}>
             {t("nav.life")}
+          </MobileNavLink>
+          <MobileNavLink href={ROUTES.REGISTER} onNavigate={closeMobileMenu}>
+            {t("nav.register")}
           </MobileNavLink>
           {dashboardHref ? (
             <MobileNavLink href={dashboardHref} onNavigate={closeMobileMenu}>

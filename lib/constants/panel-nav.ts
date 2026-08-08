@@ -62,6 +62,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "book-open",
         },
         {
+          title: "Registrations",
+          href: ROUTES.MANAGER_REGISTRATIONS,
+          icon: "clipboard-list",
+        },
+        {
           title: "Manage relationships",
           href: ROUTES.MANAGER_RELATIONSHIPS,
           icon: "users",

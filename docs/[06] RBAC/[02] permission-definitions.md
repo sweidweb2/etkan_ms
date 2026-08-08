@@ -32,7 +32,7 @@ Search, filter, and list↔detail are part of the matching `*.view` key (not sep
 
 Kept as separate groups (match manager domains):
 
-Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Workshops · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cron Jobs · Settings · RBAC
+Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Workshops · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cloudflare AI usage · Registrations · Cron Jobs · Settings · RBAC
 
 Collapsed into `*.view` (not separate permissions): search, filter, schedule/alerts widgets on dashboard, student detail sub-tabs (classes/grades/borrows summaries).
 
@@ -299,6 +299,13 @@ Format: `key` — label — access
 |-----|-------|--------|
 | `cloudflare_ai_usage.view` | View Cloudflare AI usage logs | read |
 
+### Registrations
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `registrations.view` | View registration applications | read |
+| `registrations.update_status` | Update registration application status and notes | write |
+
 ### Cron Jobs
 
 | Key | Label | Access |
@@ -466,6 +473,8 @@ backup.export_full
 backup.download
 logs.view
 cloudflare_ai_usage.view
+registrations.view
+registrations.update_status
 cron_jobs.view
 settings.view
 settings.maintenance
@@ -473,7 +482,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 127 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`).
+**Count:** 135 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status.
 
 ### is_instructor — shared seed package
 
