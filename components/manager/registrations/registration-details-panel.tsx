@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ExternalLinkIcon } from "lucide-react";
@@ -215,7 +215,9 @@ function SectionCard({
           <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      <div className="grid gap-4 p-4 sm:grid-cols-2">{children}</div>
+      <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+        {children}
+      </div>
     </section>
   );
 }
@@ -279,11 +281,21 @@ export function RegistrationDetailsPanel({
   const [baseline, setBaseline] = useState(() =>
     normalizeDraft(draftFromApplication(application))
   );
+  const [prevApplication, setPrevApplication] =
+    useState(application);
   const [state, formAction, isActionPending] = useActionState(
     updateRegistrationApplicationAction,
     initialActionState
   );
   const [isTransitionPending, startTransition] = useTransition();
+
+  if (application !== prevApplication) {
+    setPrevApplication(application);
+    const next = draftFromApplication(application);
+    setDraft(next);
+    setBaseline(normalizeDraft(next));
+  }
+
   const isPending = isActionPending || isTransitionPending;
   const isDirty = normalizeDraft(draft) !== baseline;
   const fieldErrors = state.fieldErrors ?? {};
@@ -292,12 +304,6 @@ export function RegistrationDetailsPanel({
     draft.learning_status === REGISTRATION_LEARNING_STATUSES.STOPPED;
   const showReferralOther =
     draft.referral_source === REGISTRATION_REFERRAL_SOURCES.OTHER;
-
-  useEffect(() => {
-    const next = draftFromApplication(application);
-    setDraft(next);
-    setBaseline(normalizeDraft(next));
-  }, [application]);
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {
@@ -396,6 +402,8 @@ export function RegistrationDetailsPanel({
         ) : null}
       </div>
 
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
       <SectionCard title="Status & notes" description="Manager review fields.">
         <FieldShell
           label="Status"
@@ -707,7 +715,9 @@ export function RegistrationDetailsPanel({
           />
         </FieldShell>
       </SectionCard>
+      </div>
 
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
       <SectionCard title="Skills & program">
         <FieldShell
           label="Skills"
@@ -960,6 +970,8 @@ export function RegistrationDetailsPanel({
           />
         </FieldShell>
       </SectionCard>
+      </div>
+      </div>
 
       {state.error && !state.fieldErrors ? (
         <p className="text-sm text-destructive">{state.error}</p>
