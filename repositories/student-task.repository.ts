@@ -166,6 +166,48 @@ export async function listStudentTasksForGradesByTaskIds(
   return { data: rows, error: null };
 }
 
+/** Same as listStudentTasksForGradesByTaskIds but scoped to one student. */
+export async function listStudentTasksForGradesByTaskIdsAndStudentId(
+  client: Supabase,
+  taskIds: string[],
+  studentId: string
+) {
+  if (taskIds.length === 0 || !studentId) {
+    return { data: [] as StudentTaskRecord[], error: null };
+  }
+
+  const rows: StudentTaskRecord[] = [];
+
+  for (let index = 0; index < taskIds.length; index += TASK_ID_QUERY_CHUNK_SIZE) {
+    const taskIdChunk = taskIds.slice(index, index + TASK_ID_QUERY_CHUNK_SIZE);
+    let offset = 0;
+
+    while (true) {
+      const { data, error } = await client
+        .from("student_tasks")
+        .select(STUDENT_TASK_COLUMNS)
+        .eq("student_id", studentId)
+        .in("task_id", taskIdChunk)
+        .range(offset, offset + STUDENT_TASKS_PAGE_SIZE - 1);
+
+      if (error) {
+        return { data: null, error };
+      }
+
+      const page = (data ?? []) as StudentTaskRecord[];
+      rows.push(...page);
+
+      if (page.length < STUDENT_TASKS_PAGE_SIZE) {
+        break;
+      }
+
+      offset += STUDENT_TASKS_PAGE_SIZE;
+    }
+  }
+
+  return { data: rows, error: null };
+}
+
 export async function findStudentTaskById(client: Supabase, id: string) {
   return client
     .from("student_tasks")

@@ -1,4 +1,5 @@
 import type { FieldErrors } from "@/types/auth";
+import type { RoleValue } from "@/lib/constants/roles";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 import type {
   ManagerClassFinalExamRow,
@@ -20,6 +21,7 @@ export type ManagerClassSemesterOption = Pick<ManagerSemesterRow, "id" | "name">
 export type ManagerClassTeacherSelectOption = {
   id: string;
   username: string | null;
+  role: RoleValue;
 };
 
 export type ManagerClassTeacherOption = ManagerClassTeacherSelectOption & {

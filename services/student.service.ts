@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import { CLASS_STATUSES, type ClassStatusValue } from "@/lib/constants/manager-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
-import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { ROLES } from "@/lib/constants/roles";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,

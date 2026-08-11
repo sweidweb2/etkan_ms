@@ -48,7 +48,10 @@ function toJsonObject(value: Json | null): AuditLogJsonValue | null {
   return value as AuditLogJsonValue;
 }
 
-function mapAuditLogRecordToRow(record: AuditLogRecord): ManagerAuditLogRow {
+function mapAuditLogRecordToRow(
+  record: AuditLogRecord | auditLogRepository.AuditLogListRecord
+): ManagerAuditLogRow {
+  const withBlobs = record as AuditLogRecord;
   return {
     id: record.id,
     user_id: record.user_id,
@@ -57,8 +60,8 @@ function mapAuditLogRecordToRow(record: AuditLogRecord): ManagerAuditLogRow {
     severity: isAuditLogSeverity(record.severity) ? record.severity : "info",
     table_name: record.table_name,
     record_id: record.record_id,
-    old_data: toJsonObject(record.old_data),
-    new_data: toJsonObject(record.new_data),
+    old_data: toJsonObject(withBlobs.old_data ?? null),
+    new_data: toJsonObject(withBlobs.new_data ?? null),
     metadata: toJsonObject(record.metadata),
     created_at: record.created_at,
   };
@@ -71,16 +74,51 @@ export async function listAuditLogsForManager(
 ): Promise<ManagerAuditLogRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.LOGS_VIEW);
 
-  const { data, error } = await auditLogRepository.listAuditLogs(
+  const limit =
+    options?.limit ?? auditLogRepository.DEFAULT_MANAGER_AUDIT_LOG_LIMIT;
+
+  const { data, error } = await auditLogRepository.listAuditLogs(adminClient, {
+    limit,
+    slim: true,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((row) =>
+    mapAuditLogRecordToRow(
+      row as unknown as auditLogRepository.AuditLogListRecord
+    )
+  );
+}
+
+export async function getAuditLogByIdForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  id: string
+): Promise<ManagerAuditLogRow | null> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.LOGS_VIEW);
+
+  const trimmed = id.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const { data, error } = await auditLogRepository.findAuditLogById(
     adminClient,
-    options?.limit != null ? { limit: options.limit } : undefined
+    trimmed
   );
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapAuditLogRecordToRow);
+  if (!data) {
+    return null;
+  }
+
+  return mapAuditLogRecordToRow(data);
 }
 
 export type CreateAuditLogInput = {

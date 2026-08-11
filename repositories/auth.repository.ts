@@ -1,6 +1,10 @@
+import {
+  getCachedAuthEmails,
+  setCachedAuthEmails,
+} from "@/lib/auth/auth-emails-cache";
+import type { RoleValue } from "@/lib/constants/roles";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
-import type { RoleValue } from "@/lib/constants/roles";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -138,6 +142,11 @@ export async function listAuthEmailsByIds(
     return { data: emailById, error: null };
   }
 
+  const cached = getCachedAuthEmails(uniqueIds);
+  if (cached) {
+    return { data: cached, error: null };
+  }
+
   /** Auth Admin getUserById is cheaper than scanning all users for typical list pages. */
   const GET_BY_ID_MAX = 50;
 
@@ -157,6 +166,7 @@ export async function listAuthEmailsByIds(
       emailById.set(row.id, row.data.user?.email ?? "");
     }
 
+    setCachedAuthEmails(uniqueIds, emailById);
     return { data: emailById, error: null };
   }
 
@@ -191,6 +201,7 @@ export async function listAuthEmailsByIds(
     }
   }
 
+  setCachedAuthEmails(uniqueIds, emailById);
   return { data: emailById, error: null };
 }
 

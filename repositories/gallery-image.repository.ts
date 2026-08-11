@@ -25,7 +25,8 @@ export async function listGalleryImages(client: Supabase) {
   return client
     .from("gallery_images")
     .select(GALLERY_IMAGE_COLUMNS)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200);
 }
 
 export async function findGalleryImageById(client: Supabase, id: string) {

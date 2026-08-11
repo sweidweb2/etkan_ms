@@ -6,6 +6,10 @@ import {
   hasPermissionInSet,
 } from "@/lib/auth/permission-checks";
 import {
+  getCachedRolePermissionKeys,
+  setCachedRolePermissionKeys,
+} from "@/lib/auth/role-permissions-cache";
+import {
   isPermissionKey,
   type PermissionKey,
 } from "@/lib/constants/permissions";
@@ -100,9 +104,16 @@ export async function getUserPermissions(
 }
 
 const loadPermissionsForRoleCached = cache(async (role: RoleValue) => {
+  const cachedKeys = getCachedRolePermissionKeys(role);
+  if (cachedKeys) {
+    return new Set<PermissionKey>(cachedKeys);
+  }
+
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const client = createSupabaseAdminClient();
-  return loadPermissionsForRoleWithClient(client, role);
+  const permissions = await loadPermissionsForRoleWithClient(client, role);
+  setCachedRolePermissionKeys(role, [...permissions]);
+  return permissions;
 });
 
 const loadUserPermissionsCached = cache(async (userId: string) => {

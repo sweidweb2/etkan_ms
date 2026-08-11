@@ -22,6 +22,7 @@ import {
   createClassSessionSchema,
   type CreateClassSessionInput,
 } from "@/lib/validators/manager/create-class-session";
+import { toDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
 import type { CreateClassSessionActionState } from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
@@ -39,12 +40,6 @@ type AddClassSessionDialogProps = {
     classRow: ManagerClassRow
   ) => void;
 };
-
-function toDatetimeLocalValue(date: Date) {
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
-}
 
 export function AddClassSessionDialog({
   open,
@@ -96,8 +91,8 @@ export function AddClassSessionDialog({
 
     reset({
       topic: `Session ${nextNbOrder}`,
-      starts_at: toDatetimeLocalValue(startsAt),
-      ends_at: toDatetimeLocalValue(endsAt),
+      starts_at: toDateTimeLocalValue(startsAt),
+      ends_at: toDateTimeLocalValue(endsAt),
     });
   }, [nextNbOrder, open, reset]);
 

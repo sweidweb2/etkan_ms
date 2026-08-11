@@ -42,6 +42,22 @@ export async function listAttendeesBySessionIds(
     .in("session_id", sessionIds);
 }
 
+export async function listAttendeesBySessionIdsAndStudentId(
+  client: Supabase,
+  sessionIds: string[],
+  studentId: string
+) {
+  if (sessionIds.length === 0 || !studentId) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("attendee")
+    .select("session_id, student_id, status")
+    .eq("student_id", studentId)
+    .in("session_id", sessionIds);
+}
+
 export async function listAttendeesBySessionId(
   client: Supabase,
   sessionId: string

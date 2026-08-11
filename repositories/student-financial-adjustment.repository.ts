@@ -86,7 +86,39 @@ export async function listFinancialAdjustmentsBetween(
     .order("created_at", { ascending: false });
 }
 
+/** Slim rows for analytics chart totals. */
+export async function listFinancialAdjustmentAmountsBetween(
+  client: Supabase,
+  fromInclusive: string,
+  toExclusive: string
+) {
+  return client
+    .from("student_financial_adjustments")
+    .select("effective_date, value")
+    .gte("effective_date", fromInclusive)
+    .lt("effective_date", toExclusive);
+}
+
 export async function findFinancialAdjustmentDateBounds(client: Supabase) {
+  const aggregate = await client
+    .from("student_financial_adjustments")
+    .select("min_date:effective_date.min(), max_date:effective_date.max()")
+    .maybeSingle();
+
+  if (!aggregate.error && aggregate.data) {
+    const row = aggregate.data as unknown as {
+      min_date?: string | null;
+      max_date?: string | null;
+    };
+    return {
+      data: {
+        min: row.min_date ?? null,
+        max: row.max_date ?? null,
+      },
+      error: null,
+    };
+  }
+
   const [minResult, maxResult] = await Promise.all([
     client
       .from("student_financial_adjustments")

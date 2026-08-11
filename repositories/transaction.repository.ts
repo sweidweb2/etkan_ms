@@ -54,7 +54,39 @@ export async function listTransactionsBetween(
     .order("created_at", { ascending: false });
 }
 
+/** Slim rows for analytics chart totals. */
+export async function listTransactionAmountsBetween(
+  client: Supabase,
+  fromInclusive: string,
+  toExclusive: string
+) {
+  return client
+    .from("transactions")
+    .select("transaction_date, type, amount")
+    .gte("transaction_date", fromInclusive)
+    .lt("transaction_date", toExclusive);
+}
+
 export async function findTransactionDateBounds(client: Supabase) {
+  const aggregate = await client
+    .from("transactions")
+    .select("min_date:transaction_date.min(), max_date:transaction_date.max()")
+    .maybeSingle();
+
+  if (!aggregate.error && aggregate.data) {
+    const row = aggregate.data as unknown as {
+      min_date?: string | null;
+      max_date?: string | null;
+    };
+    return {
+      data: {
+        min: row.min_date ?? null,
+        max: row.max_date ?? null,
+      },
+      error: null,
+    };
+  }
+
   const [minResult, maxResult] = await Promise.all([
     client
       .from("transactions")

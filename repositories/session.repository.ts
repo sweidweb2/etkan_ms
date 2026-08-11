@@ -58,6 +58,21 @@ export async function listSessionsByClassId(client: Supabase, classId: string) {
     .order("nb_order", { ascending: true });
 }
 
+export async function listSessionsByClassIds(
+  client: Supabase,
+  classIds: string[]
+) {
+  if (classIds.length === 0) {
+    return { data: [] as SessionRecord[], error: null };
+  }
+
+  return client
+    .from("sessions")
+    .select(SESSION_COLUMNS)
+    .in("class_id", classIds)
+    .order("nb_order", { ascending: true });
+}
+
 export async function findSessionById(client: Supabase, id: string) {
   return client
     .from("sessions")

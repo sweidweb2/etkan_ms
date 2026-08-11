@@ -11,6 +11,12 @@ vi.mock("@/repositories/instructor-subject-capability.repository");
 vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
   clearInstructorWorkshopRelatedData: vi.fn(),
 }));
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: vi.fn(),
+}));
 
 vi.mock("@/services/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",

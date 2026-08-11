@@ -22,6 +22,7 @@ import {
   updateFinalExamSchema,
   type UpdateFinalExamInput,
 } from "@/lib/validators/manager/update-final-exam";
+import { toSchoolDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
 import { cn } from "@/lib/utils";
 import type { UpdateFinalExamActionState } from "@/types/manager-class-detail";
 import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
@@ -35,21 +36,6 @@ type EditFinalExamDialogProps = {
   className: string;
   onFinalExamUpdated: (exam: ManagerClassFinalExamRow) => void;
 };
-
-function toDatetimeLocalValue(value: string | null) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
-}
 
 export function EditFinalExamDialog({
   open,
@@ -80,7 +66,7 @@ export function EditFinalExamDialog({
     defaultValues: {
       title: finalExam.title,
       description: finalExam.description ?? "",
-      due_date: toDatetimeLocalValue(finalExam.due_date),
+      due_date: toSchoolDateTimeLocalValue(finalExam.due_date),
       max_grade: finalExam.max_grade ?? "",
     },
   });
@@ -93,7 +79,7 @@ export function EditFinalExamDialog({
     reset({
       title: finalExam.title,
       description: finalExam.description ?? "",
-      due_date: toDatetimeLocalValue(finalExam.due_date),
+      due_date: toSchoolDateTimeLocalValue(finalExam.due_date),
       max_grade: finalExam.max_grade ?? "",
     });
   }, [finalExam, open, reset]);

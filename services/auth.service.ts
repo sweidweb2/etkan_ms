@@ -28,6 +28,24 @@ const MAINTENANCE_BLOCKED_ROLES: ReadonlySet<RoleValue> = new Set([
 const MAINTENANCE_LOGIN_ERROR =
   "The app is under maintenance. Please try again later.";
 
+/**
+ * Gate teacher/student at session-create time only (login, signup auto-session,
+ * auth callback). Middleware does not re-check on every navigation.
+ */
+export async function rejectIfMaintenanceBlocksRole(
+  client: Supabase,
+  role: RoleValue
+): Promise<string | null> {
+  if (!MAINTENANCE_BLOCKED_ROLES.has(role)) {
+    return null;
+  }
+
+  const maintenanceMode =
+    await appSettingsRepository.getMaintenanceMode(client);
+
+  return maintenanceMode ? MAINTENANCE_LOGIN_ERROR : null;
+}
+
 function mapAuthError(message: string): string {
   const normalized = message.toLowerCase();
 
@@ -95,17 +113,13 @@ export async function login(
 
   const role = await resolveUserRole(client, data.user);
 
-  if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
-    const maintenanceMode =
-      await appSettingsRepository.getMaintenanceMode(client);
-
-    if (maintenanceMode) {
-      await authRepository.signOut(client);
-      return {
-        success: false,
-        error: MAINTENANCE_LOGIN_ERROR,
-      };
-    }
+  const maintenanceError = await rejectIfMaintenanceBlocksRole(client, role);
+  if (maintenanceError) {
+    await authRepository.signOut(client);
+    return {
+      success: false,
+      error: maintenanceError,
+    };
   }
 
   return {
@@ -271,6 +285,19 @@ export async function register(
       success: true,
       requiresEmailConfirmation: true,
       redirectTo: `${ROUTES.LOGIN}?message=confirm_email`,
+    };
+  }
+
+  // Signup created a session (auto sign-in) — same maintenance gate as login.
+  const maintenanceError = await rejectIfMaintenanceBlocksRole(
+    authClient,
+    ROLES.STUDENT
+  );
+  if (maintenanceError) {
+    await authRepository.signOut(authClient);
+    return {
+      success: false,
+      error: maintenanceError,
     };
   }
 

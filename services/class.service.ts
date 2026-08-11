@@ -1,5 +1,5 @@
-import { ROLES } from "@/lib/constants/roles";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import type { RoleValue } from "@/lib/constants/roles";
 import {
   assertPermission,
   getUnauthorizedError,
@@ -31,6 +31,7 @@ import {
 } from "@/lib/validators/manager/add-student-to-class";
 import { removeStudentFromClassSchema } from "@/lib/validators/manager/remove-student-from-class";
 import { transferStudentBetweenClassesSchema } from "@/lib/validators/manager/transfer-student-between-classes";
+import { datetimeLocalToUtcIso } from "@/lib/utils/datetime-local-to-utc-iso";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
@@ -181,13 +182,7 @@ function normalizeOptionalString(value?: string | null): string | null {
 }
 
 function toIsoOrNull(value?: string | null): string | null {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const date = new Date(trimmed);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  return datetimeLocalToUtcIso(value);
 }
 
 function mapSessionRecord(record: SessionRecord): ManagerClassSessionRow {
@@ -548,11 +543,11 @@ export async function createClassForManager(
       return { success: false, error: teacherResult.error.message };
     }
 
-    if (!teacherResult.data || teacherResult.data.role !== ROLES.TEACHER) {
+    if (!teacherResult.data) {
       return {
         success: false,
         error: "Please fix the errors below.",
-        fieldErrors: { teacher_id: ["Teacher not found."] },
+        fieldErrors: { teacher_id: ["User not found."] },
       };
     }
   }
@@ -694,9 +689,7 @@ export async function listTeacherOptionsForManager(
 ): Promise<ManagerClassTeacherSelectOption[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
-  const teachersResult = await profileRepository.listProfiles(adminClient, {
-    roles: [ROLES.TEACHER],
-  });
+  const teachersResult = await profileRepository.listProfiles(adminClient);
 
   if (teachersResult.error) {
     throw new Error(teachersResult.error.message);
@@ -705,6 +698,7 @@ export async function listTeacherOptionsForManager(
   return (teachersResult.data ?? []).map((teacher) => ({
     id: teacher.id,
     username: teacher.username,
+    role: teacher.role as RoleValue,
   }));
 }
 
@@ -735,6 +729,7 @@ export async function listClassTeacherOptionsForManager(
   return teachers.map((teacher) => ({
     id: teacher.id,
     username: teacher.username,
+    role: teacher.role,
     assigned: assignmentByTeacherId.has(teacher.id),
     assignment_id: assignmentByTeacherId.get(teacher.id) ?? null,
   }));
@@ -792,11 +787,11 @@ export async function assignTeacherToClassForManager(
     return { success: false, error: teacherResult.error.message };
   }
 
-  if (!teacherResult.data || teacherResult.data.role !== ROLES.TEACHER) {
+  if (!teacherResult.data) {
     return {
       success: false,
       error: "Please fix the errors below.",
-      fieldErrors: { teacher_id: ["Teacher not found."] },
+      fieldErrors: { teacher_id: ["User not found."] },
     };
   }
 
@@ -853,6 +848,7 @@ export async function assignTeacherToClassForManager(
     teacher: {
       id: teacherResult.data.id,
       username: teacherResult.data.username,
+      role: teacherResult.data.role as RoleValue,
       assigned: true,
       assignment_id: data.id,
     },

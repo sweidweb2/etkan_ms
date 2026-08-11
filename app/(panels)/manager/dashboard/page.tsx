@@ -2,10 +2,15 @@ import { redirect } from "next/navigation";
 import { ManagerDashboardPanel } from "@/components/manager/dashboard/manager-dashboard-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
+import {
+  navPageTimingBeacon,
+  startNavPageTimer,
+} from "@/lib/debug/start-nav-page-timer";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getManagerDashboardForManager } from "@/services/manager-dashboard.service";
 
 export default async function ManagerDashboardPage() {
+  const pageTimer = await startNavPageTimer("manager/dashboard");
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
 
@@ -14,6 +19,12 @@ export default async function ManagerDashboardPage() {
   }
 
   const data = await getManagerDashboardForManager(adminClient, user.id);
+  pageTimer.end();
 
-  return <ManagerDashboardPanel data={data} />;
+  return (
+    <>
+      {await navPageTimingBeacon()}
+      <ManagerDashboardPanel data={data} />
+    </>
+  );
 }

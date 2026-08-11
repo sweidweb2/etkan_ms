@@ -1,6 +1,8 @@
+import { unstable_cache } from "next/cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { RoleValue } from "@/lib/constants/roles";
 import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
+import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import * as authRepository from "@/repositories/auth.repository";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
@@ -12,6 +14,7 @@ import {
 } from "@/services/authorization.service";
 import { saveInstructorCapabilitiesSchema } from "@/lib/validators/manager/save-instructor-capabilities";
 import { addInstructorsSchema } from "@/lib/validators/manager/add-instructors";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   ManagerInstructorCandidateRow,
   ManagerInstructorCapabilityPair,
@@ -55,12 +58,9 @@ async function mapProfilesWithEmail(
   }));
 }
 
-export async function getInstructorsPageForManager(
-  adminClient: Supabase,
-  actorUserId: string | null
+async function fetchInstructorsPageForManager(
+  adminClient: Supabase
 ): Promise<ManagerInstructorsPageData> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.INSTRUCTORS_VIEW);
-
   const [instructorsResult, subjectsResult, capabilitiesResult] =
     await Promise.all([
       profileRepository.listInstructorProfiles(adminClient),
@@ -112,6 +112,23 @@ export async function getInstructorsPageForManager(
     subjects,
     capabilities,
   };
+}
+
+const getInstructorsPageForManagerCached = unstable_cache(
+  async () => {
+    const adminClient = createSupabaseAdminClient();
+    return fetchInstructorsPageForManager(adminClient);
+  },
+  ["manager-instructors-page"],
+  { tags: [MANAGER_CACHE_TAGS.INSTRUCTORS], revalidate: 3600 }
+);
+
+export async function getInstructorsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerInstructorsPageData> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.INSTRUCTORS_VIEW);
+  return getInstructorsPageForManagerCached();
 }
 
 export async function listInstructorCandidatesForManager(

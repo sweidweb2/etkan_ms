@@ -1,8 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server";
-import {
-  getCachedMaintenanceMode,
-  setCachedMaintenanceMode,
-} from "@/lib/auth/maintenance-mode-cache";
 import { hasSupabaseAuthCookies } from "@/lib/auth/session-cookies";
 import { canAccessPath, isPanelPath } from "@/lib/auth/path-access";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
@@ -17,10 +13,17 @@ import {
   ROUTES,
 } from "@/lib/constants/routes";
 import {
+  NAV_MW_TIMING_HEADER,
+  NAV_TIMING_HEADER,
+  createNavTripId,
+  encodeTimingMarks,
+  isNavTimingEnabled,
+  navTimingServerLog,
+} from "@/lib/debug/nav-timing";
+import {
   applyAuthCookies,
   createSupabaseMiddlewareClient,
 } from "@/lib/supabase/middleware";
-import { getMaintenanceMode } from "@/repositories/app-settings.repository";
 import {
   roleFromAuthMetadata,
   roleFromJwtClaims,
@@ -31,13 +34,6 @@ import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
-const MAINTENANCE_PATH = "/maintenance";
-
-const MAINTENANCE_BLOCKED_ROLES: ReadonlySet<RoleValue> = new Set([
-  ROLES.STUDENT,
-  ROLES.TEACHER,
-]);
-
 type MiddlewareSupabase = SupabaseClient<Database>;
 
 type MiddlewareAuth = {
@@ -46,15 +42,6 @@ type MiddlewareAuth = {
   /** Present when we fell back to getUser (needed for metadata-only paths). */
   user: User | null;
 };
-
-function isTeacherOrStudentPanelPath(pathname: string): boolean {
-  return (
-    pathname === ROUTES.TEACHER_ROOT ||
-    pathname.startsWith(`${ROUTES.TEACHER_ROOT}/`) ||
-    pathname === ROUTES.STUDENT_ROOT ||
-    pathname.startsWith(`${ROUTES.STUDENT_ROOT}/`)
-  );
-}
 
 /**
  * Prefer getClaims (local JWT verify / cached JWKS) over getUser (Auth round-trip).
@@ -91,18 +78,6 @@ async function resolveMiddlewareAuth(
   };
 }
 
-async function resolveMaintenanceMode(
-  supabase: MiddlewareSupabase
-): Promise<boolean> {
-  const cached = getCachedMaintenanceMode();
-  if (cached !== null) {
-    return cached;
-  }
-  const value = await getMaintenanceMode(supabase);
-  setCachedMaintenanceMode(value);
-  return value;
-}
-
 async function resolveRole(
   supabase: MiddlewareSupabase,
   auth: MiddlewareAuth
@@ -121,60 +96,79 @@ async function resolveRole(
   });
 }
 
+function attachMwTiming(
+  response: NextResponse,
+  tripId: string,
+  marks: Record<string, number>
+): NextResponse {
+  if (!isNavTimingEnabled()) return response;
+  response.headers.set(NAV_TIMING_HEADER, tripId);
+  response.headers.set(NAV_MW_TIMING_HEADER, encodeTimingMarks(marks));
+  // Expose to browser fetch() so the client tracer can read them.
+  response.headers.append(
+    "Access-Control-Expose-Headers",
+    `${NAV_TIMING_HEADER}, ${NAV_MW_TIMING_HEADER}`
+  );
+  return response;
+}
+
+/**
+ * Route protection only. Maintenance mode is enforced at login / signup
+ * auto-session / auth callback — not on every navigation (was a ~0.3–1s
+ * app_settings round-trip on cache miss).
+ */
 export async function middleware(request: NextRequest) {
+  const debugOn = isNavTimingEnabled();
+  const tripId =
+    request.headers.get(NAV_TIMING_HEADER) ??
+    (debugOn ? createNavTripId() : "off");
+  const t0 = performance.now();
+  const marks: Record<string, number> = {};
+
+  // Forward trip id into the RSC request so layouts can correlate.
+  if (debugOn) {
+    request.headers.set(NAV_TIMING_HEADER, tripId);
+  }
+
   const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
 
+  const finish = (response: NextResponse) => {
+    marks.total = performance.now() - t0;
+    if (debugOn) {
+      navTimingServerLog(tripId, `middleware ${request.nextUrl.pathname}`, marks);
+      return attachMwTiming(response, tripId, marks);
+    }
+    return response;
+  };
+
   const redirect = (url: URL) =>
-    applyAuthCookies(NextResponse.redirect(url), getResponse());
+    finish(applyAuthCookies(NextResponse.redirect(url), getResponse()));
 
   const { pathname } = request.nextUrl;
 
-  // Auth JWT check + maintenance flag in parallel (was sequential ~2 round-trips).
-  const [auth, maintenanceMode] = await Promise.all([
-    resolveMiddlewareAuth(supabase),
-    resolveMaintenanceMode(supabase),
-  ]);
-
-  if (maintenanceMode) {
-    const isMaintenancePage = pathname === MAINTENANCE_PATH;
-    const isManagerSettings = pathname === ROUTES.MANAGER_SETTINGS;
-    const isAuthRoute = isPublicAuthRoute(pathname);
-
-    if (isMaintenancePage || isManagerSettings || isAuthRoute) {
-      if (auth.userId && isGuestOnlyAuthRoute(pathname)) {
-        const role = await resolveRole(supabase, auth);
-        if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
-          return redirect(new URL(MAINTENANCE_PATH, request.url));
-        }
-        const next = request.nextUrl.searchParams.get("next");
-        const redirectTo = getPostLoginRedirect(role, next);
-        return redirect(new URL(redirectTo, request.url));
-      }
-      return getResponse();
-    }
-
-    if (auth.userId) {
-      const role = await resolveRole(supabase, auth);
-      if (MAINTENANCE_BLOCKED_ROLES.has(role)) {
-        return redirect(new URL(MAINTENANCE_PATH, request.url));
-      }
-    } else if (isTeacherOrStudentPanelPath(pathname)) {
-      return redirect(new URL(MAINTENANCE_PATH, request.url));
-    }
-  }
+  const authStart = performance.now();
+  const auth = await resolveMiddlewareAuth(supabase);
+  marks.claims = performance.now() - authStart;
 
   if (isPublicAuthRoute(pathname)) {
     if (auth.userId && isGuestOnlyAuthRoute(pathname)) {
+      const roleStart = performance.now();
       const role = await resolveRole(supabase, auth);
+      marks.role = performance.now() - roleStart;
       const next = request.nextUrl.searchParams.get("next");
       const redirectTo = getPostLoginRedirect(role, next);
       return redirect(new URL(redirectTo, request.url));
     }
-    return getResponse();
+    return finish(getResponse());
   }
 
   if (pathname === ROUTES.HOME) {
-    return getResponse();
+    return finish(getResponse());
+  }
+
+  // Public maintenance page stays reachable without auth work beyond claims.
+  if (pathname === "/maintenance") {
+    return finish(getResponse());
   }
 
   if (isPanelPath(pathname)) {
@@ -190,7 +184,9 @@ export async function middleware(request: NextRequest) {
       return redirect(loginUrl);
     }
 
+    const roleStart = performance.now();
     const role = await resolveRole(supabase, auth);
+    marks.role = performance.now() - roleStart;
     const panelRoot = getPanelRootForRole(role);
 
     if (pathname === panelRoot) {
@@ -201,10 +197,10 @@ export async function middleware(request: NextRequest) {
       return redirect(new URL(getDashboardRouteForRole(role), request.url));
     }
 
-    return getResponse();
+    return finish(getResponse());
   }
 
-  return getResponse();
+  return finish(getResponse());
 }
 
 export const config = {

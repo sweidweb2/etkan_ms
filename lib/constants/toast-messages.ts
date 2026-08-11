@@ -21,6 +21,7 @@ export const TOAST_MESSAGES = {
     auth_callback_failed:
       "Sign-in link expired or is invalid. Please try again.",
     auth_failed: "Authentication failed.",
+    maintenance: "The app is under maintenance. Please try again later.",
   },
   info: {
     confirm_email:

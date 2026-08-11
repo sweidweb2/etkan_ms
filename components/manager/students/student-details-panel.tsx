@@ -83,7 +83,6 @@ export function StudentDetailsPanel({
   const [prevStudent, setPrevStudent] =
     useState<ManagerStudentRow>(initialStudent);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const studentProfileId = student.student_profile_id;
 
   if (initialStudent !== prevStudent) {
     setPrevStudent(initialStudent);

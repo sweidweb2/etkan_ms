@@ -11,7 +11,8 @@
 import type { PermissionKey } from "@/lib/constants/permissions";
 import type { RoleValue } from "@/lib/constants/roles";
 
-export const SESSION_SHELL_TTL_MS = 60_000;
+/** 5 min — longer than role-perms co-expiry cliff; still bust on logout/RBAC. */
+export const SESSION_SHELL_TTL_MS = 300_000;
 
 export type SessionShellPayload = {
   role: RoleValue;
@@ -44,6 +45,9 @@ export function getCachedSessionShell(
     cache.delete(userId);
     return null;
   }
+
+  // Sliding TTL: active sidebar hops keep the shell warm without a cliff.
+  entry.expiresAt = Date.now() + SESSION_SHELL_TTL_MS;
 
   const { expiresAt: _expiresAt, ...payload } = entry;
   return payload;

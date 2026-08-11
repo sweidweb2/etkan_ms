@@ -6,6 +6,7 @@ import {
   isSharedManagerWorkshopPath,
 } from "@/lib/auth/shared-manager-routes";
 import {
+  getNavRscTimingBag,
   getSessionIsInstructor,
   getSessionRole,
 } from "@/lib/auth/session";
@@ -14,13 +15,24 @@ import {
   getDashboardRouteForRole,
   ROUTES,
 } from "@/lib/constants/routes";
+import {
+  NAV_TIMING_HEADER,
+  isNavTimingEnabled,
+  navNowMs,
+  navTimingServerLog,
+} from "@/lib/debug/nav-timing";
 
 export default async function ManagerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = (await headers()).get("x-pathname") ?? "";
+  const debugOn = isNavTimingEnabled();
+  const start = debugOn ? navNowMs() : 0;
+  const headerList = await headers();
+  const pathname = headerList.get("x-pathname") ?? "";
+  const tripId = debugOn ? headerList.get(NAV_TIMING_HEADER) : null;
+
   const role = await getSessionRole();
 
   if (!role) {
@@ -29,6 +41,13 @@ export default async function ManagerLayout({
 
   if (role === ROLES.MANAGER) {
     await requireManagerRoutePermission(pathname);
+    if (debugOn) {
+      const bag = getNavRscTimingBag();
+      bag.manager_layout = navNowMs() - start;
+      navTimingServerLog(tripId ?? "rsc", "manager_layout", {
+        manager_layout: bag.manager_layout,
+      });
+    }
     return children;
   }
 
@@ -46,5 +65,12 @@ export default async function ManagerLayout({
   }
 
   await requireManagerRoutePermission(pathname);
+  if (debugOn) {
+    const bag = getNavRscTimingBag();
+    bag.manager_layout = navNowMs() - start;
+    navTimingServerLog(tripId ?? "rsc", "manager_layout", {
+      manager_layout: bag.manager_layout,
+    });
+  }
   return children;
 }

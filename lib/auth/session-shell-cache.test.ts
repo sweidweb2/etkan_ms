@@ -43,6 +43,16 @@ describe("session-shell-cache", () => {
     expect(getCachedSessionShell("user-1")).toBeNull();
   });
 
+  it("slides TTL on HIT so active hops stay warm", () => {
+    setCachedSessionShell("user-1", payload, 1_000);
+    vi.advanceTimersByTime(800);
+    expect(getCachedSessionShell("user-1")).toEqual(payload);
+    // Without sliding, 800+300 would expire the original 1s window.
+    // Sliding uses SESSION_SHELL_TTL_MS on HIT, so still present.
+    vi.advanceTimersByTime(300);
+    expect(getCachedSessionShell("user-1")).toEqual(payload);
+  });
+
   it("clears one user without affecting others", () => {
     setCachedSessionShell("user-1", payload);
     setCachedSessionShell("user-2", {

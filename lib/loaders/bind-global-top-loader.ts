@@ -1,4 +1,12 @@
 import {
+  NAV_TIMING_HEADER,
+  isNavTimingEnabled,
+  navTimingClientFetchEnd,
+  navTimingClientFetchStart,
+  navTimingClientGetTripId,
+  navTimingClientStart,
+} from "@/lib/debug/nav-timing";
+import {
   globalTopLoaderSession,
   type GlobalTopLoaderToken,
 } from "@/lib/loaders/global-top-loader-session";
@@ -142,12 +150,18 @@ export function bindGlobalTopLoaderSources() {
     const next = getSameOriginPath(href);
     if (!next || next === currentPath()) return;
 
+    if (isNavTimingEnabled()) {
+      navTimingClientStart(next);
+    }
     ensureNavToken(true);
   };
 
   document.addEventListener("click", onClick, true);
 
   const onPopState = () => {
+    if (isNavTimingEnabled()) {
+      navTimingClientStart(currentPath());
+    }
     ensureNavToken(true);
   };
   window.addEventListener("popstate", onPopState);
@@ -164,6 +178,9 @@ export function bindGlobalTopLoaderSources() {
       if (url != null) {
         const next = getSameOriginPath(String(url));
         if (next && next !== prev) {
+          if (isNavTimingEnabled()) {
+            navTimingClientStart(next);
+          }
           // Arm before history updates so router.push matches Link click timing.
           ensureNavToken(true);
         }
@@ -182,17 +199,48 @@ export function bindGlobalTopLoaderSources() {
 
     state.fetchInflight += 1;
     const token = globalTopLoaderSession.start();
+    navTimingClientFetchStart();
 
-    const done = () => {
+    const tripId = navTimingClientGetTripId();
+    let trackedInput: RequestInfo | URL = input;
+    let trackedInit = init;
+
+    if (isNavTimingEnabled() && tripId) {
+      const headers = new Headers(
+        init?.headers ??
+          (input instanceof Request ? input.headers : undefined)
+      );
+      if (!headers.has(NAV_TIMING_HEADER)) {
+        headers.set(NAV_TIMING_HEADER, tripId);
+      }
+      if (input instanceof Request) {
+        trackedInput = new Request(input, { headers });
+        trackedInit = init;
+      } else {
+        trackedInit = { ...init, headers };
+      }
+    }
+
+    const done = (response: Response | null) => {
       state.fetchInflight = Math.max(0, state.fetchInflight - 1);
       globalTopLoaderSession.end(token);
+      navTimingClientFetchEnd(response);
       tryReleaseNavToken();
     };
 
     try {
-      return Promise.resolve(originalFetch(input, init)).finally(done);
+      return Promise.resolve(originalFetch(trackedInput, trackedInit)).then(
+        (response) => {
+          done(response);
+          return response;
+        },
+        (error) => {
+          done(null);
+          throw error;
+        }
+      );
     } catch (error) {
-      done();
+      done(null);
       throw error;
     }
   }) as typeof window.fetch;

@@ -27,6 +27,7 @@ import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change
 import { useZodForm } from "@/hooks/use-zod-form";
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
+import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import {
   CLASS_STATUS_VALUES,
   createClassSchema,
@@ -116,10 +117,14 @@ export function AddClassDialog({
 
   const teacherSelectItems = [
     { value: TEACHER_UNASSIGNED, label: "No teacher" },
-    ...teacherOptions.map((teacher) => ({
-      value: teacher.id,
-      label: teacher.username ?? "Unnamed teacher",
-    })),
+    ...teacherOptions.map((teacher) => {
+      const name = teacher.username ?? "Unnamed user";
+      const roleLabel = MANAGER_USER_ROLE_LABELS[teacher.role] ?? teacher.role;
+      return {
+        value: teacher.id,
+        label: `${name} (${roleLabel})`,
+      };
+    }),
   ];
 
   useEffect(() => {
@@ -316,11 +321,16 @@ export function AddClassDialog({
               </SelectTrigger>
               <SelectContent align="start">
                 <SelectItem value={TEACHER_UNASSIGNED}>No teacher</SelectItem>
-                {teacherOptions.map((teacher) => (
-                  <SelectItem key={teacher.id} value={teacher.id}>
-                    {teacher.username ?? "Unnamed teacher"}
-                  </SelectItem>
-                ))}
+                {teacherOptions.map((teacher) => {
+                  const name = teacher.username ?? "Unnamed user";
+                  const roleLabel =
+                    MANAGER_USER_ROLE_LABELS[teacher.role] ?? teacher.role;
+                  return (
+                    <SelectItem key={teacher.id} value={teacher.id}>
+                      {`${name} (${roleLabel})`}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {teacherError ? (

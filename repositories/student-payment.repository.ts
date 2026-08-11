@@ -112,7 +112,39 @@ export async function listPaymentsBetween(
     .order("created_at", { ascending: false });
 }
 
+/** Slim rows for analytics chart totals (no joins). */
+export async function listPaymentAmountsBetween(
+  client: Supabase,
+  fromInclusive: string,
+  toExclusive: string
+) {
+  return client
+    .from("student_payments")
+    .select("payment_date, amount")
+    .gte("payment_date", fromInclusive)
+    .lt("payment_date", toExclusive);
+}
+
 export async function findPaymentDateBounds(client: Supabase) {
+  const aggregate = await client
+    .from("student_payments")
+    .select("min_date:payment_date.min(), max_date:payment_date.max()")
+    .maybeSingle();
+
+  if (!aggregate.error && aggregate.data) {
+    const row = aggregate.data as unknown as {
+      min_date?: string | null;
+      max_date?: string | null;
+    };
+    return {
+      data: {
+        min: row.min_date ?? null,
+        max: row.max_date ?? null,
+      },
+      error: null,
+    };
+  }
+
   const [minResult, maxResult] = await Promise.all([
     client
       .from("student_payments")

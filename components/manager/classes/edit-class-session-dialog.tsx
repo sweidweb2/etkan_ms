@@ -22,6 +22,7 @@ import {
   updateClassSessionSchema,
   type UpdateClassSessionInput,
 } from "@/lib/validators/manager/update-class-session";
+import { toSchoolDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
 import type { UpdateClassSessionActionState } from "@/types/manager-class-session-detail";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 
@@ -35,17 +36,6 @@ type EditClassSessionDialogProps = {
   className: string;
   onSessionUpdated: (session: ManagerClassSessionRow) => void;
 };
-
-function toDatetimeLocalValue(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
-}
 
 export function EditClassSessionDialog({
   open,
@@ -76,8 +66,8 @@ export function EditClassSessionDialog({
     mode: "onBlur",
     defaultValues: {
       topic: session.topic,
-      starts_at: toDatetimeLocalValue(session.starts_at),
-      ends_at: toDatetimeLocalValue(session.ends_at),
+      starts_at: toSchoolDateTimeLocalValue(session.starts_at),
+      ends_at: toSchoolDateTimeLocalValue(session.ends_at),
     },
   });
 
@@ -88,8 +78,8 @@ export function EditClassSessionDialog({
 
     reset({
       topic: session.topic,
-      starts_at: toDatetimeLocalValue(session.starts_at),
-      ends_at: toDatetimeLocalValue(session.ends_at),
+      starts_at: toSchoolDateTimeLocalValue(session.starts_at),
+      ends_at: toSchoolDateTimeLocalValue(session.ends_at),
     });
   }, [open, reset, session]);
 

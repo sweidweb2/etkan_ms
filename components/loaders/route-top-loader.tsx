@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { navTimingClientRouteSettled } from "@/lib/debug/nav-timing";
 import { bindGlobalTopLoaderSources } from "@/lib/loaders/bind-global-top-loader";
 import { globalTopLoaderSession } from "@/lib/loaders/global-top-loader-session";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ export function RouteTopLoader() {
   useEffect(() => {
     if (routeKeyRef.current === routeKey) return;
     routeKeyRef.current = routeKey;
+    navTimingClientRouteSettled();
     notifyRouteSettledRef.current?.();
   }, [routeKey]);
 

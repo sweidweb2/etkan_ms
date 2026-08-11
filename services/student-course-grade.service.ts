@@ -61,9 +61,11 @@ import type {
   ManagerStudentTaskGradeWeightRow,
 } from "@/types/manager-student-course-grade";
 import type {
+  ManagerStudentClassAcademicBundle,
   ManagerStudentClassTabDetail,
   ManagerStudentClassTaskRow,
 } from "@/types/manager-student-class-detail";
+import type { ManagerStudentClassRow } from "@/types/manager-student-class";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/types/supabase";
 
@@ -746,6 +748,229 @@ export async function getStudentClassAcademicDetailForManager(
     finalExam: finalExamBundle.finalExam,
     studentFinalExamGrade,
   };
+}
+
+function mapFinalExamForStudentBundle(
+  record: FinalExamRecord
+): ManagerClassFinalExamRow {
+  return {
+    id: record.id,
+    class_id: record.class_id,
+    title: record.title,
+    description: record.description,
+    due_date: record.due_date,
+    max_grade: record.max_grade === null ? null : Number(record.max_grade),
+    created_at: record.created_at,
+  };
+}
+
+function mapStudentFinalExamGradeForBundle(
+  record: StudentFinalExamGradeRecord,
+  fullName: string
+): ManagerStudentFinalExamGradeRow {
+  return {
+    id: record.id,
+    final_exam_id: record.final_exam_id,
+    student_id: record.student_id,
+    full_name: fullName,
+    status: mapStudentTaskStatus(record.status),
+    submitted_at: record.submitted_at,
+    grade: record.grade === null ? null : Number(record.grade),
+    notes: record.notes,
+    graded_at: record.graded_at,
+    created_at: record.created_at,
+  };
+}
+
+/**
+ * One batched academic load for student detail (all joined classes).
+ * Asserts grades + final-exams once; student-scoped queries only.
+ */
+export async function listStudentClassAcademicBundlesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  studentUserId: string,
+  joinedClasses: ManagerStudentClassRow[]
+): Promise<ManagerStudentClassAcademicBundle[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_VIEW);
+
+  if (joinedClasses.length === 0) {
+    return [];
+  }
+
+  const classIds = joinedClasses.map((row) => row.class_id);
+
+  const [sessionsResult, finalExamsResult, courseGradesResult] =
+    await Promise.all([
+      sessionRepository.listSessionsByClassIds(adminClient, classIds),
+      finalExamRepository.listFinalExamsByClassIds(adminClient, classIds),
+      studentCourseGradeRepository.listStudentCourseGradesByUserAndClassIds(
+        adminClient,
+        studentUserId,
+        classIds
+      ),
+    ]);
+
+  if (sessionsResult.error) {
+    throw new Error(sessionsResult.error.message);
+  }
+  if (finalExamsResult.error) {
+    throw new Error(finalExamsResult.error.message);
+  }
+  if (courseGradesResult.error) {
+    throw new Error(courseGradesResult.error.message);
+  }
+
+  const sessions = (sessionsResult.data ?? []) as SessionRecord[];
+  const sessionsByClassId = new Map<string, SessionRecord[]>();
+  for (const session of sessions) {
+    const list = sessionsByClassId.get(session.class_id) ?? [];
+    list.push(session);
+    sessionsByClassId.set(session.class_id, list);
+  }
+
+  const sessionIds = sessions.map((session) => session.id);
+  const tasksResult = await taskRepository.listTasksForGradesBySessionIds(
+    adminClient,
+    sessionIds
+  );
+
+  if (tasksResult.error) {
+    throw new Error(tasksResult.error.message);
+  }
+
+  const allTasks = tasksResult.data ?? [];
+  const taskIds = allTasks.map((task) => task.id);
+
+  const finalExams = (finalExamsResult.data ?? []) as FinalExamRecord[];
+  const finalExamByClassId = new Map(
+    finalExams.map((exam) => [exam.class_id, exam])
+  );
+  const finalExamIds = finalExams.map((exam) => exam.id);
+
+  const [studentTasksResult, attendeesResult, finalExamGradesResult] =
+    await Promise.all([
+      studentTaskRepository.listStudentTasksForGradesByTaskIdsAndStudentId(
+        adminClient,
+        taskIds,
+        studentUserId
+      ),
+      attendeeRepository.listAttendeesBySessionIdsAndStudentId(
+        adminClient,
+        sessionIds,
+        studentUserId
+      ),
+      finalExamRepository.listStudentFinalExamGradesByStudentAndFinalExamIds(
+        adminClient,
+        studentUserId,
+        finalExamIds
+      ),
+    ]);
+
+  if (studentTasksResult.error) {
+    throw new Error(studentTasksResult.error.message);
+  }
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
+  if (finalExamGradesResult.error) {
+    throw new Error(finalExamGradesResult.error.message);
+  }
+
+  const studentTasks = (studentTasksResult.data ?? []) as StudentTaskRecord[];
+  const studentTasksByTaskId = new Map(
+    studentTasks.map((row) => [row.task_id, row])
+  );
+
+  const attendeeStatusBySessionId = new Map<string, string>();
+  for (const row of attendeesResult.data ?? []) {
+    attendeeStatusBySessionId.set(row.session_id, row.status);
+  }
+
+  const courseGradeByClassId = new Map(
+    ((courseGradesResult.data ?? []) as StudentCourseGradeRecord[]).map(
+      (row) => [row.class_id, row]
+    )
+  );
+
+  const finalExamGradeByExamId = new Map(
+    ((finalExamGradesResult.data ?? []) as StudentFinalExamGradeRecord[]).map(
+      (row) => [row.final_exam_id, row]
+    )
+  );
+
+  const tasksBySessionId = new Map<string, typeof allTasks>();
+  for (const task of allTasks) {
+    if (!task.session_id) continue;
+    const list = tasksBySessionId.get(task.session_id) ?? [];
+    list.push(task);
+    tasksBySessionId.set(task.session_id, list);
+  }
+
+  return joinedClasses.map((classRow) => {
+    const classSessions = sessionsByClassId.get(classRow.class_id) ?? [];
+    const classTaskInputs = classSessions.flatMap(
+      (session) => tasksBySessionId.get(session.id) ?? []
+    );
+    const classTasks = buildClassTaskRows(
+      classSessions,
+      classTaskInputs.map((task) => ({
+        id: task.id,
+        session_id: task.session_id,
+        title: task.title,
+        max_grade: task.max_grade,
+        due_date: task.due_date,
+        created_at: task.created_at,
+      }))
+    );
+
+    const classStudentTasks = classTasks.flatMap((task) => {
+      const row = studentTasksByTaskId.get(task.id);
+      return row ? [row] : [];
+    });
+
+    const classAttendeeStatus = new Map<string, string>();
+    for (const session of classSessions) {
+      const status = attendeeStatusBySessionId.get(session.id);
+      if (status) {
+        classAttendeeStatus.set(session.id, status);
+      }
+    }
+
+    const stored = courseGradeByClassId.get(classRow.class_id) ?? null;
+    const finalExam = finalExamByClassId.get(classRow.class_id) ?? null;
+    const finalExamGradeRecord = finalExam
+      ? finalExamGradeByExamId.get(finalExam.id) ?? null
+      : null;
+
+    const context: ClassGradeContext = {
+      sessions: classSessions,
+      classTasks,
+      finalExam,
+      finalExamMaxGrade: finalExam?.max_grade ?? null,
+      finalExamGradesByUserId: finalExamGradeRecord
+        ? new Map([[studentUserId, finalExamGradeRecord]])
+        : new Map(),
+      studentTasksByUserId: new Map([[studentUserId, classStudentTasks]]),
+      storedGradesByUserId: stored
+        ? new Map([[studentUserId, stored]])
+        : new Map(),
+    };
+
+    return {
+      classRow,
+      detail: buildStudentClassTabDetail(
+        context,
+        studentUserId,
+        classAttendeeStatus
+      ),
+      finalExam: finalExam ? mapFinalExamForStudentBundle(finalExam) : null,
+      studentFinalExamGrade: finalExamGradeRecord
+        ? mapStudentFinalExamGradeForBundle(finalExamGradeRecord, "Student")
+        : null,
+    };
+  });
 }
 
 function buildAttendeeStatusMapsByUserId(

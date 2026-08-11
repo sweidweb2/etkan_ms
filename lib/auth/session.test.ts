@@ -224,4 +224,50 @@ describe("getSessionPack", () => {
     expect(mod.findProfileById).toHaveBeenCalled();
     expect(mod.getPermissionsForRoleCached).toHaveBeenCalledWith(ROLES.MANAGER);
   });
+
+  it("on MISS with claimsRole, loads profile and permissions in parallel for claimsRole", async () => {
+    const mod = await loadSessionModule();
+    const user = {
+      id: "user-pack-4",
+      email: "mgr@school.com",
+      user_metadata: { full_name: "Mgr User" },
+      app_metadata: { role: ROLES.MANAGER },
+    } as never;
+    const permissions = new Set([PERMISSIONS.DASHBOARD_VIEW]);
+
+    mod.getCachedSessionShell.mockReturnValue(null);
+    mod.getSessionAuthIdentity.mockResolvedValue({
+      user,
+      claimsRole: ROLES.MANAGER,
+    });
+    mod.findProfileById.mockResolvedValue({
+      data: {
+        id: "user-pack-4",
+        username: "mgr",
+        role: ROLES.TEACHER, // profile disagrees; claims win
+        is_instructor: false,
+        created_at: "2026-01-01",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    mod.getPermissionsForRoleCached.mockResolvedValue(permissions);
+
+    const pack = await mod.session.getSessionPack();
+
+    expect(pack.role).toBe(ROLES.MANAGER);
+    expect(pack.permissions).toBe(permissions);
+    expect(mod.findProfileById).toHaveBeenCalledTimes(1);
+    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledTimes(1);
+    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledWith(ROLES.MANAGER);
+    expect(mod.setCachedSessionShell).toHaveBeenCalledWith(
+      "user-pack-4",
+      expect.objectContaining({
+        role: ROLES.MANAGER,
+        cachedClaimsRole: ROLES.MANAGER,
+      })
+    );
+  });
 });

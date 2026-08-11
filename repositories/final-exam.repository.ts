@@ -62,6 +62,20 @@ export async function findFinalExamByClassId(client: Supabase, classId: string) 
     .maybeSingle();
 }
 
+export async function listFinalExamsByClassIds(
+  client: Supabase,
+  classIds: string[]
+) {
+  if (classIds.length === 0) {
+    return { data: [] as FinalExamRecord[], error: null };
+  }
+
+  return client
+    .from("final_exam")
+    .select(FINAL_EXAM_COLUMNS)
+    .in("class_id", classIds);
+}
+
 export async function findFinalExamById(client: Supabase, id: string) {
   return client
     .from("final_exam")
@@ -114,6 +128,22 @@ export async function listStudentFinalExamGradesByFinalExamId(
     .select(STUDENT_FINAL_EXAM_GRADE_COLUMNS)
     .eq("final_exam_id", finalExamId)
     .order("created_at", { ascending: true });
+}
+
+export async function listStudentFinalExamGradesByStudentAndFinalExamIds(
+  client: Supabase,
+  studentId: string,
+  finalExamIds: string[]
+) {
+  if (!studentId || finalExamIds.length === 0) {
+    return { data: [] as StudentFinalExamGradeRecord[], error: null };
+  }
+
+  return client
+    .from("student_finalexam_grade")
+    .select(STUDENT_FINAL_EXAM_GRADE_COLUMNS)
+    .eq("student_id", studentId)
+    .in("final_exam_id", finalExamIds);
 }
 
 export async function listStudentFinalExamGradeIdsByStudentId(

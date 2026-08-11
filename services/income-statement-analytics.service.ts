@@ -29,7 +29,11 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as transactionRepository from "@/repositories/transaction.repository";
 import { assertPermission } from "@/services/authorization.service";
-import type { ManagerIncomeStatementAnalyticsData } from "@/types/manager-income-statement-analytics";
+import type {
+  ManagerIncomeStatementAnalyticsData,
+  ManagerIncomeStatementAnalyticsSummary,
+  ManagerIncomeStatementAnalyticsTables,
+} from "@/types/manager-income-statement-analytics";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -116,15 +120,32 @@ async function loadAvailableYears(adminClient: Supabase): Promise<number[]> {
   );
 }
 
-export async function getIncomeStatementAnalyticsForManager(
+function resolveMonth(
+  year: number,
+  inputMonth: number | null | undefined,
+  currentYear: number,
+  currentMonth: number
+): number | null {
+  if (inputMonth === null) {
+    return null;
+  }
+  if (inputMonth !== undefined && inputMonth >= 1 && inputMonth <= 12) {
+    return inputMonth;
+  }
+  return year === currentYear ? currentMonth : 1;
+}
+
+/**
+ * Charts + totals only (no unpaid / labeled table joins).
+ */
+export async function getIncomeStatementAnalyticsSummaryForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   input: {
     year?: number | null;
-    /** Specific month 1–12, `null` for all months, omit to default to current month. */
     month?: number | null;
   } = {}
-): Promise<ManagerIncomeStatementAnalyticsData> {
+): Promise<ManagerIncomeStatementAnalyticsSummary> {
   await assertPermission(
     adminClient,
     actorUserId,
@@ -133,61 +154,85 @@ export async function getIncomeStatementAnalyticsForManager(
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const availableYears = await loadAvailableYears(adminClient);
+
+  const yearHint =
+    input.year && Number.isFinite(input.year) ? input.year : currentYear;
+  const monthHint = resolveMonth(
+    yearHint,
+    input.month,
+    currentYear,
+    currentMonth
+  );
+  const provisionalRange = dateRangeForYearMonth(yearHint, monthHint);
+
+  const [
+    availableYears,
+    paymentsResult,
+    adjustmentsResult,
+    transactionsResult,
+  ] = await Promise.all([
+    loadAvailableYears(adminClient),
+    studentPaymentRepository.listPaymentAmountsBetween(
+      adminClient,
+      provisionalRange.fromInclusive,
+      provisionalRange.toExclusive
+    ),
+    studentFinancialAdjustmentRepository.listFinancialAdjustmentAmountsBetween(
+      adminClient,
+      provisionalRange.fromInclusive,
+      provisionalRange.toExclusive
+    ),
+    transactionRepository.listTransactionAmountsBetween(
+      adminClient,
+      provisionalRange.fromInclusive,
+      provisionalRange.toExclusive
+    ),
+  ]);
 
   const year =
     input.year && availableYears.includes(input.year)
       ? input.year
       : (availableYears[0] ?? currentYear);
+  const month = resolveMonth(year, input.month, currentYear, currentMonth);
 
-  const month =
-    input.month === null
-      ? null
-      : input.month !== undefined && input.month >= 1 && input.month <= 12
-        ? input.month
-        : year === currentYear
-          ? currentMonth
-          : 1;
+  let scopedPayments = paymentsResult.data ?? [];
+  let scopedAdjustments = adjustmentsResult.data ?? [];
+  let scopedTransactions = transactionsResult.data ?? [];
 
-  const { fromInclusive, toExclusive } = dateRangeForYearMonth(year, month);
-
-  const [paymentsResult, adjustmentsResult, transactionsResult, unpaidSppsResult] =
-    await Promise.all([
-      studentPaymentRepository.listPaymentsBetween(
+  if (year !== yearHint || month !== monthHint) {
+    const { fromInclusive, toExclusive } = dateRangeForYearMonth(year, month);
+    const [p2, a2, t2] = await Promise.all([
+      studentPaymentRepository.listPaymentAmountsBetween(
         adminClient,
         fromInclusive,
         toExclusive
       ),
-      studentFinancialAdjustmentRepository.listFinancialAdjustmentsBetween(
+      studentFinancialAdjustmentRepository.listFinancialAdjustmentAmountsBetween(
         adminClient,
         fromInclusive,
         toExclusive
       ),
-      transactionRepository.listTransactionsBetween(
+      transactionRepository.listTransactionAmountsBetween(
         adminClient,
         fromInclusive,
         toExclusive
       ),
-      studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
     ]);
-
-  if (paymentsResult.error) {
-    throw new Error(paymentsResult.error.message);
+    if (p2.error) throw new Error(p2.error.message);
+    if (a2.error) throw new Error(a2.error.message);
+    if (t2.error) throw new Error(t2.error.message);
+    scopedPayments = p2.data ?? [];
+    scopedAdjustments = a2.data ?? [];
+    scopedTransactions = t2.data ?? [];
+  } else {
+    if (paymentsResult.error) throw new Error(paymentsResult.error.message);
+    if (adjustmentsResult.error) {
+      throw new Error(adjustmentsResult.error.message);
+    }
+    if (transactionsResult.error) {
+      throw new Error(transactionsResult.error.message);
+    }
   }
-  if (adjustmentsResult.error) {
-    throw new Error(adjustmentsResult.error.message);
-  }
-  if (transactionsResult.error) {
-    throw new Error(transactionsResult.error.message);
-  }
-  if (unpaidSppsResult.error) {
-    throw new Error(unpaidSppsResult.error.message);
-  }
-
-  const scopedPayments = paymentsResult.data ?? [];
-  const scopedAdjustments = adjustmentsResult.data ?? [];
-  const scopedTransactions = transactionsResult.data ?? [];
-  const unpaidSpps = unpaidSppsResult.data ?? [];
 
   const periodKeys =
     month === null
@@ -270,6 +315,82 @@ export async function getIncomeStatementAnalyticsForManager(
           (point) => Number(point.key) <= daysInSelectedMonth
         );
 
+  return {
+    year,
+    month,
+    availableYears,
+    periodSeries,
+    composition: [
+      { name: "Payments", value: paymentsTotal },
+      { name: "Credits", value: creditsTotal },
+      { name: "Debits", value: debitsTotal },
+      { name: "Adjustments", value: adjustmentsTotal },
+    ].filter((row) => row.value > 0),
+    totals: {
+      payments: paymentsTotal,
+      credits: creditsTotal,
+      debits: debitsTotal,
+      adjustments: adjustmentsTotal,
+    },
+  };
+}
+
+/**
+ * Labeled payment / transaction / unpaid / adjustment tables (heavy joins).
+ */
+export async function getIncomeStatementAnalyticsTablesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  input: {
+    year: number;
+    month: number | null;
+  }
+): Promise<ManagerIncomeStatementAnalyticsTables> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW
+  );
+
+  const { fromInclusive, toExclusive } = dateRangeForYearMonth(
+    input.year,
+    input.month
+  );
+
+  const [paymentsResult, adjustmentsResult, transactionsResult, unpaidSppsResult] =
+    await Promise.all([
+      studentPaymentRepository.listPaymentsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
+      ),
+      studentFinancialAdjustmentRepository.listFinancialAdjustmentsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
+      ),
+      transactionRepository.listTransactionsBetween(
+        adminClient,
+        fromInclusive,
+        toExclusive
+      ),
+      studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+    ]);
+
+  if (paymentsResult.error) throw new Error(paymentsResult.error.message);
+  if (adjustmentsResult.error) {
+    throw new Error(adjustmentsResult.error.message);
+  }
+  if (transactionsResult.error) {
+    throw new Error(transactionsResult.error.message);
+  }
+  if (unpaidSppsResult.error) throw new Error(unpaidSppsResult.error.message);
+
+  const scopedPayments = paymentsResult.data ?? [];
+  const scopedAdjustments = adjustmentsResult.data ?? [];
+  const scopedTransactions = transactionsResult.data ?? [];
+  const unpaidSpps = unpaidSppsResult.data ?? [];
+
   const relatedSppIds = [
     ...new Set([
       ...scopedPayments.map((row) => row.student_payment_phase_id),
@@ -290,7 +411,15 @@ export async function getIncomeStatementAnalyticsForManager(
 
   const sppById = new Map((relatedSpps ?? []).map((spp) => [spp.id, spp]));
   for (const spp of unpaidSpps) {
-    sppById.set(spp.id, spp);
+    sppById.set(spp.id, {
+      id: spp.id,
+      student_id: spp.student_id,
+      payment_phase_id: spp.payment_phase_id,
+      status: spp.status,
+      remaining_amount: spp.remaining_amount,
+      final_amount_due: spp.final_amount_due,
+      total_paid: spp.total_paid,
+    } as never);
   }
 
   const phaseIds = [
@@ -325,7 +454,9 @@ export async function getIncomeStatementAnalyticsForManager(
     [...phaseById.entries()].map(([id, phase]) => [id, phase.status])
   );
 
-  const studentIds = [...new Set([...sppById.values()].map((spp) => spp.student_id))];
+  const studentIds = [
+    ...new Set([...sppById.values()].map((spp) => spp.student_id)),
+  ];
   const labelByStudentId = new Map<string, string>();
 
   if (studentIds.length > 0) {
@@ -472,25 +603,30 @@ export async function getIncomeStatementAnalyticsForManager(
     .sort((a, b) => a.student_label.localeCompare(b.student_label));
 
   return {
-    year,
-    month,
-    availableYears,
-    periodSeries,
-    composition: [
-      { name: "Payments", value: paymentsTotal },
-      { name: "Credits", value: creditsTotal },
-      { name: "Debits", value: debitsTotal },
-      { name: "Adjustments", value: adjustmentsTotal },
-    ].filter((row) => row.value > 0),
-    totals: {
-      payments: paymentsTotal,
-      credits: creditsTotal,
-      debits: debitsTotal,
-      adjustments: adjustmentsTotal,
-    },
     payments,
     transactions,
     unpaidStudents,
     adjustedStudents,
   };
+}
+
+export async function getIncomeStatementAnalyticsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  input: {
+    year?: number | null;
+    month?: number | null;
+  } = {}
+): Promise<ManagerIncomeStatementAnalyticsData> {
+  const summary = await getIncomeStatementAnalyticsSummaryForManager(
+    adminClient,
+    actorUserId,
+    input
+  );
+  const tables = await getIncomeStatementAnalyticsTablesForManager(
+    adminClient,
+    actorUserId,
+    { year: summary.year, month: summary.month }
+  );
+  return { ...summary, ...tables };
 }

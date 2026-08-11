@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import { cn } from "@/lib/utils";
 import type {
   AssignClassTeacherActionState,
@@ -153,22 +154,25 @@ export function AssignClassTeachersDropdown({
         <DropdownMenuSeparator />
         {teachers.length === 0 ? (
           <p className="px-2 py-3 text-sm text-muted-foreground">
-            No teachers available.
+            No users available.
           </p>
         ) : (
-          teachers.map((teacher) => (
-            <DropdownMenuCheckboxItem
-              key={teacher.id}
-              checked={teacher.assigned}
-              disabled={isPending}
-              onCheckedChange={() => handleToggle(teacher)}
-              onSelect={(event) => event.preventDefault()}
-            >
-              <span className="truncate">
-                {teacher.username?.trim() || "Unnamed teacher"}
-              </span>
-            </DropdownMenuCheckboxItem>
-          ))
+          teachers.map((teacher) => {
+            const name = teacher.username?.trim() || "Unnamed user";
+            const roleLabel =
+              MANAGER_USER_ROLE_LABELS[teacher.role] ?? teacher.role;
+            return (
+              <DropdownMenuCheckboxItem
+                key={teacher.id}
+                checked={teacher.assigned}
+                disabled={isPending}
+                onCheckedChange={() => handleToggle(teacher)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                <span className="truncate">{`${name} (${roleLabel})`}</span>
+              </DropdownMenuCheckboxItem>
+            );
+          })
         )}
       </DropdownMenuContent>
     </DropdownMenu>

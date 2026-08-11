@@ -123,6 +123,13 @@ function mockBillingClass(data: typeof billingClass | null = billingClass) {
     status: 200,
     statusText: "OK",
   } as never);
+  vi.mocked(classRepository.listInProgressClassesForBilling).mockResolvedValue({
+    data: data ? [data] : [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  } as never);
 }
 
 describe("createPaymentPhaseForManager", () => {
@@ -776,6 +783,15 @@ describe("updatePaymentPhaseForManager", () => {
       ],
       error: null,
     } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppStatusRowsByPaymentPhaseIds
+    ).mockResolvedValue({
+      data: [
+        { payment_phase_id: phaseId, status: "partially_paid" },
+        { payment_phase_id: phaseId, status: "cancelled" },
+      ],
+      error: null,
+    } as never);
 
     const result = await updatePaymentPhaseForManager(
       adminClient,
@@ -845,6 +861,12 @@ describe("cancelPaymentPhaseForManager", () => {
     );
     vi.mocked(
       studentPaymentPhaseRepository.listSppsByPaymentPhaseIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppStatusRowsByPaymentPhaseIds
     ).mockResolvedValue({
       data: [],
       error: null,

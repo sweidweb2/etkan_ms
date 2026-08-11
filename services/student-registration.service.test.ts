@@ -212,13 +212,7 @@ describe("student-registration.service", () => {
 
   it("lists applications for authorized managers", async () => {
     vi.mocked(
-      registrationRepository.listStudentRegistrationApplications
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
-    vi.mocked(
-      documentRepository.listStudentRegistrationDocumentsByApplicationIds
+      registrationRepository.listStudentRegistrationApplicationsForList
     ).mockResolvedValue({
       data: [],
       error: null,
@@ -235,6 +229,9 @@ describe("student-registration.service", () => {
       actorUserId,
       PERMISSIONS.REGISTRATIONS_VIEW
     );
+    expect(
+      documentRepository.listStudentRegistrationDocumentsByApplicationIds
+    ).not.toHaveBeenCalled();
   });
 
   it("returns application detail with signed document urls", async () => {

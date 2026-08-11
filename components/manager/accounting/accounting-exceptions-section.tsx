@@ -1,12 +1,6 @@
 import { AccountingExceptionsClient } from "@/components/manager/accounting/accounting-exceptions-client";
-import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import {
-  listMissingSppForOpenedPhases,
-  listSppSemesterMismatchForManager,
-  listStudentsBilledWithoutActiveClassForManager,
-} from "@/services/payment-phase.service";
-import { listStudentsWithoutInProgressClassForManager } from "@/services/student.service";
+import { getAccountingExceptionsSnapshotForManager } from "@/services/payment-phase.service";
 import type { ManagerPaymentPhaseRow } from "@/types/manager-payment-phase";
 
 type AccountingExceptionsSectionProps = {
@@ -19,37 +13,19 @@ export async function AccountingExceptionsSection({
   phases,
 }: AccountingExceptionsSectionProps) {
   const adminClient = createSupabaseAdminClient();
-
-  const [
-    missing,
-    studentsWithoutActiveClass,
-    sppSemesterMismatches,
-    billedWithoutClass,
-  ] = await Promise.all([
-    listMissingSppForOpenedPhases(adminClient, actorUserId),
-    listStudentsWithoutInProgressClassForManager(
-      adminClient,
-      actorUserId,
-      PERMISSIONS.ACCOUNTING_VIEW
-    ),
-    listSppSemesterMismatchForManager(adminClient, actorUserId),
-    listStudentsBilledWithoutActiveClassForManager(adminClient, actorUserId),
-  ]);
-
-  const billedStudentIds = new Set(
-    billedWithoutClass.map((row) => row.student_id)
-  );
-  const withoutClassOrPhase = studentsWithoutActiveClass.filter(
-    (row) => !billedStudentIds.has(row.user_id)
+  const snapshot = await getAccountingExceptionsSnapshotForManager(
+    adminClient,
+    actorUserId,
+    phases
   );
 
   return (
     <AccountingExceptionsClient
       phases={phases}
-      missing={missing}
-      withoutClassOrPhase={withoutClassOrPhase}
-      billedWithoutClass={billedWithoutClass}
-      sppSemesterMismatches={sppSemesterMismatches}
+      missing={snapshot.missing}
+      withoutClassOrPhase={snapshot.withoutClassOrPhase}
+      billedWithoutClass={snapshot.billedWithoutClass}
+      sppSemesterMismatches={snapshot.sppSemesterMismatches}
     />
   );
 }

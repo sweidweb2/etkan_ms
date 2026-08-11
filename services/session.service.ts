@@ -18,6 +18,7 @@ import { createEditStudentTaskSchema } from "@/lib/validators/manager/edit-stude
 import { updateAttendeeSchema } from "@/lib/validators/manager/update-attendee";
 import { updateClassSessionSchema } from "@/lib/validators/manager/update-class-session";
 import { updateSessionSettingsSchema } from "@/lib/validators/manager/update-session-settings";
+import { datetimeLocalToUtcIso } from "@/lib/utils/datetime-local-to-utc-iso";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import type { AttendeeRecord } from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
@@ -74,13 +75,7 @@ function normalizeOptionalString(value?: string | null): string | null {
 }
 
 function toIsoOrNull(value?: string | null): string | null {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const date = new Date(trimmed);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  return datetimeLocalToUtcIso(value);
 }
 
 function mapGroupGradeLevel(

@@ -82,6 +82,22 @@ export async function findStudentCourseGradeByClassAndUser(
     .maybeSingle();
 }
 
+export async function listStudentCourseGradesByUserAndClassIds(
+  client: Supabase,
+  userId: string,
+  classIds: string[]
+) {
+  if (!userId || classIds.length === 0) {
+    return { data: [] as StudentCourseGradeRecord[], error: null };
+  }
+
+  return client
+    .from("student_course_grade")
+    .select(STUDENT_COURSE_GRADE_COLUMNS)
+    .eq("user_id", userId)
+    .in("class_id", classIds);
+}
+
 export async function saveStudentCourseGrade(
   client: Supabase,
   input: UpsertStudentCourseGradeInput

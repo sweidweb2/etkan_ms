@@ -32,6 +32,23 @@ export async function listStudentProfiles(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+/** Students not currently enrolled in any of the given user ids (slim columns). */
+export async function listStudentProfilesExcludingUserIds(
+  client: Supabase,
+  excludeUserIds: string[]
+) {
+  let query = client
+    .from("student_profiles")
+    .select("id, user_id, full_name, phone, status")
+    .order("full_name", { ascending: true });
+
+  if (excludeUserIds.length > 0) {
+    query = query.not("user_id", "in", `(${excludeUserIds.join(",")})`);
+  }
+
+  return query;
+}
+
 /** Lightweight counts for the manager dashboard (avoids full student list). */
 export async function countStudentDashboardStats(
   client: Supabase,

@@ -60,7 +60,9 @@ export function PanelNavMenu({ items }: PanelNavMenuProps) {
           >
             <SidebarMenuButton
               isActive={isActive}
-              render={(props) => <Link {...props} href={item.href} />}
+              render={(props) => (
+                <Link {...props} href={item.href} prefetch={false} />
+              )}
             >
               <Icon />
               <span>{item.title}</span>

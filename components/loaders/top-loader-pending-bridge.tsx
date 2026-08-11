@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import {
+  navTimingClientLoadingHidden,
+  navTimingClientLoadingShown,
+} from "@/lib/debug/nav-timing";
 import { globalTopLoaderSession } from "@/lib/loaders/global-top-loader-session";
 
 /**
@@ -9,8 +13,10 @@ import { globalTopLoaderSession } from "@/lib/loaders/global-top-loader-session"
  */
 export function TopLoaderPendingBridge() {
   useEffect(() => {
+    navTimingClientLoadingShown();
     const token = globalTopLoaderSession.start();
     return () => {
+      navTimingClientLoadingHidden();
       globalTopLoaderSession.end(token);
     };
   }, []);

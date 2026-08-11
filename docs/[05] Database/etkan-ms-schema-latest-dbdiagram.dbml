@@ -56,6 +56,8 @@ Table class_teacher {
   class_id uuid [not null]
   assigned_by uuid
   assigned_at timestamp [default: `now()`]
+
+  Note: 'teacher_id is any profile (class instructor assignment), not limited to role = teacher.'
 }
 
 Table student_semester {

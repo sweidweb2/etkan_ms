@@ -102,6 +102,50 @@ function mapApplicationRecord(
   };
 }
 
+/** List-table row: only fetched columns are real; detail fields are placeholders. */
+function mapApplicationListRecord(
+  record: registrationRepository.StudentRegistrationApplicationListRecord
+): ManagerRegistrationApplicationRow {
+  return {
+    id: record.id,
+    created_at: record.created_at,
+    updated_at: record.created_at,
+    status: record.status as RegistrationApplicationStatus,
+    notes: null,
+    full_name: record.full_name,
+    gender: "" as RegistrationGender,
+    date_of_birth: "",
+    blood_type: "" as RegistrationBloodType,
+    email: record.email,
+    phone: record.phone,
+    additional_phone: null,
+    city: record.city,
+    full_address: "",
+    education_level: "" as RegistrationEducationLevel,
+    organization_name: null,
+    speciality: null,
+    learning_status: "" as RegistrationLearningStatus,
+    graduation_year: null,
+    self_learning_notes: null,
+    learning_goal: "",
+    skills: [],
+    referral_source: "" as RegistrationReferralSource,
+    referral_other: null,
+    preferred_program: record.preferred_program as RegistrationPreferredProgram,
+    available_days: [],
+    preferred_shifts: [],
+    weekly_available_hours: 0,
+    job_status: "" as RegistrationJobStatus,
+    has_transportation: false,
+    id_document_type: "" as RegistrationIdDocumentType,
+    consent_terms: false,
+    consent_privacy: false,
+    guardian_name: null,
+    guardian_phone: null,
+    documents: [],
+  };
+}
+
 export async function tempUploadRegistrationDocument(
   adminClient: Supabase,
   input: TempUploadRegistrationDocumentInput
@@ -330,7 +374,7 @@ export async function listRegistrationApplicationsForManager(
   );
 
   const result =
-    await registrationRepository.listStudentRegistrationApplications(
+    await registrationRepository.listStudentRegistrationApplicationsForList(
       adminClient,
       { limit: 500 }
     );
@@ -340,33 +384,10 @@ export async function listRegistrationApplicationsForManager(
   }
 
   const applications = (result.data ??
-    []) as StudentRegistrationApplicationRecord[];
-  const applicationIds = applications.map((row) => row.id);
+    []) as registrationRepository.StudentRegistrationApplicationListRecord[];
 
-  const docsResult =
-    await documentRepository.listStudentRegistrationDocumentsByApplicationIds(
-      adminClient,
-      applicationIds
-    );
-
-  if (docsResult.error) {
-    throw new Error(docsResult.error.message);
-  }
-
-  const docsByApplication = new Map<string, ManagerRegistrationDocumentRow[]>();
-  for (const doc of docsResult.data ?? []) {
-    const mapped = mapDocumentRecord(
-      doc as documentRepository.StudentRegistrationDocumentRecord
-    );
-    const key = doc.application_id;
-    const existing = docsByApplication.get(key) ?? [];
-    existing.push(mapped);
-    docsByApplication.set(key, existing);
-  }
-
-  return applications.map((record) =>
-    mapApplicationRecord(record, docsByApplication.get(record.id) ?? [])
-  );
+  // List UI only needs thin fields; detail route loads full app + documents.
+  return applications.map((record) => mapApplicationListRecord(record));
 }
 
 export async function getRegistrationApplicationDetailForManager(

@@ -2,8 +2,11 @@
 
 import { format } from "date-fns";
 import { MessageSquareTextIcon } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { fetchAuditLogDetailsAction } from "@/app/(panels)/manager/logs/actions";
 import { AuditLogActionBadge } from "@/components/manager/logs/audit-log-action-badge";
 import { AuditLogSeverityBadge } from "@/components/manager/logs/audit-log-severity-badge";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +32,47 @@ function formatJsonBlock(value: ManagerAuditLogRow["old_data"]) {
 }
 
 export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
+  const logId = log?.id ?? null;
+  const [detail, setDetail] = useState<{
+    id: string;
+    row: ManagerAuditLogRow;
+  } | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [loadError, setLoadError] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!logId) {
+      return;
+    }
+
+    let cancelled = false;
+    startTransition(async () => {
+      try {
+        const full = await fetchAuditLogDetailsAction(logId);
+        if (!cancelled && full) {
+          setDetail({ id: logId, row: full });
+        }
+      } catch {
+        if (!cancelled) {
+          setLoadError({
+            id: logId,
+            message: "Unable to load change snapshots.",
+          });
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [logId]);
+
+  const display = detail?.id === logId ? detail.row : log;
+  const errorMessage = loadError?.id === logId ? loadError.message : null;
+
   return (
     <Dialog
       open={log !== null}
@@ -49,21 +93,23 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        {log ? (
+        {display ? (
           <div className="max-h-[min(65vh,32rem)] space-y-4 overflow-y-auto pr-1">
             <dl className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1 sm:col-span-2">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Log ID
                 </dt>
-                <dd className="break-all text-sm text-foreground">{log.id}</dd>
+                <dd className="break-all text-sm text-foreground">
+                  {display.id}
+                </dd>
               </div>
 
               <div className="flex flex-col gap-1">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Actor
                 </dt>
-                <dd className="text-sm text-foreground">{log.user_label}</dd>
+                <dd className="text-sm text-foreground">{display.user_label}</dd>
               </div>
 
               <div className="flex flex-col gap-1">
@@ -71,7 +117,7 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
                   Action
                 </dt>
                 <dd>
-                  <AuditLogActionBadge action={log.action} />
+                  <AuditLogActionBadge action={display.action} />
                 </dd>
               </div>
 
@@ -80,7 +126,7 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
                   Severity
                 </dt>
                 <dd>
-                  <AuditLogSeverityBadge severity={log.severity} />
+                  <AuditLogSeverityBadge severity={display.severity} />
                 </dd>
               </div>
 
@@ -88,7 +134,9 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Table
                 </dt>
-                <dd className="text-sm text-foreground">{log.table_name ?? "—"}</dd>
+                <dd className="text-sm text-foreground">
+                  {display.table_name ?? "—"}
+                </dd>
               </div>
 
               <div className="flex flex-col gap-1">
@@ -96,7 +144,7 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
                   Record ID
                 </dt>
                 <dd className="break-all text-sm text-foreground">
-                  {log.record_id ?? "—"}
+                  {display.record_id ?? "—"}
                 </dd>
               </div>
 
@@ -105,17 +153,27 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
                   Created at
                 </dt>
                 <dd className="text-sm text-foreground">
-                  {format(new Date(log.created_at), "PPpp")}
+                  {format(new Date(display.created_at), "PPpp")}
                 </dd>
               </div>
             </dl>
+
+            {isPending ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading change snapshots…
+              </div>
+            ) : null}
+            {errorMessage ? (
+              <p className="text-sm text-destructive">{errorMessage}</p>
+            ) : null}
 
             <div className="flex flex-col gap-2">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Old data
               </p>
               <pre className="overflow-x-auto rounded-lg border bg-muted/30 p-3 text-xs text-foreground">
-                {formatJsonBlock(log.old_data)}
+                {formatJsonBlock(display.old_data)}
               </pre>
             </div>
 
@@ -124,7 +182,7 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
                 New data
               </p>
               <pre className="overflow-x-auto rounded-lg border bg-muted/30 p-3 text-xs text-foreground">
-                {formatJsonBlock(log.new_data)}
+                {formatJsonBlock(display.new_data)}
               </pre>
             </div>
 
@@ -133,14 +191,18 @@ export function LogDetailsDialog({ log, onOpenChange }: LogDetailsDialogProps) {
                 Metadata
               </p>
               <pre className="overflow-x-auto rounded-lg border bg-muted/30 p-3 text-xs text-foreground">
-                {formatJsonBlock(log.metadata)}
+                {formatJsonBlock(display.metadata)}
               </pre>
             </div>
           </div>
         ) : null}
 
         <DialogFooter className="sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
             Close
           </Button>
         </DialogFooter>

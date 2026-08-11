@@ -3,10 +3,16 @@ import type { Database, Json } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
+/** Full row (create, find-by-id, student activity). */
 const AUDIT_LOG_COLUMNS =
   "id, user_id, user_label, action, severity, table_name, record_id, old_data, new_data, metadata, created_at";
 
+/** Manager list — omit fat JSON blobs; details load them by id. */
+const AUDIT_LOG_LIST_COLUMNS =
+  "id, user_id, user_label, action, severity, table_name, record_id, metadata, created_at";
+
 export const DEFAULT_STUDENT_ACTIVITY_LIMIT = 50;
+export const DEFAULT_MANAGER_AUDIT_LOG_LIMIT = 100;
 
 export type AuditLogRecord = {
   id: string;
@@ -21,6 +27,9 @@ export type AuditLogRecord = {
   metadata: Json | null;
   created_at: string;
 };
+
+/** List row without old_data / new_data. */
+export type AuditLogListRecord = Omit<AuditLogRecord, "old_data" | "new_data">;
 
 export type CreateAuditLogRecordInput = {
   user_id?: string | null;
@@ -76,11 +85,12 @@ export function buildStudentAuditLogsOrFilter(
 
 export async function listAuditLogs(
   client: Supabase,
-  options?: { limit?: number }
+  options?: { limit?: number; slim?: boolean }
 ) {
+  const columns = options?.slim ? AUDIT_LOG_LIST_COLUMNS : AUDIT_LOG_COLUMNS;
   let query = client
     .from("audit_logs")
-    .select(AUDIT_LOG_COLUMNS)
+    .select(columns)
     .order("created_at", { ascending: false });
 
   if (options?.limit != null) {

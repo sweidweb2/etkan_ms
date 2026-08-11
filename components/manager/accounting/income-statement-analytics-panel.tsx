@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDownLeftIcon,
@@ -85,6 +85,8 @@ type BodyTab = "graphs" | "etkan" | "students";
 
 type IncomeStatementAnalyticsPanelProps = {
   data: ManagerIncomeStatementAnalyticsData;
+  /** When set, Etkan/Students tab bodies are replaced by this slot (Suspense tables). */
+  tablesSlot?: ReactNode;
 };
 
 function moneyTooltip(value: unknown) {
@@ -93,6 +95,7 @@ function moneyTooltip(value: unknown) {
 
 export function IncomeStatementAnalyticsPanel({
   data,
+  tablesSlot,
 }: IncomeStatementAnalyticsPanelProps) {
   const router = useRouter();
   const [bodyTab, setBodyTab] = useState<BodyTab>("graphs");
@@ -256,12 +259,19 @@ export function IncomeStatementAnalyticsPanel({
             <TabsTriggerPrimitive value="graphs" className={TAB_TRIGGER_CLASS}>
               Graphs
             </TabsTriggerPrimitive>
-            <TabsTriggerPrimitive value="etkan" className={TAB_TRIGGER_CLASS}>
-              Etkan
-            </TabsTriggerPrimitive>
-            <TabsTriggerPrimitive value="students" className={TAB_TRIGGER_CLASS}>
-              Students
-            </TabsTriggerPrimitive>
+            {!tablesSlot ? (
+              <>
+                <TabsTriggerPrimitive value="etkan" className={TAB_TRIGGER_CLASS}>
+                  Etkan
+                </TabsTriggerPrimitive>
+                <TabsTriggerPrimitive
+                  value="students"
+                  className={TAB_TRIGGER_CLASS}
+                >
+                  Students
+                </TabsTriggerPrimitive>
+              </>
+            ) : null}
           </TabsListPrimitive>
         </div>
 
@@ -362,23 +372,29 @@ export function IncomeStatementAnalyticsPanel({
             </div>
           </TabsContentPrimitive>
 
-          <TabsContentPrimitive value="etkan" className="outline-none">
-            <IncomeStatementAnalyticsEtkanTab
-              key={`etkan-${data.year}-${data.month ?? "all"}`}
-              transactions={data.transactions}
-            />
-          </TabsContentPrimitive>
+          {!tablesSlot ? (
+            <>
+              <TabsContentPrimitive value="etkan" className="outline-none">
+                <IncomeStatementAnalyticsEtkanTab
+                  key={`etkan-${data.year}-${data.month ?? "all"}`}
+                  transactions={data.transactions}
+                />
+              </TabsContentPrimitive>
 
-          <TabsContentPrimitive value="students" className="outline-none">
-            <IncomeStatementAnalyticsStudentsTab
-              key={`students-${data.year}-${data.month ?? "all"}`}
-              payments={data.payments}
-              unpaidStudents={data.unpaidStudents}
-              adjustedStudents={data.adjustedStudents}
-            />
-          </TabsContentPrimitive>
+              <TabsContentPrimitive value="students" className="outline-none">
+                <IncomeStatementAnalyticsStudentsTab
+                  key={`students-${data.year}-${data.month ?? "all"}`}
+                  payments={data.payments}
+                  unpaidStudents={data.unpaidStudents}
+                  adjustedStudents={data.adjustedStudents}
+                />
+              </TabsContentPrimitive>
+            </>
+          ) : null}
         </TabsContentsPrimitive>
       </TabsPrimitive>
+
+      {tablesSlot}
     </div>
   );
 }

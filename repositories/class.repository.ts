@@ -87,6 +87,18 @@ export async function listInProgressClassesWithSemester(client: Supabase) {
     .order("name", { ascending: true });
 }
 
+/**
+ * Billing batch: all in-progress classes with created_at so callers can pick
+ * oldest per semester without N+1 finds.
+ */
+export async function listInProgressClassesForBilling(client: Supabase) {
+  return client
+    .from("classes")
+    .select("id, name, semester_id, created_at")
+    .eq("status", "in_progress")
+    .order("created_at", { ascending: true });
+}
+
 const CLASS_PICKER_SELECT = "id, name, subjects ( name )";
 
 export type ClassPickerRecord = {

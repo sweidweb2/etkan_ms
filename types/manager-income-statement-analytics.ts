@@ -87,3 +87,18 @@ export type ManagerIncomeStatementAnalyticsData = {
   unpaidStudents: ManagerIncomeAnalyticsUnpaidStudentRow[];
   adjustedStudents: ManagerIncomeAnalyticsAdjustedStudentRow[];
 };
+
+export type ManagerIncomeStatementAnalyticsSummary = Pick<
+  ManagerIncomeStatementAnalyticsData,
+  | "year"
+  | "month"
+  | "availableYears"
+  | "periodSeries"
+  | "composition"
+  | "totals"
+>;
+
+export type ManagerIncomeStatementAnalyticsTables = Pick<
+  ManagerIncomeStatementAnalyticsData,
+  "payments" | "transactions" | "unpaidStudents" | "adjustedStudents"
+>;

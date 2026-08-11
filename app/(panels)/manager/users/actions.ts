@@ -1,13 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { revalidateManagerScheduleInstructors } from "@/lib/cache/instructor-schedule-cache";
 import {
+  revalidateManagerInstructorsList,
   revalidateManagerPeopleLists,
   revalidateManagerUsersList,
 } from "@/lib/cache/manager-list-cache";
-import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStaffUserFormData } from "@/lib/validators/manager/create-user";
 import { parseUpdateManagerUserFormData } from "@/lib/validators/manager/update-user";
@@ -50,7 +49,7 @@ export async function createStaffUserAction(
   }
 
   revalidateManagerUsersList();
-  revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
+  revalidateManagerInstructorsList();
   revalidateManagerScheduleInstructors();
 
   return {
@@ -93,7 +92,6 @@ export async function updateUserAction(
   }
 
   revalidateManagerPeopleLists();
-  revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
   revalidateManagerScheduleInstructors();
 
   return {

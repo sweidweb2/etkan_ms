@@ -6,6 +6,21 @@ type Supabase = SupabaseClient<Database>;
 const APPLICATION_COLUMNS =
   "id, created_at, updated_at, status, notes, full_name, gender, date_of_birth, blood_type, email, phone, additional_phone, city, full_address, education_level, organization_name, speciality, learning_status, graduation_year, self_learning_notes, learning_goal, skills, referral_source, referral_other, preferred_program, available_days, preferred_shifts, weekly_available_hours, job_status, has_transportation, consent_terms, consent_privacy, guardian_name, guardian_phone, id_document_type";
 
+/** Columns needed by the manager registrations table (not detail). */
+const APPLICATION_LIST_COLUMNS =
+  "id, created_at, status, full_name, email, phone, city, preferred_program";
+
+export type StudentRegistrationApplicationListRecord = {
+  id: string;
+  created_at: string;
+  status: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  city: string;
+  preferred_program: string;
+};
+
 export type StudentRegistrationApplicationRecord = {
   id: string;
   created_at: string;
@@ -127,6 +142,19 @@ export async function listStudentRegistrationApplications(
   return client
     .from("student_registration_applications")
     .select(APPLICATION_COLUMNS)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+}
+
+/** Slim list for manager registrations table (no docs / detail fields). */
+export async function listStudentRegistrationApplicationsForList(
+  client: Supabase,
+  options?: { limit?: number }
+) {
+  const limit = options?.limit ?? 500;
+  return client
+    .from("student_registration_applications")
+    .select(APPLICATION_LIST_COLUMNS)
     .order("created_at", { ascending: false })
     .limit(limit);
 }

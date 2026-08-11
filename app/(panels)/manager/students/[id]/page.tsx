@@ -3,14 +3,13 @@ import { StudentDetailsPanel } from "@/components/manager/students/student-detai
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listStudentActivityForManager } from "@/services/student-activity.service";
-import { getStudentClassAcademicDetailForManager } from "@/services/student-course-grade.service";
+import { listStudentClassAcademicBundlesForManager } from "@/services/student-course-grade.service";
 import {
   getStudentDetailStatsForManager,
   getStudentForManager,
   listAssignableClassesForStudentManager,
   listJoinedClassesForStudentManager,
 } from "@/services/student.service";
-import type { ManagerStudentClassAcademicBundle } from "@/types/manager-student-class-detail";
 
 type ManagerStudentDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -53,24 +52,11 @@ export default async function ManagerStudentDetailPage({
       ),
     ]);
 
-  const academicResults = await Promise.all(
-    joinedClasses.map(async (classRow) => {
-      const academic = await getStudentClassAcademicDetailForManager(
-        adminClient,
-        user?.id ?? null,
-        classRow.class_id,
-        student.user_id
-      );
-
-      const bundle: ManagerStudentClassAcademicBundle = {
-        classRow,
-        detail: academic.detail,
-        finalExam: academic.finalExam,
-        studentFinalExamGrade: academic.studentFinalExamGrade,
-      };
-
-      return bundle;
-    })
+  const classBundles = await listStudentClassAcademicBundlesForManager(
+    adminClient,
+    user?.id ?? null,
+    student.user_id,
+    joinedClasses
   );
 
   return (
@@ -78,7 +64,7 @@ export default async function ManagerStudentDetailPage({
       student={student}
       stats={stats}
       availableClasses={availableClasses}
-      classBundles={academicResults}
+      classBundles={classBundles}
       activityRows={activityRows}
     />
   );

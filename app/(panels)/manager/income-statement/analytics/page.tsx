@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { IncomeStatementAnalyticsPanel } from "@/components/manager/accounting/income-statement-analytics-panel";
+import { IncomeStatementAnalyticsTablesSection } from "@/components/manager/accounting/income-statement-analytics-tables-section";
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getIncomeStatementAnalyticsForManager } from "@/services/income-statement-analytics.service";
+import { getIncomeStatementAnalyticsSummaryForManager } from "@/services/income-statement-analytics.service";
 
 type ManagerIncomeStatementAnalyticsPageProps = {
   searchParams: Promise<{ year?: string; month?: string }>;
@@ -39,7 +41,7 @@ export default async function ManagerIncomeStatementAnalyticsPage({
   const year = parseYear(params.year);
   const month = parseMonth(params.month);
 
-  const data = await getIncomeStatementAnalyticsForManager(
+  const summary = await getIncomeStatementAnalyticsSummaryForManager(
     adminClient,
     user.id,
     {
@@ -48,5 +50,31 @@ export default async function ManagerIncomeStatementAnalyticsPage({
     }
   );
 
-  return <IncomeStatementAnalyticsPanel data={data} />;
+  return (
+    <IncomeStatementAnalyticsPanel
+      data={{
+        ...summary,
+        payments: [],
+        transactions: [],
+        unpaidStudents: [],
+        adjustedStudents: [],
+      }}
+      tablesSlot={
+        <Suspense
+          fallback={
+            <div
+              className="min-h-[12rem] animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
+              aria-hidden
+            />
+          }
+        >
+          <IncomeStatementAnalyticsTablesSection
+            actorUserId={user.id}
+            year={summary.year}
+            month={summary.month}
+          />
+        </Suspense>
+      }
+    />
+  );
 }

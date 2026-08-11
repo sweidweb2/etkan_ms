@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import { ROUTES } from "@/lib/constants/routes";
+import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
+import { rejectIfMaintenanceBlocksRole } from "@/services/auth.service";
 import { resolveUserRole } from "@/services/role.service";
+import * as authRepository from "@/repositories/auth.repository";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -15,6 +18,16 @@ export async function GET(request: Request) {
 
     if (!error && data.user) {
       const role = await resolveUserRole(supabase, data.user);
+      const maintenanceError = await rejectIfMaintenanceBlocksRole(
+        supabase,
+        role
+      );
+      if (maintenanceError) {
+        await authRepository.signOut(supabase);
+        return NextResponse.redirect(
+          `${origin}${appendQueryParam(ROUTES.LOGIN, "error", "maintenance")}`
+        );
+      }
       const redirectPath = getPostLoginRedirect(role, next);
       return NextResponse.redirect(`${origin}${redirectPath}`);
     }
