@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -12,10 +11,10 @@ import { ROUTES } from "@/lib/constants/routes";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { cn } from "@/lib/utils";
+import { toEmbeddableGalleryImageUrl } from "@/lib/utils/gallery-image-url";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, amount: 0.18, margin: "0px 0px -6% 0px" } as const;
-const IMAGE_SIZES = "(max-width: 860px) 100vw, 50vw";
 
 const VIEW_ALL_CLASS =
   "inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/30 bg-transparent px-5 text-sm font-medium text-white/90 transition-colors hover:border-white/55 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-white/35";
@@ -34,6 +33,7 @@ function FoundationRow({
   const client = t(foundation.clientKey);
   const headline = t(foundation.headlineKey);
   const explore = t("about.services.explore");
+  const imageSrc = toEmbeddableGalleryImageUrl(foundation.imageSrc);
 
   const content = (
     <>
@@ -43,12 +43,15 @@ function FoundationRow({
           "group-hover:shadow-[0_0_0_1px_rgba(196,196,232,0.35),0_24px_60px_-28px_rgba(0,0,0,0.55)]"
         )}
       >
-        <Image
-          src={foundation.imageSrc}
+        {/* Native img: Drive thumbnails must not go through next/image optimization. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageSrc}
           alt={t(foundation.imageAltKey)}
-          fill
-          sizes={IMAGE_SIZES}
-          className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          loading={index === 0 ? "eager" : "lazy"}
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
         <div
           aria-hidden="true"
@@ -300,12 +303,25 @@ function SectionPatterns() {
   );
 }
 
-export function AboutServicesSection() {
+type AboutServicesSectionProps = {
+  /** Random gallery Drive URLs (same source as /gallery). Falls back to defaults. */
+  imageUrls?: string[];
+};
+
+export function AboutServicesSection({
+  imageUrls = [],
+}: AboutServicesSectionProps) {
   const { t, dir } = usePublicI18n();
   const hydrated = useHydrated();
   const reduceMotion = useReducedMotion();
   const canAnimate = hydrated && !reduceMotion;
   const titleId = "about-services-title";
+
+  const foundations = FEATURED_ABOUT_FOUNDATIONS.map((foundation, index) => {
+    const galleryUrl = imageUrls[index]?.trim();
+    if (!galleryUrl) return foundation;
+    return { ...foundation, imageSrc: galleryUrl };
+  });
 
   return (
     <section
@@ -341,7 +357,7 @@ export function AboutServicesSection() {
         </div>
 
         <div className="mt-14 flex flex-col gap-16 sm:mt-16 sm:gap-20">
-          {FEATURED_ABOUT_FOUNDATIONS.map((foundation, index) => (
+          {foundations.map((foundation, index) => (
             <FoundationRow
               key={foundation.id}
               foundation={foundation}

@@ -1,10 +1,10 @@
 ---
-description: Global top progress bar for navigation and async work
+description: Global top progress bar for route navigation
 alwaysApply: true
 ---
 # Route Top Loader
 
-Use the thin fixed top progress bar for **global navigation and network feedback** across the app (public + all panels).
+Use the thin fixed top progress bar for **route navigation** across the app (public + all panels). Do **not** use it for form submits or in-dialog data loads.
 
 ## Component
 
@@ -17,9 +17,12 @@ Use the thin fixed top progress bar for **global navigation and network feedback
 - Mounted **once** in `app/layout.tsx` inside `<Suspense>` — do **not** add per-page or per-panel instances.
 - Activates automatically for:
   - Same-origin route navigations (links, `router.push` / `replace`, back/forward)
-  - App Router RSC fetches including `router.refresh()`
-  - Server actions (`Next-Action` requests)
+  - App Router RSC navigations
   - URL / search-param changes that trigger network work
+- Does **not** activate for:
+  - Server actions / form submits (`Next-Action`)
+  - Loading form options or dialog data via server actions
+  - `router.refresh()` after mutations
 - Pure client-side UI stays silent: opening modals, dropdowns, accordions, tabs with cached content, client-only table filters.
 
 ## Progress behavior
@@ -31,8 +34,8 @@ Use the thin fixed top progress bar for **global navigation and network feedback
 
 ## Forms / mutations
 
-- **Also** keep `InlineSpinner` on submit buttons for in-form pending feedback.
-- Top bar covers the global wait; spinner covers the control the user pressed.
+- Keep `InlineSpinner` on submit buttons for in-form pending feedback.
+- Do **not** drive the top bar from form submits or in-dialog data loads — the spinner covers the control the user pressed.
 
 ## Do not
 

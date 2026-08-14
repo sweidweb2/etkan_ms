@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ATTENDEE_STATUSES } from "@/lib/constants/manager-attendee-status";
 import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
-import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import * as attendeeRepository from "@/repositories/attendee.repository";

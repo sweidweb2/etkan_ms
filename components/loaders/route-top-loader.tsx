@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 const SERVER_SNAPSHOT = { progress: 0, visible: false } as const;
 
 /**
- * Global top progress bar for App Router navigations, RSC fetches (incl.
- * refresh), and server actions. Mount once in the root layout.
+ * Global top progress bar for App Router navigations. Mount once in the
+ * root layout. Form submits and router.refresh do not drive this bar.
  */
 export function RouteTopLoader() {
   const pathname = usePathname();

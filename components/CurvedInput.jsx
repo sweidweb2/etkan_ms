@@ -268,7 +268,7 @@ const CurvedInput = ({
       setScrollLen(next);
     }
     setCaretU(layout.textStartU + (caretLen - next) * geom.uPerLen);
-  });
+  }, [geom, layout, caretIndex, display]);
 
   const commitValue = v => {
     if (value === undefined) setInnerValue(v);

@@ -505,6 +505,10 @@ export const ar = {
     "هل يمكن للطالب دخول المسار التخصصي مباشرة؟",
   "careers.roadmap.detail.qa.enterSpecialized.a":
     "لا. على الطالب أولًا إنهاء المسار العام. وإذا أتمّ مسارًا مكافئًا بمفرده—عبر مؤسسة أخرى أو بالتعلّم الذاتي—فعليه الاتصال بإدارة إتقان لإكمال الخطوات المطلوبة قبل السماح له بدخول المسار التخصصي.",
+  "careers.roadmap.book.pathsLabel": "المسارات المفتوحة",
+  "careers.roadmap.book.pathsLead":
+    "صفحتان. رحلتان. اختر من أين تبدأ قصتك.",
+  "careers.roadmap.book.openPath": "افتح المسار",
   "careers.roadmap.note.label": "ملاحظة النموذج",
   "careers.roadmap.note.title": "كيف تعمل خارطة طريق إتقان فعلًا",
   "careers.roadmap.note.intro":

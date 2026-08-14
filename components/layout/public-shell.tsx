@@ -25,10 +25,8 @@ export function PublicShell({ children }: PublicShellProps) {
       {hideSiteChrome ? null : (
         <SiteNavbarClient initialDashboardHref={null} />
       )}
-      <div className="relative flex min-h-dvh flex-col">
-        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-        {hideSiteChrome ? null : <SiteFooter />}
-      </div>
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      {hideSiteChrome ? null : <SiteFooter />}
       {hideSiteChrome ? null : (
         <div
           className="pointer-events-none fixed inset-0 -z-10"

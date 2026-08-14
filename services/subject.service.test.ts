@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { ROLES } from "@/lib/constants/roles";
 import * as classRepository from "@/repositories/class.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as subjectRepository from "@/repositories/subject.repository";

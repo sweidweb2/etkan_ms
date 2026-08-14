@@ -29,7 +29,8 @@ describe("updateWorkshopSchema", () => {
   });
 
   it("rejects missing id", () => {
-    const { id: _id, ...rest } = validInput;
+    const rest = { ...validInput };
+    Reflect.deleteProperty(rest, "id");
     const parsed = updateWorkshopSchema.safeParse(rest);
     expect(parsed.success).toBe(false);
   });

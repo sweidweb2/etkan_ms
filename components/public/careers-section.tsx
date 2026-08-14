@@ -166,9 +166,6 @@ const STICKY_NOTE_STYLES = [
 ] as const;
 
 /** Stable strings — avoid cn() on anchors (SSR/client class order mismatches). */
-const ROADMAP_CARD_LINK_CLASS =
-  "group overflow-hidden rounded-2xl border border-[#3E3E75]/15 bg-background/90 shadow-[0_20px_50px_-36px_rgba(62,62,117,0.45)] transition-transform duration-300 hover:-translate-y-0.5 dark:border-[#C4C4E8]/15";
-
 const WORKSHOP_CARD_CLASS =
   "group relative flex flex-col overflow-hidden rounded-2xl border border-[#3E3E75]/15 bg-background shadow-[0_18px_44px_-34px_rgba(62,62,117,0.5)] transition-transform duration-300 hover:-translate-y-1 dark:border-[#C4C4E8]/15";
 
@@ -183,8 +180,31 @@ const TAB_TRIGGER_CLASS = cn(
   "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#3E3E75]/35"
 );
 
+function PaperLines({ offset = "2.5rem" }: { offset?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 opacity-90"
+      style={{
+        backgroundImage:
+          "repeating-linear-gradient(transparent, transparent 27px, rgba(62,62,117,0.16) 28px)",
+        backgroundPosition: `0 ${offset}`,
+      }}
+    />
+  );
+}
+
+function PaperMarginRule() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 start-8 w-px bg-[#F5B7B1]/70 sm:start-10 dark:bg-[#9A9AD0]/25"
+    />
+  );
+}
+
 export function CareersSection() {
-  const { t } = usePublicI18n();
+  const { t, dir } = usePublicI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -202,7 +222,7 @@ export function CareersSection() {
   }
 
   return (
-    <section className="relative isolate overflow-hidden px-4 pt-20 pb-16 sm:px-6 sm:pt-24 sm:pb-20">
+    <section className="relative isolate overflow-hidden px-4 pt-20 pb-6 sm:px-6 sm:pt-24 sm:pb-8">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,var(--background),color-mix(in_oklch,var(--muted)_32%,var(--background)))]"
@@ -252,100 +272,223 @@ export function CareersSection() {
             }}
           >
             <TabsContent value="roadmap" className="outline-none">
-              <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-10">
-                <div className="flex flex-col gap-5 sm:gap-6">
-                  {CAREERS_ROADMAP_CARDS.map((card) => (
-                    <Link
-                      key={card.id}
-                      href={getCareersRoadmapDetailRoute(card.id)}
-                      suppressHydrationWarning
-                      className={ROADMAP_CARD_LINK_CLASS}
-                    >
-                      <article className="grid sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]">
-                        <div className="relative aspect-[16/11] sm:aspect-auto sm:min-h-[10.5rem]">
-                          <Image
-                            src={card.imageSrc}
-                            alt={t(card.imageAltKey)}
-                            fill
-                            sizes="(max-width: 640px) 100vw, 220px"
-                            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                          />
-                        </div>
-                        <div className="flex flex-col justify-center p-4 sm:p-5 lg:p-6">
-                          <h2 className="text-lg font-semibold tracking-tight text-balance sm:text-xl">
-                            {t(card.titleKey)}
-                          </h2>
-                          <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-pretty">
-                            {t(card.bodyKey)}
-                          </p>
-                        </div>
-                      </article>
-                    </Link>
-                  ))}
-                </div>
-
-                <div className="relative w-full lg:sticky lg:top-24">
+              <div className="relative mx-auto max-w-5xl">
+                {/* Book cover board — light beige rim */}
+                <div
+                  dir="ltr"
+                  className={cn(
+                    "relative rounded-[8px] p-[3px] sm:p-[4px]",
+                    "bg-[#F7F2E8]",
+                    "shadow-[0_16px_36px_-28px_rgba(62,62,117,0.3)]"
+                  )}
+                >
+                  {/* Open pages */}
                   <div
-                    aria-hidden="true"
-                    className="absolute top-[-0.7rem] left-1/2 z-20 h-5 w-24 -translate-x-1/2 rotate-[-2deg] rounded-[2px] bg-[#3E3E75]/55 shadow-sm backdrop-blur-[1px] dark:bg-[#9A9AD0]/50"
-                  />
-
-                  <article
                     className={cn(
-                      "relative overflow-hidden rounded-[2px] px-5 py-7 sm:px-7 sm:py-8",
-                      "rotate-[-0.7deg] border border-[#3E3E75]/12 bg-[#FFFEF7] text-slate-800",
-                      "shadow-[0_18px_40px_-24px_rgba(62,62,117,0.35),0_1px_0_rgba(62,62,117,0.08)]",
-                      "dark:border-[#C4C4E8]/15 dark:bg-[#2F2F4A] dark:text-[#F4F2FF]"
+                      "relative grid overflow-hidden rounded-[5px] bg-[#FFFEF7] lg:grid-cols-2",
+                      "ring-1 ring-[#3E3E75]/10",
+                      "dark:bg-[#24243C] dark:ring-[#C4C4E8]/12"
                     )}
                   >
+                    {/* Soft spine crease (no hard separator line) */}
                     <div
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 opacity-70"
+                      className="pointer-events-none absolute inset-y-0 left-1/2 z-30 hidden w-20 -translate-x-1/2 lg:block"
                       style={{
-                        backgroundImage:
-                          "repeating-linear-gradient(transparent, transparent 27px, rgba(62,62,117,0.08) 28px)",
-                        backgroundPosition: "0 2.75rem",
+                        background:
+                          "linear-gradient(90deg, transparent 0%, rgba(62,62,117,0.05) 30%, rgba(30,30,55,0.14) 47%, rgba(255,255,255,0.35) 50%, rgba(30,30,55,0.14) 53%, rgba(62,62,117,0.05) 70%, transparent 100%)",
                       }}
                     />
+                    {/* Spine stitch hint */}
                     <div
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-y-0 start-8 w-px bg-[#F5B7B1]/70 sm:start-10 dark:bg-[#9A9AD0]/25"
+                      className="pointer-events-none absolute top-6 bottom-6 left-1/2 z-30 hidden w-px -translate-x-1/2 bg-[#3E3E75]/12 lg:block dark:bg-white/10"
                     />
 
-                    <div className="relative z-10 ps-3 sm:ps-5">
-                      <p className="text-[0.7rem] font-semibold tracking-[0.18em] text-[#3E3E75] uppercase dark:text-[#C4C4E8]">
-                        {t("careers.roadmap.note.label")}
-                      </p>
-                      <h2 className="mt-2 text-xl font-semibold tracking-tight text-balance sm:text-2xl">
-                        {t("careers.roadmap.note.title")}
-                      </h2>
-                      <p className="mt-4 text-sm leading-relaxed text-pretty sm:text-[0.95rem]">
-                        {t("careers.roadmap.note.intro")}
-                      </p>
+                    {/* Left page */}
+                    <article
+                      dir={dir}
+                      className={cn(
+                        "relative min-h-full overflow-hidden px-5 py-7 sm:px-7 sm:py-8",
+                        "border-b border-[#3E3E75]/10 bg-[#FFFEF7] text-slate-800 lg:border-b-0",
+                        "dark:border-[#C4C4E8]/12 dark:bg-[#2F2F4A] dark:text-[#F4F2FF]",
+                        "shadow-[inset_-28px_0_40px_-28px_rgba(62,62,117,0.32),inset_12px_0_20px_-16px_rgba(255,255,255,0.7)]",
+                        "dark:shadow-[inset_-28px_0_40px_-28px_rgba(0,0,0,0.5),inset_12px_0_20px_-16px_rgba(255,255,255,0.05)]"
+                      )}
+                    >
+                      {/* Left outer page edges */}
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 left-0 z-20 hidden w-[7px] lg:block"
+                        style={{
+                          background:
+                            "linear-gradient(90deg, #D9D0BA 0%, #F7F1E4 55%, #FFFDF8 100%)",
+                          boxShadow:
+                            "inset -1px 0 0 rgba(62,62,117,0.12), 1px 0 0 rgba(255,255,255,0.5)",
+                        }}
+                      />
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 left-[3px] z-20 hidden w-px bg-[#3E3E75]/10 lg:block"
+                      />
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 left-[5px] z-20 hidden w-px bg-[#3E3E75]/08 lg:block"
+                      />
 
-                      <p className="mt-5 text-xs font-semibold tracking-[0.16em] text-[#3E3E75]/80 uppercase dark:text-[#C4C4E8]/80">
-                        {t("careers.roadmap.note.journeyLabel")}
-                      </p>
+                      <PaperLines />
+                      <PaperMarginRule />
 
-                      <ul className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                        {ROADMAP_NOTE_POINTS.map((pointKey, index) => (
-                          <li
-                            key={pointKey}
-                            className={cn(
-                              "rounded-[2px] px-3 py-2.5 text-sm leading-relaxed text-pretty",
-                              STICKY_NOTE_STYLES[index]
-                            )}
-                          >
-                            {t(pointKey)}
-                          </li>
-                        ))}
-                      </ul>
+                      <div
+                        aria-hidden="true"
+                        className="absolute top-[-0.55rem] left-[18%] z-20 h-4 w-16 rotate-[-6deg] rounded-[1px] bg-[#C4C4E8]/80 shadow-sm dark:bg-[#9A9AD0]/55"
+                      />
 
-                      <p className="mt-6 border-t border-[#3E3E75]/15 pt-4 text-sm leading-relaxed text-pretty sm:text-[0.95rem] dark:border-[#C4C4E8]/15">
-                        {t("careers.roadmap.note.closing")}
-                      </p>
-                    </div>
-                  </article>
+                      <div className="relative z-10 ps-3 sm:ps-5">
+                        <p className="text-[0.7rem] font-semibold tracking-[0.18em] text-[#3E3E75] uppercase dark:text-[#C4C4E8]">
+                          {t("careers.roadmap.book.pathsLabel")}
+                        </p>
+                        <p className="mt-2 max-w-[34ch] text-sm leading-relaxed text-slate-600 text-pretty dark:text-[#E8E4FF]/80">
+                          {t("careers.roadmap.book.pathsLead")}
+                        </p>
+
+                        <div className="mt-6 flex flex-col gap-5">
+                          {CAREERS_ROADMAP_CARDS.map((card, index) => {
+                            const title = t(card.titleKey);
+                            const taped =
+                              index === 0
+                                ? "rotate-[-0.8deg]"
+                                : "rotate-[0.9deg]";
+                            const tapeClass =
+                              index === 0
+                                ? "left-[22%] rotate-[-8deg] bg-[#FFF4A8]/90"
+                                : "right-[18%] left-auto rotate-[7deg] bg-[#E8E4FF]/90";
+
+                            return (
+                              <Link
+                                key={card.id}
+                                href={getCareersRoadmapDetailRoute(card.id)}
+                                suppressHydrationWarning
+                                aria-label={title}
+                                className={cn(
+                                  "group relative block rounded-[2px] border border-[#3E3E75]/12 bg-[#FFFDF6]/95 p-3 transition-[transform,box-shadow] duration-300",
+                                  "shadow-[1px_2px_0_rgba(62,62,117,0.08)] hover:-translate-y-0.5 hover:shadow-[2px_6px_0_rgba(62,62,117,0.12)]",
+                                  "dark:border-[#C4C4E8]/15 dark:bg-[#35355A]/70 dark:shadow-[1px_2px_0_rgba(0,0,0,0.25)]",
+                                  taped
+                                )}
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className={cn(
+                                    "absolute top-[-0.45rem] z-20 h-3.5 w-14 rounded-[1px] shadow-sm",
+                                    tapeClass
+                                  )}
+                                />
+
+                                <div className="grid gap-3 sm:grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)] sm:gap-4">
+                                  <div className="relative aspect-[4/3] overflow-hidden rounded-[1px] border border-[#3E3E75]/15 bg-[#EDE6D6] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)] dark:border-[#C4C4E8]/15 dark:bg-[#24243C]">
+                                    <Image
+                                      src={card.imageSrc}
+                                      alt={t(card.imageAltKey)}
+                                      fill
+                                      sizes="(max-width: 640px) 100vw, 180px"
+                                      className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                                    />
+                                  </div>
+
+                                  <div className="flex min-w-0 flex-col justify-center">
+                                    <span className="text-[0.65rem] font-semibold tracking-[0.2em] text-[#3E3E75]/70 uppercase dark:text-[#C4C4E8]/70">
+                                      {String(index + 1).padStart(2, "0")}
+                                    </span>
+                                    <h2 className="mt-1 text-base font-semibold tracking-tight text-balance sm:text-lg">
+                                      {title}
+                                    </h2>
+                                    <p className="mt-1.5 text-sm leading-relaxed text-slate-600 text-pretty dark:text-[#E8E4FF]/75">
+                                      {t(card.bodyKey)}
+                                    </p>
+                                    <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.14em] text-[#3E3E75] uppercase transition-colors group-hover:text-[#2A2A52] dark:text-[#C4C4E8] dark:group-hover:text-white">
+                                      {t("careers.roadmap.book.openPath")}
+                                      <span aria-hidden="true">→</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </article>
+
+                    {/* Right page — notes */}
+                    <article
+                      dir={dir}
+                      className={cn(
+                        "relative min-h-full overflow-hidden px-5 py-7 sm:px-7 sm:py-8",
+                        "bg-[#FFFEF7] text-slate-800",
+                        "dark:bg-[#2F2F4A] dark:text-[#F4F2FF]",
+                        "shadow-[inset_28px_0_40px_-28px_rgba(62,62,117,0.32),inset_-12px_0_20px_-16px_rgba(255,255,255,0.7)]",
+                        "dark:shadow-[inset_28px_0_40px_-28px_rgba(0,0,0,0.5),inset_-12px_0_20px_-16px_rgba(255,255,255,0.05)]"
+                      )}
+                    >
+                      {/* Right outer page edges */}
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden w-[7px] lg:block"
+                        style={{
+                          background:
+                            "linear-gradient(270deg, #D9D0BA 0%, #F7F1E4 55%, #FFFDF8 100%)",
+                          boxShadow:
+                            "inset 1px 0 0 rgba(62,62,117,0.12), -1px 0 0 rgba(255,255,255,0.5)",
+                        }}
+                      />
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 right-[3px] z-20 hidden w-px bg-[#3E3E75]/10 lg:block"
+                      />
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 right-[5px] z-20 hidden w-px bg-[#3E3E75]/08 lg:block"
+                      />
+
+                      <div
+                        aria-hidden="true"
+                        className="absolute top-[-0.7rem] left-1/2 z-20 h-5 w-24 -translate-x-1/2 rotate-[-2deg] rounded-[2px] bg-[#3E3E75]/55 shadow-sm backdrop-blur-[1px] dark:bg-[#9A9AD0]/50"
+                      />
+
+                      <PaperLines offset="2.75rem" />
+                      <PaperMarginRule />
+
+                      <div className="relative z-10 ps-3 sm:ps-5">
+                        <p className="text-[0.7rem] font-semibold tracking-[0.18em] text-[#3E3E75] uppercase dark:text-[#C4C4E8]">
+                          {t("careers.roadmap.note.label")}
+                        </p>
+                        <h2 className="mt-2 text-xl font-semibold tracking-tight text-balance sm:text-2xl">
+                          {t("careers.roadmap.note.title")}
+                        </h2>
+                        <p className="mt-4 text-sm leading-relaxed text-pretty sm:text-[0.95rem]">
+                          {t("careers.roadmap.note.intro")}
+                        </p>
+
+                        <p className="mt-5 text-xs font-semibold tracking-[0.16em] text-[#3E3E75]/80 uppercase dark:text-[#C4C4E8]/80">
+                          {t("careers.roadmap.note.journeyLabel")}
+                        </p>
+
+                        <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                          {ROADMAP_NOTE_POINTS.map((pointKey, index) => (
+                            <li
+                              key={pointKey}
+                              className={cn(
+                                "rounded-[2px] px-3 py-2.5 text-sm leading-relaxed text-pretty",
+                                STICKY_NOTE_STYLES[index]
+                              )}
+                            >
+                              {t(pointKey)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </article>
+                  </div>
                 </div>
               </div>
             </TabsContent>

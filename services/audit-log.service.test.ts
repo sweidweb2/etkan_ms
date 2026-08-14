@@ -24,7 +24,6 @@ vi.mock("@/services/authorization.service", () => ({
 }));
 
 const adminClient = {} as SupabaseClient<Database>;
-const actorUserId = "11111111-1111-4111-8111-111111111111";
 const actor = { userId: "user-1", userLabel: "Manager One" };
 
 describe("createAuditLogForManager", () => {

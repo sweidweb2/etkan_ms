@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ROLES } from "@/lib/constants/roles";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import type { AuditActor } from "@/services/audit-log.service";
 import { listAvailableStudentsForClass } from "@/services/class.service";

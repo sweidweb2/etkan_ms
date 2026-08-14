@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { ROLES } from "@/lib/constants/roles";
 import { SEMESTER_STATUSES } from "@/lib/constants/manager-semester-status";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as auditLogService from "@/services/audit-log.service";

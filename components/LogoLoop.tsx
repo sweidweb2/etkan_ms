@@ -356,6 +356,8 @@ export const LogoLoop = memo(function LogoLoop({
           {item.node}
         </span>
       ) : (
+        // Native img: this marquee clones logos and accepts arbitrary srcSet/sizes.
+        // eslint-disable-next-line @next/next/no-img-element -- match upstream LogoLoop
         <img
           src={item.src}
           srcSet={item.srcSet}

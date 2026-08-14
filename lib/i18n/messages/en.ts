@@ -504,6 +504,10 @@ export const en = {
     "Can a student enter the specialization roadmap directly?",
   "careers.roadmap.detail.qa.enterSpecialized.a":
     "No. A student should first finish the general roadmap. If they completed an equivalent path alone—through another organization or self-learning—they should call Etkan management to complete the required steps before they can be allowed into the specialization roadmap.",
+  "careers.roadmap.book.pathsLabel": "Open paths",
+  "careers.roadmap.book.pathsLead":
+    "Two pages. Two journeys. Choose where your story begins.",
+  "careers.roadmap.book.openPath": "Open path",
   "careers.roadmap.note.label": "Model note",
   "careers.roadmap.note.title": "How the Etkan roadmap actually works",
   "careers.roadmap.note.intro":

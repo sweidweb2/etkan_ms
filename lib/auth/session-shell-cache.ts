@@ -49,7 +49,13 @@ export function getCachedSessionShell(
   // Sliding TTL: active sidebar hops keep the shell warm without a cliff.
   entry.expiresAt = Date.now() + SESSION_SHELL_TTL_MS;
 
-  const { expiresAt: _expiresAt, ...payload } = entry;
+  const payload: SessionShellPayload = {
+    role: entry.role,
+    displayName: entry.displayName,
+    isInstructor: entry.isInstructor,
+    permissionKeys: entry.permissionKeys,
+    cachedClaimsRole: entry.cachedClaimsRole,
+  };
   return payload;
 }
 

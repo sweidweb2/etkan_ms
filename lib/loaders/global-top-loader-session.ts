@@ -45,7 +45,7 @@ function clampProgress(value: number) {
 }
 
 /**
- * Ref-counted global progress session for navigation / RSC / server actions.
+ * Ref-counted global progress session for route navigation.
  * Progress only moves forward; 100% only after pendingCount hits 0.
  */
 export function createGlobalTopLoaderSession(timers: TimerApi = defaultTimers) {

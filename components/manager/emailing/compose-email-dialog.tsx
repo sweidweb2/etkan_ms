@@ -158,6 +158,8 @@ export function ComposeEmailDialog({
 
   const selectedTemplateId = watch("templateId") as EmailTemplateId;
   const selectedLocale = (watch("locale") as EmailLocale | undefined) ?? "en";
+  const userIdsKey = userIds.join(",");
+  const toEmailKey = toEmail ?? "";
 
   useEffect(() => {
     if (!open) {
@@ -176,7 +178,9 @@ export function ComposeEmailDialog({
     }
 
     reset(defaults);
-  }, [open, initialTemplateId, reset, target, userIds.join(","), toEmail ?? ""]);
+    // userIds/toEmail are new references each render; keys track contents.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stabilize recipient identity
+  }, [open, initialTemplateId, reset, target, userIdsKey, toEmailKey]);
 
   useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);

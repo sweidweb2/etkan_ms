@@ -50,7 +50,7 @@ function readHeader(
   return match?.[1] ?? null;
 }
 
-/** Track App Router RSC (incl. refresh) and server actions; skip prefetch. */
+/** Track App Router RSC navigations; skip prefetch, server actions, and refresh. */
 export function shouldTrackFetch(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -61,8 +61,9 @@ export function shouldTrackFetch(
     (requestHeaders ? requestHeaders.get(name) : null);
 
   if (get("Next-Router-Prefetch") === "1") return false;
+  if (get("Next-Action") || get("next-action")) return false;
+  if (get("Next-Router-Refresh") === "1") return false;
   if (get("RSC") === "1") return true;
-  if (get("Next-Action") || get("next-action")) return true;
   return false;
 }
 

@@ -220,7 +220,6 @@ export function CareerStagesWheel({
             role="option"
             aria-selected={isActive}
             aria-current={isActive ? "true" : undefined}
-            aria-pressed={isActive}
             onClick={() => onSelect(stage.id)}
             initial={
               reduceMotion

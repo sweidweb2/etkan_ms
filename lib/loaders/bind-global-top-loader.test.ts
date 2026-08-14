@@ -7,26 +7,35 @@ import {
 import { globalTopLoaderSession } from "@/lib/loaders/global-top-loader-session";
 
 describe("shouldTrackFetch", () => {
-  it("tracks RSC navigations and refreshes", () => {
+  it("tracks RSC navigations", () => {
     expect(
       shouldTrackFetch("/manager/workshops", {
         headers: { RSC: "1" },
       })
     ).toBe(true);
+  });
+
+  it("skips router.refresh RSC", () => {
     expect(
       shouldTrackFetch("/manager/workshops", {
         headers: { RSC: "1", "Next-Router-Refresh": "1" },
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it("tracks server actions", () => {
+  it("skips server actions", () => {
     expect(
       shouldTrackFetch("/manager/workshops", {
         method: "POST",
         headers: { "Next-Action": "abc" },
       })
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      shouldTrackFetch("/manager/workshops", {
+        method: "POST",
+        headers: { "next-action": "abc" },
+      })
+    ).toBe(false);
   });
 
   it("skips prefetch RSC", () => {
