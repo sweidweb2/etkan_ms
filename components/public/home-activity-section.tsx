@@ -10,88 +10,6 @@ import { cn } from "@/lib/utils";
 const EASE = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, amount: 0.15, margin: "0px 0px -8% 0px" } as const;
 
-const WEEKS = 53;
-const DAYS = 7;
-
-/** Deterministic 0–4 intensity — biased high so the map reads as dense work. */
-function cellLevel(week: number, day: number): 0 | 1 | 2 | 3 | 4 {
-  const n = (week * 17 + day * 31 + week * day * 7) % 100;
-  if (n < 4) return 0;
-  if (n < 12) return 1;
-  if (n < 28) return 2;
-  if (n < 52) return 3;
-  return 4;
-}
-
-const HEATMAP_CELLS: { key: string; level: 0 | 1 | 2 | 3 | 4 }[] = (() => {
-  const list: { key: string; level: 0 | 1 | 2 | 3 | 4 }[] = [];
-  for (let week = 0; week < WEEKS; week += 1) {
-    for (let day = 0; day < DAYS; day += 1) {
-      list.push({
-        key: `${week}-${day}`,
-        level: cellLevel(week, day),
-      });
-    }
-  }
-  return list;
-})();
-
-const LEVEL_CLASS: Record<0 | 1 | 2 | 3 | 4, string> = {
-  0: "bg-[#3E3E75]/10 dark:bg-[#C4C4E8]/10",
-  1: "bg-[#3E3E75]/25 dark:bg-[#C4C4E8]/20",
-  2: "bg-[#3E3E75]/50 dark:bg-[#C4C4E8]/40",
-  3: "bg-[#3E3E75]/75 dark:bg-[#C4C4E8]/65",
-  4: "bg-[#3E3E75] dark:bg-[#C4C4E8]",
-};
-
-function ActivityHeatmap({
-  label,
-  lessLabel,
-  moreLabel,
-}: {
-  label: string;
-  lessLabel: string;
-  moreLabel: string;
-}) {
-  return (
-    <div
-      className="flex h-full flex-col justify-center"
-      role="img"
-      aria-label={label}
-    >
-      <div
-        className="grid w-full gap-[3px] sm:gap-1"
-        style={{
-          gridTemplateColumns: `repeat(${WEEKS}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${DAYS}, minmax(0, 1fr))`,
-          gridAutoFlow: "column",
-        }}
-      >
-        {HEATMAP_CELLS.map((cell) => (
-          <span
-            key={cell.key}
-            className={cn(
-              "aspect-square min-h-0 min-w-0 rounded-[1px]",
-              LEVEL_CLASS[cell.level]
-            )}
-          />
-        ))}
-      </div>
-
-      <div className="mt-3 flex items-center justify-end gap-1.5 text-[0.65rem] text-muted-foreground">
-        <span className="me-0.5">{lessLabel}</span>
-        {([0, 1, 2, 3, 4] as const).map((level) => (
-          <span
-            key={level}
-            className={cn("size-2.5 rounded-[1px] sm:size-3", LEVEL_CLASS[level])}
-          />
-        ))}
-        <span className="ms-0.5">{moreLabel}</span>
-      </div>
-    </div>
-  );
-}
-
 function ProjectMosaic({ label }: { label: string }) {
   return (
     <div
@@ -184,53 +102,26 @@ export function HomeActivitySection() {
           </motion.p>
         </div>
 
-        <div className="mt-8 grid gap-6 lg:mt-10 lg:grid-cols-2 lg:items-stretch lg:gap-8">
-          <motion.div
-            className="flex flex-col border border-[#3E3E75]/20 bg-background/90 p-4 sm:p-5 dark:border-[#C4C4E8]/20"
-            initial={canAnimate ? { opacity: 0, y: 24 } : false}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={VIEWPORT}
-            transition={{ duration: 0.85, ease: EASE, delay: 0.12 }}
-          >
-            <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[#3E3E75] uppercase dark:text-[#C4C4E8]">
-              {t("homeActivity.heatmap.tag")}
-            </p>
-            <h3 className="mt-2 text-lg font-semibold tracking-tight sm:text-xl">
-              {t("homeActivity.heatmap.title")}
-            </h3>
-            <p className="mt-1.5 text-sm text-muted-foreground text-pretty">
-              {t("homeActivity.heatmap.body")}
-            </p>
-            <div className="mt-5 flex-1">
-              <ActivityHeatmap
-                label={t("homeActivity.heatmap.ariaLabel")}
-                lessLabel={t("homeActivity.heatmap.less")}
-                moreLabel={t("homeActivity.heatmap.more")}
-              />
-            </div>
-          </motion.div>
-
-          <motion.div
-            className="flex flex-col border border-[#3E3E75]/20 bg-background/90 p-4 sm:p-5 dark:border-[#C4C4E8]/20"
-            initial={canAnimate ? { opacity: 0, y: 24 } : false}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={VIEWPORT}
-            transition={{ duration: 0.85, ease: EASE, delay: 0.2 }}
-          >
-            <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[#3E3E75] uppercase dark:text-[#C4C4E8]">
-              {t("homeActivity.mosaic.tag")}
-            </p>
-            <h3 className="mt-2 text-lg font-semibold tracking-tight sm:text-xl">
-              {t("homeActivity.mosaic.title")}
-            </h3>
-            <p className="mt-1.5 text-sm text-muted-foreground text-pretty">
-              {t("homeActivity.mosaic.body")}
-            </p>
-            <div className="mt-5 flex-1">
-              <ProjectMosaic label={t("homeActivity.mosaic.ariaLabel")} />
-            </div>
-          </motion.div>
-        </div>
+        <motion.div
+          className="mt-8 flex flex-col border border-[#3E3E75]/20 bg-background/90 p-4 sm:mt-10 sm:p-5 dark:border-[#C4C4E8]/20"
+          initial={canAnimate ? { opacity: 0, y: 24 } : false}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={VIEWPORT}
+          transition={{ duration: 0.85, ease: EASE, delay: 0.12 }}
+        >
+          <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[#3E3E75] uppercase dark:text-[#C4C4E8]">
+            {t("homeActivity.mosaic.tag")}
+          </p>
+          <h3 className="mt-2 text-lg font-semibold tracking-tight sm:text-xl">
+            {t("homeActivity.mosaic.title")}
+          </h3>
+          <p className="mt-1.5 text-sm text-muted-foreground text-pretty">
+            {t("homeActivity.mosaic.body")}
+          </p>
+          <div className="mt-5 flex-1">
+            <ProjectMosaic label={t("homeActivity.mosaic.ariaLabel")} />
+          </div>
+        </motion.div>
       </div>
     </section>
   );

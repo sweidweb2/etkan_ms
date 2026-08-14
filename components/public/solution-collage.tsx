@@ -8,10 +8,10 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, amount: 0.25, margin: "0px 0px -8% 0px" } as const;
 
 const COLLAGE_IMAGES = [
-  "https://images.unsplash.com/photo-1690683789978-3cf73960d650?q=80&w=1509&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1621839673705-6617adf9e890?q=80&w=1332&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1704283860614-803aa8be7993?q=80&w=1170&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1592659762303-90081d34b277?q=80&w=1073&auto=format&fit=crop",
+  "/public_images/journey/post_17_8_25-02.jpg",
+  "/public_images/journey/post_17_11_25-07.jpg",
+  "/public_images/journey/post_10_12_25-09.jpg",
+  "/public_images/journey/post_10_12_25-13.jpg",
 ] as const;
 
 const FRAMES = [

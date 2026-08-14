@@ -220,19 +220,20 @@ export const ar = {
   "homeActivity.eyebrow": "داخل إتقان",
   "homeActivity.title": "عمل كثيف. مشاريع كثيرة.",
   "homeActivity.lead":
-    "سنة من كثافة التعلّم بجانب جدار من المشاريع—دليل على أن إتقان لا تتوقف عن الحركة.",
-  "homeActivity.heatmap.tag": "الإيقاع",
-  "homeActivity.heatmap.title": "خريطة حرارية للتعلّم والعمل",
-  "homeActivity.heatmap.body":
-    "خريطة بأسلوب المساهمات بلون إتقان—الخلايا القوية تُظهر كم يظهر المجتمع ليتعلّم وينجز.",
-  "homeActivity.heatmap.ariaLabel": "خريطة حرارية تُظهر كثافة عالية للتعلّم والعمل في إتقان",
-  "homeActivity.heatmap.less": "أقل",
-  "homeActivity.heatmap.more": "أكثر",
+    "جدار من المشاريع—دليل على أن إتقان لا تتوقف عن الحركة.",
   "homeActivity.mosaic.tag": "البناء",
   "homeActivity.mosaic.title": "فسيفساء المشاريع",
   "homeActivity.mosaic.body":
     "شبكة مصغّرة للحظات المشاريع. ستُملأ الخلايا بالصور عندما تضيفها.",
   "homeActivity.mosaic.ariaLabel": "شبكة صور مشاريع إتقان",
+
+  "homeHeatmap.eyebrow": "الإيقاع",
+  "homeHeatmap.title": "خريطة حرارية للتعلّم والعمل",
+  "homeHeatmap.lead":
+    "خريطة بأسلوب المساهمات بلون إتقان—الخلايا القوية تُظهر كم يظهر المجتمع ليتعلّم وينجز.",
+  "homeHeatmap.ariaLabel": "خريطة حرارية تُظهر كثافة عالية للتعلّم والعمل في إتقان",
+  "homeHeatmap.less": "أقل",
+  "homeHeatmap.more": "أكثر",
 
   "courseLogos.eyebrow": "ماذا نعلّم",
   "courseLogos.title": "دورات عبر البرمجة والعتاد والصناعة",

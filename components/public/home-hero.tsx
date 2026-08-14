@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
@@ -406,6 +407,7 @@ function slideOffset(isActive: boolean, isExiting: boolean, direction: number, i
 
 export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
   const { t, dir } = usePublicI18n();
+  const router = useRouter();
   const dashboardHref = useNavbarDashboardHref(initialDashboardHref);
   const [index, setIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState(0);
@@ -514,7 +516,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                     </p>
                     <div className="mt-8">
                       <Link
-                        href={dashboardHref ?? ROUTES.CAREERS}
+                        href={dashboardHref ?? ROUTES.REGISTER}
                         tabIndex={isActive ? undefined : -1}
                         suppressHydrationWarning
                         className={cn(
@@ -622,7 +624,9 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                 buttonColor="#1e293b"
                 buttonTextColor="#ffffff"
                 shadowSize="sm"
-                onSubmit={() => {}}
+                onSubmit={() => {
+                  router.push(ROUTES.REGISTER);
+                }}
               />
             </div>
           </div>

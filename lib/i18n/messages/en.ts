@@ -219,19 +219,20 @@ export const en = {
   "homeActivity.eyebrow": "Inside Etkan",
   "homeActivity.title": "Dense work. Many builds.",
   "homeActivity.lead":
-    "A year of learning intensity beside a wall of projects—proof that Etkan stays in motion.",
-  "homeActivity.heatmap.tag": "Rhythm",
-  "homeActivity.heatmap.title": "Learning & working heatmap",
-  "homeActivity.heatmap.body":
-    "A contribution-style map tinted in Etkan’s color—strong cells show how often the community shows up to learn and ship.",
-  "homeActivity.heatmap.ariaLabel": "Activity heatmap showing high density of learning and work at Etkan",
-  "homeActivity.heatmap.less": "Less",
-  "homeActivity.heatmap.more": "More",
+    "A wall of projects—proof that Etkan stays in motion.",
   "homeActivity.mosaic.tag": "Builds",
   "homeActivity.mosaic.title": "Project mosaic",
   "homeActivity.mosaic.body":
     "A zoomed-out grid of project moments. Photos will fill these cells as you add them.",
   "homeActivity.mosaic.ariaLabel": "Grid of Etkan project images",
+
+  "homeHeatmap.eyebrow": "Rhythm",
+  "homeHeatmap.title": "Learning & working heatmap",
+  "homeHeatmap.lead":
+    "A contribution-style map tinted in Etkan’s color—strong cells show how often the community shows up to learn and ship.",
+  "homeHeatmap.ariaLabel": "Activity heatmap showing high density of learning and work at Etkan",
+  "homeHeatmap.less": "Less",
+  "homeHeatmap.more": "More",
 
   "courseLogos.eyebrow": "What we teach",
   "courseLogos.title": "Courses across code, hardware, and making",

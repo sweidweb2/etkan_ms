@@ -4,7 +4,7 @@ import { HomeCareerStagesSection } from "@/components/public/home-career-stages-
 import { HomeLearningWaysSection } from "@/components/public/home-learning-ways-section";
 import { HomeTestimonialsSection } from "@/components/public/home-testimonials-section";
 import { HomeCourseLogosSection } from "@/components/public/home-course-logos-section";
-import { HomeActivitySection } from "@/components/public/home-activity-section";
+import { HomeHeatmapSection } from "@/components/public/home-heatmap-section";
 import { HomeContactCtaSection } from "@/components/public/home-contact-cta-section";
 
 export default function HomePage() {
@@ -14,7 +14,7 @@ export default function HomePage() {
       <HomeCareerStagesSection />
       <HomeLearningWaysSection />
       <HomeTestimonialsSection />
-      <HomeActivitySection />
+      <HomeHeatmapSection />
       <HomeCourseLogosSection />
       <HomeJourneySection />
       <HomeContactCtaSection />
