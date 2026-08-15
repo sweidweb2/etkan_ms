@@ -256,23 +256,6 @@ export const ar = {
   "projects.card.open": "زيارة المشروع",
   "projects.filterLabel": "تصفية المشاريع حسب الفئة",
   "projects.filter.all": "الكل",
-  "projects.filter.webApp": "تطبيقات ويب",
-  "projects.filter.mobileApps": "تطبيقات جوال",
-  "projects.teachers.tap2eat.title": "Tap2Eat",
-  "projects.teachers.tap2eat.body":
-    "دليل مطاعم على tap2eat.food—اكتشف أماكن الأكل وتصفح المطاعم في مكان واحد.",
-  "projects.teachers.tap2eat.imageAlt":
-    "داخل مطعم يمثل دليل Tap2Eat للمطاعم",
-  "projects.teachers.3dbey.title": "3DBey",
-  "projects.teachers.3dbey.body":
-    "متجر إلكتروني للطباعة ثلاثية الأبعاد على 3dbey.com—تصفح واطلب القطع والمنتجات المطبوعة.",
-  "projects.teachers.3dbey.imageAlt":
-    "طابعة ثلاثية الأبعاد تنتج جزءًا نموذجيًا لمتجر 3DBey",
-  "projects.teachers.etkanMs.title": "Etkan MS",
-  "projects.teachers.etkanMs.body":
-    "نظام إدارة المدارس هذا—الإدارة والطلاب وعمليات المدرسة اليومية في منصة واحدة.",
-  "projects.teachers.etkanMs.imageAlt":
-    "لوحة تحليلات تمثل نظام إدارة إتقان",
 
   "life.carouselLabel": "أبرز القصص",
   "life.prev": "القصة السابقة",

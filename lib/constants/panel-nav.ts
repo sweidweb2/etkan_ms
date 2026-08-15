@@ -186,6 +186,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           href: ROUTES.MANAGER_GALLERY,
           icon: "images",
         },
+        {
+          title: "Manage projects",
+          href: ROUTES.MANAGER_PROJECTS,
+          icon: "folder-kanban",
+        },
       ],
     },
     {

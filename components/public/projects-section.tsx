@@ -8,13 +8,9 @@ import { motion, useReducedMotion } from "motion/react";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import { ProjectsGalaxyBackground } from "@/components/public/projects-galaxy-background";
 import { useHydrated } from "@/hooks/use-hydrated";
-import {
-  PROJECT_CATEGORIES,
-  PROJECT_CATEGORY_LABEL_KEYS,
-  PUBLIC_PROJECT_SECTIONS,
-  type ProjectCategory,
-  type PublicProjectCard,
-  type PublicProjectSection,
+import type {
+  PublicProjectCard,
+  PublicProjectSection,
 } from "@/lib/constants/public-projects";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 
@@ -37,6 +33,22 @@ function isExternalHref(href: string) {
   return href.startsWith("http://") || href.startsWith("https://");
 }
 
+function uniqueCategories(projects: PublicProjectCard[]) {
+  const seen = new Set<string>();
+  const categories: string[] = [];
+
+  for (const project of projects) {
+    const category = project.category.trim();
+    if (!category || seen.has(category)) {
+      continue;
+    }
+    seen.add(category);
+    categories.push(category);
+  }
+
+  return categories;
+}
+
 function ProjectCard({ project }: { project: PublicProjectCard }) {
   const { t } = usePublicI18n();
   const content = (
@@ -44,7 +56,7 @@ function ProjectCard({ project }: { project: PublicProjectCard }) {
       <div className="relative aspect-[16/10] overflow-hidden">
         <Image
           src={project.imageSrc}
-          alt={t(project.imageAltKey)}
+          alt={project.title}
           fill
           sizes={IMAGE_SIZES}
           className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
@@ -52,10 +64,10 @@ function ProjectCard({ project }: { project: PublicProjectCard }) {
       </div>
       <div className="flex flex-1 flex-col p-5 sm:p-6">
         <h3 className="text-lg font-semibold tracking-tight text-balance sm:text-xl">
-          {t(project.titleKey)}
+          {project.title}
         </h3>
         <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-muted-foreground text-pretty">
-          {t(project.bodyKey)}
+          {project.body}
         </p>
         {project.href ? (
           <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#C4C4E8]">
@@ -108,7 +120,12 @@ function ProjectSectionBlock({
   canAnimate: boolean;
 }) {
   const { t } = usePublicI18n();
-  const [activeCategory, setActiveCategory] = useState<ProjectCategory>("all");
+  const [activeCategory, setActiveCategory] = useState("all");
+  const categories = useMemo(
+    () => uniqueCategories(section.projects),
+    [section.projects]
+  );
+  const showFilters = categories.length > 1;
 
   const filteredProjects = useMemo(() => {
     if (activeCategory === "all") {
@@ -144,36 +161,48 @@ function ProjectSectionBlock({
         {t(section.leadKey)}
       </motion.p>
 
-      <motion.div
-        className="mt-6"
-        initial={canAnimate ? { opacity: 0, y: 12 } : false}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={VIEWPORT}
-        transition={{ duration: 0.65, ease: EASE, delay: 0.08 }}
-      >
-        <div
-          role="tablist"
-          aria-label={t("projects.filterLabel")}
-          className="inline-flex h-auto max-w-full flex-wrap gap-1 rounded-full bg-muted/70 p-1.5 ring-1 ring-[#C4C4E8]/15"
+      {showFilters ? (
+        <motion.div
+          className="mt-6"
+          initial={canAnimate ? { opacity: 0, y: 12 } : false}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={VIEWPORT}
+          transition={{ duration: 0.65, ease: EASE, delay: 0.08 }}
         >
-          {PROJECT_CATEGORIES.map((category) => {
-            const isActive = activeCategory === category;
-            return (
-              <button
-                key={category}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                data-active={isActive}
-                className={FILTER_TRIGGER_CLASS}
-                onClick={() => setActiveCategory(category)}
-              >
-                {t(PROJECT_CATEGORY_LABEL_KEYS[category])}
-              </button>
-            );
-          })}
-        </div>
-      </motion.div>
+          <div
+            role="tablist"
+            aria-label={t("projects.filterLabel")}
+            className="inline-flex h-auto max-w-full flex-wrap gap-1 rounded-full bg-muted/70 p-1.5 ring-1 ring-[#C4C4E8]/15"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeCategory === "all"}
+              data-active={activeCategory === "all"}
+              className={FILTER_TRIGGER_CLASS}
+              onClick={() => setActiveCategory("all")}
+            >
+              {t("projects.filter.all")}
+            </button>
+            {categories.map((category) => {
+              const isActive = activeCategory === category;
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  data-active={isActive}
+                  className={FILTER_TRIGGER_CLASS}
+                  onClick={() => setActiveCategory(category)}
+                >
+                  {category}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      ) : null}
 
       {section.projects.length === 0 || filteredProjects.length === 0 ? (
         <motion.p
@@ -210,7 +239,11 @@ function ProjectSectionBlock({
 }
 
 /** Projects page always uses the app dark theme tokens. */
-export function ProjectsSection() {
+export function ProjectsSection({
+  sections,
+}: {
+  sections: PublicProjectSection[];
+}) {
   const { t } = usePublicI18n();
   const hydrated = useHydrated();
   const reduceMotion = useReducedMotion();
@@ -253,7 +286,7 @@ export function ProjectsSection() {
           </motion.p>
         </header>
 
-        {PUBLIC_PROJECT_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <ProjectSectionBlock
             key={section.id}
             section={section}

@@ -47,6 +47,8 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Equipment detail | `/manager/equipments/[id]` | detail |
 | [~] | Borrow equipment | `/manager/equipments/borrow` | list |
 | [~] | Gallery | `/manager/gallery` | cards |
+| [~] | Projects | `/manager/projects` | list |
+| [~] | Project detail | `/manager/projects/[id]` | detail |
 | [~] | Relationships | `/manager/relationships` | list |
 | [~] | Semesters | `/manager/semesters` | list |
 | [~] | Semesters progress | `/manager/semesters/progress` | list / dashboard |

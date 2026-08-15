@@ -215,6 +215,15 @@ Format: `key` — label — access
 | `gallery.update` | Edit gallery image | write |
 | `gallery.delete` | Delete gallery image | write |
 
+### Projects
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `projects.view` | View public projects | read |
+| `projects.create` | Create public project | write |
+| `projects.update` | Edit public project | write |
+| `projects.delete` | Delete public project | write |
+
 ### Schedule
 
 | Key | Label | Access |
@@ -431,6 +440,10 @@ gallery.view
 gallery.create
 gallery.update
 gallery.delete
+projects.view
+projects.create
+projects.update
+projects.delete
 schedule.view
 schedule.create
 schedule.update
@@ -482,7 +495,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 135 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status.
+**Count:** 139 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · projects includes view / create / update / delete.
 
 ### is_instructor — shared seed package
 

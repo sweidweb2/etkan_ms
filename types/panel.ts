@@ -22,7 +22,8 @@ export type PanelNavIconKey =
   | "clipboard-list"
   | "clock"
   | "shield"
-  | "images";
+  | "images"
+  | "folder-kanban";
 
 export type PanelNavItem = {
   title: string;

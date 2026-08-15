@@ -10,6 +10,7 @@ import {
   Clock,
   DatabaseBackup,
   FileText,
+  FolderKanban,
   Images,
   Layers,
   LayoutDashboard,
@@ -54,4 +55,5 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   clock: Clock,
   shield: Shield,
   images: Images,
+  "folder-kanban": FolderKanban,
 };

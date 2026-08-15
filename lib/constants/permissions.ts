@@ -30,6 +30,7 @@ export const PERMISSION_FEATURES = [
   "semesters",
   "equipment",
   "gallery",
+  "projects",
   "schedule",
   "instructor_schedules",
   "workshops",
@@ -65,6 +66,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   semesters: "Semesters",
   equipment: "Equipment",
   gallery: "Gallery",
+  projects: "Projects",
   schedule: "Schedule",
   instructor_schedules: "Instructor Schedules",
   workshops: "Workshops",
@@ -164,6 +166,11 @@ export const PERMISSIONS = {
   GALLERY_CREATE: "gallery.create",
   GALLERY_UPDATE: "gallery.update",
   GALLERY_DELETE: "gallery.delete",
+
+  PROJECTS_VIEW: "projects.view",
+  PROJECTS_CREATE: "projects.create",
+  PROJECTS_UPDATE: "projects.update",
+  PROJECTS_DELETE: "projects.delete",
 
   SCHEDULE_VIEW: "schedule.view",
   SCHEDULE_CREATE: "schedule.create",
@@ -673,6 +680,31 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.GALLERY_DELETE,
     feature: "gallery",
     label: "Delete gallery image",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.PROJECTS_VIEW,
+    feature: "projects",
+    label: "View public projects",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.PROJECTS_CREATE,
+    feature: "projects",
+    label: "Create public project",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.PROJECTS_UPDATE,
+    feature: "projects",
+    label: "Edit public project",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.PROJECTS_DELETE,
+    feature: "projects",
+    label: "Delete public project",
     access: PERMISSION_ACCESS.WRITE,
   },
 
