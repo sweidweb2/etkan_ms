@@ -6,7 +6,10 @@ import {
 } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getIncomeStatementForManager } from "@/services/income-statement.service";
+import {
+  getIncomeStatementForManager,
+  incomeStatementPeriodLabel,
+} from "@/services/income-statement.service";
 
 export default async function ManagerIncomeStatementPage() {
   const adminClient = createSupabaseAdminClient();
@@ -16,12 +19,22 @@ export default async function ManagerIncomeStatementPage() {
     redirect(ROUTES.LOGIN);
   }
 
+  const now = new Date();
+  const period = {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  };
+
   const [data, displayName] = await Promise.all([
-    getIncomeStatementForManager(adminClient, user.id),
+    getIncomeStatementForManager(adminClient, user.id, period, now),
     getSessionDisplayName(),
   ]);
 
   return (
-    <IncomeStatementPanel data={data} defaultRecordedBy={displayName} />
+    <IncomeStatementPanel
+      data={data}
+      defaultRecordedBy={displayName}
+      periodLabel={incomeStatementPeriodLabel(period)}
+    />
   );
 }

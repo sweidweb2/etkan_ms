@@ -146,10 +146,12 @@ function matchesPhaseSearch(phase: ManagerPaymentPhaseRow, query: string) {
 
 type ManageAccountingPanelProps = {
   initialPhases: ManagerPaymentPhaseRow[];
+  paidThisMonthTotal: number;
 };
 
 export function ManageAccountingPanel({
   initialPhases,
+  paidThisMonthTotal,
 }: ManageAccountingPanelProps) {
   const router = useRouter();
   const phases = initialPhases;
@@ -278,7 +280,7 @@ export function ManageAccountingPanel({
 
         <ClassTabCollapsibleSection
           title="Overview"
-          description="Quick counts for phases and students on SPPs."
+          description="Quick counts for phases, students on SPPs, and payments collected this month."
           storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_OVERVIEW}
           defaultOpen
         >
@@ -299,8 +301,8 @@ export function ManageAccountingPanel({
               accentClassName="border-l-violet-500"
             />
             <UserStatCard
-              label="SPP paid"
-              value={stats.sppPaidCount}
+              label="Paid this month"
+              value={formatPaymentPhaseMoney(paidThisMonthTotal)}
               accentClassName="border-l-amber-500"
             />
           </div>

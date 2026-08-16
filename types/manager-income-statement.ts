@@ -34,6 +34,8 @@ export type ManagerIncomeTransactionRow = {
 export type ManagerIncomeStatementStats = {
   paymentCount: number;
   totalPaymentsAmount: number;
+  /** All-time sum of SPP student payment amounts (no date filter). */
+  totalSppPaymentsAmount: number;
   totalScholarshipAmount: number;
   adjustmentPeopleCount: number;
   adjustmentCount: number;
@@ -44,6 +46,19 @@ export type ManagerIncomeStatementStats = {
   transactionCount: number;
   totalCreditsAmount: number;
   totalDebitsAmount: number;
+};
+
+export type IncomeStatementPeriod = {
+  year: number;
+  /** 1–12 */
+  month: number;
+};
+
+export type IncomeStatementMonthOption = {
+  year: number;
+  month: number;
+  key: string;
+  label: string;
 };
 
 export type ManagerIncomeStatementData = {

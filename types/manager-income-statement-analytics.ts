@@ -53,6 +53,11 @@ export type ManagerIncomeAnalyticsUnpaidStudentRow = {
   remaining_amount: number;
   final_amount_due: number;
   total_paid: number;
+  /**
+   * Approximate amount still expected this month:
+   * `final_amount_due / duration_months` (includes adjustments), capped by remaining.
+   */
+  approx_monthly_remaining: number;
 };
 
 export type ManagerIncomeAnalyticsAdjustedStudentRow = {

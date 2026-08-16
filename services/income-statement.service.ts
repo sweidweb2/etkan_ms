@@ -22,11 +22,30 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as transactionRepository from "@/repositories/transaction.repository";
 import { assertPermission } from "@/services/authorization.service";
-import type { ManagerIncomeStatementData } from "@/types/manager-income-statement";
+import type {
+  IncomeStatementMonthOption,
+  IncomeStatementPeriod,
+  ManagerIncomeStatementData,
+} from "@/types/manager-income-statement";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Supabase = SupabaseClient<Database>;
+
+const MONTH_LABELS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
 
 function isPaymentMethod(value: string): value is PaymentMethod {
   return (PAYMENT_METHOD_VALUES as readonly string[]).includes(value);
@@ -48,9 +67,73 @@ function isTransactionType(value: string): value is TransactionType {
   return (TRANSACTION_TYPE_VALUES as readonly string[]).includes(value);
 }
 
+export function incomeStatementPeriodKey(period: IncomeStatementPeriod): string {
+  return `${period.year}-${String(period.month).padStart(2, "0")}`;
+}
+
+export function incomeStatementPeriodLabel(
+  period: IncomeStatementPeriod
+): string {
+  const monthName = MONTH_LABELS[period.month - 1] ?? String(period.month);
+  return `${monthName} ${period.year}`;
+}
+
+export function parseIncomeStatementMonthKey(
+  value: string | null | undefined
+): IncomeStatementPeriod | null {
+  if (!value) {
+    return null;
+  }
+  const match = /^(\d{4})-(\d{2})$/.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    month < 1 ||
+    month > 12
+  ) {
+    return null;
+  }
+  return { year, month };
+}
+
+function currentIncomeStatementPeriod(now: Date = new Date()): IncomeStatementPeriod {
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  };
+}
+
+function yearMonthKeyFromIsoDate(value: string): string | null {
+  if (value.length < 7) {
+    return null;
+  }
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    month < 1 ||
+    month > 12
+  ) {
+    return null;
+  }
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/**
+ * Income statement for one calendar month (payments, adjustments, transactions).
+ * Defaults to the current local month. `totalSppPaymentsAmount` stays all-time.
+ */
 export async function getIncomeStatementForManager(
   adminClient: Supabase,
-  actorUserId: string | null
+  actorUserId: string | null,
+  periodInput?: IncomeStatementPeriod | null,
+  now: Date = new Date()
 ): Promise<ManagerIncomeStatementData> {
   await assertPermission(
     adminClient,
@@ -58,33 +141,42 @@ export async function getIncomeStatementForManager(
     PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW
   );
 
-  // First paint: current calendar year only (not unbounded listAll*).
+  const period = periodInput ?? currentIncomeStatementPeriod(now);
   const { fromInclusive, toExclusive } = dateRangeForYearMonth(
-    new Date().getFullYear(),
-    null
+    period.year,
+    period.month
   );
 
-  const [paymentsResult, adjustmentsResult, transactionsResult] =
-    await Promise.all([
-      studentPaymentRepository.listPaymentsBetween(
-        adminClient,
-        fromInclusive,
-        toExclusive
-      ),
-      studentFinancialAdjustmentRepository.listFinancialAdjustmentsBetween(
-        adminClient,
-        fromInclusive,
-        toExclusive
-      ),
-      transactionRepository.listTransactionsBetween(
-        adminClient,
-        fromInclusive,
-        toExclusive
-      ),
-    ]);
+  const [
+    paymentsResult,
+    allPaymentAmountsResult,
+    adjustmentsResult,
+    transactionsResult,
+  ] = await Promise.all([
+    studentPaymentRepository.listPaymentsBetween(
+      adminClient,
+      fromInclusive,
+      toExclusive
+    ),
+    studentPaymentRepository.listAllPaymentAmounts(adminClient),
+    studentFinancialAdjustmentRepository.listFinancialAdjustmentsBetween(
+      adminClient,
+      fromInclusive,
+      toExclusive
+    ),
+    transactionRepository.listTransactionsBetween(
+      adminClient,
+      fromInclusive,
+      toExclusive
+    ),
+  ]);
 
   if (paymentsResult.error) {
     throw new Error(paymentsResult.error.message);
+  }
+
+  if (allPaymentAmountsResult.error) {
+    throw new Error(allPaymentAmountsResult.error.message);
   }
 
   if (adjustmentsResult.error) {
@@ -96,6 +188,7 @@ export async function getIncomeStatementForManager(
   }
 
   const paymentRows = paymentsResult.data ?? [];
+  const allPaymentAmountRows = allPaymentAmountsResult.data ?? [];
   const adjustmentRows = adjustmentsResult.data ?? [];
   const transactionRows = transactionsResult.data ?? [];
 
@@ -183,6 +276,10 @@ export async function getIncomeStatementForManager(
     (sum, row) => sum + Number(row.amount),
     0
   );
+  const totalSppPaymentsAmount = allPaymentAmountRows.reduce(
+    (sum, row) => sum + Math.max(0, Number(row.amount) || 0),
+    0
+  );
 
   const allAdjustmentPeople = new Set<string>();
   let scholarshipCount = 0;
@@ -268,6 +365,7 @@ export async function getIncomeStatementForManager(
     stats: {
       paymentCount: paymentRows.length,
       totalPaymentsAmount,
+      totalSppPaymentsAmount,
       totalScholarshipAmount,
       adjustmentPeopleCount: allAdjustmentPeople.size,
       adjustmentCount: adjustments.length,
@@ -282,4 +380,76 @@ export async function getIncomeStatementForManager(
     adjustments,
     transactions,
   };
+}
+
+/**
+ * Months that have at least one payment, adjustment, or external transaction.
+ * Excludes the current calendar month (shown on the live income statement page).
+ * Newest first.
+ */
+export async function listIncomeStatementHistoryMonthsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  now: Date = new Date()
+): Promise<IncomeStatementMonthOption[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW
+  );
+
+  const [paymentsResult, adjustmentsResult, transactionsResult] =
+    await Promise.all([
+      studentPaymentRepository.listAllPaymentDates(adminClient),
+      studentFinancialAdjustmentRepository.listAllFinancialAdjustmentDates(
+        adminClient
+      ),
+      transactionRepository.listAllTransactionDates(adminClient),
+    ]);
+
+  if (paymentsResult.error) {
+    throw new Error(paymentsResult.error.message);
+  }
+  if (adjustmentsResult.error) {
+    throw new Error(adjustmentsResult.error.message);
+  }
+  if (transactionsResult.error) {
+    throw new Error(transactionsResult.error.message);
+  }
+
+  const currentKey = incomeStatementPeriodKey(
+    currentIncomeStatementPeriod(now)
+  );
+  const keys = new Set<string>();
+
+  for (const row of paymentsResult.data ?? []) {
+    const key = yearMonthKeyFromIsoDate(row.payment_date);
+    if (key && key !== currentKey) {
+      keys.add(key);
+    }
+  }
+  for (const row of adjustmentsResult.data ?? []) {
+    const key = yearMonthKeyFromIsoDate(row.effective_date);
+    if (key && key !== currentKey) {
+      keys.add(key);
+    }
+  }
+  for (const row of transactionsResult.data ?? []) {
+    const key = yearMonthKeyFromIsoDate(row.transaction_date);
+    if (key && key !== currentKey) {
+      keys.add(key);
+    }
+  }
+
+  return [...keys]
+    .sort((a, b) => b.localeCompare(a))
+    .map((key) => {
+      const period = parseIncomeStatementMonthKey(key)!;
+      return {
+        year: period.year,
+        month: period.month,
+        key,
+        label: incomeStatementPeriodLabel(period),
+      };
+    });
 }

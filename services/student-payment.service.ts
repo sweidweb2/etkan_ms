@@ -9,6 +9,7 @@ import {
 } from "@/lib/manager/accounting/constants";
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { dateRangeForYearMonth } from "@/lib/utils/iso-date-range";
 import { createStudentPaymentSchema } from "@/lib/validators/manager/create-student-payment";
 import { deleteStudentPaymentSchema } from "@/lib/validators/manager/delete-student-payment";
 import { deleteStudentPaymentPhaseSchema } from "@/lib/validators/manager/delete-student-payment-phase";
@@ -278,6 +279,40 @@ export async function listPaymentsForSppForManager(
   }
 
   return ((data ?? []) as StudentPaymentRecord[]).map(mapPaymentRecordToRow);
+}
+
+/** Sum of `student_payments.amount` whose `payment_date` falls in the given month (local calendar). */
+export async function sumStudentPaymentsForMonthForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  now: Date = new Date()
+): Promise<number> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+
+  const { fromInclusive, toExclusive } = dateRangeForYearMonth(
+    now.getFullYear(),
+    now.getMonth() + 1
+  );
+
+  const { data, error } =
+    await studentPaymentRepository.listPaymentAmountsBetween(
+      adminClient,
+      fromInclusive,
+      toExclusive
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).reduce(
+    (sum, row) => sum + Math.max(0, Number(row.amount) || 0),
+    0
+  );
 }
 
 export async function createStudentPaymentForManager(

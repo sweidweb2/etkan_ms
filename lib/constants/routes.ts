@@ -35,6 +35,7 @@ export const ROUTES = {
   MANAGER_ACCOUNTING: "/manager/accounting",
   MANAGER_INCOME_STATEMENT: "/manager/income-statement",
   MANAGER_INCOME_STATEMENT_ANALYTICS: "/manager/income-statement/analytics",
+  MANAGER_INCOME_STATEMENT_HISTORY: "/manager/income-statement/history",
   MANAGER_ACCOUNTING_PHASE_DETAIL: "/manager/accounting/phases/[id]",
   MANAGER_ACCOUNTING_SPP_DETAIL:
     "/manager/accounting/phases/[id]/students/[sppId]",

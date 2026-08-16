@@ -35,6 +35,7 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Payment phase detail | `/manager/accounting/phases/[id]` | detail |
 | [~] | SPP detail | `/manager/accounting/phases/[id]/students/[sppId]` | detail |
 | [~] | Income statement | `/manager/income-statement` | list / dashboard |
+| [~] | Income statement history | `/manager/income-statement/history` | list / dashboard |
 | [~] | Income analytics | `/manager/income-statement/analytics` | dashboard |
 | [~] | Weekly schedule | `/manager/schedule` | calendar |
 | [~] | Classes | `/manager/classes` | list |

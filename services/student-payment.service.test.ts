@@ -14,6 +14,7 @@ import {
   deleteStudentPaymentForManager,
   deleteSppForManager,
   getSppDetailForManager,
+  sumStudentPaymentsForMonthForManager,
 } from "@/services/student-payment.service";
 
 vi.mock("@/repositories/class.repository");
@@ -630,5 +631,37 @@ describe("deleteSppForManager", () => {
         record_id: sppId,
       })
     );
+  });
+});
+
+describe("sumStudentPaymentsForMonthForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("sums payment amounts for the current calendar month", async () => {
+    vi.mocked(
+      studentPaymentRepository.listPaymentAmountsBetween
+    ).mockResolvedValue({
+      data: [
+        { payment_date: "2026-08-02", amount: 100 },
+        { payment_date: "2026-08-15", amount: 250.5 },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const total = await sumStudentPaymentsForMonthForManager(
+      adminClient,
+      actor.userId,
+      new Date("2026-08-16T12:00:00")
+    );
+
+    expect(total).toBe(350.5);
+    expect(
+      studentPaymentRepository.listPaymentAmountsBetween
+    ).toHaveBeenCalledWith(adminClient, "2026-08-01", "2026-09-01");
   });
 });

@@ -8,6 +8,7 @@ import {
   BadgeDollarSignIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CircleHelpIcon,
   PencilIcon,
   UserRoundXIcon,
   UsersIcon,
@@ -17,6 +18,7 @@ import {
 import { Can } from "@/components/auth/can";
 import { EditTransactionDialog } from "@/components/manager/accounting/edit-transaction-dialog";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -25,6 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
@@ -90,11 +99,13 @@ function getPageNumbers(currentPage: number, totalPages: number) {
 function MiniStatCard({
   label,
   value,
+  description,
   icon: Icon,
   iconClassName,
 }: {
   label: string;
   value: string;
+  description?: string;
   icon: LucideIcon;
   iconClassName: string;
 }) {
@@ -105,7 +116,29 @@ function MiniStatCard({
         aria-hidden
       />
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          {description ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      aria-label={`About ${label}`}
+                    />
+                  }
+                >
+                  <CircleHelpIcon className="size-3.5" aria-hidden />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs leading-snug">
+                  {description}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : null}
+        </div>
         <p className="mt-1 text-lg font-semibold tabular-nums">{value}</p>
       </div>
     </div>
@@ -462,8 +495,8 @@ export function IncomeStatementAnalyticsStudentsTab({
   const paidStudentCount = new Set(
     payments.map((row) => row.student_id).filter(Boolean)
   ).size;
-  const unpaidRemainingTotal = unpaidStudents.reduce(
-    (sum, row) => sum + row.remaining_amount,
+  const unpaidMonthlyRemainingTotal = unpaidStudents.reduce(
+    (sum, row) => sum + row.approx_monthly_remaining,
     0
   );
 
@@ -489,20 +522,22 @@ export function IncomeStatementAnalyticsStudentsTab({
           iconClassName="text-rose-500"
         />
         <MiniStatCard
-          label="Unpaid remaining"
-          value={formatPaymentPhaseMoney(unpaidRemainingTotal)}
+          label="Unpaid this month"
+          value={formatPaymentPhaseMoney(unpaidMonthlyRemainingTotal)}
+          description="Approx. amount due ÷ phase duration for students who didn't pay (adjustments included)."
           icon={WalletIcon}
           iconClassName="text-amber-500"
         />
       </div>
 
-      <section className="overflow-hidden rounded-xl border">
-        <div className="border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">Payments this period</h3>
-          <p className="text-xs text-muted-foreground">
-            Student payments recorded in the selected period.
-          </p>
-        </div>
+      <ClassTabCollapsibleSection
+        title="Payments this period"
+        description="Student payments recorded in the selected period."
+        storageKey={
+          COLLAPSIBLE_SECTION_STORAGE_KEYS.INCOME_ANALYTICS_STUDENTS_PAYMENTS
+        }
+        defaultOpen
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] text-sm">
             <thead>
@@ -579,16 +614,16 @@ export function IncomeStatementAnalyticsStudentsTab({
             paymentsPager.setPage(1);
           }}
         />
-      </section>
+      </ClassTabCollapsibleSection>
 
-      <section className="overflow-hidden rounded-xl border">
-        <div className="border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">Didn&apos;t pay this period</h3>
-          <p className="text-xs text-muted-foreground">
-            Active SPPs with remaining balance and no payment in the selected
-            period.
-          </p>
-        </div>
+      <ClassTabCollapsibleSection
+        title="Didn't pay this period"
+        description="Active SPPs with remaining balance and no payment in the selected period."
+        storageKey={
+          COLLAPSIBLE_SECTION_STORAGE_KEYS.INCOME_ANALYTICS_STUDENTS_UNPAID
+        }
+        defaultOpen
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead>
@@ -654,16 +689,16 @@ export function IncomeStatementAnalyticsStudentsTab({
             unpaidPager.setPage(1);
           }}
         />
-      </section>
+      </ClassTabCollapsibleSection>
 
-      <section className="overflow-hidden rounded-xl border">
-        <div className="border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">Financial adjustments</h3>
-          <p className="text-xs text-muted-foreground">
-            Students with an adjustment, required amount due, and how much they
-            paid in this period.
-          </p>
-        </div>
+      <ClassTabCollapsibleSection
+        title="Financial adjustments"
+        description="Students with an adjustment, required amount due, and how much they paid in this period."
+        storageKey={
+          COLLAPSIBLE_SECTION_STORAGE_KEYS.INCOME_ANALYTICS_STUDENTS_ADJUSTMENTS
+        }
+        defaultOpen
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
             <thead>
@@ -737,7 +772,7 @@ export function IncomeStatementAnalyticsStudentsTab({
             adjustedPager.setPage(1);
           }}
         />
-      </section>
+      </ClassTabCollapsibleSection>
     </div>
   );
 }

@@ -538,18 +538,32 @@ export async function getIncomeStatementAnalyticsTablesForManager(
       }
       return !paidSppIdsInPeriod.has(spp.id);
     })
-    .map((spp) => ({
-      spp_id: spp.id,
-      student_id: spp.student_id,
-      student_label: labelByStudentId.get(spp.student_id) || "—",
-      payment_phase_name: phaseNameById.get(spp.payment_phase_id) ?? "—",
-      status: isSppStatus(spp.status)
-        ? spp.status
-        : STUDENT_PAYMENT_PHASE_STATUSES.PENDING,
-      remaining_amount: Number(spp.remaining_amount),
-      final_amount_due: Number(spp.final_amount_due),
-      total_paid: Number(spp.total_paid),
-    }))
+    .map((spp) => {
+      const remainingAmount = Number(spp.remaining_amount);
+      const finalAmountDue = Number(spp.final_amount_due);
+      const phase = phaseById.get(spp.payment_phase_id);
+      const durationMonths = Math.max(phase?.duration_months ?? 1, 1);
+      // final_amount_due already reflects scholarships / adjustments.
+      const approxMonthlyDue = finalAmountDue / durationMonths;
+      const approxMonthlyRemaining = Math.min(
+        Math.max(0, remainingAmount),
+        Math.max(0, approxMonthlyDue)
+      );
+
+      return {
+        spp_id: spp.id,
+        student_id: spp.student_id,
+        student_label: labelByStudentId.get(spp.student_id) || "—",
+        payment_phase_name: phase?.name ?? "—",
+        status: isSppStatus(spp.status)
+          ? spp.status
+          : STUDENT_PAYMENT_PHASE_STATUSES.PENDING,
+        remaining_amount: remainingAmount,
+        final_amount_due: finalAmountDue,
+        total_paid: Number(spp.total_paid),
+        approx_monthly_remaining: approxMonthlyRemaining,
+      };
+    })
     .sort((a, b) => a.student_label.localeCompare(b.student_label));
 
   const paidThisPeriodBySppId = new Map<string, number>();

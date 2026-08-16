@@ -107,6 +107,11 @@ describe("getRequiredViewPermissionForManagerPath", () => {
       )
     ).toBe(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW);
     expect(
+      getRequiredViewPermissionForManagerPath(
+        ROUTES.MANAGER_INCOME_STATEMENT_HISTORY
+      )
+    ).toBe(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW);
+    expect(
       getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_INCOME_STATEMENT)
     ).toBe(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW);
   });

@@ -213,24 +213,28 @@ export function IncomeStatementAnalyticsPanel({
         <AnalyticsStatCard
           label="Payments"
           value={formatPaymentPhaseMoney(payments)}
+          description="Sum of student SPP payment amounts whose payment date falls in the selected period."
           icon={BadgeDollarSignIcon}
           iconClassName="text-emerald-500"
         />
         <AnalyticsStatCard
           label="Credits"
           value={formatPaymentPhaseMoney(credits)}
+          description="Sum of external credit transactions recorded in the selected period."
           icon={ArrowDownLeftIcon}
           iconClassName="text-teal-500"
         />
         <AnalyticsStatCard
           label="Debits"
           value={formatPaymentPhaseMoney(debits)}
+          description="Sum of external debit transactions recorded in the selected period."
           icon={ArrowUpRightIcon}
           iconClassName="text-rose-500"
         />
         <AnalyticsStatCard
           label="Adjustments"
           value="Soon will be activated"
+          description="Financial adjustments (scholarships and similar) for the period — not included in totals yet."
           icon={SlidersHorizontalIcon}
           iconClassName="text-amber-500/60"
           valueClassName="text-sm font-medium text-muted-foreground"
@@ -238,12 +242,14 @@ export function IncomeStatementAnalyticsPanel({
         <AnalyticsStatCard
           label="Total inflow"
           value={formatPaymentPhaseMoney(totalInflow)}
+          description="Payments plus credits for the selected period (money coming in)."
           icon={TrendingUpIcon}
           iconClassName="text-sky-500"
         />
         <AnalyticsStatCard
           label="Net cash"
           value={formatPaymentPhaseMoney(netCash)}
+          description="Total inflow minus debits (payments + credits − debits). Adjustments are excluded."
           icon={WalletIcon}
           iconClassName="text-violet-500"
         />
@@ -402,12 +408,14 @@ export function IncomeStatementAnalyticsPanel({
 function AnalyticsStatCard({
   label,
   value,
+  description,
   icon: Icon,
   iconClassName,
   valueClassName,
 }: {
   label: string;
   value: string;
+  description?: string;
   icon: LucideIcon;
   iconClassName: string;
   valueClassName?: string;
@@ -425,6 +433,11 @@ function AnalyticsStatCard({
         >
           {value}
         </p>
+        {description ? (
+          <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
       </div>
     </div>
   );

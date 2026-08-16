@@ -97,6 +97,16 @@ export async function listAllPayments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+/** Slim rows for unbounded payment totals (no date filter). */
+export async function listAllPaymentAmounts(client: Supabase) {
+  return client.from("student_payments").select("amount");
+}
+
+/** Dates only — used to discover months that have payment activity. */
+export async function listAllPaymentDates(client: Supabase) {
+  return client.from("student_payments").select("payment_date");
+}
+
 /** Inclusive `from`, exclusive `to` on `payment_date` (ISO date strings). */
 export async function listPaymentsBetween(
   client: Supabase,

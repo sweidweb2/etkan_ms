@@ -4,6 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import {
   BadgeDollarSignIcon,
+  CalendarDaysIcon,
   FileTextIcon,
   GraduationCapIcon,
   LineChartIcon,
@@ -49,6 +50,12 @@ function formatAdjustmentValue(
 type IncomeStatementPanelProps = {
   data: ManagerIncomeStatementData;
   defaultRecordedBy: string;
+  /** Shown in the subtitle, e.g. "August 2026". */
+  periodLabel?: string;
+  /** When true, hide create/edit transaction actions. */
+  readOnly?: boolean;
+  /** When true, hide the all-time SPP payments card (history months). */
+  hideAllTimePaymentsCard?: boolean;
 };
 
 function TruncatedCell({
@@ -76,6 +83,9 @@ function TruncatedCell({
 export function IncomeStatementPanel({
   data,
   defaultRecordedBy,
+  periodLabel,
+  readOnly = false,
+  hideAllTimePaymentsCard = false,
 }: IncomeStatementPanelProps) {
   const { stats, adjustments, transactions } = data;
   const [createOpen, setCreateOpen] = useState(false);
@@ -90,31 +100,63 @@ export function IncomeStatementPanel({
     }
   }
 
+  const paymentsLabel = periodLabel
+    ? `Payments · ${periodLabel}`
+    : "Payments this month";
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Income statement
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Student payments, adjustments, and external credits/debits.
-          </p>
+      {!readOnly ? (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Income statement
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Student payments, adjustments, and external credits/debits for{" "}
+              {periodLabel ?? "this month"}.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Can permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW}>
+              <Link
+                href={ROUTES.MANAGER_INCOME_STATEMENT_HISTORY}
+                className={cn(buttonVariants({ variant: "outline" }))}
+              >
+                <CalendarDaysIcon data-icon="inline-start" />
+                Past months
+              </Link>
+            </Can>
+            <Can
+              permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW}
+            >
+              <Link
+                href={ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS}
+                className={cn(buttonVariants({ variant: "outline" }))}
+              >
+                <LineChartIcon data-icon="inline-start" />
+                Analytics
+              </Link>
+            </Can>
+          </div>
         </div>
-        <Can permission={PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW}>
-          <Link
-            href={ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS}
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            <LineChartIcon data-icon="inline-start" />
-            Analytics
-          </Link>
-        </Can>
-      </div>
+      ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div
+        className={cn(
+          "grid gap-4 sm:grid-cols-2",
+          hideAllTimePaymentsCard ? "xl:grid-cols-4" : "xl:grid-cols-5"
+        )}
+      >
+        {hideAllTimePaymentsCard ? null : (
+          <UserStatCard
+            label="All SPP payments"
+            value={formatPaymentPhaseMoney(stats.totalSppPaymentsAmount)}
+            accentClassName="border-l-sky-500"
+          />
+        )}
         <UserStatCard
-          label="Total payments"
+          label={paymentsLabel}
           value={formatPaymentPhaseMoney(stats.totalPaymentsAmount)}
           accentClassName="border-l-emerald-500"
         />
@@ -140,18 +182,20 @@ export function IncomeStatementPanel({
         description="Credits and debits outside student payment phases."
         defaultOpen
         action={
-          <Can permission={PERMISSIONS.ACCOUNTING_TRANSACTIONS_CREATE}>
-            <Button
-              type="button"
-              size="sm"
-              onClick={(event) => {
-                event.stopPropagation();
-                setCreateOpen(true);
-              }}
-            >
-              Add transaction
-            </Button>
-          </Can>
+          readOnly ? undefined : (
+            <Can permission={PERMISSIONS.ACCOUNTING_TRANSACTIONS_CREATE}>
+              <Button
+                type="button"
+                size="sm"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setCreateOpen(true);
+                }}
+              >
+                Add transaction
+              </Button>
+            </Can>
+          )
         }
       >
         <div className="overflow-x-auto">
@@ -165,16 +209,18 @@ export function IncomeStatementPanel({
                 <th className="px-4 py-3 font-medium text-right">Amount</th>
                 <th className="px-4 py-3 font-medium">Method</th>
                 <th className="px-4 py-3 font-medium">Recorded by</th>
-                <th className="px-4 py-3 font-medium text-right">
-                  <span className="sr-only">Actions</span>
-                </th>
+                {readOnly ? null : (
+                  <th className="px-4 py-3 font-medium text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {transactions.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={readOnly ? 7 : 8}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     No external transactions recorded yet.
@@ -198,13 +244,15 @@ export function IncomeStatementPanel({
                         <span
                           className={cn(
                             "font-medium",
-                            isCredit ? "text-emerald-600" : "text-rose-600"
+                            isCredit
+                              ? "text-teal-700 dark:text-teal-300"
+                              : "text-rose-700 dark:text-rose-300"
                           )}
                         >
                           {TRANSACTION_TYPE_LABELS[row.type]}
                         </span>
                       </td>
-                      <td className="max-w-[16rem] px-4 py-3 font-medium">
+                      <td className="max-w-[16rem] px-4 py-3">
                         <TruncatedCell
                           value={row.description}
                           maxLength={40}
@@ -216,13 +264,7 @@ export function IncomeStatementPanel({
                           maxLength={24}
                         />
                       </td>
-                      <td
-                        className={cn(
-                          "whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium",
-                          isCredit ? "text-emerald-600" : "text-rose-600"
-                        )}
-                      >
-                        {isCredit ? "+" : "−"}
+                      <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">
                         {formatPaymentPhaseMoney(row.amount)}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
@@ -236,25 +278,29 @@ export function IncomeStatementPanel({
                           maxLength={24}
                         />
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <Can
-                          permission={PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE}
-                        >
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="size-7"
-                            aria-label={`Edit transaction ${row.description}`}
-                            onClick={() => {
-                              setEditingTransaction(row);
-                              setEditOpen(true);
-                            }}
+                      {readOnly ? null : (
+                        <td className="px-4 py-3 text-right">
+                          <Can
+                            permission={
+                              PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
+                            }
                           >
-                            <PencilIcon className="size-3.5" />
-                          </Button>
-                        </Can>
-                      </td>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="size-7"
+                              aria-label={`Edit transaction ${row.description}`}
+                              onClick={() => {
+                                setEditingTransaction(row);
+                                setEditOpen(true);
+                              }}
+                            >
+                              <PencilIcon className="size-3.5" />
+                            </Button>
+                          </Can>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -313,9 +359,9 @@ export function IncomeStatementPanel({
                 aria-hidden
               />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Scholarship total</p>
+                <p className="text-xs text-muted-foreground">Adjustments total</p>
                 <p className="text-lg font-semibold tabular-nums">
-                  {formatPaymentPhaseMoney(stats.totalScholarshipAmount)}
+                  {formatPaymentPhaseMoney(stats.totalAdjustmentsValue)}
                 </p>
               </div>
             </div>
@@ -399,16 +445,20 @@ export function IncomeStatementPanel({
         </div>
       </ClassTabCollapsibleSection>
 
-      <CreateTransactionDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        defaultRecordedBy={defaultRecordedBy}
-      />
-      <EditTransactionDialog
-        open={editOpen}
-        onOpenChange={handleEditOpenChange}
-        transaction={editingTransaction}
-      />
+      {readOnly ? null : (
+        <>
+          <CreateTransactionDialog
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            defaultRecordedBy={defaultRecordedBy}
+          />
+          <EditTransactionDialog
+            open={editOpen}
+            onOpenChange={handleEditOpenChange}
+            transaction={editingTransaction}
+          />
+        </>
+      )}
     </div>
   );
 }
