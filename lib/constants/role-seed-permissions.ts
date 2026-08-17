@@ -25,8 +25,8 @@ export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
 
 /**
  * CEO workshop / instructor module: full instructors + schedules + workshops
- * (including payments) plus AI usage for Schedule assistant and income
- * statement analytics.
+ * (including payments) plus AI usage for Schedule assistant, income
+ * statement analytics, and guest follow-up.
  */
 export const CEO_WORKSHOP_SEED_PERMISSIONS = [
   PERMISSIONS.INSTRUCTORS_VIEW,
@@ -58,6 +58,12 @@ export const CEO_WORKSHOP_SEED_PERMISSIONS = [
   PERMISSIONS.WORKSHOPS_PAYMENTS_DELETE,
   PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW,
   PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW,
+  PERMISSIONS.GUESTS_VIEW,
+  PERMISSIONS.GUESTS_CREATE,
+  PERMISSIONS.GUESTS_UPDATE,
+  PERMISSIONS.GUESTS_DELETE,
+  PERMISSIONS.GUESTS_CHANGE_STATUS,
+  PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
 ] as const satisfies readonly PermissionKey[];
 
 /**

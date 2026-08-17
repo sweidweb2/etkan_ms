@@ -10,6 +10,7 @@ export const ROUTES = {
   LIFE: "/life",
   LIFE_BLOG_DETAIL: "/life/[id]",
   REGISTER: "/register",
+  REGISTER_GUEST: "/register/guest/[token]",
   FINANCIAL_FORM_INVITE: "/f/[token]",
   LOGIN: "/auth/login",
   SIGNUP: "/auth/signup",
@@ -69,6 +70,8 @@ export const ROUTES = {
   MANAGER_LOGS: "/manager/logs",
   MANAGER_CLOUDFLARE_AI_USAGE: "/manager/cloudflare-ai-usage",
   MANAGER_REGISTRATIONS: "/manager/registrations",
+  MANAGER_GUESTS: "/manager/guests",
+  MANAGER_GUEST_DETAIL: "/manager/guests/[id]",
   MANAGER_CRON_JOBS: "/manager/cron-jobs",
   MANAGER_RBAC: "/manager/rbac",
   CEO_ROOT: "/ceo",
@@ -133,6 +136,10 @@ export function getFinancialFormInviteRoute(token: string): string {
   return `/f/${token}`;
 }
 
+export function getRegisterGuestRoute(token: string): string {
+  return `/register/guest/${token}`;
+}
+
 export function getManagerUserDetailRoute(userId: string): string {
   return `/manager/users/${userId}`;
 }
@@ -161,6 +168,10 @@ export function getManagerEquipmentDetailRoute(equipmentId: string): string {
 
 export function getManagerProjectDetailRoute(projectId: string): string {
   return `/manager/projects/${projectId}`;
+}
+
+export function getManagerGuestDetailRoute(guestId: string): string {
+  return `/manager/guests/${guestId}`;
 }
 
 export function getManagerAccountingPhaseDetailRoute(phaseId: string): string {

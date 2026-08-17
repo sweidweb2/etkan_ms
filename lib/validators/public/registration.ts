@@ -603,6 +603,52 @@ export function parseSubmitPublicRegistrationFormData(formData: FormData):
   return { success: true, data: parsed.data };
 }
 
+export function parseSubmitGuestRegistrationByTokenFormData(formData: FormData):
+  | {
+      success: true;
+      data: SubmitPublicRegistrationInput & { token: string };
+    }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const base = parseSubmitPublicRegistrationFormData(formData);
+  if (!base.success) {
+    return base;
+  }
+
+  const token = String(formData.get("token") ?? "").trim();
+  if (!token) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { token: ["Invite token is required."] },
+    };
+  }
+
+  return { success: true, data: { ...base.data, token } };
+}
+
+export function parseSubmitGuestRegistrationStaffFormData(formData: FormData):
+  | {
+      success: true;
+      data: SubmitPublicRegistrationInput & { guest_id: string };
+    }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const base = parseSubmitPublicRegistrationFormData(formData);
+  if (!base.success) {
+    return base;
+  }
+
+  const guestId = String(formData.get("guest_id") ?? "").trim();
+  if (!guestId) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { guest_id: ["Guest is required."] },
+    };
+  }
+
+  return { success: true, data: { ...base.data, guest_id: guestId } };
+}
+
 export function parseTempUploadRegistrationDocumentFormData(formData: FormData):
   | { success: true; data: TempUploadRegistrationDocumentInput }
   | { success: false; error: string; fieldErrors?: FieldErrors } {

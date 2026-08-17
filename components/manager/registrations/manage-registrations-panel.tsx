@@ -27,7 +27,10 @@ import {
   REGISTRATION_PREFERRED_PROGRAM_LABELS,
   type RegistrationApplicationStatus,
 } from "@/lib/constants/public-registration";
-import { getManagerRegistrationDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerGuestDetailRoute,
+  getManagerRegistrationDetailRoute,
+} from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type {
   ManagerRegistrationApplicationRow,
@@ -194,7 +197,19 @@ export function ManageRegistrationsPanel({
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                         {format(new Date(row.created_at), "MMM d, yyyy")}
                       </td>
-                      <td className="px-4 py-3 font-medium">{row.full_name}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span>{row.full_name}</span>
+                          {row.guest_id ? (
+                            <Link
+                              href={getManagerGuestDetailRoute(row.guest_id)}
+                              className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                            >
+                              Guest
+                            </Link>
+                          ) : null}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">{row.email}</td>
                       <td className="px-4 py-3">
                         {REGISTRATION_PREFERRED_PROGRAM_LABELS[

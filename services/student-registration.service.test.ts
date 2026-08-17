@@ -178,6 +178,12 @@ describe("student-registration.service", () => {
       registrationRepository.createStudentRegistrationApplication
     ).toHaveBeenCalledOnce();
     expect(
+      registrationRepository.createStudentRegistrationApplication
+    ).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({ guest_id: null })
+    );
+    expect(
       registrationStorage.moveRegistrationStorageObject
     ).toHaveBeenCalledOnce();
     expect(

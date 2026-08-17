@@ -32,7 +32,7 @@ Search, filter, and list↔detail are part of the matching `*.view` key (not sep
 
 Kept as separate groups (match manager domains):
 
-Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Workshops · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cloudflare AI usage · Registrations · Cron Jobs · Settings · RBAC
+Dashboard · Users · Students · Relationships · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Schedule · Workshops · Notifications · Emailing · Accounting · Reports · Analytics · Backup · Logs · Cloudflare AI usage · Registrations · Guests · Cron Jobs · Settings · RBAC
 
 Collapsed into `*.view` (not separate permissions): search, filter, schedule/alerts widgets on dashboard, student detail sub-tabs (classes/grades/borrows summaries).
 
@@ -315,6 +315,17 @@ Format: `key` — label — access
 | `registrations.view` | View registration applications | read |
 | `registrations.update_status` | Update registration application status and notes | write |
 
+### Guests
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `guests.view` | View guests and status history | read |
+| `guests.create` | Create guests | write |
+| `guests.update` | Update guest intake fields and notes | write |
+| `guests.delete` | Hard-delete guests | write |
+| `guests.change_status` | Set guest status | write |
+| `guests.registration.manage` | Open registration; stop invite; cancel or hard-delete application; staff-fill | write |
+
 ### Cron Jobs
 
 | Key | Label | Access |
@@ -488,6 +499,12 @@ logs.view
 cloudflare_ai_usage.view
 registrations.view
 registrations.update_status
+guests.view
+guests.create
+guests.update
+guests.delete
+guests.change_status
+guests.registration.manage
 cron_jobs.view
 settings.view
 settings.maintenance
@@ -495,7 +512,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 139 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · projects includes view / create / update / delete.
+**Count:** 145 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage · projects includes view / create / update / delete.
 
 ### is_instructor — shared seed package
 
@@ -515,7 +532,7 @@ instructor_schedules.view
 
 ### CEO — workshop / instructor module seed
 
-CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant) + `accounting.income_statement.analytics.view`.
+CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant) + `accounting.income_statement.analytics.view` + all `guests.*`.
 
 ```
 instructors.view
@@ -547,6 +564,12 @@ workshops.payments.update
 workshops.payments.delete
 cloudflare_ai_usage.view
 accounting.income_statement.analytics.view
+guests.view
+guests.create
+guests.update
+guests.delete
+guests.change_status
+guests.registration.manage
 ```
 
 ---

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { CheckIcon } from "lucide-react";
 import { submitPublicRegistrationAction } from "@/app/(public)/register/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import {
   REGISTRATION_BLOOD_TYPE_LABELS,
@@ -209,19 +210,65 @@ function ChipGroup({
   );
 }
 
-export function RegistrationWizard() {
+type RegistrationWizardMode = "public" | "guest-public" | "guest-staff";
+
+type RegistrationWizardProps = {
+  mode?: RegistrationWizardMode;
+  submitAction?: (
+    prevState: SubmitPublicRegistrationActionState,
+    formData: FormData
+  ) => Promise<SubmitPublicRegistrationActionState>;
+  initialDraft?: Partial<Draft>;
+  ageHint?: number | null;
+  inviteToken?: string;
+  guestId?: string;
+  hidePageHeader?: boolean;
+  onSuccess?: () => void;
+  onPendingChange?: (isPending: boolean) => void;
+};
+
+function createDraft(initial?: Partial<Draft>): Draft {
+  return {
+    ...createEmptyDraft(),
+    ...initial,
+    upload_session_id: initial?.upload_session_id ?? crypto.randomUUID(),
+    documents: initial?.documents ?? [],
+    skills: initial?.skills ?? [],
+    available_days: initial?.available_days ?? [],
+    preferred_shifts: initial?.preferred_shifts ?? [],
+  };
+}
+
+export function RegistrationWizard({
+  mode = "public",
+  submitAction = submitPublicRegistrationAction,
+  initialDraft,
+  ageHint = null,
+  inviteToken,
+  guestId,
+  hidePageHeader = false,
+  onSuccess,
+  onPendingChange,
+}: RegistrationWizardProps = {}) {
   const { t } = usePublicI18n();
   const [stepIndex, setStepIndex] = useState(0);
-  const [draft, setDraft] = useState<Draft>(createEmptyDraft);
+  const [draft, setDraft] = useState<Draft>(() => createDraft(initialDraft));
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
   const [state, formAction, isActionPending] = useActionState(
-    submitPublicRegistrationAction,
+    submitAction,
     initialState
   );
   const [isTransitionPending, startTransition] = useTransition();
   const isPending = isActionPending || isTransitionPending;
 
+  useEffect(() => {
+    onPendingChange?.(isPending);
+  }, [isPending, onPendingChange]);
+
   useActionStateToast(state, isPending);
+  useActionStateSuccess(state, isPending, () => {
+    onSuccess?.();
+  });
 
   const step = REGISTRATION_STEPS[stepIndex]!;
   const needsGraduationYear =
@@ -362,6 +409,12 @@ export function RegistrationWizard() {
     formData.set("consent_privacy", draft.consent_privacy ? "true" : "false");
     formData.set("guardian_name", draft.guardian_name);
     formData.set("guardian_phone", draft.guardian_phone);
+    if (mode === "guest-public" && inviteToken) {
+      formData.set("token", inviteToken);
+    }
+    if (mode === "guest-staff" && guestId) {
+      formData.set("guest_id", guestId);
+    }
 
     startTransition(() => {
       formAction(formData);
@@ -369,11 +422,22 @@ export function RegistrationWizard() {
   }
 
   if (state.success) {
+    const isGuestMode = mode === "guest-public" || mode === "guest-staff";
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t("registration.successTitle")}</CardTitle>
-          <CardDescription>{t("registration.successBody")}</CardDescription>
+          <CardTitle>
+            {isGuestMode
+              ? "Registration submitted"
+              : t("registration.successTitle")}
+          </CardTitle>
+          <CardDescription>
+            {isGuestMode
+              ? mode === "guest-staff"
+                ? "The guest registration dossier was saved. This invite link can no longer be used."
+                : "Thank you. Your registration was submitted. Staff will review it — you do not need to fill this form again."
+              : t("registration.successBody")}
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -381,14 +445,16 @@ export function RegistrationWizard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t("registration.title")}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {t("registration.lead")}
-        </p>
-      </div>
+      {!hidePageHeader ? (
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {t("registration.title")}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("registration.lead")}
+          </p>
+        </div>
+      ) : null}
 
       <ol className="flex flex-wrap gap-2" aria-label={t("registration.stepsLabel")}>
         {REGISTRATION_STEPS.map((key, index) => {
@@ -472,6 +538,11 @@ export function RegistrationWizard() {
                     patchDraft({ date_of_birth: e.target.value })
                   }
                 />
+                {ageHint != null ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Age on file: {ageHint}
+                  </p>
+                ) : null}
                 <FieldError message={stepErrors.date_of_birth} />
               </div>
               <div>

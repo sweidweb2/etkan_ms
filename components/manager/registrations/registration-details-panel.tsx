@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ExternalLinkIcon } from "lucide-react";
@@ -59,7 +60,7 @@ import {
   REGISTRATION_WEEKDAY_VALUES,
   type RegistrationApplicationStatus,
 } from "@/lib/constants/public-registration";
-import { ROUTES } from "@/lib/constants/routes";
+import { getManagerGuestDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type {
   ManagerRegistrationApplicationRow,
@@ -385,9 +386,19 @@ export function RegistrationDetailsPanel({
 
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {draft.full_name || application.full_name}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {draft.full_name || application.full_name}
+            </h1>
+            {application.guest_id ? (
+              <Link
+                href={getManagerGuestDetailRoute(application.guest_id)}
+                className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+              >
+                Guest
+              </Link>
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Submitted{" "}
             {format(new Date(application.created_at), "MMM d, yyyy · HH:mm")}

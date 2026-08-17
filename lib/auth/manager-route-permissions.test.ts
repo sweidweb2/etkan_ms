@@ -32,6 +32,9 @@ describe("getRequiredViewPermissionForManagerPath", () => {
     expect(
       getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_REGISTRATIONS)
     ).toBe(PERMISSIONS.REGISTRATIONS_VIEW);
+    expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_GUESTS)).toBe(
+      PERMISSIONS.GUESTS_VIEW
+    );
     expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_RBAC)).toBe(
       PERMISSIONS.RBAC_MANAGE
     );
@@ -44,6 +47,9 @@ describe("getRequiredViewPermissionForManagerPath", () => {
     expect(
       getRequiredViewPermissionForManagerPath("/manager/students/stu-1")
     ).toBe(PERMISSIONS.STUDENTS_VIEW);
+    expect(
+      getRequiredViewPermissionForManagerPath("/manager/guests/guest-1")
+    ).toBe(PERMISSIONS.GUESTS_VIEW);
     expect(getRequiredViewPermissionForManagerPath("/manager/sent/mail-9")).toBe(
       PERMISSIONS.EMAILING_VIEW
     );

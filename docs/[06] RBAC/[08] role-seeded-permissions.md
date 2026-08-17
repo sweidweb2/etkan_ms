@@ -14,7 +14,7 @@ Full catalog (`PERMISSION_KEYS`) — every permission.
 
 ## CEO
 
-Full instructors / instructor schedules / workshops module (incl. payments) plus AI usage for Schedule assistant and income statement analytics (`CEO_WORKSHOP_SEED_PERMISSIONS`):
+Full instructors / instructor schedules / workshops module (incl. payments) plus AI usage for Schedule assistant, income statement analytics, and guest follow-up (`CEO_WORKSHOP_SEED_PERMISSIONS`):
 
 ```
 instructors.view
@@ -46,12 +46,19 @@ workshops.payments.update
 workshops.payments.delete
 cloudflare_ai_usage.view
 accounting.income_statement.analytics.view
+guests.view
+guests.create
+guests.update
+guests.delete
+guests.change_status
+guests.registration.manage
 ```
 
-Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`, `/manager/income-statement/analytics`.  
-Manage instructors and AI usage do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
+Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`, `/manager/income-statement/analytics`, `/manager/guests*`.  
+Manage instructors, AI usage, and guests do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
 Schedule assistant UI/API and AI usage page require `cloudflare_ai_usage.view`.  
-Slot details table (`/manager/instructor-schedules/details`) requires `instructor_schedules.details.view` (manager + CEO seed only for now).
+Slot details table (`/manager/instructor-schedules/details`) requires `instructor_schedules.details.view` (manager + CEO seed only for now).  
+Re-run `npm run seed:rbac` after deploy so CEO receives the new `guests.*` keys.
 
 ---
 

@@ -1,0 +1,87 @@
+import { RegistrationWizard } from "@/components/public/registration/registration-wizard";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getGuestRegistrationContextByToken } from "@/services/guest-registration.service";
+import { submitGuestRegistrationByTokenAction } from "./actions";
+
+export const dynamic = "force-dynamic";
+
+type RegisterGuestPageProps = {
+  params: Promise<{ token: string }>;
+};
+
+function GuestRegistrationStatus({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <main className="mx-auto w-full max-w-3xl px-4 py-24 sm:px-6 sm:py-28">
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{body}</CardDescription>
+        </CardHeader>
+      </Card>
+    </main>
+  );
+}
+
+export default async function RegisterGuestPage({
+  params,
+}: RegisterGuestPageProps) {
+  const { token } = await params;
+  const adminClient = createSupabaseAdminClient();
+  const context = await getGuestRegistrationContextByToken(adminClient, token);
+
+  if (context.status === "invalid") {
+    return (
+      <GuestRegistrationStatus
+        title="Invalid invite"
+        body="This registration link is invalid, expired, or was never issued. Ask staff for a new invite if you still need to register."
+      />
+    );
+  }
+
+  if (context.status === "stopped") {
+    return (
+      <GuestRegistrationStatus
+        title="Invite stopped"
+        body="Staff stopped this registration invite. Ask them to reopen it if you still need to submit."
+      />
+    );
+  }
+
+  if (context.status === "used") {
+    return (
+      <GuestRegistrationStatus
+        title="Already submitted"
+        body="This registration was already completed. You cannot submit again with this link."
+      />
+    );
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-3xl px-4 py-24 sm:px-6 sm:py-28">
+      <RegistrationWizard
+        mode="guest-public"
+        submitAction={submitGuestRegistrationByTokenAction}
+        inviteToken={context.token}
+        ageHint={context.prefill.age}
+        initialDraft={{
+          full_name: context.prefill.full_name,
+          phone: context.prefill.phone,
+          education_level: context.prefill.education_level,
+          organization_name: context.prefill.organization_name ?? "",
+        }}
+      />
+    </main>
+  );
+}

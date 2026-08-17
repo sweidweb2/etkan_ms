@@ -299,33 +299,39 @@ export const REGISTRATION_JOB_STATUS_LABELS: Record<
 };
 
 export const REGISTRATION_APPLICATION_STATUSES = {
+  OPEN: "open",
   PENDING: "pending",
   ACCEPTED: "accepted",
   APPLIED: "applied",
   MISSING: "missing",
   REJECTED: "rejected",
+  CANCELLED: "cancelled",
 } as const;
 
 export type RegistrationApplicationStatus =
   (typeof REGISTRATION_APPLICATION_STATUSES)[keyof typeof REGISTRATION_APPLICATION_STATUSES];
 
 export const REGISTRATION_APPLICATION_STATUS_VALUES = [
+  REGISTRATION_APPLICATION_STATUSES.OPEN,
   REGISTRATION_APPLICATION_STATUSES.PENDING,
   REGISTRATION_APPLICATION_STATUSES.ACCEPTED,
   REGISTRATION_APPLICATION_STATUSES.APPLIED,
   REGISTRATION_APPLICATION_STATUSES.MISSING,
   REGISTRATION_APPLICATION_STATUSES.REJECTED,
+  REGISTRATION_APPLICATION_STATUSES.CANCELLED,
 ] as const;
 
 export const REGISTRATION_APPLICATION_STATUS_LABELS: Record<
   RegistrationApplicationStatus,
   string
 > = {
+  open: "Open",
   pending: "Pending",
   accepted: "Accepted",
   applied: "Applied",
   missing: "Missing",
   rejected: "Rejected",
+  cancelled: "Cancelled",
 };
 
 export const REGISTRATION_ID_DOCUMENT_TYPES = {

@@ -578,6 +578,156 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_registration_invites: {
+        Row: {
+          application_id: string | null
+          cancelled_at: string | null
+          created_at: string
+          created_by: string | null
+          guest_id: string
+          id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          guest_id: string
+          id?: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          guest_id?: string
+          id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_registration_invites_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "student_registration_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_registration_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_registration_invites_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: true
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_status_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          guest_id: string
+          id: string
+          note: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          guest_id: string
+          id?: string
+          note?: string | null
+          status: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          guest_id?: string
+          id?: string
+          note?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_status_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_status_events_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guests: {
+        Row: {
+          age: number
+          created_at: string
+          created_by: string | null
+          education_level: string
+          full_name: string
+          id: string
+          interested_service: string
+          notes: string | null
+          phone: string
+          school_or_university: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          age: number
+          created_at?: string
+          created_by?: string | null
+          education_level: string
+          full_name: string
+          id?: string
+          interested_service: string
+          notes?: string | null
+          phone: string
+          school_or_university?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          age?: number
+          created_at?: string
+          created_by?: string | null
+          education_level?: string
+          full_name?: string
+          id?: string
+          interested_service?: string
+          notes?: string | null
+          phone?: string
+          school_or_university?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instructor_schedule_slots: {
         Row: {
           created_at: string
@@ -1482,6 +1632,7 @@ export type Database = {
           full_name: string
           gender: string
           graduation_year: number | null
+          guest_id: string | null
           guardian_name: string | null
           guardian_phone: string | null
           has_transportation: boolean
@@ -1519,6 +1670,7 @@ export type Database = {
           full_name: string
           gender: string
           graduation_year?: number | null
+          guest_id?: string | null
           guardian_name?: string | null
           guardian_phone?: string | null
           has_transportation: boolean
@@ -1556,6 +1708,7 @@ export type Database = {
           full_name?: string
           gender?: string
           graduation_year?: number | null
+          guest_id?: string | null
           guardian_name?: string | null
           guardian_phone?: string | null
           has_transportation?: boolean
@@ -1578,7 +1731,15 @@ export type Database = {
           updated_at?: string
           weekly_available_hours?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_registration_applications_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_registration_documents: {
         Row: {

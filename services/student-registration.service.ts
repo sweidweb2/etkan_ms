@@ -98,6 +98,7 @@ function mapApplicationRecord(
     consent_privacy: record.consent_privacy,
     guardian_name: record.guardian_name,
     guardian_phone: record.guardian_phone,
+    guest_id: record.guest_id,
     documents,
   };
 }
@@ -142,6 +143,7 @@ function mapApplicationListRecord(
     consent_privacy: false,
     guardian_name: null,
     guardian_phone: null,
+    guest_id: record.guest_id,
     documents: [],
   };
 }
@@ -228,14 +230,20 @@ export async function removeTempRegistrationDocument(
 
 export async function submitPublicRegistrationApplication(
   adminClient: Supabase,
-  input: SubmitPublicRegistrationInput
+  input: SubmitPublicRegistrationInput,
+  options?: {
+    guest_id?: string | null;
+    skipRateLimit?: boolean;
+  }
 ): Promise<
   | { success: true; message: string; id: string }
   | { success: false; error: string; fieldErrors?: FieldErrors }
 > {
-  const rate = await checkPublicRegistrationSubmitRateLimit();
-  if (!rate.allowed) {
-    return { success: false, error: rate.message };
+  if (!options?.skipRateLimit) {
+    const rate = await checkPublicRegistrationSubmitRateLimit();
+    if (!rate.allowed) {
+      return { success: false, error: rate.message };
+    }
   }
 
   const result =
@@ -272,6 +280,7 @@ export async function submitPublicRegistrationApplication(
         consent_privacy: input.consent_privacy,
         guardian_name: input.guardian_name,
         guardian_phone: input.guardian_phone,
+        guest_id: options?.guest_id ?? null,
       }
     );
 

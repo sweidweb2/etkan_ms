@@ -43,6 +43,7 @@ export const PERMISSION_FEATURES = [
   "logs",
   "cloudflare_ai_usage",
   "registrations",
+  "guests",
   "cron_jobs",
   "settings",
   "rbac",
@@ -79,6 +80,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   logs: "Logs",
   cloudflare_ai_usage: "Cloudflare AI usage",
   registrations: "Registrations",
+  guests: "Guests",
   cron_jobs: "Cron Jobs",
   settings: "Settings",
   rbac: "RBAC",
@@ -248,6 +250,13 @@ export const PERMISSIONS = {
 
   REGISTRATIONS_VIEW: "registrations.view",
   REGISTRATIONS_UPDATE_STATUS: "registrations.update_status",
+
+  GUESTS_VIEW: "guests.view",
+  GUESTS_CREATE: "guests.create",
+  GUESTS_UPDATE: "guests.update",
+  GUESTS_DELETE: "guests.delete",
+  GUESTS_CHANGE_STATUS: "guests.change_status",
+  GUESTS_REGISTRATION_MANAGE: "guests.registration.manage",
 
   CRON_JOBS_VIEW: "cron_jobs.view",
 
@@ -1101,6 +1110,43 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.REGISTRATIONS_UPDATE_STATUS,
     feature: "registrations",
     label: "Update registration application status and notes",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.GUESTS_VIEW,
+    feature: "guests",
+    label: "View guests and status history",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.GUESTS_CREATE,
+    feature: "guests",
+    label: "Create guests",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GUESTS_UPDATE,
+    feature: "guests",
+    label: "Update guest intake fields and notes",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GUESTS_DELETE,
+    feature: "guests",
+    label: "Hard-delete guests",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GUESTS_CHANGE_STATUS,
+    feature: "guests",
+    label: "Set guest status",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
+    feature: "guests",
+    label: "Open registration; stop invite; cancel or hard-delete application; staff-fill",
     access: PERMISSION_ACCESS.WRITE,
   },
 

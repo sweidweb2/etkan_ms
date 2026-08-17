@@ -25,6 +25,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  UserPlus,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -56,4 +57,5 @@ export const PANEL_ICONS: Record<PanelNavIconKey, LucideIcon> = {
   shield: Shield,
   images: Images,
   "folder-kanban": FolderKanban,
+  "user-plus": UserPlus,
 };

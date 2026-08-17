@@ -1,0 +1,445 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getSessionAuditActor } from "@/lib/auth/session";
+import {
+  getManagerGuestDetailRoute,
+  ROUTES,
+} from "@/lib/constants/routes";
+import { appendQueryParam } from "@/lib/url/append-query-param";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { parseCreateGuestFormData } from "@/lib/validators/manager/create-guest";
+import { parseChangeGuestStatusFormData } from "@/lib/validators/manager/change-guest-status";
+import { parseRemoveGuestStatusFormData } from "@/lib/validators/manager/remove-guest-status";
+import { parseSetGuestProfileStatusFormData } from "@/lib/validators/manager/set-guest-profile-status";
+import { parseUpdateGuestFormData } from "@/lib/validators/manager/update-guest";
+import { parseSubmitGuestRegistrationStaffFormData } from "@/lib/validators/public/registration";
+import {
+  createGuestForManager,
+  deleteGuestForManager,
+  removeGuestStatusForManager,
+  setGuestProfileStatusForManager,
+  setGuestStatusForManager,
+  updateGuestForManager,
+} from "@/services/guest.service";
+import {
+  cancelGuestRegistrationApplicationForManager,
+  deleteGuestRegistrationApplicationForManager,
+  openGuestRegistrationInviteForManager,
+  stopGuestRegistrationInviteForManager,
+  submitGuestRegistrationForManager,
+} from "@/services/guest-registration.service";
+import type {
+  CancelGuestRegistrationApplicationActionState,
+  ChangeGuestStatusActionState,
+  CreateGuestActionState,
+  DeleteGuestActionState,
+  DeleteGuestRegistrationApplicationActionState,
+  OpenGuestRegistrationInviteActionState,
+  RemoveGuestStatusActionState,
+  SetGuestProfileStatusActionState,
+  StopGuestRegistrationInviteActionState,
+  SubmitGuestRegistrationStaffActionState,
+  UpdateGuestActionState,
+} from "@/types/manager-guest";
+
+export async function createGuestAction(
+  _prevState: CreateGuestActionState,
+  formData: FormData
+): Promise<CreateGuestActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateGuestFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createGuestForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  return {
+    success: true,
+    message: result.message,
+    guest: result.guest,
+  };
+}
+
+export async function updateGuestAction(
+  _prevState: UpdateGuestActionState,
+  formData: FormData
+): Promise<UpdateGuestActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseUpdateGuestFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateGuestForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
+  return {
+    success: true,
+    message: result.message,
+    guest: result.guest,
+  };
+}
+
+export async function deleteGuestAction(
+  _prevState: DeleteGuestActionState,
+  formData: FormData
+): Promise<DeleteGuestActionState> {
+  const actor = await getSessionAuditActor();
+  const guestId = String(formData.get("id") ?? "").trim();
+
+  if (!guestId) {
+    return {
+      success: false,
+      error: "Guest not found.",
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteGuestForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    guestId
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  redirect(appendQueryParam(ROUTES.MANAGER_GUESTS, "toast", "guest_deleted"));
+}
+
+export async function changeGuestStatusAction(
+  _prevState: ChangeGuestStatusActionState,
+  formData: FormData
+): Promise<ChangeGuestStatusActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseChangeGuestStatusFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await setGuestStatusForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
+  return {
+    success: true,
+    message: result.message,
+    guest: result.guest,
+    statusEvents: result.statusEvents,
+  };
+}
+
+export async function setGuestProfileStatusAction(
+  _prevState: SetGuestProfileStatusActionState,
+  formData: FormData
+): Promise<SetGuestProfileStatusActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseSetGuestProfileStatusFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await setGuestProfileStatusForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
+  return {
+    success: true,
+    message: result.message,
+    guest: result.guest,
+  };
+}
+
+export async function removeGuestStatusAction(
+  _prevState: RemoveGuestStatusActionState,
+  formData: FormData
+): Promise<RemoveGuestStatusActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseRemoveGuestStatusFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await removeGuestStatusForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
+  return {
+    success: true,
+    message: result.message,
+    guest: result.guest,
+    statusEvents: result.statusEvents,
+    removedStatus: result.removedStatus,
+  };
+}
+
+export async function openGuestRegistrationInviteAction(
+  _prevState: OpenGuestRegistrationInviteActionState,
+  formData: FormData
+): Promise<OpenGuestRegistrationInviteActionState> {
+  const actor = await getSessionAuditActor();
+  const guestId = String(formData.get("guest_id") ?? "").trim();
+
+  if (!guestId) {
+    return { success: false, error: "Guest not found." };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await openGuestRegistrationInviteForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    guestId
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath(getManagerGuestDetailRoute(guestId));
+  return {
+    success: true,
+    message: result.message,
+    invite: result.invite,
+  };
+}
+
+export async function stopGuestRegistrationInviteAction(
+  _prevState: StopGuestRegistrationInviteActionState,
+  formData: FormData
+): Promise<StopGuestRegistrationInviteActionState> {
+  const actor = await getSessionAuditActor();
+  const guestId = String(formData.get("guest_id") ?? "").trim();
+
+  if (!guestId) {
+    return { success: false, error: "Guest not found." };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await stopGuestRegistrationInviteForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    guestId
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath(getManagerGuestDetailRoute(guestId));
+  return {
+    success: true,
+    message: result.message,
+    invite: result.invite,
+  };
+}
+
+export async function submitGuestRegistrationStaffAction(
+  _prevState: SubmitGuestRegistrationStaffActionState,
+  formData: FormData
+): Promise<SubmitGuestRegistrationStaffActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseSubmitGuestRegistrationStaffFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const { guest_id: guestId, ...input } = parsed.data;
+  const adminClient = createSupabaseAdminClient();
+  const result = await submitGuestRegistrationForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    guestId,
+    input
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(getManagerGuestDetailRoute(guestId));
+  revalidatePath(ROUTES.MANAGER_REGISTRATIONS);
+  return {
+    success: true,
+    message: result.message,
+  };
+}
+
+export async function cancelGuestRegistrationApplicationAction(
+  _prevState: CancelGuestRegistrationApplicationActionState,
+  formData: FormData
+): Promise<CancelGuestRegistrationApplicationActionState> {
+  const actor = await getSessionAuditActor();
+  const guestId = String(formData.get("guest_id") ?? "").trim();
+
+  if (!guestId) {
+    return { success: false, error: "Guest not found." };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await cancelGuestRegistrationApplicationForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    guestId
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath(getManagerGuestDetailRoute(guestId));
+  revalidatePath(ROUTES.MANAGER_REGISTRATIONS);
+  return {
+    success: true,
+    message: result.message,
+  };
+}
+
+export async function deleteGuestRegistrationApplicationAction(
+  _prevState: DeleteGuestRegistrationApplicationActionState,
+  formData: FormData
+): Promise<DeleteGuestRegistrationApplicationActionState> {
+  const actor = await getSessionAuditActor();
+  const guestId = String(formData.get("guest_id") ?? "").trim();
+
+  if (!guestId) {
+    return { success: false, error: "Guest not found." };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteGuestRegistrationApplicationForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    guestId
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath(getManagerGuestDetailRoute(guestId));
+  revalidatePath(ROUTES.MANAGER_REGISTRATIONS);
+  return {
+    success: true,
+    message: result.message,
+  };
+}

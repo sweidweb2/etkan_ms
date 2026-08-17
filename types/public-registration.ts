@@ -67,6 +67,7 @@ export type ManagerRegistrationApplicationRow = {
   consent_privacy: boolean;
   guardian_name: string | null;
   guardian_phone: string | null;
+  guest_id: string | null;
   documents: ManagerRegistrationDocumentRow[];
 };
 

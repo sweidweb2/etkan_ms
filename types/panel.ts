@@ -23,7 +23,8 @@ export type PanelNavIconKey =
   | "clock"
   | "shield"
   | "images"
-  | "folder-kanban";
+  | "folder-kanban"
+  | "user-plus";
 
 export type PanelNavItem = {
   title: string;

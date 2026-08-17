@@ -67,6 +67,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "clipboard-list",
         },
         {
+          title: "Guests",
+          href: ROUTES.MANAGER_GUESTS,
+          icon: "user-plus",
+        },
+        {
           title: "Manage relationships",
           href: ROUTES.MANAGER_RELATIONSHIPS,
           icon: "users",
@@ -252,6 +257,11 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
       icon: "calendar-days",
     },
     MANAGE_WORKSHOPS_NAV_ITEM,
+    {
+      title: "Guests",
+      href: ROUTES.MANAGER_GUESTS,
+      icon: "user-plus",
+    },
     {
       title: "AI usage",
       href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
