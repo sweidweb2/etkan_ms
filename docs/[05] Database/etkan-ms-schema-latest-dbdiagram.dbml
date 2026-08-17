@@ -736,6 +736,7 @@ Table student_registration_applications {
   self_learning_notes text
   learning_goal text [not null]
   skills text[] [not null]
+  skills_other text
   referral_source text [not null]
   referral_other text
   preferred_program text [not null]

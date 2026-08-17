@@ -56,6 +56,7 @@ import {
   REGISTRATION_SHIFT_VALUES,
   REGISTRATION_SKILL_LABELS,
   REGISTRATION_SKILL_VALUES,
+  REGISTRATION_SKILLS,
   REGISTRATION_WEEKDAY_LABELS,
   REGISTRATION_WEEKDAY_VALUES,
   type RegistrationApplicationStatus,
@@ -98,6 +99,7 @@ type EditDraft = {
   skills: string[];
   referral_source: string;
   referral_other: string;
+  skills_other: string;
   preferred_program: string;
   available_days: string[];
   preferred_shifts: string[];
@@ -142,6 +144,7 @@ function draftFromApplication(
     skills: [...application.skills],
     referral_source: application.referral_source,
     referral_other: application.referral_other ?? "",
+    skills_other: application.skills_other ?? "",
     preferred_program: application.preferred_program,
     available_days: [...application.available_days],
     preferred_shifts: [...application.preferred_shifts],
@@ -166,6 +169,7 @@ function normalizeDraft(draft: EditDraft): string {
     speciality: draft.speciality.trim(),
     self_learning_notes: draft.self_learning_notes.trim(),
     referral_other: draft.referral_other.trim(),
+    skills_other: draft.skills_other.trim(),
     guardian_name: draft.guardian_name.trim(),
     guardian_phone: draft.guardian_phone.trim(),
     graduation_year: draft.graduation_year.trim(),
@@ -305,6 +309,7 @@ export function RegistrationDetailsPanel({
     draft.learning_status === REGISTRATION_LEARNING_STATUSES.STOPPED;
   const showReferralOther =
     draft.referral_source === REGISTRATION_REFERRAL_SOURCES.OTHER;
+  const showSkillsOther = draft.skills.includes(REGISTRATION_SKILLS.OTHER);
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {
@@ -341,6 +346,7 @@ export function RegistrationDetailsPanel({
     formData.set("skills", JSON.stringify(draft.skills));
     formData.set("referral_source", draft.referral_source);
     formData.set("referral_other", draft.referral_other);
+    formData.set("skills_other", draft.skills_other);
     formData.set("preferred_program", draft.preferred_program);
     formData.set("available_days", JSON.stringify(draft.available_days));
     formData.set("preferred_shifts", JSON.stringify(draft.preferred_shifts));
@@ -740,11 +746,32 @@ export function RegistrationDetailsPanel({
             labels={REGISTRATION_SKILL_LABELS}
             selected={draft.skills}
             disabled={readOnly}
-            onToggle={(value) =>
-              patchDraft({ skills: toggleInArray(draft.skills, value) })
-            }
+            onToggle={(value) => {
+              const next = toggleInArray(draft.skills, value);
+              patchDraft({
+                skills: next,
+                skills_other: next.includes(REGISTRATION_SKILLS.OTHER)
+                  ? draft.skills_other
+                  : "",
+              });
+            }}
           />
         </FieldShell>
+        {showSkillsOther ? (
+          <FieldShell
+            label="Other skill"
+            htmlFor="reg-skills-other"
+            className="sm:col-span-2"
+            error={fieldErrors.skills_other?.[0]}
+          >
+            <Input
+              id="reg-skills-other"
+              value={draft.skills_other}
+              disabled={readOnly}
+              onChange={(e) => patchDraft({ skills_other: e.target.value })}
+            />
+          </FieldShell>
+        ) : null}
         <FieldShell
           label="Preferred program"
           error={fieldErrors.preferred_program?.[0]}

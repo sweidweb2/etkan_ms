@@ -1650,6 +1650,7 @@ export type Database = {
           referral_source: string
           self_learning_notes: string | null
           skills: string[]
+          skills_other: string | null
           speciality: string | null
           status: string
           updated_at: string
@@ -1689,6 +1690,7 @@ export type Database = {
           referral_source: string
           self_learning_notes?: string | null
           skills?: string[]
+          skills_other?: string | null
           speciality?: string | null
           status?: string
           updated_at?: string
@@ -1728,6 +1730,7 @@ export type Database = {
           referral_source?: string
           self_learning_notes?: string | null
           skills?: string[]
+          skills_other?: string | null
           speciality?: string | null
           status?: string
           updated_at?: string

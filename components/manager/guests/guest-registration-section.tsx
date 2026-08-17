@@ -15,15 +15,9 @@ import {
 import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { RegistrationWizard } from "@/components/public/registration/registration-wizard";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -339,14 +333,13 @@ export function GuestRegistrationSection({
 
   return (
     <>
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-base">Registration</CardTitle>
-          <CardDescription>
-            One active dossier per guest via public link or staff fill.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 py-5">
+      <ClassTabCollapsibleSection
+        title="Registration"
+        description="One active dossier per guest via public link or staff fill."
+        storageKey="manager.guests.detail.registration"
+        defaultOpen
+      >
+        <div className="space-y-4 px-3 py-5 sm:px-4">
           {!invite && !application ? (
             <p className="text-sm text-muted-foreground">
               No registration invite yet.
@@ -490,8 +483,8 @@ export function GuestRegistrationSection({
               ) : null}
             </div>
           </Can>
-        </CardContent>
-      </Card>
+        </div>
+      </ClassTabCollapsibleSection>
 
       <Sheet open={isStaffFillOpen} onOpenChange={handleStaffFillOpenChange}>
         <SheetContent

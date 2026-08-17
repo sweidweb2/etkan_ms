@@ -10,6 +10,7 @@ import { EditGuestDialog } from "@/components/manager/guests/edit-guest-dialog";
 import { GuestRegistrationSection } from "@/components/manager/guests/guest-registration-section";
 import { GuestStatusHistory } from "@/components/manager/guests/guest-status-history";
 import { GuestStatusStepper } from "@/components/manager/guests/guest-status-stepper";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PendingFlowChecklist } from "@/components/loaders/pending-flow-checklist";
 import {
@@ -21,13 +22,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -263,13 +257,6 @@ export function GuestDetailsPanel({
         }}
       />
 
-      {guest.status === "finished" ? (
-        <p className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          Finished means this guest is routed for manual team handoff. The
-          system does not auto-create users, student profiles, or enrollments.
-        </p>
-      ) : null}
-
       <GuestStatusHistory events={statusEvents} />
 
       <GuestRegistrationSection
@@ -279,12 +266,15 @@ export function GuestDetailsPanel({
         linkUsers={linkUsers}
       />
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle className="text-xl">{guest.full_name}</CardTitle>
-          <CardAction className="flex items-center gap-2 self-center">
+      <ClassTabCollapsibleSection
+        title={guest.full_name}
+        description="Intake profile"
+        storageKey="manager.guests.detail.profile"
+        defaultOpen
+        action={
+          <div className="flex items-center gap-2">
             <Can permission={PERMISSIONS.GUESTS_UPDATE}>
-              <Button type="button" onClick={() => setIsEditOpen(true)}>
+              <Button type="button" size="sm" onClick={() => setIsEditOpen(true)}>
                 <PencilIcon data-icon="inline-start" />
                 Edit
               </Button>
@@ -292,6 +282,7 @@ export function GuestDetailsPanel({
             <Can permission={PERMISSIONS.GUESTS_DELETE}>
               <Button
                 type="button"
+                size="sm"
                 variant="destructive"
                 disabled={isDeleteActionPending}
                 onClick={() => setIsDeleteOpen(true)}
@@ -300,9 +291,10 @@ export function GuestDetailsPanel({
                 Delete
               </Button>
             </Can>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="py-5">
+          </div>
+        }
+      >
+        <div className="px-3 py-5 sm:px-4">
           <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Phone" value={guest.phone} />
             <DetailField label="Age" value={String(guest.age)} />
@@ -338,8 +330,8 @@ export function GuestDetailsPanel({
               className="sm:col-span-2 lg:col-span-3"
             />
           </dl>
-        </CardContent>
-      </Card>
+        </div>
+      </ClassTabCollapsibleSection>
     </div>
   );
 }

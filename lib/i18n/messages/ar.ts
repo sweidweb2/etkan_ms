@@ -836,6 +836,7 @@ export const ar = {
   "registration.field.selfLearning": "ملاحظات التعلم الذاتي",
   "registration.field.learningGoal": "ماذا تريد أن تتعلم؟",
   "registration.field.skills": "المهارات",
+  "registration.field.skillsOther": "يرجى تحديد المهارة الأخرى",
   "registration.field.referral": "كيف عرفت عن إتقان؟",
   "registration.field.referralOther": "يرجى التوضيح",
   "registration.field.program": "البرنامج المفضل",

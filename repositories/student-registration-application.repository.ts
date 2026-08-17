@@ -4,7 +4,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const APPLICATION_COLUMNS =
-  "id, created_at, updated_at, status, notes, full_name, gender, date_of_birth, blood_type, email, phone, additional_phone, city, full_address, education_level, organization_name, speciality, learning_status, graduation_year, self_learning_notes, learning_goal, skills, referral_source, referral_other, preferred_program, available_days, preferred_shifts, weekly_available_hours, job_status, has_transportation, consent_terms, consent_privacy, guardian_name, guardian_phone, id_document_type, guest_id, user_id";
+  "id, created_at, updated_at, status, notes, full_name, gender, date_of_birth, blood_type, email, phone, additional_phone, city, full_address, education_level, organization_name, speciality, learning_status, graduation_year, self_learning_notes, learning_goal, skills, skills_other, referral_source, referral_other, preferred_program, available_days, preferred_shifts, weekly_available_hours, job_status, has_transportation, consent_terms, consent_privacy, guardian_name, guardian_phone, id_document_type, guest_id, user_id";
 
 /** Columns needed by the manager registrations table (not detail). */
 const APPLICATION_LIST_COLUMNS =
@@ -46,6 +46,7 @@ export type StudentRegistrationApplicationRecord = {
   self_learning_notes: string | null;
   learning_goal: string;
   skills: string[];
+  skills_other: string | null;
   referral_source: string;
   referral_other: string | null;
   preferred_program: string;
@@ -81,6 +82,7 @@ export type CreateStudentRegistrationApplicationInput = {
   self_learning_notes: string | null;
   learning_goal: string;
   skills: string[];
+  skills_other: string | null;
   referral_source: string;
   referral_other: string | null;
   preferred_program: string;
@@ -121,6 +123,7 @@ export async function createStudentRegistrationApplication(
       self_learning_notes: input.self_learning_notes,
       learning_goal: input.learning_goal,
       skills: input.skills,
+      skills_other: input.skills_other,
       referral_source: input.referral_source,
       referral_other: input.referral_other,
       preferred_program: input.preferred_program,
@@ -223,6 +226,7 @@ export type UpdateStudentRegistrationApplicationInput = {
   self_learning_notes: string | null;
   learning_goal: string;
   skills: string[];
+  skills_other: string | null;
   referral_source: string;
   referral_other: string | null;
   preferred_program: string;
@@ -263,6 +267,7 @@ export async function updateStudentRegistrationApplication(
       self_learning_notes: input.self_learning_notes,
       learning_goal: input.learning_goal,
       skills: input.skills,
+      skills_other: input.skills_other,
       referral_source: input.referral_source,
       referral_other: input.referral_other,
       preferred_program: input.preferred_program,

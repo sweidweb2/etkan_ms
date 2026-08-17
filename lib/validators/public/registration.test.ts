@@ -86,6 +86,26 @@ describe("registrationSkillsStepSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("requires skills_other when other is selected", () => {
+    const result = registrationSkillsStepSchema.safeParse({
+      skills: ["other"],
+      skills_other: "",
+      referral_source: "friend",
+      preferred_program: "general",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts other with a described skill", () => {
+    const result = registrationSkillsStepSchema.safeParse({
+      skills: ["programming", "other"],
+      skills_other: "Welding",
+      referral_source: "friend",
+      preferred_program: "general",
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("registrationDocumentsStepSchema", () => {
@@ -156,6 +176,7 @@ describe("submitPublicRegistrationSchema", () => {
     skills: ["web_dev", "ui_ux"],
     referral_source: "friend",
     referral_other: null,
+    skills_other: null,
     preferred_program: "general",
     available_days: ["sat", "sun"],
     preferred_shifts: ["morning"],
@@ -207,5 +228,23 @@ describe("submitPublicRegistrationSchema", () => {
       ],
     });
     expect(result.success).toBe(false);
+  });
+
+  it("requires skills_other when skills include other", () => {
+    const result = submitPublicRegistrationSchema.safeParse({
+      ...base,
+      skills: ["other"],
+      skills_other: null,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts other skill with a description", () => {
+    const result = submitPublicRegistrationSchema.safeParse({
+      ...base,
+      skills: ["robotics", "other"],
+      skills_other: "CNC machining",
+    });
+    expect(result.success).toBe(true);
   });
 });

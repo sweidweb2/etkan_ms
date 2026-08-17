@@ -18,6 +18,7 @@ import {
   REGISTRATION_REFERRAL_SOURCE_VALUES,
   REGISTRATION_REFERRAL_SOURCES,
   REGISTRATION_SHIFT_VALUES,
+  REGISTRATION_SKILLS,
   REGISTRATION_SKILL_VALUES,
   REGISTRATION_WEEKDAY_VALUES,
 } from "@/lib/constants/public-registration";
@@ -92,6 +93,22 @@ function optionalNullableText(max: number) {
     .refine((value) => value == null || value.length <= max, {
       message: `Must be at most ${max} characters.`,
     });
+}
+
+function refineSkillsOther(
+  data: { skills: string[]; skills_other?: string | null },
+  ctx: z.RefinementCtx
+) {
+  if (
+    data.skills.includes(REGISTRATION_SKILLS.OTHER) &&
+    !data.skills_other?.trim()
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["skills_other"],
+      message: "Please describe the other skill.",
+    });
+  }
 }
 
 function refineGuardianFields(
@@ -243,6 +260,14 @@ export const registrationSkillsStepSchema = z
       })
       .optional()
       .or(z.literal("")),
+    skills_other: z
+      .string()
+      .trim()
+      .max(REGISTRATION_LIMITS.skillsOther.max, {
+        message: `Please keep this under ${REGISTRATION_LIMITS.skillsOther.max} characters.`,
+      })
+      .optional()
+      .or(z.literal("")),
     preferred_program: z.enum(REGISTRATION_PREFERRED_PROGRAM_VALUES, {
       message: "Please select a preferred program.",
     }),
@@ -258,6 +283,7 @@ export const registrationSkillsStepSchema = z
         message: "Please tell us how you knew about Etkan.",
       });
     }
+    refineSkillsOther(data, ctx);
   });
 
 export const registrationAvailabilityStepSchema = z.object({
@@ -423,6 +449,7 @@ export const submitPublicRegistrationSchema = z
       .min(1, { message: "Select at least one skill." }),
     referral_source: z.enum(REGISTRATION_REFERRAL_SOURCE_VALUES),
     referral_other: optionalNullableText(REGISTRATION_LIMITS.referralOther.max),
+    skills_other: optionalNullableText(REGISTRATION_LIMITS.skillsOther.max),
     preferred_program: z.enum(REGISTRATION_PREFERRED_PROGRAM_VALUES),
     available_days: z
       .array(z.enum(REGISTRATION_WEEKDAY_VALUES))
@@ -473,6 +500,7 @@ export const submitPublicRegistrationSchema = z
         message: "Please tell us how you knew about Etkan.",
       });
     }
+    refineSkillsOther(data, ctx);
     for (const [index, doc] of data.documents.entries()) {
       if (
         !isRegistrationTempStoragePath(
@@ -575,6 +603,7 @@ export function parseSubmitPublicRegistrationFormData(formData: FormData):
     skills: parseJsonArray(formData.get("skills")),
     referral_source: formData.get("referral_source"),
     referral_other: formData.get("referral_other") ?? "",
+    skills_other: formData.get("skills_other") ?? "",
     preferred_program: formData.get("preferred_program"),
     available_days: parseJsonArray(formData.get("available_days")),
     preferred_shifts: parseJsonArray(formData.get("preferred_shifts")),
@@ -798,6 +827,7 @@ export const updateManagerRegistrationSchema = z
       .min(1, { message: "Select at least one skill." }),
     referral_source: z.enum(REGISTRATION_REFERRAL_SOURCE_VALUES),
     referral_other: optionalNullableText(REGISTRATION_LIMITS.referralOther.max),
+    skills_other: optionalNullableText(REGISTRATION_LIMITS.skillsOther.max),
     preferred_program: z.enum(REGISTRATION_PREFERRED_PROGRAM_VALUES),
     available_days: z
       .array(z.enum(REGISTRATION_WEEKDAY_VALUES))
@@ -837,6 +867,7 @@ export const updateManagerRegistrationSchema = z
         message: "Please tell us how you knew about Etkan.",
       });
     }
+    refineSkillsOther(data, ctx);
     refineGuardianFields(data, ctx);
   });
 
@@ -870,6 +901,7 @@ export function parseUpdateManagerRegistrationFormData(formData: FormData):
     skills: parseJsonArray(formData.get("skills")),
     referral_source: formData.get("referral_source"),
     referral_other: formData.get("referral_other") ?? "",
+    skills_other: formData.get("skills_other") ?? "",
     preferred_program: formData.get("preferred_program"),
     available_days: parseJsonArray(formData.get("available_days")),
     preferred_shifts: parseJsonArray(formData.get("preferred_shifts")),

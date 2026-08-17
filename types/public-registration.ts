@@ -56,6 +56,7 @@ export type ManagerRegistrationApplicationRow = {
   skills: RegistrationSkill[];
   referral_source: RegistrationReferralSource;
   referral_other: string | null;
+  skills_other: string | null;
   preferred_program: RegistrationPreferredProgram;
   available_days: RegistrationWeekday[];
   preferred_shifts: RegistrationShift[];

@@ -51,6 +51,7 @@ import {
   REGISTRATION_SHIFT_VALUES,
   REGISTRATION_SKILL_LABELS,
   REGISTRATION_SKILL_VALUES,
+  REGISTRATION_SKILLS,
   REGISTRATION_STEP_LABELS,
   REGISTRATION_STEPS,
   REGISTRATION_WEEKDAY_LABELS,
@@ -113,6 +114,7 @@ type Draft = {
   skills: string[];
   referral_source: string;
   referral_other: string;
+  skills_other: string;
   preferred_program: string;
   available_days: string[];
   preferred_shifts: string[];
@@ -149,6 +151,7 @@ function createEmptyDraft(): Draft {
     skills: [],
     referral_source: "",
     referral_other: "",
+    skills_other: "",
     preferred_program: "",
     available_days: [],
     preferred_shifts: [],
@@ -238,6 +241,7 @@ function createDraft(initial?: Partial<Draft>): Draft {
     upload_session_id: initial?.upload_session_id ?? crypto.randomUUID(),
     documents: initial?.documents ?? [],
     skills: initial?.skills ?? [],
+    skills_other: initial?.skills_other ?? "",
     available_days: initial?.available_days ?? [],
     preferred_shifts: initial?.preferred_shifts ?? [],
   };
@@ -334,6 +338,7 @@ function RegistrationWizardContent({
         skills: draft.skills,
         referral_source: draft.referral_source,
         referral_other: draft.referral_other,
+        skills_other: draft.skills_other,
         preferred_program: draft.preferred_program,
       });
     } else if (step === "availability") {
@@ -405,6 +410,7 @@ function RegistrationWizardContent({
     formData.set("skills", JSON.stringify(draft.skills));
     formData.set("referral_source", draft.referral_source);
     formData.set("referral_other", draft.referral_other);
+    formData.set("skills_other", draft.skills_other);
     formData.set("preferred_program", draft.preferred_program);
     formData.set("available_days", JSON.stringify(draft.available_days));
     formData.set("preferred_shifts", JSON.stringify(draft.preferred_shifts));
@@ -809,12 +815,34 @@ function RegistrationWizardContent({
                   labels={REGISTRATION_SKILL_LABELS}
                   selected={draft.skills}
                   disabled={isPending}
-                  onToggle={(value) =>
-                    patchDraft({ skills: toggleInArray(draft.skills, value) })
-                  }
+                  onToggle={(value) => {
+                    const next = toggleInArray(draft.skills, value);
+                    patchDraft({
+                      skills: next,
+                      skills_other: next.includes(REGISTRATION_SKILLS.OTHER)
+                        ? draft.skills_other
+                        : "",
+                    });
+                  }}
                 />
                 <FieldError message={stepErrors.skills} />
               </div>
+              {draft.skills.includes(REGISTRATION_SKILLS.OTHER) ? (
+                <div>
+                  <RegLabel htmlFor="reg-skills-other" required>
+                    {t("registration.field.skillsOther")}
+                  </RegLabel>
+                  <Input
+                    id="reg-skills-other"
+                    value={draft.skills_other}
+                    disabled={isPending}
+                    onChange={(e) =>
+                      patchDraft({ skills_other: e.target.value })
+                    }
+                  />
+                  <FieldError message={stepErrors.skills_other} />
+                </div>
+              ) : null}
               <div>
                 <RegLabel required>
                   {t("registration.field.referral")}
@@ -1074,12 +1102,19 @@ function RegistrationWizardContent({
                   </dt>
                   <dd>
                     {draft.skills
-                      .map(
-                        (skill) =>
+                      .map((skill) => {
+                        const label =
                           REGISTRATION_SKILL_LABELS[
                             skill as keyof typeof REGISTRATION_SKILL_LABELS
-                          ] ?? skill
-                      )
+                          ] ?? skill;
+                        if (
+                          skill === REGISTRATION_SKILLS.OTHER &&
+                          draft.skills_other.trim()
+                        ) {
+                          return `${label}: ${draft.skills_other.trim()}`;
+                        }
+                        return label;
+                      })
                       .join(", ")}
                   </dd>
                 </div>

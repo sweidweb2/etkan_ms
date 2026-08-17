@@ -836,6 +836,7 @@ export const en = {
   "registration.field.selfLearning": "Self-learning notes",
   "registration.field.learningGoal": "What do you want to learn?",
   "registration.field.skills": "Skills",
+  "registration.field.skillsOther": "Please specify the other skill",
   "registration.field.referral": "How did you know about Etkan?",
   "registration.field.referralOther": "Please specify",
   "registration.field.program": "Preferred program",

@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { GUEST_STATUS_LABELS } from "@/lib/constants/guest";
 import type { ManagerGuestStatusEventRow } from "@/types/manager-guest";
 
@@ -10,18 +11,12 @@ type GuestStatusHistoryProps = {
 
 export function GuestStatusHistory({ events }: GuestStatusHistoryProps) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl ring-1 ring-foreground/10">
-      <header className="border-b bg-muted/40 px-3 py-2.5 sm:px-4">
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">
-          Pipeline history
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Newest first. This is the pipeline log. Profile status changes
-          (Scheduled, Pending, Cancelled, Rejected, Finished) are not listed
-          here.
-        </p>
-      </header>
-
+    <ClassTabCollapsibleSection
+      title="Pipeline history"
+      description="Newest first. Profile status changes (Scheduled, Pending, Cancelled, Rejected, Finished) are not listed here."
+      storageKey="manager.guests.detail.history"
+      defaultOpen
+    >
       <div className="px-3 py-4 sm:px-4">
         {events.length === 0 ? (
           <p className="text-sm text-muted-foreground">No pipeline events yet.</p>
@@ -51,6 +46,6 @@ export function GuestStatusHistory({ events }: GuestStatusHistoryProps) {
           </ol>
         )}
       </div>
-    </section>
+    </ClassTabCollapsibleSection>
   );
 }

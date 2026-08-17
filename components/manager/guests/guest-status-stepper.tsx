@@ -41,6 +41,7 @@ import {
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -583,20 +584,12 @@ export function GuestStatusStepper({
 
   return (
     <>
-      <section className="min-w-0 overflow-hidden rounded-xl ring-1 ring-foreground/10">
-        <header className="border-b bg-muted/40 px-3 py-2.5 sm:px-4">
-          <h3 className="text-sm font-semibold tracking-tight text-foreground">
-            Manage status
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            Profile status is scheduled, pending, cancelled, rejected, or
-            finished. Recording Finished on the schema also marks the guest
-            finished. You can record steps while pending. If the guest is
-            finished, removing a recorded step reopens them as pending.
-            Cancelled and rejected keep the schema locked.
-          </p>
-        </header>
-
+      <ClassTabCollapsibleSection
+        title="Manage status"
+        description="Record pipeline steps while pending. If the guest is finished, removing a recorded step reopens them as pending. Cancelled and rejected keep the schema locked."
+        storageKey="manager.guests.detail.status"
+        defaultOpen
+      >
         <div className="space-y-5 px-3 py-4 sm:px-4">
           <div className="h-[18rem] w-full overflow-hidden rounded-lg border bg-muted/20">
             <ReactFlow
@@ -723,8 +716,16 @@ export function GuestStatusStepper({
               </div>
             ) : null}
           </div>
+
+          {guest.status === GUEST_CURRENT_STATUSES.FINISHED ? (
+            <p className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+              Finished means this guest is routed for manual team handoff. The
+              system does not auto-create users, student profiles, or
+              enrollments.
+            </p>
+          ) : null}
         </div>
-      </section>
+      </ClassTabCollapsibleSection>
 
       <Dialog
         open={pendingAction !== null}
