@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useSyncExternalStore, useTransition } from "react";
 import { CopyIcon, LinkIcon } from "lucide-react";
 import {
   cancelGuestRegistrationApplicationAction,
@@ -81,6 +81,18 @@ function statusLabel(status: string): string {
       status as RegistrationApplicationStatus
     ] ?? status
   );
+}
+
+function subscribeNoop() {
+  return () => {};
+}
+
+function getWindowOrigin() {
+  return window.location.origin;
+}
+
+function getServerOrigin() {
+  return "";
 }
 
 export function GuestRegistrationSection({
@@ -182,15 +194,16 @@ export function GuestRegistrationSection({
 
   const activeInvite = isActiveUnusedInvite(invite);
   const invitePath = invite ? getRegisterGuestRoute(invite.token) : null;
-  const [invitePublicUrl, setInvitePublicUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!invitePath) {
-      setInvitePublicUrl(null);
-      return;
-    }
-    setInvitePublicUrl(`${window.location.origin}${invitePath}`);
-  }, [invitePath]);
+  const origin = useSyncExternalStore(
+    subscribeNoop,
+    getWindowOrigin,
+    getServerOrigin
+  );
+  const invitePublicUrl = invitePath
+    ? origin
+      ? `${origin}${invitePath}`
+      : invitePath
+    : null;
 
   const hasSubmittedApp =
     Boolean(application) && application?.status !== "cancelled";
