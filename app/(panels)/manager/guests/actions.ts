@@ -9,8 +9,10 @@ import {
 } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { parseCreateGuestFormData } from "@/lib/validators/manager/create-guest";
+import { parseConnectGuestRegistrationUserFormData } from "@/lib/validators/manager/connect-guest-registration-user";
 import { parseChangeGuestStatusFormData } from "@/lib/validators/manager/change-guest-status";
+import { parseCreateGuestFormData } from "@/lib/validators/manager/create-guest";
+import { parseRecordGuestStatusesFormData } from "@/lib/validators/manager/record-guest-statuses";
 import { parseRemoveGuestStatusFormData } from "@/lib/validators/manager/remove-guest-status";
 import { parseSetGuestProfileStatusFormData } from "@/lib/validators/manager/set-guest-profile-status";
 import { parseUpdateGuestFormData } from "@/lib/validators/manager/update-guest";
@@ -21,10 +23,12 @@ import {
   removeGuestStatusForManager,
   setGuestProfileStatusForManager,
   setGuestStatusForManager,
+  setGuestStatusesForManager,
   updateGuestForManager,
 } from "@/services/guest.service";
 import {
   cancelGuestRegistrationApplicationForManager,
+  connectGuestRegistrationUserForManager,
   deleteGuestRegistrationApplicationForManager,
   openGuestRegistrationInviteForManager,
   stopGuestRegistrationInviteForManager,
@@ -33,10 +37,12 @@ import {
 import type {
   CancelGuestRegistrationApplicationActionState,
   ChangeGuestStatusActionState,
+  ConnectGuestRegistrationUserActionState,
   CreateGuestActionState,
   DeleteGuestActionState,
   DeleteGuestRegistrationApplicationActionState,
   OpenGuestRegistrationInviteActionState,
+  RecordGuestStatusesActionState,
   RemoveGuestStatusActionState,
   SetGuestProfileStatusActionState,
   StopGuestRegistrationInviteActionState,
@@ -173,6 +179,47 @@ export async function changeGuestStatusAction(
 
   const adminClient = createSupabaseAdminClient();
   const result = await setGuestStatusForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
+  return {
+    success: true,
+    message: result.message,
+    guest: result.guest,
+    statusEvents: result.statusEvents,
+  };
+}
+
+export async function recordGuestStatusesAction(
+  _prevState: RecordGuestStatusesActionState,
+  formData: FormData
+): Promise<RecordGuestStatusesActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseRecordGuestStatusesFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await setGuestStatusesForManager(
     adminClient,
     actor.userId,
     actor,
@@ -441,5 +488,43 @@ export async function deleteGuestRegistrationApplicationAction(
   return {
     success: true,
     message: result.message,
+  };
+}
+
+export async function connectGuestRegistrationUserAction(
+  _prevState: ConnectGuestRegistrationUserActionState,
+  formData: FormData
+): Promise<ConnectGuestRegistrationUserActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseConnectGuestRegistrationUserFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await connectGuestRegistrationUserForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    application: result.application,
   };
 }

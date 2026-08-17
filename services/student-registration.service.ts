@@ -99,6 +99,7 @@ function mapApplicationRecord(
     guardian_name: record.guardian_name,
     guardian_phone: record.guardian_phone,
     guest_id: record.guest_id,
+    user_id: record.user_id,
     documents,
   };
 }
@@ -144,6 +145,7 @@ function mapApplicationListRecord(
     guardian_name: null,
     guardian_phone: null,
     guest_id: record.guest_id,
+    user_id: record.user_id,
     documents: [],
   };
 }

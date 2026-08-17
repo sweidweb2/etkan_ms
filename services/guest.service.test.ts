@@ -15,6 +15,7 @@ import {
   removeGuestStatusForManager,
   setGuestProfileStatusForManager,
   setGuestStatusForManager,
+  setGuestStatusesForManager,
   updateGuestForManager,
 } from "@/services/guest.service";
 import { getGuestRegistrationInviteBundleForManager } from "@/services/guest-registration.service";
@@ -396,8 +397,9 @@ describe("setGuestStatusForManager", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("records a pipeline event without changing profile status", async () => {
+  it("records pipeline finished and sets profile to finished", async () => {
     const pendingGuest = { ...guestRecord, status: "pending" };
+    const finishedGuest = { ...pendingGuest, status: "finished" };
     vi.mocked(guestRepository.findGuestById).mockResolvedValue({
       data: pendingGuest,
       ...okResult,
@@ -421,6 +423,10 @@ describe("setGuestStatusForManager", () => {
       },
       ...okResult,
     });
+    vi.mocked(guestRepository.updateGuestStatus).mockResolvedValue({
+      data: finishedGuest,
+      ...okResult,
+    });
 
     const result = await setGuestStatusForManager(
       adminClient,
@@ -431,20 +437,14 @@ describe("setGuestStatusForManager", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.guest.status).toBe("pending");
-      expect(result.message).toBe("Status recorded.");
+      expect(result.guest.status).toBe("finished");
+      expect(result.message).toMatch(/marked finished/i);
     }
-    expect(
-      guestStatusEventRepository.createGuestStatusEvent
-    ).toHaveBeenCalledWith(
+    expect(guestRepository.updateGuestStatus).toHaveBeenCalledWith(
       adminClient,
-      expect.objectContaining({
-        guest_id: guestId,
-        status: "finished",
-        note: "Routed",
-      })
+      guestId,
+      "finished"
     );
-    expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
   });
 
   it("rejects profile outcomes as pipeline events", async () => {
@@ -614,6 +614,113 @@ describe("setGuestStatusForManager", () => {
 
     expect(result.success).toBe(false);
     expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("setGuestStatusesForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("records multiple unmade pipeline statuses", async () => {
+    const pendingGuest = { ...guestRecord, status: "pending" };
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: pendingGuest,
+      ...okResult,
+    });
+    vi.mocked(
+      guestStatusEventRepository.listGuestStatusEventsByGuestId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "event-1",
+          guest_id: guestId,
+          status: "started",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      ...okResult,
+    });
+    vi.mocked(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).mockResolvedValue({
+      data: {
+        id: "event-new",
+        guest_id: guestId,
+        status: "chose_plan",
+        note: "Catch up",
+        created_by: actor.userId,
+        created_at: "2026-01-04T00:00:00.000Z",
+      },
+      ...okResult,
+    });
+
+    const result = await setGuestStatusesForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: guestId,
+        statuses: ["started", "chose_plan", "routed_correctly"],
+        note: "Catch up",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).toHaveBeenCalledTimes(2);
+    expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
+  });
+
+  it("records finished among a bulk selection and sets profile to finished", async () => {
+    const pendingGuest = { ...guestRecord, status: "pending" };
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: pendingGuest,
+      ...okResult,
+    });
+    vi.mocked(
+      guestStatusEventRepository.listGuestStatusEventsByGuestId
+    ).mockResolvedValue({
+      data: [],
+      ...okResult,
+    });
+    vi.mocked(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).mockResolvedValue({
+      data: {
+        id: "event-new",
+        guest_id: guestId,
+        status: "finished",
+        note: null,
+        created_by: actor.userId,
+        created_at: "2026-01-04T00:00:00.000Z",
+      },
+      ...okResult,
+    });
+    vi.mocked(guestRepository.updateGuestStatus).mockResolvedValue({
+      data: { ...pendingGuest, status: "finished" },
+      ...okResult,
+    });
+
+    const result = await setGuestStatusesForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: guestId, statuses: ["started", "finished"], note: null }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.guest.status).toBe("finished");
+    }
+    expect(guestRepository.updateGuestStatus).toHaveBeenCalledWith(
+      adminClient,
+      guestId,
+      "finished"
+    );
   });
 });
 

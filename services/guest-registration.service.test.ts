@@ -1,10 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as guestRepository from "@/repositories/guest.repository";
 import * as inviteRepository from "@/repositories/guest-registration-invite.repository";
+import * as profileRepository from "@/repositories/profile.repository";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import type { AuditActor } from "@/services/audit-log.service";
 import {
   cancelGuestRegistrationApplicationForManager,
+  connectGuestRegistrationUserForManager,
   deleteGuestRegistrationApplicationForManager,
   getGuestRegistrationContextByToken,
   openGuestRegistrationInviteForManager,
@@ -19,6 +21,7 @@ import * as registrationStorage from "@/repositories/registration-storage.reposi
 
 vi.mock("@/repositories/guest.repository");
 vi.mock("@/repositories/guest-registration-invite.repository");
+vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-registration-application.repository");
 vi.mock("@/repositories/student-registration-document.repository");
 vi.mock("@/repositories/registration-storage.repository");
@@ -770,5 +773,191 @@ describe("deleteGuestRegistrationApplicationForManager", () => {
 
     expect(result.success).toBe(true);
     expect(inviteRepository.updateInvite).toHaveBeenCalled();
+  });
+});
+
+const applicationId = "c3c4d5e6-f7a8-9012-cdef-123456789012";
+const linkedUserId = "22222222-2222-4222-8222-222222222222";
+const otherUserId = "33333333-3333-4333-8333-333333333333";
+
+const applicationSummaryRecord = {
+  id: applicationId,
+  status: "pending",
+  created_at: "2026-01-01T00:00:00.000Z",
+  user_id: null as string | null,
+};
+
+const linkedProfile = {
+  id: linkedUserId,
+  username: "ada",
+  role: "student",
+  is_instructor: false,
+  created_at: "2026-01-01T00:00:00.000Z",
+};
+
+describe("connectGuestRegistrationUserForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("denies unless the guest is finished", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: guestRecord,
+      ...okResult,
+    });
+
+    const result = await connectGuestRegistrationUserForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { guest_id: guestId, user_id: linkedUserId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/finished/i);
+    }
+    expect(
+      registrationRepository.updateApplicationUserId
+    ).not.toHaveBeenCalled();
+  });
+
+  it("denies when there is no active application", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { ...guestRecord, status: "finished" },
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByGuestId
+    ).mockResolvedValue({ data: null, ...okResult });
+
+    const result = await connectGuestRegistrationUserForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { guest_id: guestId, user_id: linkedUserId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/no registration application/i);
+    }
+  });
+
+  it("sets user_id on the guest application", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { ...guestRecord, status: "finished" },
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByGuestId
+    ).mockResolvedValue({
+      data: applicationSummaryRecord as never,
+      ...okResult,
+    });
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: linkedProfile,
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByUserId
+    ).mockResolvedValue({ data: null, ...okResult });
+    vi.mocked(registrationRepository.updateApplicationUserId).mockResolvedValue({
+      data: { ...applicationSummaryRecord, user_id: linkedUserId } as never,
+      ...okResult,
+    });
+
+    const result = await connectGuestRegistrationUserForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { guest_id: guestId, user_id: linkedUserId }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.application.user_id).toBe(linkedUserId);
+    }
+    expect(registrationRepository.updateApplicationUserId).toHaveBeenCalledWith(
+      adminClient,
+      applicationId,
+      linkedUserId
+    );
+  });
+
+  it("rejects a user already linked to another application", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { ...guestRecord, status: "finished" },
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByGuestId
+    ).mockResolvedValue({
+      data: applicationSummaryRecord as never,
+      ...okResult,
+    });
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: linkedProfile,
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByUserId
+    ).mockResolvedValue({
+      data: { id: "other-app", user_id: linkedUserId } as never,
+      ...okResult,
+    });
+
+    const result = await connectGuestRegistrationUserForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { guest_id: guestId, user_id: linkedUserId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/already linked/i);
+    }
+    expect(
+      registrationRepository.updateApplicationUserId
+    ).not.toHaveBeenCalled();
+  });
+
+  it("allows reconnecting the same application to a different user", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { ...guestRecord, status: "finished" },
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByGuestId
+    ).mockResolvedValue({
+      data: { ...applicationSummaryRecord, user_id: otherUserId } as never,
+      ...okResult,
+    });
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: linkedProfile,
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByUserId
+    ).mockResolvedValue({ data: null, ...okResult });
+    vi.mocked(registrationRepository.updateApplicationUserId).mockResolvedValue({
+      data: { ...applicationSummaryRecord, user_id: linkedUserId } as never,
+      ...okResult,
+    });
+
+    const result = await connectGuestRegistrationUserForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { guest_id: guestId, user_id: linkedUserId }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.application.user_id).toBe(linkedUserId);
+      expect(result.message).toMatch(/updated/i);
+    }
+    expect(registrationRepository.updateApplicationUserId).toHaveBeenCalled();
   });
 });

@@ -13,8 +13,8 @@ The original [`implementation-plan.md`](./implementation-plan.md) is **historica
 
 | Layer | Catalog | Behavior |
 |-------|---------|----------|
-| **Profile** (`guests.status`) | `scheduled` \| `pending` \| `cancelled` \| `rejected` \| `finished` | Default on create: **`scheduled`**. Staff may set any → any. **Not** derived from the pipeline log. |
-| **Pipeline log** (`guest_status_events.status`) | `started`, `finished_meeting`, `finished_parent_meeting`, `chose_plan`, `routed_correctly`, `finishing_routing_doc`, `finished` | Record / remove **only while profile is `pending`**. Recording pipeline `finished` does **not** flip profile. Create writes **no** initial event. |
+| **Profile** (`guests.status`) | `scheduled` \| `pending` \| `cancelled` \| `rejected` \| `finished` | Default on create: **`scheduled`**. Staff may set any → any. Recording pipeline `finished` also sets profile to **`finished`**. |
+| **Pipeline log** (`guest_status_events.status`) | `started`, `finished_meeting`, `finished_parent_meeting`, `chose_plan`, `routed_correctly`, `finishing_routing_doc`, `finished` | Record / remove **only while profile is `pending`**. Staff can bulk-record unmade nodes. Recording pipeline `finished` flips profile to finished (and then locks the schema). Create writes **no** initial event. |
 | **Registration** | One invite row per guest; one **non-cancelled** application per guest | Invite-first; public one-shot `/register/guest/[token]`; staff fill; invite is stop-only; cancel or hard-delete application; reopen after. |
 | **Delete guest** | DB cascade + storage cleanup | Fail-closed: if document files cannot be removed, the guest row is **not** deleted. |
 | **Conversion** | None | No auto-create of users, students, classes, or workshops. |
@@ -42,7 +42,7 @@ The original [`implementation-plan.md`](./implementation-plan.md) is **historica
 - [x] Pipeline schema is `@xyflow/react`; click idle node → record; click done node → remove
 - [x] Pipeline CRUD rejected unless profile is `pending` (service + UI lock copy)
 - [x] Duplicate pipeline node is a no-op success (“already recorded”)
-- [x] Recording pipeline `finished` leaves profile unchanged
+- [x] Recording pipeline `finished` sets profile to finished
 - [x] History list shows pipeline events only (newest first)
 
 ### Registration dossier

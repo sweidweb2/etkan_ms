@@ -118,6 +118,8 @@ const applicationRecord = {
   consent_privacy: true,
   guardian_name: null,
   guardian_phone: null,
+  guest_id: null,
+  user_id: null,
 };
 
 describe("student-registration.service", () => {

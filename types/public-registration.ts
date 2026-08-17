@@ -68,6 +68,7 @@ export type ManagerRegistrationApplicationRow = {
   guardian_name: string | null;
   guardian_phone: string | null;
   guest_id: string | null;
+  user_id: string | null;
   documents: ManagerRegistrationDocumentRow[];
 };
 

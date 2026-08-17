@@ -1140,13 +1140,14 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.GUESTS_CHANGE_STATUS,
     feature: "guests",
-    label: "Set guest status",
+    label: "Set profile status; record or remove pipeline statuses",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
     key: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     feature: "guests",
-    label: "Open, rotate, or stop invite; cancel or hard-delete application; staff-fill",
+    label:
+      "Open, rotate, or stop invite; cancel or hard-delete application; staff-fill; connect finished-guest dossier to a user",
     access: PERMISSION_ACCESS.WRITE,
   },
 

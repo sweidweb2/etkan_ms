@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import {
   changeGuestStatusAction,
+  recordGuestStatusesAction,
   removeGuestStatusAction,
   setGuestProfileStatusAction,
 } from "@/app/manager/guests/actions";
@@ -57,6 +58,7 @@ import {
   GUEST_CURRENT_STATUS_LABELS,
   GUEST_CURRENT_STATUS_VALUES,
   GUEST_PIPELINE_STATUSES,
+  GUEST_PIPELINE_STATUS_VALUES,
   GUEST_STATUS_LABELS,
   canMutateGuestPipeline,
   type GuestCurrentStatus,
@@ -70,6 +72,7 @@ import type {
   ChangeGuestStatusActionState,
   ManagerGuestRow,
   ManagerGuestStatusEventRow,
+  RecordGuestStatusesActionState,
   RemoveGuestStatusActionState,
   SetGuestProfileStatusActionState,
 } from "@/types/manager-guest";
@@ -78,6 +81,7 @@ type StepTone = "current" | "done" | "idle";
 
 type PendingStatusAction =
   | { mode: "set"; status: GuestPipelineStatus }
+  | { mode: "setMany"; statuses: GuestPipelineStatus[] }
   | { mode: "remove"; status: GuestPipelineStatus }
   | { mode: "profile"; status: GuestCurrentStatus };
 
@@ -100,6 +104,7 @@ type StatusNodeData = {
 type StatusFlowNode = Node<StatusNodeData, "status">;
 
 const initialStatusState: ChangeGuestStatusActionState = {};
+const initialRecordManyState: RecordGuestStatusesActionState = {};
 const initialRemoveState: RemoveGuestStatusActionState = {};
 const initialProfileState: SetGuestProfileStatusActionState = {};
 
@@ -283,13 +288,18 @@ export function GuestStatusStepper({
   );
   const [note, setNote] = useState("");
   const [submittingMode, setSubmittingMode] = useState<
-    "set" | "remove" | "profile" | null
+    "set" | "setMany" | "remove" | "profile" | null
   >(null);
+  const [selectedMissing, setSelectedMissing] = useState<
+    GuestPipelineStatus[]
+  >([]);
   const [isTransitionPending, startTransition] = useTransition();
   const [statusState, statusFormAction, isStatusActionPending] = useActionState(
     changeGuestStatusAction,
     initialStatusState
   );
+  const [recordManyState, recordManyFormAction, isRecordManyActionPending] =
+    useActionState(recordGuestStatusesAction, initialRecordManyState);
   const [removeState, removeFormAction, isRemoveActionPending] = useActionState(
     removeGuestStatusAction,
     initialRemoveState
@@ -300,6 +310,9 @@ export function GuestStatusStepper({
   const isSetPending =
     submittingMode === "set" &&
     (isStatusActionPending || isTransitionPending);
+  const isSetManyPending =
+    submittingMode === "setMany" &&
+    (isRecordManyActionPending || isTransitionPending);
   const isRemovePending =
     submittingMode === "remove" &&
     (isRemoveActionPending || isTransitionPending);
@@ -308,6 +321,7 @@ export function GuestStatusStepper({
     (isProfileActionPending || isTransitionPending);
   const isPending =
     isStatusActionPending ||
+    isRecordManyActionPending ||
     isRemoveActionPending ||
     isProfileActionPending ||
     isTransitionPending;
@@ -345,6 +359,7 @@ export function GuestStatusStepper({
   }
 
   useActionStateToast(statusState, isSetPending);
+  useActionStateToast(recordManyState, isSetManyPending);
   useActionStateToast(removeState, isRemovePending);
   useActionStateToast(profileState, isProfilePending);
   useActionStateSuccess(statusState, isSetPending, () => {
@@ -353,6 +368,16 @@ export function GuestStatusStepper({
       onStatusChanged(statusState.guest, statusState.statusEvents);
     }
     setPendingAction(null);
+    setNote("");
+    setSubmittingMode(null);
+  });
+  useActionStateSuccess(recordManyState, isSetManyPending, () => {
+    if (recordManyState.guest) {
+      applyStatusEvents(recordManyState.statusEvents);
+      onStatusChanged(recordManyState.guest, recordManyState.statusEvents);
+    }
+    setPendingAction(null);
+    setSelectedMissing([]);
     setNote("");
     setSubmittingMode(null);
   });
@@ -456,15 +481,49 @@ export function GuestStatusStepper({
     []
   );
 
+  const unmadeStatuses = useMemo(
+    () =>
+      GUEST_PIPELINE_STATUS_VALUES.filter(
+        (status) => !recordedStatuses.has(status)
+      ),
+    [recordedStatuses]
+  );
+
+  function toggleMissingStatus(status: GuestPipelineStatus) {
+    setSelectedMissing((current) =>
+      current.includes(status)
+        ? current.filter((item) => item !== status)
+        : [...current, status]
+    );
+  }
+
+  function openBulkRecord() {
+    const statuses = selectedMissing.filter((status) =>
+      unmadeStatuses.includes(status)
+    );
+    if (!canEditPipeline || isPending || statuses.length === 0) {
+      return;
+    }
+    setPendingAction({ mode: "setMany", statuses });
+    setNote("");
+  }
+
   function submitPendingAction() {
     if (!pendingAction) {
       return;
     }
     const formData = new FormData();
     formData.set("id", guest.id);
-    formData.set("status", pendingAction.status);
-    if (pendingAction.mode === "set" || pendingAction.mode === "profile") {
+    if (pendingAction.mode === "setMany") {
+      for (const status of pendingAction.statuses) {
+        formData.append("statuses", status);
+      }
       formData.set("note", note);
+    } else {
+      formData.set("status", pendingAction.status);
+      if (pendingAction.mode === "set" || pendingAction.mode === "profile") {
+        formData.set("note", note);
+      }
     }
     setSubmittingMode(pendingAction.mode);
     startTransition(() => {
@@ -472,6 +531,8 @@ export function GuestStatusStepper({
         removeFormAction(formData);
       } else if (pendingAction.mode === "profile") {
         profileFormAction(formData);
+      } else if (pendingAction.mode === "setMany") {
+        recordManyFormAction(formData);
       } else {
         statusFormAction(formData);
       }
@@ -480,10 +541,21 @@ export function GuestStatusStepper({
 
   const isRemoveMode = pendingAction?.mode === "remove";
   const isProfileMode = pendingAction?.mode === "profile";
+  const isSetManyMode = pendingAction?.mode === "setMany";
+  const pendingRecordsFinished =
+    pendingAction?.mode === "set"
+      ? pendingAction.status === GUEST_PIPELINE_STATUSES.FINISHED
+      : pendingAction?.mode === "setMany"
+        ? pendingAction.statuses.includes(GUEST_PIPELINE_STATUSES.FINISHED)
+        : false;
   const pendingLabel = pendingAction
     ? pendingAction.mode === "profile"
       ? GUEST_CURRENT_STATUS_LABELS[pendingAction.status]
-      : GUEST_STATUS_LABELS[pendingAction.status]
+      : pendingAction.mode === "setMany"
+        ? pendingAction.statuses
+            .map((status) => GUEST_STATUS_LABELS[status])
+            .join(", ")
+        : GUEST_STATUS_LABELS[pendingAction.status]
     : null;
 
   return (
@@ -495,8 +567,8 @@ export function GuestStatusStepper({
           </h3>
           <p className="text-xs text-muted-foreground">
             Profile status is scheduled, pending, cancelled, rejected, or
-            finished. The schema log can be recorded or removed only while the
-            guest is pending.
+            finished. Recording Finished on the schema also marks the guest
+            finished. Pipeline log edits are only allowed while pending.
           </p>
         </header>
 
@@ -523,6 +595,57 @@ export function GuestStatusStepper({
               <Background gap={18} size={1} />
             </ReactFlow>
           </div>
+
+          {canEditPipeline ? (
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <h4 className="text-sm font-medium text-foreground">
+                  Record missing statuses
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Select one or more unmade pipeline steps, then record them
+                  together.
+                </p>
+              </div>
+              {unmadeStatuses.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  All pipeline statuses are already recorded.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {unmadeStatuses.map((status) => {
+                      const selected = selectedMissing.includes(status);
+                      return (
+                        <Button
+                          key={status}
+                          type="button"
+                          size="sm"
+                          variant={selected ? "secondary" : "outline"}
+                          aria-pressed={selected}
+                          disabled={isPending}
+                          onClick={() => toggleMissingStatus(status)}
+                        >
+                          {GUEST_STATUS_LABELS[status]}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isPending || selectedMissing.length === 0}
+                    onClick={openBulkRecord}
+                  >
+                    Record selected
+                    {selectedMissing.length > 0
+                      ? ` (${selectedMissing.length})`
+                      : ""}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-muted-foreground">
@@ -574,7 +697,9 @@ export function GuestStatusStepper({
                   ? `Remove ${pendingLabel}?`
                   : isProfileMode
                     ? `Set status to ${pendingLabel}?`
-                    : `Record ${pendingLabel}?`
+                    : isSetManyMode
+                      ? "Record selected statuses?"
+                      : `Record ${pendingLabel}?`
                 : "Change status"}
             </DialogTitle>
             <DialogDescription>
@@ -583,7 +708,13 @@ export function GuestStatusStepper({
                   ? `This deletes ${pendingLabel} from the pipeline log. Profile status stays ${GUEST_CURRENT_STATUS_LABELS[guest.status]}.`
                   : isProfileMode
                     ? `Change profile status from ${GUEST_CURRENT_STATUS_LABELS[guest.status]} to ${pendingLabel}. Pipeline history is unchanged.`
-                    : `Record ${pendingLabel} in the pipeline log. Profile status stays pending.`
+                    : isSetManyMode
+                      ? pendingRecordsFinished
+                        ? `Record ${pendingLabel}. The guest profile will also be set to Finished.`
+                        : `Record ${pendingLabel} in the pipeline log. Profile status stays pending.`
+                      : pendingRecordsFinished
+                        ? `Record ${pendingLabel} in the pipeline log and set the guest profile to Finished.`
+                        : `Record ${pendingLabel} in the pipeline log. Profile status stays pending.`
                 : null}
             </DialogDescription>
           </DialogHeader>

@@ -1,6 +1,9 @@
 import {
+  GUEST_CURRENT_STATUSES,
   GUEST_EDUCATION_LEVEL_VALUES,
   GUEST_INTERESTED_SERVICE_VALUES,
+  GUEST_PIPELINE_STATUS_VALUES,
+  GUEST_PIPELINE_STATUSES,
   canMutateGuestPipeline,
   isGuestCurrentStatus,
   isGuestStatus,
@@ -12,6 +15,7 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createGuestSchema } from "@/lib/validators/manager/create-guest";
 import { changeGuestStatusSchema } from "@/lib/validators/manager/change-guest-status";
+import { recordGuestStatusesSchema } from "@/lib/validators/manager/record-guest-statuses";
 import { removeGuestStatusSchema } from "@/lib/validators/manager/remove-guest-status";
 import { setGuestProfileStatusSchema } from "@/lib/validators/manager/set-guest-profile-status";
 import { updateGuestSchema } from "@/lib/validators/manager/update-guest";
@@ -289,6 +293,46 @@ export async function getGuestDetailForManager(
   };
 }
 
+function uniquePipelineStatuses(statuses: GuestStatus[]): GuestStatus[] {
+  const selected = new Set(statuses);
+  return GUEST_PIPELINE_STATUS_VALUES.filter((status) => selected.has(status));
+}
+
+async function finishGuestProfileFromPipeline(
+  adminClient: Supabase,
+  actor: AuditActor,
+  guest: ManagerGuestRow
+): Promise<{ guest: ManagerGuestRow; error?: string }> {
+  if (guest.status === GUEST_CURRENT_STATUSES.FINISHED) {
+    return { guest };
+  }
+
+  const { data, error } = await guestRepository.updateGuestStatus(
+    adminClient,
+    guest.id,
+    GUEST_CURRENT_STATUSES.FINISHED
+  );
+
+  if (error || !data) {
+    return {
+      guest,
+      error: error?.message || "Unable to set guest profile to finished.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "guests",
+    record_id: data.id,
+    old_data: { status: guest.status },
+    new_data: { status: data.status },
+    metadata: { note: "Guest profile set to finished from pipeline." },
+  });
+
+  return { guest: mapGuestRecordToRow(data) };
+}
+
 export async function setGuestStatusForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -388,10 +432,159 @@ export async function setGuestStatusForManager(
     return { success: false, error: remainingResult.error.message };
   }
 
+  let guest = current;
+  if (status === GUEST_PIPELINE_STATUSES.FINISHED) {
+    const finished = await finishGuestProfileFromPipeline(
+      adminClient,
+      actor,
+      current
+    );
+    if (finished.error) {
+      return { success: false, error: finished.error };
+    }
+    guest = finished.guest;
+  }
+
   return {
     success: true,
-    guest: current,
-    message: "Status recorded.",
+    guest,
+    message:
+      status === GUEST_PIPELINE_STATUSES.FINISHED
+        ? "Status recorded. Guest marked finished."
+        : "Status recorded.",
+    statusEvents: (remainingResult.data ?? []).map(
+      mapGuestStatusEventRecordToRow
+    ),
+  };
+}
+
+export async function setGuestStatusesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    statuses: GuestStatus[];
+    note?: string | null;
+  }
+): Promise<ChangeGuestStatusResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.GUESTS_CHANGE_STATUS
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = recordGuestStatusesSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { id, note } = parsed.data;
+  const statuses = uniquePipelineStatuses(parsed.data.statuses);
+
+  const existing = await guestRepository.findGuestById(adminClient, id);
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+  if (!existing.data) {
+    return { success: false, error: "Guest not found." };
+  }
+
+  const current = mapGuestRecordToRow(existing.data);
+  if (!canMutateGuestPipeline(current.status)) {
+    return { success: false, error: PIPELINE_LOCKED_MESSAGE };
+  }
+
+  const eventsResult =
+    await guestStatusEventRepository.listGuestStatusEventsByGuestId(
+      adminClient,
+      id
+    );
+  if (eventsResult.error) {
+    return { success: false, error: eventsResult.error.message };
+  }
+
+  const alreadyRecorded = new Set(
+    (eventsResult.data ?? []).map((event) => event.status)
+  );
+  const toRecord = statuses.filter((status) => !alreadyRecorded.has(status));
+
+  if (toRecord.length === 0) {
+    return {
+      success: true,
+      guest: current,
+      message: "These statuses were already recorded.",
+      statusEvents: (eventsResult.data ?? []).map(mapGuestStatusEventRecordToRow),
+    };
+  }
+
+  for (const status of toRecord) {
+    const eventResult = await guestStatusEventRepository.createGuestStatusEvent(
+      adminClient,
+      {
+        guest_id: id,
+        status,
+        note,
+        created_by: actor.userId,
+      }
+    );
+
+    if (eventResult.error || !eventResult.data) {
+      return {
+        success: false,
+        error: "Unable to record guest status change. Please try again.",
+      };
+    }
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "guest_status_events",
+    record_id: id,
+    new_data: { guest_id: id, statuses: toRecord, note },
+    metadata: { note: "Guest pipeline statuses recorded." },
+  });
+
+  const remainingResult =
+    await guestStatusEventRepository.listGuestStatusEventsByGuestId(
+      adminClient,
+      id
+    );
+  if (remainingResult.error) {
+    return { success: false, error: remainingResult.error.message };
+  }
+
+  let guest = current;
+  if (toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED)) {
+    const finished = await finishGuestProfileFromPipeline(
+      adminClient,
+      actor,
+      current
+    );
+    if (finished.error) {
+      return { success: false, error: finished.error };
+    }
+    guest = finished.guest;
+  }
+
+  const recordedFinished = toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED);
+
+  return {
+    success: true,
+    guest,
+    message: recordedFinished
+      ? "Statuses recorded. Guest marked finished."
+      : toRecord.length === 1
+        ? "Status recorded."
+        : `${toRecord.length} statuses recorded.`,
     statusEvents: (remainingResult.data ?? []).map(
       mapGuestStatusEventRecordToRow
     ),

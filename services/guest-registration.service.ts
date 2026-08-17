@@ -1,11 +1,16 @@
 import { randomBytes } from "crypto";
+import { GUEST_CURRENT_STATUSES } from "@/lib/constants/guest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getGuestRegistrationInviteUrl } from "@/lib/manager/guests/guest-registration-invite-url";
+import { connectGuestRegistrationUserSchema } from "@/lib/validators/manager/connect-guest-registration-user";
 import type { SubmitPublicRegistrationInput } from "@/lib/validators/public/registration";
+import * as authRepository from "@/repositories/auth.repository";
 import * as guestRepository from "@/repositories/guest.repository";
 import * as inviteRepository from "@/repositories/guest-registration-invite.repository";
 import type { GuestRegistrationInviteRecord } from "@/repositories/guest-registration-invite.repository";
+import * as profileRepository from "@/repositories/profile.repository";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
+import type { StudentRegistrationApplicationRecord } from "@/repositories/student-registration-application.repository";
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
 import {
@@ -18,6 +23,7 @@ import {
 import { submitPublicRegistrationApplication } from "@/services/student-registration.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
+  GuestRegistrationLinkUserOption,
   ManagerGuestRegistrationApplicationSummary,
   ManagerGuestRegistrationInvite,
 } from "@/types/manager-guest";
@@ -71,6 +77,22 @@ type SimpleMutationFailure = {
 
 export type SimpleMutationResult = SimpleMutationSuccess | SimpleMutationFailure;
 
+export type ConnectGuestRegistrationUserSuccess = {
+  success: true;
+  message: string;
+  application: ManagerGuestRegistrationApplicationSummary;
+};
+
+export type ConnectGuestRegistrationUserFailure = {
+  success: false;
+  error: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type ConnectGuestRegistrationUserResult =
+  | ConnectGuestRegistrationUserSuccess
+  | ConnectGuestRegistrationUserFailure;
+
 function generateInviteToken(): string {
   return randomBytes(32).toString("base64url");
 }
@@ -87,6 +109,17 @@ function mapInviteRecord(
     used_at: record.used_at,
     cancelled_at: record.cancelled_at,
     public_url: getGuestRegistrationInviteUrl(record.token),
+  };
+}
+
+function mapApplicationSummary(
+  record: StudentRegistrationApplicationRecord
+): ManagerGuestRegistrationApplicationSummary {
+  return {
+    id: record.id,
+    status: record.status,
+    created_at: record.created_at,
+    user_id: record.user_id,
   };
 }
 
@@ -112,11 +145,7 @@ async function loadActiveApplicationSummary(
     return null;
   }
 
-  return {
-    id: data.id,
-    status: data.status,
-    created_at: data.created_at,
-  };
+  return mapApplicationSummary(data);
 }
 
 async function resolveGuestApplicationId(
@@ -160,11 +189,7 @@ export async function getGuestRegistrationInviteBundleForManager(
       throw new Error(appResult.error.message);
     }
     if (appResult.data) {
-      application = {
-        id: appResult.data.id,
-        status: appResult.data.status,
-        created_at: appResult.data.created_at,
-      };
+      application = mapApplicationSummary(appResult.data);
     }
   }
 
@@ -770,5 +795,163 @@ export async function deleteGuestRegistrationApplicationForManager(
   return {
     success: true,
     message: "Registration application deleted.",
+  };
+}
+
+export async function listUsersForGuestRegistrationLink(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<GuestRegistrationLinkUserOption[]> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.GUESTS_REGISTRATION_MANAGE
+  );
+  if (unauthorized) {
+    return [];
+  }
+
+  const { data: profiles, error } = await profileRepository.listProfiles(
+    adminClient
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!profiles?.length) {
+    return [];
+  }
+
+  const emailsResult = await authRepository.listAuthEmailsByIds(
+    adminClient,
+    profiles.map((profile) => profile.id)
+  );
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
+
+  return [...profiles]
+    .sort((a, b) =>
+      (a.username ?? a.id).localeCompare(b.username ?? b.id, undefined, {
+        sensitivity: "base",
+      })
+    )
+    .map((profile) => ({
+      id: profile.id,
+      username: profile.username,
+      email: emailsResult.data.get(profile.id) ?? "",
+    }));
+}
+
+export async function connectGuestRegistrationUserForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: { guest_id: string; user_id: string }
+): Promise<ConnectGuestRegistrationUserResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.GUESTS_REGISTRATION_MANAGE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = connectGuestRegistrationUserSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { guest_id: guestId, user_id: userId } = parsed.data;
+
+  const guestResult = await guestRepository.findGuestById(adminClient, guestId);
+  if (guestResult.error) {
+    return { success: false, error: guestResult.error.message };
+  }
+  if (!guestResult.data) {
+    return { success: false, error: "Guest not found." };
+  }
+  if (guestResult.data.status !== GUEST_CURRENT_STATUSES.FINISHED) {
+    return {
+      success: false,
+      error: "Connect a user only after the guest is finished.",
+    };
+  }
+
+  const application = await loadActiveApplicationSummary(adminClient, guestId);
+  if (!application) {
+    return {
+      success: false,
+      error: "This guest has no registration application to connect.",
+    };
+  }
+
+  const profileResult = await profileRepository.findProfileById(
+    adminClient,
+    userId
+  );
+  if (profileResult.error) {
+    return { success: false, error: profileResult.error.message };
+  }
+  if (!profileResult.data) {
+    return { success: false, error: "User not found." };
+  }
+
+  if (application.user_id === userId) {
+    return {
+      success: true,
+      message: "Registration is already connected to this user.",
+      application,
+    };
+  }
+
+  const existingForUser =
+    await registrationRepository.findActiveApplicationByUserId(
+      adminClient,
+      userId
+    );
+  if (existingForUser.error) {
+    return { success: false, error: existingForUser.error.message };
+  }
+  if (existingForUser.data && existingForUser.data.id !== application.id) {
+    return {
+      success: false,
+      error:
+        "That user is already linked to another registration application.",
+    };
+  }
+
+  const updated = await registrationRepository.updateApplicationUserId(
+    adminClient,
+    application.id,
+    userId
+  );
+  if (updated.error || !updated.data) {
+    return {
+      success: false,
+      error: updated.error?.message ?? "Unable to connect registration to user.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "student_registration_applications",
+    record_id: updated.data.id,
+    old_data: { user_id: application.user_id },
+    new_data: { user_id: userId, guest_id: guestId },
+    metadata: { note: "Guest registration connected to user." },
+  });
+
+  return {
+    success: true,
+    message: application.user_id
+      ? "Linked user updated."
+      : "Registration connected to user.",
+    application: mapApplicationSummary(updated.data),
   };
 }

@@ -718,6 +718,7 @@ Table student_registration_applications {
   status text [not null, default: 'pending', note: 'open | pending | accepted | applied | missing | rejected | cancelled']
   notes text
   guest_id uuid [note: 'nullable; at most one non-cancelled per guest']
+  user_id uuid [note: 'nullable; at most one non-cancelled per user']
   full_name text [not null]
   gender text [not null]
   date_of_birth date [not null]
@@ -768,4 +769,5 @@ Ref: guest_registration_invites.guest_id > guests.id
 Ref: guest_registration_invites.application_id > student_registration_applications.id
 Ref: guest_registration_invites.created_by > profiles.id
 Ref: student_registration_applications.guest_id > guests.id
+Ref: student_registration_applications.user_id > profiles.id
 Ref: student_registration_documents.application_id > student_registration_applications.id

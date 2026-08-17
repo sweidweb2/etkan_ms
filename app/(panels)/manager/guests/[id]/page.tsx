@@ -3,6 +3,7 @@ import { GuestDetailsPanel } from "@/components/manager/guests/guest-details-pan
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getGuestDetailForManager } from "@/services/guest.service";
+import { listUsersForGuestRegistrationLink } from "@/services/guest-registration.service";
 
 type ManagerGuestDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -24,12 +25,18 @@ export default async function ManagerGuestDetailPage({
     notFound();
   }
 
+  const linkUsers = await listUsersForGuestRegistrationLink(
+    adminClient,
+    user?.id ?? null
+  );
+
   return (
     <GuestDetailsPanel
       guest={detail.guest}
       statusEvents={detail.statusEvents}
       registrationInvite={detail.registrationInvite}
       registrationApplication={detail.registrationApplication}
+      linkUsers={linkUsers}
     />
   );
 }

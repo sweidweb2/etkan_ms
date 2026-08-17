@@ -1653,6 +1653,7 @@ export type Database = {
           speciality: string | null
           status: string
           updated_at: string
+          user_id: string | null
           weekly_available_hours: number
         }
         Insert: {
@@ -1691,6 +1692,7 @@ export type Database = {
           speciality?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
           weekly_available_hours: number
         }
         Update: {
@@ -1729,6 +1731,7 @@ export type Database = {
           speciality?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
           weekly_available_hours?: number
         }
         Relationships: [
@@ -1737,6 +1740,13 @@ export type Database = {
             columns: ["guest_id"]
             isOneToOne: false
             referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_registration_applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

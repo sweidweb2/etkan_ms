@@ -4,11 +4,11 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const APPLICATION_COLUMNS =
-  "id, created_at, updated_at, status, notes, full_name, gender, date_of_birth, blood_type, email, phone, additional_phone, city, full_address, education_level, organization_name, speciality, learning_status, graduation_year, self_learning_notes, learning_goal, skills, referral_source, referral_other, preferred_program, available_days, preferred_shifts, weekly_available_hours, job_status, has_transportation, consent_terms, consent_privacy, guardian_name, guardian_phone, id_document_type, guest_id";
+  "id, created_at, updated_at, status, notes, full_name, gender, date_of_birth, blood_type, email, phone, additional_phone, city, full_address, education_level, organization_name, speciality, learning_status, graduation_year, self_learning_notes, learning_goal, skills, referral_source, referral_other, preferred_program, available_days, preferred_shifts, weekly_available_hours, job_status, has_transportation, consent_terms, consent_privacy, guardian_name, guardian_phone, id_document_type, guest_id, user_id";
 
 /** Columns needed by the manager registrations table (not detail). */
 const APPLICATION_LIST_COLUMNS =
-  "id, created_at, status, full_name, email, phone, city, preferred_program, guest_id";
+  "id, created_at, status, full_name, email, phone, city, preferred_program, guest_id, user_id";
 
 export type StudentRegistrationApplicationListRecord = {
   id: string;
@@ -20,6 +20,7 @@ export type StudentRegistrationApplicationListRecord = {
   city: string;
   preferred_program: string;
   guest_id: string | null;
+  user_id: string | null;
 };
 
 export type StudentRegistrationApplicationRecord = {
@@ -59,6 +60,7 @@ export type StudentRegistrationApplicationRecord = {
   guardian_phone: string | null;
   id_document_type: string;
   guest_id: string | null;
+  user_id: string | null;
 };
 
 export type CreateStudentRegistrationApplicationInput = {
@@ -300,6 +302,34 @@ export async function findActiveApplicationByGuestId(
     .eq("guest_id", guestId)
     .neq("status", "cancelled")
     .maybeSingle();
+}
+
+export async function findActiveApplicationByUserId(
+  client: Supabase,
+  userId: string
+) {
+  return client
+    .from("student_registration_applications")
+    .select(APPLICATION_COLUMNS)
+    .eq("user_id", userId)
+    .neq("status", "cancelled")
+    .maybeSingle();
+}
+
+export async function updateApplicationUserId(
+  client: Supabase,
+  applicationId: string,
+  userId: string
+) {
+  return client
+    .from("student_registration_applications")
+    .update({
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", applicationId)
+    .select(APPLICATION_COLUMNS)
+    .single();
 }
 
 export async function listApplicationIdsByGuestId(

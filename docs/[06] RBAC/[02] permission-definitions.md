@@ -323,8 +323,8 @@ Format: `key` — label — access
 | `guests.create` | Create guests | write |
 | `guests.update` | Update guest intake fields and notes | write |
 | `guests.delete` | Hard-delete guests | write |
-| `guests.change_status` | Set guest status | write |
-| `guests.registration.manage` | Open, rotate, or stop invite; cancel or hard-delete application; staff-fill | write |
+| `guests.change_status` | Set profile status; record or remove pipeline statuses | write |
+| `guests.registration.manage` | Open, rotate, or stop invite; cancel or hard-delete application; staff-fill; connect finished-guest dossier to a user | write |
 
 ### Cron Jobs
 

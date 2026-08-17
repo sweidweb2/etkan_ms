@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useState, useSyncExternalStore, useTransition } from "react";
+import { useActionState, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { CopyIcon, LinkIcon } from "lucide-react";
 import {
   cancelGuestRegistrationApplicationAction,
+  connectGuestRegistrationUserAction,
   deleteGuestRegistrationApplicationAction,
   openGuestRegistrationInviteAction,
   stopGuestRegistrationInviteAction,
   submitGuestRegistrationStaffAction,
 } from "@/app/manager/guests/actions";
 import { Can } from "@/components/auth/can";
+import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { RegistrationWizard } from "@/components/public/registration/registration-wizard";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -49,7 +59,9 @@ import {
 import { showSuccessToast } from "@/lib/toast";
 import type {
   CancelGuestRegistrationApplicationActionState,
+  ConnectGuestRegistrationUserActionState,
   DeleteGuestRegistrationApplicationActionState,
+  GuestRegistrationLinkUserOption,
   ManagerGuestRegistrationApplicationSummary,
   ManagerGuestRegistrationInvite,
   ManagerGuestRow,
@@ -62,12 +74,19 @@ const initialOpenState: OpenGuestRegistrationInviteActionState = {};
 const initialStopState: StopGuestRegistrationInviteActionState = {};
 const initialCancelState: CancelGuestRegistrationApplicationActionState = {};
 const initialDeleteState: DeleteGuestRegistrationApplicationActionState = {};
+const initialConnectState: ConnectGuestRegistrationUserActionState = {};
 
 type GuestRegistrationSectionProps = {
   guest: ManagerGuestRow;
   invite: ManagerGuestRegistrationInvite | null;
   application: ManagerGuestRegistrationApplicationSummary | null;
+  linkUsers: GuestRegistrationLinkUserOption[];
 };
+
+function userOptionLabel(user: GuestRegistrationLinkUserOption): string {
+  const name = user.username?.trim() || "Unnamed user";
+  return user.email ? `${name} (${user.email})` : name;
+}
 
 function isActiveUnusedInvite(
   invite: ManagerGuestRegistrationInvite | null
@@ -99,6 +118,7 @@ export function GuestRegistrationSection({
   guest,
   invite: initialInvite,
   application: initialApplication,
+  linkUsers,
 }: GuestRegistrationSectionProps) {
   const router = useRouter();
   const [invite, setInvite] = useState(initialInvite);
@@ -110,6 +130,9 @@ export function GuestRegistrationSection({
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isRotateOpen, setIsRotateOpen] = useState(false);
+  const [isConnectOpen, setIsConnectOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [userFilter, setUserFilter] = useState("");
   const [isTransitionPending, startTransition] = useTransition();
 
   if (initialInvite !== prevInvite) {
@@ -137,11 +160,16 @@ export function GuestRegistrationSection({
     deleteGuestRegistrationApplicationAction,
     initialDeleteState
   );
+  const [connectState, connectAction, isConnectPending] = useActionState(
+    connectGuestRegistrationUserAction,
+    initialConnectState
+  );
 
   const isOpenBusy = isOpenPending || isTransitionPending;
   const isStopBusy = isStopPending || isTransitionPending;
   const isCancelBusy = isCancelPending || isTransitionPending;
   const isDeleteBusy = isDeletePending || isTransitionPending;
+  const isConnectBusy = isConnectPending || isTransitionPending;
   const isRotateBusy = isOpenBusy;
 
   const handleCancelOpenChange = usePendingAwareOpenChange(
@@ -160,11 +188,22 @@ export function GuestRegistrationSection({
     isStaffFillPending,
     setIsStaffFillOpen
   );
+  const handleConnectOpenChange = usePendingAwareOpenChange(
+    isConnectBusy,
+    (open) => {
+      setIsConnectOpen(open);
+      if (open) {
+        setSelectedUserId(application?.user_id ?? "");
+        setUserFilter("");
+      }
+    }
+  );
 
   useActionStateToast(openState, isOpenPending);
   useActionStateToast(stopState, isStopPending);
   useActionStateToast(cancelState, isCancelPending);
   useActionStateToast(deleteState, isDeletePending);
+  useActionStateToast(connectState, isConnectPending);
 
   useActionStateSuccess(openState, isOpenPending, () => {
     if (openState.invite) setInvite(openState.invite);
@@ -191,6 +230,13 @@ export function GuestRegistrationSection({
       current ? { ...current, application_id: null } : current
     );
   });
+  useActionStateSuccess(connectState, isConnectPending, () => {
+    if (connectState.application) {
+      setApplication(connectState.application);
+      setPrevApplication(connectState.application);
+    }
+    setIsConnectOpen(false);
+  });
 
   const activeInvite = isActiveUnusedInvite(invite);
   const invitePath = invite ? getRegisterGuestRoute(invite.token) : null;
@@ -210,6 +256,36 @@ export function GuestRegistrationSection({
   const canReopen =
     !hasSubmittedApp &&
     (!invite || invite.cancelled_at != null || invite.used_at != null);
+  const canConnectUser = guest.status === "finished";
+  const linkedUser = application?.user_id
+    ? linkUsers.find((user) => user.id === application.user_id)
+    : undefined;
+  const linkedUserLabel = linkedUser
+    ? userOptionLabel(linkedUser)
+    : application?.user_id
+      ? "Linked user"
+      : null;
+  const filteredLinkUsers = useMemo(() => {
+    const query = userFilter.trim().toLowerCase();
+    if (!query) return linkUsers;
+    return linkUsers.filter((user) => {
+      const label = userOptionLabel(user).toLowerCase();
+      return label.includes(query);
+    });
+  }, [linkUsers, userFilter]);
+  const userSelectItems = useMemo(
+    () =>
+      filteredLinkUsers.map((user) => ({
+        value: user.id,
+        label: userOptionLabel(user),
+      })),
+    [filteredLinkUsers]
+  );
+  const selectedUserLabel = useMemo(() => {
+    const selected = linkUsers.find((user) => user.id === selectedUserId);
+    return selected ? userOptionLabel(selected) : null;
+  }, [linkUsers, selectedUserId]);
+  const connectUserError = connectState.fieldErrors?.user_id?.[0];
 
   function runOpen(rotate = false) {
     const formData = new FormData();
@@ -241,6 +317,16 @@ export function GuestRegistrationSection({
     formData.set("guest_id", guest.id);
     startTransition(() => {
       deleteAction(formData);
+    });
+  }
+
+  function runConnect() {
+    if (!selectedUserId) return;
+    const formData = new FormData();
+    formData.set("guest_id", guest.id);
+    formData.set("user_id", selectedUserId);
+    startTransition(() => {
+      connectAction(formData);
     });
   }
 
@@ -306,6 +392,9 @@ export function GuestRegistrationSection({
               <p>
                 Application: {statusLabel(application.status)}
               </p>
+              {linkedUserLabel ? (
+                <p>Linked user: {linkedUserLabel}</p>
+              ) : null}
               <Link
                 href={getManagerRegistrationDetailRoute(application.id)}
                 className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
@@ -313,6 +402,29 @@ export function GuestRegistrationSection({
                 <LinkIcon className="size-4" />
                 View application
               </Link>
+            </div>
+          ) : null}
+
+          {canConnectUser ? (
+            <div className="space-y-2 border-t pt-4">
+              {!hasSubmittedApp ? (
+                <p className="text-sm text-muted-foreground">
+                  No registration application to connect to a user.
+                </p>
+              ) : (
+                <Can permission={PERMISSIONS.GUESTS_REGISTRATION_MANAGE}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleConnectOpenChange(true)}
+                    disabled={isConnectBusy}
+                  >
+                    {application?.user_id
+                      ? "Change linked user"
+                      : "Connect to user"}
+                  </Button>
+                </Can>
+              )}
             </div>
           ) : null}
 
@@ -503,6 +615,84 @@ export function GuestRegistrationSection({
             >
               {isDeleteBusy ? <InlineSpinner /> : null}
               Delete permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isConnectOpen} onOpenChange={handleConnectOpenChange}>
+        <DialogContent showCloseButton={!isConnectBusy}>
+          <DialogHeader>
+            <DialogTitle>
+              {application?.user_id ? "Change linked user" : "Connect to user"}
+            </DialogTitle>
+            <DialogDescription>
+              Link this registration form to an existing account. You can
+              change the linked user later.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <FieldLabel htmlFor="guest-link-user" label="User" hint="Required" />
+            {linkUsers.length > 5 ? (
+              <Input
+                id="guest-link-user-filter"
+                value={userFilter}
+                onChange={(event) => setUserFilter(event.target.value)}
+                placeholder="Filter by name or email"
+                disabled={isConnectBusy}
+              />
+            ) : null}
+            <Select
+              value={selectedUserId || null}
+              items={userSelectItems}
+              onValueChange={(value) => {
+                if (!value) return;
+                setSelectedUserId(value);
+              }}
+              disabled={isConnectBusy || filteredLinkUsers.length === 0}
+            >
+              <SelectTrigger
+                id="guest-link-user"
+                aria-invalid={Boolean(connectUserError)}
+                className="w-full"
+              >
+                <SelectValue placeholder="Select a user">
+                  {selectedUserLabel}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {filteredLinkUsers.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {userOptionLabel(user)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {connectUserError ? (
+              <p className="text-sm text-destructive">{connectUserError}</p>
+            ) : null}
+            {linkUsers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No users are available to connect.
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isConnectBusy}
+              onClick={() => handleConnectOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={isConnectBusy || !selectedUserId}
+              onClick={runConnect}
+            >
+              {isConnectBusy ? <InlineSpinner /> : null}
+              {application?.user_id ? "Update link" : "Connect"}
             </Button>
           </DialogFooter>
         </DialogContent>

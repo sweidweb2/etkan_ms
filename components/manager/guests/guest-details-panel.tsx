@@ -49,6 +49,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type {
   DeleteGuestActionState,
+  GuestRegistrationLinkUserOption,
   ManagerGuestRegistrationApplicationSummary,
   ManagerGuestRegistrationInvite,
   ManagerGuestRow,
@@ -81,6 +82,7 @@ type GuestDetailsPanelProps = {
   statusEvents: ManagerGuestStatusEventRow[];
   registrationInvite: ManagerGuestRegistrationInvite | null;
   registrationApplication: ManagerGuestRegistrationApplicationSummary | null;
+  linkUsers: GuestRegistrationLinkUserOption[];
 };
 
 function DetailField({
@@ -111,6 +113,7 @@ export function GuestDetailsPanel({
   statusEvents: initialStatusEvents,
   registrationInvite,
   registrationApplication,
+  linkUsers,
 }: GuestDetailsPanelProps) {
   const router = useRouter();
   const [guest, setGuest] = useState(initialGuest);
@@ -273,6 +276,7 @@ export function GuestDetailsPanel({
         guest={guest}
         invite={registrationInvite}
         application={registrationApplication}
+        linkUsers={linkUsers}
       />
 
       <Card className="gap-0 py-0">

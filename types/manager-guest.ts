@@ -74,6 +74,7 @@ export type ManagerGuestRegistrationApplicationSummary = {
   id: string;
   status: string;
   created_at: string;
+  user_id: string | null;
 };
 
 export type ChangeGuestStatusActionState = {
@@ -84,6 +85,8 @@ export type ChangeGuestStatusActionState = {
   guest?: ManagerGuestRow;
   statusEvents?: ManagerGuestStatusEventRow[];
 };
+
+export type RecordGuestStatusesActionState = ChangeGuestStatusActionState;
 
 export type SetGuestProfileStatusActionState = {
   success?: boolean;
@@ -134,4 +137,18 @@ export type SubmitGuestRegistrationStaffActionState = {
   error?: string;
   message?: string;
   fieldErrors?: FieldErrors;
+};
+
+export type GuestRegistrationLinkUserOption = {
+  id: string;
+  username: string | null;
+  email: string;
+};
+
+export type ConnectGuestRegistrationUserActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  application?: ManagerGuestRegistrationApplicationSummary;
 };
