@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { CopyIcon, LinkIcon } from "lucide-react";
 import {
   cancelGuestRegistrationApplicationAction,
@@ -42,10 +42,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { REGISTRATION_APPLICATION_STATUS_LABELS } from "@/lib/constants/public-registration";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import {
-  getManagerRegistrationDetailRoute,
-  getRegisterGuestRoute,
-} from "@/lib/constants/routes";
+import { getManagerRegistrationDetailRoute } from "@/lib/constants/routes";
 import { showSuccessToast } from "@/lib/toast";
 import type {
   CancelGuestRegistrationApplicationActionState,
@@ -91,16 +88,22 @@ export function GuestRegistrationSection({
   const router = useRouter();
   const [invite, setInvite] = useState(initialInvite);
   const [application, setApplication] = useState(initialApplication);
+  const [prevInvite, setPrevInvite] = useState(initialInvite);
+  const [prevApplication, setPrevApplication] = useState(initialApplication);
   const [isStaffFillOpen, setIsStaffFillOpen] = useState(false);
   const [isStaffFillPending, setIsStaffFillPending] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isTransitionPending, startTransition] = useTransition();
 
-  useEffect(() => {
+  if (initialInvite !== prevInvite) {
     setInvite(initialInvite);
+    setPrevInvite(initialInvite);
+  }
+  if (initialApplication !== prevApplication) {
     setApplication(initialApplication);
-  }, [initialInvite, initialApplication]);
+    setPrevApplication(initialApplication);
+  }
 
   const [openState, openAction, isOpenPending] = useActionState(
     openGuestRegistrationInviteAction,
@@ -167,16 +170,6 @@ export function GuestRegistrationSection({
   });
 
   const activeInvite = isActiveUnusedInvite(invite);
-  const invitePath = invite ? getRegisterGuestRoute(invite.token) : null;
-  const [invitePublicUrl, setInvitePublicUrl] = useState(invitePath);
-
-  useEffect(() => {
-    if (!invitePath) {
-      setInvitePublicUrl(null);
-      return;
-    }
-    setInvitePublicUrl(`${window.location.origin}${invitePath}`);
-  }, [invitePath]);
 
   const hasSubmittedApp =
     Boolean(application) && application?.status !== "cancelled";
@@ -217,9 +210,8 @@ export function GuestRegistrationSection({
   }
 
   async function handleCopyUrl() {
-    if (!invitePath) return;
-    const url = `${window.location.origin}${invitePath}`;
-    await navigator.clipboard.writeText(url);
+    if (!invite?.public_url) return;
+    await navigator.clipboard.writeText(invite.public_url);
     showSuccessToast("Invite link copied.");
   }
 
@@ -249,15 +241,15 @@ export function GuestRegistrationSection({
                     ? "Used"
                     : "Open"}
               </p>
-              {activeInvite && invitePath ? (
+              {activeInvite && invite.public_url ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <a
-                    href={invitePath}
+                    href={invite.public_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="max-w-full truncate rounded bg-muted px-2 py-1 text-xs underline-offset-2 hover:underline"
                   >
-                    {invitePublicUrl ?? invitePath}
+                    {invite.public_url}
                   </a>
                   <Button
                     type="button"
