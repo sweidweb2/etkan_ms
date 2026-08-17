@@ -10,19 +10,56 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/$/, "");
 }
 
+function isLocalhostOrigin(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname === "[::1]"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function originFromHost(host: string | undefined): string | null {
+  if (!host) return null;
+  const trimmed = trimTrailingSlash(host);
+  if (!trimmed) return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
 /**
- * Public app origin (no path). Set per environment via NEXT_PUBLIC_SITE_URL.
+ * Public app origin (no path).
+ * Prefer a real configured URL; never keep a baked-in localhost origin on deploy.
  */
 export function getSiteUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SITE_URL;
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  const runtimeOrigin =
+    originFromHost(process.env.SITE_URL) ??
+    originFromHost(process.env.VERCEL_PROJECT_PRODUCTION_URL) ??
+    originFromHost(process.env.VERCEL_URL);
 
-  if (!url) {
-    throw new Error(
-      "NEXT_PUBLIC_SITE_URL is not set. Example (dev): http://localhost:3000"
-    );
+  if (configured && !isLocalhostOrigin(configured)) {
+    return trimTrailingSlash(configured);
   }
 
-  return trimTrailingSlash(url);
+  if (runtimeOrigin) {
+    return runtimeOrigin;
+  }
+
+  if (configured) {
+    return trimTrailingSlash(configured);
+  }
+
+  throw new Error(
+    "NEXT_PUBLIC_SITE_URL is not set. Example (dev): http://localhost:3000"
+  );
 }
 
 /**

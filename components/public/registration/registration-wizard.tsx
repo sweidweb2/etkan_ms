@@ -56,7 +56,10 @@ import {
   REGISTRATION_WEEKDAY_VALUES,
   type RegistrationStep,
 } from "@/lib/constants/public-registration";
-import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
+import {
+  PublicI18nBoundary,
+  usePublicI18n,
+} from "@/lib/i18n/public-i18n-provider";
 import { cn } from "@/lib/utils";
 import {
   isUnder18RegistrationDob,
@@ -239,7 +242,15 @@ function createDraft(initial?: Partial<Draft>): Draft {
   };
 }
 
-export function RegistrationWizard({
+export function RegistrationWizard(props: RegistrationWizardProps = {}) {
+  return (
+    <PublicI18nBoundary>
+      <RegistrationWizardContent {...props} />
+    </PublicI18nBoundary>
+  );
+}
+
+function RegistrationWizardContent({
   mode = "public",
   submitAction = submitPublicRegistrationAction,
   initialDraft,
@@ -249,7 +260,7 @@ export function RegistrationWizard({
   hidePageHeader = false,
   onSuccess,
   onPendingChange,
-}: RegistrationWizardProps = {}) {
+}: RegistrationWizardProps) {
   const { t } = usePublicI18n();
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => createDraft(initialDraft));

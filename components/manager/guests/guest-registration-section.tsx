@@ -42,7 +42,10 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { REGISTRATION_APPLICATION_STATUS_LABELS } from "@/lib/constants/public-registration";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { getManagerRegistrationDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerRegistrationDetailRoute,
+  getRegisterGuestRoute,
+} from "@/lib/constants/routes";
 import { showSuccessToast } from "@/lib/toast";
 import type {
   CancelGuestRegistrationApplicationActionState,
@@ -164,6 +167,17 @@ export function GuestRegistrationSection({
   });
 
   const activeInvite = isActiveUnusedInvite(invite);
+  const invitePath = invite ? getRegisterGuestRoute(invite.token) : null;
+  const [invitePublicUrl, setInvitePublicUrl] = useState(invitePath);
+
+  useEffect(() => {
+    if (!invitePath) {
+      setInvitePublicUrl(null);
+      return;
+    }
+    setInvitePublicUrl(`${window.location.origin}${invitePath}`);
+  }, [invitePath]);
+
   const hasSubmittedApp =
     Boolean(application) && application?.status !== "cancelled";
   const canReopen =
@@ -203,8 +217,9 @@ export function GuestRegistrationSection({
   }
 
   async function handleCopyUrl() {
-    if (!invite?.public_url) return;
-    await navigator.clipboard.writeText(invite.public_url);
+    if (!invitePath) return;
+    const url = `${window.location.origin}${invitePath}`;
+    await navigator.clipboard.writeText(url);
     showSuccessToast("Invite link copied.");
   }
 
@@ -234,11 +249,16 @@ export function GuestRegistrationSection({
                     ? "Used"
                     : "Open"}
               </p>
-              {activeInvite ? (
+              {activeInvite && invitePath ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <code className="max-w-full truncate rounded bg-muted px-2 py-1 text-xs">
-                    {invite.public_url}
-                  </code>
+                  <a
+                    href={invitePath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="max-w-full truncate rounded bg-muted px-2 py-1 text-xs underline-offset-2 hover:underline"
+                  >
+                    {invitePublicUrl ?? invitePath}
+                  </a>
                   <Button
                     type="button"
                     variant="outline"
@@ -337,7 +357,7 @@ export function GuestRegistrationSection({
               Prefills guest details. Submitting marks the invite used.
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-4 pb-8">
+          <div className="flex flex-1 flex-col px-4 pb-8">
             <RegistrationWizard
               mode="guest-staff"
               hidePageHeader

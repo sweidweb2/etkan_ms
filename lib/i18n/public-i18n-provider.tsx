@@ -10,7 +10,7 @@ import {
   startTransition,
   type ReactNode,
 } from "react";
-import { getDir, type Locale, type TextDirection } from "@/lib/i18n/locales";
+import { DEFAULT_LOCALE, getDir, type Locale, type TextDirection } from "@/lib/i18n/locales";
 import {
   getMessages,
   type MessageKey,
@@ -70,4 +70,19 @@ export function usePublicI18n(): PublicI18nContextValue {
     throw new Error("usePublicI18n must be used within PublicI18nProvider");
   }
   return context;
+}
+
+/** Supplies public i18n when reused outside `(public)` (e.g. manager staff-fill). */
+export function PublicI18nBoundary({
+  locale = DEFAULT_LOCALE,
+  children,
+}: {
+  locale?: Locale;
+  children: ReactNode;
+}) {
+  const existing = useContext(PublicI18nContext);
+  if (existing) {
+    return children;
+  }
+  return <PublicI18nProvider locale={locale}>{children}</PublicI18nProvider>;
 }
