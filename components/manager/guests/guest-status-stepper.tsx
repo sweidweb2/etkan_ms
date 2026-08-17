@@ -55,12 +55,14 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import {
+  GUEST_CURRENT_STATUSES,
   GUEST_CURRENT_STATUS_LABELS,
   GUEST_CURRENT_STATUS_VALUES,
   GUEST_PIPELINE_STATUSES,
   GUEST_PIPELINE_STATUS_VALUES,
   GUEST_STATUS_LABELS,
   canMutateGuestPipeline,
+  canRemoveGuestPipelineStatus,
   type GuestCurrentStatus,
   type GuestPipelineStatus,
   type GuestStatus,
@@ -275,6 +277,9 @@ export function GuestStatusStepper({
   );
   const canEditPipeline =
     canChangeStatus && canMutateGuestPipeline(guest.status);
+  const canRemovePipeline =
+    canChangeStatus && canRemoveGuestPipelineStatus(guest.status);
+  const isSchemaLocked = !canEditPipeline && !canRemovePipeline;
   const [statusEvents, setStatusEvents] = useState(statusEventsProp);
   const statusEventsKey = statusEventsProp.map((event) => event.id).join("|");
   const [syncedEventsKey, setSyncedEventsKey] = useState(statusEventsKey);
@@ -414,17 +419,23 @@ export function GuestStatusStepper({
 
   const openNodeAction = useCallback(
     (target: GuestPipelineStatus, tone: StepTone) => {
-      if (!canEditPipeline || isPending) {
+      if (isPending) {
         return;
       }
       if (tone === "done" || tone === "current") {
+        if (!canRemovePipeline) {
+          return;
+        }
         setPendingAction({ mode: "remove", status: target });
       } else {
+        if (!canEditPipeline) {
+          return;
+        }
         setPendingAction({ mode: "set", status: target });
       }
       setNote("");
     },
-    [canEditPipeline, isPending]
+    [canEditPipeline, canRemovePipeline, isPending]
   );
 
   const openProfileConfirm = useCallback(
@@ -451,22 +462,34 @@ export function GuestStatusStepper({
 
   const nodes = useMemo<StatusFlowNode[]>(() => {
     return (Object.keys(NODE_POSITIONS) as GuestPipelineStatus[]).map(
-      (status) => ({
-        id: status,
-        type: "status" as const,
-        position: NODE_POSITIONS[status],
-        data: {
-          status,
-          tone: toneFor(status),
-          disabled: isPending || !canEditPipeline,
-          onSelect: openNodeAction,
-        },
-        draggable: false,
-        selectable: true,
-        focusable: true,
-      })
+      (status) => {
+        const tone = toneFor(status);
+        const isRecorded = tone === "done" || tone === "current";
+        return {
+          id: status,
+          type: "status" as const,
+          position: NODE_POSITIONS[status],
+          data: {
+            status,
+            tone,
+            disabled:
+              isPending ||
+              (isRecorded ? !canRemovePipeline : !canEditPipeline),
+            onSelect: openNodeAction,
+          },
+          draggable: false,
+          selectable: true,
+          focusable: true,
+        };
+      }
     );
-  }, [canEditPipeline, isPending, openNodeAction, toneFor]);
+  }, [
+    canEditPipeline,
+    canRemovePipeline,
+    isPending,
+    openNodeAction,
+    toneFor,
+  ]);
 
   const edges = useMemo<Edge[]>(
     () =>
@@ -568,7 +591,9 @@ export function GuestStatusStepper({
           <p className="text-xs text-muted-foreground">
             Profile status is scheduled, pending, cancelled, rejected, or
             finished. Recording Finished on the schema also marks the guest
-            finished. Pipeline log edits are only allowed while pending.
+            finished. You can record steps while pending. If the guest is
+            finished, removing a recorded step reopens them as pending.
+            Cancelled and rejected keep the schema locked.
           </p>
         </header>
 
@@ -616,18 +641,30 @@ export function GuestStatusStepper({
                   <div className="flex flex-wrap gap-2">
                     {unmadeStatuses.map((status) => {
                       const selected = selectedMissing.includes(status);
+                      const Icon = PIPELINE_ICONS[status];
                       return (
-                        <Button
+                        <button
                           key={status}
                           type="button"
-                          size="sm"
-                          variant={selected ? "secondary" : "outline"}
                           aria-pressed={selected}
                           disabled={isPending}
                           onClick={() => toggleMissingStatus(status)}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-all",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                            "disabled:pointer-events-none disabled:opacity-50",
+                            selected
+                              ? "border-emerald-600 bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/35 hover:bg-emerald-600/90 dark:border-emerald-500 dark:bg-emerald-500"
+                              : "border-dashed border-muted-foreground/35 bg-background text-muted-foreground hover:border-foreground/40 hover:bg-muted/70 hover:text-foreground"
+                          )}
                         >
+                          {selected ? (
+                            <CheckCircle2Icon className="size-3.5 shrink-0" />
+                          ) : (
+                            <Icon className="size-3.5 shrink-0 opacity-70" />
+                          )}
                           {GUEST_STATUS_LABELS[status]}
-                        </Button>
+                        </button>
                       );
                     })}
                   </div>
@@ -653,7 +690,11 @@ export function GuestStatusStepper({
               <span className="font-semibold text-emerald-700 dark:text-emerald-300">
                 {GUEST_CURRENT_STATUS_LABELS[guest.status]}
               </span>
-              {!canEditPipeline ? " (schema locked)" : null}
+              {!canEditPipeline
+                ? isSchemaLocked
+                  ? " (schema locked)"
+                  : " (remove a step to reopen)"
+                : null}
             </div>
             {canChangeStatus ? (
               <div className="flex flex-wrap gap-2">
@@ -705,7 +746,9 @@ export function GuestStatusStepper({
             <DialogDescription>
               {pendingAction && pendingLabel
                 ? isRemoveMode
-                  ? `This deletes ${pendingLabel} from the pipeline log. Profile status stays ${GUEST_CURRENT_STATUS_LABELS[guest.status]}.`
+                  ? guest.status === GUEST_CURRENT_STATUSES.FINISHED
+                    ? `This deletes ${pendingLabel} from the pipeline log. The guest profile will move from Finished to Pending.`
+                    : `This deletes ${pendingLabel} from the pipeline log. Profile status stays ${GUEST_CURRENT_STATUS_LABELS[guest.status]}.`
                   : isProfileMode
                     ? `Change profile status from ${GUEST_CURRENT_STATUS_LABELS[guest.status]} to ${pendingLabel}. Pipeline history is unchanged.`
                     : isSetManyMode

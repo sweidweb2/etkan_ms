@@ -808,6 +808,9 @@ export const ar = {
   "registration.successTitle": "تم استلام الطلب",
   "registration.successBody":
     "شكرًا لك. سنراجع تسجيلك ونتواصل معك عبر البريد أو الهاتف.",
+  "registration.guestSuccessTitle": "شكرًا لك",
+  "registration.guestSuccessBody":
+    "تم إرسال تسجيلك. سيراجعه الفريق — لا حاجة لملء هذا النموذج مرة أخرى.",
   "registration.guardianTitle": "بيانات الوصي (مطلوبة لمن دون 18)",
   "registration.step.personal.hint": "عرّفنا بنفسك.",
   "registration.step.contact.hint": "كيف يمكننا التواصل معك؟",

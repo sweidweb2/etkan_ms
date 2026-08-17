@@ -5,6 +5,7 @@ import {
   GUEST_PIPELINE_STATUS_VALUES,
   GUEST_PIPELINE_STATUSES,
   canMutateGuestPipeline,
+  canRemoveGuestPipelineStatus,
   isGuestCurrentStatus,
   isGuestStatus,
   type GuestCurrentStatus,
@@ -138,8 +139,10 @@ export type SetGuestProfileStatusResult =
   | SetGuestProfileStatusSuccess
   | SetGuestProfileStatusFailure;
 
-const PIPELINE_LOCKED_MESSAGE =
-  "Pipeline statuses can only be changed while the guest is pending.";
+const PIPELINE_ADD_LOCKED_MESSAGE =
+  "Pipeline statuses can only be recorded while the guest is pending.";
+const PIPELINE_REMOVE_LOCKED_MESSAGE =
+  "Pipeline statuses can only be removed while the guest is pending or finished.";
 
 function isGuestEducationLevel(value: string): value is GuestEducationLevel {
   return (GUEST_EDUCATION_LEVEL_VALUES as readonly string[]).includes(value);
@@ -333,6 +336,43 @@ async function finishGuestProfileFromPipeline(
   return { guest: mapGuestRecordToRow(data) };
 }
 
+async function reopenFinishedGuestToPending(
+  adminClient: Supabase,
+  actor: AuditActor,
+  guest: ManagerGuestRow
+): Promise<{ guest: ManagerGuestRow; error?: string }> {
+  if (guest.status !== GUEST_CURRENT_STATUSES.FINISHED) {
+    return { guest };
+  }
+
+  const { data, error } = await guestRepository.updateGuestStatus(
+    adminClient,
+    guest.id,
+    GUEST_CURRENT_STATUSES.PENDING
+  );
+
+  if (error || !data) {
+    return {
+      guest,
+      error: error?.message || "Unable to set guest profile to pending.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "guests",
+    record_id: data.id,
+    old_data: { status: guest.status },
+    new_data: { status: data.status },
+    metadata: {
+      note: "Guest profile reopened to pending after pipeline status removed.",
+    },
+  });
+
+  return { guest: mapGuestRecordToRow(data) };
+}
+
 export async function setGuestStatusForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -373,7 +413,7 @@ export async function setGuestStatusForManager(
 
   const current = mapGuestRecordToRow(existing.data);
   if (!canMutateGuestPipeline(current.status)) {
-    return { success: false, error: PIPELINE_LOCKED_MESSAGE };
+    return { success: false, error: PIPELINE_ADD_LOCKED_MESSAGE };
   }
 
   const eventsResult =
@@ -499,7 +539,7 @@ export async function setGuestStatusesForManager(
 
   const current = mapGuestRecordToRow(existing.data);
   if (!canMutateGuestPipeline(current.status)) {
-    return { success: false, error: PIPELINE_LOCKED_MESSAGE };
+    return { success: false, error: PIPELINE_ADD_LOCKED_MESSAGE };
   }
 
   const eventsResult =
@@ -706,8 +746,8 @@ export async function removeGuestStatusForManager(
   }
 
   const guest = mapGuestRecordToRow(existing.data);
-  if (!canMutateGuestPipeline(guest.status)) {
-    return { success: false, error: PIPELINE_LOCKED_MESSAGE };
+  if (!canRemoveGuestPipelineStatus(guest.status)) {
+    return { success: false, error: PIPELINE_REMOVE_LOCKED_MESSAGE };
   }
 
   const eventsResult =
@@ -765,10 +805,23 @@ export async function removeGuestStatusForManager(
     metadata: { note: "Guest pipeline status removed." },
   });
 
+  const reopened = await reopenFinishedGuestToPending(
+    adminClient,
+    actor,
+    guest
+  );
+  if (reopened.error) {
+    return { success: false, error: reopened.error };
+  }
+
+  const didReopen = reopened.guest.status !== guest.status;
+
   return {
     success: true,
-    guest,
-    message: "Status removed from history.",
+    guest: reopened.guest,
+    message: didReopen
+      ? "Status removed. Guest moved back to pending."
+      : "Status removed from history.",
     removedStatus: status,
     statusEvents: (remainingResult.data ?? []).map(
       mapGuestStatusEventRecordToRow

@@ -625,7 +625,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                 buttonTextColor="#ffffff"
                 shadowSize="sm"
                 onSubmit={() => {
-                  router.push(ROUTES.REGISTER);
+                  router.push(dashboardHref ?? ROUTES.REGISTER);
                 }}
               />
             </div>

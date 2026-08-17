@@ -39,6 +39,16 @@ describe("registrationPersonalStepSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects prefer_not_to_say gender", () => {
+    const result = registrationPersonalStepSchema.safeParse({
+      full_name: "Ada Lovelace",
+      gender: "prefer_not_to_say",
+      date_of_birth: adultDob,
+      blood_type: "O+",
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("registrationEducationStepSchema", () => {

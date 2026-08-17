@@ -104,7 +104,13 @@ function MobileNavLink({
   );
 }
 
-function PrimaryNavLinks({ className }: { className?: string }) {
+function PrimaryNavLinks({
+  className,
+  showRegister,
+}: {
+  className?: string;
+  showRegister: boolean;
+}) {
   const { t } = usePublicI18n();
 
   return (
@@ -115,7 +121,9 @@ function PrimaryNavLinks({ className }: { className?: string }) {
       <BrandNavLink href={ROUTES.PROJECTS}>{t("nav.projects")}</BrandNavLink>
       <BrandNavLink href={ROUTES.GALLERY}>{t("nav.gallery")}</BrandNavLink>
       <BrandNavLink href={ROUTES.LIFE}>{t("nav.life")}</BrandNavLink>
-      <BrandNavLink href={ROUTES.REGISTER}>{t("nav.register")}</BrandNavLink>
+      {showRegister ? (
+        <BrandNavLink href={ROUTES.REGISTER}>{t("nav.register")}</BrandNavLink>
+      ) : null}
     </nav>
   );
 }
@@ -123,9 +131,11 @@ function PrimaryNavLinks({ className }: { className?: string }) {
 function NavbarShell({
   desktopActions,
   mobileMenu,
+  showRegister,
 }: {
   desktopActions?: React.ReactNode;
   mobileMenu?: React.ReactNode;
+  showRegister: boolean;
 }) {
   const { t } = usePublicI18n();
 
@@ -150,7 +160,10 @@ function NavbarShell({
           >
             {t("brand.name")}
           </Link>
-          <PrimaryNavLinks className="min-w-0 justify-self-center" />
+          <PrimaryNavLinks
+            className="min-w-0 justify-self-center"
+            showRegister={showRegister}
+          />
           <div className="justify-self-end">{desktopActions}</div>
         </div>
       </div>
@@ -185,6 +198,8 @@ export function SiteNavbarClient({
   }
 
   const isLoginPage = pathname === ROUTES.LOGIN;
+  const isLoggedIn = Boolean(dashboardHref);
+  const showRegister = !isLoggedIn;
   const sheetSide = dir === "rtl" ? "left" : "right";
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
@@ -245,9 +260,11 @@ export function SiteNavbarClient({
           <MobileNavLink href={ROUTES.LIFE} onNavigate={closeMobileMenu}>
             {t("nav.life")}
           </MobileNavLink>
-          <MobileNavLink href={ROUTES.REGISTER} onNavigate={closeMobileMenu}>
-            {t("nav.register")}
-          </MobileNavLink>
+          {showRegister ? (
+            <MobileNavLink href={ROUTES.REGISTER} onNavigate={closeMobileMenu}>
+              {t("nav.register")}
+            </MobileNavLink>
+          ) : null}
           {dashboardHref ? (
             <MobileNavLink href={dashboardHref} onNavigate={closeMobileMenu}>
               {t("nav.dashboard")}
@@ -265,6 +282,7 @@ export function SiteNavbarClient({
   if (!mounted) {
     return (
       <NavbarShell
+        showRegister
         desktopActions={
           <div className="flex items-center gap-2" aria-hidden="true">
             <LanguageToggle />
@@ -288,6 +306,7 @@ export function SiteNavbarClient({
 
   return (
     <NavbarShell
+      showRegister={showRegister}
       desktopActions={
         <div className="flex items-center gap-2">
           <LanguageToggle />

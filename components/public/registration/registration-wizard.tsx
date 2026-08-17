@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { CheckIcon } from "lucide-react";
 import { submitPublicRegistrationAction } from "@/app/(public)/register/actions";
+import { LanguageToggle } from "@/components/layout/language-toggle";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   RegistrationDocumentsStep,
@@ -433,20 +434,33 @@ function RegistrationWizardContent({
   }
 
   if (state.success) {
-    const isGuestMode = mode === "guest-public" || mode === "guest-staff";
+    if (mode === "guest-public") {
+      return (
+        <div className="flex min-h-[60vh] items-center">
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>{t("registration.guestSuccessTitle")}</CardTitle>
+              <CardDescription>
+                {t("registration.guestSuccessBody")}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      );
+    }
+
+    const isGuestStaff = mode === "guest-staff";
     return (
       <Card>
         <CardHeader>
           <CardTitle>
-            {isGuestMode
+            {isGuestStaff
               ? "Registration submitted"
               : t("registration.successTitle")}
           </CardTitle>
           <CardDescription>
-            {isGuestMode
-              ? mode === "guest-staff"
-                ? "The guest registration dossier was saved. This invite link can no longer be used."
-                : "Thank you. Your registration was submitted. Staff will review it — you do not need to fill this form again."
+            {isGuestStaff
+              ? "The guest registration dossier was saved. This invite link can no longer be used."
               : t("registration.successBody")}
           </CardDescription>
         </CardHeader>
@@ -457,13 +471,18 @@ function RegistrationWizardContent({
   return (
     <div className="flex flex-col gap-6">
       {!hidePageHeader ? (
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t("registration.title")}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t("registration.lead")}
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {t("registration.title")}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t("registration.lead")}
+            </p>
+          </div>
+          {mode === "guest-public" ? (
+            <LanguageToggle className="self-start" />
+          ) : null}
         </div>
       ) : null}
 

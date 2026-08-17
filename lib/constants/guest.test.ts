@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  GUEST_CURRENT_STATUS_BADGE_CLASSES,
   GUEST_CURRENT_STATUS_VALUES,
   GUEST_DEFAULT_STATUS,
   GUEST_PIPELINE_STATUS_VALUES,
   GUEST_STATUS_VALUES,
   canMutateGuestPipeline,
+  canRemoveGuestPipelineStatus,
 } from "@/lib/constants/guest";
 
 describe("guest status constants", () => {
@@ -32,5 +34,19 @@ describe("guest status constants", () => {
     expect(canMutateGuestPipeline("cancelled")).toBe(false);
     expect(canMutateGuestPipeline("rejected")).toBe(false);
     expect(canMutateGuestPipeline("finished")).toBe(false);
+  });
+
+  it("allows pipeline removes while pending or finished", () => {
+    expect(canRemoveGuestPipelineStatus("pending")).toBe(true);
+    expect(canRemoveGuestPipelineStatus("finished")).toBe(true);
+    expect(canRemoveGuestPipelineStatus("scheduled")).toBe(false);
+    expect(canRemoveGuestPipelineStatus("cancelled")).toBe(false);
+    expect(canRemoveGuestPipelineStatus("rejected")).toBe(false);
+  });
+
+  it("styles every profile status badge", () => {
+    expect(Object.keys(GUEST_CURRENT_STATUS_BADGE_CLASSES).sort()).toEqual(
+      [...GUEST_CURRENT_STATUS_VALUES].sort()
+    );
   });
 });

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { LanguageToggle } from "@/components/layout/language-toggle";
 import { RegistrationWizard } from "@/components/public/registration/registration-wizard";
 import {
   Card,
@@ -15,6 +17,14 @@ type RegisterGuestPageProps = {
   params: Promise<{ token: string }>;
 };
 
+function GuestInviteShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-12 pt-10 sm:px-6 sm:pt-14">
+      {children}
+    </main>
+  );
+}
+
 function GuestRegistrationStatus({
   title,
   body,
@@ -23,14 +33,17 @@ function GuestRegistrationStatus({
   body: string;
 }) {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-24 sm:px-6 sm:py-28">
+    <GuestInviteShell>
+      <div className="flex justify-end">
+        <LanguageToggle />
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
           <CardDescription>{body}</CardDescription>
         </CardHeader>
       </Card>
-    </main>
+    </GuestInviteShell>
   );
 }
 
@@ -69,7 +82,7 @@ export default async function RegisterGuestPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-24 sm:px-6 sm:py-28">
+    <GuestInviteShell>
       <RegistrationWizard
         mode="guest-public"
         submitAction={submitGuestRegistrationByTokenAction}
@@ -82,6 +95,6 @@ export default async function RegisterGuestPage({
           organization_name: context.prefill.organization_name ?? "",
         }}
       />
-    </main>
+    </GuestInviteShell>
   );
 }

@@ -1,7 +1,6 @@
 export const REGISTRATION_GENDERS = {
   MALE: "male",
   FEMALE: "female",
-  PREFER_NOT_TO_SAY: "prefer_not_to_say",
 } as const;
 
 export type RegistrationGender =
@@ -10,13 +9,11 @@ export type RegistrationGender =
 export const REGISTRATION_GENDER_VALUES = [
   REGISTRATION_GENDERS.MALE,
   REGISTRATION_GENDERS.FEMALE,
-  REGISTRATION_GENDERS.PREFER_NOT_TO_SAY,
 ] as const;
 
 export const REGISTRATION_GENDER_LABELS: Record<RegistrationGender, string> = {
   male: "Male",
   female: "Female",
-  prefer_not_to_say: "Prefer not to say",
 };
 
 export const REGISTRATION_BLOOD_TYPES = {

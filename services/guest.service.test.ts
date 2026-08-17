@@ -390,7 +390,7 @@ describe("setGuestStatusForManager", () => {
     expect(result).toEqual({
       success: false,
       error:
-        "Pipeline statuses can only be changed while the guest is pending.",
+        "Pipeline statuses can only be recorded while the guest is pending.",
     });
     expect(
       guestStatusEventRepository.createGuestStatusEvent
@@ -784,7 +784,7 @@ describe("removeGuestStatusForManager", () => {
     expect(result).toEqual({ success: false, error: "Unauthorized." });
   });
 
-  it("rejects pipeline deletes unless the guest is pending", async () => {
+  it("rejects pipeline deletes unless the guest is pending or finished", async () => {
     vi.mocked(guestRepository.findGuestById).mockResolvedValue({
       data: guestRecord,
       ...okResult,
@@ -800,7 +800,7 @@ describe("removeGuestStatusForManager", () => {
     expect(result).toEqual({
       success: false,
       error:
-        "Pipeline statuses can only be changed while the guest is pending.",
+        "Pipeline statuses can only be removed while the guest is pending or finished.",
     });
   });
 
@@ -931,5 +931,111 @@ describe("removeGuestStatusForManager", () => {
       guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
     ).toHaveBeenCalledWith(adminClient, guestId, "chose_plan");
     expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
+  });
+
+  it("reopens a finished guest to pending when a pipeline status is removed", async () => {
+    const finishedGuest = { ...guestRecord, status: "finished" };
+    const pendingGuest = { ...guestRecord, status: "pending" };
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: finishedGuest,
+      ...okResult,
+    });
+    vi.mocked(guestStatusEventRepository.listGuestStatusEventsByGuestId)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "event-finished",
+            guest_id: guestId,
+            status: "finished",
+            note: null,
+            created_by: actor.userId,
+            created_at: "2026-01-04T00:00:00.000Z",
+          },
+          {
+            id: "event-1",
+            guest_id: guestId,
+            status: "started",
+            note: null,
+            created_by: actor.userId,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        ...okResult,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "event-1",
+            guest_id: guestId,
+            status: "started",
+            note: null,
+            created_by: actor.userId,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        ...okResult,
+      });
+    vi.mocked(
+      guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "event-finished",
+          guest_id: guestId,
+          status: "finished",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-04T00:00:00.000Z",
+        },
+      ],
+      ...okResult,
+    });
+    vi.mocked(guestRepository.updateGuestStatus).mockResolvedValue({
+      data: pendingGuest,
+      ...okResult,
+    });
+
+    const result = await removeGuestStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: guestId, status: "finished" }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.guest.status).toBe("pending");
+      expect(result.message).toBe(
+        "Status removed. Guest moved back to pending."
+      );
+    }
+    expect(guestRepository.updateGuestStatus).toHaveBeenCalledWith(
+      adminClient,
+      guestId,
+      "pending"
+    );
+  });
+
+  it("keeps cancelled guests locked from pipeline deletes", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { ...guestRecord, status: "cancelled" },
+      ...okResult,
+    });
+
+    const result = await removeGuestStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: guestId, status: "started" }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error:
+        "Pipeline statuses can only be removed while the guest is pending or finished.",
+    });
+    expect(
+      guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
+    ).not.toHaveBeenCalled();
   });
 });

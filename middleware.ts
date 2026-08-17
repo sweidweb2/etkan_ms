@@ -150,15 +150,16 @@ export async function middleware(request: NextRequest) {
   const auth = await resolveMiddlewareAuth(supabase);
   marks.claims = performance.now() - authStart;
 
+  if (auth.userId && isGuestOnlyAuthRoute(pathname)) {
+    const roleStart = performance.now();
+    const role = await resolveRole(supabase, auth);
+    marks.role = performance.now() - roleStart;
+    const next = request.nextUrl.searchParams.get("next");
+    const redirectTo = getPostLoginRedirect(role, next);
+    return redirect(new URL(redirectTo, request.url));
+  }
+
   if (isPublicAuthRoute(pathname)) {
-    if (auth.userId && isGuestOnlyAuthRoute(pathname)) {
-      const roleStart = performance.now();
-      const role = await resolveRole(supabase, auth);
-      marks.role = performance.now() - roleStart;
-      const next = request.nextUrl.searchParams.get("next");
-      const redirectTo = getPostLoginRedirect(role, next);
-      return redirect(new URL(redirectTo, request.url));
-    }
     return finish(getResponse());
   }
 

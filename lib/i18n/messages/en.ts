@@ -808,6 +808,9 @@ export const en = {
   "registration.successTitle": "Application received",
   "registration.successBody":
     "Thank you. We will review your registration and contact you by email or phone.",
+  "registration.guestSuccessTitle": "Thank you",
+  "registration.guestSuccessBody":
+    "Your registration was submitted. Staff will review it — you do not need to fill this form again.",
   "registration.guardianTitle": "Guardian details (required under 18)",
   "registration.step.personal.hint": "Tell us who you are.",
   "registration.step.contact.hint": "How can we reach you?",

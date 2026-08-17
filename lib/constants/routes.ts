@@ -140,6 +140,14 @@ export function getRegisterGuestRoute(token: string): string {
   return `/register/guest/${token}`;
 }
 
+/** Invite-only public forms: no site navbar or footer. */
+export function hidesPublicSiteChrome(pathname: string): boolean {
+  return (
+    pathname.startsWith("/f/") ||
+    pathname.startsWith(`${ROUTES.REGISTER}/guest/`)
+  );
+}
+
 export function getManagerUserDetailRoute(userId: string): string {
   return `/manager/users/${userId}`;
 }

@@ -46,7 +46,9 @@ export const GUEST_STATUS_VALUES = GUEST_PIPELINE_STATUS_VALUES;
 
 /**
  * Independent guests.status profile pointer.
- * Pipeline log CRUD is allowed only while this is pending.
+ * Pipeline log can be recorded only while pending. Removing a recorded step
+ * is allowed while pending or finished (finished then reopens to pending).
+ * Cancelled, rejected, and scheduled keep the schema locked.
  */
 export const GUEST_CURRENT_STATUSES = {
   SCHEDULED: "scheduled",
@@ -87,6 +89,20 @@ export const GUEST_CURRENT_STATUS_LABELS: Record<GuestCurrentStatus, string> = {
   finished: "Finished",
 };
 
+export const GUEST_CURRENT_STATUS_BADGE_CLASSES: Record<
+  GuestCurrentStatus,
+  string
+> = {
+  scheduled:
+    "bg-violet-500/15 text-violet-700 ring-violet-500/25 dark:text-violet-400",
+  pending: "bg-sky-500/15 text-sky-700 ring-sky-500/25 dark:text-sky-400",
+  cancelled:
+    "bg-amber-500/15 text-amber-700 ring-amber-500/25 dark:text-amber-400",
+  rejected: "bg-rose-500/15 text-rose-700 ring-rose-500/25 dark:text-rose-400",
+  finished:
+    "bg-emerald-500/15 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400",
+};
+
 export const GUEST_INTERESTED_SERVICES = {
   ETKAN_ROADMAP: "etkan_roadmap",
   PRIVATE: "private",
@@ -121,4 +137,13 @@ export function isGuestStatus(value: string): value is GuestStatus {
 
 export function canMutateGuestPipeline(status: GuestCurrentStatus): boolean {
   return status === GUEST_CURRENT_STATUSES.PENDING;
+}
+
+export function canRemoveGuestPipelineStatus(
+  status: GuestCurrentStatus
+): boolean {
+  return (
+    status === GUEST_CURRENT_STATUSES.PENDING ||
+    status === GUEST_CURRENT_STATUSES.FINISHED
+  );
 }

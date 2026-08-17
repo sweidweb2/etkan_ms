@@ -39,6 +39,9 @@ describe("getPostLoginRedirect", () => {
     expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.LOGIN)).toBe(
       ROUTES.STUDENT_DASHBOARD
     );
+    expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.REGISTER)).toBe(
+      ROUTES.STUDENT_DASHBOARD
+    );
   });
 
   it("ignores next when path belongs to another role panel", () => {

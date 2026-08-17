@@ -4,10 +4,15 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
+  BanIcon,
+  CalendarClockIcon,
+  CheckCircle2Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  PauseCircleIcon,
   PlusIcon,
   SearchIcon,
+  XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Can } from "@/components/auth/can";
@@ -16,6 +21,7 @@ import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -30,11 +36,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  GUEST_CURRENT_STATUS_BADGE_CLASSES,
   GUEST_CURRENT_STATUS_LABELS,
   GUEST_CURRENT_STATUS_VALUES,
   GUEST_EDUCATION_LEVEL_LABELS,
   GUEST_INTERESTED_SERVICE_LABELS,
   GUEST_INTERESTED_SERVICE_VALUES,
+  type GuestCurrentStatus,
 } from "@/lib/constants/guest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerGuestDetailRoute } from "@/lib/constants/routes";
@@ -126,9 +134,25 @@ function matchesSearch(guest: ManagerGuestRow, query: string) {
   return haystack.includes(normalizedQuery);
 }
 
-function StatusBadge({ status }: { status: ManagerGuestRow["status"] }) {
+const STATUS_ICONS = {
+  scheduled: CalendarClockIcon,
+  pending: PauseCircleIcon,
+  cancelled: XCircleIcon,
+  rejected: BanIcon,
+  finished: CheckCircle2Icon,
+} as const;
+
+function StatusBadge({ status }: { status: GuestCurrentStatus }) {
+  const Icon = STATUS_ICONS[status];
+
   return (
-    <span className="inline-flex rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+        GUEST_CURRENT_STATUS_BADGE_CLASSES[status]
+      )}
+    >
+      <Icon className="size-3.5 shrink-0" />
       {GUEST_CURRENT_STATUS_LABELS[status]}
     </span>
   );
@@ -225,61 +249,77 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
         </div>
 
         <Card>
-          <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
+          <CardHeader className="gap-4 border-b">
             <CardTitle className="text-base">Guest list</CardTitle>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <div className="relative w-full sm:w-56">
-                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(event) => {
-                    setSearchQuery(event.target.value);
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="grid w-full gap-1.5 sm:w-56">
+                <Label htmlFor="guest-filter-search">Search</Label>
+                <div className="relative">
+                  <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="guest-filter-search"
+                    value={searchQuery}
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setCurrentPage(1);
+                    }}
+                    placeholder="Name or phone"
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+              <div className="grid w-full gap-1.5 sm:w-44">
+                <Label htmlFor="guest-filter-status">Status</Label>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    setStatusFilter(value);
                     setCurrentPage(1);
                   }}
-                  placeholder="Search name or phone"
-                  className="pl-8"
-                />
+                >
+                  <SelectTrigger
+                    id="guest-filter-status"
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
+                    {GUEST_CURRENT_STATUS_VALUES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {GUEST_CURRENT_STATUS_LABELS[value]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => {
-                  if (!value) return;
-                  setStatusFilter(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
-                  {GUEST_CURRENT_STATUS_VALUES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {GUEST_CURRENT_STATUS_LABELS[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={serviceFilter}
-                onValueChange={(value) => {
-                  if (!value) return;
-                  setServiceFilter(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue placeholder="Service" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={FILTER_ALL}>All services</SelectItem>
-                  {GUEST_INTERESTED_SERVICE_VALUES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {GUEST_INTERESTED_SERVICE_LABELS[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid w-full gap-1.5 sm:w-44">
+                <Label htmlFor="guest-filter-service">Service</Label>
+                <Select
+                  value={serviceFilter}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    setServiceFilter(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger
+                    id="guest-filter-service"
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="All services" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={FILTER_ALL}>All services</SelectItem>
+                    {GUEST_INTERESTED_SERVICE_VALUES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {GUEST_INTERESTED_SERVICE_LABELS[value]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
