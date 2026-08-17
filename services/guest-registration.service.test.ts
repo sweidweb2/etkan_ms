@@ -133,6 +133,39 @@ describe("openGuestRegistrationInviteForManager", () => {
     expect(inviteRepository.createInvite).toHaveBeenCalled();
   });
 
+    it("rotates token when staff generates a new link", async () => {
+      vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+        data: guestRecord,
+        ...okResult,
+      });
+      vi.mocked(
+        registrationRepository.findActiveApplicationByGuestId
+      ).mockResolvedValue({ data: null, ...okResult });
+      vi.mocked(inviteRepository.findInviteByGuestId).mockResolvedValue({
+        data: activeInvite,
+        ...okResult,
+      });
+      vi.mocked(inviteRepository.updateInvite).mockResolvedValue({
+        data: { ...activeInvite, token: "rotated-token" },
+        ...okResult,
+      });
+
+      const result = await openGuestRegistrationInviteForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        guestId,
+        { rotate: true }
+      );
+
+      expect(result.success).toBe(true);
+      expect(inviteRepository.updateInvite).toHaveBeenCalled();
+      if (result.success) {
+        expect(result.message).toMatch(/new registration invite link/i);
+        expect(result.invite.token).toBe("rotated-token");
+      }
+    });
+
   it("returns existing active unused invite idempotently", async () => {
     vi.mocked(guestRepository.findGuestById).mockResolvedValue({
       data: guestRecord,

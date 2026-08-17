@@ -182,7 +182,8 @@ export async function openGuestRegistrationInviteForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  guestId: string
+  guestId: string,
+  options: { rotate?: boolean } = {}
 ): Promise<InviteMutationResult> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
@@ -219,8 +220,10 @@ export async function openGuestRegistrationInviteForManager(
   }
 
   const existing = existingResult.data;
+  const rotateActive =
+    Boolean(options.rotate) && Boolean(existing && isInviteActiveUnused(existing));
 
-  if (existing && isInviteActiveUnused(existing)) {
+  if (existing && isInviteActiveUnused(existing) && !options.rotate) {
     return {
       success: true,
       message: "Registration invite is already open.",
@@ -281,12 +284,18 @@ export async function openGuestRegistrationInviteForManager(
     table_name: "guest_registration_invites",
     record_id: reset.data.id,
     new_data: { guest_id: guestId, token_rotated: true },
-    metadata: { note: "Guest registration invite reopened." },
+    metadata: {
+      note: rotateActive
+        ? "Guest registration invite link rotated."
+        : "Guest registration invite reopened.",
+    },
   });
 
   return {
     success: true,
-    message: "Registration invite reopened.",
+    message: rotateActive
+      ? "New registration invite link generated."
+      : "Registration invite reopened.",
     invite: mapInviteRecord(reset.data),
   };
 }

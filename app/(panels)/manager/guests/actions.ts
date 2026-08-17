@@ -285,6 +285,7 @@ export async function openGuestRegistrationInviteAction(
 ): Promise<OpenGuestRegistrationInviteActionState> {
   const actor = await getSessionAuditActor();
   const guestId = String(formData.get("guest_id") ?? "").trim();
+  const rotate = String(formData.get("rotate") ?? "") === "true";
 
   if (!guestId) {
     return { success: false, error: "Guest not found." };
@@ -295,14 +296,14 @@ export async function openGuestRegistrationInviteAction(
     adminClient,
     actor.userId,
     actor,
-    guestId
+    guestId,
+    { rotate }
   );
 
   if (!result.success) {
     return { success: false, error: result.error };
   }
 
-  revalidatePath(getManagerGuestDetailRoute(guestId));
   return {
     success: true,
     message: result.message,
@@ -333,7 +334,6 @@ export async function stopGuestRegistrationInviteAction(
     return { success: false, error: result.error };
   }
 
-  revalidatePath(getManagerGuestDetailRoute(guestId));
   return {
     success: true,
     message: result.message,

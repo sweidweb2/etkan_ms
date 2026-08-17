@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { CopyIcon, LinkIcon } from "lucide-react";
 import {
   cancelGuestRegistrationApplicationAction,
@@ -42,7 +42,10 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { REGISTRATION_APPLICATION_STATUS_LABELS } from "@/lib/constants/public-registration";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { getManagerRegistrationDetailRoute } from "@/lib/constants/routes";
+import {
+  getManagerRegistrationDetailRoute,
+  getRegisterGuestRoute,
+} from "@/lib/constants/routes";
 import { showSuccessToast } from "@/lib/toast";
 import type {
   CancelGuestRegistrationApplicationActionState,
@@ -94,6 +97,7 @@ export function GuestRegistrationSection({
   const [isStaffFillPending, setIsStaffFillPending] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isRotateOpen, setIsRotateOpen] = useState(false);
   const [isTransitionPending, startTransition] = useTransition();
 
   if (initialInvite !== prevInvite) {
@@ -126,6 +130,7 @@ export function GuestRegistrationSection({
   const isStopBusy = isStopPending || isTransitionPending;
   const isCancelBusy = isCancelPending || isTransitionPending;
   const isDeleteBusy = isDeletePending || isTransitionPending;
+  const isRotateBusy = isOpenBusy;
 
   const handleCancelOpenChange = usePendingAwareOpenChange(
     isCancelBusy,
@@ -135,41 +140,57 @@ export function GuestRegistrationSection({
     isDeleteBusy,
     setIsDeleteOpen
   );
+  const handleRotateOpenChange = usePendingAwareOpenChange(
+    isRotateBusy,
+    setIsRotateOpen
+  );
   const handleStaffFillOpenChange = usePendingAwareOpenChange(
     isStaffFillPending,
     setIsStaffFillOpen
   );
 
-  useActionStateToast(openState, isOpenBusy);
-  useActionStateToast(stopState, isStopBusy);
-  useActionStateToast(cancelState, isCancelBusy);
-  useActionStateToast(deleteState, isDeleteBusy);
+  useActionStateToast(openState, isOpenPending);
+  useActionStateToast(stopState, isStopPending);
+  useActionStateToast(cancelState, isCancelPending);
+  useActionStateToast(deleteState, isDeletePending);
 
-  useActionStateSuccess(openState, isOpenBusy, () => {
+  useActionStateSuccess(openState, isOpenPending, () => {
     if (openState.invite) setInvite(openState.invite);
-    router.refresh();
+    setIsRotateOpen(false);
   });
-  useActionStateSuccess(stopState, isStopBusy, () => {
+  useActionStateSuccess(stopState, isStopPending, () => {
     if (stopState.invite) setInvite(stopState.invite);
-    router.refresh();
   });
-  useActionStateSuccess(cancelState, isCancelBusy, () => {
+  useActionStateSuccess(cancelState, isCancelPending, () => {
     setIsCancelOpen(false);
     setApplication((current) =>
       current ? { ...current, status: "cancelled" } : current
     );
-    router.refresh();
+    setInvite((current) =>
+      current
+        ? { ...current, cancelled_at: current.cancelled_at ?? new Date().toISOString() }
+        : current
+    );
   });
-  useActionStateSuccess(deleteState, isDeleteBusy, () => {
+  useActionStateSuccess(deleteState, isDeletePending, () => {
     setIsDeleteOpen(false);
     setApplication(null);
     setInvite((current) =>
       current ? { ...current, application_id: null } : current
     );
-    router.refresh();
   });
 
   const activeInvite = isActiveUnusedInvite(invite);
+  const invitePath = invite ? getRegisterGuestRoute(invite.token) : null;
+  const [invitePublicUrl, setInvitePublicUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!invitePath) {
+      setInvitePublicUrl(null);
+      return;
+    }
+    setInvitePublicUrl(`${window.location.origin}${invitePath}`);
+  }, [invitePath]);
 
   const hasSubmittedApp =
     Boolean(application) && application?.status !== "cancelled";
@@ -177,9 +198,10 @@ export function GuestRegistrationSection({
     !hasSubmittedApp &&
     (!invite || invite.cancelled_at != null || invite.used_at != null);
 
-  function runOpen() {
+  function runOpen(rotate = false) {
     const formData = new FormData();
     formData.set("guest_id", guest.id);
+    if (rotate) formData.set("rotate", "true");
     startTransition(() => {
       openAction(formData);
     });
@@ -210,8 +232,9 @@ export function GuestRegistrationSection({
   }
 
   async function handleCopyUrl() {
-    if (!invite?.public_url) return;
-    await navigator.clipboard.writeText(invite.public_url);
+    if (!invitePath) return;
+    const url = `${window.location.origin}${invitePath}`;
+    await navigator.clipboard.writeText(url);
     showSuccessToast("Invite link copied.");
   }
 
@@ -241,15 +264,15 @@ export function GuestRegistrationSection({
                     ? "Used"
                     : "Open"}
               </p>
-              {activeInvite && invite.public_url ? (
+              {activeInvite && invitePath ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <a
-                    href={invite.public_url}
+                    href={invitePath}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="max-w-full truncate rounded bg-muted px-2 py-1 text-xs underline-offset-2 hover:underline"
                   >
-                    {invite.public_url}
+                    {invitePublicUrl ?? invitePath}
                   </a>
                   <Button
                     type="button"
@@ -285,7 +308,7 @@ export function GuestRegistrationSection({
               {(!invite || canReopen) && !hasSubmittedApp ? (
                 <Button
                   type="button"
-                  onClick={runOpen}
+                  onClick={() => runOpen()}
                   disabled={isOpenBusy}
                 >
                   {isOpenBusy ? <InlineSpinner /> : null}
@@ -303,6 +326,14 @@ export function GuestRegistrationSection({
                   >
                     {isStopBusy ? <InlineSpinner /> : null}
                     Stop invite
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsRotateOpen(true)}
+                    disabled={isRotateBusy}
+                  >
+                    Generate new link
                   </Button>
                   <Button
                     type="button"
@@ -398,6 +429,36 @@ export function GuestRegistrationSection({
             >
               {isCancelBusy ? <InlineSpinner /> : null}
               Cancel application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRotateOpen} onOpenChange={handleRotateOpenChange}>
+        <DialogContent showCloseButton={!isRotateBusy}>
+          <DialogHeader>
+            <DialogTitle>Generate a new invite link?</DialogTitle>
+            <DialogDescription>
+              Creates a new link for this guest. The current link will stop
+              working.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isRotateBusy}
+              onClick={() => handleRotateOpenChange(false)}
+            >
+              Keep current
+            </Button>
+            <Button
+              type="button"
+              disabled={isRotateBusy}
+              onClick={() => runOpen(true)}
+            >
+              {isRotateBusy ? <InlineSpinner /> : null}
+              Generate new link
             </Button>
           </DialogFooter>
         </DialogContent>

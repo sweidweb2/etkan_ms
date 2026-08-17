@@ -324,7 +324,7 @@ Format: `key` — label — access
 | `guests.update` | Update guest intake fields and notes | write |
 | `guests.delete` | Hard-delete guests | write |
 | `guests.change_status` | Set guest status | write |
-| `guests.registration.manage` | Open registration; stop invite; cancel or hard-delete application; staff-fill | write |
+| `guests.registration.manage` | Open, rotate, or stop invite; cancel or hard-delete application; staff-fill | write |
 
 ### Cron Jobs
 

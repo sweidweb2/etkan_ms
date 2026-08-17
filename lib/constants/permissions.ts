@@ -1146,7 +1146,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     feature: "guests",
-    label: "Open registration; stop invite; cancel or hard-delete application; staff-fill",
+    label: "Open, rotate, or stop invite; cancel or hard-delete application; staff-fill",
     access: PERMISSION_ACCESS.WRITE,
   },
 
