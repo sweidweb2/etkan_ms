@@ -3,7 +3,7 @@ import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { createGuestSchema } from "@/lib/validators/manager/create-guest";
 import type { FieldErrors } from "@/types/auth";
 
-export const updateGuestSchema = createGuestSchema.extend({
+export const updateGuestSchema = createGuestSchema.omit({ status: true }).extend({
   id: z.string().uuid({ message: "Invalid guest id." }),
 });
 

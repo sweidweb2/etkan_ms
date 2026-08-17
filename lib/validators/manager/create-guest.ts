@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import {
+  GUEST_CURRENT_STATUSES,
+  GUEST_DEFAULT_STATUS,
   GUEST_EDUCATION_LEVEL_VALUES,
   GUEST_INTERESTED_SERVICE_VALUES,
 } from "@/lib/constants/guest";
@@ -51,6 +53,12 @@ export const createGuestSchema = z.object({
   interested_service: z.enum(GUEST_INTERESTED_SERVICE_VALUES, {
     message: "Select an interested service.",
   }),
+  status: z
+    .enum(
+      [GUEST_CURRENT_STATUSES.SCHEDULED, GUEST_CURRENT_STATUSES.PENDING],
+      { message: "Select Scheduled or Pending." }
+    )
+    .default(GUEST_DEFAULT_STATUS),
   notes: optionalTrimmedText(NOTES_MAX, "Notes"),
 });
 
@@ -66,6 +74,7 @@ export function parseCreateGuestFormData(formData: FormData):
     school_or_university: formData.get("school_or_university"),
     education_level: formData.get("education_level"),
     interested_service: formData.get("interested_service"),
+    status: formData.get("status") || GUEST_DEFAULT_STATUS,
     notes: formData.get("notes"),
   });
 

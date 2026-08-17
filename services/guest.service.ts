@@ -1,5 +1,4 @@
 import {
-  GUEST_DEFAULT_STATUS,
   GUEST_EDUCATION_LEVEL_VALUES,
   GUEST_INTERESTED_SERVICE_VALUES,
   canMutateGuestPipeline,
@@ -595,6 +594,7 @@ export async function createGuestForManager(
     school_or_university?: string | null;
     education_level: GuestEducationLevel;
     interested_service: GuestInterestedService;
+    status?: GuestCurrentStatus;
     notes?: string | null;
   }
 ): Promise<CreateGuestResult> {
@@ -623,6 +623,7 @@ export async function createGuestForManager(
     school_or_university,
     education_level,
     interested_service,
+    status,
     notes,
   } = parsed.data;
 
@@ -633,7 +634,7 @@ export async function createGuestForManager(
     school_or_university,
     education_level,
     interested_service,
-    status: GUEST_DEFAULT_STATUS,
+    status,
     notes,
     created_by: actor.userId,
   });
@@ -651,7 +652,7 @@ export async function createGuestForManager(
     table_name: "guests",
     record_id: data.id,
     new_data: auditPayload(data),
-    metadata: { note: "Guest created with scheduled status." },
+    metadata: { note: `Guest created with ${status} status.` },
   });
 
   return {

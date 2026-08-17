@@ -163,6 +163,32 @@ describe("createGuestForManager", () => {
       guestStatusEventRepository.createGuestStatusEvent
     ).not.toHaveBeenCalled();
   });
+
+  it("creates guest as pending when requested", async () => {
+    vi.mocked(guestRepository.createGuest).mockResolvedValue({
+      data: { ...guestRecord, status: "pending" },
+      ...okResult,
+    });
+
+    const result = await createGuestForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { ...validCreateInput, status: "pending" }
+    );
+
+    expect(result.success).toBe(true);
+    expect(guestRepository.createGuest).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        status: "pending",
+        created_by: actor.userId,
+      })
+    );
+    expect(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateGuestForManager", () => {

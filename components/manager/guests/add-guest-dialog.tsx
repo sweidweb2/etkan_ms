@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useTransition } from "react";
 import type { FieldValues, UseFormRegister, UseFormSetValue } from "react-hook-form";
 import { createGuestAction } from "@/app/manager/guests/actions";
+import { FieldLabel } from "@/components/auth/field-label";
 import { GuestFormFields } from "@/components/manager/guests/guest-form-fields";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
+  GUEST_CURRENT_STATUS_LABELS,
+  GUEST_CURRENT_STATUSES,
+  GUEST_DEFAULT_STATUS,
   GUEST_EDUCATION_LEVELS,
   GUEST_INTERESTED_SERVICES,
 } from "@/lib/constants/guest";
@@ -37,6 +42,7 @@ const emptyDefaults: CreateGuestInput = {
   school_or_university: null,
   education_level: GUEST_EDUCATION_LEVELS.SCHOOL,
   interested_service: GUEST_INTERESTED_SERVICES.ETKAN_ROADMAP,
+  status: GUEST_DEFAULT_STATUS,
   notes: null,
 };
 
@@ -76,6 +82,7 @@ export function AddGuestDialog({
 
   const educationLevel = watch("education_level");
   const interestedService = watch("interested_service");
+  const status = watch("status");
 
   useEffect(() => {
     if (!open) {
@@ -96,6 +103,7 @@ export function AddGuestDialog({
     formData.set("school_or_university", values.school_or_university ?? "");
     formData.set("education_level", values.education_level);
     formData.set("interested_service", values.interested_service);
+    formData.set("status", values.status);
     formData.set("notes", values.notes ?? "");
 
     startTransition(() => {
@@ -109,8 +117,9 @@ export function AddGuestDialog({
         <DialogHeader>
           <DialogTitle>Create guest</DialogTitle>
           <DialogDescription>
-            Minimal intake card. Status starts as Scheduled; full registration
-            comes later from the guest detail page.
+            Minimal intake card. Choose Scheduled or Pending as the starting
+            profile status. Full registration comes later from the guest detail
+            page.
           </DialogDescription>
         </DialogHeader>
 
@@ -144,6 +153,61 @@ export function AddGuestDialog({
               notes: errors.notes?.message ?? state.fieldErrors?.notes?.[0],
             }}
           />
+
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <FieldLabel
+                htmlFor="add-guest-status"
+                label="Initial status"
+                hint="Required"
+              />
+              <p className="text-xs text-muted-foreground">
+                {status === GUEST_CURRENT_STATUSES.PENDING
+                  ? "Pending unlocks the pipeline schema immediately."
+                  : "Scheduled is the default. Switch to Pending when follow-up has started."}
+              </p>
+              {state.fieldErrors?.status?.[0] ? (
+                <p className="text-sm text-destructive">
+                  {state.fieldErrors.status[0]}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span
+                className={
+                  status === GUEST_CURRENT_STATUSES.SCHEDULED
+                    ? "text-sm font-medium"
+                    : "text-sm text-muted-foreground"
+                }
+              >
+                {GUEST_CURRENT_STATUS_LABELS.scheduled}
+              </span>
+              <Switch
+                id="add-guest-status"
+                checked={status === GUEST_CURRENT_STATUSES.PENDING}
+                disabled={isPending}
+                onCheckedChange={(checked) =>
+                  setValue(
+                    "status",
+                    checked
+                      ? GUEST_CURRENT_STATUSES.PENDING
+                      : GUEST_CURRENT_STATUSES.SCHEDULED,
+                    { shouldValidate: true }
+                  )
+                }
+                aria-label="Initial status pending"
+              />
+              <span
+                className={
+                  status === GUEST_CURRENT_STATUSES.PENDING
+                    ? "text-sm font-medium"
+                    : "text-sm text-muted-foreground"
+                }
+              >
+                {GUEST_CURRENT_STATUS_LABELS.pending}
+              </span>
+            </div>
+          </div>
         </form>
 
         <DialogFooter className="sm:justify-end">

@@ -53,6 +53,22 @@ describe("createGuestSchema", () => {
       expect(parsed.data.notes).toBeNull();
     }
   });
+
+  it("defaults status to scheduled", () => {
+    const parsed = createGuestSchema.safeParse(validInput);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("scheduled");
+    }
+  });
+
+  it("rejects profile statuses other than scheduled or pending", () => {
+    const parsed = createGuestSchema.safeParse({
+      ...validInput,
+      status: "finished",
+    });
+    expect(parsed.success).toBe(false);
+  });
 });
 
 describe("parseCreateGuestFormData", () => {
@@ -68,6 +84,25 @@ describe("parseCreateGuestFormData", () => {
 
     const parsed = parseCreateGuestFormData(formData);
     expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("scheduled");
+    }
+  });
+
+  it("parses pending status from FormData", () => {
+    const formData = new FormData();
+    formData.set("full_name", validInput.full_name);
+    formData.set("phone", validInput.phone);
+    formData.set("age", String(validInput.age));
+    formData.set("education_level", validInput.education_level);
+    formData.set("interested_service", validInput.interested_service);
+    formData.set("status", "pending");
+
+    const parsed = parseCreateGuestFormData(formData);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.status).toBe("pending");
+    }
   });
 
   it("returns fieldErrors for missing name", () => {
