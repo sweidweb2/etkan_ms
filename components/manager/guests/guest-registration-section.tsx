@@ -414,49 +414,51 @@ export function GuestRegistrationSection({
             </div>
           ) : null}
 
-          <Can permission={PERMISSIONS.GUESTS_REGISTRATION_MANAGE}>
-            <div className="flex flex-wrap gap-2">
-              {(!invite || canReopen) && !hasSubmittedApp ? (
-                <Button
-                  type="button"
-                  onClick={() => runOpen()}
-                  disabled={isOpenBusy}
-                >
-                  {isOpenBusy ? <InlineSpinner /> : null}
-                  {invite ? "Reopen registration" : "Open registration"}
-                </Button>
-              ) : null}
+          {(!invite || canReopen) && !hasSubmittedApp || activeInvite ? (
+            <Can permission={PERMISSIONS.GUESTS_REGISTRATION_MANAGE}>
+              <div className="flex flex-wrap gap-2">
+                {(!invite || canReopen) && !hasSubmittedApp ? (
+                  <Button
+                    type="button"
+                    onClick={() => runOpen()}
+                    disabled={isOpenBusy}
+                  >
+                    {isOpenBusy ? <InlineSpinner /> : null}
+                    {invite ? "Reopen registration" : "Open registration"}
+                  </Button>
+                ) : null}
 
-              {activeInvite ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={runStop}
-                    disabled={isStopBusy}
-                  >
-                    {isStopBusy ? <InlineSpinner /> : null}
-                    Stop invite
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsRotateOpen(true)}
-                    disabled={isRotateBusy}
-                  >
-                    Generate new link
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setIsStaffFillOpen(true)}
-                  >
-                    Fill as staff
-                  </Button>
-                </>
-              ) : null}
-            </div>
-          </Can>
+                {activeInvite ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={runStop}
+                      disabled={isStopBusy}
+                    >
+                      {isStopBusy ? <InlineSpinner /> : null}
+                      Stop invite
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsRotateOpen(true)}
+                      disabled={isRotateBusy}
+                    >
+                      Generate new link
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setIsStaffFillOpen(true)}
+                    >
+                      Fill as staff
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            </Can>
+          ) : null}
 
           {hasSubmittedApp ? (
             <Can permission={PERMISSIONS.GUESTS_REGISTRATION_MANAGE}>

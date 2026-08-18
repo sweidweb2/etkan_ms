@@ -36,3 +36,6 @@ Page — listWorkshopsForManager:
 assertPermission (cached, cheap)
 resolveActorRole again (extra profiles.role fetch even though session already has role)
 then the tiny workshops SELECT
+
+
+now go bro check all the flow of the all feature guest from its crud with its business logic its connections its flow,its edge cases and tell me what is working and what is broken and if there any edge cases not handled and so on...
