@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { revalidateManagerPeopleLists } from "@/lib/cache/manager-list-cache";
 import {
   getManagerGuestDetailRoute,
   ROUTES,
@@ -10,13 +11,18 @@ import {
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseConnectGuestRegistrationUserFormData } from "@/lib/validators/manager/connect-guest-registration-user";
+import { parseCreateStudentFromGuestFormData } from "@/lib/validators/manager/create-student-from-guest";
 import { parseChangeGuestStatusFormData } from "@/lib/validators/manager/change-guest-status";
 import { parseCreateGuestFormData } from "@/lib/validators/manager/create-guest";
 import { parseRecordGuestStatusesFormData } from "@/lib/validators/manager/record-guest-statuses";
 import { parseRemoveGuestStatusFormData } from "@/lib/validators/manager/remove-guest-status";
 import { parseSetGuestProfileStatusFormData } from "@/lib/validators/manager/set-guest-profile-status";
 import { parseUpdateGuestFormData } from "@/lib/validators/manager/update-guest";
-import { parseSubmitGuestRegistrationStaffFormData } from "@/lib/validators/public/registration";
+import {
+  parseRemoveTempRegistrationDocumentFormData,
+  parseSubmitGuestRegistrationStaffFormData,
+  parseTempUploadRegistrationDocumentFormData,
+} from "@/lib/validators/public/registration";
 import {
   createGuestForManager,
   deleteGuestForManager,
@@ -31,9 +37,12 @@ import {
   connectGuestRegistrationUserForManager,
   deleteGuestRegistrationApplicationForManager,
   openGuestRegistrationInviteForManager,
+  removeTempGuestRegistrationDocumentForManager,
   stopGuestRegistrationInviteForManager,
   submitGuestRegistrationForManager,
+  tempUploadGuestRegistrationDocumentForManager,
 } from "@/services/guest-registration.service";
+import { createStudentFromGuestRegistrationForManager } from "@/services/guest-create-student.service";
 import type {
   CancelGuestRegistrationApplicationActionState,
   ChangeGuestStatusActionState,
@@ -48,7 +57,12 @@ import type {
   StopGuestRegistrationInviteActionState,
   SubmitGuestRegistrationStaffActionState,
   UpdateGuestActionState,
+  CreateStudentFromGuestActionState,
 } from "@/types/manager-guest";
+import type {
+  RemoveTempRegistrationDocumentActionState,
+  TempUploadRegistrationDocumentActionState,
+} from "@/types/public-registration";
 
 export async function createGuestAction(
   _prevState: CreateGuestActionState,
@@ -429,6 +443,73 @@ export async function submitGuestRegistrationStaffAction(
   };
 }
 
+export async function tempUploadGuestRegistrationDocumentAction(
+  formData: FormData
+): Promise<TempUploadRegistrationDocumentActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseTempUploadRegistrationDocumentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await tempUploadGuestRegistrationDocumentForManager(
+    adminClient,
+    actor.userId,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: "fieldErrors" in result ? result.fieldErrors : undefined,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    document: result.document,
+  };
+}
+
+export async function removeTempGuestRegistrationDocumentAction(
+  formData: FormData
+): Promise<RemoveTempRegistrationDocumentActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseRemoveTempRegistrationDocumentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await removeTempGuestRegistrationDocumentForManager(
+    adminClient,
+    actor.userId,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+  };
+}
+
 export async function cancelGuestRegistrationApplicationAction(
   _prevState: CancelGuestRegistrationApplicationActionState,
   formData: FormData
@@ -521,6 +602,49 @@ export async function connectGuestRegistrationUserAction(
       fieldErrors: result.fieldErrors,
     };
   }
+
+  return {
+    success: true,
+    message: result.message,
+    application: result.application,
+  };
+}
+
+export async function createStudentFromGuestAction(
+  _prevState: CreateStudentFromGuestActionState,
+  formData: FormData
+): Promise<CreateStudentFromGuestActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateStudentFromGuestFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createStudentFromGuestRegistrationForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(getManagerGuestDetailRoute(parsed.data.guest_id));
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  revalidatePath(ROUTES.MANAGER_REGISTRATIONS);
+  revalidateManagerPeopleLists();
 
   return {
     success: true,

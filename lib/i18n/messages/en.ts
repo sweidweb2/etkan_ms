@@ -849,6 +849,8 @@ export const en = {
   "registration.field.documents": "Identity documents",
   "registration.documents.help":
     "Upload 1–3 files (PDF, JPEG, PNG, or WebP), max 10 MB each.",
+  "registration.documents.choose": "Upload files",
+  "registration.documents.drop": "or drag and drop here",
   "registration.documents.remove": "Remove",
   "registration.documents.uploading": "Uploading…",
   "registration.documents.uploadError": "Unable to upload file.",

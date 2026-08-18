@@ -722,6 +722,51 @@ describe("setGuestStatusesForManager", () => {
       "finished"
     );
   });
+
+  it("records pipeline finished without flipping profile when asked", async () => {
+    const pendingGuest = { ...guestRecord, status: "pending" };
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: pendingGuest,
+      ...okResult,
+    });
+    vi.mocked(
+      guestStatusEventRepository.listGuestStatusEventsByGuestId
+    ).mockResolvedValue({
+      data: [],
+      ...okResult,
+    });
+    vi.mocked(
+      guestStatusEventRepository.createGuestStatusEvent
+    ).mockResolvedValue({
+      data: {
+        id: "event-new",
+        guest_id: guestId,
+        status: "finished",
+        note: null,
+        created_by: actor.userId,
+        created_at: "2026-01-04T00:00:00.000Z",
+      },
+      ...okResult,
+    });
+
+    const result = await setGuestStatusesForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: guestId,
+        statuses: ["finished"],
+        note: null,
+        finishProfileOnPipelineFinished: false,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.guest.status).toBe("pending");
+    }
+    expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
+  });
 });
 
 describe("setGuestProfileStatusForManager", () => {

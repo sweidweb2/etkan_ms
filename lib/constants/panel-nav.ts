@@ -38,13 +38,6 @@ export const TRAINER_PANEL_NAVIGATION = withManageWorkshops(
 export const TRAINER_PANEL_NAV = TRAINER_PANEL_NAVIGATION.items!;
 
 export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
-  items: [
-    {
-      title: "Dashboard",
-      href: ROUTES.MANAGER_DASHBOARD,
-      icon: "layout-dashboard",
-    },
-  ],
   groups: [
     {
       id: "people",
@@ -71,11 +64,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           href: ROUTES.MANAGER_GUESTS,
           icon: "user-plus",
         },
-        {
-          title: "Manage relationships",
-          href: ROUTES.MANAGER_RELATIONSHIPS,
-          icon: "users",
-        },
       ],
     },
     {
@@ -97,6 +85,18 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           title: "Manage semesters",
           href: ROUTES.MANAGER_SEMESTERS,
           icon: "layers",
+        },
+      ],
+    },
+    {
+      id: "resources",
+      label: "Resources",
+      defaultOpen: true,
+      items: [
+        {
+          title: "Manage relationships",
+          href: ROUTES.MANAGER_RELATIONSHIPS,
+          icon: "users",
         },
         {
           title: "Manage equipments",
@@ -152,16 +152,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           href: ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS,
           icon: "analytics",
         },
-        {
-          title: "Schedule",
-          href: ROUTES.MANAGER_SCHEDULE,
-          icon: "calendar-days",
-        },
-        {
-          title: "Notifications ❗",
-          href: ROUTES.MANAGER_NOTIFICATIONS,
-          icon: "bell",
-        },
       ],
     },
     {
@@ -199,8 +189,8 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       ],
     },
     {
-      id: "system",
-      label: "System",
+      id: "insights",
+      label: "Reports & analytics",
       defaultOpen: true,
       items: [
         {
@@ -212,6 +202,23 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           title: "Analytics ❗",
           href: ROUTES.MANAGER_ANALYTICS,
           icon: "analytics",
+        },
+      ],
+    },
+    {
+      id: "system",
+      label: "System",
+      defaultOpen: true,
+      items: [
+        {
+          title: "Schedule",
+          href: ROUTES.MANAGER_SCHEDULE,
+          icon: "calendar-days",
+        },
+        {
+          title: "Notifications ❗",
+          href: ROUTES.MANAGER_NOTIFICATIONS,
+          icon: "bell",
         },
         {
           title: "Backup",

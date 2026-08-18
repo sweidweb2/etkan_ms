@@ -20,7 +20,7 @@ describe("getSafeRedirectPath", () => {
 
 describe("getPostLoginRedirect", () => {
   it("redirects each role to its dashboard by default", () => {
-    expect(getPostLoginRedirect(ROLES.MANAGER)).toBe(ROUTES.MANAGER_DASHBOARD);
+    expect(getPostLoginRedirect(ROLES.MANAGER)).toBe(ROUTES.MANAGER_STUDENTS);
     expect(getPostLoginRedirect(ROLES.STUDENT)).toBe(ROUTES.STUDENT_DASHBOARD);
     expect(getPostLoginRedirect(ROLES.ADMIN)).toBe(ROUTES.ADMIN_DASHBOARD);
     expect(getPostLoginRedirect(ROLES.CO_MANAGER)).toBe(

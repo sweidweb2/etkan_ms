@@ -147,3 +147,10 @@ export function canRemoveGuestPipelineStatus(
     status === GUEST_CURRENT_STATUSES.FINISHED
   );
 }
+
+/** Pipeline steps recorded when creating a student from a guest registration. */
+export const GUEST_CREATE_STUDENT_PIPELINE_STATUSES = [
+  GUEST_PIPELINE_STATUSES.ROUTED_CORRECTLY,
+  GUEST_PIPELINE_STATUSES.FINISHING_ROUTING_DOC,
+  GUEST_PIPELINE_STATUSES.FINISHED,
+] as const;

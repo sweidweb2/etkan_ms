@@ -58,6 +58,7 @@ Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager
 Manage instructors, AI usage, and guests do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
 Schedule assistant UI/API and AI usage page require `cloudflare_ai_usage.view`.  
 Slot details table (`/manager/instructor-schedules/details`) requires `instructor_schedules.details.view` (manager + CEO seed only for now).  
+`guests.create_student` is **manager-only** (full catalog); CEO guest follow-up does not include creating a student from a registration.  
 Re-run `npm run seed:rbac` after deploy so CEO receives the new `guests.*` keys.
 
 ---

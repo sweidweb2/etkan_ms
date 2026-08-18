@@ -49,46 +49,6 @@ export async function listStudentProfilesExcludingUserIds(
   return query;
 }
 
-/** Lightweight counts for the manager dashboard (avoids full student list). */
-export async function countStudentDashboardStats(
-  client: Supabase,
-  input: { activeStatus: string; monthStartIso: string; weekAgoIso: string }
-) {
-  const [activeResult, monthResult, weekResult] = await Promise.all([
-    client
-      .from("student_profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("status", input.activeStatus),
-    client
-      .from("student_profiles")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", input.monthStartIso),
-    client
-      .from("student_profiles")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", input.weekAgoIso),
-  ]);
-
-  if (activeResult.error) {
-    return { data: null, error: activeResult.error };
-  }
-  if (monthResult.error) {
-    return { data: null, error: monthResult.error };
-  }
-  if (weekResult.error) {
-    return { data: null, error: weekResult.error };
-  }
-
-  return {
-    data: {
-      activeCount: activeResult.count ?? 0,
-      createdThisMonth: monthResult.count ?? 0,
-      createdLast7Days: weekResult.count ?? 0,
-    },
-    error: null,
-  };
-}
-
 export async function listStudentProfilesByUserIds(
   client: Supabase,
   userIds: string[]

@@ -9,12 +9,15 @@ import {
   connectGuestRegistrationUserAction,
   deleteGuestRegistrationApplicationAction,
   openGuestRegistrationInviteAction,
+  removeTempGuestRegistrationDocumentAction,
   stopGuestRegistrationInviteAction,
   submitGuestRegistrationStaffAction,
+  tempUploadGuestRegistrationDocumentAction,
 } from "@/app/manager/guests/actions";
 import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { CreateStudentFromGuestDialog } from "@/components/manager/guests/create-student-from-guest-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { RegistrationWizard } from "@/components/public/registration/registration-wizard";
 import { Button } from "@/components/ui/button";
@@ -125,6 +128,7 @@ export function GuestRegistrationSection({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isRotateOpen, setIsRotateOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
+  const [isCreateStudentOpen, setIsCreateStudentOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [isTransitionPending, startTransition] = useTransition();
@@ -250,7 +254,7 @@ export function GuestRegistrationSection({
   const canReopen =
     !hasSubmittedApp &&
     (!invite || invite.cancelled_at != null || invite.used_at != null);
-  const canConnectUser = guest.status === "finished";
+  const canConnectUser = hasSubmittedApp;
   const linkedUser = application?.user_id
     ? linkUsers.find((user) => user.id === application.user_id)
     : undefined;
@@ -388,36 +392,25 @@ export function GuestRegistrationSection({
               {linkedUserLabel ? (
                 <p>Linked user: {linkedUserLabel}</p>
               ) : null}
-              <Link
-                href={getManagerRegistrationDetailRoute(application.id)}
-                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              >
-                <LinkIcon className="size-4" />
-                View application
-              </Link>
-            </div>
-          ) : null}
-
-          {canConnectUser ? (
-            <div className="space-y-2 border-t pt-4">
-              {!hasSubmittedApp ? (
-                <p className="text-sm text-muted-foreground">
-                  No registration application to connect to a user.
-                </p>
-              ) : (
-                <Can permission={PERMISSIONS.GUESTS_REGISTRATION_MANAGE}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleConnectOpenChange(true)}
-                    disabled={isConnectBusy}
-                  >
-                    {application?.user_id
-                      ? "Change linked user"
-                      : "Connect to user"}
-                  </Button>
-                </Can>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={getManagerRegistrationDetailRoute(application.id)}
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                >
+                  <LinkIcon className="size-4" />
+                  View application
+                </Link>
+                {hasSubmittedApp && !application.user_id ? (
+                  <Can permission={PERMISSIONS.GUESTS_CREATE_STUDENT}>
+                    <Button
+                      type="button"
+                      onClick={() => setIsCreateStudentOpen(true)}
+                    >
+                      Create student
+                    </Button>
+                  </Can>
+                ) : null}
+              </div>
             </div>
           ) : null}
 
@@ -462,34 +455,48 @@ export function GuestRegistrationSection({
                   </Button>
                 </>
               ) : null}
+            </div>
+          </Can>
 
-              {hasSubmittedApp ? (
-                <>
+          {hasSubmittedApp ? (
+            <Can permission={PERMISSIONS.GUESTS_REGISTRATION_MANAGE}>
+              <div className="flex flex-wrap items-center gap-2">
+                {canConnectUser ? (
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsCancelOpen(true)}
+                    onClick={() => handleConnectOpenChange(true)}
+                    disabled={isConnectBusy}
                   >
-                    Cancel application
+                    {application?.user_id
+                      ? "Change linked user"
+                      : "Connect to user"}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => setIsDeleteOpen(true)}
-                  >
-                    Hard-delete application
-                  </Button>
-                </>
-              ) : null}
-            </div>
-          </Can>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCancelOpen(true)}
+                >
+                  Cancel application
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setIsDeleteOpen(true)}
+                >
+                  Hard-delete application
+                </Button>
+              </div>
+            </Can>
+          ) : null}
         </div>
       </ClassTabCollapsibleSection>
 
       <Sheet open={isStaffFillOpen} onOpenChange={handleStaffFillOpenChange}>
         <SheetContent
           side="right"
-          className="w-full overflow-y-auto sm:max-w-2xl"
+          className="w-full overflow-y-auto sm:max-w-2xl data-[side=right]:w-full data-[side=right]:sm:max-w-2xl"
           showCloseButton={!isStaffFillPending}
         >
           <SheetHeader>
@@ -505,6 +512,8 @@ export function GuestRegistrationSection({
               guestId={guest.id}
               ageHint={guest.age}
               submitAction={submitGuestRegistrationStaffAction}
+              documentUploadAction={tempUploadGuestRegistrationDocumentAction}
+              documentRemoveAction={removeTempGuestRegistrationDocumentAction}
               onPendingChange={setIsStaffFillPending}
               onSuccess={() => {
                 setIsStaffFillOpen(false);
@@ -520,6 +529,18 @@ export function GuestRegistrationSection({
           </div>
         </SheetContent>
       </Sheet>
+
+      {application && hasSubmittedApp && !application.user_id ? (
+        <CreateStudentFromGuestDialog
+          open={isCreateStudentOpen}
+          onOpenChange={setIsCreateStudentOpen}
+          guestId={guest.id}
+          application={application}
+          onStudentCreated={() => {
+            router.refresh();
+          }}
+        />
+      ) : null}
 
       <Dialog open={isCancelOpen} onOpenChange={handleCancelOpenChange}>
         <DialogContent showCloseButton={!isCancelBusy}>

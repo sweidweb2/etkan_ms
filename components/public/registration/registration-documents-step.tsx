@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
-import { XIcon } from "lucide-react";
+import { UploadIcon, XIcon } from "lucide-react";
 import {
   removeTempRegistrationDocumentAction,
   tempUploadRegistrationDocumentAction,
 } from "@/app/(public)/register/actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -23,7 +22,12 @@ import {
   REGISTRATION_ID_DOCUMENT_TYPE_VALUES,
 } from "@/lib/constants/public-registration";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
+import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast";
+import type {
+  RemoveTempRegistrationDocumentActionState,
+  TempUploadRegistrationDocumentActionState,
+} from "@/types/public-registration";
 
 export type RegistrationUploadedDocument = {
   storage_path: string;
@@ -37,6 +41,14 @@ type PendingUpload = {
   fileName: string;
 };
 
+export type RegistrationDocumentUploadAction = (
+  formData: FormData
+) => Promise<TempUploadRegistrationDocumentActionState>;
+
+export type RegistrationDocumentRemoveAction = (
+  formData: FormData
+) => Promise<RemoveTempRegistrationDocumentActionState>;
+
 type RegistrationDocumentsStepProps = {
   uploadSessionId: string;
   idDocumentType: string;
@@ -46,6 +58,9 @@ type RegistrationDocumentsStepProps = {
     id_document_type?: string;
     documents?: string;
   };
+  uploadAction?: RegistrationDocumentUploadAction;
+  removeAction?: RegistrationDocumentRemoveAction;
+  onBusyChange?: (isBusy: boolean) => void;
   onIdDocumentTypeChange: (value: string) => void;
   onDocumentsChange: (documents: RegistrationUploadedDocument[]) => void;
   onAppendDocuments: (documents: RegistrationUploadedDocument[]) => void;
@@ -97,6 +112,9 @@ export function RegistrationDocumentsStep({
   documents,
   disabled = false,
   errors,
+  uploadAction = tempUploadRegistrationDocumentAction,
+  removeAction = removeTempRegistrationDocumentAction,
+  onBusyChange,
   onIdDocumentTypeChange,
   onDocumentsChange,
   onAppendDocuments,
@@ -106,12 +124,19 @@ export function RegistrationDocumentsStep({
   const { t } = usePublicI18n();
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [isUploadPending, startUploadTransition] = useTransition();
   const [isRemovePending, startRemoveTransition] = useTransition();
   const busy = disabled || isUploadPending || isRemovePending;
   const remainingSlots =
     REGISTRATION_DOCUMENT_MAX_FILES - documents.length - pendingUploads.length;
+  const canUpload = !busy && remainingSlots > 0;
+
+  useEffect(() => {
+    onBusyChange?.(isUploadPending || isRemovePending);
+    return () => onBusyChange?.(false);
+  }, [isUploadPending, isRemovePending, onBusyChange]);
 
   useEffect(() => {
     if (!fileInputRef.current) return;
@@ -147,7 +172,7 @@ export function RegistrationDocumentsStep({
         formData.set("upload_session_id", uploadSessionId);
         formData.set("file", entry.file);
 
-        const result = await tempUploadRegistrationDocumentAction(formData);
+        const result = await uploadAction(formData);
 
         setPendingUploads((current) =>
           current.filter((item) => item.localId !== entry.localId)
@@ -175,7 +200,7 @@ export function RegistrationDocumentsStep({
       formData.set("upload_session_id", uploadSessionId);
       formData.set("storage_path", storagePath);
 
-      const result = await removeTempRegistrationDocumentAction(formData);
+      const result = await removeAction(formData);
       if (!result.success) {
         showErrorToast(result.error ?? t("registration.documents.uploadError"));
         return;
@@ -217,18 +242,51 @@ export function RegistrationDocumentsStep({
         <p className="mb-2 text-xs text-muted-foreground">
           {t("registration.documents.help")}
         </p>
-        <Input
-          id={inputId}
-          ref={fileInputRef}
-          type="file"
-          accept={REGISTRATION_DOCUMENT_ACCEPT}
-          multiple
-          disabled={busy || remainingSlots <= 0}
-          onChange={(event) => {
-            const files = event.target.files;
-            if (files) uploadFiles(files);
+        <div
+          className={cn(
+            "flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-center",
+            isDragOver ? "border-primary bg-primary/5" : "border-border",
+            !canUpload ? "opacity-60" : "hover:border-primary/60"
+          )}
+          onDragOver={(event) => {
+            event.preventDefault();
+            if (!canUpload) return;
+            setIsDragOver(true);
           }}
-        />
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDragOver(false);
+            if (!canUpload) return;
+            uploadFiles(event.dataTransfer.files);
+          }}
+        >
+          <UploadIcon className="size-6 text-muted-foreground" />
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!canUpload}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {t("registration.documents.choose")}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            {t("registration.documents.drop")}
+          </p>
+          <input
+            id={inputId}
+            ref={fileInputRef}
+            type="file"
+            accept={REGISTRATION_DOCUMENT_ACCEPT}
+            multiple
+            disabled={!canUpload}
+            className="sr-only"
+            onChange={(event) => {
+              const files = event.target.files;
+              if (files) uploadFiles(files);
+            }}
+          />
+        </div>
         <FieldError message={errors?.documents} />
       </div>
 

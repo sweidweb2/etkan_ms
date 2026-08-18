@@ -1,9 +1,12 @@
 import { randomBytes } from "crypto";
-import { GUEST_CURRENT_STATUSES } from "@/lib/constants/guest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getGuestRegistrationInviteUrl } from "@/lib/manager/guests/guest-registration-invite-url";
 import { connectGuestRegistrationUserSchema } from "@/lib/validators/manager/connect-guest-registration-user";
-import type { SubmitPublicRegistrationInput } from "@/lib/validators/public/registration";
+import type {
+  RemoveTempRegistrationDocumentInput,
+  SubmitPublicRegistrationInput,
+  TempUploadRegistrationDocumentInput,
+} from "@/lib/validators/public/registration";
 import * as authRepository from "@/repositories/auth.repository";
 import * as guestRepository from "@/repositories/guest.repository";
 import * as inviteRepository from "@/repositories/guest-registration-invite.repository";
@@ -20,7 +23,11 @@ import {
 import {
   getUnauthorizedError,
 } from "@/services/authorization.service";
-import { submitPublicRegistrationApplication } from "@/services/student-registration.service";
+import {
+  removeTempRegistrationDocument,
+  submitPublicRegistrationApplication,
+  tempUploadRegistrationDocument,
+} from "@/services/student-registration.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   GuestRegistrationLinkUserOption,
@@ -120,6 +127,10 @@ function mapApplicationSummary(
     status: record.status,
     created_at: record.created_at,
     user_id: record.user_id,
+    full_name: record.full_name,
+    email: record.email,
+    phone: record.phone,
+    date_of_birth: (record.date_of_birth ?? "").slice(0, 10),
   };
 }
 
@@ -616,6 +627,42 @@ export async function submitGuestRegistrationForManager(
   };
 }
 
+export async function tempUploadGuestRegistrationDocumentForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  input: TempUploadRegistrationDocumentInput
+) {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.GUESTS_REGISTRATION_MANAGE
+  );
+  if (unauthorized) {
+    return { success: false as const, error: unauthorized };
+  }
+
+  return tempUploadRegistrationDocument(adminClient, input, {
+    skipRateLimit: true,
+  });
+}
+
+export async function removeTempGuestRegistrationDocumentForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  input: RemoveTempRegistrationDocumentInput
+) {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.GUESTS_REGISTRATION_MANAGE
+  );
+  if (unauthorized) {
+    return { success: false as const, error: unauthorized };
+  }
+
+  return removeTempRegistrationDocument(adminClient, input);
+}
+
 export async function cancelGuestRegistrationApplicationForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -874,12 +921,6 @@ export async function connectGuestRegistrationUserForManager(
   }
   if (!guestResult.data) {
     return { success: false, error: "Guest not found." };
-  }
-  if (guestResult.data.status !== GUEST_CURRENT_STATUSES.FINISHED) {
-    return {
-      success: false,
-      error: "Connect a user only after the guest is finished.",
-    };
   }
 
   const application = await loadActiveApplicationSummary(adminClient, guestId);

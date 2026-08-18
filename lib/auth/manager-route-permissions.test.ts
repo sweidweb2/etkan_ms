@@ -5,8 +5,8 @@ import { ROUTES } from "@/lib/constants/routes";
 
 describe("getRequiredViewPermissionForManagerPath", () => {
   it("maps top-level manager list routes", () => {
-    expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_DASHBOARD)).toBe(
-      PERMISSIONS.DASHBOARD_VIEW
+    expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_STUDENTS)).toBe(
+      PERMISSIONS.STUDENTS_VIEW
     );
     expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_SUBJECTS)).toBe(
       PERMISSIONS.SUBJECTS_VIEW

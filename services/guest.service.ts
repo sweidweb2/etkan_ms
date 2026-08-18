@@ -506,6 +506,7 @@ export async function setGuestStatusesForManager(
     id: string;
     statuses: GuestStatus[];
     note?: string | null;
+    finishProfileOnPipelineFinished?: boolean;
   }
 ): Promise<ChangeGuestStatusResult> {
   const unauthorized = await getUnauthorizedError(
@@ -528,6 +529,8 @@ export async function setGuestStatusesForManager(
 
   const { id, note } = parsed.data;
   const statuses = uniquePipelineStatuses(parsed.data.statuses);
+  const finishProfileOnPipelineFinished =
+    input.finishProfileOnPipelineFinished ?? true;
 
   const existing = await guestRepository.findGuestById(adminClient, id);
   if (existing.error) {
@@ -603,7 +606,8 @@ export async function setGuestStatusesForManager(
   }
 
   let guest = current;
-  if (toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED)) {
+  const recordedFinished = toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED);
+  if (recordedFinished && finishProfileOnPipelineFinished) {
     const finished = await finishGuestProfileFromPipeline(
       adminClient,
       actor,
@@ -615,16 +619,15 @@ export async function setGuestStatusesForManager(
     guest = finished.guest;
   }
 
-  const recordedFinished = toRecord.includes(GUEST_PIPELINE_STATUSES.FINISHED);
-
   return {
     success: true,
     guest,
-    message: recordedFinished
-      ? "Statuses recorded. Guest marked finished."
-      : toRecord.length === 1
-        ? "Status recorded."
-        : `${toRecord.length} statuses recorded.`,
+    message:
+      recordedFinished && finishProfileOnPipelineFinished
+        ? "Statuses recorded. Guest marked finished."
+        : toRecord.length === 1
+          ? "Status recorded."
+          : `${toRecord.length} statuses recorded.`,
     statusEvents: (remainingResult.data ?? []).map(
       mapGuestStatusEventRecordToRow
     ),

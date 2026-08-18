@@ -9,7 +9,7 @@ import { ROUTES } from "@/lib/constants/routes";
 
 describe("isPanelPath", () => {
   it("returns true for role panel roots and nested routes", () => {
-    expect(isPanelPath(ROUTES.MANAGER_DASHBOARD)).toBe(true);
+    expect(isPanelPath(ROUTES.MANAGER_STUDENTS)).toBe(true);
     expect(isPanelPath(ROUTES.MANAGER_USERS)).toBe(true);
     expect(isPanelPath(ROUTES.ADMIN_DASHBOARD)).toBe(true);
   });
@@ -23,7 +23,7 @@ describe("isPanelPath", () => {
 
 describe("canAccessPath", () => {
   it("allows a role to access its own panel routes", () => {
-    expect(canAccessPath(ROUTES.MANAGER_DASHBOARD, ROLES.MANAGER)).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.MANAGER)).toBe(true);
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.MANAGER)).toBe(true);
     expect(canAccessPath(ROUTES.STUDENT_DASHBOARD, ROLES.STUDENT)).toBe(true);
     expect(canAccessPath(ROUTES.CO_MANAGER_DASHBOARD, ROLES.CO_MANAGER)).toBe(
@@ -36,7 +36,7 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.ADMIN_DASHBOARD, ROLES.MANAGER)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.STUDENT)).toBe(false);
     expect(canAccessPath(ROUTES.CEO_ROOT, ROLES.TEACHER)).toBe(false);
-    expect(canAccessPath(ROUTES.MANAGER_DASHBOARD, ROLES.CO_MANAGER)).toBe(
+    expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.CO_MANAGER)).toBe(
       false
     );
     expect(canAccessPath(ROUTES.TEACHER_DASHBOARD, ROLES.TRAINER)).toBe(false);
@@ -78,6 +78,6 @@ describe("canAccessPath", () => {
 describe("isAdminPath", () => {
   it("identifies admin panel paths only", () => {
     expect(isAdminPath(ROUTES.ADMIN_DASHBOARD)).toBe(true);
-    expect(isAdminPath(ROUTES.MANAGER_DASHBOARD)).toBe(false);
+    expect(isAdminPath(ROUTES.MANAGER_STUDENTS)).toBe(false);
   });
 });

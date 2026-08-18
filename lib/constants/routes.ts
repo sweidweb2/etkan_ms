@@ -18,7 +18,6 @@ export const ROUTES = {
   ADMIN_ROOT: "/admin",
   ADMIN_DASHBOARD: "/admin/dashboard",
   MANAGER_ROOT: "/manager",
-  MANAGER_DASHBOARD: "/manager/dashboard",
   CO_MANAGER_ROOT: "/co-manager",
   CO_MANAGER_DASHBOARD: "/co-manager/dashboard",
   MANAGER_USERS: "/manager/users",
@@ -98,7 +97,7 @@ export type Route = (typeof ROUTES)[keyof typeof ROUTES];
 
 const ROLE_DASHBOARD_ROUTES: Record<RoleValue, string> = {
   [ROLES.ADMIN]: ROUTES.ADMIN_DASHBOARD,
-  [ROLES.MANAGER]: ROUTES.MANAGER_DASHBOARD,
+  [ROLES.MANAGER]: ROUTES.MANAGER_STUDENTS,
   [ROLES.CO_MANAGER]: ROUTES.CO_MANAGER_DASHBOARD,
   [ROLES.CEO]: ROUTES.MANAGER_WORKSHOPS,
   [ROLES.TEACHER]: ROUTES.TEACHER_DASHBOARD,

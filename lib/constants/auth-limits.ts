@@ -12,5 +12,8 @@ export const AUTH_RATE_LIMITS = {
   signup: { maxAttempts: 3, windowMs: 60 * 60 * 1000 },
 } as const;
 
+/** Used when manager create-from-guest leaves both password fields blank. */
+export const DEFAULT_CREATED_STUDENT_PASSWORD = "password";
+
 /** Inactivity window before server/client session logout (matches Supabase config). */
 export const SESSION_INACTIVITY_MS = 30 * 60 * 1000;

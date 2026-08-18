@@ -324,7 +324,8 @@ Format: `key` — label — access
 | `guests.update` | Update guest intake fields and notes | write |
 | `guests.delete` | Hard-delete guests | write |
 | `guests.change_status` | Set profile status; record or remove pipeline statuses | write |
-| `guests.registration.manage` | Open, rotate, or stop invite; cancel or hard-delete application; staff-fill; connect finished-guest dossier to a user | write |
+| `guests.registration.manage` | Open, rotate, or stop invite; cancel or hard-delete application; staff-fill; connect a dossier to a user | write |
+| `guests.create_student` | Create a student from a guest registration | write |
 
 ### Cron Jobs
 
@@ -505,6 +506,7 @@ guests.update
 guests.delete
 guests.change_status
 guests.registration.manage
+guests.create_student
 cron_jobs.view
 settings.view
 settings.maintenance
@@ -512,7 +514,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 145 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage · projects includes view / create / update / delete.
+**Count:** 146 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete.
 
 ### is_instructor — shared seed package
 

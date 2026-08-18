@@ -849,6 +849,8 @@ export const ar = {
   "registration.field.documents": "وثائق الهوية",
   "registration.documents.help":
     "ارفع من ملف واحد إلى ثلاثة ملفات (PDF أو JPEG أو PNG أو WebP)، بحد أقصى 10 ميغابايت لكل ملف.",
+  "registration.documents.choose": "رفع الملفات",
+  "registration.documents.drop": "أو اسحب الملفات وأفلتها هنا",
   "registration.documents.remove": "إزالة",
   "registration.documents.uploading": "جارٍ الرفع…",
   "registration.documents.uploadError": "تعذر رفع الملف.",

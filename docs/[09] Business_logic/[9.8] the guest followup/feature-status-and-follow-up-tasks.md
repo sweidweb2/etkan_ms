@@ -17,9 +17,9 @@ The original [`implementation-plan.md`](./implementation-plan.md) is **historica
 | **Pipeline log** (`guest_status_events.status`) | `started`, `finished_meeting`, `finished_parent_meeting`, `chose_plan`, `routed_correctly`, `finishing_routing_doc`, `finished` | Record **only while profile is `pending`**. Remove while `pending` or `finished`. Removing a step from a **finished** guest reopens the profile to **pending**. Cancelled / rejected / scheduled keep the schema locked. Recording pipeline `finished` flips profile to finished. Create writes **no** initial event. |
 | **Registration** | One invite row per guest; one **non-cancelled** application per guest | Invite-first; public one-shot `/register/guest/[token]`; staff fill; invite is stop-only; cancel or hard-delete application; reopen after. |
 | **Delete guest** | DB cascade + storage cleanup | Fail-closed: if document files cannot be removed, the guest row is **not** deleted. |
-| **Conversion** | None | No auto-create of users, students, classes, or workshops. |
+| **Conversion** | Manager create-student from a filled registration | On guest details, when a non-cancelled application exists and is not yet linked, staff can **Create student**. Prefills `full_name`, `email`, `phone`, `date_of_birth`. Username is required; password is optional and defaults to `"password"` if both fields are blank. Reuses `createStudent`. Always records pipeline `routed_correctly`, `finishing_routing_doc`, and `finished` (without auto-flipping profile). Toggle **Mark guest as finished** sets `guests.status` to `finished`. Links `application.user_id` to the new student. **Create student** is hidden once a user is already linked. **Connect to user** is independent of guest profile status: it appears whenever an active registration exists (pending, finished, etc.). Permission: `guests.create_student` (manager full catalog; not seeded to CEO). |
 
-**Who:** Manager (full catalog) and CEO (`guests.*` seed). Shared routes under `/manager/guests*`.
+**Who:** Manager (full catalog, including `guests.create_student`) and CEO (`guests.*` except `guests.create_student`). Shared routes under `/manager/guests*`.
 
 ---
 
@@ -56,11 +56,13 @@ The original [`implementation-plan.md`](./implementation-plan.md) is **historica
 - [x] Staff fill in a sheet; submit marks invite used
 - [x] Guest badge + link on the registrations inbox and application detail
 - [x] Unique partial index: at most one non-cancelled application per `guest_id`
+- [x] Create student from a filled registration (prefill mapped fields, optional password, link user, record routing pipeline steps, optional profile finished)
+- [x] Connect to user whenever an active registration exists (independent of guest profile status); Create student is hidden once linked
 
 ### Authz, nav, docs that match code
 
-- [x] Permissions: `guests.view` / `create` / `update` / `delete` / `change_status` / `registration.manage`
-- [x] Seeded to **manager** (full catalog) and **CEO**
+- [x] Permissions: `guests.view` / `create` / `update` / `delete` / `change_status` / `registration.manage` / `create_student`
+- [x] Seeded to **manager** (full catalog). CEO gets guest follow-up keys except `guests.create_student`.
 - [x] Manager People nav + CEO Guests item; route guard on `/manager/guests*`
 - [x] RBAC docs and DBML catalogs match the split model
 - [x] Create-table migration (`20260820120000`) already uses the final catalogs; `221` is the live-DB override

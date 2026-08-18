@@ -102,7 +102,7 @@ describe("login", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.redirectTo).toBe(ROUTES.MANAGER_DASHBOARD);
+      expect(result.redirectTo).toBe(ROUTES.MANAGER_STUDENTS);
     }
   });
 
@@ -189,7 +189,7 @@ describe("login", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.redirectTo).toBe(ROUTES.MANAGER_DASHBOARD);
+      expect(result.redirectTo).toBe(ROUTES.MANAGER_STUDENTS);
     }
     expect(authRepository.signOut).not.toHaveBeenCalled();
     expect(appSettingsRepository.getMaintenanceMode).not.toHaveBeenCalled();

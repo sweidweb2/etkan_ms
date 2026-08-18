@@ -257,14 +257,16 @@ export function GuestDetailsPanel({
         }}
       />
 
-      <GuestStatusHistory events={statusEvents} />
+      <div className="grid gap-6 md:grid-cols-2 md:items-start">
+        <GuestStatusHistory events={statusEvents} />
 
-      <GuestRegistrationSection
-        guest={guest}
-        invite={registrationInvite}
-        application={registrationApplication}
-        linkUsers={linkUsers}
-      />
+        <GuestRegistrationSection
+          guest={guest}
+          invite={registrationInvite}
+          application={registrationApplication}
+          linkUsers={linkUsers}
+        />
+      </div>
 
       <ClassTabCollapsibleSection
         title={guest.full_name}

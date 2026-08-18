@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   GUEST_CURRENT_STATUS_BADGE_CLASSES,
+  GUEST_CREATE_STUDENT_PIPELINE_STATUSES,
   GUEST_CURRENT_STATUS_VALUES,
   GUEST_DEFAULT_STATUS,
   GUEST_PIPELINE_STATUS_VALUES,
@@ -48,5 +49,13 @@ describe("guest status constants", () => {
     expect(Object.keys(GUEST_CURRENT_STATUS_BADGE_CLASSES).sort()).toEqual(
       [...GUEST_CURRENT_STATUS_VALUES].sort()
     );
+  });
+
+  it("records routed correctly, finishing routing doc, and finished when creating a student", () => {
+    expect(GUEST_CREATE_STUDENT_PIPELINE_STATUSES).toEqual([
+      "routed_correctly",
+      "finishing_routing_doc",
+      "finished",
+    ]);
   });
 });

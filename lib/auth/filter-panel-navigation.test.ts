@@ -15,7 +15,7 @@ describe("filterPanelNavigation", () => {
   it("keeps only features with matching view permissions", () => {
     const permissions = new Set<PermissionKey>([
       PERMISSIONS.SUBJECTS_VIEW,
-      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.STUDENTS_VIEW,
     ]);
 
     const filtered = filterPanelNavigation(
@@ -24,7 +24,7 @@ describe("filterPanelNavigation", () => {
     );
     const paths = hrefs(filtered);
 
-    expect(paths).toContain(ROUTES.MANAGER_DASHBOARD);
+    expect(paths).toContain(ROUTES.MANAGER_STUDENTS);
     expect(paths).toContain(ROUTES.MANAGER_SUBJECTS);
     expect(paths).not.toContain(ROUTES.MANAGER_USERS);
     expect(paths).not.toContain(ROUTES.MANAGER_CLASSES);
@@ -47,7 +47,6 @@ describe("filterPanelNavigation", () => {
 
   it("keeps full manager nav when all view permissions are present", () => {
     const allViews = new Set<PermissionKey>([
-      PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.USERS_VIEW,
       PERMISSIONS.STUDENTS_VIEW,
       PERMISSIONS.REGISTRATIONS_VIEW,
@@ -88,7 +87,7 @@ describe("filterPanelNavigation", () => {
 
   it("hides manage workshops without isInstructor even with workshops.view", () => {
     const permissions = new Set<PermissionKey>([
-      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.STUDENTS_VIEW,
       PERMISSIONS.WORKSHOPS_VIEW,
     ]);
 
@@ -99,7 +98,7 @@ describe("filterPanelNavigation", () => {
     );
     const paths = hrefs(filtered);
 
-    expect(paths).toContain(ROUTES.MANAGER_DASHBOARD);
+    expect(paths).toContain(ROUTES.MANAGER_STUDENTS);
     expect(paths).not.toContain(ROUTES.MANAGER_WORKSHOPS);
   });
 

@@ -18,7 +18,6 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 
 | Done | Page | Path | Template |
 |------|------|------|----------|
-| [~] | Dashboard | `/manager/dashboard` | dashboard |
 | [~] | Users | `/manager/users` | list |
 | [~] | User detail | `/manager/users/[id]` | detail |
 | [~] | Students | `/manager/students` | list |

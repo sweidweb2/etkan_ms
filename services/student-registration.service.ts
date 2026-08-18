@@ -154,7 +154,10 @@ function mapApplicationListRecord(
 
 export async function tempUploadRegistrationDocument(
   adminClient: Supabase,
-  input: TempUploadRegistrationDocumentInput
+  input: TempUploadRegistrationDocumentInput,
+  options?: {
+    skipRateLimit?: boolean;
+  }
 ): Promise<
   | {
       success: true;
@@ -168,9 +171,11 @@ export async function tempUploadRegistrationDocument(
     }
   | { success: false; error: string; fieldErrors?: FieldErrors }
 > {
-  const rate = await checkPublicRegistrationUploadRateLimit();
-  if (!rate.allowed) {
-    return { success: false, error: rate.message };
+  if (!options?.skipRateLimit) {
+    const rate = await checkPublicRegistrationUploadRateLimit();
+    if (!rate.allowed) {
+      return { success: false, error: rate.message };
+    }
   }
 
   const storagePath = buildRegistrationTempStoragePath(

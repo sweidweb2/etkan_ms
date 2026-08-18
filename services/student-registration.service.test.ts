@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import * as rateLimit from "@/lib/rate-limit/public-registration-rate-limit";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
@@ -150,6 +151,25 @@ describe("student-registration.service", () => {
     expect(
       registrationStorage.uploadRegistrationStorageObject
     ).toHaveBeenCalledOnce();
+  });
+
+  it("skips the public upload rate limit when requested", async () => {
+    vi.mocked(
+      registrationStorage.uploadRegistrationStorageObject
+    ).mockResolvedValue({ error: null });
+
+    const file = new File(["hello"], "id.pdf", { type: "application/pdf" });
+    const result = await tempUploadRegistrationDocument(
+      adminClient,
+      {
+        upload_session_id: uploadSessionId,
+        file,
+      },
+      { skipRateLimit: true }
+    );
+
+    expect(result.success).toBe(true);
+    expect(rateLimit.checkPublicRegistrationUploadRateLimit).not.toHaveBeenCalled();
   });
 
   it("creates a public registration application and finalizes documents", async () => {

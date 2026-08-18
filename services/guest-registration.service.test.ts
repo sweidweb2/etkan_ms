@@ -10,9 +10,11 @@ import {
   deleteGuestRegistrationApplicationForManager,
   getGuestRegistrationContextByToken,
   openGuestRegistrationInviteForManager,
+  removeTempGuestRegistrationDocumentForManager,
   stopGuestRegistrationInviteForManager,
   submitGuestRegistrationByToken,
   submitGuestRegistrationForManager,
+  tempUploadGuestRegistrationDocumentForManager,
 } from "@/services/guest-registration.service";
 import * as studentRegistrationService from "@/services/student-registration.service";
 import type { SubmitPublicRegistrationInput } from "@/lib/validators/public/registration";
@@ -30,6 +32,8 @@ vi.mock("@/services/audit-log.service", () => ({
 }));
 vi.mock("@/services/student-registration.service", () => ({
   submitPublicRegistrationApplication: vi.fn(),
+  tempUploadRegistrationDocument: vi.fn(),
+  removeTempRegistrationDocument: vi.fn(),
 }));
 vi.mock("@/lib/manager/guests/guest-registration-invite-url", () => ({
   getGuestRegistrationInviteUrl: (token: string) =>
@@ -234,6 +238,11 @@ describe("openGuestRegistrationInviteForManager", () => {
         id: "app-1",
         status: "pending",
         created_at: "2026-01-01T00:00:00.000Z",
+        user_id: null,
+        full_name: guestRecord.full_name,
+        email: "ada@example.com",
+        phone: guestRecord.phone,
+        date_of_birth: "2004-01-01",
       } as never,
       ...okResult,
     });
@@ -565,6 +574,11 @@ describe("cancelGuestRegistrationApplicationForManager", () => {
         guest_id: guestId,
         status: "pending",
         created_at: "2026-01-04T00:00:00.000Z",
+        user_id: null,
+        full_name: guestRecord.full_name,
+        email: "ada@example.com",
+        phone: guestRecord.phone,
+        date_of_birth: "2004-01-01",
       } as never,
       ...okResult,
     });
@@ -785,6 +799,10 @@ const applicationSummaryRecord = {
   status: "pending",
   created_at: "2026-01-01T00:00:00.000Z",
   user_id: null as string | null,
+  full_name: "Ada Lovelace",
+  email: "ada@example.com",
+  phone: "+96171111111",
+  date_of_birth: "2001-12-10",
 };
 
 const linkedProfile = {
@@ -800,9 +818,26 @@ describe("connectGuestRegistrationUserForManager", () => {
     vi.resetAllMocks();
   });
 
-  it("denies unless the guest is finished", async () => {
+  it("connects a user while the guest is still pending", async () => {
     vi.mocked(guestRepository.findGuestById).mockResolvedValue({
-      data: guestRecord,
+      data: { ...guestRecord, status: "pending" },
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByGuestId
+    ).mockResolvedValue({
+      data: applicationSummaryRecord as never,
+      ...okResult,
+    });
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: linkedProfile,
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByUserId
+    ).mockResolvedValue({ data: null, ...okResult });
+    vi.mocked(registrationRepository.updateApplicationUserId).mockResolvedValue({
+      data: { ...applicationSummaryRecord, user_id: linkedUserId } as never,
       ...okResult,
     });
 
@@ -813,13 +848,11 @@ describe("connectGuestRegistrationUserForManager", () => {
       { guest_id: guestId, user_id: linkedUserId }
     );
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/finished/i);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.application.user_id).toBe(linkedUserId);
     }
-    expect(
-      registrationRepository.updateApplicationUserId
-    ).not.toHaveBeenCalled();
+    expect(registrationRepository.updateApplicationUserId).toHaveBeenCalled();
   });
 
   it("denies when there is no active application", async () => {
@@ -959,5 +992,76 @@ describe("connectGuestRegistrationUserForManager", () => {
       expect(result.message).toMatch(/updated/i);
     }
     expect(registrationRepository.updateApplicationUserId).toHaveBeenCalled();
+  });
+});
+
+describe("tempUploadGuestRegistrationDocumentForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("denies unauthorized actors", async () => {
+    const file = new File(["id"], "id.pdf", { type: "application/pdf" });
+    const result = await tempUploadGuestRegistrationDocumentForManager(
+      adminClient,
+      null,
+      { upload_session_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", file }
+    );
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+    expect(
+      studentRegistrationService.tempUploadRegistrationDocument
+    ).not.toHaveBeenCalled();
+  });
+
+  it("uploads with the public rate limit skipped", async () => {
+    const file = new File(["id"], "id.pdf", { type: "application/pdf" });
+    vi.mocked(
+      studentRegistrationService.tempUploadRegistrationDocument
+    ).mockResolvedValue({
+      success: true,
+      message: "Document uploaded.",
+      document: {
+        storage_path: "registration/tmp/session/file.pdf",
+        file_name: "id.pdf",
+        mime_type: "application/pdf",
+        file_size: 2,
+      },
+    });
+
+    const result = await tempUploadGuestRegistrationDocumentForManager(
+      adminClient,
+      actor.userId,
+      { upload_session_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", file }
+    );
+
+    expect(result.success).toBe(true);
+    expect(
+      studentRegistrationService.tempUploadRegistrationDocument
+    ).toHaveBeenCalledWith(
+      adminClient,
+      { upload_session_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", file },
+      { skipRateLimit: true }
+    );
+  });
+});
+
+describe("removeTempGuestRegistrationDocumentForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("denies unauthorized actors", async () => {
+    const result = await removeTempGuestRegistrationDocumentForManager(
+      adminClient,
+      null,
+      {
+        upload_session_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        storage_path: "registration/tmp/session/file.pdf",
+      }
+    );
+    expect(result).toEqual({ success: false, error: "Unauthorized." });
+    expect(
+      studentRegistrationService.removeTempRegistrationDocument
+    ).not.toHaveBeenCalled();
   });
 });

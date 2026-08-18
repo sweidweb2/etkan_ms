@@ -7,6 +7,8 @@ import { LanguageToggle } from "@/components/layout/language-toggle";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   RegistrationDocumentsStep,
+  type RegistrationDocumentRemoveAction,
+  type RegistrationDocumentUploadAction,
   type RegistrationUploadedDocument,
 } from "@/components/public/registration/registration-documents-step";
 import { Button } from "@/components/ui/button";
@@ -230,6 +232,8 @@ type RegistrationWizardProps = {
   inviteToken?: string;
   guestId?: string;
   hidePageHeader?: boolean;
+  documentUploadAction?: RegistrationDocumentUploadAction;
+  documentRemoveAction?: RegistrationDocumentRemoveAction;
   onSuccess?: () => void;
   onPendingChange?: (isPending: boolean) => void;
 };
@@ -263,6 +267,8 @@ function RegistrationWizardContent({
   inviteToken,
   guestId,
   hidePageHeader = false,
+  documentUploadAction,
+  documentRemoveAction,
   onSuccess,
   onPendingChange,
 }: RegistrationWizardProps) {
@@ -270,19 +276,21 @@ function RegistrationWizardContent({
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => createDraft(initialDraft));
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
+  const [isDocumentBusy, setIsDocumentBusy] = useState(false);
   const [state, formAction, isActionPending] = useActionState(
     submitAction,
     initialState
   );
   const [isTransitionPending, startTransition] = useTransition();
-  const isPending = isActionPending || isTransitionPending;
+  const isSubmitPending = isActionPending || isTransitionPending;
+  const isPending = isSubmitPending || isDocumentBusy;
 
   useEffect(() => {
     onPendingChange?.(isPending);
   }, [isPending, onPendingChange]);
 
-  useActionStateToast(state, isPending);
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateToast(state, isSubmitPending);
+  useActionStateSuccess(state, isSubmitPending, () => {
     onSuccess?.();
   });
 
@@ -1024,7 +1032,10 @@ function RegistrationWizardContent({
               uploadSessionId={draft.upload_session_id}
               idDocumentType={draft.id_document_type}
               documents={draft.documents}
-              disabled={isPending}
+              disabled={isSubmitPending}
+              uploadAction={documentUploadAction}
+              removeAction={documentRemoveAction}
+              onBusyChange={setIsDocumentBusy}
               errors={{
                 id_document_type: stepErrors.id_document_type,
                 documents: stepErrors.documents,

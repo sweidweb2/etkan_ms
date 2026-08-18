@@ -39,32 +39,6 @@ export async function listSubjects(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
-/** Lightweight counts for the manager dashboard (avoids full subject list). */
-export async function countSubjectDashboardStats(client: Supabase) {
-  const [totalResult, needingLinksResult] = await Promise.all([
-    client.from("subjects").select("id", { count: "exact", head: true }),
-    client
-      .from("subjects")
-      .select("id", { count: "exact", head: true })
-      .or("syllabus_link.is.null,reference_link.is.null,handout_link.is.null"),
-  ]);
-
-  if (totalResult.error) {
-    return { data: null, error: totalResult.error };
-  }
-  if (needingLinksResult.error) {
-    return { data: null, error: needingLinksResult.error };
-  }
-
-  return {
-    data: {
-      total: totalResult.count ?? 0,
-      needingLinks: needingLinksResult.count ?? 0,
-    },
-    error: null,
-  };
-}
-
 export async function findSubjectById(client: Supabase, id: string) {
   return client
     .from("subjects")

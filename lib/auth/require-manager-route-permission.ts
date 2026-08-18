@@ -14,6 +14,10 @@ import { hasPermissionInSet } from "@/services/authorization.service";
 export async function requireManagerRoutePermission(
   pathname: string
 ): Promise<void> {
+  if (pathname === ROUTES.MANAGER_ROOT) {
+    return;
+  }
+
   const required = getRequiredViewPermissionForManagerPath(pathname);
   if (!required) {
     forbidden();

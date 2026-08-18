@@ -24,53 +24,6 @@ export async function listClasses(client: Supabase) {
     .order("name", { ascending: true });
 }
 
-/** Lightweight counts for the manager dashboard (avoids full class list). */
-export async function countClassDashboardStats(
-  client: Supabase,
-  input: { inProgressStatus: string; scheduledStatus: string }
-) {
-  const [inProgressResult, scheduledResult, subjectIdsResult] =
-    await Promise.all([
-      client
-        .from("classes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", input.inProgressStatus),
-      client
-        .from("classes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", input.scheduledStatus),
-      client
-        .from("classes")
-        .select("subject_id")
-        .in("status", [input.inProgressStatus, input.scheduledStatus]),
-    ]);
-
-  if (inProgressResult.error) {
-    return { data: null, error: inProgressResult.error };
-  }
-  if (scheduledResult.error) {
-    return { data: null, error: scheduledResult.error };
-  }
-  if (subjectIdsResult.error) {
-    return { data: null, error: subjectIdsResult.error };
-  }
-
-  const subjectIds = new Set(
-    (subjectIdsResult.data ?? [])
-      .map((row) => row.subject_id)
-      .filter((id): id is string => Boolean(id))
-  );
-
-  return {
-    data: {
-      inProgressCount: inProgressResult.count ?? 0,
-      scheduledCount: scheduledResult.count ?? 0,
-      activeOrScheduledSubjectCount: subjectIds.size,
-    },
-    error: null,
-  };
-}
-
 export async function listInProgressClasses(client: Supabase) {
   return client
     .from("classes")

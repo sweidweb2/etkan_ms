@@ -79,13 +79,21 @@ describe("requireManagerRoutePermission", () => {
     expect(redirectMock).toHaveBeenCalledWith(ROUTES.TRAINER_DASHBOARD);
   });
 
-  it("redirects managers to manager dashboard when denied", async () => {
+  it("allows the manager root so it can bounce to manage students", async () => {
+    await expect(
+      requireManagerRoutePermission(ROUTES.MANAGER_ROOT)
+    ).resolves.toBeUndefined();
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(forbiddenMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects managers to manage students when denied", async () => {
     vi.mocked(getSessionPack).mockResolvedValue(
       pack({
         userId: "user-1",
         role: ROLES.MANAGER,
         permissions: new Set([
-          PERMISSIONS.DASHBOARD_VIEW,
+          PERMISSIONS.STUDENTS_VIEW,
           PERMISSIONS.SUBJECTS_VIEW,
         ]),
       }) as never
@@ -93,8 +101,8 @@ describe("requireManagerRoutePermission", () => {
 
     await expect(
       requireManagerRoutePermission(ROUTES.MANAGER_USERS)
-    ).rejects.toThrow(`NEXT_REDIRECT:${ROUTES.MANAGER_DASHBOARD}`);
-    expect(redirectMock).toHaveBeenCalledWith(ROUTES.MANAGER_DASHBOARD);
+    ).rejects.toThrow(`NEXT_REDIRECT:${ROUTES.MANAGER_STUDENTS}`);
+    expect(redirectMock).toHaveBeenCalledWith(ROUTES.MANAGER_STUDENTS);
   });
 
   it("calls forbidden when denied without a session role", async () => {

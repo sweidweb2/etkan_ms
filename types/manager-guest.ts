@@ -75,6 +75,10 @@ export type ManagerGuestRegistrationApplicationSummary = {
   status: string;
   created_at: string;
   user_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string;
+  date_of_birth: string;
 };
 
 export type ChangeGuestStatusActionState = {
@@ -146,6 +150,14 @@ export type GuestRegistrationLinkUserOption = {
 };
 
 export type ConnectGuestRegistrationUserActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  application?: ManagerGuestRegistrationApplicationSummary;
+};
+
+export type CreateStudentFromGuestActionState = {
   success?: boolean;
   error?: string;
   message?: string;

@@ -68,7 +68,6 @@ See the [01 caching.md](./[01]%20caching.md) for policy/how-to and `.cursor/rule
 | Schedule-assistant catalogs | `listInstructorsCatalog`, `listSubjectsCatalog`, `listCapabilityMatrixCatalog` | `schedule-assistant-*` | 1800–3600s | **Optional** | Shared read catalogs for AI/schedule helpers |
 | Income statement rollup | `getIncomeStatementForManager` | `manager-income-statement` | 60–300s | **Optional** | Expensive aggregate; short TTL + invalidate on accounting money writes |
 | Income analytics | `getIncomeStatementAnalyticsForManager` | `manager-income-analytics` | 60–300s | **Optional** | Same pattern as rollup |
-| Manager dashboard aggregates | `getManagerDashboardForManager` | `manager-dashboard` | 60–180s | **Optional** | Only if dashboard stays slow after query fixes |
 | Permission catalog (static shape) | `getPermissionCatalogForManager` / `getPermissionCatalogGrouped` | — | — | **Avoid** as Data Cache | Already in-code / cheap; roles+keys may need request scope instead |
 | Cron jobs catalog | `listCronJobsForManager` | — | — | N/A | Already “cached in code” via `getManagerCronJobsCatalog()` — no Data Cache needed |
 

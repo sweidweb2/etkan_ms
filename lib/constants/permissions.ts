@@ -257,6 +257,7 @@ export const PERMISSIONS = {
   GUESTS_DELETE: "guests.delete",
   GUESTS_CHANGE_STATUS: "guests.change_status",
   GUESTS_REGISTRATION_MANAGE: "guests.registration.manage",
+  GUESTS_CREATE_STUDENT: "guests.create_student",
 
   CRON_JOBS_VIEW: "cron_jobs.view",
 
@@ -1147,7 +1148,13 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
     feature: "guests",
     label:
-      "Open, rotate, or stop invite; cancel or hard-delete application; staff-fill; connect finished-guest dossier to a user",
+      "Open, rotate, or stop invite; cancel or hard-delete application; staff-fill; connect a dossier to a user",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.GUESTS_CREATE_STUDENT,
+    feature: "guests",
+    label: "Create a student from a guest registration",
     access: PERMISSION_ACCESS.WRITE,
   },
 

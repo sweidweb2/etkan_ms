@@ -60,6 +60,6 @@ describe("shared manager routes", () => {
   it("rejects other manager paths", () => {
     expect(isSharedManagerPath(ROUTES.MANAGER_USERS)).toBe(false);
     expect(isSharedManagerWorkshopPath(ROUTES.MANAGER_INSTRUCTORS)).toBe(false);
-    expect(isSharedManagerPath(ROUTES.MANAGER_DASHBOARD)).toBe(false);
+    expect(isSharedManagerPath(ROUTES.MANAGER_STUDENTS)).toBe(false);
   });
 });
