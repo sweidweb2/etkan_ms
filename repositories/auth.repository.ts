@@ -2,6 +2,8 @@ import {
   getCachedAuthEmails,
   setCachedAuthEmails,
 } from "@/lib/auth/auth-emails-cache";
+import { getClaimsWithSharedJwks } from "@/lib/auth/get-claims";
+import { withClaimsTiming } from "@/lib/debug/claims-timing";
 import type { RoleValue } from "@/lib/constants/roles";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -24,9 +26,9 @@ export async function getUser(client: Supabase) {
   return client.auth.getUser();
 }
 
-/** Local JWT verify / cached JWKS — prefer over getUser for RSC session bootstrap. */
+/** Local JWT verify / process-shared JWKS — prefer over getUser for RSC session bootstrap. */
 export async function getClaims(client: Supabase) {
-  return client.auth.getClaims();
+  return withClaimsTiming("rsc", () => getClaimsWithSharedJwks(client));
 }
 
 export async function signUp(

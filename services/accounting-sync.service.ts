@@ -10,10 +10,8 @@ import * as paymentPhaseRepository from "@/repositories/payment-phase.repository
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import {
-  recalcPhaseStatusFromSpps,
-  recalcSingleSpp,
-} from "@/services/accounting-recalc.service";
+import { recalcPhaseStatusFromSpps, recalcSingleSpp } from "@/services/accounting-recalc.service";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -61,37 +59,44 @@ export async function findSyncTargetPhaseForClass(
   adminClient: Supabase,
   classId: string
 ): Promise<SyncTargetPhase | null> {
-  const { data: classRow, error: classError } =
-    await classRepository.findClassById(adminClient, classId);
-
-  if (classError) {
-    throw new Error(classError.message);
-  }
-
-  if (!classRow?.semester_id) {
-    return null;
-  }
-
-  const billingClass = await resolveInProgressClassForSemester(
-    adminClient,
-    classRow.semester_id
-  );
-
-  if (!billingClass || billingClass.id !== classId) {
-    return null;
-  }
-
-  const { data, error } =
-    await paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
-      adminClient,
-      classRow.semester_id
+  const timer = createNavStepTimer("syncTargetPhase");
+  try {
+    const { data: classRow, error: classError } = await timer.step(
+      "class",
+      () => classRepository.findClassById(adminClient, classId)
     );
 
-  if (error) {
-    throw new Error(error.message);
-  }
+    if (classError) {
+      throw new Error(classError.message);
+    }
 
-  return (data as SyncTargetPhase | null) ?? null;
+    if (!classRow?.semester_id) {
+      return null;
+    }
+
+    const billingClass = await timer.step("billingClass", () =>
+      resolveInProgressClassForSemester(adminClient, classRow.semester_id)
+    );
+
+    if (!billingClass || billingClass.id !== classId) {
+      return null;
+    }
+
+    const { data, error } = await timer.step("currentPhase", () =>
+      paymentPhaseRepository.findCurrentSyncPhaseBySemesterId(
+        adminClient,
+        classRow.semester_id
+      )
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data as SyncTargetPhase | null) ?? null;
+  } finally {
+    timer.end();
+  }
 }
 
 /**
@@ -106,84 +111,33 @@ export async function ensureSppForStudentOnPhase(
     assignedAt?: string;
   }
 ): Promise<EnsureSppResult> {
-  const { data: existing, error: existingError } =
-    await studentPaymentPhaseRepository.findSppByStudentAndPhase(
-      adminClient,
-      input.studentId,
-      input.phase.id
-    );
-
-  if (existingError) {
-    throw new Error(existingError.message);
-  }
-
-  if (existing) {
-    if (existing.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
-      const { data: pendingRow, error: uncancelError } =
-        await studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus(
-          adminClient,
-          existing.id,
-          STUDENT_PAYMENT_PHASE_STATUSES.PENDING
-        );
-
-      if (uncancelError || !pendingRow) {
-        throw new Error(
-          uncancelError?.message ??
-            "Unable to reactivate student payment phase."
-        );
-      }
-
-      const reactivated = await recalcSingleSpp(adminClient, existing.id);
-
-      return {
-        spp: reactivated,
-        created: false,
-        alreadyExisted: true,
-        reactivated: true,
-      };
-    }
-
-    return {
-      spp: existing as StudentPaymentPhaseRecord,
-      created: false,
-      alreadyExisted: true,
-      reactivated: false,
-    };
-  }
-
-  const sppInput = buildInitialSppInsert(
-    input.studentId,
-    input.phase.id,
-    Number(input.phase.amount),
-    input.assignedAt ?? new Date().toISOString()
-  );
-
-  const { data: created, error: createError } =
-    await studentPaymentPhaseRepository.createStudentPaymentPhase(
-      adminClient,
-      sppInput
-    );
-
-  if (createError || !created) {
-    const message = createError?.message?.toLowerCase() ?? "";
-    if (message.includes("unique") || message.includes("duplicate")) {
-      const { data: raced } =
-        await studentPaymentPhaseRepository.findSppByStudentAndPhase(
+  const timer = createNavStepTimer("ensureSpp");
+  try {
+    const { data: existing, error: existingError } = await timer.step(
+      "existing",
+      () =>
+        studentPaymentPhaseRepository.findSppByStudentAndPhase(
           adminClient,
           input.studentId,
           input.phase.id
-        );
+        )
+    );
 
-      if (
-        raced &&
-        raced.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
-      ) {
-        const { data: pendingRow, error: uncancelError } =
-          await studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus(
-            adminClient,
-            raced.id,
-            STUDENT_PAYMENT_PHASE_STATUSES.PENDING
-          );
+    if (existingError) {
+      throw new Error(existingError.message);
+    }
+
+    if (existing) {
+      if (existing.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
+        const { data: pendingRow, error: uncancelError } = await timer.step(
+          "uncancel",
+          () =>
+            studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus(
+              adminClient,
+              existing.id,
+              STUDENT_PAYMENT_PHASE_STATUSES.PENDING
+            )
+        );
 
         if (uncancelError || !pendingRow) {
           throw new Error(
@@ -192,7 +146,9 @@ export async function ensureSppForStudentOnPhase(
           );
         }
 
-        const reactivated = await recalcSingleSpp(adminClient, raced.id);
+        const reactivated = await timer.step("recalcSpp", () =>
+          recalcSingleSpp(adminClient, existing.id)
+        );
 
         return {
           spp: reactivated,
@@ -203,23 +159,94 @@ export async function ensureSppForStudentOnPhase(
       }
 
       return {
-        spp: (raced as StudentPaymentPhaseRecord | null) ?? null,
+        spp: existing as StudentPaymentPhaseRecord,
         created: false,
         alreadyExisted: true,
         reactivated: false,
       };
     }
-    throw new Error(
-      createError?.message ?? "Unable to create student payment phase."
-    );
-  }
 
-  return {
-    spp: created as StudentPaymentPhaseRecord,
-    created: true,
-    alreadyExisted: false,
-    reactivated: false,
-  };
+    const sppInput = buildInitialSppInsert(
+      input.studentId,
+      input.phase.id,
+      Number(input.phase.amount),
+      input.assignedAt ?? new Date().toISOString()
+    );
+
+    const { data: created, error: createError } = await timer.step(
+      "create",
+      () =>
+        studentPaymentPhaseRepository.createStudentPaymentPhase(
+          adminClient,
+          sppInput
+        )
+    );
+
+    if (createError || !created) {
+      const message = createError?.message?.toLowerCase() ?? "";
+      if (message.includes("unique") || message.includes("duplicate")) {
+        const { data: raced } = await timer.step("raced", () =>
+          studentPaymentPhaseRepository.findSppByStudentAndPhase(
+            adminClient,
+            input.studentId,
+            input.phase.id
+          )
+        );
+
+        if (
+          raced &&
+          raced.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
+        ) {
+          const { data: pendingRow, error: uncancelError } = await timer.step(
+            "uncancel",
+            () =>
+              studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus(
+                adminClient,
+                raced.id,
+                STUDENT_PAYMENT_PHASE_STATUSES.PENDING
+              )
+          );
+
+          if (uncancelError || !pendingRow) {
+            throw new Error(
+              uncancelError?.message ??
+                "Unable to reactivate student payment phase."
+            );
+          }
+
+          const reactivated = await timer.step("recalcSpp", () =>
+            recalcSingleSpp(adminClient, raced.id)
+          );
+
+          return {
+            spp: reactivated,
+            created: false,
+            alreadyExisted: true,
+            reactivated: true,
+          };
+        }
+
+        return {
+          spp: (raced as StudentPaymentPhaseRecord | null) ?? null,
+          created: false,
+          alreadyExisted: true,
+          reactivated: false,
+        };
+      }
+      throw new Error(
+        createError?.message ?? "Unable to create student payment phase."
+      );
+    }
+
+    return {
+      spp: created as StudentPaymentPhaseRecord,
+      created: true,
+      alreadyExisted: false,
+      reactivated: false,
+    };
+  } finally {
+    timer.end();
+  }
 }
 
 export async function onStudentJoinedClass(
@@ -227,130 +254,148 @@ export async function onStudentJoinedClass(
   input: { studentId: string; classId: string },
   actor?: AuditActor | null
 ): Promise<JoinSyncResult> {
-  const phase = await findSyncTargetPhaseForClass(adminClient, input.classId);
+  const timer = createNavStepTimer("onStudentJoinedClass");
+  try {
+    const phase = await timer.step("phase", () =>
+      findSyncTargetPhaseForClass(adminClient, input.classId)
+    );
 
-  if (!phase) {
-    return {
-      phase: null,
-      spp: null,
-      created: false,
-      reactivated: false,
-      phaseReopened: false,
-    };
-  }
-
-  if (phase.status === PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return {
-      phase: null,
-      spp: null,
-      created: false,
-      reactivated: false,
-      phaseReopened: false,
-    };
-  }
-
-  const wasClosed = phase.status === PAYMENT_PHASE_STATUSES.CLOSED;
-  const ensured = await ensureSppForStudentOnPhase(adminClient, {
-    studentId: input.studentId,
-    phase,
-  });
-
-  const sppNeedsBilling =
-    !!ensured.spp &&
-    ensured.spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
-    ensured.spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED;
-
-  let phaseReopened = false;
-  const shouldReopenPhase =
-    wasClosed &&
-    (ensured.created ||
-      ensured.reactivated ||
-      (ensured.alreadyExisted && sppNeedsBilling));
-
-  if (shouldReopenPhase) {
-    const { error: reopenError } =
-      await paymentPhaseRepository.updatePaymentPhaseStatus(
-        adminClient,
-        phase.id,
-        PAYMENT_PHASE_STATUSES.OPENED
-      );
-    if (reopenError) {
-      throw new Error(reopenError.message);
+    if (!phase) {
+      return {
+        phase: null,
+        spp: null,
+        created: false,
+        reactivated: false,
+        phaseReopened: false,
+      };
     }
-    phaseReopened = true;
+
+    if (phase.status === PAYMENT_PHASE_STATUSES.CANCELLED) {
+      return {
+        phase: null,
+        spp: null,
+        created: false,
+        reactivated: false,
+        phaseReopened: false,
+      };
+    }
+
+    const wasClosed = phase.status === PAYMENT_PHASE_STATUSES.CLOSED;
+    const ensured = await timer.step("spp", () =>
+      ensureSppForStudentOnPhase(adminClient, {
+        studentId: input.studentId,
+        phase,
+      })
+    );
+
+    const sppNeedsBilling =
+      !!ensured.spp &&
+      ensured.spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
+      ensured.spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED;
+
+    let phaseReopened = false;
+    const shouldReopenPhase =
+      wasClosed &&
+      (ensured.created ||
+        ensured.reactivated ||
+        (ensured.alreadyExisted && sppNeedsBilling));
+
+    if (shouldReopenPhase) {
+      await timer.step("reopen", async () => {
+        const { error: reopenError } =
+          await paymentPhaseRepository.updatePaymentPhaseStatus(
+            adminClient,
+            phase.id,
+            PAYMENT_PHASE_STATUSES.OPENED
+          );
+        if (reopenError) {
+          throw new Error(reopenError.message);
+        }
+      });
+      phaseReopened = true;
+    }
+
+    await timer.step("recalc", () =>
+      recalcPhaseStatusFromSpps(adminClient, phase.id)
+    );
+
+    if (actor && (ensured.created || ensured.reactivated || phaseReopened)) {
+      await timer.step("audit", async () => {
+        if (ensured.created && ensured.spp) {
+          await recordManagerAuditLog(adminClient, actor, {
+            action: "insert",
+            severity: "info",
+            table_name: "student_payment_phases",
+            record_id: ensured.spp.id,
+            new_data: {
+              student_id: ensured.spp.student_id,
+              payment_phase_id: ensured.spp.payment_phase_id,
+              status: ensured.spp.status,
+              original_amount: ensured.spp.original_amount,
+              remaining_amount: ensured.spp.remaining_amount,
+            },
+            metadata: {
+              note: "Student payment phase created from class enrollment sync.",
+              class_id: input.classId,
+              semester_id: phase.semester_id,
+              phase_reopened: phaseReopened,
+            },
+          });
+        }
+
+        if (ensured.reactivated && ensured.spp) {
+          await recordManagerAuditLog(adminClient, actor, {
+            action: "update",
+            severity: "info",
+            table_name: "student_payment_phases",
+            record_id: ensured.spp.id,
+            old_data: { status: STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED },
+            new_data: {
+              status: ensured.spp.status,
+              remaining_amount: ensured.spp.remaining_amount,
+            },
+            metadata: {
+              note: "Student payment phase reactivated after re-enrollment.",
+              class_id: input.classId,
+              semester_id: phase.semester_id,
+              phase_reopened: phaseReopened,
+            },
+          });
+        }
+
+        if (phaseReopened) {
+          await recordManagerAuditLog(adminClient, actor, {
+            action: "update",
+            severity: "info",
+            table_name: "payment_phases",
+            record_id: phase.id,
+            old_data: { status: PAYMENT_PHASE_STATUSES.CLOSED },
+            new_data: { status: PAYMENT_PHASE_STATUSES.OPENED },
+            metadata: {
+              note: "Payment phase reopened after late enrollment.",
+              class_id: input.classId,
+              semester_id: phase.semester_id,
+              student_id: input.studentId,
+              spp_reused:
+                ensured.alreadyExisted && !ensured.created && !ensured.reactivated,
+            },
+          });
+        }
+      });
+    }
+
+    return {
+      phase,
+      spp: ensured.spp,
+      created: ensured.created,
+      reactivated: ensured.reactivated,
+      phaseReopened,
+    };
+  } finally {
+    timer.end();
   }
-
-  await recalcPhaseStatusFromSpps(adminClient, phase.id);
-
-  if (actor && ensured.created && ensured.spp) {
-    await recordManagerAuditLog(adminClient, actor, {
-      action: "insert",
-      severity: "info",
-      table_name: "student_payment_phases",
-      record_id: ensured.spp.id,
-      new_data: {
-        student_id: ensured.spp.student_id,
-        payment_phase_id: ensured.spp.payment_phase_id,
-        status: ensured.spp.status,
-        original_amount: ensured.spp.original_amount,
-        remaining_amount: ensured.spp.remaining_amount,
-      },
-      metadata: {
-        note: "Student payment phase created from class enrollment sync.",
-        class_id: input.classId,
-        semester_id: phase.semester_id,
-        phase_reopened: phaseReopened,
-      },
-    });
-  }
-
-  if (actor && ensured.reactivated && ensured.spp) {
-    await recordManagerAuditLog(adminClient, actor, {
-      action: "update",
-      severity: "info",
-      table_name: "student_payment_phases",
-      record_id: ensured.spp.id,
-      old_data: { status: STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED },
-      new_data: {
-        status: ensured.spp.status,
-        remaining_amount: ensured.spp.remaining_amount,
-      },
-      metadata: {
-        note: "Student payment phase reactivated after re-enrollment.",
-        class_id: input.classId,
-        semester_id: phase.semester_id,
-        phase_reopened: phaseReopened,
-      },
-    });
-  }
-
-  if (actor && phaseReopened) {
-    await recordManagerAuditLog(adminClient, actor, {
-      action: "update",
-      severity: "info",
-      table_name: "payment_phases",
-      record_id: phase.id,
-      old_data: { status: PAYMENT_PHASE_STATUSES.CLOSED },
-      new_data: { status: PAYMENT_PHASE_STATUSES.OPENED },
-      metadata: {
-        note: "Payment phase reopened after late enrollment.",
-        class_id: input.classId,
-        semester_id: phase.semester_id,
-        student_id: input.studentId,
-        spp_reused:
-          ensured.alreadyExisted && !ensured.created && !ensured.reactivated,
-      },
-    });
-  }
-
-  return {
-    phase,
-    spp: ensured.spp,
-    created: ensured.created,
-    reactivated: ensured.reactivated,
-    phaseReopened,
-  };
 }
+
 
 export async function onStudentLeftClass(
   adminClient: Supabase,

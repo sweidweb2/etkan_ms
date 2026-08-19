@@ -13,6 +13,7 @@ import {
   SearchIcon,
   XCircleIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Can } from "@/components/auth/can";
 import { AddGuestDialog } from "@/components/manager/guests/add-guest-dialog";
@@ -206,20 +207,6 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
   const pageRows = filteredGuests.slice(pageStart, pageStart + pageSize);
   const pageNumbers = getPageNumbers(safePage, totalPages);
 
-  const openGuestDetails = (guest: ManagerGuestRow) => {
-    router.push(getManagerGuestDetailRoute(guest.id));
-  };
-
-  const handleGuestRowKeyDown = (
-    event: React.KeyboardEvent<HTMLTableRowElement>,
-    guest: ManagerGuestRow
-  ) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openGuestDetails(guest);
-    }
-  };
-
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
@@ -382,20 +369,20 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
                     pageRows.map((guest) => (
                       <tr
                         key={guest.id}
-                        className={GUEST_ROW_CLASS}
-                        tabIndex={0}
-                        role="link"
-                        aria-label={`View details for ${guest.full_name}`}
-                        onClick={() => openGuestDetails(guest)}
-                        onKeyDown={(event) =>
-                          handleGuestRowKeyDown(event, guest)
-                        }
+                        className={cn(GUEST_ROW_CLASS, "relative")}
                       >
                         <td className="px-4 py-3 font-medium">
-                          <TruncatedCell
-                            value={guest.full_name}
-                            maxLength={COLUMN_LIMITS.name}
-                          />
+                          <Link
+                            prefetch={false}
+                            href={getManagerGuestDetailRoute(guest.id)}
+                            className="after:absolute after:inset-0"
+                            aria-label={`View details for ${guest.full_name}`}
+                          >
+                            <TruncatedCell
+                              value={guest.full_name}
+                              maxLength={COLUMN_LIMITS.name}
+                            />
+                          </Link>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {guest.phone}

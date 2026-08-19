@@ -1,0 +1,34 @@
+---
+description: Session pack, getClaims, and panel auth navigation
+alwaysApply: true
+---
+
+# Session and claims
+
+Authentication should be **cheap and local** on every request (`getClaims` / JWT verify). Occasional JWKS fetch or token refresh is normal.
+
+**Do not keep optimizing `getClaims()` / middleware** unless a new scan shows they are slow again. Page data is the remaining target after a warm JWKS.
+
+## Keep
+
+- JWT role in middleware (`role=0ms` when claims carry role).
+- `Promise.all(profile, permissions)` on session_pack MISS when `claimsRole` is set — time each promise independently.
+- Process-TTL session shell HIT (must stay cheap: claims + map lookup).
+- Process-global JWKS (`lib/auth/jwks-cache.ts` on `globalThis`) passed into `getClaims({ jwks })`. Warm at login. Middleware and RSC must share this cache — do not let each bundle HTTP-fetch `jwks.json` on the first authenticated hop.
+
+## Session pack logs
+
+- `HIT` — shell cache hit only. If this is hundreds of ms, look at `client=` (Supabase client/cookies), not the cache.
+- `WAIT` — another request is already building the shell (singleflight). Not a cache hit.
+- `MISS` — this request built profile + permissions.
+
+Warm the shell at **login** (`setCachedSessionShell`) so the first panel hop is a HIT.
+
+## getClaims
+
+Do not replace `getClaims` with `getUser`. Do not skip per-request claims.
+Use `getClaimsWithSharedJwks` (not a bare `client.auth.getClaims()`) on middleware and RSC.
+
+## Panel links
+
+One navigator per target. Table/detail `<Link>`s use `prefetch={false}` unless prefetch is intentional.

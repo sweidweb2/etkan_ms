@@ -3,6 +3,7 @@ import { ClassDetailsPanel } from "@/components/manager/classes/class-details-pa
 import { getSessionPack } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { hasPermissionInSet } from "@/services/authorization.service";
 import {
   getClassFinalExamForManager,
@@ -27,12 +28,6 @@ export default async function ManagerClassDetailPage({
   const actorUserId = pack.user?.id ?? null;
   const permissions = pack.permissions;
 
-  const classRow = await getClassForManager(adminClient, actorUserId, id);
-
-  if (!classRow) {
-    notFound();
-  }
-
   const canSessions = hasPermissionInSet(
     permissions,
     PERMISSIONS.SESSIONS_VIEW
@@ -51,27 +46,47 @@ export default async function ManagerClassDetailPage({
   );
   const canGrades = hasPermissionInSet(permissions, PERMISSIONS.GRADES_VIEW);
 
+  const timer = createNavStepTimer("class_detail");
   const [
+    classRow,
     sessions,
     students,
     finalExamBundle,
     teachers,
     computedGradeLock,
   ] = await Promise.all([
-    canSessions
-      ? listClassSessionsForManager(adminClient, actorUserId, id)
-      : Promise.resolve([]),
-    canStudents
-      ? listClassStudentsForManager(adminClient, actorUserId, id)
-      : Promise.resolve([]),
-    canFinalExam
-      ? getClassFinalExamForManager(adminClient, actorUserId, id)
-      : Promise.resolve({ finalExam: null, studentGrades: [] }),
-    listClassTeacherOptionsForManager(adminClient, actorUserId, id),
-    canGrades
-      ? getClassComputedGradeLockStateForManager(adminClient, actorUserId, id)
-      : Promise.resolve({ hasComputedGrades: false, lockedUserIds: [] }),
+    timer.step("class", () =>
+      getClassForManager(adminClient, actorUserId, id)
+    ),
+    timer.step("sessions", () =>
+      canSessions
+        ? listClassSessionsForManager(adminClient, actorUserId, id)
+        : Promise.resolve([])
+    ),
+    timer.step("students", () =>
+      canStudents
+        ? listClassStudentsForManager(adminClient, actorUserId, id)
+        : Promise.resolve([])
+    ),
+    timer.step("finalExam", () =>
+      canFinalExam
+        ? getClassFinalExamForManager(adminClient, actorUserId, id)
+        : Promise.resolve({ finalExam: null, studentGrades: [] })
+    ),
+    timer.step("teachers", () =>
+      listClassTeacherOptionsForManager(adminClient, actorUserId, id)
+    ),
+    timer.step("gradeLock", () =>
+      canGrades
+        ? getClassComputedGradeLockStateForManager(adminClient, actorUserId, id)
+        : Promise.resolve({ hasComputedGrades: false, lockedUserIds: [] })
+    ),
   ]);
+  timer.end();
+
+  if (!classRow) {
+    notFound();
+  }
 
   return (
     <div className="flex flex-col gap-6">

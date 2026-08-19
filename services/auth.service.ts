@@ -1,19 +1,24 @@
 import { getAuthCallbackUrl } from "@/lib/config/site";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
+import { warmJwks } from "@/lib/auth/jwks-cache";
+import { setCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { ROUTES } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { loginSchema, signupSchema } from "@/lib/validators/auth/auth";
+import { roleSchema } from "@/lib/validators/role";
 import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { isNavTimingEnabled, navTimingServerLog } from "@/lib/debug/nav-timing";
 import { ensureStudentRegistration } from "@/services/profile.service";
+import { getPermissionsForRoleCached } from "@/services/authorization.service";
 import {
-  resolveUserRole,
   roleFromAuthMetadata,
   roleFromJwtClaims,
   syncAuthUserRole,
 } from "@/services/role.service";
+import { displayNameFromAuthUser } from "@/services/user-display.service";
 import type { LoginResult, SignupResult } from "@/types/auth";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -98,11 +103,14 @@ export async function login(
     };
   }
 
+  const debugOn = isNavTimingEnabled();
+  const signInStart = debugOn ? performance.now() : 0;
   const { data, error } = await authRepository.signInWithPassword(
     client,
     parsed.data.email,
     parsed.data.password
   );
+  const signInMs = debugOn ? performance.now() - signInStart : 0;
 
   if (error || !data.user) {
     return {
@@ -111,7 +119,25 @@ export async function login(
     };
   }
 
-  const role = await resolveUserRole(client, data.user);
+  const user = data.user;
+  const claimsRole = roleFromAuthMetadata(user);
+  const shellStart = debugOn ? performance.now() : 0;
+  const [profileResult, claimedPermissions] = await Promise.all([
+    profileRepository.findProfileById(client, user.id),
+    claimsRole
+      ? getPermissionsForRoleCached(claimsRole)
+      : Promise.resolve(null),
+    warmJwks(),
+  ]);
+
+  const profileRole = roleSchema.safeParse(profileResult.data?.role);
+  const role: RoleValue =
+    claimsRole ??
+    (profileRole.success ? profileRole.data : null) ??
+    ROLES.STUDENT;
+
+  const permissions =
+    claimedPermissions ?? (await getPermissionsForRoleCached(role));
 
   const maintenanceError = await rejectIfMaintenanceBlocksRole(client, role);
   if (maintenanceError) {
@@ -120,6 +146,25 @@ export async function login(
       success: false,
       error: maintenanceError,
     };
+  }
+
+  setCachedSessionShell(user.id, {
+    role,
+    displayName: displayNameFromAuthUser(
+      user,
+      profileResult.data?.username ?? null
+    ),
+    isInstructor: profileResult.data?.is_instructor === true,
+    permissionKeys: [...permissions],
+    cachedClaimsRole: claimsRole,
+  });
+  const shellMs = debugOn ? performance.now() - shellStart : 0;
+
+  if (debugOn) {
+    navTimingServerLog("login", "login", {
+      signIn: signInMs,
+      shell: shellMs,
+    });
   }
 
   return {

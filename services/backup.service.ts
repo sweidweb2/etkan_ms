@@ -3,23 +3,15 @@ import {
   type BackupTableName,
 } from "@/lib/constants/backup-tables";
 import * as backupRepository from "@/repositories/backup.repository";
+import type {
+  BackupExportPayload,
+  FullBackupPayload,
+  TableBackupPayload,
+} from "@/types/backup-export";
 
 type BackupClient = Parameters<typeof backupRepository.exportTableRows>[0];
 
-type TableBackupResult = {
-  exportedAt: string;
-  scope: "table";
-  table: BackupTableName;
-  rows: unknown[];
-};
-
-type FullBackupResult = {
-  exportedAt: string;
-  scope: "all";
-  tables: Record<BackupTableName, unknown[]>;
-};
-
-export type BackupExportResult = TableBackupResult | FullBackupResult;
+export type BackupExportResult = BackupExportPayload;
 
 export function isBackupTableName(value: string): value is BackupTableName {
   return BACKUP_TABLES.includes(value as BackupTableName);
@@ -28,7 +20,7 @@ export function isBackupTableName(value: string): value is BackupTableName {
 export async function exportSingleTableBackup(
   client: BackupClient,
   tableName: BackupTableName
-): Promise<TableBackupResult> {
+): Promise<TableBackupPayload> {
   const { data, error } = await backupRepository.exportTableRows(client, tableName);
 
   if (error) {
@@ -45,7 +37,7 @@ export async function exportSingleTableBackup(
 
 export async function exportFullDatabaseBackup(
   client: BackupClient
-): Promise<FullBackupResult> {
+): Promise<FullBackupPayload> {
   const tableEntries = await Promise.all(
     BACKUP_TABLES.map(async (tableName) => {
       const { data, error } = await backupRepository.exportTableRows(

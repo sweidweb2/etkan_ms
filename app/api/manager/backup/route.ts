@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  createBackupFilename,
+  serializeBackupExport,
+} from "@/lib/export/backup-serialize";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
+import { parseBackupExportFormat } from "@/lib/validators/manager/backup-export";
 import { getCurrentUser } from "@/services/auth.service";
 import { getUnauthorizedError } from "@/services/authorization.service";
 import { recordBackupHistory } from "@/services/backup-history.service";
@@ -12,14 +17,23 @@ import {
 } from "@/services/backup.service";
 import { resolveDisplayName } from "@/services/user-display.service";
 
-function createBackupFilename(scope: "all" | "table", tableName?: string) {
-  const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
+function createBackupFileResponse(
+  body: string | Uint8Array,
+  contentType: string,
+  fileName: string
+) {
+  const payload: BodyInit =
+    typeof body === "string"
+      ? body
+      : new Blob([body as BlobPart], { type: contentType });
 
-  if (scope === "table" && tableName) {
-    return `backup-${tableName}-${dateStamp}.json`;
-  }
-
-  return `backup-all-tables-${dateStamp}.json`;
+  return new NextResponse(payload, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
+    },
+  });
 }
 
 export async function GET(request: Request) {
@@ -32,6 +46,13 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const tableName = searchParams.get("table");
+  const parsedFormat = parseBackupExportFormat(searchParams.get("format"));
+
+  if (!parsedFormat.success) {
+    return NextResponse.json({ message: parsedFormat.error }, { status: 400 });
+  }
+
+  const format = parsedFormat.data;
   const adminClient = createSupabaseAdminClient();
 
   const exportPermission = tableName
@@ -47,7 +68,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  // Download is part of the same GET response attachment flow.
   const downloadUnauthorized = await getUnauthorizedError(
     adminClient,
     user.id,
@@ -69,7 +89,12 @@ export async function GET(request: Request) {
       }
 
       const payload = await exportSingleTableBackup(adminClient, tableName);
-      const fileName = createBackupFilename("table", tableName);
+      const file = await serializeBackupExport(payload, format);
+      const fileName = createBackupFilename({
+        scope: "table",
+        tableName,
+        extension: file.extension,
+      });
 
       await recordBackupHistory(adminClient, {
         createdBy: user.id,
@@ -81,17 +106,15 @@ export async function GET(request: Request) {
         tableCount: 1,
       });
 
-      return new NextResponse(JSON.stringify(payload, null, 2), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${fileName}"`,
-        },
-      });
+      return createBackupFileResponse(file.body, file.contentType, fileName);
     }
 
     const payload = await exportFullDatabaseBackup(adminClient);
-    const fileName = createBackupFilename("all");
+    const file = await serializeBackupExport(payload, format);
+    const fileName = createBackupFilename({
+      scope: "all",
+      extension: file.extension,
+    });
     const tableCount = Object.keys(payload.tables).length;
     const rowCount = Object.values(payload.tables).reduce(
       (total, rows) => total + rows.length,
@@ -107,13 +130,7 @@ export async function GET(request: Request) {
       tableCount,
     });
 
-    return new NextResponse(JSON.stringify(payload, null, 2), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
-      },
-    });
+    return createBackupFileResponse(file.body, file.contentType, fileName);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to export backup.";

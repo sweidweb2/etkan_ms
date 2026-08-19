@@ -14,6 +14,7 @@ import {
   type GuestStatus,
 } from "@/lib/constants/guest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { createGuestSchema } from "@/lib/validators/manager/create-guest";
 import { changeGuestStatusSchema } from "@/lib/validators/manager/change-guest-status";
 import { recordGuestStatusesSchema } from "@/lib/validators/manager/record-guest-statuses";
@@ -260,40 +261,48 @@ export async function getGuestDetailForManager(
   actorUserId: string | null,
   guestId: string
 ): Promise<ManagerGuestDetail | null> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.GUESTS_VIEW);
-
-  const { data, error } = await guestRepository.findGuestById(
-    adminClient,
-    guestId
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data) {
-    return null;
-  }
-
-  const eventsResult =
-    await guestStatusEventRepository.listGuestStatusEventsByGuestId(
-      adminClient,
-      guestId
+  const timer = createNavStepTimer("guest_detail_load");
+  try {
+    await timer.step("auth", () =>
+      assertPermission(adminClient, actorUserId, PERMISSIONS.GUESTS_VIEW)
     );
 
-  if (eventsResult.error) {
-    throw new Error(eventsResult.error.message);
+    const { data, error } = await timer.step("guest", () =>
+      guestRepository.findGuestById(adminClient, guestId)
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    const eventsResult = await timer.step("events", () =>
+      guestStatusEventRepository.listGuestStatusEventsByGuestId(
+        adminClient,
+        guestId
+      )
+    );
+
+    if (eventsResult.error) {
+      throw new Error(eventsResult.error.message);
+    }
+
+    const registration = await timer.step("registration", () =>
+      getGuestRegistrationInviteBundleForManager(adminClient, guestId)
+    );
+
+    return {
+      guest: mapGuestRecordToRow(data),
+      statusEvents: (eventsResult.data ?? []).map(mapGuestStatusEventRecordToRow),
+      registrationInvite: registration.invite,
+      registrationApplication: registration.application,
+    };
+  } finally {
+    timer.end();
   }
-
-  const registration =
-    await getGuestRegistrationInviteBundleForManager(adminClient, guestId);
-
-  return {
-    guest: mapGuestRecordToRow(data),
-    statusEvents: (eventsResult.data ?? []).map(mapGuestStatusEventRecordToRow),
-    registrationInvite: registration.invite,
-    registrationApplication: registration.application,
-  };
 }
 
 function uniquePipelineStatuses(statuses: GuestStatus[]): GuestStatus[] {

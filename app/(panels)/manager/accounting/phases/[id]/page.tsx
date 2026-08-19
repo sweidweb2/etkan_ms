@@ -4,7 +4,7 @@ import { getSessionAuditActor, getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getPaymentPhaseForManager,
-  listPaymentPhasesForManager,
+  listPaymentPhaseTransferOptionsForManager,
   listSppsForPhaseForManager,
 } from "@/services/payment-phase.service";
 
@@ -21,20 +21,15 @@ export default async function ManagerPaymentPhaseDetailPage({
   const actor = await getSessionAuditActor();
   const actorUserId = user?.id ?? null;
 
-  const phase = await getPaymentPhaseForManager(
-    adminClient,
-    actorUserId,
-    phaseId
-  );
+  const [phase, spps, transferPhaseOptions] = await Promise.all([
+    getPaymentPhaseForManager(adminClient, actorUserId, phaseId),
+    listSppsForPhaseForManager(adminClient, actorUserId, phaseId),
+    listPaymentPhaseTransferOptionsForManager(adminClient, actorUserId),
+  ]);
 
   if (!phase) {
     notFound();
   }
-
-  const [spps, transferPhaseOptions] = await Promise.all([
-    listSppsForPhaseForManager(adminClient, actorUserId, phaseId),
-    listPaymentPhasesForManager(adminClient, actorUserId),
-  ]);
 
   return (
     <PaymentPhaseDetailsPanel

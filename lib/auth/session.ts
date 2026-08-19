@@ -8,8 +8,10 @@ import {
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
   getCachedSessionShell,
+  getOrCreateSessionShellInflight,
   isSessionShellCompatibleWithClaims,
   setCachedSessionShell,
+  type SessionShellPayload,
 } from "@/lib/auth/session-shell-cache";
 import {
   isNavTimingEnabled,
@@ -57,66 +59,35 @@ function permissionsFromKeys(
   return set;
 }
 
+async function timeBag<T>(
+  bag: Record<string, number> | null,
+  key: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  if (!bag) {
+    return fn();
+  }
+  const start = performance.now();
+  try {
+    return await fn();
+  } finally {
+    bag[key] = performance.now() - start;
+  }
+}
+
 /** Request-scoped RSC timing bag for nav debug beacons. */
 export const getNavRscTimingBag = cache((): Record<string, number> => ({}));
 
-/**
- * Request-scoped who-am-I pack (user, role, display name, instructor, permissions).
- *
- * Every request: cheap getClaims identity.
- * Across navigations: process-TTL shell cache (role / displayName / instructor / perms)
- * keyed by userId — see `session-shell-cache.ts`.
- */
-export const getSessionPack = cache(async (): Promise<SessionPack> => {
-  const debugOn = isNavTimingEnabled();
-  const bag = debugOn ? getNavRscTimingBag() : null;
-  const packStart = debugOn ? performance.now() : 0;
+type SessionClient = Awaited<
+  ReturnType<typeof createSupabaseServerComponentClient>
+>;
 
-  const client = await createSupabaseServerComponentClient();
-
-  const claimsStart = debugOn ? performance.now() : 0;
-  const identity = await getSessionAuthIdentity(client);
-  if (bag) {
-    bag.session_claims = performance.now() - claimsStart;
-  }
-
-  if (!identity) {
-    if (bag) {
-      bag.session_pack = performance.now() - packStart;
-      bag.session_shell = 0;
-    }
-    return EMPTY_SESSION_PACK;
-  }
-
-  const { user, claimsRole } = identity;
-
-  const cached = getCachedSessionShell(user.id);
-  if (
-    cached &&
-    isSessionShellCompatibleWithClaims(cached, claimsRole)
-  ) {
-    rememberUserRole(user.id, cached.role);
-    const permissions = permissionsFromKeys(cached.permissionKeys);
-    if (bag) {
-      bag.session_shell = 0;
-      bag.session_shell_hit = 1;
-      bag.session_pack = performance.now() - packStart;
-      navTimingServerLog("rsc", "session_pack HIT", {
-        claims: bag.session_claims ?? 0,
-        pack: bag.session_pack,
-      });
-    }
-    return {
-      user,
-      role: cached.role,
-      displayName: cached.displayName,
-      isInstructor: cached.isInstructor,
-      permissions,
-    };
-  }
-
-  if (bag) bag.session_shell_hit = 0;
-
+async function buildSessionShell(
+  client: SessionClient,
+  user: User,
+  claimsRole: RoleValue | null,
+  bag: Record<string, number> | null
+): Promise<SessionShellPayload> {
   let profile: Awaited<
     ReturnType<typeof profileRepository.findProfileById>
   >["data"];
@@ -124,30 +95,23 @@ export const getSessionPack = cache(async (): Promise<SessionPack> => {
 
   if (claimsRole) {
     // Profile and role grants are independent when JWT already carries role.
-    const profileStart = debugOn ? performance.now() : 0;
-    const permsStart = debugOn ? performance.now() : 0;
     const [profileResult, claimedPermissions] = await Promise.all([
-      profileRepository.findProfileById(client, user.id),
-      getPermissionsForRoleCached(claimsRole),
+      timeBag(bag, "session_profile", () =>
+        profileRepository.findProfileById(client, user.id)
+      ),
+      timeBag(bag, "session_permissions", () =>
+        getPermissionsForRoleCached(claimsRole)
+      ),
     ]);
-    if (bag) {
-      bag.session_profile = performance.now() - profileStart;
-      bag.session_permissions = performance.now() - permsStart;
-    }
     if (profileResult.error) {
       throw new Error(profileResult.error.message);
     }
     profile = profileResult.data;
     permissions = claimedPermissions;
   } else {
-    const profileStart = debugOn ? performance.now() : 0;
-    const profileResult = await profileRepository.findProfileById(
-      client,
-      user.id
+    const profileResult = await timeBag(bag, "session_profile", () =>
+      profileRepository.findProfileById(client, user.id)
     );
-    if (bag) {
-      bag.session_profile = performance.now() - profileStart;
-    }
     if (profileResult.error) {
       throw new Error(profileResult.error.message);
     }
@@ -164,11 +128,9 @@ export const getSessionPack = cache(async (): Promise<SessionPack> => {
 
   // No JWT role: permissions waited on profile/metadata role resolution.
   if (!claimsRole) {
-    const permsStart = debugOn ? performance.now() : 0;
-    permissions = await getPermissionsForRoleCached(role);
-    if (bag) {
-      bag.session_permissions = performance.now() - permsStart;
-    }
+    permissions = await timeBag(bag, "session_permissions", () =>
+      getPermissionsForRoleCached(role)
+    );
   }
 
   const isInstructor = profile?.is_instructor === true;
@@ -183,49 +145,130 @@ export const getSessionPack = cache(async (): Promise<SessionPack> => {
       user.user_metadata.full_name.trim()
     )
   ) {
-    const studentStart = debugOn ? performance.now() : 0;
-    const { data } =
-      await studentProfileRepository.findStudentProfileByUserId(
-        client,
-        user.id
-      );
-    if (bag) {
-      bag.session_student_profile = performance.now() - studentStart;
-    }
+    const { data } = await timeBag(bag, "session_student_profile", () =>
+      studentProfileRepository.findStudentProfileByUserId(client, user.id)
+    );
     if (data?.full_name?.trim()) {
       displayName = data.full_name.trim();
     }
   }
 
-  rememberUserRole(user.id, role);
-
-  setCachedSessionShell(user.id, {
+  const payload: SessionShellPayload = {
     role,
     displayName,
     isInstructor,
     permissionKeys: [...permissions],
     cachedClaimsRole: claimsRole,
-  });
+  };
+  setCachedSessionShell(user.id, payload);
+  return payload;
+}
 
-  if (bag) {
-    bag.session_shell = 1;
-    bag.session_pack = performance.now() - packStart;
-    navTimingServerLog("rsc", "session_pack MISS", {
-      claims: bag.session_claims ?? 0,
-      profile: bag.session_profile ?? 0,
-      permissions: bag.session_permissions ?? 0,
-      pack: bag.session_pack,
-    });
-  }
-
+function packFromShell(
+  user: User,
+  shell: SessionShellPayload
+): SessionPack {
+  rememberUserRole(user.id, shell.role);
   return {
     user,
-    role,
-    displayName,
-    isInstructor,
-    permissions,
+    role: shell.role,
+    displayName: shell.displayName,
+    isInstructor: shell.isInstructor,
+    permissions: permissionsFromKeys(shell.permissionKeys),
   };
-});
+}
+
+/**
+ * Who-am-I pack (user, role, display name, instructor, permissions).
+ *
+ * Every call: cheap getClaims identity.
+ * Across requests: process-TTL shell + in-flight singleflight on MISS.
+ * Prefer `getSessionPack` in RSC (request-scoped React cache).
+ */
+export async function loadSessionPack(): Promise<SessionPack> {
+  const debugOn = isNavTimingEnabled();
+  const bag = debugOn ? getNavRscTimingBag() : null;
+  const packStart = debugOn ? performance.now() : 0;
+
+  const client = await timeBag(bag, "session_client", () =>
+    createSupabaseServerComponentClient()
+  );
+
+  const identity = await timeBag(bag, "session_claims", () =>
+    getSessionAuthIdentity(client)
+  );
+
+  if (!identity) {
+    if (bag) {
+      bag.session_pack = performance.now() - packStart;
+      bag.session_shell = 0;
+    }
+    return EMPTY_SESSION_PACK;
+  }
+
+  const { user, claimsRole } = identity;
+
+  const cached = getCachedSessionShell(user.id);
+  if (cached && isSessionShellCompatibleWithClaims(cached, claimsRole)) {
+    const pack = packFromShell(user, cached);
+    if (bag) {
+      bag.session_shell = 0;
+      bag.session_shell_hit = 1;
+      bag.session_pack = performance.now() - packStart;
+      navTimingServerLog("rsc", "session_pack HIT", {
+        client: bag.session_client ?? 0,
+        claims: bag.session_claims ?? 0,
+        pack: bag.session_pack,
+      });
+    }
+    return pack;
+  }
+
+  if (bag) bag.session_shell_hit = 0;
+
+  const waitStart = debugOn ? performance.now() : 0;
+  const { payload, shared } = await getOrCreateSessionShellInflight(
+    user.id,
+    () => buildSessionShell(client, user, claimsRole, bag)
+  );
+  if (bag && shared) {
+    bag.session_wait = performance.now() - waitStart;
+  }
+
+  const shell =
+    isSessionShellCompatibleWithClaims(payload, claimsRole)
+      ? payload
+      : await buildSessionShell(client, user, claimsRole, bag);
+
+  const pack = packFromShell(user, shell);
+
+  if (bag) {
+    bag.session_pack = performance.now() - packStart;
+    if (shared) {
+      bag.session_shell = 0;
+      navTimingServerLog("rsc", "session_pack WAIT", {
+        client: bag.session_client ?? 0,
+        claims: bag.session_claims ?? 0,
+        wait: bag.session_wait ?? 0,
+        pack: bag.session_pack,
+      });
+    } else {
+      bag.session_shell = 1;
+      navTimingServerLog("rsc", "session_pack MISS", {
+        client: bag.session_client ?? 0,
+        claims: bag.session_claims ?? 0,
+        profile: bag.session_profile ?? 0,
+        permissions: bag.session_permissions ?? 0,
+        pack: bag.session_pack,
+      });
+    }
+  }
+
+  return pack;
+}
+
+/** Request-scoped who-am-I pack. Cross-request MISS coalescing is in loadSessionPack. */
+export const getSessionPack = cache(loadSessionPack);
 
 export async function getSessionUser() {
   return (await getSessionPack()).user;

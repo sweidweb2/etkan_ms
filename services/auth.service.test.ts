@@ -5,14 +5,22 @@ import { ROUTES } from "@/lib/constants/routes";
 import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import { setCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { login, logout, register, getSessionAuthIdentity } from "@/services/auth.service";
 import * as profileService from "@/services/profile.service";
 import * as roleService from "@/services/role.service";
+import * as authorizationService from "@/services/authorization.service";
 
 vi.mock("@/repositories/app-settings.repository");
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/services/profile.service");
+vi.mock("@/lib/auth/session-shell-cache", () => ({
+  setCachedSessionShell: vi.fn(),
+}));
+vi.mock("@/services/authorization.service", () => ({
+  getPermissionsForRoleCached: vi.fn(async () => new Set()),
+}));
 vi.mock("@/services/role.service", async () => {
   const actual = await vi.importActual<typeof import("@/services/role.service")>(
     "@/services/role.service"
@@ -52,7 +60,26 @@ describe("login", () => {
     vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(
       false
     );
+    vi.mocked(authorizationService.getPermissionsForRoleCached).mockResolvedValue(
+      new Set()
+    );
   });
+
+  function mockProfileRole(role: (typeof ROLES)[keyof typeof ROLES]) {
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: "user-1",
+        username: "jane",
+        role,
+        is_instructor: false,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+  }
 
   it("returns field errors for invalid input", async () => {
     const result = await login(authClient, {
@@ -93,7 +120,7 @@ describe("login", () => {
       data: { user: authUser, session: {} as never },
       error: null,
     });
-    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.MANAGER);
+    mockProfileRole(ROLES.MANAGER);
 
     const result = await login(authClient, {
       email: "jane@school.com",
@@ -104,6 +131,13 @@ describe("login", () => {
     if (result.success) {
       expect(result.redirectTo).toBe(ROUTES.MANAGER_STUDENTS);
     }
+    expect(setCachedSessionShell).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        role: ROLES.MANAGER,
+        displayName: "Jane Doe",
+      })
+    );
   });
 
   it("allows student login when maintenance mode is off", async () => {
@@ -111,7 +145,7 @@ describe("login", () => {
       data: { user: authUser, session: {} as never },
       error: null,
     });
-    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.STUDENT);
+    mockProfileRole(ROLES.STUDENT);
     vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(
       false
     );
@@ -133,7 +167,7 @@ describe("login", () => {
       data: { user: authUser, session: {} as never },
       error: null,
     });
-    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.STUDENT);
+    mockProfileRole(ROLES.STUDENT);
     vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(true);
     vi.mocked(authRepository.signOut).mockResolvedValue({ error: null });
 
@@ -156,7 +190,7 @@ describe("login", () => {
       data: { user: authUser, session: {} as never },
       error: null,
     });
-    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.TEACHER);
+    mockProfileRole(ROLES.TEACHER);
     vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(true);
     vi.mocked(authRepository.signOut).mockResolvedValue({ error: null });
 
@@ -179,7 +213,7 @@ describe("login", () => {
       data: { user: authUser, session: {} as never },
       error: null,
     });
-    vi.mocked(roleService.resolveUserRole).mockResolvedValue(ROLES.MANAGER);
+    mockProfileRole(ROLES.MANAGER);
     vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(true);
 
     const result = await login(authClient, {

@@ -9,7 +9,8 @@ Full reference: `docs/caching/[01] caching.md`.
 
 - **Do not cache by default.** RSC → service → repository → Supabase is the normal path.
 - **Never cache inside `repositories/`.**
-- **Never** use a shared server cache key for auth/session or per-user secrets.
+- **Never** use Next Data Cache (`unstable_cache` / shared tags) for auth/session or per-user secrets.
+- **Allowed for session only:** process-TTL shell + in-flight singleflight in `lib/auth/session-shell-cache.ts`, and process-TTL JWKS in `lib/auth/jwks-cache.ts` (not Data Cache). See `.cursor/rules/session-auth.mdc`.
 
 ## Choose the type
 
@@ -41,5 +42,6 @@ Full reference: `docs/caching/[01] caching.md`.
 ## Bad fits
 
 - Write-heavy flows with no invalidation plan.
-- Personalized data under a global cache key.
+- Personalized data under a global `unstable_cache` / tag key.
 - Using cache instead of fixing a slow query.
+- Session/auth in Data Cache. Process-TTL shell + singleflight + JWKS is the exception, not a new shared tag.

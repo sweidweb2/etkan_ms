@@ -12,6 +12,7 @@ import {
   type SppAdjustmentInput,
 } from "@/lib/manager/accounting/spp-financials";
 import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
@@ -238,59 +239,68 @@ export async function recalcPhaseStatusFromSpps(
   adminClient: Supabase,
   phaseId: string
 ): Promise<PaymentPhaseStatus> {
-  const { data: phase, error: phaseError } =
-    await paymentPhaseRepository.findPaymentPhaseById(adminClient, phaseId);
-
-  if (phaseError) {
-    throw new Error(phaseError.message);
-  }
-
-  if (!phase) {
-    throw new Error("Payment phase not found.");
-  }
-
-  const currentStatus = isPaymentPhaseStatus(phase.status)
-    ? phase.status
-    : PAYMENT_PHASE_STATUSES.OPENED;
-
-  if (currentStatus === PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return currentStatus;
-  }
-
-  const { data: spps, error: sppError } =
-    await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
-      adminClient,
-      phaseId
+  const timer = createNavStepTimer("recalcPhase");
+  try {
+    const { data: phase, error: phaseError } = await timer.step("phase", () =>
+      paymentPhaseRepository.findPaymentPhaseById(adminClient, phaseId)
     );
 
-  if (sppError) {
-    throw new Error(sppError.message);
-  }
+    if (phaseError) {
+      throw new Error(phaseError.message);
+    }
 
-  const statuses = ((spps ?? []) as StudentPaymentPhaseRecord[]).map((spp) =>
-    isStudentPaymentPhaseStatus(spp.status)
-      ? spp.status
-      : STUDENT_PAYMENT_PHASE_STATUSES.PENDING
-  );
+    if (!phase) {
+      throw new Error("Payment phase not found.");
+    }
 
-  const nextStatus = derivePaymentPhaseStatus(currentStatus, statuses);
+    const currentStatus = isPaymentPhaseStatus(phase.status)
+      ? phase.status
+      : PAYMENT_PHASE_STATUSES.OPENED;
 
-  if (nextStatus === currentStatus) {
-    return currentStatus;
-  }
+    if (currentStatus === PAYMENT_PHASE_STATUSES.CANCELLED) {
+      return currentStatus;
+    }
 
-  const { error: statusError } =
-    await paymentPhaseRepository.updatePaymentPhaseStatus(
-      adminClient,
-      phaseId,
-      nextStatus
+    const { data: spps, error: sppError } = await timer.step("spps", () =>
+      studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+        adminClient,
+        phaseId
+      )
     );
 
-  if (statusError) {
-    throw new Error(statusError.message);
-  }
+    if (sppError) {
+      throw new Error(sppError.message);
+    }
 
-  return nextStatus;
+    const statuses = ((spps ?? []) as StudentPaymentPhaseRecord[]).map((spp) =>
+      isStudentPaymentPhaseStatus(spp.status)
+        ? spp.status
+        : STUDENT_PAYMENT_PHASE_STATUSES.PENDING
+    );
+
+    const nextStatus = derivePaymentPhaseStatus(currentStatus, statuses);
+
+    if (nextStatus === currentStatus) {
+      return currentStatus;
+    }
+
+    await timer.step("update", async () => {
+      const { error: statusError } =
+        await paymentPhaseRepository.updatePaymentPhaseStatus(
+          adminClient,
+          phaseId,
+          nextStatus
+        );
+
+      if (statusError) {
+        throw new Error(statusError.message);
+      }
+    });
+
+    return nextStatus;
+  } finally {
+    timer.end();
+  }
 }
 
 /**

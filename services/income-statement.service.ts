@@ -158,7 +158,7 @@ export async function getIncomeStatementForManager(
       fromInclusive,
       toExclusive
     ),
-    studentPaymentRepository.listAllPaymentAmounts(adminClient),
+    studentPaymentRepository.sumAllPaymentAmounts(adminClient),
     studentFinancialAdjustmentRepository.listFinancialAdjustmentsBetween(
       adminClient,
       fromInclusive,
@@ -188,7 +188,7 @@ export async function getIncomeStatementForManager(
   }
 
   const paymentRows = paymentsResult.data ?? [];
-  const allPaymentAmountRows = allPaymentAmountsResult.data ?? [];
+  const totalSppPaymentsAmount = allPaymentAmountsResult.data;
   const adjustmentRows = adjustmentsResult.data ?? [];
   const transactionRows = transactionsResult.data ?? [];
 
@@ -274,10 +274,6 @@ export async function getIncomeStatementForManager(
 
   const totalPaymentsAmount = paymentRows.reduce(
     (sum, row) => sum + Number(row.amount),
-    0
-  );
-  const totalSppPaymentsAmount = allPaymentAmountRows.reduce(
-    (sum, row) => sum + Math.max(0, Number(row.amount) || 0),
     0
   );
 

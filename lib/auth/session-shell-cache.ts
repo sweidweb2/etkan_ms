@@ -28,6 +28,7 @@ type CacheEntry = SessionShellPayload & {
 };
 
 const cache = new Map<string, CacheEntry>();
+const inflight = new Map<string, Promise<SessionShellPayload>>();
 
 export function getCachedSessionShell(
   userId: string
@@ -88,11 +89,37 @@ export function setCachedSessionShell(
   });
 }
 
+/**
+ * Coalesce concurrent shell builds for the same user (cross-request singleflight).
+ * Callers still verify JWT per request; only the MISS build is shared.
+ */
+export async function getOrCreateSessionShellInflight(
+  userId: string,
+  build: () => Promise<SessionShellPayload>
+): Promise<{ payload: SessionShellPayload; shared: boolean }> {
+  if (!userId) {
+    return { payload: await build(), shared: false };
+  }
+
+  const existing = inflight.get(userId);
+  if (existing) {
+    return { payload: await existing, shared: true };
+  }
+
+  const promise = build().finally(() => {
+    inflight.delete(userId);
+  });
+  inflight.set(userId, promise);
+  return { payload: await promise, shared: false };
+}
+
 /** Clear one user, or all entries when `userId` is omitted. */
 export function clearCachedSessionShell(userId?: string): void {
   if (userId) {
     cache.delete(userId);
+    inflight.delete(userId);
     return;
   }
   cache.clear();
+  inflight.clear();
 }

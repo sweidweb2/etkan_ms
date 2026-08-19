@@ -3,11 +3,20 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Download, MessageSquareTextIcon } from "lucide-react";
+import { ChevronDownIcon, Download, ImagesIcon, MessageSquareTextIcon } from "lucide-react";
 import { FieldLabel } from "@/components/auth/field-label";
 import { Can } from "@/components/auth/can";
+import { ExportStorageImagesDialog } from "@/components/manager/backup/export-storage-images-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -32,6 +41,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  BACKUP_EXPORT_FORMAT_LABELS,
+  BACKUP_EXPORT_FORMAT_VALUES,
+  type BackupExportFormat,
+} from "@/lib/constants/backup-formats";
 import {
   BACKUP_TABLE_LABELS,
   BACKUP_TABLES,
@@ -77,7 +91,7 @@ async function downloadBackupFile(url: string) {
   const objectUrl = URL.createObjectURL(blob);
   const filename =
     getFilenameFromDisposition(response.headers.get("content-disposition")) ??
-    "backup.json";
+    "backup";
   const link = document.createElement("a");
 
   link.href = objectUrl;
@@ -94,6 +108,79 @@ function formatBackupDate(value: string) {
   return format(new Date(value), "MMM d, yyyy 'at' h:mm a");
 }
 
+function buildBackupExportUrl(
+  format: BackupExportFormat,
+  tableName?: string | null
+) {
+  const params = new URLSearchParams({ format });
+  if (tableName) {
+    params.set("table", tableName);
+  }
+
+  return `/api/manager/backup?${params.toString()}`;
+}
+
+function BackupExportMenu({
+  label,
+  pending,
+  disabled,
+  align = "start",
+  variant = "default",
+  size,
+  iconOnly = false,
+  ariaLabel,
+  className,
+  onSelectFormat,
+}: {
+  label?: string;
+  pending: boolean;
+  disabled: boolean;
+  align?: "start" | "end";
+  variant?: "default" | "ghost";
+  size?: "icon-xs";
+  iconOnly?: boolean;
+  ariaLabel: string;
+  className?: string;
+  onSelectFormat: (format: BackupExportFormat) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant={variant}
+          size={size}
+          disabled={disabled}
+          aria-label={ariaLabel}
+          aria-haspopup="menu"
+          className={className}
+        >
+          {pending ? (
+            <InlineSpinner />
+          ) : (
+            <Download className={iconOnly ? "size-4" : undefined} aria-hidden />
+          )}
+          {label}
+          {iconOnly ? null : <ChevronDownIcon data-icon="inline-end" />}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={align} className="w-44">
+        <DropdownMenuLabel>File format</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {BACKUP_EXPORT_FORMAT_VALUES.map((format) => (
+          <DropdownMenuItem
+            key={format}
+            disabled={disabled}
+            onSelect={() => onSelectFormat(format)}
+          >
+            {BACKUP_EXPORT_FORMAT_LABELS[format]}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
   const router = useRouter();
   const [selectedTable, setSelectedTable] = useState<BackupTableName>(
@@ -106,6 +193,7 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
   const [detailsEntry, setDetailsEntry] = useState<BackupHistoryEntry | null>(
     null
   );
+  const [isStorageExportOpen, setIsStorageExportOpen] = useState(false);
   const [scopeFilter, setScopeFilter] = useState<"all" | "table" | "full">(
     "all"
   );
@@ -202,11 +290,11 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
     []
   );
 
-  async function handleTableExport() {
+  async function handleTableExport(format: BackupExportFormat) {
     try {
       setPendingScope("table");
       const fileName = await downloadBackupFile(
-        `/api/manager/backup?table=${selectedTable}`
+        buildBackupExportUrl(format, selectedTable)
       );
 
       showSuccessToast("Table export completed.", fileName);
@@ -220,10 +308,10 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
     }
   }
 
-  async function handleDatabaseExport() {
+  async function handleDatabaseExport(format: BackupExportFormat) {
     try {
       setPendingScope("all");
-      const fileName = await downloadBackupFile("/api/manager/backup");
+      const fileName = await downloadBackupFile(buildBackupExportUrl(format));
 
       showSuccessToast("Full database export completed.", fileName);
       router.refresh();
@@ -236,23 +324,18 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
     }
   }
 
-  function getEntryReexportUrl(entry: BackupHistoryEntry) {
-    if (entry.scope === "table") {
-      if (!entry.tableName) {
-        return `/api/manager/backup`;
-      }
-
-      return `/api/manager/backup?table=${entry.tableName}`;
-    }
-
-    return `/api/manager/backup`;
-  }
-
-  async function handleHistoryExport(entry: BackupHistoryEntry) {
+  async function handleHistoryExport(
+    entry: BackupHistoryEntry,
+    format: BackupExportFormat
+  ) {
     try {
       setPendingHistoryExportId(entry.id);
-      const url = getEntryReexportUrl(entry);
-      const fileName = await downloadBackupFile(url);
+      const fileName = await downloadBackupFile(
+        buildBackupExportUrl(
+          format,
+          entry.scope === "table" ? entry.tableName : null
+        )
+      );
 
       showSuccessToast("Backup re-export completed.", fileName);
       router.refresh();
@@ -273,8 +356,8 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Backup</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Export one table when you need a focused backup, or export every table
-          in one file for a full database snapshot.
+          Export tables as JSON, SQL, or CSV, or collect every image in
+          Supabase storage into a ZIP.
         </p>
       </div>
 
@@ -365,21 +448,19 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                           </td>
                           <td className="px-1 py-2 align-middle text-right">
                             <Can permission={PERMISSIONS.BACKUP_DOWNLOAD}>
-                              <Button
-                                type="button"
+                              <BackupExportMenu
+                                pending={pendingHistoryExportId === entry.id}
+                                disabled={pendingHistoryExportId !== null}
                                 variant="ghost"
                                 size="icon-xs"
-                                aria-label="Re-export backup"
-                                onClick={() => handleHistoryExport(entry)}
-                                disabled={pendingHistoryExportId !== null}
+                                iconOnly
+                                align="end"
+                                ariaLabel="Re-export backup"
                                 className="text-primary hover:bg-primary/10 hover:text-primary"
-                              >
-                                {pendingHistoryExportId === entry.id ? (
-                                  <InlineSpinner />
-                                ) : (
-                                  <Download className="size-4" aria-hidden />
-                                )}
-                              </Button>
+                                onSelectFormat={(format) =>
+                                  handleHistoryExport(entry, format)
+                                }
+                              />
                             </Can>
                           </td>
                           <td className="px-1 py-2 align-middle text-right">
@@ -463,7 +544,7 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
             <CardHeader className="border-b bg-muted/40 py-3">
               <CardTitle>Export One Table</CardTitle>
               <CardDescription>
-                Download a JSON backup for a single table from the database.
+                Download a JSON, SQL, or CSV backup for a single table.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 py-4">
@@ -498,18 +579,13 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
             </CardContent>
             <CardFooter className="bg-muted/40">
               <Can permission={PERMISSIONS.BACKUP_EXPORT_TABLE}>
-                <Button
-                  type="button"
-                  onClick={handleTableExport}
+                <BackupExportMenu
+                  label="Export selected table"
+                  pending={isTableExportPending}
                   disabled={pendingScope !== null}
-                >
-                  {isTableExportPending ? (
-                    <InlineSpinner />
-                  ) : (
-                    <Download aria-hidden />
-                  )}
-                  Export selected table
-                </Button>
+                  ariaLabel="Export selected table"
+                  onSelectFormat={handleTableExport}
+                />
               </Can>
             </CardFooter>
           </Card>
@@ -518,23 +594,45 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
             <CardHeader className="border-b bg-muted/40 py-3">
               <CardTitle>Export All Tables</CardTitle>
               <CardDescription>
-                Download one JSON file that contains every backup-enabled table.
+                Download every backup-enabled table as JSON, SQL, or a ZIP of
+                CSVs.
               </CardDescription>
             </CardHeader>
             <CardFooter className="bg-muted/40">
               <Can permission={PERMISSIONS.BACKUP_EXPORT_FULL}>
+                <BackupExportMenu
+                  label="Export full database"
+                  pending={isDatabaseExportPending}
+                  disabled={pendingScope !== null}
+                  ariaLabel="Export full database"
+                  onSelectFormat={handleDatabaseExport}
+                />
+              </Can>
+            </CardFooter>
+          </Card>
+
+          <Card className="gap-0 py-0">
+            <CardHeader className="border-b bg-muted/40 py-3">
+              <CardTitle>Export Storage Images</CardTitle>
+              <CardDescription>
+                Collect every image from Supabase storage into one ZIP download.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter className="bg-muted/40">
+              <Can
+                anyOf={[
+                  PERMISSIONS.BACKUP_EXPORT_STORAGE,
+                  PERMISSIONS.BACKUP_EXPORT_FULL,
+                ]}
+              >
                 <Button
                   type="button"
                   variant="default"
-                  onClick={handleDatabaseExport}
+                  onClick={() => setIsStorageExportOpen(true)}
                   disabled={pendingScope !== null}
                 >
-                  {isDatabaseExportPending ? (
-                    <InlineSpinner />
-                  ) : (
-                    <Download aria-hidden />
-                  )}
-                  Export full database
+                  <ImagesIcon aria-hidden />
+                  Export storage images
                 </Button>
               </Can>
             </CardFooter>
@@ -637,6 +735,11 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ExportStorageImagesDialog
+        open={isStorageExportOpen}
+        onOpenChange={setIsStorageExportOpen}
+      />
     </div>
   );
 }

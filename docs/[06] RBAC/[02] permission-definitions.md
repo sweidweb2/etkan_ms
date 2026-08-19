@@ -294,6 +294,7 @@ Format: `key` — label — access
 | `backup.view` | View backup history | read |
 | `backup.export_table` | Export table backup | write |
 | `backup.export_full` | Export full backup | write |
+| `backup.export_storage` | Export storage images | write |
 | `backup.download` | Download backup file | write |
 
 ### Logs
@@ -495,6 +496,7 @@ analytics.view
 backup.view
 backup.export_table
 backup.export_full
+backup.export_storage
 backup.download
 logs.view
 cloudflare_ai_usage.view
@@ -514,7 +516,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 146 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete.
+**Count:** 147 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete.
 
 ### is_instructor — shared seed package
 

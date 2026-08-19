@@ -8,7 +8,7 @@ describe("getSessionPack", () => {
     vi.clearAllMocks();
   });
 
-  async function loadSessionModule() {
+  async function loadSessionModule(realShellCache = false) {
     vi.doMock("@/lib/supabase/server", () => ({
       createSupabaseServerComponentClient: vi.fn(async () => ({})),
     }));
@@ -25,13 +25,26 @@ describe("getSessionPack", () => {
       getPermissionsForRoleCached: vi.fn(),
       rememberUserRole: vi.fn(),
     }));
-    vi.doMock("@/lib/auth/session-shell-cache", () => ({
-      getCachedSessionShell: vi.fn(),
-      setCachedSessionShell: vi.fn(),
-      isSessionShellCompatibleWithClaims: vi.fn(
-        (_entry: unknown, claimsRole: unknown) => claimsRole == null || true
-      ),
-    }));
+    vi.doMock("@/lib/auth/session-shell-cache", async (importOriginal) => {
+      if (realShellCache) {
+        return await importOriginal<
+          typeof import("@/lib/auth/session-shell-cache")
+        >();
+      }
+      return {
+        getCachedSessionShell: vi.fn(),
+        setCachedSessionShell: vi.fn(),
+        isSessionShellCompatibleWithClaims: vi.fn(
+          (_entry: unknown, claimsRole: unknown) => claimsRole == null || true
+        ),
+        getOrCreateSessionShellInflight: vi.fn(
+          async (_userId: string, build: () => Promise<unknown>) => ({
+            payload: await build(),
+            shared: false,
+          })
+        ),
+      };
+    });
     vi.doMock("@/services/role.service", async () => {
       const actual = await vi.importActual<
         typeof import("@/services/role.service")
@@ -258,7 +271,7 @@ describe("getSessionPack", () => {
     const pack = await mod.session.getSessionPack();
 
     expect(pack.role).toBe(ROLES.MANAGER);
-    expect(pack.permissions).toBe(permissions);
+    expect(pack.permissions).toEqual(permissions);
     expect(mod.findProfileById).toHaveBeenCalledTimes(1);
     expect(mod.getPermissionsForRoleCached).toHaveBeenCalledTimes(1);
     expect(mod.getPermissionsForRoleCached).toHaveBeenCalledWith(ROLES.MANAGER);
@@ -269,5 +282,60 @@ describe("getSessionPack", () => {
         cachedClaimsRole: ROLES.MANAGER,
       })
     );
+  });
+
+  it("coalesces overlapping MISSes for the same user into one profile + permissions build", async () => {
+    const mod = await loadSessionModule(true);
+    const { clearCachedSessionShell } = await import(
+      "@/lib/auth/session-shell-cache"
+    );
+    clearCachedSessionShell();
+
+    const user = {
+      id: "user-pack-sf",
+      email: "mgr@school.com",
+      user_metadata: { full_name: "Mgr User" },
+      app_metadata: { role: ROLES.MANAGER },
+    } as never;
+    const permissions = new Set([PERMISSIONS.DASHBOARD_VIEW]);
+
+    mod.getSessionAuthIdentity.mockResolvedValue({
+      user,
+      claimsRole: ROLES.MANAGER,
+    });
+
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mod.findProfileById.mockImplementation(async () => {
+      await gate;
+      return {
+        data: {
+          id: "user-pack-sf",
+          username: "mgr",
+          role: ROLES.MANAGER,
+          is_instructor: false,
+          created_at: "2026-01-01",
+        },
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      };
+    });
+    mod.getPermissionsForRoleCached.mockResolvedValue(permissions);
+
+    const first = mod.session.loadSessionPack();
+    const second = mod.session.loadSessionPack();
+    release();
+    const [packA, packB] = await Promise.all([first, second]);
+
+    expect(packA.role).toBe(ROLES.MANAGER);
+    expect(packB.role).toBe(ROLES.MANAGER);
+    expect(mod.findProfileById).toHaveBeenCalledTimes(1);
+    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledTimes(1);
+
+    clearCachedSessionShell();
   });
 });

@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { getGuestRegistrationInviteUrl } from "@/lib/manager/guests/guest-registration-invite-url";
 import { connectGuestRegistrationUserSchema } from "@/lib/validators/manager/connect-guest-registration-user";
 import type {
@@ -849,44 +850,53 @@ export async function listUsersForGuestRegistrationLink(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<GuestRegistrationLinkUserOption[]> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.GUESTS_REGISTRATION_MANAGE
-  );
-  if (unauthorized) {
-    return [];
-  }
+  const timer = createNavStepTimer("guest_link_users");
+  try {
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.GUESTS_REGISTRATION_MANAGE
+      )
+    );
+    if (unauthorized) {
+      return [];
+    }
 
-  const { data: profiles, error } = await profileRepository.listProfiles(
-    adminClient
-  );
-  if (error) {
-    throw new Error(error.message);
-  }
-  if (!profiles?.length) {
-    return [];
-  }
+    const { data: profiles, error } = await timer.step("profiles", () =>
+      profileRepository.listProfiles(adminClient)
+    );
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (!profiles?.length) {
+      return [];
+    }
 
-  const emailsResult = await authRepository.listAuthEmailsByIds(
-    adminClient,
-    profiles.map((profile) => profile.id)
-  );
-  if (emailsResult.error) {
-    throw new Error(emailsResult.error.message);
-  }
+    const emailsResult = await timer.step("emails", () =>
+      authRepository.listAuthEmailsByIds(
+        adminClient,
+        profiles.map((profile) => profile.id)
+      )
+    );
+    if (emailsResult.error) {
+      throw new Error(emailsResult.error.message);
+    }
 
-  return [...profiles]
-    .sort((a, b) =>
-      (a.username ?? a.id).localeCompare(b.username ?? b.id, undefined, {
-        sensitivity: "base",
-      })
-    )
-    .map((profile) => ({
-      id: profile.id,
-      username: profile.username,
-      email: emailsResult.data.get(profile.id) ?? "",
-    }));
+    return [...profiles]
+      .sort((a, b) =>
+        (a.username ?? a.id).localeCompare(b.username ?? b.id, undefined, {
+          sensitivity: "base",
+        })
+      )
+      .map((profile) => ({
+        id: profile.id,
+        username: profile.username,
+        email: emailsResult.data.get(profile.id) ?? "",
+      }));
+  } finally {
+    timer.end();
+  }
 }
 
 export async function connectGuestRegistrationUserForManager(

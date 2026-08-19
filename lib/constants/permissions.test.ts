@@ -57,8 +57,9 @@ describe("permissions", () => {
     expect(isPermissionKey("subjects")).toBe(false);
   });
 
-  it("keeps the catalog size at 146 keys", () => {
-    expect(PERMISSION_KEYS).toHaveLength(146);
+  it("keeps the catalog size at 147 keys", () => {
+    expect(PERMISSION_KEYS).toHaveLength(147);
+    expect(isPermissionKey(PERMISSIONS.BACKUP_EXPORT_STORAGE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.RBAC_MANAGE)).toBe(true);
     expect(isPermissionKey(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW)).toBe(
       true

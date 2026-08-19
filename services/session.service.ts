@@ -19,6 +19,7 @@ import { updateAttendeeSchema } from "@/lib/validators/manager/update-attendee";
 import { updateClassSessionSchema } from "@/lib/validators/manager/update-class-session";
 import { updateSessionSettingsSchema } from "@/lib/validators/manager/update-session-settings";
 import { datetimeLocalToUtcIso } from "@/lib/utils/datetime-local-to-utc-iso";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import type { AttendeeRecord } from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
@@ -277,56 +278,61 @@ export async function seedLateJoinAttendeesForStudent(
   classId: string,
   studentUserId: string
 ): Promise<void> {
-  const sessionsResult = await sessionRepository.listSessionIdsByClassId(
-    adminClient,
-    classId
-  );
+  const timer = createNavStepTimer("seedAttendees");
+  try {
+    const sessionsResult = await timer.step("sessions", () =>
+      sessionRepository.listSessionIdsByClassId(adminClient, classId)
+    );
 
-  if (sessionsResult.error) {
-    throw new Error(sessionsResult.error.message);
-  }
+    if (sessionsResult.error) {
+      throw new Error(sessionsResult.error.message);
+    }
 
-  const sessionIds = (sessionsResult.data ?? []).map((row) => row.id);
+    const sessionIds = (sessionsResult.data ?? []).map((row) => row.id);
 
-  if (sessionIds.length === 0) {
-    return;
-  }
+    if (sessionIds.length === 0) {
+      return;
+    }
 
-  const attendeesResult = await attendeeRepository.listAttendeesBySessionIds(
-    adminClient,
-    sessionIds
-  );
+    const attendeesResult = await timer.step("attendees", () =>
+      attendeeRepository.listAttendeesBySessionIds(adminClient, sessionIds)
+    );
 
-  if (attendeesResult.error) {
-    throw new Error(attendeesResult.error.message);
-  }
+    if (attendeesResult.error) {
+      throw new Error(attendeesResult.error.message);
+    }
 
-  const sessionsWithStudent = new Set(
-    (attendeesResult.data ?? [])
-      .filter((row) => row.student_id === studentUserId)
-      .map((row) => row.session_id)
-  );
+    const sessionsWithStudent = new Set(
+      (attendeesResult.data ?? [])
+        .filter((row) => row.student_id === studentUserId)
+        .map((row) => row.session_id)
+    );
 
-  const missingSessionIds = sessionIds.filter(
-    (sessionId) => !sessionsWithStudent.has(sessionId)
-  );
+    const missingSessionIds = sessionIds.filter(
+      (sessionId) => !sessionsWithStudent.has(sessionId)
+    );
 
-  if (missingSessionIds.length === 0) {
-    return;
-  }
+    if (missingSessionIds.length === 0) {
+      return;
+    }
 
-  const { error } = await attendeeRepository.createAttendees(
-    adminClient,
-    missingSessionIds.map((sessionId) => ({
-      session_id: sessionId,
-      student_id: studentUserId,
-      status: ATTENDEE_STATUSES.ABSENT,
-      note: LATE_ENROLLMENT_NOTE,
-    }))
-  );
+    await timer.step("insert", async () => {
+      const { error } = await attendeeRepository.createAttendees(
+        adminClient,
+        missingSessionIds.map((sessionId) => ({
+          session_id: sessionId,
+          student_id: studentUserId,
+          status: ATTENDEE_STATUSES.ABSENT,
+          note: LATE_ENROLLMENT_NOTE,
+        }))
+      );
 
-  if (error) {
-    throw new Error(error.message);
+      if (error) {
+        throw new Error(error.message);
+      }
+    });
+  } finally {
+    timer.end();
   }
 }
 
@@ -340,81 +346,85 @@ export async function seedLateJoinStudentTasksForStudent(
   classId: string,
   studentUserId: string
 ): Promise<void> {
-  const sessionsResult = await sessionRepository.listSessionIdsByClassId(
-    adminClient,
-    classId
-  );
+  const timer = createNavStepTimer("seedTasks");
+  try {
+    const sessionsResult = await timer.step("sessions", () =>
+      sessionRepository.listSessionIdsByClassId(adminClient, classId)
+    );
 
-  if (sessionsResult.error) {
-    throw new Error(sessionsResult.error.message);
-  }
+    if (sessionsResult.error) {
+      throw new Error(sessionsResult.error.message);
+    }
 
-  const sessionIds = (sessionsResult.data ?? []).map((row) => row.id);
+    const sessionIds = (sessionsResult.data ?? []).map((row) => row.id);
 
-  if (sessionIds.length === 0) {
-    return;
-  }
+    if (sessionIds.length === 0) {
+      return;
+    }
 
-  const tasksResult = await taskRepository.listTasksBySessionIds(
-    adminClient,
-    sessionIds
-  );
+    const tasksResult = await timer.step("tasks", () =>
+      taskRepository.listTasksBySessionIds(adminClient, sessionIds)
+    );
 
-  if (tasksResult.error) {
-    throw new Error(tasksResult.error.message);
-  }
+    if (tasksResult.error) {
+      throw new Error(tasksResult.error.message);
+    }
 
-  const tasks = tasksResult.data ?? [];
+    const tasks = tasksResult.data ?? [];
 
-  if (tasks.length === 0) {
-    return;
-  }
+    if (tasks.length === 0) {
+      return;
+    }
 
-  const taskIds = tasks.map((task) => task.id);
-  const existingResult = await studentTaskRepository.listStudentTasksByTaskIds(
-    adminClient,
-    taskIds
-  );
+    const taskIds = tasks.map((task) => task.id);
+    const existingResult = await timer.step("existing", () =>
+      studentTaskRepository.listStudentTasksByTaskIds(adminClient, taskIds)
+    );
 
-  if (existingResult.error) {
-    throw new Error(existingResult.error.message);
-  }
+    if (existingResult.error) {
+      throw new Error(existingResult.error.message);
+    }
 
-  const tasksWithStudent = new Set(
-    (existingResult.data ?? [])
-      .filter((row) => row.student_id === studentUserId)
-      .map((row) => row.task_id)
-  );
+    const tasksWithStudent = new Set(
+      (existingResult.data ?? [])
+        .filter((row) => row.student_id === studentUserId)
+        .map((row) => row.task_id)
+    );
 
-  const missingTasks = tasks.filter((task) => !tasksWithStudent.has(task.id));
+    const missingTasks = tasks.filter((task) => !tasksWithStudent.has(task.id));
 
-  if (missingTasks.length === 0) {
-    return;
-  }
+    if (missingTasks.length === 0) {
+      return;
+    }
 
-  const { error } = await studentTaskRepository.createStudentTasks(
-    adminClient,
-    missingTasks.map((task) => {
-      if (isDueDatePast(task.due_date ?? null)) {
-        return {
-          task_id: task.id,
-          student_id: studentUserId,
-          status: STUDENT_TASK_STATUSES.MISSING,
-          grade: 0,
-          notes: LATE_ENROLLMENT_NOTE,
-        };
+    await timer.step("insert", async () => {
+      const { error } = await studentTaskRepository.createStudentTasks(
+        adminClient,
+        missingTasks.map((task) => {
+          if (isDueDatePast(task.due_date ?? null)) {
+            return {
+              task_id: task.id,
+              student_id: studentUserId,
+              status: STUDENT_TASK_STATUSES.MISSING,
+              grade: 0,
+              notes: LATE_ENROLLMENT_NOTE,
+            };
+          }
+
+          return {
+            task_id: task.id,
+            student_id: studentUserId,
+            status: STUDENT_TASK_STATUSES.PENDING,
+          };
+        })
+      );
+
+      if (error) {
+        throw new Error(error.message);
       }
-
-      return {
-        task_id: task.id,
-        student_id: studentUserId,
-        status: STUDENT_TASK_STATUSES.PENDING,
-      };
-    })
-  );
-
-  if (error) {
-    throw new Error(error.message);
+    });
+  } finally {
+    timer.end();
   }
 }
 

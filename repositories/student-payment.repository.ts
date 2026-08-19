@@ -97,9 +97,20 @@ export async function listAllPayments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
-/** Slim rows for unbounded payment totals (no date filter). */
-export async function listAllPaymentAmounts(client: Supabase) {
-  return client.from("student_payments").select("amount");
+/** All-time SPP payment total (server-side sum, not a full table download). */
+export async function sumAllPaymentAmounts(client: Supabase) {
+  const { data, error } = await client
+    .from("student_payments")
+    .select("amount.sum()")
+    .returns<{ sum: number | null; amount?: number | null }[]>()
+    .maybeSingle();
+
+  const row = data as { sum?: number | null; amount?: number | null } | null;
+
+  return {
+    data: Math.max(0, Number(row?.sum ?? row?.amount) || 0),
+    error,
+  };
 }
 
 /** Dates only — used to discover months that have payment activity. */

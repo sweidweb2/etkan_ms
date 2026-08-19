@@ -20,6 +20,8 @@ import {
   isNavTimingEnabled,
   navTimingServerLog,
 } from "@/lib/debug/nav-timing";
+import { getClaimsWithSharedJwks } from "@/lib/auth/get-claims";
+import { withClaimsTiming } from "@/lib/debug/claims-timing";
 import {
   applyAuthCookies,
   createSupabaseMiddlewareClient,
@@ -48,10 +50,13 @@ type MiddlewareAuth = {
  * Falls back to getUser when claims are unavailable.
  */
 async function resolveMiddlewareAuth(
-  supabase: MiddlewareSupabase
+  supabase: MiddlewareSupabase,
+  tripId: string
 ): Promise<MiddlewareAuth> {
-  const { data: claimsData, error: claimsError } =
-    await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } = await withClaimsTiming(
+    tripId,
+    () => getClaimsWithSharedJwks(supabase)
+  );
 
   if (!claimsError && claimsData?.claims?.sub) {
     const claims = claimsData.claims as {
@@ -147,7 +152,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const authStart = performance.now();
-  const auth = await resolveMiddlewareAuth(supabase);
+  const auth = await resolveMiddlewareAuth(supabase, tripId);
   marks.claims = performance.now() - authStart;
 
   if (auth.userId && isGuestOnlyAuthRoute(pathname)) {

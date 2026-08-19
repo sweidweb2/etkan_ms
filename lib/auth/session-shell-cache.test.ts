@@ -4,6 +4,7 @@ import { ROLES } from "@/lib/constants/roles";
 import {
   clearCachedSessionShell,
   getCachedSessionShell,
+  getOrCreateSessionShellInflight,
   isSessionShellCompatibleWithClaims,
   setCachedSessionShell,
   type SessionShellPayload,
@@ -85,5 +86,42 @@ describe("session-shell-cache", () => {
     expect(isSessionShellCompatibleWithClaims(payload, ROLES.MANAGER)).toBe(
       false
     );
+  });
+
+  it("coalesces overlapping builds for the same user", async () => {
+    vi.useRealTimers();
+    let builds = 0;
+    let release!: (value: SessionShellPayload) => void;
+    const build = () => {
+      builds += 1;
+      return new Promise<SessionShellPayload>((resolve) => {
+        release = resolve;
+      });
+    };
+
+    const first = getOrCreateSessionShellInflight("user-1", build);
+    const second = getOrCreateSessionShellInflight("user-1", build);
+    expect(builds).toBe(1);
+    release(payload);
+    const [a, b] = await Promise.all([first, second]);
+
+    expect(a.shared).toBe(false);
+    expect(b.shared).toBe(true);
+    expect(a.payload).toEqual(payload);
+    expect(b.payload).toEqual(payload);
+    expect(builds).toBe(1);
+  });
+
+  it("runs a new build after the previous inflight settles", async () => {
+    vi.useRealTimers();
+    let builds = 0;
+    const build = async () => {
+      builds += 1;
+      return payload;
+    };
+
+    await getOrCreateSessionShellInflight("user-1", build);
+    await getOrCreateSessionShellInflight("user-1", build);
+    expect(builds).toBe(2);
   });
 });

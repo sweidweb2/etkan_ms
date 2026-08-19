@@ -106,6 +106,49 @@ export async function navTimeAsync<T>(
   return { result, ms: nowMs() - start };
 }
 
+/**
+ * Named-step timer for page loads and mutations.
+ * Logs `[NAV op] <label> auth=5ms enroll=30ms paymentSync=7500ms total=7600ms`
+ * when nav debug is on. No-op in production.
+ */
+export function createNavStepTimer(label: string): {
+  step: <T>(name: string, fn: () => Promise<T>) => Promise<T>;
+  mark: (name: string, ms: number) => void;
+  end: () => void;
+} {
+  const enabled = isNavTimingEnabled();
+  const t0 = enabled ? nowMs() : 0;
+  const marks: MarkMap = {};
+
+  return {
+    async step<T>(name: string, fn: () => Promise<T>): Promise<T> {
+      if (!enabled) {
+        return fn();
+      }
+      const start = nowMs();
+      try {
+        return await fn();
+      } finally {
+        marks[name] = nowMs() - start;
+      }
+    },
+    mark(name: string, ms: number) {
+      if (enabled) {
+        marks[name] = ms;
+      }
+    },
+    end() {
+      if (!enabled) {
+        return;
+      }
+      navTimingServerLog("op", label, {
+        ...marks,
+        total: nowMs() - t0,
+      });
+    },
+  };
+}
+
 function getActiveTrip(): ClientTrip | null {
   if (typeof window === "undefined") return null;
   return globalThis.__etkanNavTrip ?? null;

@@ -362,6 +362,32 @@ export async function listPaymentPhasesForManager(
   });
 }
 
+/**
+ * Transfer-dialog options: phase rows without SPP counts or billing-class
+ * lookups. The accounting list remains the source of those extras.
+ */
+export async function listPaymentPhaseTransferOptionsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerPaymentPhaseRow[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+
+  const { data, error } =
+    await paymentPhaseRepository.listPaymentPhases(adminClient);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as PaymentPhaseListRecord[]).map((record) =>
+    mapPhaseRecordToRow(record, 0, 0, null)
+  );
+}
+
 export async function listMissingSppForOpenedPhases(
   adminClient: Supabase,
   actorUserId: string | null

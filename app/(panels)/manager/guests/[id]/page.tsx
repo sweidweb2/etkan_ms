@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { GuestDetailsPanel } from "@/components/manager/guests/guest-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getGuestDetailForManager } from "@/services/guest.service";
 import { listUsersForGuestRegistrationLink } from "@/services/guest-registration.service";
@@ -14,21 +15,21 @@ export default async function ManagerGuestDetailPage({
 }: ManagerGuestDetailPageProps) {
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
-  const user = await getSessionUser();
-  const detail = await getGuestDetailForManager(
-    adminClient,
-    user?.id ?? null,
-    id
+  const timer = createNavStepTimer("guest_detail");
+  const user = await timer.step("session", () => getSessionUser());
+  const detail = await timer.step("detail", () =>
+    getGuestDetailForManager(adminClient, user?.id ?? null, id)
   );
 
   if (!detail) {
+    timer.end();
     notFound();
   }
 
-  const linkUsers = await listUsersForGuestRegistrationLink(
-    adminClient,
-    user?.id ?? null
+  const linkUsers = await timer.step("linkUsers", () =>
+    listUsersForGuestRegistrationLink(adminClient, user?.id ?? null)
   );
+  timer.end();
 
   return (
     <GuestDetailsPanel
