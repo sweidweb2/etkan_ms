@@ -28,6 +28,50 @@ describe("serializeTableRowsToSql", () => {
 
     expect(sql).toContain(`'{"ok":true}'::jsonb`);
   });
+
+  it("serializes string arrays as text[]", () => {
+    const sql = serializeTableRowsToSql("student_registration_applications", [
+      { id: "1", skills: ["web_dev", "english"], available_days: ["sun"] },
+    ]);
+
+    expect(sql).toContain(`ARRAY['web_dev', 'english']::text[]`);
+    expect(sql).toContain(`ARRAY['sun']::text[]`);
+    expect(sql).not.toContain("::jsonb");
+  });
+
+  it("defers instructor_schedule_slots source_slot_id until after inserts", () => {
+    const sql = serializeTableRowsToSql("instructor_schedule_slots", [
+      {
+        id: "child",
+        source_workshop_id: "workshop-1",
+        source_slot_id: "parent",
+      },
+      {
+        id: "parent",
+        source_workshop_id: null,
+        source_slot_id: null,
+      },
+    ]);
+
+    expect(sql).toContain(
+      `VALUES ('child', 'workshop-1', NULL)`
+    );
+    expect(sql).toContain(
+      `UPDATE "instructor_schedule_slots" SET "source_slot_id" = 'parent' WHERE "id" = 'child';`
+    );
+    expect(sql.indexOf("INSERT INTO")).toBeLessThan(sql.indexOf("UPDATE"));
+  });
+
+  it("defers student_financial_form_invites form_id until after inserts", () => {
+    const sql = serializeTableRowsToSql("student_financial_form_invites", [
+      { id: "invite-1", form_id: "form-1" },
+    ]);
+
+    expect(sql).toContain(`VALUES ('invite-1', NULL)`);
+    expect(sql).toContain(
+      `UPDATE "student_financial_form_invites" SET "form_id" = 'form-1' WHERE "id" = 'invite-1';`
+    );
+  });
 });
 
 describe("serializeTableRowsToCsv", () => {
@@ -78,5 +122,34 @@ describe("serializeBackupExport", () => {
 
     const zip = await JSZip.loadAsync(file.body);
     expect(Object.keys(zip.files).sort()).toEqual(["profiles.csv", "subjects.csv"]);
+  });
+
+  it("emits deferred foreign keys after all table inserts in a full SQL export", async () => {
+    const fullPayload = {
+      exportedAt: "2026-08-19T00:00:00.000Z",
+      scope: "all",
+      tables: {
+        student_financial_form_invites: [{ id: "invite-1", form_id: "form-1" }],
+        student_financial_forms: [{ id: "form-1", invite_id: "invite-1" }],
+      },
+    } as BackupExportPayload;
+
+    const file = await serializeBackupExport(
+      fullPayload,
+      BACKUP_EXPORT_FORMATS.SQL
+    );
+
+    expect(typeof file.body).toBe("string");
+    const sql = file.body as string;
+    const formsInsertAt = sql.indexOf(
+      `INSERT INTO "student_financial_forms"`
+    );
+    const inviteUpdateAt = sql.indexOf(
+      `UPDATE "student_financial_form_invites" SET "form_id"`
+    );
+
+    expect(sql).toContain(`VALUES ('invite-1', NULL)`);
+    expect(formsInsertAt).toBeGreaterThan(-1);
+    expect(inviteUpdateAt).toBeGreaterThan(formsInsertAt);
   });
 });

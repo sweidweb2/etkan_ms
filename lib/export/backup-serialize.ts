@@ -56,6 +56,40 @@ function sqlLiteral(value: unknown): string {
     return Number.isFinite(value) ? String(value) : "NULL";
   }
 
+  if (Array.isArray(value)) {
+    const isTextArray = value.every(
+      (item) =>
+        item === null ||
+        typeof item === "string" ||
+        typeof item === "number" ||
+        typeof item === "boolean"
+    );
+
+    if (isTextArray) {
+      if (value.length === 0) {
+        return "ARRAY[]::text[]";
+      }
+
+      const items = value.map((item) => {
+        if (item === null) {
+          return "NULL";
+        }
+
+        if (typeof item === "boolean") {
+          return item ? "'true'" : "'false'";
+        }
+
+        if (typeof item === "number") {
+          return `'${item}'`;
+        }
+
+        return `'${item.replaceAll("'", "''")}'`;
+      });
+
+      return `ARRAY[${items.join(", ")}]::text[]`;
+    }
+  }
+
   if (typeof value === "object") {
     const json = JSON.stringify(value).replaceAll("'", "''");
     return `'${json}'::jsonb`;
@@ -79,26 +113,80 @@ function csvCell(value: unknown): string {
   return text;
 }
 
-export function serializeTableRowsToSql(
+const DEFERRED_FK_COLUMNS: Partial<Record<BackupTableName, string>> = {
+  instructor_schedule_slots: "source_slot_id",
+  student_financial_form_invites: "form_id",
+};
+
+type TableSqlParts = {
+  inserts: string;
+  updates: string;
+};
+
+function serializeTableSqlParts(
   tableName: BackupTableName,
   rows: unknown[]
-): string {
+): TableSqlParts {
   const tableRows = toRows(rows);
   const columns = collectColumns(tableRows);
 
   if (columns.length === 0 || tableRows.length === 0) {
-    return `-- No rows in ${quoteIdent(tableName)}\n`;
+    return {
+      inserts: `-- No rows in ${quoteIdent(tableName)}\n`,
+      updates: "",
+    };
   }
 
   const quotedTable = quoteIdent(tableName);
   const quotedColumns = columns.map(quoteIdent).join(", ");
+  const deferredColumn = DEFERRED_FK_COLUMNS[tableName];
 
   const inserts = tableRows.map((row) => {
-    const values = columns.map((column) => sqlLiteral(row[column])).join(", ");
+    const values = columns
+      .map((column) => {
+        if (column === deferredColumn && row[column] != null) {
+          return "NULL";
+        }
+
+        return sqlLiteral(row[column]);
+      })
+      .join(", ");
     return `INSERT INTO ${quotedTable} (${quotedColumns}) VALUES (${values});`;
   });
 
-  return `${inserts.join("\n")}\n`;
+  const updates =
+    deferredColumn == null
+      ? []
+      : tableRows.flatMap((row) => {
+          const id = row.id;
+          const foreignKey = row[deferredColumn];
+
+          if (id == null || foreignKey == null) {
+            return [];
+          }
+
+          return [
+            `UPDATE ${quotedTable} SET ${quoteIdent(deferredColumn)} = ${sqlLiteral(foreignKey)} WHERE ${quoteIdent("id")} = ${sqlLiteral(id)};`,
+          ];
+        });
+
+  return {
+    inserts: `${inserts.join("\n")}\n`,
+    updates: updates.length === 0 ? "" : `${updates.join("\n")}\n`,
+  };
+}
+
+export function serializeTableRowsToSql(
+  tableName: BackupTableName,
+  rows: unknown[]
+): string {
+  const { inserts, updates } = serializeTableSqlParts(tableName, rows);
+
+  if (!updates) {
+    return inserts;
+  }
+
+  return `${inserts}\n-- Link deferred foreign keys on ${quoteIdent(tableName)} after related rows exist\n${updates}`;
 }
 
 export function serializeTableRowsToCsv(rows: unknown[]): string {
@@ -129,14 +217,26 @@ function serializePayloadToSql(payload: BackupExportPayload): string {
     return `${header}${serializeTableRowsToSql(payload.table, payload.rows)}`;
   }
 
+  const deferredUpdates: string[] = [];
   const sections = Object.entries(payload.tables).map(([tableName, rows]) => {
-    return [
-      `-- Table: ${tableName}`,
-      serializeTableRowsToSql(tableName as BackupTableName, rows),
-    ].join("\n");
+    const { inserts, updates } = serializeTableSqlParts(
+      tableName as BackupTableName,
+      rows
+    );
+
+    if (updates) {
+      deferredUpdates.push(updates.trimEnd());
+    }
+
+    return [`-- Table: ${tableName}`, inserts].join("\n");
   });
 
-  return `${header}${sections.join("\n")}`;
+  const deferredBlock =
+    deferredUpdates.length === 0
+      ? ""
+      : `\n-- Deferred foreign keys after all inserts\n${deferredUpdates.join("\n")}\n`;
+
+  return `${header}${sections.join("\n")}${deferredBlock}`;
 }
 
 async function serializePayloadToCsv(

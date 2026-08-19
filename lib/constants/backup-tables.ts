@@ -1,4 +1,15 @@
+import type { Database } from "@/types/supabase";
+
+type PublicTableName = keyof Database["public"]["Tables"];
+
+/**
+ * Every public table, in FK-safe insert order for SQL restores.
+ * Keep this list complete — `_assertBackupTablesComplete` fails if a table is missing.
+ */
 export const BACKUP_TABLES = [
+  "app_settings",
+  "permissions",
+  "role_permissions",
   "profiles",
   "student_profiles",
   "relationships",
@@ -6,13 +17,14 @@ export const BACKUP_TABLES = [
   "semesters",
   "student_semester",
   "subjects",
+  "instructor_subject_capability",
   "classes",
   "class_teacher",
   "student_class",
   "sessions",
   "weekly_schedule_slots",
-  "instructor_schedule_slots",
   "workshops",
+  "instructor_schedule_slots",
   "workshop_instructors",
   "workshop_documents",
   "workshop_payments",
@@ -25,15 +37,40 @@ export const BACKUP_TABLES = [
   "student_finalexam_grade",
   "borrow_equipment",
   "student_takeouts",
+  "payment_phases",
+  "student_payment_phases",
+  "student_payments",
+  "student_financial_adjustments",
+  "student_financial_form_invites",
+  "student_financial_forms",
+  "email_sent",
+  "email_users",
+  "guests",
+  "guest_status_events",
+  "student_registration_applications",
+  "student_registration_documents",
+  "guest_registration_invites",
+  "gallery_images",
+  "public_projects",
+  "transactions",
   "notifications",
   "audit_logs",
   "cloudflare_ai_usage",
   "backup_history",
-] as const;
+] as const satisfies readonly PublicTableName[];
 
 export type BackupTableName = (typeof BACKUP_TABLES)[number];
 
+type MissingPublicTables = Exclude<PublicTableName, BackupTableName>;
+const _assertBackupTablesComplete: MissingPublicTables extends never
+  ? true
+  : MissingPublicTables = true;
+void _assertBackupTablesComplete;
+
 export const BACKUP_TABLE_LABELS: Record<BackupTableName, string> = {
+  app_settings: "App settings",
+  permissions: "Permissions",
+  role_permissions: "Role permissions",
   profiles: "Profiles",
   student_profiles: "Student profiles",
   relationships: "Relationships",
@@ -41,13 +78,14 @@ export const BACKUP_TABLE_LABELS: Record<BackupTableName, string> = {
   semesters: "Semesters",
   student_semester: "Student semester",
   subjects: "Subjects",
+  instructor_subject_capability: "Instructor subject capabilities",
   classes: "Classes",
   class_teacher: "Class teacher",
   student_class: "Student class",
   sessions: "Sessions",
   weekly_schedule_slots: "Weekly schedule slots",
-  instructor_schedule_slots: "Instructor schedule slots",
   workshops: "Workshops",
+  instructor_schedule_slots: "Instructor schedule slots",
   workshop_instructors: "Workshop instructors",
   workshop_documents: "Workshop documents",
   workshop_payments: "Workshop payments",
@@ -60,6 +98,22 @@ export const BACKUP_TABLE_LABELS: Record<BackupTableName, string> = {
   student_finalexam_grade: "Student final exam grade",
   borrow_equipment: "Borrow equipment",
   student_takeouts: "Student takeouts",
+  payment_phases: "Payment phases",
+  student_payment_phases: "Student payment phases",
+  student_payments: "Student payments",
+  student_financial_adjustments: "Student financial adjustments",
+  student_financial_form_invites: "Student financial form invites",
+  student_financial_forms: "Student financial forms",
+  email_sent: "Email sent",
+  email_users: "Email users",
+  guests: "Guests",
+  guest_status_events: "Guest status events",
+  student_registration_applications: "Student registration applications",
+  student_registration_documents: "Student registration documents",
+  guest_registration_invites: "Guest registration invites",
+  gallery_images: "Gallery images",
+  public_projects: "Public projects",
+  transactions: "Transactions",
   notifications: "Notifications",
   audit_logs: "Audit logs",
   cloudflare_ai_usage: "Cloudflare AI usage",
