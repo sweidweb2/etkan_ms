@@ -2,6 +2,7 @@
 
 import {
   useActionState,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -11,7 +12,11 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon } from "lucide-react";
-import { createBorrowsAction } from "@/app/manager/equipments/actions";
+import {
+  createBorrowsAction,
+  loadBorrowClassStudentProfileIdsAction,
+  loadBorrowCreateOptionsAction,
+} from "@/app/manager/equipments/actions";
 import { Can } from "@/components/auth/can";
 import {
   Breadcrumb,
@@ -66,11 +71,9 @@ const TABLE_PAGE_SIZE = 10;
 const initialBorrowState: CreateBorrowsActionState = {};
 
 type BorrowEquipmentPanelProps = {
-  initialStudents: ManagerStudentRow[];
-  initialEquipments: ManagerEquipmentRow[];
   initialClasses: ManagerBorrowClassOption[];
-  initialClassStudentProfileIds: Record<string, string[]>;
   initialBorrowHistory: ManagerBorrowEquipmentListRow[];
+  borrowHistoryTotalCount: number;
 };
 
 function toggleSetMember(
@@ -302,11 +305,9 @@ function TablePaginationFooter({
 }
 
 export function BorrowEquipmentPanel({
-  initialStudents,
-  initialEquipments,
   initialClasses,
-  initialClassStudentProfileIds,
   initialBorrowHistory,
+  borrowHistoryTotalCount,
 }: BorrowEquipmentPanelProps) {
   const router = useRouter();
   const equipmentSectionRef = useRef<HTMLDivElement>(null);
@@ -320,8 +321,9 @@ export function BorrowEquipmentPanel({
 
   useActionStateToast(state, isPending);
 
-  const students = initialStudents;
-  const equipments = initialEquipments;
+  const [students, setStudents] = useState<ManagerStudentRow[]>([]);
+  const [equipments, setEquipments] = useState<ManagerEquipmentRow[]>([]);
+  const [isCreateOptionsLoading, setIsCreateOptionsLoading] = useState(true);
   const borrowHistory = initialBorrowHistory;
 
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
@@ -335,6 +337,21 @@ export function BorrowEquipmentPanel({
   const [equipmentSearch, setEquipmentSearch] = useState("");
   const [studentCurrentPage, setStudentCurrentPage] = useState(1);
   const [equipmentCurrentPage, setEquipmentCurrentPage] = useState(1);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadBorrowCreateOptionsAction().then((options) => {
+      if (cancelled) {
+        return;
+      }
+      setStudents(options.students);
+      setEquipments(options.equipments);
+      setIsCreateOptionsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useActionStateSuccess(state, isPending, () => {
     setSelectedStudentIds(new Set());
@@ -463,20 +480,22 @@ export function BorrowEquipmentPanel({
       return;
     }
 
-    const classStudentIds = initialClassStudentProfileIds[nextClass] ?? [];
+    void loadBorrowClassStudentProfileIdsAction(nextClass).then(
+      (classStudentIds) => {
+        if (classStudentIds.length === 0) {
+          showErrorToast("No students are enrolled in this class.");
+          return;
+        }
 
-    if (classStudentIds.length === 0) {
-      showErrorToast("No students are enrolled in this class.");
-      return;
-    }
-
-    setSelectedStudentIds((current) => {
-      const next = new Set(current);
-      for (const studentProfileId of classStudentIds) {
-        next.add(studentProfileId);
+        setSelectedStudentIds((current) => {
+          const next = new Set(current);
+          for (const studentProfileId of classStudentIds) {
+            next.add(studentProfileId);
+          }
+          return next;
+        });
       }
-      return next;
-    });
+    );
   };
 
   const handleToggleStudent = (studentProfileId: string) => {
@@ -781,7 +800,16 @@ export function BorrowEquipmentPanel({
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.length === 0 ? (
+                {isCreateOptionsLoading ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-4 py-10 text-center text-muted-foreground"
+                    >
+                      Loading students…
+                    </td>
+                  </tr>
+                ) : filteredStudents.length === 0 ? (
                   <tr>
                     <td
                       colSpan={4}
@@ -921,7 +949,16 @@ export function BorrowEquipmentPanel({
                 </tr>
               </thead>
               <tbody>
-                {filteredEquipments.length === 0 ? (
+                {isCreateOptionsLoading ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-4 py-10 text-center text-muted-foreground"
+                    >
+                      Loading equipment…
+                    </td>
+                  </tr>
+                ) : filteredEquipments.length === 0 ? (
                   <tr>
                     <td
                       colSpan={7}
@@ -1053,6 +1090,12 @@ export function BorrowEquipmentPanel({
       </div>
 
       <div ref={borrowHistorySectionRef} className="scroll-mt-6">
+        {borrowHistoryTotalCount > borrowHistory.length ? (
+          <p className="mb-3 text-sm text-muted-foreground">
+            Showing the {borrowHistory.length} most recent of{" "}
+            {borrowHistoryTotalCount} borrow records.
+          </p>
+        ) : null}
         <BorrowEquipmentHistorySection
           borrows={borrowHistory}
           equipments={equipments}

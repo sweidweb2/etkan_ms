@@ -12,7 +12,7 @@ describe("getSessionPack", () => {
     vi.doMock("@/lib/supabase/server", () => ({
       createSupabaseServerComponentClient: vi.fn(async () => ({})),
     }));
-    vi.doMock("@/services/auth.service", () => ({
+    vi.doMock("@/services/auth/auth.service", () => ({
       getSessionAuthIdentity: vi.fn(),
     }));
     vi.doMock("@/repositories/profile.repository", () => ({
@@ -21,7 +21,7 @@ describe("getSessionPack", () => {
     vi.doMock("@/repositories/student-profile.repository", () => ({
       findStudentProfileByUserId: vi.fn(),
     }));
-    vi.doMock("@/services/authorization.service", () => ({
+    vi.doMock("@/services/auth/authorization.service", () => ({
       getPermissionsForRoleCached: vi.fn(),
       rememberUserRole: vi.fn(),
     }));
@@ -45,27 +45,27 @@ describe("getSessionPack", () => {
         ),
       };
     });
-    vi.doMock("@/services/role.service", async () => {
+    vi.doMock("@/services/auth/role.service", async () => {
       const actual = await vi.importActual<
-        typeof import("@/services/role.service")
-      >("@/services/role.service");
+        typeof import("@/services/auth/role.service")
+      >("@/services/auth/role.service");
       return actual;
     });
-    vi.doMock("@/services/user-display.service", async () => {
+    vi.doMock("@/services/auth/user-display.service", async () => {
       const actual = await vi.importActual<
-        typeof import("@/services/user-display.service")
-      >("@/services/user-display.service");
+        typeof import("@/services/auth/user-display.service")
+      >("@/services/auth/user-display.service");
       return actual;
     });
 
     const session = await import("@/lib/auth/session");
-    const { getSessionAuthIdentity } = await import("@/services/auth.service");
+    const { getSessionAuthIdentity } = await import("@/services/auth/auth.service");
     const profileRepository = await import("@/repositories/profile.repository");
     const studentProfileRepository = await import(
       "@/repositories/student-profile.repository"
     );
     const { getPermissionsForRoleCached, rememberUserRole } = await import(
-      "@/services/authorization.service"
+      "@/services/auth/authorization.service"
     );
     const shellCache = await import("@/lib/auth/session-shell-cache");
 

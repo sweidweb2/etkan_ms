@@ -20,6 +20,7 @@ import {
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
   deleteAllMirrorsForWorkshop,
@@ -82,13 +83,12 @@ import * as workshopStorageRepository from "@/repositories/workshop-storage.repo
 import {
   assertPermission,
   getUnauthorizedError,
-  hasPermission,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
-import { mapInstructorScheduleSlotRecordToSession } from "@/services/instructor-schedule-slot.service";
+} from "@/services/ops/audit-log.service";
+import { mapInstructorScheduleSlotRecordToSession } from "@/services/schedule/instructor-schedule-slot.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerWorkshopDetailPageData,
@@ -704,7 +704,111 @@ export async function getWorkshopForManager(
   actorUserId: string | null,
   workshopId: string
 ): Promise<ManagerWorkshopDetailPageData | null> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
+  const timer = createNavStepTimer("getWorkshop");
+  try {
+    await timer.step("auth", () =>
+      assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW)
+    );
+
+    if (!actorUserId) {
+      return null;
+    }
+
+    const canAccess = await timer.step("canAccess", () =>
+      actorCanAccessWorkshop(adminClient, actorUserId, workshopId)
+    );
+    if (!canAccess) {
+      return null;
+    }
+
+    const [
+      workshopResult,
+      instructorsResult,
+      documentsResult,
+      sessionsResult,
+      paymentCountResult,
+    ] = await timer.step("graph", () =>
+      Promise.all([
+        workshopRepository.findWorkshopById(adminClient, workshopId),
+        workshopInstructorRepository.listWorkshopInstructorsByWorkshopId(
+          adminClient,
+          workshopId
+        ),
+        workshopDocumentRepository.listWorkshopDocumentsByWorkshopId(
+          adminClient,
+          workshopId
+        ),
+        workshopSessionRepository.listWorkshopSessionsByWorkshopId(
+          adminClient,
+          workshopId
+        ),
+        workshopRepository.countWorkshopPaymentsByWorkshopId(
+          adminClient,
+          workshopId
+        ),
+      ])
+    );
+
+    if (workshopResult.error) {
+      throw new Error(workshopResult.error.message);
+    }
+
+    if (instructorsResult.error) {
+      throw new Error(instructorsResult.error.message);
+    }
+
+    if (documentsResult.error) {
+      throw new Error(documentsResult.error.message);
+    }
+
+    if (sessionsResult.error) {
+      throw new Error(sessionsResult.error.message);
+    }
+
+    if (paymentCountResult.error) {
+      throw new Error(paymentCountResult.error.message);
+    }
+
+    if (!workshopResult.data) {
+      return null;
+    }
+
+    const workshop = mapWorkshopRecordToRow(workshopResult.data);
+    const instructors = (
+      (instructorsResult.data ?? []) as WorkshopInstructorWithProfileRecord[]
+    ).map(mapWorkshopInstructorRecord);
+    const documents = (documentsResult.data ?? []).map(mapWorkshopDocumentRecord);
+    const sessions = (sessionsResult.data ?? []).map(mapWorkshopSessionRecord);
+
+    return {
+      workshop,
+      payment_count: paymentCountResult.count ?? 0,
+      payments: [],
+      payment_summary: buildWorkshopPaymentSummary([], workshop.price),
+      instructors,
+      instructorCandidates: [],
+      documents,
+      scheduleSlots: [],
+      sessions,
+    };
+  } finally {
+    timer.end();
+  }
+}
+
+export async function listWorkshopPaymentsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  workshopId: string
+): Promise<{
+  payments: ManagerWorkshopPaymentRow[];
+  summary: ManagerWorkshopPaymentSummary;
+} | null> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW
+  );
 
   if (!actorUserId) {
     return null;
@@ -719,68 +823,12 @@ export async function getWorkshopForManager(
     return null;
   }
 
-  const [canViewPayments, canViewScheduleSlots, canAssignInstructors] =
-    await Promise.all([
-      hasPermission(
-        adminClient,
-        actorUserId,
-        PERMISSIONS.WORKSHOPS_PAYMENTS_VIEW
-      ),
-      hasPermission(
-        adminClient,
-        actorUserId,
-        PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
-      ),
-      hasPermission(
-        adminClient,
-        actorUserId,
-        PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE
-      ),
-    ]);
-
-  const [
-    workshopResult,
-    instructorsResult,
-    documentsResult,
-    sessionsResult,
-    paymentCountResult,
-    paymentsResult,
-    scheduleSlotsResult,
-    candidatesResult,
-  ] = await Promise.all([
+  const [workshopResult, paymentsResult] = await Promise.all([
     workshopRepository.findWorkshopById(adminClient, workshopId),
-    workshopInstructorRepository.listWorkshopInstructorsByWorkshopId(
+    workshopPaymentRepository.listWorkshopPaymentsByWorkshopId(
       adminClient,
       workshopId
     ),
-    workshopDocumentRepository.listWorkshopDocumentsByWorkshopId(
-      adminClient,
-      workshopId
-    ),
-    workshopSessionRepository.listWorkshopSessionsByWorkshopId(
-      adminClient,
-      workshopId
-    ),
-    workshopRepository.countWorkshopPaymentsByWorkshopId(
-      adminClient,
-      workshopId
-    ),
-    canViewPayments
-      ? workshopPaymentRepository.listWorkshopPaymentsByWorkshopId(
-          adminClient,
-          workshopId
-        )
-      : Promise.resolve({ data: [], error: null }),
-    canViewScheduleSlots
-      ? instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
-          adminClient,
-          ENTITY_SCHEDULE_TYPE_WORKSHOP,
-          workshopId
-        )
-      : Promise.resolve({ data: [], error: null }),
-    canAssignInstructors
-      ? profileRepository.listInstructorProfiles(adminClient)
-      : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (workshopResult.error) {
@@ -791,6 +839,51 @@ export async function getWorkshopForManager(
     throw new Error(paymentsResult.error.message);
   }
 
+  if (!workshopResult.data) {
+    return null;
+  }
+
+  const payments = (paymentsResult.data ?? []).map(mapWorkshopPaymentRecord);
+  const workshop = mapWorkshopRecordToRow(workshopResult.data);
+
+  return {
+    payments,
+    summary: buildWorkshopPaymentSummary(payments, workshop.price),
+  };
+}
+
+export async function listWorkshopInstructorCandidatesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  workshopId: string
+): Promise<ManagerWorkshopInstructorCandidate[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.WORKSHOPS_INSTRUCTORS_CREATE
+  );
+
+  if (!actorUserId) {
+    return [];
+  }
+
+  const canAccess = await actorCanAccessWorkshop(
+    adminClient,
+    actorUserId,
+    workshopId
+  );
+  if (!canAccess) {
+    return [];
+  }
+
+  const [instructorsResult, candidatesResult] = await Promise.all([
+    workshopInstructorRepository.listWorkshopInstructorsByWorkshopId(
+      adminClient,
+      workshopId
+    ),
+    profileRepository.listInstructorProfiles(adminClient),
+  ]);
+
   if (instructorsResult.error) {
     throw new Error(instructorsResult.error.message);
   }
@@ -799,68 +892,60 @@ export async function getWorkshopForManager(
     throw new Error(candidatesResult.error.message);
   }
 
-  if (documentsResult.error) {
-    throw new Error(documentsResult.error.message);
-  }
+  const assignedUserIds = new Set(
+    (
+      (instructorsResult.data ?? []) as WorkshopInstructorWithProfileRecord[]
+    ).map((row) => row.user_id)
+  );
 
-  if (scheduleSlotsResult.error) {
-    throw new Error(scheduleSlotsResult.error.message);
-  }
-
-  if (sessionsResult.error) {
-    throw new Error(sessionsResult.error.message);
-  }
-
-  if (paymentCountResult.error) {
-    throw new Error(paymentCountResult.error.message);
-  }
-
-  if (!workshopResult.data) {
-    return null;
-  }
-
-  const workshop = mapWorkshopRecordToRow(workshopResult.data);
-  const allPayments = (paymentsResult.data ?? []).map(mapWorkshopPaymentRecord);
-  const payments = canViewPayments ? allPayments : [];
-  const instructors = (
-    (instructorsResult.data ?? []) as WorkshopInstructorWithProfileRecord[]
-  ).map(mapWorkshopInstructorRecord);
-
-  const assignedUserIds = new Set(instructors.map((row) => row.user_id));
-  const instructorCandidates: ManagerWorkshopInstructorCandidate[] = (
-    candidatesResult.data ?? []
-  )
+  return (candidatesResult.data ?? [])
     .filter((profile) => !assignedUserIds.has(profile.id))
     .map((profile) => ({
       id: profile.id,
       username: profile.username ?? "Unknown",
     }));
+}
 
-  const documents = (documentsResult.data ?? []).map(mapWorkshopDocumentRecord);
+export async function listWorkshopScheduleSlotsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  workshopId: string
+) {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
+  );
 
-  const scheduleSlots = canViewScheduleSlots
-    ? (scheduleSlotsResult.data ?? []).map((record) =>
-        mapInstructorScheduleSlotRecordToSession(
-          record as InstructorScheduleSlotRecord
-        )
-      )
-    : [];
+  if (!actorUserId) {
+    return [];
+  }
 
-  const sessions = (sessionsResult.data ?? []).map(mapWorkshopSessionRecord);
+  const canAccess = await actorCanAccessWorkshop(
+    adminClient,
+    actorUserId,
+    workshopId
+  );
+  if (!canAccess) {
+    return [];
+  }
 
-  return {
-    workshop,
-    payment_count: paymentCountResult.count ?? allPayments.length,
-    payments,
-    payment_summary: canViewPayments
-      ? buildWorkshopPaymentSummary(allPayments, workshop.price)
-      : buildWorkshopPaymentSummary([], workshop.price),
-    instructors,
-    instructorCandidates,
-    documents,
-    scheduleSlots,
-    sessions,
-  };
+  const result =
+    await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
+      adminClient,
+      ENTITY_SCHEDULE_TYPE_WORKSHOP,
+      workshopId
+    );
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  return (result.data ?? []).map((record) =>
+    mapInstructorScheduleSlotRecordToSession(
+      record as InstructorScheduleSlotRecord
+    )
+  );
 }
 
 export async function createWorkshopForManager(
@@ -1316,11 +1401,10 @@ export async function deleteWorkshopForManager(
     return { success: false, error: "Workshop not found." };
   }
 
-  const paymentCountResult =
-    await workshopRepository.countWorkshopPaymentsByWorkshopId(
-      adminClient,
-      workshopId
-    );
+  const [paymentCountResult, documentsResult] = await Promise.all([
+    workshopRepository.countWorkshopPaymentsByWorkshopId(adminClient, workshopId),
+    workshopRepository.listWorkshopDocumentStoragePaths(adminClient, workshopId),
+  ]);
 
   if (paymentCountResult.error) {
     return {
@@ -1335,12 +1419,6 @@ export async function deleteWorkshopForManager(
       error: WORKSHOP_HAS_PAYMENTS_DELETE_ERROR,
     };
   }
-
-  const documentsResult =
-    await workshopRepository.listWorkshopDocumentStoragePaths(
-      adminClient,
-      workshopId
-    );
 
   if (documentsResult.error) {
     return {
@@ -1453,10 +1531,10 @@ export async function addWorkshopInstructorForManager(
 
   const dataInput = parsed.data;
 
-  const workshopResult = await workshopRepository.findWorkshopById(
-    adminClient,
-    dataInput.workshop_id
-  );
+  const [workshopResult, profileResult] = await Promise.all([
+    workshopRepository.findWorkshopById(adminClient, dataInput.workshop_id),
+    profileRepository.findProfileById(adminClient, dataInput.user_id),
+  ]);
 
   if (workshopResult.error) {
     return {
@@ -1473,11 +1551,6 @@ export async function addWorkshopInstructorForManager(
   if (locked) {
     return { success: false, error: locked };
   }
-
-  const profileResult = await profileRepository.findProfileById(
-    adminClient,
-    dataInput.user_id
-  );
 
   if (profileResult.error) {
     return {
@@ -2489,10 +2562,16 @@ export async function createWorkshopSessionForManager(
   const dataInput = parsed.data;
   const nbHours = dataInput.nb_hours;
 
-  const workshopResult = await workshopRepository.findWorkshopById(
-    adminClient,
-    dataInput.workshop_id
-  );
+  const needsAutoOrder = dataInput.nb_order == null;
+  const [workshopResult, maxOrderResult] = await Promise.all([
+    workshopRepository.findWorkshopById(adminClient, dataInput.workshop_id),
+    needsAutoOrder
+      ? workshopSessionRepository.getMaxWorkshopSessionOrder(
+          adminClient,
+          dataInput.workshop_id
+        )
+      : Promise.resolve({ data: null, error: null }),
+  ]);
 
   if (workshopResult.error) {
     return {
@@ -2512,11 +2591,6 @@ export async function createWorkshopSessionForManager(
 
   let nbOrder = dataInput.nb_order;
   if (nbOrder == null) {
-    const maxOrderResult =
-      await workshopSessionRepository.getMaxWorkshopSessionOrder(
-        adminClient,
-        dataInput.workshop_id
-      );
     if (maxOrderResult.error) {
       return {
         success: false,

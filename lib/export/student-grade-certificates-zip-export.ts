@@ -6,7 +6,7 @@ import {
 } from "@/lib/export/student-grade-sheet-export";
 import type { StudentGradeSheetOrientation } from "@/lib/export/student-grade-sheet-orientation";
 import { buildStudentClassGradeSheetModel } from "@/lib/manager/student-class-grade-sheet";
-import type { ComputedStudentGradeSheetBundle } from "@/services/student-course-grade.service";
+import type { ComputedStudentGradeSheetBundle } from "@/services/classes/student-course-grade.service";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import JSZip from "jszip";
 

@@ -3,7 +3,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createRelationshipSchema } from "@/lib/validators/manager/create-relationship";
@@ -13,7 +13,7 @@ import type { RelationshipRecord } from "@/repositories/relationship.repository"
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerRelationshipRow } from "@/types/manager-relationship";
 import type { SupabaseClient } from "@supabase/supabase-js";

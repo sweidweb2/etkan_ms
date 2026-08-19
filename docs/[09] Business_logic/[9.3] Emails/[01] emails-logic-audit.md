@@ -103,7 +103,7 @@ Mailtrap does **not** finish a half-done recipient loop if the server dies mid-b
 | UI | `components/manager/emailing/*` |
 | Actions | `app/manager/emailing/actions.ts`, `app/manager/sent/actions.ts` |
 | Validators | `lib/validators/manager/send-email.ts`, `resend-email.ts` |
-| Service | `services/email.service.ts` |
+| Service | `services/communications/email.service.ts` |
 | Templates | `lib/email/templates/*` |
 | Repos | `repositories/email-sent.repository.ts`, `email-users.repository.ts` |
 | Mailtrap | `lib/mailtrap/client.ts` |

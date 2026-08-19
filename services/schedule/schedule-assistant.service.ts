@@ -14,7 +14,7 @@ import * as instructorSubjectCapabilityRepository from "@/repositories/instructo
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
-import { assertPermission } from "@/services/authorization.service";
+import { assertPermission } from "@/services/auth/authorization.service";
 import type {
   ScheduleAssistantCompactInstructor,
   ScheduleAssistantCompactMatrixRow,
@@ -115,30 +115,38 @@ export async function listCapabilityMatrixCatalog(
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
 
-  const [subjectsResult, capabilitiesResult, instructorsResult] =
-    await Promise.all([
-      subjectRepository.listSubjects(adminClient),
-      instructorSubjectCapabilityRepository.listAllInstructorSubjectCapabilities(
-        adminClient
-      ),
-      profileRepository.listInstructorProfiles(adminClient),
-    ]);
+  const [subjectsResult, instructorsResult] = await Promise.all([
+    subjectRepository.listSubjects(adminClient),
+    profileRepository.listInstructorProfiles(adminClient),
+  ]);
 
   if (subjectsResult.error) {
     throw new Error(subjectsResult.error.message);
   }
-  if (capabilitiesResult.error) {
-    throw new Error(capabilitiesResult.error.message);
-  }
   if (instructorsResult.error) {
     throw new Error(instructorsResult.error.message);
+  }
+
+  const instructorRows = instructorsResult.data ?? [];
+  const cappedInstructors = sliceWithMeta(
+    instructorRows,
+    SCHEDULE_ASSISTANT_MAX_INSTRUCTORS
+  );
+  const capabilitiesResult =
+    await instructorSubjectCapabilityRepository.listInstructorSubjectCapabilitiesByUserIds(
+      adminClient,
+      cappedInstructors.rows.map((profile) => profile.id)
+    );
+
+  if (capabilitiesResult.error) {
+    throw new Error(capabilitiesResult.error.message);
   }
 
   const subjectNameById = new Map(
     (subjectsResult.data ?? []).map((s) => [s.id, s.name] as const)
   );
   const usernameById = new Map(
-    (instructorsResult.data ?? []).map(
+    cappedInstructors.rows.map(
       (profile) =>
         [profile.id, normalizeUsername(profile.username)] as const
     )
@@ -168,8 +176,8 @@ export async function listCapabilityMatrixCatalog(
   const capped = sliceWithMeta(matrix, SCHEDULE_ASSISTANT_MAX_INSTRUCTORS);
   return {
     matrix: capped.rows,
-    truncated: capped.truncated,
-    total: capped.total,
+    truncated: cappedInstructors.truncated || capped.truncated,
+    total: cappedInstructors.total,
   };
 }
 

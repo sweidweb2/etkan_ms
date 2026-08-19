@@ -39,6 +39,27 @@ export async function createGuestStatusEvent(
     .single();
 }
 
+export async function createGuestStatusEvents(
+  client: Supabase,
+  inputs: CreateGuestStatusEventInput[]
+) {
+  if (inputs.length === 0) {
+    return { data: [] as GuestStatusEventRecord[], error: null };
+  }
+
+  return client
+    .from("guest_status_events")
+    .insert(
+      inputs.map((input) => ({
+        guest_id: input.guest_id,
+        status: input.status,
+        note: input.note,
+        created_by: input.created_by,
+      }))
+    )
+    .select(GUEST_STATUS_EVENT_COLUMNS);
+}
+
 export async function listGuestStatusEventsByGuestId(
   client: Supabase,
   guestId: string

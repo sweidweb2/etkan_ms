@@ -1,5 +1,5 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { assertPermission } from "@/services/authorization.service";
+import { assertPermission } from "@/services/auth/authorization.service";
 import {
   AUDIT_LOG_ACTION_VALUES,
   AUDIT_LOG_SEVERITY_VALUES,
@@ -48,10 +48,9 @@ function toJsonObject(value: Json | null): AuditLogJsonValue | null {
   return value as AuditLogJsonValue;
 }
 
-function mapAuditLogRecordToRow(
-  record: AuditLogRecord | auditLogRepository.AuditLogListRecord
+function mapAuditLogListRecordToRow(
+  record: auditLogRepository.AuditLogListRecord
 ): ManagerAuditLogRow {
-  const withBlobs = record as AuditLogRecord;
   return {
     id: record.id,
     user_id: record.user_id,
@@ -60,37 +59,70 @@ function mapAuditLogRecordToRow(
     severity: isAuditLogSeverity(record.severity) ? record.severity : "info",
     table_name: record.table_name,
     record_id: record.record_id,
-    old_data: toJsonObject(withBlobs.old_data ?? null),
-    new_data: toJsonObject(withBlobs.new_data ?? null),
+    old_data: null,
+    new_data: null,
     metadata: toJsonObject(record.metadata),
     created_at: record.created_at,
   };
 }
 
+function mapAuditLogRecordToRow(record: AuditLogRecord): ManagerAuditLogRow {
+  return {
+    id: record.id,
+    user_id: record.user_id,
+    user_label: record.user_label,
+    action: isAuditLogAction(record.action) ? record.action : "other",
+    severity: isAuditLogSeverity(record.severity) ? record.severity : "info",
+    table_name: record.table_name,
+    record_id: record.record_id,
+    old_data: toJsonObject(record.old_data),
+    new_data: toJsonObject(record.new_data),
+    metadata: toJsonObject(record.metadata),
+    created_at: record.created_at,
+  };
+}
+
+export type ManagerAuditLogsPage = {
+  logs: ManagerAuditLogRow[];
+  nextCursor: auditLogRepository.AuditLogCursor | null;
+};
+
 export async function listAuditLogsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  options?: { limit?: number }
-): Promise<ManagerAuditLogRow[]> {
+  options?: {
+    limit?: number;
+    cursor?: auditLogRepository.AuditLogCursor | null;
+  }
+): Promise<ManagerAuditLogsPage> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.LOGS_VIEW);
 
   const limit =
     options?.limit ?? auditLogRepository.DEFAULT_MANAGER_AUDIT_LOG_LIMIT;
 
-  const { data, error } = await auditLogRepository.listAuditLogs(adminClient, {
-    limit,
-    slim: true,
-  });
+  const { data, error } = await auditLogRepository.listAuditLogsPage(
+    adminClient,
+    {
+      limit,
+      cursor: options?.cursor ?? null,
+    }
+  );
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map((row) =>
-    mapAuditLogRecordToRow(
-      row as unknown as auditLogRepository.AuditLogListRecord
-    )
-  );
+  const rows = (data ?? []) as auditLogRepository.AuditLogListRecord[];
+  const logs = rows.map(mapAuditLogListRecordToRow);
+  const last = rows.at(-1);
+
+  return {
+    logs,
+    nextCursor:
+      rows.length >= limit && last
+        ? { created_at: last.created_at, id: last.id }
+        : null,
+  };
 }
 
 export async function getAuditLogByIdForManager(

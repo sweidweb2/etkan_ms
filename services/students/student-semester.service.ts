@@ -2,20 +2,27 @@ import {
   STUDENT_SEMESTER_STATUSES,
   type StudentSemesterStatusValue,
 } from "@/lib/constants/manager-student-semester-status";
+import {
+  STUDENT_STATUSES,
+  type StudentStatusValue,
+} from "@/lib/constants/manager-student-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { addStudentToSemesterSchema } from "@/lib/validators/manager/add-student-to-semester";
+import * as authRepository from "@/repositories/auth.repository";
+import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import type { StudentSemesterRecord } from "@/repositories/student-semester.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
-import { listStudentsForManager } from "@/services/student.service";
+} from "@/services/ops/audit-log.service";
+import { listStudentsForManager } from "@/services/students/student.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerStudentRow } from "@/types/manager-student";
 import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
@@ -39,6 +46,19 @@ export type AddStudentToSemesterFailure = {
 export type AddStudentToSemesterResult =
   | AddStudentToSemesterSuccess
   | AddStudentToSemesterFailure;
+
+function mapStudentStatus(status: string | null): StudentStatusValue {
+  if (
+    status === STUDENT_STATUSES.ACTIVE ||
+    status === STUDENT_STATUSES.INACTIVE ||
+    status === STUDENT_STATUSES.GRADUATED ||
+    status === STUDENT_STATUSES.SUSPENDED
+  ) {
+    return status;
+  }
+
+  return STUDENT_STATUSES.ACTIVE;
+}
 
 function mapStudentSemesterStatus(status: string): StudentSemesterStatusValue {
   if (
@@ -82,6 +102,58 @@ function mapAddStudentToSemesterError(message: string): string {
   return "Unable to add student to semester. Please try again.";
 }
 
+async function fetchStudentRowByProfileId(
+  adminClient: Supabase,
+  studentProfileId: string
+): Promise<ManagerStudentRow | null> {
+  const { data: studentProfile, error } =
+    await studentProfileRepository.findStudentProfileById(
+      adminClient,
+      studentProfileId
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!studentProfile) {
+    return null;
+  }
+
+  const [profilesResult, emailResult] = await Promise.all([
+    profileRepository.listProfilesByIds(adminClient, [studentProfile.user_id]),
+    authRepository.listAuthEmailsByIds(adminClient, [studentProfile.user_id]),
+  ]);
+
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+
+  if (emailResult.error) {
+    throw new Error(emailResult.error.message);
+  }
+
+  const profile = profilesResult.data?.[0];
+  if (!profile) {
+    return null;
+  }
+
+  return {
+    user_id: studentProfile.user_id,
+    student_profile_id: studentProfile.id,
+    username: profile.username,
+    email: emailResult.data.get(studentProfile.user_id) ?? "",
+    full_name: studentProfile.full_name,
+    birth_date: studentProfile.birth_date,
+    phone: studentProfile.phone,
+    status: mapStudentStatus(studentProfile.status),
+    created_at:
+      studentProfile.created_at ??
+      profile.created_at ??
+      new Date(0).toISOString(),
+  };
+}
+
 export async function listSemesterStudentsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -104,21 +176,73 @@ export async function listSemesterStudentsForManager(
     return [];
   }
 
-  const students = await listStudentsForManager(adminClient, actorUserId);
+  const profileIds = enrollments.map(
+    (enrollment) => enrollment.student_profile_id
+  );
+  const profilesResult =
+    await studentProfileRepository.listStudentProfilesByIds(
+      adminClient,
+      profileIds
+    );
+
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+
+  const studentProfiles = profilesResult.data ?? [];
+  if (studentProfiles.length === 0) {
+    return [];
+  }
+
+  const userIds = studentProfiles.map((profile) => profile.user_id);
+  const [authProfilesResult, emailsResult] = await Promise.all([
+    profileRepository.listProfilesByIds(adminClient, userIds),
+    authRepository.listAuthEmailsByIds(adminClient, userIds),
+  ]);
+
+  if (authProfilesResult.error) {
+    throw new Error(authProfilesResult.error.message);
+  }
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
+
+  const profileByUserId = new Map(
+    (authProfilesResult.data ?? []).map((row) => [row.id, row])
+  );
+  const emailByUserId = emailsResult.data;
   const studentByProfileId = new Map(
-    students.map((student) => [student.student_profile_id, student])
+    studentProfiles.map((profile) => [profile.id, profile])
   );
 
-  return enrollments
-    .map((enrollment) => {
-      const student = studentByProfileId.get(enrollment.student_profile_id);
-      if (!student) {
-        return null;
-      }
+  return enrollments.flatMap((enrollment) => {
+    const studentProfile = studentByProfileId.get(enrollment.student_profile_id);
+    if (!studentProfile) {
+      return [];
+    }
+    const authProfile = profileByUserId.get(studentProfile.user_id);
+    if (!authProfile) {
+      return [];
+    }
 
-      return mapEnrollmentToRow(enrollment, student, semesterName);
-    })
-    .filter((row): row is ManagerStudentSemesterRow => row !== null);
+    const student: ManagerStudentRow = {
+      user_id: studentProfile.user_id,
+      student_profile_id: studentProfile.id,
+      username: authProfile.username ?? "",
+      email: emailByUserId.get(studentProfile.user_id) ?? "",
+      full_name: studentProfile.full_name,
+      birth_date: studentProfile.birth_date,
+      phone: studentProfile.phone,
+      status: mapStudentStatus(studentProfile.status),
+      created_at:
+        studentProfile.created_at ??
+        authProfile.created_at ??
+        enrollment.created_at ??
+        new Date(0).toISOString(),
+    };
+
+    return [mapEnrollmentToRow(enrollment, student, semesterName)];
+  });
 }
 
 export async function listAvailableStudentsForSemester(
@@ -177,10 +301,14 @@ export async function addStudentToSemesterForManager(
     };
   }
 
-  const semesterResult = await semesterRepository.findSemesterById(
-    adminClient,
-    input.semester_id
-  );
+  const [semesterResult, existing] = await Promise.all([
+    semesterRepository.findSemesterById(adminClient, input.semester_id),
+    studentSemesterRepository.findEnrollmentByStudentAndSemester(
+      adminClient,
+      parsed.data.student_profile_id,
+      input.semester_id
+    ),
+  ]);
 
   if (semesterResult.error) {
     return {
@@ -192,12 +320,6 @@ export async function addStudentToSemesterForManager(
   if (!semesterResult.data) {
     return { success: false, error: "Semester not found." };
   }
-
-  const existing = await studentSemesterRepository.findEnrollmentByStudentAndSemester(
-    adminClient,
-    parsed.data.student_profile_id,
-    input.semester_id
-  );
 
   if (existing.error) {
     return {
@@ -230,10 +352,19 @@ export async function addStudentToSemesterForManager(
     };
   }
 
-  const students = await listStudentsForManager(adminClient, actorUserId);
-  const student = students.find(
-    (row) => row.student_profile_id === parsed.data.student_profile_id
-  );
+  let student: ManagerStudentRow | null;
+  try {
+    student = await fetchStudentRowByProfileId(
+      adminClient,
+      parsed.data.student_profile_id
+    );
+  } catch (loadError) {
+    return {
+      success: false,
+      error:
+        loadError instanceof Error ? loadError.message : "Student not found.",
+    };
+  }
 
   if (!student) {
     return { success: false, error: "Student not found." };

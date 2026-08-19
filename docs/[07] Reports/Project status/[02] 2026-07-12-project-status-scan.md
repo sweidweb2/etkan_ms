@@ -190,7 +190,7 @@ Notable blocker pattern: `react-hooks/set-state-in-effect` (e.g. `panel-collapsi
 |--------|------:|
 | Test files passed | 39 / 40 |
 | Tests passed | 320 |
-| Failed suite | `services/borrow-equipment.service.test.ts` |
+| Failed suite | `services/equipment/borrow-equipment.service.test.ts` |
 
 **Failure cause:** importing a module guarded by `server-only` into the Vitest graph. Fix by mocking `server-only` in test setup or restructuring the import boundary.
 

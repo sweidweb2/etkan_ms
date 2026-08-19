@@ -1,8 +1,9 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
@@ -32,19 +33,23 @@ import type {
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
-import type { StudentCourseGradeRecord } from "@/repositories/student-course-grade.repository";
+import type {
+  StudentCourseGradeRecord,
+  UpsertStudentCourseGradeInput,
+} from "@/repositories/student-course-grade.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";
 import * as taskRepository from "@/repositories/task.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
   assertClassGradesUnlockedForManager,
-  getClassFinalExamForManager,
+  fetchClassStudentRowForManager,
   listClassStudentsForManager,
-} from "@/services/class.service";
+} from "@/services/classes/class.service";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import type {
   ManagerClassFinalExamRow,
@@ -79,6 +84,7 @@ type ClassGradeContext = {
   finalExamGradesByUserId: Map<string, StudentFinalExamGradeRecord>;
   studentTasksByUserId: Map<string, StudentTaskRecord[]>;
   storedGradesByUserId: Map<string, StudentCourseGradeRecord>;
+  attendeeStatusMapsByUserId: Map<string, Map<string, string>>;
 };
 
 type ComputeGradeOptions = {
@@ -87,6 +93,8 @@ type ComputeGradeOptions = {
   computeType?: string;
   computeLabel?: string;
 };
+
+const COMPUTE_ALL_SAVE_CHUNK = 8;
 
 export type ComputedStudentGradeSheetBundle = {
   student: ManagerClassStudentRow;
@@ -226,14 +234,16 @@ async function loadClassGradeContext(
   const sessions = (sessionsResult.data ?? []) as SessionRecord[];
   const sessionIds = sessions.map((session) => session.id);
 
-  const [tasksResult, finalExamResult, storedGradesResult] = await Promise.all([
-    taskRepository.listTasksForGradesBySessionIds(adminClient, sessionIds),
-    finalExamRepository.findFinalExamByClassId(adminClient, classId),
-    studentCourseGradeRepository.listStudentCourseGradesByClassId(
-      adminClient,
-      classId
-    ),
-  ]);
+  const [tasksResult, finalExamResult, storedGradesResult, attendeesResult] =
+    await Promise.all([
+      taskRepository.listTasksForGradesBySessionIds(adminClient, sessionIds),
+      finalExamRepository.findFinalExamByClassId(adminClient, classId),
+      studentCourseGradeRepository.listStudentCourseGradesByClassId(
+        adminClient,
+        classId
+      ),
+      attendeeRepository.listAttendeesBySessionIds(adminClient, sessionIds),
+    ]);
 
   if (tasksResult.error) {
     throw new Error(tasksResult.error.message);
@@ -245,6 +255,10 @@ async function loadClassGradeContext(
 
   if (storedGradesResult.error) {
     throw new Error(storedGradesResult.error.message);
+  }
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
   }
 
   const classTasks = buildClassTaskRows(
@@ -260,37 +274,34 @@ async function loadClassGradeContext(
   );
 
   const taskIds = classTasks.map((task) => task.id);
-  const studentTasksResult =
-    await studentTaskRepository.listStudentTasksForGradesByTaskIds(
+  const finalExam = (finalExamResult.data as FinalExamRecord | null) ?? null;
+
+  const [studentTasksResult, examGradesResult] = await Promise.all([
+    studentTaskRepository.listStudentTasksForGradesByTaskIds(
       adminClient,
       taskIds
-    );
+    ),
+    finalExam
+      ? finalExamRepository.listStudentFinalExamGradesByFinalExamId(
+          adminClient,
+          finalExam.id
+        )
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
   if (studentTasksResult.error) {
     throw new Error(studentTasksResult.error.message);
   }
 
-  const finalExam = (finalExamResult.data as FinalExamRecord | null) ?? null;
-  let finalExamGradesByUserId = new Map<string, StudentFinalExamGradeRecord>();
-
-  if (finalExam) {
-    const gradesResult =
-      await finalExamRepository.listStudentFinalExamGradesByFinalExamId(
-        adminClient,
-        finalExam.id
-      );
-
-    if (gradesResult.error) {
-      throw new Error(gradesResult.error.message);
-    }
-
-    finalExamGradesByUserId = new Map(
-      ((gradesResult.data ?? []) as StudentFinalExamGradeRecord[]).map((row) => [
-        row.student_id,
-        row,
-      ])
-    );
+  if (examGradesResult.error) {
+    throw new Error(examGradesResult.error.message);
   }
+
+  const finalExamGradesByUserId = new Map(
+    ((examGradesResult.data ?? []) as StudentFinalExamGradeRecord[]).map(
+      (row) => [row.student_id, row]
+    )
+  );
 
   const studentTasksByUserId = new Map<string, StudentTaskRecord[]>();
 
@@ -314,6 +325,9 @@ async function loadClassGradeContext(
     finalExamGradesByUserId,
     studentTasksByUserId,
     storedGradesByUserId,
+    attendeeStatusMapsByUserId: buildAttendeeStatusMapsByUserId(
+      attendeesResult.data ?? []
+    ),
   };
 }
 
@@ -632,10 +646,9 @@ export async function getStudentClassGradeDetailForManager(
     throw new Error(guard.error);
   }
 
-  const [students, context, finalExamBundle] = await Promise.all([
+  const [students, context] = await Promise.all([
     listClassStudentsForManager(adminClient, actorUserId, classId),
     loadClassGradeContext(adminClient, classId),
-    getClassFinalExamForManager(adminClient, actorUserId, classId),
   ]);
 
   const student = students.find(
@@ -646,25 +659,9 @@ export async function getStudentClassGradeDetailForManager(
     return null;
   }
 
-  const sessionIds = context.sessions.map((session) => session.id);
-  const attendeesResult = await attendeeRepository.listAttendeesBySessionIds(
-    adminClient,
-    sessionIds
-  );
-
-  if (attendeesResult.error) {
-    throw new Error(attendeesResult.error.message);
-  }
-
-  const attendeeStatusBySessionId = new Map<string, string>();
-
-  for (const row of attendeesResult.data ?? []) {
-    if (row.student_id !== student.user_id) {
-      continue;
-    }
-
-    attendeeStatusBySessionId.set(row.session_id, row.status);
-  }
+  const attendeeStatusBySessionId =
+    context.attendeeStatusMapsByUserId.get(student.user_id) ??
+    new Map<string, string>();
 
   const stored = context.storedGradesByUserId.get(student.user_id);
   const gradeRow = stored
@@ -680,7 +677,9 @@ export async function getStudentClassGradeDetailForManager(
       attendeeStatusBySessionId
     ),
     classTasks: context.classTasks,
-    finalExam: finalExamBundle.finalExam,
+    finalExam: context.finalExam
+      ? mapFinalExamForStudentBundle(context.finalExam)
+      : null,
   };
 }
 
@@ -710,34 +709,23 @@ export async function getStudentClassAcademicDetailForManager(
     throw new Error("Student is not a member of this class.");
   }
 
-  const [context, finalExamBundle] = await Promise.all([
+  const [context, profilesResult] = await Promise.all([
     loadClassGradeContext(adminClient, classId),
-    getClassFinalExamForManager(adminClient, actorUserId, classId),
+    studentProfileRepository.listStudentProfilesByUserIds(adminClient, [userId]),
   ]);
 
-  const sessionIds = context.sessions.map((session) => session.id);
-  const attendeesResult = await attendeeRepository.listAttendeesBySessionIds(
-    adminClient,
-    sessionIds
-  );
-
-  if (attendeesResult.error) {
-    throw new Error(attendeesResult.error.message);
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
   }
 
-  const attendeeStatusBySessionId = new Map<string, string>();
-
-  for (const row of attendeesResult.data ?? []) {
-    if (row.student_id !== userId) {
-      continue;
-    }
-
-    attendeeStatusBySessionId.set(row.session_id, row.status);
-  }
-
-  const studentFinalExamGrade =
-    finalExamBundle.studentGrades.find((row) => row.student_id === userId) ??
-    null;
+  const attendeeStatusBySessionId =
+    context.attendeeStatusMapsByUserId.get(userId) ??
+    new Map<string, string>();
+  const fullName =
+    (profilesResult.data ?? []).find((row) => row.user_id === userId)
+      ?.full_name ?? "Unknown student";
+  const examGradeRecord =
+    context.finalExamGradesByUserId.get(userId) ?? null;
 
   return {
     detail: buildStudentClassTabDetail(
@@ -745,8 +733,12 @@ export async function getStudentClassAcademicDetailForManager(
       userId,
       attendeeStatusBySessionId
     ),
-    finalExam: finalExamBundle.finalExam,
-    studentFinalExamGrade,
+    finalExam: context.finalExam
+      ? mapFinalExamForStudentBundle(context.finalExam)
+      : null,
+    studentFinalExamGrade: examGradeRecord
+      ? mapStudentFinalExamGradeForBundle(examGradeRecord, fullName)
+      : null,
   };
 }
 
@@ -831,31 +823,15 @@ export async function listStudentClassAcademicBundlesForManager(
   }
 
   const sessionIds = sessions.map((session) => session.id);
-  const tasksResult = await taskRepository.listTasksForGradesBySessionIds(
-    adminClient,
-    sessionIds
-  );
-
-  if (tasksResult.error) {
-    throw new Error(tasksResult.error.message);
-  }
-
-  const allTasks = tasksResult.data ?? [];
-  const taskIds = allTasks.map((task) => task.id);
-
   const finalExams = (finalExamsResult.data ?? []) as FinalExamRecord[];
   const finalExamByClassId = new Map(
     finalExams.map((exam) => [exam.class_id, exam])
   );
   const finalExamIds = finalExams.map((exam) => exam.id);
 
-  const [studentTasksResult, attendeesResult, finalExamGradesResult] =
+  const [tasksResult, attendeesResult, finalExamGradesResult] =
     await Promise.all([
-      studentTaskRepository.listStudentTasksForGradesByTaskIdsAndStudentId(
-        adminClient,
-        taskIds,
-        studentUserId
-      ),
+      taskRepository.listTasksForGradesBySessionIds(adminClient, sessionIds),
       attendeeRepository.listAttendeesBySessionIdsAndStudentId(
         adminClient,
         sessionIds,
@@ -867,6 +843,19 @@ export async function listStudentClassAcademicBundlesForManager(
         finalExamIds
       ),
     ]);
+
+  if (tasksResult.error) {
+    throw new Error(tasksResult.error.message);
+  }
+
+  const allTasks = tasksResult.data ?? [];
+  const taskIds = allTasks.map((task) => task.id);
+  const studentTasksResult =
+    await studentTaskRepository.listStudentTasksForGradesByTaskIdsAndStudentId(
+      adminClient,
+      taskIds,
+      studentUserId
+    );
 
   if (studentTasksResult.error) {
     throw new Error(studentTasksResult.error.message);
@@ -956,6 +945,9 @@ export async function listStudentClassAcademicBundlesForManager(
       storedGradesByUserId: stored
         ? new Map([[studentUserId, stored]])
         : new Map(),
+      attendeeStatusMapsByUserId: new Map([
+        [studentUserId, classAttendeeStatus],
+      ]),
     };
 
     return {
@@ -1016,25 +1008,14 @@ export async function listComputedStudentGradeSheetBundlesForManager(
     throw new Error(guard.error);
   }
 
-  const [students, context, finalExamBundle] = await Promise.all([
+  const [students, context] = await Promise.all([
     listClassStudentsForManager(adminClient, actorUserId, classId),
     loadClassGradeContext(adminClient, classId),
-    getClassFinalExamForManager(adminClient, actorUserId, classId),
   ]);
 
-  const sessionIds = context.sessions.map((session) => session.id);
-  const attendeesResult = await attendeeRepository.listAttendeesBySessionIds(
-    adminClient,
-    sessionIds
-  );
-
-  if (attendeesResult.error) {
-    throw new Error(attendeesResult.error.message);
-  }
-
-  const attendeeStatusMapsByUserId = buildAttendeeStatusMapsByUserId(
-    attendeesResult.data ?? []
-  );
+  const mappedFinalExam = context.finalExam
+    ? mapFinalExamForStudentBundle(context.finalExam)
+    : null;
 
   const bundles = students.flatMap((student) => {
     const stored = context.storedGradesByUserId.get(student.user_id);
@@ -1044,7 +1025,8 @@ export async function listComputedStudentGradeSheetBundlesForManager(
     }
 
     const attendeeStatusBySessionId =
-      attendeeStatusMapsByUserId.get(student.user_id) ?? new Map<string, string>();
+      context.attendeeStatusMapsByUserId.get(student.user_id) ??
+      new Map<string, string>();
 
     return [
       {
@@ -1056,7 +1038,7 @@ export async function listComputedStudentGradeSheetBundlesForManager(
           attendeeStatusBySessionId
         ),
         classTasks: context.classTasks,
-        finalExam: finalExamBundle.finalExam,
+        finalExam: mappedFinalExam,
       },
     ];
   });
@@ -1101,33 +1083,18 @@ export async function listClassStudentGradesForManager(
   };
 }
 
-async function computeAndSaveStudentCourseGrade(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  actor: AuditActor,
+function evaluateStudentCourseGradeFromContext(
+  student: ManagerClassStudentRow,
   classId: string,
-  userId: string,
+  context: ClassGradeContext,
   options?: ComputeGradeOptions
-): Promise<
-  | { success: true; row: ManagerClassStudentGradeRow; message: string }
-  | { success: false; error: string }
-> {
-  const students = await listClassStudentsForManager(
-    adminClient,
-    actorUserId,
-    classId
-  );
-  const student = students.find((row) => row.user_id === userId);
-
-  if (!student) {
-    return { success: false, error: "Student is not a member of this class." };
-  }
-
-  const context = await loadClassGradeContext(adminClient, classId);
+):
+  | { ok: true; payload: UpsertStudentCourseGradeInput }
+  | { ok: false; error: string } {
   const factorWeights = resolveFactorWeights(options);
-  const studentTasks = context.studentTasksByUserId.get(userId) ?? [];
+  const studentTasks = context.studentTasksByUserId.get(student.user_id) ?? [];
   const finalExamGradeRecord =
-    context.finalExamGradesByUserId.get(userId) ?? null;
+    context.finalExamGradesByUserId.get(student.user_id) ?? null;
   const missingItems = buildStudentGradeMissingItems({
     classTasks: context.classTasks,
     studentTasks,
@@ -1145,7 +1112,7 @@ async function computeAndSaveStudentCourseGrade(
 
   if (hasStudentGradeMissingItems(missingItems)) {
     return {
-      success: false,
+      ok: false,
       error: "This student is missing one or more required grade inputs.",
     };
   }
@@ -1167,33 +1134,22 @@ async function computeAndSaveStudentCourseGrade(
 
   if (factorWeights.tasks_weight > 0 && taskTotalGrade == null) {
     return {
-      success: false,
+      ok: false,
       error: "This student is missing one or more task grades.",
     };
   }
 
   if (factorWeights.final_exam_weight > 0 && finalExamGrade == null) {
     return {
-      success: false,
+      ok: false,
       error: "This student is missing a final exam grade.",
     };
   }
 
-  const existing =
-    await studentCourseGradeRepository.findStudentCourseGradeByClassAndUser(
-      adminClient,
-      classId,
-      userId
-    );
-
-  if (existing.error) {
-    return { success: false, error: existing.error.message };
-  }
-
-  const saveResult = await studentCourseGradeRepository.saveStudentCourseGrade(
-    adminClient,
-    {
-      user_id: userId,
+  return {
+    ok: true,
+    payload: {
+      user_id: student.user_id,
       class_id: classId,
       task_json_grade_weights: buildTaskWeightPayload(
         context.classTasks,
@@ -1204,7 +1160,24 @@ async function computeAndSaveStudentCourseGrade(
       final_exam_grade: finalExamGrade ?? 0,
       final_exam_weight: factorWeights.final_exam_weight,
       type: options?.computeType ?? "final",
-    }
+      existing_id:
+        context.storedGradesByUserId.get(student.user_id)?.id ?? null,
+    },
+  };
+}
+
+async function saveEvaluatedStudentCourseGrade(
+  adminClient: Supabase,
+  actor: AuditActor,
+  student: ManagerClassStudentRow,
+  payload: UpsertStudentCourseGradeInput
+): Promise<
+  | { success: true; row: ManagerClassStudentGradeRow }
+  | { success: false; error: string }
+> {
+  const saveResult = await studentCourseGradeRepository.saveStudentCourseGrade(
+    adminClient,
+    payload
   );
 
   if (saveResult.error || !saveResult.data) {
@@ -1220,21 +1193,79 @@ async function computeAndSaveStudentCourseGrade(
   );
 
   await recordManagerAuditLog(adminClient, actor, {
-    action: existing.data ? "update" : "insert",
+    action: payload.existing_id ? "update" : "insert",
     table_name: "student_course_grade",
     record_id: row.course_grade_id ?? saveResult.data.id,
     new_data: {
-      class_id: classId,
-      user_id: userId,
-      task_weight: factorWeights.tasks_weight,
-      final_exam_weight: factorWeights.final_exam_weight,
-      type: options?.computeType ?? "final",
+      class_id: payload.class_id,
+      user_id: payload.user_id,
+      task_weight: payload.task_weight,
+      final_exam_weight: payload.final_exam_weight,
+      type: payload.type,
     },
   });
 
+  return { success: true, row };
+}
+
+async function computeAndSaveStudentCourseGrade(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  classId: string,
+  userId: string,
+  options?: ComputeGradeOptions
+): Promise<
+  | { success: true; row: ManagerClassStudentGradeRow; message: string }
+  | { success: false; error: string }
+> {
+  let student: ManagerClassStudentRow | null;
+  let context: ClassGradeContext;
+
+  try {
+    [student, context] = await Promise.all([
+      fetchClassStudentRowForManager(adminClient, classId, userId),
+      loadClassGradeContext(adminClient, classId),
+    ]);
+  } catch (loadError) {
+    return {
+      success: false,
+      error:
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load class grade context.",
+    };
+  }
+
+  if (!student) {
+    return { success: false, error: "Student is not a member of this class." };
+  }
+
+  const evaluated = evaluateStudentCourseGradeFromContext(
+    student,
+    classId,
+    context,
+    options
+  );
+
+  if (!evaluated.ok) {
+    return { success: false, error: evaluated.error };
+  }
+
+  const saved = await saveEvaluatedStudentCourseGrade(
+    adminClient,
+    actor,
+    student,
+    evaluated.payload
+  );
+
+  if (!saved.success) {
+    return saved;
+  }
+
   return {
     success: true,
-    row,
+    row: saved.row,
     message: options?.computeLabel
       ? `Computed ${student.full_name} using ${options.computeLabel}.`
       : `Computed ${student.full_name}.`,
@@ -1289,90 +1320,159 @@ export async function computeAllStudentCourseGradesForManager(
   studentUserIds: string[],
   options?: ComputeGradeOptions
 ) {
-  const permission =
-    options?.computeType === "custom"
-      ? PERMISSIONS.GRADES_COMPUTE_CUSTOM
-      : PERMISSIONS.GRADES_COMPUTE_ALL;
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    permission
-  );
-  if (unauthorized) {
-    return { success: false as const, error: unauthorized };
-  }
-  const guard = await assertClassGradesUnlockedForManager(
-    adminClient,
-    actorUserId,
-    classId
-  );
-
-  if (!guard.ok) {
-    return { success: false as const, error: guard.error };
-  }
-
-  const enrollmentsResult =
-    await studentClassRepository.listStudentClassesByClassId(
-      adminClient,
-      classId
+  const timer = createNavStepTimer("computeAllStudentCourseGrades");
+  try {
+    const permission =
+      options?.computeType === "custom"
+        ? PERMISSIONS.GRADES_COMPUTE_CUSTOM
+        : PERMISSIONS.GRADES_COMPUTE_ALL;
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(adminClient, actorUserId, permission)
+    );
+    if (unauthorized) {
+      return { success: false as const, error: unauthorized };
+    }
+    const guard = await timer.step("gradeLock", () =>
+      assertClassGradesUnlockedForManager(adminClient, actorUserId, classId)
     );
 
-  if (enrollmentsResult.error) {
-    return { success: false as const, error: enrollmentsResult.error.message };
-  }
-
-  const memberUserIds = new Set(
-    (enrollmentsResult.data ?? []).map((row) => row.user_id)
-  );
-
-  const computedRows: ManagerClassStudentGradeRow[] = [];
-  const failures: string[] = [];
-  let skippedNonMembers = 0;
-
-  for (const userId of studentUserIds) {
-    if (!memberUserIds.has(userId)) {
-      skippedNonMembers += 1;
-      continue;
+    if (!guard.ok) {
+      return { success: false as const, error: guard.error };
     }
 
-    const result = await computeAndSaveStudentCourseGrade(
-      adminClient,
-      actorUserId,
-      actor,
-      classId,
-      userId,
-      options
+    const enrollmentsResult = await timer.step("enrollments", () =>
+      studentClassRepository.listStudentClassesByClassId(adminClient, classId)
     );
 
-    if (!result.success) {
-      failures.push(result.error);
-      continue;
+    if (enrollmentsResult.error) {
+      return { success: false as const, error: enrollmentsResult.error.message };
     }
 
-    computedRows.push(result.row);
-  }
+    const memberUserIds = new Set(
+      (enrollmentsResult.data ?? []).map((row) => row.user_id)
+    );
 
-  if (computedRows.length === 0) {
+    const requestedMemberIds = studentUserIds.filter((userId) =>
+      memberUserIds.has(userId)
+    );
+    const skippedNonMembers = studentUserIds.length - requestedMemberIds.length;
+
+    if (requestedMemberIds.length === 0) {
+      return {
+        success: false as const,
+        error: "No students could be computed.",
+      };
+    }
+
+    let students: ManagerClassStudentRow[];
+    let context: ClassGradeContext;
+    try {
+      const loaded = await timer.step("gradeContext", () =>
+        Promise.all([
+          listClassStudentsForManager(adminClient, actorUserId, classId),
+          loadClassGradeContext(adminClient, classId),
+        ])
+      );
+      students = loaded[0];
+      context = loaded[1];
+    } catch (loadError) {
+      return {
+        success: false as const,
+        error:
+          loadError instanceof Error
+            ? loadError.message
+            : "Unable to load class grade context.",
+      };
+    }
+
+    const studentByUserId = new Map(
+      students.map((student) => [student.user_id, student])
+    );
+    const evaluatedSaves: Array<{
+      student: ManagerClassStudentRow;
+      payload: UpsertStudentCourseGradeInput;
+    }> = [];
+    const failures: string[] = [];
+
+    for (const userId of requestedMemberIds) {
+      const student = studentByUserId.get(userId);
+      if (!student) {
+        failures.push("Student is not a member of this class.");
+        continue;
+      }
+
+      const evaluated = evaluateStudentCourseGradeFromContext(
+        student,
+        classId,
+        context,
+        options
+      );
+
+      if (!evaluated.ok) {
+        failures.push(evaluated.error);
+        continue;
+      }
+
+      evaluatedSaves.push({ student, payload: evaluated.payload });
+    }
+
+    const computedRows: ManagerClassStudentGradeRow[] = [];
+
+    await timer.step("saveGrades", async () => {
+      for (
+        let index = 0;
+        index < evaluatedSaves.length;
+        index += COMPUTE_ALL_SAVE_CHUNK
+      ) {
+        const chunk = evaluatedSaves.slice(
+          index,
+          index + COMPUTE_ALL_SAVE_CHUNK
+        );
+        const saved = await Promise.all(
+          chunk.map((item) =>
+            saveEvaluatedStudentCourseGrade(
+              adminClient,
+              actor,
+              item.student,
+              item.payload
+            )
+          )
+        );
+
+        for (const result of saved) {
+          if (!result.success) {
+            failures.push(result.error);
+            continue;
+          }
+          computedRows.push(result.row);
+        }
+      }
+    });
+
+    if (computedRows.length === 0) {
+      return {
+        success: false as const,
+        error: failures[0] ?? "No students could be computed.",
+      };
+    }
+
+    const skippedTotal = failures.length + skippedNonMembers;
+    const skippedNote =
+      skippedNonMembers > 0
+        ? ` Skipped ${skippedNonMembers} non-member(s).`
+        : "";
+
     return {
-      success: false as const,
-      error: failures[0] ?? "No students could be computed.",
+      success: true as const,
+      rows: computedRows,
+      message: `Computed ${computedRows.length} student${
+        computedRows.length === 1 ? "" : "s"
+      }.${skippedNote}`,
+      skippedCount: skippedTotal,
     };
+  } finally {
+    timer.end();
   }
-
-  const skippedTotal = failures.length + skippedNonMembers;
-  const skippedNote =
-    skippedNonMembers > 0
-      ? ` Skipped ${skippedNonMembers} non-member(s).`
-      : "";
-
-  return {
-    success: true as const,
-    rows: computedRows,
-    message: `Computed ${computedRows.length} student${
-      computedRows.length === 1 ? "" : "s"
-    }.${skippedNote}`,
-    skippedCount: skippedTotal,
-  };
 }
 
 export async function deleteStudentCourseGradeForManager(
@@ -1386,22 +1486,19 @@ export async function deleteStudentCourseGradeForManager(
   if (unauthorized) {
     return { success: false as const, error: unauthorized };
   }
-  const guard = await assertClassGradesUnlockedForManager(
-    adminClient,
-    actorUserId,
-    classId
-  );
+
+  const [guard, existing] = await Promise.all([
+    assertClassGradesUnlockedForManager(adminClient, actorUserId, classId),
+    studentCourseGradeRepository.findStudentCourseGradeByClassAndUser(
+      adminClient,
+      classId,
+      userId
+    ),
+  ]);
 
   if (!guard.ok) {
     return { success: false as const, error: guard.error };
   }
-
-  const existing =
-    await studentCourseGradeRepository.findStudentCourseGradeByClassAndUser(
-      adminClient,
-      classId,
-      userId
-    );
 
   if (existing.error) {
     return { success: false as const, error: existing.error.message };

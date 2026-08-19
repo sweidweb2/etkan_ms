@@ -4,10 +4,11 @@ import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
 import { ROLES } from "@/lib/constants/roles";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStudentSchema } from "@/lib/validators/manager/create-student";
@@ -21,9 +22,9 @@ import * as studentTaskRepository from "@/repositories/student-task.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
-import { ensureStudentRegistration } from "@/services/profile.service";
-import { syncAuthUserRole } from "@/services/role.service";
+} from "@/services/ops/audit-log.service";
+import { ensureStudentRegistration } from "@/services/auth/profile.service";
+import { syncAuthUserRole } from "@/services/auth/role.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerStudentDetailStats,
@@ -140,34 +141,47 @@ async function mapStudentProfileToManagerStudentRow(
     phone: string | null;
     status: string | null;
     created_at: string | null;
-  }
+  },
+  profile?: { username: string | null; created_at: string | null } | null,
+  email?: string | null
 ): Promise<ManagerStudentRow | null> {
-  const [profileResult, authResult] = await Promise.all([
-    profileRepository.findProfileById(adminClient, studentProfile.user_id),
-    authRepository.getAuthUserById(adminClient, studentProfile.user_id),
-  ]);
+  let resolvedProfile = profile;
+  let resolvedEmail = email;
 
-  if (profileResult.error || !profileResult.data) {
-    return null;
+  if (resolvedProfile === undefined || resolvedEmail === undefined) {
+    const [profileResult, emailsResult] = await Promise.all([
+      profileRepository.findProfileById(adminClient, studentProfile.user_id),
+      authRepository.listAuthEmailsByIds(adminClient, [studentProfile.user_id]),
+    ]);
+
+    if (profileResult.error || !profileResult.data) {
+      return null;
+    }
+    if (emailsResult.error) {
+      return null;
+    }
+
+    resolvedProfile = profileResult.data;
+    resolvedEmail = emailsResult.data.get(studentProfile.user_id) ?? "";
   }
 
-  if (authResult.error || !authResult.data.user) {
+  if (!resolvedProfile) {
     return null;
   }
 
   return {
     user_id: studentProfile.user_id,
     student_profile_id: studentProfile.id,
-    username: profileResult.data.username,
-    email: authResult.data.user.email ?? "",
+    username: resolvedProfile.username,
+    email: resolvedEmail ?? "",
     full_name: studentProfile.full_name,
     birth_date: studentProfile.birth_date,
     phone: studentProfile.phone,
     status: mapStudentStatus(studentProfile.status),
     created_at:
       studentProfile.created_at ??
-      profileResult.data.created_at ??
-      authResult.data.user.created_at,
+      resolvedProfile.created_at ??
+      new Date(0).toISOString(),
   };
 }
 
@@ -328,23 +342,52 @@ export async function getStudentForManager(
   actorUserId: string | null,
   studentProfileId: string
 ): Promise<ManagerStudentRow | null> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
-
-  const { data: studentProfile, error } =
-    await studentProfileRepository.findStudentProfileById(
-      adminClient,
-      studentProfileId
+  const timer = createNavStepTimer("getStudent");
+  try {
+    await timer.step("auth", () =>
+      assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW)
     );
 
-  if (error) {
-    throw new Error(error.message);
-  }
+    const { data: studentProfile, error } = await timer.step("profile", () =>
+      studentProfileRepository.findStudentProfileById(
+        adminClient,
+        studentProfileId
+      )
+    );
 
-  if (!studentProfile) {
-    return null;
-  }
+    if (error) {
+      throw new Error(error.message);
+    }
 
-  return mapStudentProfileToManagerStudentRow(adminClient, studentProfile);
+    if (!studentProfile) {
+      return null;
+    }
+
+    const [profileResult, emailsResult] = await timer.step("map", () =>
+      Promise.all([
+        profileRepository.findProfileById(adminClient, studentProfile.user_id),
+        authRepository.listAuthEmailsByIds(adminClient, [
+          studentProfile.user_id,
+        ]),
+      ])
+    );
+
+    if (profileResult.error || !profileResult.data) {
+      return null;
+    }
+    if (emailsResult.error) {
+      return null;
+    }
+
+    return mapStudentProfileToManagerStudentRow(
+      adminClient,
+      studentProfile,
+      profileResult.data,
+      emailsResult.data.get(studentProfile.user_id) ?? ""
+    );
+  } finally {
+    timer.end();
+  }
 }
 
 export async function getStudentDetailStatsForManager(
@@ -352,62 +395,58 @@ export async function getStudentDetailStatsForManager(
   actorUserId: string | null,
   userId: string
 ): Promise<ManagerStudentDetailStats> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
-
-  const [
-    classesRegisteredResult,
-    enrollmentsResult,
-    tasksTotalResult,
-    tasksDoneResult,
-  ] = await Promise.all([
-    studentClassRepository.countStudentClassesByUserId(adminClient, userId),
-    studentClassRepository.listStudentClassesByUserId(adminClient, userId),
-    studentTaskRepository.countStudentTasksByStudentId(adminClient, userId),
-    studentTaskRepository.countStudentTasksDoneByStudentId(adminClient, userId),
-  ]);
-
-  if (classesRegisteredResult.error) {
-    throw new Error(classesRegisteredResult.error.message);
-  }
-
-  if (enrollmentsResult.error) {
-    throw new Error(enrollmentsResult.error.message);
-  }
-
-  if (tasksTotalResult.error) {
-    throw new Error(tasksTotalResult.error.message);
-  }
-
-  if (tasksDoneResult.error) {
-    throw new Error(tasksDoneResult.error.message);
-  }
-
-  const classesRegistered = classesRegisteredResult.count ?? 0;
-  const enrollmentClassIds = (enrollmentsResult.data ?? []).map(
-    (row) => row.class_id
-  );
-
-  let classesDone = 0;
-  if (enrollmentClassIds.length > 0) {
-    const classesResult = await classRepository.listClassesWithSubjectByIds(
-      adminClient,
-      enrollmentClassIds
+  const timer = createNavStepTimer("getStudentDetailStats");
+  try {
+    await timer.step("auth", () =>
+      assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW)
     );
-    if (classesResult.error) {
-      throw new Error(classesResult.error.message);
-    }
-    classesDone = (classesResult.data ?? []).filter(
-      (row) => row.status === CLASS_STATUSES.DONE
-    ).length;
-  }
 
-  return {
-    classesRegistered,
-    classesDone,
-    classesPending: Math.max(classesRegistered - classesDone, 0),
-    tasksDone: tasksDoneResult.count ?? 0,
-    tasksTotal: tasksTotalResult.count ?? 0,
-  };
+    const [
+      classesRegisteredResult,
+      classesDoneResult,
+      tasksTotalResult,
+      tasksDoneResult,
+    ] = await timer.step("counts", () =>
+      Promise.all([
+        studentClassRepository.countStudentClassesByUserId(adminClient, userId),
+        studentClassRepository.countDoneStudentClassesByUserId(
+          adminClient,
+          userId
+        ),
+        studentTaskRepository.countStudentTasksByStudentId(adminClient, userId),
+        studentTaskRepository.countStudentTasksDoneByStudentId(
+          adminClient,
+          userId
+        ),
+      ])
+    );
+
+    if (classesRegisteredResult.error) {
+      throw new Error(classesRegisteredResult.error.message);
+    }
+    if (classesDoneResult.error) {
+      throw new Error(classesDoneResult.error.message);
+    }
+    if (tasksTotalResult.error) {
+      throw new Error(tasksTotalResult.error.message);
+    }
+    if (tasksDoneResult.error) {
+      throw new Error(tasksDoneResult.error.message);
+    }
+
+    const classesRegistered = classesRegisteredResult.count ?? 0;
+    const classesDone = classesDoneResult.count ?? 0;
+
+    return {
+      classesRegistered,
+      classesDone,
+      classesPending: Math.max(classesRegistered - classesDone, 0),
+      tasksDone: tasksDoneResult.count ?? 0,
+      tasksTotal: tasksTotalResult.count ?? 0,
+    };
+  } finally {
+    timer.end();
+  }
 }
 
 function mapClassStatus(status: string | null): ClassStatusValue {
@@ -548,10 +587,10 @@ export async function createStudent(
   const normalizedBirthDate = normalizeOptionalString(birthDate);
   const normalizedPhone = normalizeOptionalString(phone);
 
-  const existingUsername = await profileRepository.findProfileByUsername(
-    adminClient,
-    normalizedUsername
-  );
+  const [existingUsername, existingEmail] = await Promise.all([
+    profileRepository.findProfileByUsername(adminClient, normalizedUsername),
+    authRepository.findAuthUserByEmail(adminClient, normalizedEmail),
+  ]);
 
   if (existingUsername.data) {
     return {
@@ -560,11 +599,6 @@ export async function createStudent(
       fieldErrors: { username: ["This username is already taken."] },
     };
   }
-
-  const existingEmail = await authRepository.findAuthUserByEmail(
-    adminClient,
-    normalizedEmail
-  );
 
   if (existingEmail.error) {
     return {
@@ -641,7 +675,9 @@ export async function createStudent(
 
     const student = await mapStudentProfileToManagerStudentRow(
       adminClient,
-      studentProfile
+      studentProfile,
+      { username: normalizedUsername, created_at: studentProfile.created_at },
+      normalizedEmail
     );
 
     if (!student) {
@@ -744,11 +780,15 @@ export async function updateStudent(
   const normalizedBirthDate = normalizeOptionalString(birthDate);
   const normalizedPhone = normalizeOptionalString(phone);
 
-  const existingStudentProfile =
-    await studentProfileRepository.findStudentProfileById(
-      adminClient,
-      studentProfileId
-    );
+  const [existingStudentProfile, existingProfile, authUserResult] =
+    await Promise.all([
+      studentProfileRepository.findStudentProfileById(
+        adminClient,
+        studentProfileId
+      ),
+      profileRepository.findProfileById(adminClient, userId),
+      authRepository.getAuthUserById(adminClient, userId),
+    ]);
 
   if (existingStudentProfile.error) {
     return {
@@ -764,11 +804,6 @@ export async function updateStudent(
     return { success: false, error: "Student not found." };
   }
 
-  const existingProfile = await profileRepository.findProfileById(
-    adminClient,
-    userId
-  );
-
   if (existingProfile.error || !existingProfile.data) {
     return { success: false, error: "Student not found." };
   }
@@ -777,10 +812,25 @@ export async function updateStudent(
     return { success: false, error: "Student not found." };
   }
 
-  const existingUsername = await profileRepository.findProfileByUsername(
-    adminClient,
-    normalizedUsername
-  );
+  const usernameChanged =
+    normalizedUsername !== (existingProfile.data.username ?? "").trim();
+  const oldEmail = authUserResult.data?.user?.email ?? null;
+  const emailChanged = normalizedEmail !== (oldEmail ?? "").trim();
+
+  const [existingUsername, existingEmail] = await Promise.all([
+    usernameChanged
+      ? profileRepository.findProfileByUsername(adminClient, normalizedUsername)
+      : Promise.resolve({
+          data: null,
+          error: null,
+          count: null,
+          status: 200,
+          statusText: "OK",
+        } as never),
+    emailChanged
+      ? authRepository.findAuthUserByEmail(adminClient, normalizedEmail)
+      : Promise.resolve({ data: null, error: null } as never),
+  ]);
 
   if (
     existingUsername.data &&
@@ -792,11 +842,6 @@ export async function updateStudent(
       fieldErrors: { username: ["This username is already taken."] },
     };
   }
-
-  const existingEmail = await authRepository.findAuthUserByEmail(
-    adminClient,
-    normalizedEmail
-  );
 
   if (existingEmail.error) {
     return {
@@ -812,12 +857,6 @@ export async function updateStudent(
       fieldErrors: { email: ["This email is already in use."] },
     };
   }
-
-  const authUserResult = await authRepository.getAuthUserById(
-    adminClient,
-    userId
-  );
-  const oldEmail = authUserResult.data?.user?.email ?? null;
 
   const { error: profileError } = await profileRepository.updateProfileById(
     adminClient,
@@ -872,7 +911,9 @@ export async function updateStudent(
 
   const student = await mapStudentProfileToManagerStudentRow(
     adminClient,
-    updatedStudentProfile
+    updatedStudentProfile,
+    { username: normalizedUsername, created_at: existingProfile.data.created_at },
+    normalizedEmail
   );
 
   if (!student) {

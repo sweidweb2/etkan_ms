@@ -1,6 +1,6 @@
 import { IncomeStatementAnalyticsTablesClient } from "@/components/manager/accounting/income-statement-analytics-tables-client";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getIncomeStatementAnalyticsTablesForManager } from "@/services/income-statement-analytics.service";
+import { getIncomeStatementAnalyticsTablesForManager } from "@/services/accounting/income-statement-analytics.service";
 
 type IncomeStatementAnalyticsTablesSectionProps = {
   actorUserId: string;

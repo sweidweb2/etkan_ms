@@ -27,7 +27,6 @@ import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import type {
-  ManagerWorkshopInstructorCandidate,
   ManagerWorkshopInstructorRow,
   RemoveWorkshopInstructorActionState,
 } from "@/types/manager-workshop";
@@ -37,7 +36,6 @@ const initialRemoveState: RemoveWorkshopInstructorActionState = {};
 type WorkshopInstructorsSectionProps = {
   workshopId: string;
   instructors: ManagerWorkshopInstructorRow[];
-  candidates: ManagerWorkshopInstructorCandidate[];
   mutationsLocked?: boolean;
 };
 
@@ -61,7 +59,6 @@ function formatWageAmount(
 export function WorkshopInstructorsSection({
   workshopId,
   instructors,
-  candidates,
   mutationsLocked = false,
 }: WorkshopInstructorsSectionProps) {
   const router = useRouter();
@@ -109,7 +106,6 @@ export function WorkshopInstructorsSection({
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         workshopId={workshopId}
-        candidates={candidates}
         onAdded={() => router.refresh()}
       />
 

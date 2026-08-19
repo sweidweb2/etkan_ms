@@ -6,7 +6,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkAuthRateLimit } from "@/lib/rate-limit/auth-rate-limit";
 import { parseSignupFormData } from "@/lib/validators/auth/form-data";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { register } from "@/services/auth.service";
+import { register } from "@/services/auth/auth.service";
 import type { SignupActionState } from "@/types/auth";
 
 export async function signupAction(

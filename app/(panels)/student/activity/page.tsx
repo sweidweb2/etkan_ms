@@ -1,7 +1,7 @@
 import { StudentActivityTable } from "@/components/shared/student-activity-table";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listStudentActivityForSelf } from "@/services/student-activity.service";
+import { listStudentActivityForSelf } from "@/services/students/student-activity.service";
 
 export default async function StudentActivityPage() {
   const adminClient = createSupabaseAdminClient();

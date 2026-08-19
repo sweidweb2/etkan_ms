@@ -18,7 +18,7 @@ vi.mock("@/lib/auth/session", () => ({
   getSessionPack: vi.fn(),
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   hasPermissionInSet: vi.fn(
     (permissions: ReadonlySet<string>, permission: string) =>
       permissions.has(permission)

@@ -156,7 +156,7 @@ Always an array (length ≥ 1 for in-scope asks):
 - [x] Confirm locked decisions in §2  
 - [x] Wipe old hot path:
   - [x] Deleted `classify` / `orchestrate` / `compact` / `format-answer` / `intent` / `system-prompt` (+ tests)
-  - [x] Deleted `services/schedule-assistant.service.ts` (+ tests)
+  - [x] Deleted `services/schedule/schedule-assistant.service.ts` (+ tests)
   - [x] Stripped L1 tool defs from `workers-ai.ts` (kept generic `runWorkersAiChat`)
   - [x] Slimmed validators to prompt-only; constants to UI + routes/caps/weekdays/refusal
   - [x] Stub `assistant/route.ts` (auth + rate limit + rebuild SSE message)
@@ -313,7 +313,7 @@ Automated coverage: `lib/manager/schedule-assistant/phase7-qa.test.ts` (router �
 | Prompts | `lib/manager/schedule-assistant/system-prompt.ts` (split ROUTER / MAP_* / SYNTH) |
 | Constants | `lib/constants/schedule-assistant.ts` (routes, caps, max_tokens) |
 | Validators | `lib/validators/manager/schedule-assistant.ts` |
-| Service | `services/schedule-assistant.service.ts` (catalog fetchers) |
+| Service | `services/schedule/schedule-assistant.service.ts` (catalog fetchers) |
 | API | `app/api/manager/instructor-schedules/assistant/route.ts` |
 | Tests | colocated `*.test.ts` for router, prefetch, mappers, resolve, fast-path |
 

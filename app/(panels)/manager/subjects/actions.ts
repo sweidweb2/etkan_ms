@@ -15,7 +15,7 @@ import {
   createSubjectForManager,
   deleteSubjectForManager,
   updateSubjectForManager,
-} from "@/services/subject.service";
+} from "@/services/classes/subject.service";
 import type {
   CreateSubjectActionState,
   DeleteSubjectActionState,

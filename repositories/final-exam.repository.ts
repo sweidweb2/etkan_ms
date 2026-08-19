@@ -239,6 +239,75 @@ export async function createStudentFinalExamGrade(
     .single();
 }
 
+export async function ensureEnrollmentFinalExamGrade(
+  client: Supabase,
+  classId: string,
+  studentUserId: string
+) {
+  return client.rpc("ensure_enrollment_final_exam_grade", {
+    p_class_id: classId,
+    p_student_id: studentUserId,
+  });
+}
+
+function asStudentFinalExamGradeRecord(
+  value: unknown
+): StudentFinalExamGradeRecord | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+  if (
+    typeof row.id !== "string" ||
+    typeof row.final_exam_id !== "string" ||
+    typeof row.student_id !== "string" ||
+    typeof row.status !== "string" ||
+    typeof row.created_at !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    final_exam_id: row.final_exam_id,
+    student_id: row.student_id,
+    status: row.status,
+    submitted_at: typeof row.submitted_at === "string" ? row.submitted_at : null,
+    grade: typeof row.grade === "number" ? row.grade : row.grade == null ? null : Number(row.grade),
+    notes: typeof row.notes === "string" ? row.notes : null,
+    graded_at: typeof row.graded_at === "string" ? row.graded_at : null,
+    created_at: row.created_at,
+  };
+}
+
+export async function ensureEnrollmentFinalExamGrades(
+  client: Supabase,
+  classId: string,
+  studentUserIds: string[]
+) {
+  if (studentUserIds.length === 0) {
+    return { data: [] as StudentFinalExamGradeRecord[], error: null };
+  }
+
+  const { data, error } = await client.rpc("ensure_enrollment_final_exam_grades", {
+    p_class_id: classId,
+    p_student_ids: studentUserIds,
+  });
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  const grades = Array.isArray(data)
+    ? data
+        .map((item) => asStudentFinalExamGradeRecord(item))
+        .filter((item): item is StudentFinalExamGradeRecord => item !== null)
+    : [];
+
+  return { data: grades, error: null };
+}
+
 export async function deleteFinalExamById(client: Supabase, id: string) {
   return client.from("final_exam").delete().eq("id", id);
 }

@@ -4,7 +4,7 @@ import { getSundayWeekBounds } from "@/lib/manager/weekly-schedule-calendar";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   createWeeklyScheduleSlotSchema,
   updateWeeklyScheduleSlotSchema,
@@ -14,13 +14,12 @@ import {
 } from "@/lib/validators/manager/weekly-schedule-slot";
 import * as weeklyScheduleSlotRepository from "@/repositories/weekly-schedule-slot.repository";
 import type {
-  CreateWeeklyScheduleSlotRecordInput,
   WeeklyScheduleSlotRecord,
 } from "@/repositories/weekly-schedule-slot.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   CopyWeeklySchedulePreview,
@@ -253,12 +252,18 @@ async function buildCopyPreview(
 
 export async function listWeeklyScheduleSlotsForManager(
   adminClient: Supabase,
-  actorUserId: string | null
+  actorUserId: string | null,
+  options: { weekStart: string }
 ): Promise<ManagerWeeklyScheduleSession[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.SCHEDULE_VIEW);
 
+  const bounds = getSundayWeekBounds(options.weekStart);
   const { data, error } =
-    await weeklyScheduleSlotRepository.listWeeklyScheduleSlots(adminClient);
+    await weeklyScheduleSlotRepository.listWeeklyScheduleSlotsInDateRange(
+      adminClient,
+      bounds.weekStart,
+      bounds.weekEnd
+    );
 
   if (error) {
     throw new Error(error.message);
@@ -595,21 +600,10 @@ export async function copyLastWeekScheduleForManager(
     };
   }
 
-  const inputs: CreateWeeklyScheduleSlotRecordInput[] = preview.willCreate.map(
-    (item) => ({
-      name: item.name,
-      type: item.type,
-      slot_date: item.slotDate,
-      start_time: item.startTime,
-      end_time: item.endTime,
-      color: item.color,
-    })
-  );
-
   const { data, error } =
-    await weeklyScheduleSlotRepository.createWeeklyScheduleSlots(
+    await weeklyScheduleSlotRepository.copyWeeklyScheduleFromLastWeek(
       adminClient,
-      inputs
+      preview.weekStart
     );
 
   if (error) {
@@ -619,33 +613,36 @@ export async function copyLastWeekScheduleForManager(
     };
   }
 
-  const created = data ?? [];
+  const result = data as {
+    created_count?: number;
+    skipped_count?: number;
+  } | null;
+  const createdCount = result?.created_count ?? 0;
+  const skippedCount = result?.skipped_count ?? preview.willSkip.length;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
     severity: "info",
     table_name: "weekly_schedule_slots",
-    record_id: created[0]?.id ?? null,
+    record_id: null,
     new_data: {
-      created_count: created.length,
+      created_count: createdCount,
       week_start: preview.weekStart,
       last_week_start: preview.lastWeekStart,
     },
     metadata: {
       note: "Copied schedule slots from last week.",
-      created_count: created.length,
-      skipped_count: preview.willSkip.length,
+      created_count: createdCount,
+      skipped_count: skippedCount,
     },
   });
 
   return {
     success: true,
-    createdCount: created.length,
-    skippedCount: preview.willSkip.length,
-    message: `Copied ${created.length} slot${created.length === 1 ? "" : "s"} from last week${
-      preview.willSkip.length > 0
-        ? ` (${preview.willSkip.length} skipped)`
-        : ""
+    createdCount,
+    skippedCount,
+    message: `Copied ${createdCount} slot${createdCount === 1 ? "" : "s"} from last week${
+      skippedCount > 0 ? ` (${skippedCount} skipped)` : ""
     }.`,
   };
 }

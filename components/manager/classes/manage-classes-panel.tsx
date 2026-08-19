@@ -26,11 +26,6 @@ import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-cla
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import type {
-  ManagerClassSemesterOption,
-  ManagerClassSubjectOption,
-  ManagerClassTeacherSelectOption,
-} from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 
@@ -89,17 +84,11 @@ function matchesSearch(classRow: ManagerClassRow, query: string) {
 type ManageClassesPanelProps = {
   initialClasses: ManagerClassRow[];
   initialStudentsWithoutActiveClass: ManagerStudentWithoutActiveClassRow[];
-  subjectOptions: ManagerClassSubjectOption[];
-  semesterOptions: ManagerClassSemesterOption[];
-  teacherOptions: ManagerClassTeacherSelectOption[];
 };
 
 export function ManageClassesPanel({
   initialClasses,
   initialStudentsWithoutActiveClass,
-  subjectOptions,
-  semesterOptions,
-  teacherOptions,
 }: ManageClassesPanelProps) {
   const [classes, setClasses] = useState(initialClasses);
   const studentsWithoutActiveClass = initialStudentsWithoutActiveClass;
@@ -124,6 +113,16 @@ export function ManageClassesPanel({
     }),
     [classes, studentsWithoutActiveClass]
   );
+
+  const semesterOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const classRow of classes) {
+      if (classRow.semester_id && classRow.semester_name) {
+        seen.set(classRow.semester_id, classRow.semester_name);
+      }
+    }
+    return [...seen.entries()].map(([id, name]) => ({ id, name }));
+  }, [classes]);
 
   const filteredClasses = useMemo(() => {
     return classes.filter((classRow) => {
@@ -201,9 +200,6 @@ export function ManageClassesPanel({
         <AddClassDialog
           open
           onOpenChange={setIsAddOpen}
-          subjectOptions={subjectOptions}
-          semesterOptions={semesterOptions}
-          teacherOptions={teacherOptions}
           onClassCreated={handleCreateClass}
         />
       ) : null}

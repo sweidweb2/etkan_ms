@@ -2,7 +2,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   CLASS_STATUSES,
   type ClassStatusValue,
@@ -25,7 +25,7 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerSemesterProgressRow,
@@ -425,6 +425,8 @@ export async function updateSemesterForManager(
     };
   }
 
+  const normalizedName = parsed.data.name.trim();
+
   const existing = await semesterRepository.findSemesterById(
     adminClient,
     parsed.data.id
@@ -441,25 +443,26 @@ export async function updateSemesterForManager(
     return { success: false, error: "Semester not found." };
   }
 
-  const normalizedName = parsed.data.name.trim();
-  const nameConflict = await semesterRepository.findSemesterByName(
-    adminClient,
-    normalizedName
-  );
+  if (normalizedName !== existing.data.name.trim()) {
+    const nameConflict = await semesterRepository.findSemesterByName(
+      adminClient,
+      normalizedName
+    );
 
-  if (nameConflict.error) {
-    return {
-      success: false,
-      error: mapCreateSemesterError(nameConflict.error.message),
-    };
-  }
+    if (nameConflict.error) {
+      return {
+        success: false,
+        error: mapCreateSemesterError(nameConflict.error.message),
+      };
+    }
 
-  if (nameConflict.data && nameConflict.data.id !== parsed.data.id) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { name: ["A semester with this name already exists."] },
-    };
+    if (nameConflict.data && nameConflict.data.id !== parsed.data.id) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: { name: ["A semester with this name already exists."] },
+      };
+    }
   }
 
   const { data, error } = await semesterRepository.updateSemester(
@@ -577,10 +580,10 @@ export async function connectClassToSemesterForManager(
     };
   }
 
-  const semesterResult = await semesterRepository.findSemesterById(
-    adminClient,
-    input.semester_id
-  );
+  const [semesterResult, existingClass] = await Promise.all([
+    semesterRepository.findSemesterById(adminClient, input.semester_id),
+    classRepository.findClassById(adminClient, parsed.data.classId),
+  ]);
 
   if (semesterResult.error) {
     return {
@@ -592,11 +595,6 @@ export async function connectClassToSemesterForManager(
   if (!semesterResult.data) {
     return { success: false, error: "Semester not found." };
   }
-
-  const existingClass = await classRepository.findClassById(
-    adminClient,
-    parsed.data.classId
-  );
 
   if (existingClass.error) {
     return {

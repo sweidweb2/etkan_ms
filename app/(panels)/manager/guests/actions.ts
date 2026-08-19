@@ -31,7 +31,7 @@ import {
   setGuestStatusForManager,
   setGuestStatusesForManager,
   updateGuestForManager,
-} from "@/services/guest.service";
+} from "@/services/guests/guest.service";
 import {
   cancelGuestRegistrationApplicationForManager,
   connectGuestRegistrationUserForManager,
@@ -41,8 +41,8 @@ import {
   stopGuestRegistrationInviteForManager,
   submitGuestRegistrationForManager,
   tempUploadGuestRegistrationDocumentForManager,
-} from "@/services/guest-registration.service";
-import { createStudentFromGuestRegistrationForManager } from "@/services/guest-create-student.service";
+} from "@/services/guests/guest-registration.service";
+import { createStudentFromGuestRegistrationForManager } from "@/services/guests/guest-create-student.service";
 import type {
   CancelGuestRegistrationApplicationActionState,
   ChangeGuestStatusActionState,

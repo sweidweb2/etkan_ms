@@ -216,6 +216,48 @@ export async function findStudentTaskById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function seedLateJoinStudentTasks(
+  client: Supabase,
+  classId: string,
+  studentUserId: string
+) {
+  return client.rpc("seed_late_join_student_tasks", {
+    p_class_id: classId,
+    p_student_id: studentUserId,
+  });
+}
+
+export async function seedLateJoinStudentTasksForStudents(
+  client: Supabase,
+  classId: string,
+  studentUserIds: string[]
+) {
+  if (studentUserIds.length === 0) {
+    return { data: 0, error: null };
+  }
+
+  return client.rpc("seed_late_join_student_tasks_for_students", {
+    p_class_id: classId,
+    p_student_ids: studentUserIds,
+  });
+}
+
+export async function seedStudentTasksForNewTask(
+  client: Supabase,
+  taskId: string
+) {
+  const { data, error } = await client.rpc("seed_student_tasks_for_new_task", {
+    p_task_id: taskId,
+  });
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  const rows = Array.isArray(data) ? data : data ? [data] : [];
+  return { data: rows as StudentTaskRecord[], error: null };
+}
+
 export async function createStudentTasks(
   client: Supabase,
   rows: CreateStudentTaskInput[]

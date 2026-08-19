@@ -11,22 +11,63 @@ import {
 import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
 import {
   createBorrowsForManager,
+  getBorrowCreateOptionsForManager,
+  listBorrowClassStudentProfileIdsForManager,
   toggleBorrowReturnedForManager,
   updateBorrowRecordForManager,
-} from "@/services/borrow-equipment.service";
+} from "@/services/equipment/borrow-equipment.service";
 import {
   createEquipmentForManager,
   updateEquipmentForManager,
-} from "@/services/equipment.service";
-import type {
-  CreateEquipmentActionState,
-  UpdateEquipmentActionState,
-} from "@/types/manager-equipment";
+} from "@/services/equipment/equipment.service";
 import type {
   CreateBorrowsActionState,
   ToggleBorrowReturnedActionState,
   UpdateBorrowRecordActionState,
 } from "@/types/manager-borrow-equipment-list";
+import type {
+  CreateEquipmentActionState,
+  ManagerEquipmentRow,
+  UpdateEquipmentActionState,
+} from "@/types/manager-equipment";
+import type { ManagerStudentRow } from "@/types/manager-student";
+
+export async function loadBorrowCreateOptionsAction(): Promise<{
+  students: ManagerStudentRow[];
+  equipments: ManagerEquipmentRow[];
+}> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return { students: [], equipments: [] };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await getBorrowCreateOptionsForManager(adminClient, actor.userId);
+  } catch {
+    return { students: [], equipments: [] };
+  }
+}
+
+export async function loadBorrowClassStudentProfileIdsAction(
+  classId: string
+): Promise<string[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listBorrowClassStudentProfileIdsForManager(
+      adminClient,
+      actor.userId,
+      classId
+    );
+  } catch {
+    return [];
+  }
+}
 
 export async function createEquipmentAction(
   _prevState: CreateEquipmentActionState,

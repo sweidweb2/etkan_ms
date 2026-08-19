@@ -2413,7 +2413,266 @@ export type Database = {
         }
       }
       mark_overdue_pending_work_missing: { Args: never; Returns: undefined }
+      seed_late_join_attendees: {
+        Args: { p_class_id: string; p_student_id: string }
+        Returns: number
+      }
+      seed_late_join_attendees_for_students: {
+        Args: { p_class_id: string; p_student_ids: string[] }
+        Returns: number
+      }
+      seed_late_join_student_tasks: {
+        Args: { p_class_id: string; p_student_id: string }
+        Returns: number
+      }
+      seed_late_join_student_tasks_for_students: {
+        Args: { p_class_id: string; p_student_ids: string[] }
+        Returns: number
+      }
+      ensure_enrollment_final_exam_grade: {
+        Args: { p_class_id: string; p_student_id: string }
+        Returns: {
+          created_at: string
+          final_exam_id: string
+          grade: number | null
+          graded_at: string | null
+          id: string
+          notes: string | null
+          status: string
+          student_id: string
+          submitted_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "student_finalexam_grade"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      ensure_enrollment_final_exam_grades: {
+        Args: { p_class_id: string; p_student_ids: string[] }
+        Returns: Json
+      }
+      enroll_student_in_class: {
+        Args: { p_class_id: string; p_user_id: string }
+        Returns: Json
+      }
+      enroll_students_in_class: {
+        Args: { p_class_id: string; p_user_ids: string[] }
+        Returns: Json
+      }
+      delete_student_class_membership: {
+        Args: { p_class_id: string; p_id: string }
+        Returns: {
+          class_id: string
+          id: string
+          joined_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "student_class"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      transfer_student_between_classes: {
+        Args: {
+          p_from_class_id: string
+          p_to_class_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       start_scheduled_semesters: { Args: never; Returns: undefined }
+      sync_student_joined_class: {
+        Args: { p_class_id: string; p_student_id: string }
+        Returns: Json
+      }
+      sync_students_joined_class: {
+        Args: { p_class_id: string; p_student_ids: string[] }
+        Returns: Json
+      }
+      sync_student_left_class: {
+        Args: { p_class_id: string; p_student_id: string }
+        Returns: Json
+      }
+      ensure_session_attendees_for_members: {
+        Args: { p_class_id: string; p_session_id: string }
+        Returns: number
+      }
+      renumber_sessions_after_delete: {
+        Args: { p_class_id: string }
+        Returns: number
+      }
+      copy_weekly_schedule_from_last_week: {
+        Args: { p_week_start: string }
+        Returns: Json
+      }
+      seed_student_tasks_for_new_task: {
+        Args: { p_task_id: string }
+        Returns: {
+          grade: number | null
+          graded_at: string | null
+          id: string
+          notes: string | null
+          status: string
+          student_id: string
+          submitted_at: string | null
+          task_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "student_tasks"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      find_sync_target_phase_for_class: {
+        Args: { p_class_id: string }
+        Returns: {
+          amount: number
+          created_at: string
+          duration_months: number
+          end_date: string
+          id: string
+          name: string
+          semester_code: string
+          semester_id: string
+          start_date: string
+          status: string
+          updated_at: string
+          upfront_amount: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_phases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      ensure_spp_for_student_on_phase: {
+        Args: {
+          p_assigned_at?: string
+          p_phase_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
+      backfill_spps_for_class_become_in_progress: {
+        Args: { p_class_id: string }
+        Returns: Json
+      }
+      recalc_spp_and_phase_status: {
+        Args: { p_spp_id: string }
+        Returns: Json
+      }
+      recalc_non_cancelled_spps_for_phase: {
+        Args: { p_phase_id: string }
+        Returns: Json
+      }
+      create_student_payment: {
+        Args: {
+          p_amount: number
+          p_notes?: string | null
+          p_payment_date: string
+          p_payment_method: string
+          p_received_by: string
+          p_received_by_management: boolean
+          p_student_payment_phase_id: string
+        }
+        Returns: Json
+      }
+      update_student_payment: {
+        Args: {
+          p_amount: number
+          p_id: string
+          p_notes?: string | null
+          p_payment_date: string
+          p_payment_method: string
+          p_received_by: string
+          p_received_by_management: boolean
+          p_student_payment_phase_id: string
+        }
+        Returns: Json
+      }
+      delete_student_payment: {
+        Args: {
+          p_id: string
+          p_student_payment_phase_id?: string | null
+        }
+        Returns: Json
+      }
+      delete_student_payment_phase: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      create_student_financial_adjustment: {
+        Args: {
+          p_effective_date: string
+          p_reason?: string | null
+          p_student_payment_phase_id: string
+          p_type: string
+          p_value: number
+          p_value_type: string
+        }
+        Returns: Json
+      }
+      update_student_financial_adjustment: {
+        Args: {
+          p_effective_date: string
+          p_id: string
+          p_reason?: string | null
+          p_student_payment_phase_id: string
+          p_type: string
+          p_value: number
+          p_value_type: string
+        }
+        Returns: Json
+      }
+      delete_student_financial_adjustment: {
+        Args: {
+          p_id: string
+          p_student_payment_phase_id?: string | null
+        }
+        Returns: Json
+      }
+      create_payment_phase_with_spps: {
+        Args: {
+          p_amount: number
+          p_duration_months: number
+          p_end_date: string
+          p_name: string
+          p_semester_id: string
+          p_start_date: string
+          p_upfront_amount: number
+        }
+        Returns: Json
+      }
+      repair_missing_spp: {
+        Args: { p_payment_phase_id: string; p_student_id: string }
+        Returns: Json
+      }
+      transfer_student_payment_phase: {
+        Args: {
+          p_destination_payment_phase_id: string
+          p_spp_id: string
+        }
+        Returns: Json
+      }
+      cancel_payment_phase: {
+        Args: { p_payment_phase_id: string }
+        Returns: Json
+      }
+      change_student_status: {
+        Args: {
+          p_remove_from_classes: boolean
+          p_remove_open_spps: boolean
+          p_target_status: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

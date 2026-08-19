@@ -9,7 +9,7 @@ import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { ROUTES } from "@/lib/constants/routes";
 import { TOAST_QUERY_KEYS } from "@/lib/constants/toast-messages";
 import { appendQueryParam } from "@/lib/url/append-query-param";
-import { logout } from "@/services/auth.service";
+import { logout } from "@/services/auth/auth.service";
 
 export async function logoutAction(): Promise<void> {
   const client = await createSupabaseServerActionClient();

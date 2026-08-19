@@ -272,7 +272,7 @@ Layering (project standard):
 | `app/(panels)/manager/guests/*` | Pages, actions |
 | `app/(public)/register/guest/[token]/*` | Public wizard + actions |
 | `components/...` | UI only |
-| `services/guest.service.ts` (+ registration invite helpers) | Authz, validation, orchestration |
+| `services/guests/guest.service.ts` (+ registration invite helpers) | Authz, validation, orchestration |
 | `repositories/guest*.ts` | Supabase only |
 | `lib/validators/manager/guest*.ts` | Zod |
 | `lib/constants/guest*.ts` | Statuses, services, labels |
@@ -413,7 +413,7 @@ Covered by Vitest (+ DB cascade in `20260820120000_guests.sql`). Copy-link / ste
 | Nav / routes | `lib/constants/panel-nav.ts`, `routes.ts` |
 | Constants | `lib/constants/guest*.ts` |
 | Validators | `lib/validators/manager/guest*.ts`, public guest registration |
-| Repos / services | `repositories/guest*.ts`, `services/guest.service.ts` |
+| Repos / services | `repositories/guest*.ts`, `services/guests/guest.service.ts` |
 | Panel UI | `app/(panels)/manager/guests/**`, components under `components/manager/guests/**` |
 | Public UI | `app/(public)/register/guest/[token]/**` |
 | Plan | this file |

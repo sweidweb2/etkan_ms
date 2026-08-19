@@ -3,7 +3,7 @@ import { ManageInstructorsPanel } from "@/components/manager/instructors/manage-
 import { getSessionPack } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getInstructorsPageForManager } from "@/services/instructor.service";
+import { getInstructorsPageForManager } from "@/services/instructors/instructor.service";
 
 export default async function ManagerInstructorsPage() {
   const adminClient = createSupabaseAdminClient();

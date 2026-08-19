@@ -69,14 +69,10 @@ import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
-import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
 import type {
   DeleteWorkshopActionState,
   ManagerWorkshopDocumentRow,
-  ManagerWorkshopInstructorCandidate,
   ManagerWorkshopInstructorRow,
-  ManagerWorkshopPaymentRow,
-  ManagerWorkshopPaymentSummary,
   ManagerWorkshopRow,
   ManagerWorkshopSessionRow,
 } from "@/types/manager-workshop";
@@ -103,12 +99,8 @@ const NESTED_TAB_BODY_CLASS = "outline-none p-1.5 sm:p-2";
 type WorkshopDetailsPanelProps = {
   workshop: ManagerWorkshopRow;
   paymentCount: number;
-  payments: ManagerWorkshopPaymentRow[];
-  paymentSummary: ManagerWorkshopPaymentSummary;
   instructors: ManagerWorkshopInstructorRow[];
-  instructorCandidates: ManagerWorkshopInstructorCandidate[];
   documents: ManagerWorkshopDocumentRow[];
-  scheduleSlots: ManagerInstructorScheduleSession[];
   sessions: ManagerWorkshopSessionRow[];
 };
 
@@ -155,12 +147,8 @@ function formatDate(value: string | null) {
 export function WorkshopDetailsPanel({
   workshop: initialWorkshop,
   paymentCount,
-  payments,
-  paymentSummary,
   instructors,
-  instructorCandidates,
   documents,
-  scheduleSlots,
   sessions,
 }: WorkshopDetailsPanelProps) {
   const router = useRouter();
@@ -545,7 +533,6 @@ export function WorkshopDetailsPanel({
                       <WorkshopScheduleSlotsSection
                         workshopId={workshop.id}
                         workshopName={workshop.name}
-                        scheduleSlots={scheduleSlots}
                         mutationsLocked={contentMutationsLocked}
                       />
                     </TabsContentPrimitive>
@@ -570,7 +557,6 @@ export function WorkshopDetailsPanel({
                       <WorkshopInstructorsSection
                         workshopId={workshop.id}
                         instructors={instructors}
-                        candidates={instructorCandidates}
                         mutationsLocked={contentMutationsLocked}
                       />
                     </TabsContentPrimitive>
@@ -594,8 +580,7 @@ export function WorkshopDetailsPanel({
                     >
                       <WorkshopPaymentsSection
                         workshopId={workshop.id}
-                        payments={payments}
-                        summary={paymentSummary}
+                        workshopPrice={workshop.price}
                         mutationsLocked={contentMutationsLocked}
                       />
                     </TabsContentPrimitive>

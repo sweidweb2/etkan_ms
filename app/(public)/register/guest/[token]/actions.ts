@@ -2,7 +2,7 @@
 
 import { parseSubmitGuestRegistrationByTokenFormData } from "@/lib/validators/public/registration";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { submitGuestRegistrationByToken } from "@/services/guest-registration.service";
+import { submitGuestRegistrationByToken } from "@/services/guests/guest-registration.service";
 import type { SubmitPublicRegistrationActionState } from "@/types/public-registration";
 
 export async function submitGuestRegistrationByTokenAction(

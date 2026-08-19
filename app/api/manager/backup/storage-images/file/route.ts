@@ -3,12 +3,12 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { parseBackupStorageImageFileQuery } from "@/lib/validators/manager/backup-storage-images";
-import { getCurrentUser } from "@/services/auth.service";
-import { getUnauthorizedError } from "@/services/authorization.service";
+import { getCurrentUser } from "@/services/auth/auth.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   downloadStorageImageForBackup,
   getBackupStorageExportUnauthorized,
-} from "@/services/backup-storage.service";
+} from "@/services/backup/backup-storage.service";
 
 export async function GET(request: Request) {
   const sessionClient = await createSupabaseServerActionClient();

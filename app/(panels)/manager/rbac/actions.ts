@@ -7,8 +7,8 @@ import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getUnauthorizedError } from "@/services/authorization.service";
-import { updateRolePermissionsForManager } from "@/services/rbac.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
+import { updateRolePermissionsForManager } from "@/services/auth/rbac.service";
 
 export type UpdateRolePermissionsActionState = {
   success?: boolean;

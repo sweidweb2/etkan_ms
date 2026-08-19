@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getGuestRegistrationContextByToken } from "@/services/guest-registration.service";
+import { getGuestRegistrationContextByToken } from "@/services/guests/guest-registration.service";
 import { submitGuestRegistrationByTokenAction } from "./actions";
 
 export const dynamic = "force-dynamic";

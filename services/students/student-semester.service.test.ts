@@ -1,33 +1,39 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { STUDENT_SEMESTER_STATUSES } from "@/lib/constants/manager-student-semester-status";
+import * as authRepository from "@/repositories/auth.repository";
+import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   addStudentToSemesterForManager,
   listAvailableStudentsForSemester,
   listSemesterStudentsForManager,
-} from "@/services/student-semester.service";
-import * as studentService from "@/services/student.service";
+} from "@/services/students/student-semester.service";
+import * as studentService from "@/services/students/student.service";
 
 vi.mock("@/repositories/student-semester.repository");
 vi.mock("@/repositories/semester.repository");
+vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/profile.repository");
+vi.mock("@/repositories/auth.repository");
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: vi.fn(),
 }));
 vi.mock("next/cache", () => ({
   unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
 }));
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/student.service", () => ({
+vi.mock("@/services/students/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -91,7 +97,38 @@ describe("listSemesterStudentsForManager", () => {
         statusText: "OK",
       }
     );
-    vi.mocked(studentService.listStudentsForManager).mockResolvedValue([studentRow]);
+    vi.mocked(studentProfileRepository.listStudentProfilesByIds).mockResolvedValue({
+      data: [
+        {
+          id: studentProfileId,
+          user_id: "user-1",
+          full_name: "Student One",
+          birth_date: null,
+          phone: null,
+          status: "active",
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
+      data: [
+        {
+          id: "user-1",
+          username: "student1",
+          role: "student",
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
+      data: new Map([["user-1", "student@example.com"]]),
+      error: null,
+    });
 
     const rows = await listSemesterStudentsForManager(
       adminClient,
@@ -199,7 +236,36 @@ describe("addStudentToSemesterForManager", () => {
         statusText: "Created",
       }
     );
-    vi.mocked(studentService.listStudentsForManager).mockResolvedValue([studentRow]);
+    vi.mocked(studentProfileRepository.findStudentProfileById).mockResolvedValue({
+      data: {
+        id: studentProfileId,
+        user_id: "user-1",
+        full_name: "Student One",
+        birth_date: null,
+        phone: null,
+        status: "active",
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      error: null,
+    });
+    vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
+      data: [
+        {
+          id: "user-1",
+          username: "student1",
+          role: "student",
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
+      data: new Map([["user-1", "student@example.com"]]),
+      error: null,
+    });
 
     const result = await addStudentToSemesterForManager(
       adminClient,

@@ -176,3 +176,12 @@ export async function updateSessionNbOrder(
 export async function deleteSessionById(client: Supabase, id: string) {
   return client.from("sessions").delete().eq("id", id);
 }
+
+export async function renumberSessionsAfterDelete(
+  client: Supabase,
+  classId: string
+) {
+  return client.rpc("renumber_sessions_after_delete", {
+    p_class_id: classId,
+  });
+}

@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/services/auth.service";
-import { getUnauthorizedError } from "@/services/authorization.service";
+import { getCurrentUser } from "@/services/auth/auth.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   getBackupStorageExportUnauthorized,
   listStorageImagesForBackup,
-} from "@/services/backup-storage.service";
+} from "@/services/backup/backup-storage.service";
 
 export async function GET() {
   const sessionClient = await createSupabaseServerActionClient();

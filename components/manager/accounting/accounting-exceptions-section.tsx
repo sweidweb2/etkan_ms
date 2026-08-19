@@ -1,6 +1,6 @@
 import { AccountingExceptionsClient } from "@/components/manager/accounting/accounting-exceptions-client";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getAccountingExceptionsSnapshotForManager } from "@/services/payment-phase.service";
+import { getAccountingExceptionsSnapshotForManager } from "@/services/accounting/payment-phase.service";
 import type { ManagerPaymentPhaseRow } from "@/types/manager-payment-phase";
 
 type AccountingExceptionsSectionProps = {

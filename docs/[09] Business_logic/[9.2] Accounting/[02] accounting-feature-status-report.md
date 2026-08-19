@@ -111,8 +111,8 @@ Services assert permissions; UI uses `<Can>`.
 - SPP `original_amount` tracks **live** phase amount (no per-student freeze) — plan §11 default.
 
 ### Proof
-- `services/payment-phase.service.ts` (`createPaymentPhaseForManager`)
-- `services/payment-phase.service.test.ts`
+- `services/accounting/payment-phase.service.ts` (`createPaymentPhaseForManager`)
+- `services/accounting/payment-phase.service.test.ts`
 - UI: `create-payment-phase-dialog.tsx`, `app/manager/accounting/page.tsx`
 
 ---
@@ -207,10 +207,10 @@ Services assert permissions; UI uses `<Can>`.
 - Transfer intentionally does **not** bill the destination class even if it is in-progress (product lock). Manual SPP transfer + semester-mismatch section are **done** (Phase E): Transfer dialog on phase detail; mismatch list separate from “students without an active class”.
 
 ### Proof
-- `services/accounting-sync.service.ts` + tests
-- `services/class.service.ts` (hooks + transfer)
-- `services/transfer-student-accounting.test.ts`
-- `services/class-status-accounting.test.ts`
+- `services/accounting/accounting-sync.service.ts` + tests
+- `services/classes/class.service.ts` (hooks + transfer)
+- `services/classes/transfer-student-accounting.test.ts`
+- `services/classes/class-status-accounting.test.ts`
 
 ---
 
@@ -340,7 +340,7 @@ From plan §9 — **not missing bugs**:
 |-------|--------|
 | Plan / this report | `docs/[09] Business_logic/[9.2] Accounting/` |
 | Migrations | `supabase/migrations/20260731*`, `20260801*`, `20260802*` |
-| Services | `services/payment-phase.service.ts`, `student-payment.service.ts`, `student-financial-adjustment.service.ts`, `accounting-sync.service.ts`, `accounting-recalc.service.ts` |
+| Services | `services/accounting/payment-phase.service.ts`, `student-payment.service.ts`, `student-financial-adjustment.service.ts`, `accounting-sync.service.ts`, `accounting-recalc.service.ts` |
 | UI | `components/manager/accounting/*`, `app/manager/accounting/*` |
 | Pure calc | `lib/manager/accounting/*` |
 | Actions | `app/manager/accounting/actions.ts` |

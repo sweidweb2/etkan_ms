@@ -6,11 +6,11 @@ import {
   getAdjustmentForSppForManager,
   listFormsForSppForManager,
   listInvitesForSppForManager,
-} from "@/services/student-financial-adjustment.service";
+} from "@/services/accounting/student-financial-adjustment.service";
 import {
   getSppDetailForManager,
   listPaymentsForSppForManager,
-} from "@/services/student-payment.service";
+} from "@/services/accounting/student-payment.service";
 
 type ManagerSppDetailPageProps = {
   params: Promise<{ id: string; sppId: string }>;

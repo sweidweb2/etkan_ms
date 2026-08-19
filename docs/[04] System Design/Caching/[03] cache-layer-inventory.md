@@ -59,7 +59,7 @@ See the [01 caching.md](./[01]%20caching.md) for policy/how-to and `.cursor/rule
 | Relationships list | `listRelationshipsForManager` | `manager-relationships` | none (invalidate-only) | **Shipped** | `revalidateManagerRelationshipsList` |
 | Schedule instructor tabs | `getInstructorSchedulesPageForManager` / `listScheduleInstructorTabsForManager` | `manager-schedule-instructors` | 3600s | **Shipped** | `lib/cache/instructor-schedule-cache.ts`; invalidate on instructor add/remove + staff user CRUD |
 | Schedule eligible workshops | `listEligibleWorkshopsForInstructorScheduleForManager` (also on page when CREATE) | `manager-schedule-eligible-workshops` | 3600s | **Shipped** | CREATE gate outside cache; workshop create/update/status/delete → calendar revalidate |
-| Schedule all calendar sessions | `getInstructorSchedulesPageForManager` (shared all-slots cache) | `manager-schedule-sessions` | 3600s | **Shipped** | Locked workshops excluded; slot CRUD → `revalidateManagerScheduleSessions`; filters are client-only |
+| Schedule calendar sessions | `getInstructorSchedulesPageForManager` (first instructor) + `listInstructorScheduleSlotsForCalendarForManager` | `manager-schedule-sessions` | — | **Scoped reads** | First paint loads one instructor; browse fetches by record/entity. Slot CRUD still calls `revalidateManagerScheduleSessions` |
 | Subjects catalog / list | `listSubjectsForManager` | `manager-subjects` | 3600s | **Fit** | Rarely changes; used in lists + selects |
 | Classes list | `listClassesForManager` | `manager-classes` | 3600s | **Fit** | Shared manager catalog |
 | Semesters list | `listSemestersForManager` | `manager-semesters` | 3600s | **Fit** | Catalog + accounting semester options |

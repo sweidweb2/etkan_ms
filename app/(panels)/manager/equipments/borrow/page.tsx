@@ -1,7 +1,7 @@
 import { BorrowEquipmentPanel } from "@/components/manager/equipments/borrow-equipment-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getBorrowPageDataForManager } from "@/services/borrow-equipment.service";
+import { getBorrowPageDataForManager } from "@/services/equipment/borrow-equipment.service";
 
 export default async function ManagerBorrowEquipmentPage() {
   const adminClient = createSupabaseAdminClient();
@@ -10,11 +10,9 @@ export default async function ManagerBorrowEquipmentPage() {
 
   return (
     <BorrowEquipmentPanel
-      initialStudents={pageData.students}
-      initialEquipments={pageData.equipments}
       initialClasses={pageData.classes}
-      initialClassStudentProfileIds={pageData.classStudentProfileIds}
       initialBorrowHistory={pageData.borrowHistory}
+      borrowHistoryTotalCount={pageData.borrowHistoryTotalCount}
     />
   );
 }

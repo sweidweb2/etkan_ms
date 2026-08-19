@@ -6,24 +6,24 @@ import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { setCachedSessionShell } from "@/lib/auth/session-shell-cache";
-import { login, logout, register, getSessionAuthIdentity } from "@/services/auth.service";
-import * as profileService from "@/services/profile.service";
-import * as roleService from "@/services/role.service";
-import * as authorizationService from "@/services/authorization.service";
+import { login, logout, register, getSessionAuthIdentity } from "@/services/auth/auth.service";
+import * as profileService from "@/services/auth/profile.service";
+import * as roleService from "@/services/auth/role.service";
+import * as authorizationService from "@/services/auth/authorization.service";
 
 vi.mock("@/repositories/app-settings.repository");
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
-vi.mock("@/services/profile.service");
+vi.mock("@/services/auth/profile.service");
 vi.mock("@/lib/auth/session-shell-cache", () => ({
   setCachedSessionShell: vi.fn(),
 }));
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   getPermissionsForRoleCached: vi.fn(async () => new Set()),
 }));
-vi.mock("@/services/role.service", async () => {
-  const actual = await vi.importActual<typeof import("@/services/role.service")>(
-    "@/services/role.service"
+vi.mock("@/services/auth/role.service", async () => {
+  const actual = await vi.importActual<typeof import("@/services/auth/role.service")>(
+    "@/services/auth/role.service"
   );
   return {
     ...actual,

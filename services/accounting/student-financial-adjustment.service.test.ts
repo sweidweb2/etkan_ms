@@ -9,9 +9,8 @@ import * as studentFinancialAdjustmentRepository from "@/repositories/student-fi
 import * as studentFinancialFormInviteRepository from "@/repositories/student-financial-form-invite.repository";
 import * as studentFinancialFormRepository from "@/repositories/student-financial-form.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
-import * as studentPaymentRepository from "@/repositories/student-payment.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createAdjustmentForManager,
   createFinancialFormForManager,
@@ -20,11 +19,10 @@ import {
   deleteFinancialFormInviteForManager,
   submitFinancialFormByToken,
   updateAdjustmentForManager,
-} from "@/services/student-financial-adjustment.service";
+} from "@/services/accounting/student-financial-adjustment.service";
 
 vi.mock("@/repositories/payment-phase.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
-vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-financial-adjustment.repository");
 vi.mock("@/repositories/student-financial-form.repository");
 vi.mock("@/repositories/student-financial-form-invite.repository");
@@ -42,11 +40,11 @@ vi.mock("@/lib/manager/accounting/financial-form-invite-url", () => ({
     `http://localhost:3000/f/${token}`,
 }));
 vi.mock("@/lib/rate-limit/public-financial-form-rate-limit");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -155,89 +153,8 @@ const inviteRecord = {
 };
 
 function mockOkLoad() {
-  vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
-    data: sppRecord,
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-  vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-    data: phaseRecord,
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-}
-
-function mockRecalcAfterScholarship() {
-  vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
-    data: sppRecord,
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-  vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-    data: phaseRecord,
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-  vi.mocked(
-    studentPaymentRepository.listPaymentAmountsBySppIds
-  ).mockResolvedValue({
-    data: [],
-    error: null,
-  } as never);
-  vi.mocked(
-    studentFinancialAdjustmentRepository.listAdjustmentsBySppIds
-  ).mockResolvedValue({
-    data: [
-      {
-        student_payment_phase_id: sppId,
-        value_type: "percentage",
-        value: 100,
-      },
-    ],
-    error: null,
-  } as never);
-  vi.mocked(
-    studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials
-  ).mockResolvedValue({
-    data: {
-      ...sppRecord,
-      status: "paid",
-      adjustment_amount: 1000,
-      final_amount_due: 0,
-      remaining_amount: 0,
-    },
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-  vi.mocked(
-    studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-  ).mockResolvedValue({
-    data: [
-      {
-        ...sppRecord,
-        status: "paid",
-        adjustment_amount: 1000,
-        final_amount_due: 0,
-        remaining_amount: 0,
-      },
-    ],
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-  vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue({
-    data: { ...phaseRecord, status: "closed" },
+  vi.mocked(studentPaymentPhaseRepository.findSppWithPhaseById).mockResolvedValue({
+    data: { ...sppRecord, payment_phases: phaseRecord },
     error: null,
     count: null,
     status: 200,
@@ -287,15 +204,14 @@ describe("createAdjustmentForManager", () => {
   });
 
   it("rejects a second adjustment for the same SPP", async () => {
-    mockOkLoad();
     vi.mocked(
-      studentFinancialAdjustmentRepository.findAdjustmentBySppId
+      studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
     ).mockResolvedValue({
-      data: adjustmentRecord,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+      data: null,
+      error: {
+        message:
+          "This student payment phase already has a financial adjustment.",
+      },
     } as never);
 
     const result = await createAdjustmentForManager(
@@ -315,25 +231,17 @@ describe("createAdjustmentForManager", () => {
     if (!result.success) {
       expect(result.error).toMatch(/already has a financial adjustment/i);
     }
-    expect(
-      studentFinancialAdjustmentRepository.createAdjustment
-    ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
   });
 
   it("rejects adjustments when the phase is cancelled", async () => {
-    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
-      data: sppRecord,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: { ...phaseRecord, status: "cancelled" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+    vi.mocked(
+      studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
+    ).mockResolvedValue({
+      data: null,
+      error: {
+        message: "Cannot change adjustments on a cancelled payment phase.",
+      },
     } as never);
 
     const result = await createAdjustmentForManager(
@@ -356,19 +264,14 @@ describe("createAdjustmentForManager", () => {
   });
 
   it("rejects adjustments when the SPP is cancelled", async () => {
-    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
-      data: { ...sppRecord, status: "cancelled" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: phaseRecord,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+    vi.mocked(
+      studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
+    ).mockResolvedValue({
+      data: null,
+      error: {
+        message:
+          "Cannot change adjustments on a cancelled student assignment.",
+      },
     } as never);
 
     const result = await createAdjustmentForManager(
@@ -390,26 +293,18 @@ describe("createAdjustmentForManager", () => {
     }
   });
 
-  it("marks SPP paid with 100% scholarship and may close the phase", async () => {
+  it("creates a 100% scholarship via RPC and audits", async () => {
     vi.mocked(
-      studentFinancialAdjustmentRepository.findAdjustmentBySppId
+      studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
     ).mockResolvedValue({
-      data: null,
+      data: {
+        adjustment: adjustmentRecord,
+        previous: null,
+        studentPaymentPhaseId: sppId,
+        paymentPhaseId: phaseId,
+      },
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     } as never);
-    vi.mocked(
-      studentFinancialAdjustmentRepository.createAdjustment
-    ).mockResolvedValue({
-      data: adjustmentRecord,
-      error: null,
-      count: null,
-      status: 201,
-      statusText: "Created",
-    } as never);
-    mockRecalcAfterScholarship();
 
     const result = await createAdjustmentForManager(
       adminClient,
@@ -427,21 +322,15 @@ describe("createAdjustmentForManager", () => {
 
     expect(result.success).toBe(true);
     expect(
+      studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
+    ).toHaveBeenCalled();
+    expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials
-    ).toHaveBeenCalledWith(
-      adminClient,
-      sppId,
-      expect.objectContaining({
-        status: "paid",
-        final_amount_due: 0,
-        adjustment_amount: 1000,
-      })
-    );
-    expect(paymentPhaseRepository.updatePaymentPhaseStatus).toHaveBeenCalledWith(
-      adminClient,
-      phaseId,
-      "closed"
-    );
+    ).not.toHaveBeenCalled();
+    expect(
+      paymentPhaseRepository.updatePaymentPhaseStatus
+    ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
 });
 
@@ -451,99 +340,17 @@ describe("deleteAdjustmentForManager", () => {
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
-  it("recalculates due after delete", async () => {
+  it("deletes an adjustment via RPC and audits", async () => {
     vi.mocked(
-      studentFinancialAdjustmentRepository.findAdjustmentById
-    ).mockResolvedValue({
-      data: adjustmentRecord,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentFinancialAdjustmentRepository.deleteAdjustment
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-
-    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
-      data: {
-        ...sppRecord,
-        status: "paid",
-        adjustment_amount: 1000,
-        final_amount_due: 0,
-        remaining_amount: 0,
-      },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: { ...phaseRecord, status: "closed" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentRepository.listPaymentAmountsBySppIds
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
-    vi.mocked(
-      studentFinancialAdjustmentRepository.listAdjustmentsBySppIds
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials
+      studentFinancialAdjustmentRepository.deleteAdjustmentWithRecalc
     ).mockResolvedValue({
       data: {
-        ...sppRecord,
-        status: "pending",
-        adjustment_amount: 0,
-        final_amount_due: 1000,
-        remaining_amount: 1000,
+        deleted: adjustmentRecord,
+        studentPaymentPhaseId: sppId,
+        paymentPhaseId: phaseId,
       },
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-    ).mockResolvedValue({
-      data: [
-        {
-          ...sppRecord,
-          status: "pending",
-          adjustment_amount: 0,
-          final_amount_due: 1000,
-          remaining_amount: 1000,
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue(
-      {
-        data: { ...phaseRecord, status: "opened" },
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never
-    );
 
     const result = await deleteAdjustmentForManager(
       adminClient,
@@ -554,16 +361,12 @@ describe("deleteAdjustmentForManager", () => {
 
     expect(result.success).toBe(true);
     expect(
+      studentFinancialAdjustmentRepository.deleteAdjustmentWithRecalc
+    ).toHaveBeenCalledWith(adminClient, adjustmentId, sppId);
+    expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials
-    ).toHaveBeenCalledWith(
-      adminClient,
-      sppId,
-      expect.objectContaining({
-        status: "pending",
-        final_amount_due: 1000,
-        adjustment_amount: 0,
-      })
-    );
+    ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
 });
 
@@ -574,7 +377,7 @@ describe("createFinancialFormForManager", () => {
   });
 
   it("rejects form create when student payment phase is missing", async () => {
-    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+    vi.mocked(studentPaymentPhaseRepository.findSppWithPhaseById).mockResolvedValue({
       data: null,
       error: null,
       count: null,
@@ -737,6 +540,7 @@ describe("deleteFinancialFormInviteForManager", () => {
   });
 
   it("rejects deleting a used invite", async () => {
+    mockOkLoad();
     vi.mocked(
       studentFinancialFormInviteRepository.findInviteById
     ).mockResolvedValue({
@@ -895,15 +699,8 @@ describe("submitFinancialFormByToken", () => {
       status: 200,
       statusText: "OK",
     } as never);
-    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
-      data: { ...sppRecord, status: "cancelled" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: phaseRecord,
+    vi.mocked(studentPaymentPhaseRepository.findSppWithPhaseById).mockResolvedValue({
+      data: { ...sppRecord, status: "cancelled", payment_phases: phaseRecord },
       error: null,
       count: null,
       status: 200,

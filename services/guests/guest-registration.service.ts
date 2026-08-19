@@ -20,15 +20,15 @@ import * as registrationStorage from "@/repositories/registration-storage.reposi
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   removeTempRegistrationDocument,
   submitPublicRegistrationApplication,
   tempUploadRegistrationDocument,
-} from "@/services/student-registration.service";
+} from "@/services/students/student-registration.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   GuestRegistrationLinkUserOption,
@@ -160,17 +160,11 @@ async function loadActiveApplicationSummary(
   return mapApplicationSummary(data);
 }
 
-async function resolveGuestApplicationId(
-  adminClient: Supabase,
-  guestId: string,
-  invite: GuestRegistrationInviteRecord | null
-): Promise<string | null> {
-  let applicationId = invite?.application_id ?? null;
-  if (!applicationId) {
-    const active = await loadActiveApplicationSummary(adminClient, guestId);
-    applicationId = active?.id ?? null;
-  }
-  return applicationId;
+function applicationIdFromInviteAndActive(
+  invite: GuestRegistrationInviteRecord | null,
+  activeApp: ManagerGuestRegistrationApplicationSummary | null
+): string | null {
+  return invite?.application_id ?? activeApp?.id ?? null;
 }
 
 export async function getGuestRegistrationInviteBundleForManager(
@@ -231,7 +225,12 @@ export async function openGuestRegistrationInviteForManager(
     return { success: false, error: unauthorized };
   }
 
-  const guestResult = await guestRepository.findGuestById(adminClient, guestId);
+  const [guestResult, activeApp, existingResult] = await Promise.all([
+    guestRepository.findGuestById(adminClient, guestId),
+    loadActiveApplicationSummary(adminClient, guestId),
+    inviteRepository.findInviteByGuestId(adminClient, guestId),
+  ]);
+
   if (guestResult.error) {
     return { success: false, error: guestResult.error.message };
   }
@@ -239,7 +238,6 @@ export async function openGuestRegistrationInviteForManager(
     return { success: false, error: "Guest not found." };
   }
 
-  const activeApp = await loadActiveApplicationSummary(adminClient, guestId);
   if (activeApp) {
     return {
       success: false,
@@ -248,10 +246,6 @@ export async function openGuestRegistrationInviteForManager(
     };
   }
 
-  const existingResult = await inviteRepository.findInviteByGuestId(
-    adminClient,
-    guestId
-  );
   if (existingResult.error) {
     return { success: false, error: existingResult.error.message };
   }
@@ -679,17 +673,15 @@ export async function cancelGuestRegistrationApplicationForManager(
     return { success: false, error: unauthorized };
   }
 
-  const { data: invite, error: inviteError } =
-    await inviteRepository.findInviteByGuestId(adminClient, guestId);
+  const [{ data: invite, error: inviteError }, activeApp] = await Promise.all([
+    inviteRepository.findInviteByGuestId(adminClient, guestId),
+    loadActiveApplicationSummary(adminClient, guestId),
+  ]);
   if (inviteError) {
     return { success: false, error: inviteError.message };
   }
 
-  const applicationId = await resolveGuestApplicationId(
-    adminClient,
-    guestId,
-    invite
-  );
+  const applicationId = applicationIdFromInviteAndActive(invite, activeApp);
   if (!applicationId) {
     return { success: false, error: "No registration application to cancel." };
   }
@@ -761,27 +753,30 @@ export async function deleteGuestRegistrationApplicationForManager(
     return { success: false, error: unauthorized };
   }
 
-  const { data: invite, error: inviteError } =
-    await inviteRepository.findInviteByGuestId(adminClient, guestId);
+  const [{ data: invite, error: inviteError }, activeApp] = await Promise.all([
+    inviteRepository.findInviteByGuestId(adminClient, guestId),
+    loadActiveApplicationSummary(adminClient, guestId),
+  ]);
   if (inviteError) {
     return { success: false, error: inviteError.message };
   }
 
-  const applicationId = await resolveGuestApplicationId(
-    adminClient,
-    guestId,
-    invite
-  );
+  const applicationId = applicationIdFromInviteAndActive(invite, activeApp);
 
   if (!applicationId) {
     return { success: false, error: "No registration application to delete." };
   }
 
-  const appResult =
-    await registrationRepository.findStudentRegistrationApplicationById(
+  const [appResult, docsResult] = await Promise.all([
+    registrationRepository.findStudentRegistrationApplicationById(
       adminClient,
       applicationId
-    );
+    ),
+    documentRepository.listStudentRegistrationDocumentsByApplicationId(
+      adminClient,
+      applicationId
+    ),
+  ]);
   if (appResult.error) {
     return { success: false, error: appResult.error.message };
   }
@@ -791,12 +786,6 @@ export async function deleteGuestRegistrationApplicationForManager(
   if (appResult.data.guest_id !== guestId) {
     return { success: false, error: "Application does not belong to this guest." };
   }
-
-  const docsResult =
-    await documentRepository.listStudentRegistrationDocumentsByApplicationId(
-      adminClient,
-      applicationId
-    );
   if (docsResult.error) {
     return { success: false, error: docsResult.error.message };
   }
@@ -925,7 +914,11 @@ export async function connectGuestRegistrationUserForManager(
 
   const { guest_id: guestId, user_id: userId } = parsed.data;
 
-  const guestResult = await guestRepository.findGuestById(adminClient, guestId);
+  const [guestResult, application] = await Promise.all([
+    guestRepository.findGuestById(adminClient, guestId),
+    loadActiveApplicationSummary(adminClient, guestId),
+  ]);
+
   if (guestResult.error) {
     return { success: false, error: guestResult.error.message };
   }
@@ -933,23 +926,11 @@ export async function connectGuestRegistrationUserForManager(
     return { success: false, error: "Guest not found." };
   }
 
-  const application = await loadActiveApplicationSummary(adminClient, guestId);
   if (!application) {
     return {
       success: false,
       error: "This guest has no registration application to connect.",
     };
-  }
-
-  const profileResult = await profileRepository.findProfileById(
-    adminClient,
-    userId
-  );
-  if (profileResult.error) {
-    return { success: false, error: profileResult.error.message };
-  }
-  if (!profileResult.data) {
-    return { success: false, error: "User not found." };
   }
 
   if (application.user_id === userId) {
@@ -960,11 +941,18 @@ export async function connectGuestRegistrationUserForManager(
     };
   }
 
-  const existingForUser =
-    await registrationRepository.findActiveApplicationByUserId(
-      adminClient,
-      userId
-    );
+  const [profileResult, existingForUser] = await Promise.all([
+    profileRepository.findProfileById(adminClient, userId),
+    registrationRepository.findActiveApplicationByUserId(adminClient, userId),
+  ]);
+
+  if (profileResult.error) {
+    return { success: false, error: profileResult.error.message };
+  }
+  if (!profileResult.data) {
+    return { success: false, error: "User not found." };
+  }
+
   if (existingForUser.error) {
     return { success: false, error: existingForUser.error.message };
   }

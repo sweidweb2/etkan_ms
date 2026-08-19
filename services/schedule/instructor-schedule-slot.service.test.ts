@@ -3,22 +3,22 @@ import * as instructorScheduleSlotRepository from "@/repositories/instructor-sch
 import * as profileRepository from "@/repositories/profile.repository";
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import * as workshopRepository from "@/repositories/workshop.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createInstructorScheduleSlotForManager,
   deleteInstructorScheduleSlotForManager,
   getInstructorSchedulesPageForManager,
   listEligibleWorkshopsForInstructorScheduleForManager,
   updateInstructorScheduleSlotForManager,
-} from "@/services/instructor-schedule-slot.service";
+} from "@/services/schedule/instructor-schedule-slot.service";
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
 
 vi.mock("@/repositories/instructor-schedule-slot.repository");
 vi.mock("@/repositories/workshop-instructor.repository");
 vi.mock("@/repositories/workshop.repository");
 vi.mock("@/repositories/profile.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("next/cache", () => ({
@@ -28,7 +28,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => adminClient,
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -525,106 +525,97 @@ describe("deleteInstructorScheduleSlotForManager", () => {
   });
 });
 
-describe("getInstructorSchedulesPageForManager fetch-all", () => {
+describe("getInstructorSchedulesPageForManager first instructor", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("loads all sessions and eligible workshops on page paint", async () => {
-    const firstId = instructorUserId;
-    const secondId = "c3c4d5e6-f7a8-9012-cdef-123456789012";
-    vi.mocked(profileRepository.listInstructorProfiles).mockResolvedValue({
-      data: [
-        {
-          id: firstId,
-          username: "alice",
-          role: "teacher",
-          is_instructor: true,
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: secondId,
-          username: "bob",
-          role: "teacher",
-          is_instructor: true,
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(workshopRepository.listWorkshopLockStatuses).mockResolvedValue({
-      data: [{ id: workshopId, status: WORKSHOP_STATUSES.CANCELLED }],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      instructorScheduleSlotRepository.listAllInstructorScheduleSlots
-    ).mockResolvedValue({
-      data: [
-        {
-          id: slotId,
-          entity_type: "instructor",
-          record_id: firstId,
-          name: "Free morning",
-          type: "free",
-          slot_date: "2026-09-01",
-          day_of_week: 1,
-          start_time: "09:00:00",
-          end_time: "11:00:00",
-          source_workshop_id: null,
-          source_slot_id: null,
-          created_at: "2026-01-01T00:00:00.000Z",
-          updated_at: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(workshopRepository.listWorkshopsForScheduleTabs).mockResolvedValue({
-      data: [
-        {
-          id: workshopId,
-          name: "Intro to UX",
-          status: WORKSHOP_STATUSES.SCHEDULED,
-          start_date: "2026-09-01",
-          end_date: "2026-12-01",
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    it("loads first-instructor sessions and eligible workshops on page paint", async () => {
+      const firstId = instructorUserId;
+      const secondId = "c3c4d5e6-f7a8-9012-cdef-123456789012";
+      vi.mocked(profileRepository.listInstructorProfiles).mockResolvedValue({
+        data: [
+          {
+            id: firstId,
+            username: "alice",
+            role: "teacher",
+            is_instructor: true,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            id: secondId,
+            username: "bob",
+            role: "teacher",
+            is_instructor: true,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never);
+      vi.mocked(
+        instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+      ).mockResolvedValue({
+        data: [
+          {
+            id: slotId,
+            entity_type: "instructor",
+            record_id: firstId,
+            name: "Free morning",
+            type: "free",
+            slot_date: "2026-09-01",
+            day_of_week: 1,
+            start_time: "09:00:00",
+            end_time: "11:00:00",
+            source_workshop_id: null,
+            source_slot_id: null,
+            created_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never);
+      vi.mocked(workshopRepository.listWorkshopsForScheduleTabs).mockResolvedValue({
+        data: [
+          {
+            id: workshopId,
+            name: "Intro to UX",
+            status: WORKSHOP_STATUSES.SCHEDULED,
+            start_date: "2026-09-01",
+            end_date: "2026-12-01",
+          },
+        ],
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never);
 
-    const data = await getInstructorSchedulesPageForManager(
-      adminClient,
-      actor.userId
-    );
+      const data = await getInstructorSchedulesPageForManager(
+        adminClient,
+        actor.userId
+      );
 
-    expect(data.initialBrowse).toEqual({
-      kind: "instructor",
-      recordId: firstId,
+      expect(data.initialBrowse).toEqual({
+        kind: "instructor",
+        recordId: firstId,
+      });
+      expect(data.workshops).toHaveLength(1);
+      expect(data.sessions).toHaveLength(1);
+      expect(data.sessions[0]?.recordId).toBe(firstId);
+      expect(
+        instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+      ).toHaveBeenCalledWith(adminClient, "instructor", firstId);
+      expect(
+        instructorScheduleSlotRepository.listAllInstructorScheduleSlots
+      ).not.toHaveBeenCalled();
+      expect(workshopRepository.listWorkshopsForScheduleTabs).toHaveBeenCalled();
     });
-    expect(data.workshops).toHaveLength(1);
-    expect(data.sessions).toHaveLength(1);
-    expect(data.sessions[0]?.recordId).toBe(firstId);
-    expect(
-      instructorScheduleSlotRepository.listAllInstructorScheduleSlots
-    ).toHaveBeenCalledWith(adminClient, {
-      excludeWorkshopRecordIds: [workshopId],
-    });
-    expect(
-      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
-    ).not.toHaveBeenCalled();
-    expect(workshopRepository.listWorkshopsForScheduleTabs).toHaveBeenCalled();
-  });
 });
 
 describe("listEligibleWorkshopsForInstructorScheduleForManager", () => {

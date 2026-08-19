@@ -109,7 +109,7 @@ One place answers: *can this user do this action?*
 
 ### Tasks
 
-- [x] Add authorization service (e.g. `services/authorization.service.ts`)
+- [x] Add authorization service (e.g. `services/auth/authorization.service.ts`)
 - [x] Implement `getUserPermissions(userId)` (via profile role → role_permissions)
 - [x] Implement `hasPermission(userId, permission)`
 - [x] Implement `requirePermission(userId, permission)` (throw / return unauthorized result)
@@ -129,7 +129,7 @@ One place answers: *can this user do this action?*
 
 **Done when:** engine is trusted and tested; nothing critical depends on it yet. ✅
 
-**Result:** `services/authorization.service.ts` + tests; `npm run smoke:authz`. Manager role checks unchanged.
+**Result:** `services/auth/authorization.service.ts` + tests; `npm run smoke:authz`. Manager role checks unchanged.
 
 ---
 

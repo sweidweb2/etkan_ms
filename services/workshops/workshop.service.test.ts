@@ -16,8 +16,8 @@ import * as workshopPaymentRepository from "@/repositories/workshop-payment.repo
 import * as workshopRepository from "@/repositories/workshop.repository";
 import * as workshopSessionRepository from "@/repositories/workshop-session.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   WORKSHOP_HAS_PAYMENTS_DELETE_ERROR,
   addWorkshopInstructorForManager,
@@ -37,7 +37,7 @@ import {
   updateWorkshopInstructorForManager,
   updateWorkshopPaymentForManager,
   uploadWorkshopDocumentForManager,
-} from "@/services/workshop.service";
+} from "@/services/workshops/workshop.service";
 
 vi.mock("@/repositories/workshop.repository");
 vi.mock("@/repositories/workshop-document.repository");
@@ -47,7 +47,7 @@ vi.mock("@/repositories/workshop-session.repository");
 vi.mock("@/repositories/workshop-storage.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/instructor-schedule-slot.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("next/cache", () => ({
@@ -57,7 +57,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => adminClient,
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -635,22 +635,22 @@ describe("getWorkshopForManager", () => {
     );
 
     expect(detail?.payment_count).toBe(2);
-    expect(detail?.payments).toHaveLength(2);
-    expect(detail?.payment_summary.net).toBe(80);
-    expect(detail?.payment_summary.remaining).toBe(70);
+    expect(detail?.payments).toEqual([]);
+    expect(detail?.instructorCandidates).toEqual([]);
+    expect(detail?.scheduleSlots).toEqual([]);
     expect(detail?.workshop.id).toBe(workshopId);
     expect(detail?.instructors).toHaveLength(1);
     expect(detail?.instructors[0]?.username).toBe("lead_teacher");
-    expect(detail?.instructorCandidates).toEqual([
-      {
-        id: "d4d5e6f7-a8b9-0123-def0-234567890123",
-        username: "assistant_one",
-      },
-    ]);
     expect(detail?.documents).toHaveLength(1);
     expect(detail?.documents[0]?.name).toBe("Syllabus");
-    expect(detail?.scheduleSlots).toEqual([]);
     expect(detail?.sessions).toEqual([]);
+    expect(
+      workshopPaymentRepository.listWorkshopPaymentsByWorkshopId
+    ).not.toHaveBeenCalled();
+    expect(profileRepository.listInstructorProfiles).not.toHaveBeenCalled();
+    expect(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
+    ).not.toHaveBeenCalled();
   });
 
   it("returns null when a non-manager/CEO is not assigned to the workshop", async () => {

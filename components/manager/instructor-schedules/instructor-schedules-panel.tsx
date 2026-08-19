@@ -26,6 +26,7 @@ import {
 import {
   createInstructorScheduleSlotAction,
   deleteInstructorScheduleSlotAction,
+  loadInstructorScheduleSlotsForCalendarAction,
   updateInstructorScheduleSlotAction,
 } from "@/app/manager/instructor-schedules/actions";
 import { Can } from "@/components/auth/can";
@@ -79,6 +80,7 @@ import {
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
+  InstructorScheduleCalendarScope,
   ManagerInstructorScheduleSession,
   ManagerInstructorSchedulesPageData,
   ScheduleEntityType,
@@ -122,6 +124,33 @@ function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
 }
 
 type EntityBrowseKind = "all" | "instructor" | "workshop";
+
+function calendarScopeFromBrowse(
+  kind: EntityBrowseKind,
+  keys: string[]
+): InstructorScheduleCalendarScope {
+  if (kind === "all") {
+    return { kind: "all" };
+  }
+  const parsed = keys[0] ? parseEntityFilterKey(keys[0]) : null;
+  if (kind === "instructor") {
+    return {
+      kind: "instructor",
+      recordId: parsed?.kind === "instructor" ? parsed.id : undefined,
+    };
+  }
+  return {
+    kind: "workshop",
+    recordId: parsed?.kind === "workshop" ? parsed.id : undefined,
+  };
+}
+
+function calendarScopeKey(scope: InstructorScheduleCalendarScope): string {
+  if (scope.kind === "all") {
+    return "all";
+  }
+  return `${scope.kind}:${scope.recordId ?? "*"}`;
+}
 
 function filterSessionsForBrowse(
   sessions: ManagerInstructorScheduleSession[],
@@ -396,6 +425,17 @@ export function InstructorSchedulesPanel({
 
   const [sessions, setSessions] = React.useState(data.sessions);
   const workshops = data.workshops;
+  const initialCalendarScope = useMemo<InstructorScheduleCalendarScope>(
+    () =>
+      data.initialBrowse.kind === "instructor"
+        ? {
+            kind: "instructor",
+            recordId: data.initialBrowse.recordId ?? undefined,
+          }
+        : { kind: "all" },
+    [data.initialBrowse.kind, data.initialBrowse.recordId]
+  );
+  const loadedScopeKeyRef = useRef(calendarScopeKey(initialCalendarScope));
   /** Empty = all within the current browse kind. At most one entity key selected. */
   const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
     () => initialSelectedKeys
@@ -419,13 +459,18 @@ export function InstructorSchedulesPanel({
   const pendingTempIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    if (
+      loadedScopeKeyRef.current !== calendarScopeKey(initialCalendarScope)
+    ) {
+      return;
+    }
     setSessions((prev) => {
       const pendingTemps = prev.filter((session) =>
         pendingTempIdsRef.current.has(session.id)
       );
       return [...data.sessions, ...pendingTemps];
     });
-  }, [data.sessions]);
+  }, [data.sessions, initialCalendarScope]);
 
   const instructorIds = useMemo(
     () => new Set(data.instructors.map((instructor) => instructor.id)),
@@ -461,6 +506,34 @@ export function InstructorSchedulesPanel({
     entityBrowseKind === "workshop" && !showWorkshopBrowse
       ? "all"
       : entityBrowseKind;
+  const resolvedEntityKeysJoined = resolvedEntityKeys.join(",");
+
+  useEffect(() => {
+    const scope = calendarScopeFromBrowse(
+      effectiveBrowseKind,
+      resolvedEntityKeys
+    );
+    const key = calendarScopeKey(scope);
+    if (key === loadedScopeKeyRef.current) {
+      return;
+    }
+    loadedScopeKeyRef.current = key;
+    let cancelled = false;
+    void loadInstructorScheduleSlotsForCalendarAction(scope).then((next) => {
+      if (cancelled) {
+        return;
+      }
+      setSessions((prev) => {
+        const pendingTemps = prev.filter((session) =>
+          pendingTempIdsRef.current.has(session.id)
+        );
+        return [...next, ...pendingTemps];
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveBrowseKind, resolvedEntityKeys, resolvedEntityKeysJoined]);
   const isAllBrowseSelected = effectiveBrowseKind === "all";
   const entitySelectValue = useMemo(() => {
     if (isAllBrowseSelected || resolvedEntityKeys.length !== 1) {

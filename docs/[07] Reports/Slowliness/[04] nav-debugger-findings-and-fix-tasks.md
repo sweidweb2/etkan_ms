@@ -312,7 +312,7 @@ Accounting list + income analytics residual (~2s) also addressed in **Wave E** (
 |------|----------------|
 | Session pack / shell | `lib/auth/session.ts`, `lib/auth/session-shell-cache.ts` (**5m** + sliding HIT) |
 | Role → permissions TTL | `lib/auth/role-permissions-cache.ts` (**15m**; bust: RBAC + logout) |
-| Permissions load | `services/authorization.service.ts`, `repositories/permission.repository.ts` |
+| Permissions load | `services/auth/authorization.service.ts`, `repositories/permission.repository.ts` |
 | Panel shell callers | `app/(panels)/layout.tsx`, `components/panels/role-panel-layout.tsx`, `app/(panels)/manager/layout.tsx` |
 | Accounting | `payment-phase.service.ts` (SPP status counts + exceptions snapshot) |
 | Analytics | income-statement analytics service (slim amount rows) |

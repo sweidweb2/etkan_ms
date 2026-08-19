@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ATTENDEE_STATUSES } from "@/lib/constants/manager-attendee-status";
-import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import {
   CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
@@ -16,19 +15,22 @@ import * as studentCourseGradeRepository from "@/repositories/student-course-gra
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as taskRepository from "@/repositories/task.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createSessionTaskForManager,
   deleteClassSessionForManager,
+  ensureSessionAttendeesForMembers,
   getSessionDetailForManager,
   seedLateJoinAttendeesForStudent,
+  seedLateJoinAttendeesForStudents,
   seedLateJoinStudentTasksForStudent,
+  seedLateJoinStudentTasksForStudents,
   updateAttendeeForManager,
   updateClassSessionForManager,
   updateSessionSettingsForManager,
   updateStudentTaskForManager,
-} from "@/services/session.service";
+} from "@/services/classes/session.service";
 import { SESSION_GROUP_GRADE_LEVELS } from "@/types/manager-session-group-grade";
 
 vi.mock("@/repositories/attendee.repository");
@@ -41,7 +43,7 @@ vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/task.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
@@ -55,7 +57,7 @@ function mockUnlockedComputedGrades() {
 }
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -83,15 +85,10 @@ const semesterId = "b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2";
 function mockAuthEmails(
   entries: Array<{ id: string; email: string }>
 ) {
-  vi.mocked(authRepository.getAuthUserById).mockImplementation(
-    async (_client, userId) => {
-      const match = entries.find((entry) => entry.id === userId);
-      return {
-        data: { user: match ? { email: match.email } : null },
-        error: null,
-      } as never;
-    }
-  );
+  vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
+    data: new Map(entries.map((entry) => [entry.id, entry.email])),
+    error: null,
+  });
 }
 
 const sessionRecord = {
@@ -163,43 +160,31 @@ describe("getSessionDetailForManager", () => {
       data: [{ user_id: studentA }, { user_id: studentB }],
       error: null,
     } as never);
-    vi.mocked(attendeeRepository.listAttendeesBySessionId)
-      .mockResolvedValueOnce({
-        data: [
-          {
-            id: attendeeId,
-            session_id: sessionId,
-            student_id: studentA,
-            status: ATTENDEE_STATUSES.PRESENT,
-            note: null,
-            created_at: "2026-07-10T00:00:00.000Z",
-          },
-        ],
-        error: null,
-      } as never)
-      .mockResolvedValueOnce({
-        data: [
-          {
-            id: attendeeId,
-            session_id: sessionId,
-            student_id: studentA,
-            status: ATTENDEE_STATUSES.PRESENT,
-            note: null,
-            created_at: "2026-07-10T00:00:00.000Z",
-          },
-          {
-            id: "a0a0a0a0-a0a0-4a0a-8a0a-a0a0a0a0a0a0",
-            session_id: sessionId,
-            student_id: studentB,
-            status: ATTENDEE_STATUSES.PRESENT,
-            note: null,
-            created_at: "2026-07-10T00:00:01.000Z",
-          },
-        ],
-        error: null,
-      } as never);
-    vi.mocked(attendeeRepository.createAttendees).mockResolvedValue({
-      data: [],
+    vi.mocked(
+      attendeeRepository.ensureSessionAttendeesForMembers
+    ).mockResolvedValue({
+      data: 1,
+      error: null,
+    } as never);
+    vi.mocked(attendeeRepository.listAttendeesBySessionId).mockResolvedValue({
+      data: [
+        {
+          id: attendeeId,
+          session_id: sessionId,
+          student_id: studentA,
+          status: ATTENDEE_STATUSES.PRESENT,
+          note: null,
+          created_at: "2026-07-10T00:00:00.000Z",
+        },
+        {
+          id: "a0a0a0a0-a0a0-4a0a-8a0a-a0a0a0a0a0a0",
+          session_id: sessionId,
+          student_id: studentB,
+          status: ATTENDEE_STATUSES.PRESENT,
+          note: null,
+          created_at: "2026-07-10T00:00:01.000Z",
+        },
+      ],
       error: null,
     } as never);
     vi.mocked(taskRepository.listTasksBySessionId).mockResolvedValue({
@@ -231,17 +216,10 @@ describe("getSessionDetailForManager", () => {
       sessionId
     );
 
-    expect(attendeeRepository.createAttendees).toHaveBeenCalledWith(
-      adminClient,
-      [
-        {
-          session_id: sessionId,
-          student_id: studentB,
-          status: ATTENDEE_STATUSES.PRESENT,
-          note: null,
-        },
-      ]
-    );
+    expect(
+      attendeeRepository.ensureSessionAttendeesForMembers
+    ).toHaveBeenCalledWith(adminClient, sessionId, classId);
+    expect(attendeeRepository.createAttendees).not.toHaveBeenCalled();
     expect(result?.session.id).toBe(sessionId);
     expect(result?.attendees).toHaveLength(2);
     expect(result?.phaseOptions).toEqual([
@@ -464,37 +442,33 @@ describe("createSessionTaskForManager", () => {
       },
       error: null,
     } as never);
-    vi.mocked(
-      studentClassRepository.listMemberUserIdsByClassId
-    ).mockResolvedValue({
-      data: [{ user_id: studentA }, { user_id: studentB }],
-      error: null,
-    } as never);
-    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
-      data: [
-        {
-          id: "st-a",
-          task_id: taskId,
-          student_id: studentA,
-          status: STUDENT_TASK_STATUSES.PENDING,
-          submitted_at: null,
-          grade: null,
-          notes: null,
-          graded_at: null,
-        },
-        {
-          id: "st-b",
-          task_id: taskId,
-          student_id: studentB,
-          status: STUDENT_TASK_STATUSES.PENDING,
-          submitted_at: null,
-          grade: null,
-          notes: null,
-          graded_at: null,
-        },
-      ],
-      error: null,
-    } as never);
+    vi.mocked(studentTaskRepository.seedStudentTasksForNewTask).mockResolvedValue(
+      {
+        data: [
+          {
+            id: "st-a",
+            task_id: taskId,
+            student_id: studentA,
+            status: STUDENT_TASK_STATUSES.PENDING,
+            submitted_at: null,
+            grade: null,
+            notes: null,
+            graded_at: null,
+          },
+          {
+            id: "st-b",
+            task_id: taskId,
+            student_id: studentB,
+            status: STUDENT_TASK_STATUSES.PENDING,
+            submitted_at: null,
+            grade: null,
+            notes: null,
+            graded_at: null,
+          },
+        ],
+        error: null,
+      } as never
+    );
     vi.mocked(
       studentProfileRepository.listStudentProfilesByUserIds
     ).mockResolvedValue({
@@ -521,24 +495,14 @@ describe("createSessionTaskForManager", () => {
       }
     );
 
-    expect(studentTaskRepository.createStudentTasks).toHaveBeenCalledWith(
+    expect(studentTaskRepository.seedStudentTasksForNewTask).toHaveBeenCalledWith(
       adminClient,
-      [
-        {
-          task_id: taskId,
-          student_id: studentA,
-          status: STUDENT_TASK_STATUSES.PENDING,
-        },
-        {
-          task_id: taskId,
-          student_id: studentB,
-          status: STUDENT_TASK_STATUSES.PENDING,
-        },
-      ]
+      taskId
     );
+    expect(studentTaskRepository.createStudentTasks).not.toHaveBeenCalled();
     expect(
       studentClassRepository.listMemberUserIdsByClassId
-    ).toHaveBeenCalledWith(adminClient, classId);
+    ).not.toHaveBeenCalled();
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.task.title).toBe("Homework 1");
@@ -1170,276 +1134,150 @@ describe("updateStudentTaskForManager", () => {
 });
 
 describe("seedLateJoinAttendeesForStudent", () => {
-  const sessionTwoId = "c2c2c2c2-c2c2-4c2c-8c2c-c2c2c2c2c2c2";
-
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("creates absent rows with late-join note for sessions without the student", async () => {
-    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
-      data: [
-        { id: sessionId, nb_order: 1, topic: "Intro" },
-        { id: sessionTwoId, nb_order: 2, topic: "Sensors" },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(attendeeRepository.listAttendeesBySessionIds).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
-    vi.mocked(attendeeRepository.createAttendees).mockResolvedValue({
-      data: [],
+  it("calls the late-join attendees RPC once", async () => {
+    vi.mocked(attendeeRepository.seedLateJoinAttendees).mockResolvedValue({
+      data: 2,
       error: null,
     } as never);
 
     await seedLateJoinAttendeesForStudent(adminClient, classId, studentA);
 
-    expect(attendeeRepository.createAttendees).toHaveBeenCalledWith(
+    expect(attendeeRepository.seedLateJoinAttendees).toHaveBeenCalledWith(
       adminClient,
-      [
-        {
-          session_id: sessionId,
-          student_id: studentA,
-          status: ATTENDEE_STATUSES.ABSENT,
-          note: LATE_ENROLLMENT_NOTE,
-        },
-        {
-          session_id: sessionTwoId,
-          student_id: studentA,
-          status: ATTENDEE_STATUSES.ABSENT,
-          note: LATE_ENROLLMENT_NOTE,
-        },
-      ]
+      classId,
+      studentA
     );
   });
 
-  it("skips sessions that already have an attendee for the student", async () => {
-    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
-      data: [
-        { id: sessionId, nb_order: 1, topic: "Intro" },
-        { id: sessionTwoId, nb_order: 2, topic: "Sensors" },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(attendeeRepository.listAttendeesBySessionIds).mockResolvedValue({
-      data: [{ session_id: sessionId, student_id: studentA, status: ATTENDEE_STATUSES.PRESENT }],
-      error: null,
-    } as never);
-    vi.mocked(attendeeRepository.createAttendees).mockResolvedValue({
-      data: [],
-      error: null,
+  it("throws when the attendees RPC fails", async () => {
+    vi.mocked(attendeeRepository.seedLateJoinAttendees).mockResolvedValue({
+      data: null,
+      error: { message: "insert failed" },
     } as never);
 
-    await seedLateJoinAttendeesForStudent(adminClient, classId, studentA);
-
-    expect(attendeeRepository.createAttendees).toHaveBeenCalledWith(
-      adminClient,
-      [
-        {
-          session_id: sessionTwoId,
-          student_id: studentA,
-          status: ATTENDEE_STATUSES.ABSENT,
-          note: LATE_ENROLLMENT_NOTE,
-        },
-      ]
-    );
-  });
-
-  it("does nothing when the class has no sessions", async () => {
-    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
-
-    await seedLateJoinAttendeesForStudent(adminClient, classId, studentA);
-
-    expect(attendeeRepository.createAttendees).not.toHaveBeenCalled();
+    await expect(
+      seedLateJoinAttendeesForStudent(adminClient, classId, studentA)
+    ).rejects.toThrow("insert failed");
   });
 });
 
 describe("seedLateJoinStudentTasksForStudent", () => {
-  const taskTwoId = "c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3";
-  const pastDue = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const futureDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("seeds missing+0+note for past-due tasks and pending for upcoming", async () => {
-    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
-      data: [{ id: sessionId, nb_order: 1, topic: "Intro" }],
-      error: null,
-    } as never);
-    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
-      data: [
-        {
-          id: taskId,
-          session_id: sessionId,
-          max_grade: 100,
-          due_date: pastDue,
-        },
-        {
-          id: taskTwoId,
-          session_id: sessionId,
-          max_grade: 50,
-          due_date: futureDue,
-        },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(studentTaskRepository.listStudentTasksByTaskIds).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
-    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
-      data: [],
+  it("calls the late-join student tasks RPC once", async () => {
+    vi.mocked(studentTaskRepository.seedLateJoinStudentTasks).mockResolvedValue({
+      data: 2,
       error: null,
     } as never);
 
     await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
 
-    expect(studentTaskRepository.createStudentTasks).toHaveBeenCalledWith(
+    expect(studentTaskRepository.seedLateJoinStudentTasks).toHaveBeenCalledWith(
       adminClient,
-      [
-        {
-          task_id: taskId,
-          student_id: studentA,
-          status: STUDENT_TASK_STATUSES.MISSING,
-          grade: 0,
-          notes: LATE_ENROLLMENT_NOTE,
-        },
-        {
-          task_id: taskTwoId,
-          student_id: studentA,
-          status: STUDENT_TASK_STATUSES.PENDING,
-        },
-      ]
+      classId,
+      studentA
     );
   });
 
-  it("treats null due date as pending", async () => {
-    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
-      data: [{ id: sessionId, nb_order: 1, topic: "Intro" }],
-      error: null,
-    } as never);
-    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
-      data: [
-        {
-          id: taskId,
-          session_id: sessionId,
-          max_grade: 100,
-          due_date: null,
-        },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(studentTaskRepository.listStudentTasksByTaskIds).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
-    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
-      data: [],
-      error: null,
+  it("throws when the student tasks RPC fails", async () => {
+    vi.mocked(studentTaskRepository.seedLateJoinStudentTasks).mockResolvedValue({
+      data: null,
+      error: { message: "insert failed" },
     } as never);
 
-    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+    await expect(
+      seedLateJoinStudentTasksForStudent(adminClient, classId, studentA)
+    ).rejects.toThrow("insert failed");
+  });
+});
 
-    expect(studentTaskRepository.createStudentTasks).toHaveBeenCalledWith(
-      adminClient,
-      [
-        {
-          task_id: taskId,
-          student_id: studentA,
-          status: STUDENT_TASK_STATUSES.PENDING,
-        },
-      ]
-    );
+describe("seedLateJoinAttendeesForStudents", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
   });
 
-  it("skips tasks that already have a student_task for the student", async () => {
-    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
-      data: [{ id: sessionId, nb_order: 1, topic: "Intro" }],
-      error: null,
-    } as never);
-    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
-      data: [
-        {
-          id: taskId,
-          session_id: sessionId,
-          max_grade: 100,
-          due_date: futureDue,
-        },
-        {
-          id: taskTwoId,
-          session_id: sessionId,
-          max_grade: 50,
-          due_date: futureDue,
-        },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(studentTaskRepository.listStudentTasksByTaskIds).mockResolvedValue({
-      data: [
-        {
-          id: studentTaskId,
-          task_id: taskId,
-          student_id: studentA,
-          status: STUDENT_TASK_STATUSES.PENDING,
-          submitted_at: null,
-          grade: null,
-          notes: null,
-          graded_at: null,
-        },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(studentTaskRepository.createStudentTasks).mockResolvedValue({
-      data: [],
+  it("calls the batch attendees RPC once", async () => {
+    vi.mocked(
+      attendeeRepository.seedLateJoinAttendeesForStudents
+    ).mockResolvedValue({
+      data: 4,
       error: null,
     } as never);
 
-    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+    await seedLateJoinAttendeesForStudents(adminClient, classId, [
+      studentA,
+      studentB,
+    ]);
 
-    expect(studentTaskRepository.createStudentTasks).toHaveBeenCalledWith(
-      adminClient,
-      [
-        {
-          task_id: taskTwoId,
-          student_id: studentA,
-          status: STUDENT_TASK_STATUSES.PENDING,
-        },
-      ]
-    );
+    expect(
+      attendeeRepository.seedLateJoinAttendeesForStudents
+    ).toHaveBeenCalledWith(adminClient, classId, [studentA, studentB]);
+  });
+});
+
+describe("seedLateJoinStudentTasksForStudents", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
   });
 
-  it("does nothing when the class has no sessions", async () => {
-    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
-      data: [],
+  it("calls the batch student tasks RPC once", async () => {
+    vi.mocked(
+      studentTaskRepository.seedLateJoinStudentTasksForStudents
+    ).mockResolvedValue({
+      data: 4,
       error: null,
     } as never);
 
-    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+    await seedLateJoinStudentTasksForStudents(adminClient, classId, [
+      studentA,
+      studentB,
+    ]);
 
-    expect(taskRepository.listTasksBySessionIds).not.toHaveBeenCalled();
-    expect(studentTaskRepository.createStudentTasks).not.toHaveBeenCalled();
+    expect(
+      studentTaskRepository.seedLateJoinStudentTasksForStudents
+    ).toHaveBeenCalledWith(adminClient, classId, [studentA, studentB]);
+  });
+});
+
+describe("ensureSessionAttendeesForMembers", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
   });
 
-  it("does nothing when sessions have no tasks", async () => {
-    vi.mocked(sessionRepository.listSessionIdsByClassId).mockResolvedValue({
-      data: [{ id: sessionId, nb_order: 1, topic: "Intro" }],
-      error: null,
-    } as never);
-    vi.mocked(taskRepository.listTasksBySessionIds).mockResolvedValue({
-      data: [],
+  it("calls the member attendees RPC once", async () => {
+    vi.mocked(
+      attendeeRepository.ensureSessionAttendeesForMembers
+    ).mockResolvedValue({
+      data: 2,
       error: null,
     } as never);
 
-    await seedLateJoinStudentTasksForStudent(adminClient, classId, studentA);
+    await ensureSessionAttendeesForMembers(adminClient, sessionId, classId);
 
-    expect(studentTaskRepository.listStudentTasksByTaskIds).not.toHaveBeenCalled();
-    expect(studentTaskRepository.createStudentTasks).not.toHaveBeenCalled();
+    expect(
+      attendeeRepository.ensureSessionAttendeesForMembers
+    ).toHaveBeenCalledWith(adminClient, sessionId, classId);
+    expect(attendeeRepository.createAttendees).not.toHaveBeenCalled();
+    expect(attendeeRepository.listAttendeesBySessionId).not.toHaveBeenCalled();
+  });
+
+  it("throws when the member attendees RPC fails", async () => {
+    vi.mocked(
+      attendeeRepository.ensureSessionAttendeesForMembers
+    ).mockResolvedValue({
+      data: null,
+      error: { message: "insert failed" },
+    } as never);
+
+    await expect(
+      ensureSessionAttendeesForMembers(adminClient, sessionId, classId)
+    ).rejects.toThrow("insert failed");
   });
 });
 
@@ -1549,20 +1387,8 @@ describe("deleteClassSessionForManager", () => {
     vi.mocked(sessionRepository.deleteSessionById).mockResolvedValue({
       error: null,
     } as never);
-    vi.mocked(sessionRepository.listSessionsByClassId).mockResolvedValue({
-      data: [
-        { ...sessionRecord, id: sessionOneId, nb_order: 1, topic: "Intro" },
-        {
-          ...sessionRecord,
-          id: sessionThreeId,
-          nb_order: 3,
-          topic: "Advanced",
-        },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(sessionRepository.updateSessionNbOrder).mockResolvedValue({
-      data: sessionRecord,
+    vi.mocked(sessionRepository.renumberSessionsAfterDelete).mockResolvedValue({
+      data: 1,
       error: null,
     } as never);
 
@@ -1582,11 +1408,9 @@ describe("deleteClassSessionForManager", () => {
       adminClient,
       sessionId
     );
-    expect(sessionRepository.updateSessionNbOrder).toHaveBeenCalledTimes(1);
-    expect(sessionRepository.updateSessionNbOrder).toHaveBeenCalledWith(
+    expect(sessionRepository.renumberSessionsAfterDelete).toHaveBeenCalledWith(
       adminClient,
-      sessionThreeId,
-      2
+      classId
     );
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
       adminClient,
@@ -1612,25 +1436,8 @@ describe("deleteClassSessionForManager", () => {
     vi.mocked(sessionRepository.deleteSessionById).mockResolvedValue({
       error: null,
     } as never);
-    vi.mocked(sessionRepository.listSessionsByClassId).mockResolvedValue({
-      data: [
-        {
-          ...sessionRecord,
-          id: sessionTwoId,
-          nb_order: 2,
-          topic: "Sensors",
-        },
-        {
-          ...sessionRecord,
-          id: sessionThreeId,
-          nb_order: 3,
-          topic: "Advanced",
-        },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(sessionRepository.updateSessionNbOrder).mockResolvedValue({
-      data: sessionRecord,
+    vi.mocked(sessionRepository.renumberSessionsAfterDelete).mockResolvedValue({
+      data: 2,
       error: null,
     } as never);
 
@@ -1642,17 +1449,9 @@ describe("deleteClassSessionForManager", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(sessionRepository.updateSessionNbOrder).toHaveBeenNthCalledWith(
-      1,
+    expect(sessionRepository.renumberSessionsAfterDelete).toHaveBeenCalledWith(
       adminClient,
-      sessionTwoId,
-      1
-    );
-    expect(sessionRepository.updateSessionNbOrder).toHaveBeenNthCalledWith(
-      2,
-      adminClient,
-      sessionThreeId,
-      2
+      classId
     );
   });
 });

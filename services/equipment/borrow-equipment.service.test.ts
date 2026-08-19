@@ -3,20 +3,20 @@ import { BORROW_EQUIPMENT_STATUSES } from "@/lib/constants/manager-borrow-equipm
 import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
 import * as equipmentRepository from "@/repositories/equipment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createBorrowsForManager,
   listAllBorrowsForManager,
   listEquipmentBorrowsForManager,
   toggleBorrowReturnedForManager,
   updateBorrowRecordForManager,
-} from "@/services/borrow-equipment.service";
+} from "@/services/equipment/borrow-equipment.service";
 
 vi.mock("@/repositories/borrow-equipment.repository");
 vi.mock("@/repositories/equipment.repository");
 vi.mock("@/repositories/student-profile.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("next/cache", () => ({
@@ -27,7 +27,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -221,7 +221,7 @@ describe("createBorrowsForManager", () => {
   });
 
   it("rejects when stock is insufficient for one student", async () => {
-    vi.mocked(equipmentRepository.listEquipments).mockResolvedValue({
+    vi.mocked(equipmentRepository.listEquipmentsByIds).mockResolvedValue({
       data: [
         {
           id: equipmentId,
@@ -262,13 +262,14 @@ describe("createBorrowsForManager", () => {
       expect(result.error).toContain("Not enough stock");
     }
     expect(borrowEquipmentRepository.createBorrows).not.toHaveBeenCalled();
+    expect(equipmentRepository.listEquipments).not.toHaveBeenCalled();
   });
 
   it("rejects when total demand exceeds remaining for multiple students", async () => {
     const secondUserId = "22222222-2222-4222-8222-222222222222";
     const thirdUserId = "33333333-3333-4333-8333-333333333333";
 
-    vi.mocked(equipmentRepository.listEquipments).mockResolvedValue({
+    vi.mocked(equipmentRepository.listEquipmentsByIds).mockResolvedValue({
       data: [
         {
           id: equipmentId,
@@ -323,7 +324,7 @@ describe("createBorrowsForManager", () => {
   });
 
   it("creates borrow records when stock is available", async () => {
-    vi.mocked(equipmentRepository.listEquipments).mockResolvedValue({
+    vi.mocked(equipmentRepository.listEquipmentsByIds).mockResolvedValue({
       data: [
         {
           id: equipmentId,
@@ -392,6 +393,7 @@ describe("createBorrowsForManager", () => {
         },
       ]
     );
+    expect(equipmentRepository.listEquipments).not.toHaveBeenCalled();
   });
 });
 
@@ -423,9 +425,12 @@ describe("updateBorrowRecordForManager", () => {
   };
 
   function mockEquipmentLookup(activeBorrowedQuantity: number) {
-    vi.mocked(equipmentRepository.findEquipmentById).mockResolvedValue({
-      data: equipmentRecord,
+    vi.mocked(equipmentRepository.listEquipmentsByIds).mockResolvedValue({
+      data: [equipmentRecord],
       error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
     });
     vi.mocked(
       borrowEquipmentRepository.listActiveBorrowQuantitiesByEquipmentIds
@@ -562,16 +567,21 @@ describe("toggleBorrowReturnedForManager", () => {
       },
       error: null,
     });
-    vi.mocked(equipmentRepository.findEquipmentById).mockResolvedValue({
-      data: {
-        id: equipmentId,
-        name: "Microscope",
-        description: null,
-        quantity: 5,
-        unit_price: 250,
-        created_at: "2026-01-01T00:00:00.000Z",
-      },
+    vi.mocked(equipmentRepository.listEquipmentsByIds).mockResolvedValue({
+      data: [
+        {
+          id: equipmentId,
+          name: "Microscope",
+          description: null,
+          quantity: 5,
+          unit_price: 250,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
       error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
     });
     vi.mocked(
       borrowEquipmentRepository.listActiveBorrowQuantitiesByEquipmentIds

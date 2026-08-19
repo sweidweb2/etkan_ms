@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prefetchForRoute } from "@/lib/manager/schedule-assistant/prefetch";
-import * as scheduleAssistantService from "@/services/schedule-assistant.service";
-import * as authorizationService from "@/services/authorization.service";
+import * as scheduleAssistantService from "@/services/schedule/schedule-assistant.service";
+import * as authorizationService from "@/services/auth/authorization.service";
 
-vi.mock("@/services/schedule-assistant.service", () => ({
+vi.mock("@/services/schedule/schedule-assistant.service", () => ({
   listInstructorsCatalog: vi.fn(),
   listSubjectsCatalog: vi.fn(),
   listCapabilityMatrixCatalog: vi.fn(),
   listSlotsThisWeekCatalog: vi.fn(),
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   assertPermission: vi.fn().mockResolvedValue(undefined),
 }));
 

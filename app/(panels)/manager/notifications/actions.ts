@@ -11,7 +11,7 @@ import {
   deleteNotificationForManager,
   markNotificationReadForManager,
   updateNotificationForManager,
-} from "@/services/notification.service";
+} from "@/services/communications/notification.service";
 import type {
   CreateNotificationActionState,
   DeleteNotificationActionState,

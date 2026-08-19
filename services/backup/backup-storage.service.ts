@@ -8,7 +8,7 @@ import {
   type BackupStorageBucket,
 } from "@/lib/constants/backup-storage";
 import * as backupStorageRepository from "@/repositories/backup-storage.repository";
-import { getUnauthorizedError } from "@/services/authorization.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import type {
   BackupStorageImageFile,
   BackupStorageImageList,

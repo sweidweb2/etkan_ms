@@ -2,7 +2,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { NOTIFICATION_ACTION_NONE_VALUE } from "@/lib/validators/manager/create-notification";
 import { createNotificationSchema } from "@/lib/validators/manager/create-notification";
 import { updateNotificationSchema } from "@/lib/validators/manager/update-notification";
@@ -11,7 +11,7 @@ import type { NotificationRecord } from "@/repositories/notification.repository"
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   NotificationAudienceValue,

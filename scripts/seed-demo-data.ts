@@ -10,8 +10,8 @@ import * as studentProfileRepository from "@/repositories/student-profile.reposi
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
 import { createSeedAdminClient } from "@/scripts/lib/create-seed-admin-client";
-import { ensureStudentRegistration } from "@/services/profile.service";
-import { syncAuthUserRole } from "@/services/role.service";
+import { ensureStudentRegistration } from "@/services/auth/profile.service";
+import { syncAuthUserRole } from "@/services/auth/role.service";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 

@@ -25,7 +25,6 @@ import {
 import { getFinancialFormInviteUrl } from "@/lib/manager/accounting/financial-form-invite-url";
 import { checkPublicFinancialFormSubmitRateLimit } from "@/lib/rate-limit/public-financial-form-rate-limit";
 import type { PaymentPhaseListRecord } from "@/repositories/payment-phase.repository";
-import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import type { FinancialAdjustmentRecord } from "@/repositories/student-financial-adjustment.repository";
 import * as adjustmentRepository from "@/repositories/student-financial-adjustment.repository";
 import type { FinancialFormInviteRecord } from "@/repositories/student-financial-form-invite.repository";
@@ -36,15 +35,14 @@ import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-p
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import { recalcSppAndPhaseStatus } from "@/services/accounting-recalc.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerFinancialAdjustmentRow,
@@ -131,6 +129,30 @@ function assertMutationsAllowed(
   return null;
 }
 
+function mapAdjustmentWriteError(
+  message: string,
+  fallback: string
+): MutationFailure {
+  const known = [
+    "Student payment phase not found.",
+    "Unable to load payment phase.",
+    "Unable to load student payment phase.",
+    "Cannot change adjustments on a cancelled payment phase.",
+    "Cannot change adjustments on a cancelled student assignment.",
+    "This student payment phase already has a financial adjustment.",
+    "Adjustment not found.",
+    "Adjustment does not belong to this student payment phase.",
+  ];
+
+  for (const item of known) {
+    if (message.includes(item)) {
+      return { success: false, error: item };
+    }
+  }
+
+  return { success: false, error: fallback };
+}
+
 function mapFormRecord(record: FinancialFormRecord): ManagerFinancialFormRow {
   return {
     id: record.id,
@@ -211,26 +233,23 @@ async function loadSppAndPhase(
   | { spp: StudentPaymentPhaseRecord; phase: PaymentPhaseListRecord }
   | { error: string }
 > {
-  const { data: spp, error: sppError } =
-    await studentPaymentPhaseRepository.findSppById(adminClient, sppId);
+  const { data, error } =
+    await studentPaymentPhaseRepository.findSppWithPhaseById(adminClient, sppId);
 
-  if (sppError) {
+  if (error) {
     return { error: "Unable to load student payment phase." };
   }
 
-  if (!spp) {
+  if (!data) {
     return { error: "Student payment phase not found." };
   }
 
-  const { data: phase, error: phaseError } =
-    await paymentPhaseRepository.findPaymentPhaseById(
-      adminClient,
-      spp.payment_phase_id
-    );
-
-  if (phaseError || !phase) {
+  const phase = data.payment_phases;
+  if (!phase || Array.isArray(phase)) {
     return { error: "Unable to load payment phase." };
   }
+
+  const { payment_phases: _paymentPhase, ...spp } = data;
 
   return {
     spp: spp as StudentPaymentPhaseRecord,
@@ -342,32 +361,8 @@ export async function createAdjustmentForManager(
     };
   }
 
-  const loaded = await loadSppAndPhase(
-    adminClient,
-    parsed.data.student_payment_phase_id
-  );
-  if ("error" in loaded) {
-    return { success: false, error: loaded.error };
-  }
-
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
-  if (blocked) {
-    return { success: false, error: blocked };
-  }
-
-  const { data: existing } = await adjustmentRepository.findAdjustmentBySppId(
-    adminClient,
-    parsed.data.student_payment_phase_id
-  );
-  if (existing) {
-    return {
-      success: false,
-      error: "This student payment phase already has a financial adjustment.",
-    };
-  }
-
-  const { data: created, error: createError } =
-    await adjustmentRepository.createAdjustment(adminClient, {
+  const { data, error: createError } =
+    await adjustmentRepository.createAdjustmentWithRecalc(adminClient, {
       student_payment_phase_id: parsed.data.student_payment_phase_id,
       type: parsed.data.type,
       value_type: parsed.data.value_type,
@@ -376,28 +371,21 @@ export async function createAdjustmentForManager(
       effective_date: parsed.data.effective_date,
     });
 
-  if (createError || !created) {
-    const message = createError?.message?.toLowerCase() ?? "";
-    if (message.includes("unique") || message.includes("duplicate")) {
-      return {
-        success: false,
-        error: "This student payment phase already has a financial adjustment.",
-      };
-    }
+  if (createError) {
+    return mapAdjustmentWriteError(
+      createError.message,
+      "Unable to create adjustment. Please try again."
+    );
+  }
+
+  if (!data?.adjustment || !data.studentPaymentPhaseId || !data.paymentPhaseId) {
     return {
       success: false,
       error: "Unable to create adjustment. Please try again.",
     };
   }
 
-  try {
-    await recalcSppAndPhaseStatus(adminClient, loaded.spp.id);
-  } catch {
-    return {
-      success: false,
-      error: "Adjustment created, but balances could not be recalculated.",
-    };
-  }
+  const created = data.adjustment;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
@@ -417,9 +405,9 @@ export async function createAdjustmentForManager(
   return {
     success: true,
     message: "Financial adjustment created.",
-    adjustment: mapAdjustmentRecord(created as FinancialAdjustmentRecord),
-    student_payment_phase_id: loaded.spp.id,
-    payment_phase_id: loaded.spp.payment_phase_id,
+    adjustment: mapAdjustmentRecord(created),
+    student_payment_phase_id: data.studentPaymentPhaseId,
+    payment_phase_id: data.paymentPhaseId,
   };
 }
 
@@ -455,44 +443,10 @@ export async function updateAdjustmentForManager(
     };
   }
 
-  const { data: existing, error: existingError } =
-    await adjustmentRepository.findAdjustmentById(adminClient, parsed.data.id);
-
-  if (existingError) {
-    return {
-      success: false,
-      error: "Unable to update adjustment. Please try again.",
-    };
-  }
-
-  if (!existing) {
-    return { success: false, error: "Adjustment not found." };
-  }
-
-  if (
-    existing.student_payment_phase_id !== parsed.data.student_payment_phase_id
-  ) {
-    return {
-      success: false,
-      error: "Adjustment does not belong to this student payment phase.",
-    };
-  }
-
-  const loaded = await loadSppAndPhase(
-    adminClient,
-    existing.student_payment_phase_id
-  );
-  if ("error" in loaded) {
-    return { success: false, error: loaded.error };
-  }
-
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
-  if (blocked) {
-    return { success: false, error: blocked };
-  }
-
-  const { data: updated, error: updateError } =
-    await adjustmentRepository.updateAdjustment(adminClient, parsed.data.id, {
+  const { data, error: updateError } =
+    await adjustmentRepository.updateAdjustmentWithRecalc(adminClient, {
+      id: parsed.data.id,
+      student_payment_phase_id: parsed.data.student_payment_phase_id,
       type: parsed.data.type,
       value_type: parsed.data.value_type,
       value: parsed.data.value,
@@ -500,33 +454,36 @@ export async function updateAdjustmentForManager(
       effective_date: parsed.data.effective_date,
     });
 
-  if (updateError || !updated) {
+  if (updateError) {
+    return mapAdjustmentWriteError(
+      updateError.message,
+      "Unable to update adjustment. Please try again."
+    );
+  }
+
+  if (!data?.adjustment || !data.studentPaymentPhaseId || !data.paymentPhaseId) {
     return {
       success: false,
       error: "Unable to update adjustment. Please try again.",
     };
   }
 
-  try {
-    await recalcSppAndPhaseStatus(adminClient, loaded.spp.id);
-  } catch {
-    return {
-      success: false,
-      error: "Adjustment updated, but balances could not be recalculated.",
-    };
-  }
+  const updated = data.adjustment;
+  const existing = data.previous;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "info",
     table_name: "student_financial_adjustments",
     record_id: updated.id,
-    old_data: {
-      type: existing.type,
-      value_type: existing.value_type,
-      value: existing.value,
-      effective_date: existing.effective_date,
-    },
+    old_data: existing
+      ? {
+          type: existing.type,
+          value_type: existing.value_type,
+          value: existing.value,
+          effective_date: existing.effective_date,
+        }
+      : null,
     new_data: {
       type: updated.type,
       value_type: updated.value_type,
@@ -539,9 +496,9 @@ export async function updateAdjustmentForManager(
   return {
     success: true,
     message: "Financial adjustment updated.",
-    adjustment: mapAdjustmentRecord(updated as FinancialAdjustmentRecord),
-    student_payment_phase_id: loaded.spp.id,
-    payment_phase_id: loaded.spp.payment_phase_id,
+    adjustment: mapAdjustmentRecord(updated),
+    student_payment_phase_id: data.studentPaymentPhaseId,
+    payment_phase_id: data.paymentPhaseId,
   };
 }
 
@@ -569,63 +526,28 @@ export async function deleteAdjustmentForManager(
     };
   }
 
-  const { data: existing, error: existingError } =
-    await adjustmentRepository.findAdjustmentById(adminClient, parsed.data.id);
-
-  if (existingError) {
-    return {
-      success: false,
-      error: "Unable to delete adjustment. Please try again.",
-    };
-  }
-
-  if (!existing) {
-    return { success: false, error: "Adjustment not found." };
-  }
-
-  if (
-    parsed.data.student_payment_phase_id &&
-    parsed.data.student_payment_phase_id !== existing.student_payment_phase_id
-  ) {
-    return {
-      success: false,
-      error: "Adjustment does not belong to this student payment phase.",
-    };
-  }
-
-  const loaded = await loadSppAndPhase(
-    adminClient,
-    existing.student_payment_phase_id
-  );
-  if ("error" in loaded) {
-    return { success: false, error: loaded.error };
-  }
-
-  const blocked = assertMutationsAllowed(loaded.phase.status, loaded.spp.status);
-  if (blocked) {
-    return { success: false, error: blocked };
-  }
-
-  const { error: deleteError } = await adjustmentRepository.deleteAdjustment(
-    adminClient,
-    existing.id
-  );
+  const { data, error: deleteError } =
+    await adjustmentRepository.deleteAdjustmentWithRecalc(
+      adminClient,
+      parsed.data.id,
+      parsed.data.student_payment_phase_id
+    );
 
   if (deleteError) {
+    return mapAdjustmentWriteError(
+      deleteError.message,
+      "Unable to delete adjustment. Please try again."
+    );
+  }
+
+  if (!data?.deleted || !data.studentPaymentPhaseId || !data.paymentPhaseId) {
     return {
       success: false,
       error: "Unable to delete adjustment. Please try again.",
     };
   }
 
-  try {
-    await recalcSppAndPhaseStatus(adminClient, loaded.spp.id);
-  } catch {
-    return {
-      success: false,
-      error: "Adjustment deleted, but balances could not be recalculated.",
-    };
-  }
+  const existing = data.deleted;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",
@@ -644,8 +566,8 @@ export async function deleteAdjustmentForManager(
   return {
     success: true,
     message: "Financial adjustment deleted.",
-    student_payment_phase_id: loaded.spp.id,
-    payment_phase_id: loaded.spp.payment_phase_id,
+    student_payment_phase_id: data.studentPaymentPhaseId,
+    payment_phase_id: data.paymentPhaseId,
   };
 }
 
@@ -776,26 +698,24 @@ export async function updateFinancialFormForManager(
     };
   }
 
-  const { data: existing, error: existingError } =
-    await formRepository.findFormById(adminClient, parsed.data.id);
+  const [existingResult, loaded] = await Promise.all([
+    formRepository.findFormById(adminClient, parsed.data.id),
+    loadSppAndPhase(adminClient, parsed.data.student_payment_phase_id),
+  ]);
 
-  if (existingError || !existing) {
+  if (existingResult.error || !existingResult.data) {
     return { success: false, error: "Financial form not found." };
   }
 
-  if (
-    existing.student_payment_phase_id !== parsed.data.student_payment_phase_id
-  ) {
+  const existing = existingResult.data;
+
+  if (existing.student_payment_phase_id !== parsed.data.student_payment_phase_id) {
     return {
       success: false,
       error: "Form does not belong to this student payment phase.",
     };
   }
 
-  const loaded = await loadSppAndPhase(
-    adminClient,
-    existing.student_payment_phase_id
-  );
   if ("error" in loaded) {
     return { success: false, error: loaded.error };
   }
@@ -882,26 +802,24 @@ export async function deleteFinancialFormForManager(
     };
   }
 
-  const { data: existing, error: existingError } =
-    await formRepository.findFormById(adminClient, parsed.data.id);
+  const [existingResult, loaded] = await Promise.all([
+    formRepository.findFormById(adminClient, parsed.data.id),
+    loadSppAndPhase(adminClient, parsed.data.student_payment_phase_id),
+  ]);
 
-  if (existingError || !existing) {
+  if (existingResult.error || !existingResult.data) {
     return { success: false, error: "Financial form not found." };
   }
 
-  if (
-    existing.student_payment_phase_id !== parsed.data.student_payment_phase_id
-  ) {
+  const existing = existingResult.data;
+
+  if (existing.student_payment_phase_id !== parsed.data.student_payment_phase_id) {
     return {
       success: false,
       error: "Form does not belong to this student payment phase.",
     };
   }
 
-  const loaded = await loadSppAndPhase(
-    adminClient,
-    existing.student_payment_phase_id
-  );
   if ("error" in loaded) {
     return { success: false, error: loaded.error };
   }
@@ -1042,16 +960,18 @@ export async function deleteFinancialFormInviteForManager(
     };
   }
 
-  const { data: existing, error: existingError } =
-    await inviteRepository.findInviteById(adminClient, parsed.data.id);
+  const [existingResult, loaded] = await Promise.all([
+    inviteRepository.findInviteById(adminClient, parsed.data.id),
+    loadSppAndPhase(adminClient, parsed.data.student_payment_phase_id),
+  ]);
 
-  if (existingError || !existing) {
+  if (existingResult.error || !existingResult.data) {
     return { success: false, error: "Invite link not found." };
   }
 
-  if (
-    existing.student_payment_phase_id !== parsed.data.student_payment_phase_id
-  ) {
+  const existing = existingResult.data;
+
+  if (existing.student_payment_phase_id !== parsed.data.student_payment_phase_id) {
     return {
       success: false,
       error: "Invite does not belong to this student payment phase.",
@@ -1065,10 +985,6 @@ export async function deleteFinancialFormInviteForManager(
     };
   }
 
-  const loaded = await loadSppAndPhase(
-    adminClient,
-    existing.student_payment_phase_id
-  );
   if ("error" in loaded) {
     return { success: false, error: loaded.error };
   }

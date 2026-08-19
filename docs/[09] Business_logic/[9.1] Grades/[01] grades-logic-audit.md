@@ -116,7 +116,7 @@ flowchart TD
 | Structure lock | **Any** student has a computed course grade | New sessions/tasks/final exam; session settings / group level |
 | Student input lock | **That** student has a course grade row | Edit their task grade, exam grade, attendance |
 
-Sources: `services/class-computed-grade-lock.service.ts`, `lib/manager/class-grades-access.ts`.
+Sources: `services/classes/class-computed-grade-lock.service.ts`, `lib/manager/class-grades-access.ts`.
 
 **Important:** Stored totals are **frozen**. There is no auto-recompute after edits. To change inputs: delete the computed grade → edit → compute again.
 
@@ -171,7 +171,7 @@ Sources: `services/class-computed-grade-lock.service.ts`, `lib/manager/class-gra
 
 ### 3.6 Course grade compute (official)
 
-Pipeline in `computeAndSaveStudentCourseGrade` (`services/student-course-grade.service.ts`):
+Pipeline in `computeAndSaveStudentCourseGrade` (`services/classes/student-course-grade.service.ts`):
 
 1. Assert class is Done  
 2. Build missing items (`lib/manager/student-grade-missing-items.ts`)  
@@ -328,11 +328,11 @@ Actions:
 | Official compute math | `lib/manager/compute-student-course-grade.ts` |
 | Missing inputs | `lib/manager/student-grade-missing-items.ts` |
 | Fast-cert math (aligned helper) | `lib/manager/fast-certificate-grade.ts` |
-| Persist / list / compute | `services/student-course-grade.service.ts` |
-| Late-join task seeding | `services/session.service.ts` → `seedLateJoinStudentTasksForStudent` |
-| Locks | `services/class-computed-grade-lock.service.ts` |
-| Class / exam / enroll | `services/class.service.ts` |
-| Session / task / attendee | `services/session.service.ts` |
+| Persist / list / compute | `services/classes/student-course-grade.service.ts` |
+| Late-join task seeding | `services/classes/session.service.ts` → `seedLateJoinStudentTasksForStudent` |
+| Locks | `services/classes/class-computed-grade-lock.service.ts` |
+| Class / exam / enroll | `services/classes/class.service.ts` |
+| Session / task / attendee | `services/classes/session.service.ts` |
 | Grades actions | `app/manager/classes/grades/actions.ts` |
 | Defaults | `lib/constants/manager-class-grade-defaults.ts` |
 | Schema | `supabase/migrations/…` including `20260720000000_student_course_grade_user_class_unique.sql`, `20260721000000_mark_overdue_missing_sets_grade_zero.sql` |

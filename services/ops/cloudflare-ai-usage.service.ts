@@ -1,7 +1,7 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import * as cloudflareAiUsageRepository from "@/repositories/cloudflare-ai-usage.repository";
 import type { CreateCloudflareAiUsageInput } from "@/repositories/cloudflare-ai-usage.repository";
-import { assertPermission } from "@/services/authorization.service";
+import { assertPermission } from "@/services/auth/authorization.service";
 import type { ManagerCloudflareAiUsageRow } from "@/types/manager-cloudflare-ai-usage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";

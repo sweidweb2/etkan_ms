@@ -39,6 +39,10 @@ export async function listSubjects(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+export async function listSubjectIds(client: Supabase) {
+  return client.from("subjects").select("id");
+}
+
 export async function findSubjectById(client: Supabase, id: string) {
   return client
     .from("subjects")

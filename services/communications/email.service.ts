@@ -1,10 +1,11 @@
 import { SITE, getSiteUrl } from "@/lib/config/site";
 import { ROUTES } from "@/lib/constants/routes";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   EMAIL_CIRCULAR_CONTACT,
 } from "@/lib/email/templates/chrome";
@@ -22,10 +23,13 @@ import * as classRepository from "@/repositories/class.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as emailSentRepository from "@/repositories/email-sent.repository";
 import * as emailUsersRepository from "@/repositories/email-users.repository";
-import type { EmailDeliveryStatus } from "@/repositories/email-users.repository";
+import type {
+  EmailDeliveryStatus,
+  UpsertEmailUserInput,
+} from "@/repositories/email-users.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import type { AuditActor } from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import type { SendEmailInput as SendManagerEmailInput } from "@/lib/validators/manager/send-email";
 import type { FieldErrors } from "@/types/auth";
 import type {
@@ -219,33 +223,28 @@ async function resolveRecipients(
   userIds: string[]
 ): Promise<{ recipients: ResolvedRecipient[]; skippedCount: number }> {
   const uniqueIds = [...new Set(userIds)];
-  const { data: profiles, error } = await profileRepository.listProfilesByIds(
-    adminClient,
-    uniqueIds
-  );
+  const [profilesResult, emailsResult] = await Promise.all([
+    profileRepository.listProfilesByIds(adminClient, uniqueIds),
+    authRepository.listAuthEmailsByIds(adminClient, uniqueIds),
+  ]);
 
-  if (error) {
-    throw new Error(error.message);
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
   }
 
   const profileById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile])
+    (profilesResult.data ?? []).map((profile) => [profile.id, profile])
   );
   const recipients: ResolvedRecipient[] = [];
   let skippedCount = 0;
 
   for (const userId of uniqueIds) {
     const profile = profileById.get(userId);
-    if (!profile) {
-      skippedCount += 1;
-      continue;
-    }
-
-    const { data: authData, error: authError } =
-      await authRepository.getAuthUserById(adminClient, userId);
-
-    const email = authData.user?.email?.trim() ?? "";
-    if (authError || !email) {
+    const email = emailsResult.data.get(userId)?.trim() ?? "";
+    if (!profile || !email) {
       skippedCount += 1;
       continue;
     }
@@ -258,6 +257,19 @@ async function resolveRecipients(
   }
 
   return { recipients, skippedCount };
+}
+
+async function persistEmailUserDeliveries(
+  adminClient: Supabase,
+  rows: UpsertEmailUserInput[]
+) {
+  const { error } = await emailUsersRepository.insertEmailUsers(
+    adminClient,
+    rows
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 function buildTemplateVars(
@@ -407,6 +419,7 @@ export async function sendEmailsForManager(
 
     let sentCount = 0;
     let failedCount = 0;
+    const deliveries: UpsertEmailUserInput[] = [];
 
     for (const recipient of recipients) {
       const vars = buildTemplateVars(
@@ -425,7 +438,7 @@ export async function sendEmailsForManager(
 
       if (result.success) {
         sentCount += 1;
-        await emailUsersRepository.upsertEmailUser(adminClient, {
+        deliveries.push({
           emailSentId: emailSent.id,
           studentId: recipient.studentId,
           emailAddress: recipient.email,
@@ -435,7 +448,7 @@ export async function sendEmailsForManager(
         });
       } else {
         failedCount += 1;
-        await emailUsersRepository.upsertEmailUser(adminClient, {
+        deliveries.push({
           emailSentId: emailSent.id,
           studentId: recipient.studentId,
           emailAddress: recipient.email,
@@ -445,6 +458,8 @@ export async function sendEmailsForManager(
         });
       }
     }
+
+    await persistEmailUserDeliveries(adminClient, deliveries);
 
     if (sentCount === 0) {
       return {
@@ -489,66 +504,69 @@ export type EmailingClassOption = {
 
 export type EmailingTableFilterData = {
   classes: EmailingClassOption[];
-  /** Profile user ids → class ids (student enrollments + teacher assignments). */
-  userClassIds: Record<string, string[]>;
 };
 
 export async function listEmailingTableFilterDataForManager(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<EmailingTableFilterData> {
+  const timer = createNavStepTimer("listEmailingTableFilterData");
+  try {
+    await timer.step("auth", () =>
+      assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW)
+    );
+
+    const classesResult = await timer.step("classes", () =>
+      classRepository.listClasses(adminClient)
+    );
+
+    if (classesResult.error) {
+      throw new Error(classesResult.error.message);
+    }
+
+    return {
+      classes: (classesResult.data ?? []).map((row) => ({
+        id: row.id,
+        name: row.name,
+      })),
+    };
+  } finally {
+    timer.end();
+  }
+}
+
+export async function listEmailingClassMemberUserIdsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<string[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
 
-  const [classesResult, enrollmentsResult, teachersResult] = await Promise.all([
-    classRepository.listClasses(adminClient),
-    studentClassRepository.listStudentClassEnrollments(adminClient),
-    classTeacherRepository.listClassTeacherAssignments(adminClient),
+  const [studentsResult, teachersResult] = await Promise.all([
+    studentClassRepository.listStudentUserIdsByClassId(adminClient, classId),
+    classTeacherRepository.listClassTeachersByClassId(adminClient, classId),
   ]);
 
-  if (classesResult.error) {
-    throw new Error(classesResult.error.message);
-  }
-  if (enrollmentsResult.error) {
-    throw new Error(enrollmentsResult.error.message);
+  if (studentsResult.error) {
+    throw new Error(studentsResult.error.message);
   }
   if (teachersResult.error) {
     throw new Error(teachersResult.error.message);
   }
 
-  const classIdsByUser = new Map<string, Set<string>>();
-
-  const addMembership = (
-    userId: string | null | undefined,
-    classId: string | null | undefined
-  ) => {
-    if (!userId || !classId) {
-      return;
+  const userIds = new Set<string>();
+  for (const row of studentsResult.data ?? []) {
+    if (row.user_id) {
+      userIds.add(row.user_id);
     }
-    const current = classIdsByUser.get(userId) ?? new Set<string>();
-    current.add(classId);
-    classIdsByUser.set(userId, current);
-  };
-
-  for (const row of enrollmentsResult.data ?? []) {
-    addMembership(row.user_id, row.class_id);
   }
-
   for (const row of teachersResult.data ?? []) {
-    addMembership(row.teacher_id, row.class_id);
+    if (row.teacher_id) {
+      userIds.add(row.teacher_id);
+    }
   }
 
-  const userClassIds: Record<string, string[]> = {};
-  for (const [userId, classIds] of classIdsByUser) {
-    userClassIds[userId] = [...classIds];
-  }
-
-  return {
-    classes: (classesResult.data ?? []).map((row) => ({
-      id: row.id,
-      name: row.name,
-    })),
-    userClassIds,
-  };
+  return [...userIds];
 }
 
 function getTemplateLabel(templateId: string): string {
@@ -571,13 +589,38 @@ function isDeliveryStatus(value: string): value is EmailDeliveryStatus {
   );
 }
 
+export const SENT_EMAILS_PAGE_SIZE = 50;
+
+export type ListSentEmailsForManagerOptions = {
+  page?: number;
+  pageSize?: number;
+};
+
+export type ManagerSentEmailsPage = {
+  emails: ManagerEmailSentListRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
 export async function listSentEmailsForManager(
   adminClient: Supabase,
-  actorUserId: string | null
-): Promise<ManagerEmailSentListRow[]> {
+  actorUserId: string | null,
+  options: ListSentEmailsForManagerOptions = {}
+): Promise<ManagerSentEmailsPage> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
 
-  const sentResult = await emailSentRepository.listEmailSent(adminClient);
+  const page = Math.max(1, options.page ?? 1);
+  const pageSize = Math.min(
+    SENT_EMAILS_PAGE_SIZE,
+    Math.max(1, options.pageSize ?? SENT_EMAILS_PAGE_SIZE)
+  );
+  const offset = (page - 1) * pageSize;
+
+  const sentResult = await emailSentRepository.listEmailSentPage(adminClient, {
+    offset,
+    limit: pageSize,
+  });
   if (sentResult.error) {
     throw new Error(sentResult.error.message);
   }
@@ -615,26 +658,31 @@ export async function listSentEmailsForManager(
     statsBySentId.set(row.email_sent_id, current);
   }
 
-  return rows.map((row) => {
-    const stats = statsBySentId.get(row.id) ?? {
-      recipient_count: 0,
-      sent_count: 0,
-      failed_count: 0,
-    };
+  return {
+    emails: rows.map((row) => {
+      const stats = statsBySentId.get(row.id) ?? {
+        recipient_count: 0,
+        sent_count: 0,
+        failed_count: 0,
+      };
 
-    return {
-      id: row.id,
-      reference_code: row.reference_code,
-      title: row.title,
-      locale: isEmailLocale(row.locale) ? row.locale : "en",
-      template_id: row.template_id,
-      template_label: getTemplateLabel(row.template_id),
-      created_at: row.created_at,
-      recipient_count: stats.recipient_count,
-      sent_count: stats.sent_count,
-      failed_count: stats.failed_count,
-    };
-  });
+      return {
+        id: row.id,
+        reference_code: row.reference_code,
+        title: row.title,
+        locale: isEmailLocale(row.locale) ? row.locale : "en",
+        template_id: row.template_id,
+        template_label: getTemplateLabel(row.template_id),
+        created_at: row.created_at,
+        recipient_count: stats.recipient_count,
+        sent_count: stats.sent_count,
+        failed_count: stats.failed_count,
+      };
+    }),
+    totalCount: sentResult.count ?? rows.length,
+    page,
+    pageSize,
+  };
 }
 
 export async function getSentEmailDetailForManager(
@@ -647,26 +695,20 @@ export async function getSentEmailDetailForManager(
 } | null> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.EMAILING_VIEW);
 
-  const sentResult = await emailSentRepository.findEmailSentById(
-    adminClient,
-    emailSentId
-  );
+  const [sentResult, usersResult] = await Promise.all([
+    emailSentRepository.findEmailSentById(adminClient, emailSentId),
+    emailUsersRepository.listEmailUsersByEmailSentId(adminClient, emailSentId),
+  ]);
 
   if (sentResult.error) {
     throw new Error(sentResult.error.message);
   }
+  if (usersResult.error) {
+    throw new Error(usersResult.error.message);
+  }
 
   if (!sentResult.data) {
     return null;
-  }
-
-  const usersResult = await emailUsersRepository.listEmailUsersByEmailSentId(
-    adminClient,
-    emailSentId
-  );
-
-  if (usersResult.error) {
-    throw new Error(usersResult.error.message);
   }
 
   const row = sentResult.data;
@@ -773,6 +815,7 @@ export async function resendSentEmailForManager(
 
     let sentCount = 0;
     let failedCount = 0;
+    const deliveries: UpsertEmailUserInput[] = [];
 
     for (const recipient of recipients) {
       const rendered = renderEmailTemplate("custom", {
@@ -795,7 +838,7 @@ export async function resendSentEmailForManager(
 
       if (result.success) {
         sentCount += 1;
-        await emailUsersRepository.upsertEmailUser(adminClient, {
+        deliveries.push({
           emailSentId: emailSent.id,
           studentId: recipient.studentId,
           emailAddress: recipient.email,
@@ -805,7 +848,7 @@ export async function resendSentEmailForManager(
         });
       } else {
         failedCount += 1;
-        await emailUsersRepository.upsertEmailUser(adminClient, {
+        deliveries.push({
           emailSentId: emailSent.id,
           studentId: recipient.studentId,
           emailAddress: recipient.email,
@@ -815,6 +858,8 @@ export async function resendSentEmailForManager(
         });
       }
     }
+
+    await persistEmailUserDeliveries(adminClient, deliveries);
 
     if (sentCount === 0) {
       return {

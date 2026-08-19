@@ -11,7 +11,7 @@ import {
   listInstructorCandidatesForManager,
   removeInstructorForManager,
   saveInstructorSubjectCapabilities,
-} from "@/services/instructor.service";
+} from "@/services/instructors/instructor.service";
 import type {
   AddInstructorsActionState,
   ManagerInstructorCandidateRow,

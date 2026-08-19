@@ -3,7 +3,7 @@ import * as guestRepository from "@/repositories/guest.repository";
 import * as inviteRepository from "@/repositories/guest-registration-invite.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
-import type { AuditActor } from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   cancelGuestRegistrationApplicationForManager,
   connectGuestRegistrationUserForManager,
@@ -15,8 +15,8 @@ import {
   submitGuestRegistrationByToken,
   submitGuestRegistrationForManager,
   tempUploadGuestRegistrationDocumentForManager,
-} from "@/services/guest-registration.service";
-import * as studentRegistrationService from "@/services/student-registration.service";
+} from "@/services/guests/guest-registration.service";
+import * as studentRegistrationService from "@/services/students/student-registration.service";
 import type { SubmitPublicRegistrationInput } from "@/lib/validators/public/registration";
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
@@ -27,10 +27,10 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-registration-application.repository");
 vi.mock("@/repositories/student-registration-document.repository");
 vi.mock("@/repositories/registration-storage.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/student-registration.service", () => ({
+vi.mock("@/services/students/student-registration.service", () => ({
   submitPublicRegistrationApplication: vi.fn(),
   tempUploadRegistrationDocument: vi.fn(),
   removeTempRegistrationDocument: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock("@/lib/manager/guests/guest-registration-invite-url", () => ({
     `https://example.com/register/guest/${token}`,
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   getUnauthorizedError: vi.fn(async (_c, userId) =>
     userId ? null : "Unauthorized."
@@ -518,6 +518,12 @@ describe("cancelGuestRegistrationApplicationForManager", () => {
       ...okResult,
     });
     vi.mocked(
+      registrationRepository.findActiveApplicationByGuestId
+    ).mockResolvedValue({
+      data: null,
+      ...okResult,
+    });
+    vi.mocked(
       registrationRepository.findStudentRegistrationApplicationById
     ).mockResolvedValue({
       data: {
@@ -637,6 +643,12 @@ describe("deleteGuestRegistrationApplicationForManager", () => {
       ...okResult,
     });
     vi.mocked(
+      registrationRepository.findActiveApplicationByGuestId
+    ).mockResolvedValue({
+      data: null,
+      ...okResult,
+    });
+    vi.mocked(
       registrationRepository.findStudentRegistrationApplicationById
     ).mockResolvedValue({
       data: {
@@ -705,6 +717,12 @@ describe("deleteGuestRegistrationApplicationForManager", () => {
         used_at: "2026-01-04T00:00:00.000Z",
         application_id: "app-1",
       },
+      ...okResult,
+    });
+    vi.mocked(
+      registrationRepository.findActiveApplicationByGuestId
+    ).mockResolvedValue({
+      data: null,
       ...okResult,
     });
     vi.mocked(

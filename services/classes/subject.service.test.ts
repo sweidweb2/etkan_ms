@@ -2,25 +2,25 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as classRepository from "@/repositories/class.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createSubjectForManager,
   deleteSubjectForManager,
   getSubjectForManager,
   listSubjectClassesForManager,
   listSubjectsForManager,
-} from "@/services/subject.service";
+} from "@/services/classes/subject.service";
 
 vi.mock("@/repositories/subject.repository");
 vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/session.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

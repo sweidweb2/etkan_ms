@@ -2,26 +2,26 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DEFAULT_CREATED_STUDENT_PASSWORD } from "@/lib/constants/auth-limits";
 import * as guestRepository from "@/repositories/guest.repository";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
-import type { AuditActor } from "@/services/audit-log.service";
-import { createStudentFromGuestRegistrationForManager } from "@/services/guest-create-student.service";
-import * as guestService from "@/services/guest.service";
-import * as studentService from "@/services/student.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
+import { createStudentFromGuestRegistrationForManager } from "@/services/guests/guest-create-student.service";
+import * as guestService from "@/services/guests/guest.service";
+import * as studentService from "@/services/students/student.service";
 import type { CreateStudentFromGuestInput } from "@/lib/validators/manager/create-student-from-guest";
 import type { ManagerStudentRow } from "@/types/manager-student";
 
 vi.mock("@/repositories/guest.repository");
 vi.mock("@/repositories/student-registration-application.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/guest.service", () => ({
+vi.mock("@/services/guests/guest.service", () => ({
   setGuestProfileStatusForManager: vi.fn(),
   setGuestStatusesForManager: vi.fn(),
 }));
-vi.mock("@/services/student.service", () => ({
+vi.mock("@/services/students/student.service", () => ({
   createStudent: vi.fn(),
 }));
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   getUnauthorizedError: vi.fn(async (_c, userId) =>
     userId ? null : "Unauthorized."

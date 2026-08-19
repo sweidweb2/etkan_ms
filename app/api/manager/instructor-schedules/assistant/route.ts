@@ -32,10 +32,10 @@ import { scheduleAssistantPromptSchema } from "@/lib/validators/manager/schedule
 import type { ScheduleAssistantGroup } from "@/lib/validators/manager/schedule-assistant";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/services/auth.service";
-import { getUnauthorizedError } from "@/services/authorization.service";
-import { recordCloudflareAiUsage } from "@/services/cloudflare-ai-usage.service";
-import { resolveDisplayName } from "@/services/user-display.service";
+import { getCurrentUser } from "@/services/auth/auth.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
+import { recordCloudflareAiUsage } from "@/services/ops/cloudflare-ai-usage.service";
+import { resolveDisplayName } from "@/services/auth/user-display.service";
 import type { ScheduleAssistantPrefetchCatalogs } from "@/types/schedule-assistant";
 import type { ScheduleAssistantSseEvent } from "@/types/schedule-assistant";
 import type { Json } from "@/types/supabase";

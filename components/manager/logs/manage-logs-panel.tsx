@@ -47,6 +47,8 @@ import {
 } from "@/lib/constants/backup-tables";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
+import { loadAuditLogsPageAction } from "@/app/manager/logs/actions";
+import type { AuditLogCursor } from "@/repositories/audit-log.repository";
 import type { ManagerAuditLogRow } from "@/types/manager-audit-log";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
@@ -76,6 +78,7 @@ const COLUMN_LIMITS = {
 
 type ManageLogsPanelProps = {
   initialLogs: ManagerAuditLogRow[];
+  initialNextCursor: AuditLogCursor | null;
 };
 
 function TruncatedCell({
@@ -264,8 +267,15 @@ function matchesTimeWindowFilter(
   return true;
 }
 
-export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
-  const logs = initialLogs;
+export function ManageLogsPanel({
+  initialLogs,
+  initialNextCursor,
+}: ManageLogsPanelProps) {
+  const [logs, setLogs] = useState(initialLogs);
+  const [nextCursor, setNextCursor] = useState<AuditLogCursor | null>(
+    initialNextCursor
+  );
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState(ACTION_FILTER_ALL);
   const [severityFilter, setSeverityFilter] = useState(SEVERITY_FILTER_ALL);
@@ -387,6 +397,20 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
     setTimeFilter(TIME_FILTER_ALL);
     resetToFirstPage();
   };
+
+  async function handleLoadMore() {
+    if (!nextCursor || isLoadingMore) {
+      return;
+    }
+    setIsLoadingMore(true);
+    try {
+      const page = await loadAuditLogsPageAction({ cursor: nextCursor });
+      setLogs((prev) => [...prev, ...page.logs]);
+      setNextCursor(page.nextCursor);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
 
   const handlePageSizeChange = (value: string | null) => {
     if (!value) {
@@ -763,6 +787,17 @@ export function ManageLogsPanel({ initialLogs }: ManageLogsPanelProps) {
                   <ChevronRightIcon />
                 </Button>
               </div>
+              {nextCursor ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isLoadingMore}
+                  onClick={() => void handleLoadMore()}
+                >
+                  {isLoadingMore ? "Loading…" : "Load older logs"}
+                </Button>
+              ) : null}
             </div>
           </CardContent>
         </Card>

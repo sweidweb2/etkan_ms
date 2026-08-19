@@ -48,6 +48,9 @@ The app follows a **layered architecture** with strict separation of concerns.
   - Combines multiple repositories when needed.
   - Contains authorization checks, validation, and domain rules.
   - **Never talks directly to Supabase**.
+  - Group by domain folder. Import as `@/services/<domain>/<name>.service`.
+    Folders: `accounting`, `auth`, `backup`, `classes`, `communications`, `equipment`, `guests`, `instructors`, `ops`, `public`, `relationships`, `schedule`, `students`, `workshops`.
+  - Co-locate `*.test.ts` in the same domain folder as the service under test.
 
 - `repositories/`
   - **Data access layer**.

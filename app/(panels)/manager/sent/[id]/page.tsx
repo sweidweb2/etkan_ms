@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { SentEmailDetailsPanel } from "@/components/manager/emailing/sent-email-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSentEmailDetailForManager } from "@/services/email.service";
+import { getSentEmailDetailForManager } from "@/services/communications/email.service";
 
 type ManagerSentEmailDetailPageProps = {
   params: Promise<{ id: string }>;

@@ -297,7 +297,7 @@ File: `components/manager/workshops/workshop-details-panel.tsx` (+ section compo
 | Layout | `app/(panels)/manager/layout.tsx`, `components/panels/role-panel-layout.tsx` |
 | Nav | `lib/constants/panel-nav.ts`, `lib/auth/filter-panel-navigation.ts` (+ tests) |
 | UI | `manage-workshops-panel.tsx`, `workshop-details-panel.tsx` |
-| Services | `services/workshop.service.ts` (payments view asserts) |
+| Services | `services/workshops/workshop.service.ts` (payments view asserts) |
 | Docs | this plan, `[08]`, regression notes |
 
 ---

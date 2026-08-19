@@ -48,6 +48,8 @@ The app follows a **layered architecture** with strict separation of concerns.
   - **Always write an audit log** for every mutating backend operation (create, update, delete, and other state-changing use cases).
   - Set audit `severity`: `info` for routine non-destructive creates/updates; `warning` for sensitive money, account, or access changes; `critical` for deletes and irreversible/high-impact changes.
   - **Never talks directly to Supabase**.
+  - Group by domain folder. Import as `@/services/<domain>/<name>.service`.
+    Folders: `accounting`, `auth`, `backup`, `classes`, `communications`, `equipment`, `guests`, `instructors`, `ops`, `public`, `relationships`, `schedule`, `students`, `workshops`.
 
 - `repositories/`
   - **Data access layer**.
@@ -169,17 +171,17 @@ Feature tests may exercise a full use case through the service layer (service + 
 
 ### Where tests live
 
-Co-locate tests with the feature using `*.test.ts` / `*.spec.ts` next to the module, or mirror structure under `tests/`:
+Co-locate tests with the module using `*.test.ts` / `*.spec.ts`. Service tests live in the same domain folder as the service they cover (including extra tests that target one service, e.g. `class-final-exam.service.test.ts` beside `class.service.ts`). Other layers may co-locate or mirror under `tests/`:
 
 ```text
-services/subject.service.ts
-services/subject.service.test.ts
+services/classes/subject.service.ts
+services/classes/subject.service.test.ts
 
 lib/validators/subject.ts
 lib/validators/subject.test.ts
 ```
 
-Name files after the unit under test (e.g. `enroll-student.service.test.ts` for `enroll-student.service.ts`).
+Name files after the unit under test (e.g. `enroll-student.service.test.ts` for `enroll-student.service.ts`). Import the service (and `vi.mock` it) via the domain path: `@/services/classes/subject.service`.
 
 ### Agent workflow
 

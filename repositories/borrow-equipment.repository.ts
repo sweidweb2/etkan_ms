@@ -50,6 +50,20 @@ export async function listAllBorrows(client: Supabase) {
     .order("borrowed_at", { ascending: false });
 }
 
+export async function listBorrowsPage(
+  client: Supabase,
+  options: { offset: number; limit: number }
+) {
+  const from = options.offset;
+  const to = options.offset + options.limit - 1;
+
+  return client
+    .from("borrow_equipment")
+    .select(BORROW_COLUMNS, { count: "exact" })
+    .order("borrowed_at", { ascending: false })
+    .range(from, to);
+}
+
 export type CreateBorrowRecordInput = {
   equipment_id: string;
   user_id: string;

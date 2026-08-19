@@ -2,19 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROLES } from "@/lib/constants/roles";
 import * as permissionRepository from "@/repositories/permission.repository";
-import type { AuditActor } from "@/services/audit-log.service";
-import * as auditLogService from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
 import {
   updateRolePermissionsForManager,
   wouldRetainRbacManage,
   type RolePermissionsMap,
-} from "@/services/rbac.service";
+} from "@/services/auth/rbac.service";
 
 vi.mock("@/repositories/permission.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

@@ -6,11 +6,11 @@ import {
   getSemesterForManager,
   listSemesterClassesForManager,
   listUnlinkedClassesForManager,
-} from "@/services/semester.service";
+} from "@/services/classes/semester.service";
 import {
   listAvailableStudentsForSemester,
   listSemesterStudentsForManager,
-} from "@/services/student-semester.service";
+} from "@/services/students/student-semester.service";
 
 type ManagerSemesterDetailPageProps = {
   params: Promise<{ id: string }>;

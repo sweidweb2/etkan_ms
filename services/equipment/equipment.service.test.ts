@@ -1,23 +1,23 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
 import * as equipmentRepository from "@/repositories/equipment.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createEquipmentForManager,
   getEquipmentForManager,
   listEquipmentsForManager,
   updateEquipmentForManager,
-} from "@/services/equipment.service";
+} from "@/services/equipment/equipment.service";
 
 vi.mock("@/repositories/equipment.repository");
 vi.mock("@/repositories/borrow-equipment.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

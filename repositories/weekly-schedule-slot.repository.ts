@@ -133,3 +133,17 @@ export async function updateWeeklyScheduleSlot(
 export async function deleteWeeklyScheduleSlotById(client: Supabase, id: string) {
   return client.from("weekly_schedule_slots").delete().eq("id", id);
 }
+
+export type CopyWeeklyScheduleFromLastWeekResult = {
+  created_count: number;
+  skipped_count: number;
+};
+
+export async function copyWeeklyScheduleFromLastWeek(
+  client: Supabase,
+  weekStart: string
+) {
+  return client.rpc("copy_weekly_schedule_from_last_week", {
+    p_week_start: weekStart,
+  });
+}

@@ -4,10 +4,11 @@ import {
 } from "@/lib/constants/manager-borrow-equipment-status";
 import { getEquipmentRemainingQuantity, getMaxEditableBorrowQuantity } from "@/lib/constants/manager-equipment-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { createBorrowsSchema } from "@/lib/validators/manager/create-borrows";
 import {
   toggleBorrowReturnedSchema,
@@ -22,12 +23,11 @@ import * as studentProfileRepository from "@/repositories/student-profile.reposi
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
-  getEquipmentForManager,
   listEquipmentsForManager,
-} from "@/services/equipment.service";
-import { listStudentsForManager } from "@/services/student.service";
+} from "@/services/equipment/equipment.service";
+import { listStudentsForManager } from "@/services/students/student.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerBorrowClassOption,
@@ -42,12 +42,17 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 export type BorrowPageData = {
+  classes: ManagerBorrowClassOption[];
+  borrowHistory: ManagerBorrowEquipmentListRow[];
+  borrowHistoryTotalCount: number;
+};
+
+export type BorrowCreateOptions = {
   students: ManagerStudentRow[];
   equipments: ManagerEquipmentRow[];
-  classes: ManagerBorrowClassOption[];
-  classStudentProfileIds: Record<string, string[]>;
-  borrowHistory: ManagerBorrowEquipmentListRow[];
 };
+
+const BORROW_HISTORY_PAGE_SIZE = 50;
 
 export type CreateBorrowsSuccess = {
   success: true;
@@ -215,50 +220,6 @@ function mapBorrowRecordToEquipmentBorrowRow(
   };
 }
 
-async function buildClassStudentProfileIds(
-  adminClient: Supabase
-): Promise<Record<string, string[]>> {
-  const [enrollmentsResult, profilesResult] = await Promise.all([
-    studentClassRepository.listStudentClassEnrollments(adminClient),
-    studentProfileRepository.listStudentProfiles(adminClient),
-  ]);
-
-  if (enrollmentsResult.error) {
-    throw new Error(enrollmentsResult.error.message);
-  }
-
-  if (profilesResult.error) {
-    throw new Error(profilesResult.error.message);
-  }
-
-  const profileIdByUserId = new Map(
-    (profilesResult.data ?? []).map((profile) => [profile.user_id, profile.id])
-  );
-
-  const classStudentProfileIds: Record<string, string[]> = {};
-
-  for (const enrollment of enrollmentsResult.data ?? []) {
-    const studentProfileId = profileIdByUserId.get(enrollment.user_id);
-    if (!studentProfileId) {
-      continue;
-    }
-
-    if (!classStudentProfileIds[enrollment.class_id]) {
-      classStudentProfileIds[enrollment.class_id] = [];
-    }
-
-    classStudentProfileIds[enrollment.class_id]!.push(studentProfileId);
-  }
-
-  for (const classId of Object.keys(classStudentProfileIds)) {
-    classStudentProfileIds[classId] = [
-      ...new Set(classStudentProfileIds[classId]),
-    ];
-  }
-
-  return classStudentProfileIds;
-}
-
 function mapCreateBorrowsError(message: string): string {
   const normalized = message.toLowerCase();
 
@@ -295,9 +256,73 @@ function resolveReturnedAt(
   return new Date().toISOString();
 }
 
+function mapEquipmentRecordToBorrowStockRow(
+  record: {
+    id: string;
+    name: string;
+    description: string | null;
+    quantity: number | null;
+    unit_price: number | null;
+    created_at: string | null;
+  },
+  borrowedQuantity: number
+): ManagerEquipmentRow {
+  return {
+    id: record.id,
+    name: record.name,
+    description: record.description,
+    quantity: record.quantity ?? 0,
+    unit_price: Number(record.unit_price ?? 0),
+    created_at: record.created_at ?? "",
+    borrowed_quantity: borrowedQuantity,
+  };
+}
+
+async function loadEquipmentStockByIds(
+  adminClient: Supabase,
+  equipmentIds: string[]
+): Promise<Map<string, ManagerEquipmentRow>> {
+  const uniqueIds = [...new Set(equipmentIds)];
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const [equipmentsResult, borrowedResult] = await Promise.all([
+    equipmentRepository.listEquipmentsByIds(adminClient, uniqueIds),
+    borrowEquipmentRepository.listActiveBorrowQuantitiesByEquipmentIds(
+      adminClient,
+      uniqueIds
+    ),
+  ]);
+
+  if (equipmentsResult.error) {
+    throw new Error(equipmentsResult.error.message);
+  }
+  if (borrowedResult.error) {
+    throw new Error(borrowedResult.error.message);
+  }
+
+  const borrowedByEquipmentId = new Map<string, number>();
+  for (const row of borrowedResult.data ?? []) {
+    borrowedByEquipmentId.set(
+      row.equipment_id,
+      (borrowedByEquipmentId.get(row.equipment_id) ?? 0) + (row.quantity ?? 0)
+    );
+  }
+
+  return new Map(
+    (equipmentsResult.data ?? []).map((record) => {
+      const row = mapEquipmentRecordToBorrowStockRow(
+        record,
+        borrowedByEquipmentId.get(record.id) ?? 0
+      );
+      return [record.id, row] as const;
+    })
+  );
+}
+
 async function validateBorrowQuantityForEquipment(
   adminClient: Supabase,
-  actorUserId: string | null,
   equipmentId: string,
   currentRecord: BorrowEquipmentRecord,
   nextQuantity: number,
@@ -307,11 +332,8 @@ async function validateBorrowQuantityForEquipment(
     return null;
   }
 
-  const equipment = await getEquipmentForManager(
-    adminClient,
-    actorUserId,
-    equipmentId
-  );
+  const equipmentById = await loadEquipmentStockByIds(adminClient, [equipmentId]);
+  const equipment = equipmentById.get(equipmentId);
 
   if (!equipment) {
     return { success: false, error: "Equipment not found." };
@@ -340,34 +362,122 @@ export async function getBorrowPageDataForManager(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<BorrowPageData> {
+  const timer = createNavStepTimer("getBorrowPageData");
+  try {
+    await timer.step("auth", () =>
+      assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW_BORROWS)
+    );
+
+    const [classesResult, borrowsResult] = await timer.step("load", () =>
+      Promise.all([
+        classRepository.listClasses(adminClient),
+        borrowEquipmentRepository.listBorrowsPage(adminClient, {
+          offset: 0,
+          limit: BORROW_HISTORY_PAGE_SIZE,
+        }),
+      ])
+    );
+
+    if (classesResult.error) {
+      throw new Error(classesResult.error.message);
+    }
+
+    if (borrowsResult.error) {
+      throw new Error(borrowsResult.error.message);
+    }
+
+    const classes: ManagerBorrowClassOption[] = (classesResult.data ?? []).map(
+      (classRow) => ({
+        id: classRow.id,
+        name: classRow.name,
+      })
+    );
+
+    return {
+      classes,
+      borrowHistory: await mapBorrowRecordsToListRows(
+        adminClient,
+        borrowsResult.data ?? []
+      ),
+      borrowHistoryTotalCount: borrowsResult.count ?? borrowsResult.data?.length ?? 0,
+    };
+  } finally {
+    timer.end();
+  }
+}
+
+export async function getBorrowCreateOptionsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<BorrowCreateOptions> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW_BORROWS);
 
-  const [students, equipments, classesResult, borrowHistory, classStudentProfileIds] =
-    await Promise.all([
-      listStudentsForManager(adminClient, actorUserId),
-      listEquipmentsForManager(adminClient, actorUserId),
-      classRepository.listClasses(adminClient),
-      listAllBorrowsForManager(adminClient, actorUserId),
-      buildClassStudentProfileIds(adminClient),
-    ]);
+  const [students, equipments] = await Promise.all([
+    listStudentsForManager(adminClient, actorUserId),
+    listEquipmentsForManager(adminClient, actorUserId),
+  ]);
 
-  if (classesResult.error) {
-    throw new Error(classesResult.error.message);
+  return { students, equipments };
+}
+
+export async function listBorrowClassStudentProfileIdsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<string[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW_BORROWS);
+
+  const membershipResult =
+    await studentClassRepository.listStudentUserIdsByClassId(
+      adminClient,
+      classId
+    );
+
+  if (membershipResult.error) {
+    throw new Error(membershipResult.error.message);
   }
 
-  const classes: ManagerBorrowClassOption[] = (classesResult.data ?? []).map(
-    (classRow) => ({
-      id: classRow.id,
-      name: classRow.name,
-    })
+  const userIds = (membershipResult.data ?? []).map((row) => row.user_id);
+  if (userIds.length === 0) {
+    return [];
+  }
+
+  const profilesResult =
+    await studentProfileRepository.listStudentProfilesByUserIds(
+      adminClient,
+      userIds
+    );
+
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+
+  return [...new Set((profilesResult.data ?? []).map((profile) => profile.id))];
+}
+
+export async function listBorrowsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  options: { page?: number; pageSize?: number } = {}
+): Promise<{ rows: ManagerBorrowEquipmentListRow[]; totalCount: number }> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.EQUIPMENT_VIEW_BORROWS);
+
+  const page = Math.max(1, options.page ?? 1);
+  const pageSize = Math.min(50, Math.max(1, options.pageSize ?? BORROW_HISTORY_PAGE_SIZE));
+  const offset = (page - 1) * pageSize;
+
+  const { data, error, count } = await borrowEquipmentRepository.listBorrowsPage(
+    adminClient,
+    { offset, limit: pageSize }
   );
 
+  if (error) {
+    throw new Error(error.message);
+  }
+
   return {
-    students,
-    equipments,
-    classes,
-    classStudentProfileIds,
-    borrowHistory,
+    rows: await mapBorrowRecordsToListRows(adminClient, data ?? []),
+    totalCount: count ?? data?.length ?? 0,
   };
 }
 
@@ -443,10 +553,24 @@ export async function createBorrowsForManager(
     };
   }
 
-  const equipments = await listEquipmentsForManager(adminClient, actorUserId);
-  const equipmentById = new Map(
-    equipments.map((equipment) => [equipment.id, equipment])
-  );
+  const uniqueEquipmentIds = [
+    ...new Set(parsed.data.items.map((item) => item.equipment_id)),
+  ];
+  let equipmentById: Map<string, ManagerEquipmentRow>;
+  try {
+    equipmentById = await loadEquipmentStockByIds(
+      adminClient,
+      uniqueEquipmentIds
+    );
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to validate equipment stock.",
+    };
+  }
 
   const demandByEquipmentId = new Map<string, number>();
 
@@ -561,7 +685,6 @@ export async function updateBorrowRecordForManager(
 
   const stockError = await validateBorrowQuantityForEquipment(
     adminClient,
-    actorUserId,
     existing.equipment_id,
     existing,
     parsed.data.quantity,
@@ -656,7 +779,6 @@ export async function toggleBorrowReturnedForManager(
   if (!parsed.data.isReturned) {
     const stockError = await validateBorrowQuantityForEquipment(
       adminClient,
-      actorUserId,
       existing.equipment_id,
       existing,
       existing.quantity ?? 1,

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { WorkshopDetailsPanel } from "@/components/manager/workshops/workshop-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getWorkshopForManager } from "@/services/workshop.service";
+import { getWorkshopForManager } from "@/services/workshops/workshop.service";
 
 type ManagerWorkshopDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -28,12 +28,8 @@ export default async function ManagerWorkshopDetailPage({
     <WorkshopDetailsPanel
       workshop={detail.workshop}
       paymentCount={detail.payment_count}
-      payments={detail.payments}
-      paymentSummary={detail.payment_summary}
       instructors={detail.instructors}
-      instructorCandidates={detail.instructorCandidates}
       documents={detail.documents}
-      scheduleSlots={detail.scheduleSlots}
       sessions={detail.sessions}
     />
   );

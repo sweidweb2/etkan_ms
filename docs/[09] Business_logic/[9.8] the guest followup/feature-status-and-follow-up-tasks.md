@@ -69,8 +69,8 @@ The original [`implementation-plan.md`](./implementation-plan.md) is **historica
 
 ### Tests that pass
 
-- [x] `services/guest.service.test.ts` (26) — including pending add gate, finished remove → pending, delete storage cleanup
-- [x] `services/guest-registration.service.test.ts` (17)
+- [x] `services/guests/guest.service.test.ts` (26) — including pending add gate, finished remove → pending, delete storage cleanup
+- [x] `services/guests/guest-registration.service.test.ts` (17)
 - [x] Guest constants / validators / route-permission / role-seed / permissions tests
 
 ---
@@ -84,7 +84,7 @@ Nothing in the core domain is broken. These are the real gaps found.
 | **P1** | Nav filter test fails: `expected 28 to be 29` | CI / `vitest` red. Guests link is hidden unless `guests.view` is in the “all views” set. **Product nav still works** for manager/CEO (they have the permission). | `lib/auth/filter-panel-navigation.test.ts` — `allViews` is missing `PERMISSIONS.GUESTS_VIEW` |
 | **P2** | Create-guest copy still says status starts as **Started** | Wrong default; should be **Scheduled**. Confuses staff. | `components/manager/guests/add-guest-dialog.tsx` |
 | **P2** | Staff-fill **Sheet** can be dismissed mid-submit | `usePendingAwareOpenChange(false, …)`; close button stays visible. Violates form-dialog rules; user can abandon an in-flight submit. | `components/manager/guests/guest-registration-section.tsx` |
-| **P2** | Hard-delete **application** ignores storage delete errors | Guest delete fail-closes; application delete does not. Orphan files possible. | `deleteGuestRegistrationApplicationForManager` in `services/guest-registration.service.ts` |
+| **P2** | Hard-delete **application** ignores storage delete errors | Guest delete fail-closes; application delete does not. Orphan files possible. | `deleteGuestRegistrationApplicationForManager` in `services/guests/guest-registration.service.ts` |
 | **P3** | Cancel application only uses `invite.application_id` | Delete falls back to the active app; cancel does not. If the invite pointer is null but an active dossier exists, cancel can say “no application” while the UI still shows one. | same service — `cancelGuestRegistrationApplicationForManager` |
 | **P3** | History subtitle implies every change is an event | Profile changes are audit-log only, not in this list. | `components/manager/guests/guest-status-history.tsx` |
 | **P3** | Dead guest temp-upload action | Wizard uses the shared student-registration temp upload. Unused export; not a runtime break. | `app/(public)/register/guest/[token]/actions.ts` → `tempUploadGuestRegistrationDocumentAction` |
@@ -174,7 +174,7 @@ Do these in order. Check the box when done. Each task is independently shippable
 |------|--------|
 | Migrations | `supabase/migrations/20260820120000_guests.sql`, `…211…status_current_pointer.sql`, `…221…profile_and_pipeline_statuses.sql` |
 | Domain | `lib/constants/guest.ts`, `types/manager-guest.ts`, `lib/manager/guests/*` |
-| Services | `services/guest.service.ts`, `services/guest-registration.service.ts` |
+| Services | `services/guests/guest.service.ts`, `services/guests/guest-registration.service.ts` |
 | Actions | `app/(panels)/manager/guests/actions.ts`, `app/(public)/register/guest/[token]/actions.ts` |
 | UI | `components/manager/guests/*`, `components/public/registration/registration-wizard.tsx` |
 | Authz | `lib/constants/permissions.ts`, `lib/constants/role-seed-permissions.ts`, `lib/auth/manager-route-permissions.ts`, `lib/constants/panel-nav.ts` |

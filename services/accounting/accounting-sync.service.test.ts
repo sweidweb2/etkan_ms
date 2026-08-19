@@ -1,28 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as classRepository from "@/repositories/class.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
-import * as accountingRecalc from "@/services/accounting-recalc.service";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
+  backfillSppsForClassBecomeInProgress,
   ensureSppForStudentOnPhase,
+  findSyncTargetPhaseForClass,
   onStudentJoinedClass,
   onStudentLeftClass,
-} from "@/services/accounting-sync.service";
+  onStudentsJoinedClass,
+} from "@/services/accounting/accounting-sync.service";
 
-vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/payment-phase.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
-vi.mock("@/services/accounting-recalc.service", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/services/accounting-recalc.service")>();
-  return {
-    ...actual,
-    recalcSingleSpp: vi.fn(),
-  };
-});
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
@@ -39,22 +31,6 @@ const phaseId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const studentId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const sppId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const otherSppId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
-
-const classRow = {
-  id: classId,
-  subject_id: null,
-  name: "Math 101",
-  status: "in_progress",
-  semester_id: semesterId,
-  created_at: "2026-01-01T00:00:00.000Z",
-};
-
-const otherClassRow = {
-  ...classRow,
-  id: otherClassId,
-  name: "Math 102",
-  status: "planned",
-};
 
 const openedPhase = {
   id: phaseId,
@@ -88,49 +64,27 @@ const pendingSpp = {
   updated_at: "2026-07-15T00:00:00.000Z",
 };
 
-const paidOtherSpp = {
-  ...pendingSpp,
-  id: otherSppId,
-  student_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
-  status: "paid",
-  total_paid: 1000,
-  remaining_amount: 0,
-};
+describe("findSyncTargetPhaseForClass", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
 
-function mockSyncGate(options: {
-  classData?: typeof classRow | typeof otherClassRow | null;
-  billingClass?: typeof classRow | null;
-  phase?: typeof openedPhase | typeof closedPhase | null;
-}) {
-  const classData = options.classData === undefined ? classRow : options.classData;
-  const billingClass =
-    options.billingClass === undefined ? classRow : options.billingClass;
-  const phase = options.phase === undefined ? openedPhase : options.phase;
+  it("returns the RPC phase", async () => {
+    vi.mocked(
+      paymentPhaseRepository.findSyncTargetPhaseForClass
+    ).mockResolvedValue({
+      data: openedPhase,
+      error: null,
+    } as never);
 
-  vi.mocked(classRepository.findClassById).mockResolvedValue({
-    data: classData,
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-  vi.mocked(classRepository.findInProgressClassBySemesterId).mockResolvedValue({
-    data: billingClass,
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-  vi.mocked(
-    paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
-  ).mockResolvedValue({
-    data: phase,
-    error: null,
-    count: null,
-    status: 200,
-    statusText: "OK",
-  } as never);
-}
+    const phase = await findSyncTargetPhaseForClass(adminClient, classId);
+
+    expect(phase?.id).toBe(phaseId);
+    expect(
+      paymentPhaseRepository.findSyncTargetPhaseForClass
+    ).toHaveBeenCalledWith(adminClient, classId);
+  });
+});
 
 describe("ensureSppForStudentOnPhase", () => {
   beforeEach(() => {
@@ -140,13 +94,15 @@ describe("ensureSppForStudentOnPhase", () => {
 
   it("is idempotent when an SPP already exists", async () => {
     vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
+      studentPaymentPhaseRepository.ensureSppForStudentOnPhase
     ).mockResolvedValue({
-      data: pendingSpp,
+      data: {
+        spp: pendingSpp,
+        created: false,
+        alreadyExisted: true,
+        reactivated: false,
+      },
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     } as never);
 
     const result = await ensureSppForStudentOnPhase(adminClient, {
@@ -158,35 +114,27 @@ describe("ensureSppForStudentOnPhase", () => {
     expect(result.alreadyExisted).toBe(true);
     expect(result.reactivated).toBe(false);
     expect(
+      studentPaymentPhaseRepository.ensureSppForStudentOnPhase
+    ).toHaveBeenCalledWith(adminClient, studentId, phaseId, undefined);
+    expect(
       studentPaymentPhaseRepository.createStudentPaymentPhase
     ).not.toHaveBeenCalled();
   });
 
   it("reactivates a cancelled SPP without inserting a new row", async () => {
-    const cancelledSpp = { ...pendingSpp, status: "cancelled" };
     const reactivatedSpp = { ...pendingSpp, status: "pending" };
 
     vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
+      studentPaymentPhaseRepository.ensureSppForStudentOnPhase
     ).mockResolvedValue({
-      data: cancelledSpp,
+      data: {
+        spp: reactivatedSpp,
+        created: false,
+        alreadyExisted: true,
+        reactivated: true,
+      },
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus
-    ).mockResolvedValue({
-      data: { ...cancelledSpp, status: "pending" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(accountingRecalc.recalcSingleSpp).mockResolvedValue(
-      reactivatedSpp as never
-    );
 
     const result = await ensureSppForStudentOnPhase(adminClient, {
       studentId,
@@ -201,7 +149,111 @@ describe("ensureSppForStudentOnPhase", () => {
     ).not.toHaveBeenCalled();
     expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus
-    ).toHaveBeenCalledWith(adminClient, sppId, "pending");
+    ).not.toHaveBeenCalled();
+  });
+});
+
+describe("backfillSppsForClassBecomeInProgress", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("audits created and reactivated SPPs from one RPC", async () => {
+    const reactivatedSpp = {
+      ...pendingSpp,
+      id: otherSppId,
+      status: "pending",
+    };
+    vi.mocked(
+      studentPaymentPhaseRepository.backfillSppsForClassBecomeInProgress
+    ).mockResolvedValue({
+      data: {
+        ensuredCount: 2,
+        createdCount: 1,
+        reactivatedCount: 1,
+        created: [pendingSpp],
+        reactivated: [reactivatedSpp],
+        semesterId,
+      },
+      error: null,
+    } as never);
+
+    const result = await backfillSppsForClassBecomeInProgress(
+      adminClient,
+      classId,
+      actor
+    );
+
+    expect(result).toEqual({
+      ensuredCount: 2,
+      createdCount: 1,
+      reactivatedCount: 1,
+    });
+    expect(
+      studentPaymentPhaseRepository.backfillSppsForClassBecomeInProgress
+    ).toHaveBeenCalledWith(adminClient, classId);
+    expect(
+      studentPaymentPhaseRepository.ensureSppForStudentOnPhase
+    ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledTimes(2);
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "insert",
+        table_name: "student_payment_phases",
+        record_id: sppId,
+        metadata: expect.objectContaining({
+          note: "Student payment phase created from class in_progress backfill.",
+          class_id: classId,
+          semester_id: semesterId,
+        }),
+      })
+    );
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "update",
+        table_name: "student_payment_phases",
+        record_id: otherSppId,
+        old_data: { status: "cancelled" },
+        metadata: expect.objectContaining({
+          note: "Student payment phase reactivated from class in_progress backfill.",
+          semester_id: semesterId,
+        }),
+      })
+    );
+  });
+
+  it("skips audits when the RPC created nothing", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.backfillSppsForClassBecomeInProgress
+    ).mockResolvedValue({
+      data: {
+        ensuredCount: 0,
+        createdCount: 0,
+        reactivatedCount: 0,
+        created: [],
+        reactivated: [],
+        semesterId: null,
+      },
+      error: null,
+    } as never);
+
+    const result = await backfillSppsForClassBecomeInProgress(
+      adminClient,
+      classId,
+      actor
+    );
+
+    expect(result).toEqual({
+      ensuredCount: 0,
+      createdCount: 0,
+      reactivatedCount: 0,
+    });
+    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
   });
 });
 
@@ -211,42 +263,29 @@ describe("onStudentJoinedClass", () => {
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
+  function mockJoinRpc(payload: {
+    phase?: typeof openedPhase | typeof closedPhase | null;
+    spp?: typeof pendingSpp | null;
+    created?: boolean;
+    reactivated?: boolean;
+    phaseReopened?: boolean;
+  }) {
+    vi.mocked(
+      studentPaymentPhaseRepository.syncStudentJoinedClass
+    ).mockResolvedValue({
+      data: {
+        phase: payload.phase === undefined ? openedPhase : payload.phase,
+        spp: payload.spp === undefined ? pendingSpp : payload.spp,
+        created: payload.created ?? false,
+        reactivated: payload.reactivated ?? false,
+        phaseReopened: payload.phaseReopened ?? false,
+      },
+      error: null,
+    } as never);
+  }
+
   it("creates an SPP when joining the semester's in-progress class", async () => {
-    mockSyncGate({});
-    vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.createStudentPaymentPhase
-    ).mockResolvedValue({
-      data: pendingSpp,
-      error: null,
-      count: null,
-      status: 201,
-      statusText: "Created",
-    } as never);
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: openedPhase,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-    ).mockResolvedValue({
-      data: [pendingSpp],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    mockJoinRpc({ created: true });
 
     const result = await onStudentJoinedClass(
       adminClient,
@@ -259,8 +298,8 @@ describe("onStudentJoinedClass", () => {
     expect(result.spp?.status).toBe("pending");
     expect(result.phaseReopened).toBe(false);
     expect(
-      paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
-    ).toHaveBeenCalledWith(adminClient, semesterId);
+      studentPaymentPhaseRepository.syncStudentJoinedClass
+    ).toHaveBeenCalledWith(adminClient, studentId, classId);
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
       adminClient,
       actor,
@@ -272,56 +311,12 @@ describe("onStudentJoinedClass", () => {
   });
 
   it("reactivates a cancelled SPP on join and can reopen a closed phase", async () => {
-    const cancelledSpp = { ...pendingSpp, status: "cancelled" };
-    const reactivatedSpp = { ...pendingSpp, status: "pending" };
-
-    mockSyncGate({ phase: closedPhase });
-    vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
-    ).mockResolvedValue({
-      data: cancelledSpp,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus
-    ).mockResolvedValue({
-      data: { ...cancelledSpp, status: "pending" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(accountingRecalc.recalcSingleSpp).mockResolvedValue(
-      reactivatedSpp as never
-    );
-    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue(
-      {
-        data: { ...closedPhase, status: "opened" },
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never
-    );
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: { ...closedPhase, status: "opened" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-    ).mockResolvedValue({
-      data: [reactivatedSpp],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    mockJoinRpc({
+      phase: { ...closedPhase, status: "opened" },
+      spp: { ...pendingSpp, status: "pending" },
+      reactivated: true,
+      phaseReopened: true,
+    });
 
     const result = await onStudentJoinedClass(
       adminClient,
@@ -338,10 +333,7 @@ describe("onStudentJoinedClass", () => {
   });
 
   it("no-ops when joining a non-in-progress class", async () => {
-    mockSyncGate({
-      classData: otherClassRow,
-      billingClass: classRow,
-    });
+    mockJoinRpc({ phase: null, spp: null });
 
     const result = await onStudentJoinedClass(
       adminClient,
@@ -351,19 +343,11 @@ describe("onStudentJoinedClass", () => {
 
     expect(result.created).toBe(false);
     expect(result.spp).toBeNull();
-    expect(
-      paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
-    ).not.toHaveBeenCalled();
-    expect(
-      studentPaymentPhaseRepository.createStudentPaymentPhase
-    ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
   });
 
   it("no-ops when no in-progress class exists for the semester", async () => {
-    mockSyncGate({
-      billingClass: null,
-      phase: null,
-    });
+    mockJoinRpc({ phase: null, spp: null });
 
     const result = await onStudentJoinedClass(
       adminClient,
@@ -373,56 +357,14 @@ describe("onStudentJoinedClass", () => {
 
     expect(result.created).toBe(false);
     expect(result.spp).toBeNull();
-    expect(
-      paymentPhaseRepository.findCurrentSyncPhaseBySemesterId
-    ).not.toHaveBeenCalled();
   });
 
   it("creates an SPP and reopens a closed phase", async () => {
-    mockSyncGate({ phase: closedPhase });
-    vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
-    ).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.createStudentPaymentPhase
-    ).mockResolvedValue({
-      data: pendingSpp,
-      error: null,
-      count: null,
-      status: 201,
-      statusText: "Created",
-    } as never);
-    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue(
-      {
-        data: { ...closedPhase, status: "opened" },
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never
-    );
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: { ...closedPhase, status: "opened" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-    ).mockResolvedValue({
-      data: [pendingSpp, paidOtherSpp],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    mockJoinRpc({
+      phase: { ...closedPhase, status: "opened" },
+      created: true,
+      phaseReopened: true,
+    });
 
     const result = await onStudentJoinedClass(
       adminClient,
@@ -432,11 +374,6 @@ describe("onStudentJoinedClass", () => {
 
     expect(result.created).toBe(true);
     expect(result.phaseReopened).toBe(true);
-    expect(paymentPhaseRepository.updatePaymentPhaseStatus).toHaveBeenCalledWith(
-      adminClient,
-      phaseId,
-      "opened"
-    );
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
       adminClient,
       actor,
@@ -448,7 +385,7 @@ describe("onStudentJoinedClass", () => {
   });
 
   it("does not create an SPP when only a cancelled phase exists", async () => {
-    mockSyncGate({ phase: null });
+    mockJoinRpc({ phase: null, spp: null });
 
     const result = await onStudentJoinedClass(
       adminClient,
@@ -464,41 +401,11 @@ describe("onStudentJoinedClass", () => {
   });
 
   it("reuses an existing unpaid SPP on join and reopens a closed phase", async () => {
-    mockSyncGate({ phase: closedPhase });
-    vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
-    ).mockResolvedValue({
-      data: pendingSpp,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue(
-      {
-        data: { ...closedPhase, status: "opened" },
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never
-    );
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: { ...closedPhase, status: "opened" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-    ).mockResolvedValue({
-      data: [pendingSpp],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    mockJoinRpc({
+      phase: { ...closedPhase, status: "opened" },
+      spp: pendingSpp,
+      phaseReopened: true,
+    });
 
     const result = await onStudentJoinedClass(
       adminClient,
@@ -513,10 +420,60 @@ describe("onStudentJoinedClass", () => {
     expect(
       studentPaymentPhaseRepository.createStudentPaymentPhase
     ).not.toHaveBeenCalled();
-    expect(paymentPhaseRepository.updatePaymentPhaseStatus).toHaveBeenCalledWith(
+  });
+});
+
+describe("onStudentsJoinedClass", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("audits successful joins from the batch RPC", async () => {
+    const otherStudentId = "f1f1f1f1-f1f1-4f1f-8f1f-f1f1f1f1f1f1";
+    vi.mocked(
+      studentPaymentPhaseRepository.syncStudentsJoinedClass
+    ).mockResolvedValue({
+      data: [
+        {
+          studentId,
+          ok: true,
+          phase: openedPhase,
+          spp: pendingSpp,
+          created: true,
+          reactivated: false,
+          phaseReopened: false,
+        },
+        {
+          studentId: otherStudentId,
+          ok: false,
+          error: "phase missing",
+        },
+      ],
+      error: null,
+    } as never);
+
+    const items = await onStudentsJoinedClass(
       adminClient,
-      phaseId,
-      "opened"
+      { classId, studentIds: [studentId, otherStudentId] },
+      actor
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items[0]?.ok).toBe(true);
+    expect(items[0]?.created).toBe(true);
+    expect(items[1]?.ok).toBe(false);
+    expect(
+      studentPaymentPhaseRepository.syncStudentsJoinedClass
+    ).toHaveBeenCalledWith(adminClient, classId, [studentId, otherStudentId]);
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledTimes(1);
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "insert",
+        table_name: "student_payment_phases",
+      })
     );
   });
 });
@@ -527,33 +484,25 @@ describe("onStudentLeftClass (Phase E7 leave / phase close)", () => {
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
+  function mockLeaveRpc(payload: {
+    phase?: typeof openedPhase | typeof closedPhase | null;
+    spp?: typeof pendingSpp | (typeof pendingSpp & { status: string }) | null;
+    retained?: boolean;
+  }) {
+    vi.mocked(
+      studentPaymentPhaseRepository.syncStudentLeftClass
+    ).mockResolvedValue({
+      data: {
+        phase: payload.phase === undefined ? openedPhase : payload.phase,
+        spp: payload.spp === undefined ? pendingSpp : payload.spp,
+        retained: payload.retained ?? false,
+      },
+      error: null,
+    } as never);
+  }
+
   it("retains unpaid SPP while siblings are paid and keeps the phase opened (E7)", async () => {
-    mockSyncGate({});
-    vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
-    ).mockResolvedValue({
-      data: pendingSpp,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: openedPhase,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-    ).mockResolvedValue({
-      data: [pendingSpp, paidOtherSpp],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    mockLeaveRpc({ retained: true });
 
     const result = await onStudentLeftClass(
       adminClient,
@@ -564,6 +513,9 @@ describe("onStudentLeftClass (Phase E7 leave / phase close)", () => {
     expect(result.retained).toBe(true);
     expect(result.spp?.id).toBe(sppId);
     expect(result.spp?.status).toBe("pending");
+    expect(
+      studentPaymentPhaseRepository.syncStudentLeftClass
+    ).toHaveBeenCalledWith(adminClient, studentId, classId);
     expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus
     ).not.toHaveBeenCalled();
@@ -587,41 +539,11 @@ describe("onStudentLeftClass (Phase E7 leave / phase close)", () => {
 
   it("retains a paid SPP and can close the phase when every active SPP is paid (E7)", async () => {
     const paidLeavingSpp = { ...pendingSpp, status: "paid", remaining_amount: 0 };
-    mockSyncGate({});
-    vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
-    ).mockResolvedValue({
-      data: paidLeavingSpp,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.findPaymentPhaseById).mockResolvedValue({
-      data: openedPhase,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
-    ).mockResolvedValue({
-      data: [paidLeavingSpp, paidOtherSpp],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(paymentPhaseRepository.updatePaymentPhaseStatus).mockResolvedValue(
-      {
-        data: { ...openedPhase, status: "closed" },
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never
-    );
+    mockLeaveRpc({
+      phase: closedPhase,
+      spp: paidLeavingSpp,
+      retained: true,
+    });
 
     const result = await onStudentLeftClass(
       adminClient,
@@ -631,21 +553,20 @@ describe("onStudentLeftClass (Phase E7 leave / phase close)", () => {
 
     expect(result.retained).toBe(true);
     expect(result.spp?.status).toBe("paid");
+    expect(result.phase?.status).toBe("closed");
     expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus
     ).not.toHaveBeenCalled();
-    expect(paymentPhaseRepository.updatePaymentPhaseStatus).toHaveBeenCalledWith(
-      adminClient,
-      phaseId,
-      "closed"
-    );
+    expect(
+      paymentPhaseRepository.updatePaymentPhaseStatus
+    ).not.toHaveBeenCalled();
+    expect(
+      studentPaymentPhaseRepository.syncStudentLeftClass
+    ).toHaveBeenCalledWith(adminClient, studentId, classId);
   });
 
   it("no-ops leave sync for a non-in-progress class", async () => {
-    mockSyncGate({
-      classData: otherClassRow,
-      billingClass: classRow,
-    });
+    mockLeaveRpc({ phase: null, spp: null, retained: false });
 
     const result = await onStudentLeftClass(
       adminClient,
@@ -657,19 +578,14 @@ describe("onStudentLeftClass (Phase E7 leave / phase close)", () => {
     expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhaseStatus
     ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
   });
 
   it("does not treat an already-cancelled SPP as retained", async () => {
-    mockSyncGate({});
-    vi.mocked(
-      studentPaymentPhaseRepository.findSppByStudentAndPhase
-    ).mockResolvedValue({
-      data: { ...pendingSpp, status: "cancelled" },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    mockLeaveRpc({
+      spp: { ...pendingSpp, status: "cancelled" },
+      retained: false,
+    });
 
     const result = await onStudentLeftClass(
       adminClient,

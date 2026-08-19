@@ -83,6 +83,16 @@ export function buildStudentAuditLogsOrFilter(
   return parts.join(",");
 }
 
+export type AuditLogCursor = {
+  created_at: string;
+  id: string;
+};
+
+export type ListAuditLogsPageOptions = {
+  limit?: number;
+  cursor?: AuditLogCursor | null;
+};
+
 export async function listAuditLogs(
   client: Supabase,
   options?: { limit?: number; slim?: boolean }
@@ -95,6 +105,29 @@ export async function listAuditLogs(
 
   if (options?.limit != null) {
     query = query.limit(options.limit);
+  }
+
+  return query;
+}
+
+export async function listAuditLogsPage(
+  client: Supabase,
+  options: ListAuditLogsPageOptions = {}
+) {
+  const limit = options.limit ?? DEFAULT_MANAGER_AUDIT_LOG_LIMIT;
+
+  let query = client
+    .from("audit_logs")
+    .select(AUDIT_LOG_LIST_COLUMNS)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit);
+
+  const cursor = options.cursor;
+  if (cursor?.created_at && cursor.id) {
+    query = query.or(
+      `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`
+    );
   }
 
   return query;

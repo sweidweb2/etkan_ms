@@ -11,7 +11,7 @@ import {
 import {
   createTransactionForManager,
   updateTransactionForManager,
-} from "@/services/transaction.service";
+} from "@/services/accounting/transaction.service";
 import type {
   CreateTransactionActionState,
   UpdateTransactionActionState,

@@ -1,7 +1,7 @@
 import { ManageUsersPanel } from "@/components/manager/users/manage-users-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listUsersForManager } from "@/services/user.service";
+import { listUsersForManager } from "@/services/auth/user.service";
 
 export default async function ManagerUsersPage() {
   const adminClient = createSupabaseAdminClient();

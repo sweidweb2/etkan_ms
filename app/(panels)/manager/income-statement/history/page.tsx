@@ -8,7 +8,7 @@ import {
   incomeStatementPeriodLabel,
   listIncomeStatementHistoryMonthsForManager,
   parseIncomeStatementMonthKey,
-} from "@/services/income-statement.service";
+} from "@/services/accounting/income-statement.service";
 
 type ManagerIncomeStatementHistoryPageProps = {
   searchParams: Promise<{ month?: string }>;

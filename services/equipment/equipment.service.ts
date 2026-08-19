@@ -2,7 +2,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { createEquipmentSchema } from "@/lib/validators/manager/create-equipment";
 import { updateEquipmentSchema } from "@/lib/validators/manager/update-equipment";
 import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
@@ -11,7 +11,7 @@ import type { EquipmentRecord } from "@/repositories/equipment.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerEquipmentRow } from "@/types/manager-equipment";
 import type { SupabaseClient } from "@supabase/supabase-js";

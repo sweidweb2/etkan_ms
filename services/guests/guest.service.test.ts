@@ -5,7 +5,7 @@ import * as inviteRepository from "@/repositories/guest-registration-invite.repo
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
-import type { AuditActor } from "@/services/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createGuestForManager,
   deleteGuestForManager,
@@ -17,8 +17,8 @@ import {
   setGuestStatusForManager,
   setGuestStatusesForManager,
   updateGuestForManager,
-} from "@/services/guest.service";
-import { getGuestRegistrationInviteBundleForManager } from "@/services/guest-registration.service";
+} from "@/services/guests/guest.service";
+import { getGuestRegistrationInviteBundleForManager } from "@/services/guests/guest-registration.service";
 
 vi.mock("@/repositories/guest.repository");
 vi.mock("@/repositories/guest-status-event.repository");
@@ -26,14 +26,14 @@ vi.mock("@/repositories/guest-registration-invite.repository");
 vi.mock("@/repositories/student-registration-application.repository");
 vi.mock("@/repositories/student-registration-document.repository");
 vi.mock("@/repositories/registration-storage.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/guest-registration.service", () => ({
+vi.mock("@/services/guests/guest-registration.service", () => ({
   getGuestRegistrationInviteBundleForManager: vi.fn(),
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -644,16 +644,26 @@ describe("setGuestStatusesForManager", () => {
       ...okResult,
     });
     vi.mocked(
-      guestStatusEventRepository.createGuestStatusEvent
+      guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
-      data: {
-        id: "event-new",
-        guest_id: guestId,
-        status: "chose_plan",
-        note: "Catch up",
-        created_by: actor.userId,
-        created_at: "2026-01-04T00:00:00.000Z",
-      },
+      data: [
+        {
+          id: "event-new-1",
+          guest_id: guestId,
+          status: "chose_plan",
+          note: "Catch up",
+          created_by: actor.userId,
+          created_at: "2026-01-04T00:00:00.000Z",
+        },
+        {
+          id: "event-new-2",
+          guest_id: guestId,
+          status: "routed_correctly",
+          note: "Catch up",
+          created_by: actor.userId,
+          created_at: "2026-01-05T00:00:00.000Z",
+        },
+      ],
       ...okResult,
     });
 
@@ -670,8 +680,8 @@ describe("setGuestStatusesForManager", () => {
 
     expect(result.success).toBe(true);
     expect(
-      guestStatusEventRepository.createGuestStatusEvent
-    ).toHaveBeenCalledTimes(2);
+      guestStatusEventRepository.createGuestStatusEvents
+    ).toHaveBeenCalledTimes(1);
     expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
   });
 
@@ -688,16 +698,26 @@ describe("setGuestStatusesForManager", () => {
       ...okResult,
     });
     vi.mocked(
-      guestStatusEventRepository.createGuestStatusEvent
+      guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
-      data: {
-        id: "event-new",
-        guest_id: guestId,
-        status: "finished",
-        note: null,
-        created_by: actor.userId,
-        created_at: "2026-01-04T00:00:00.000Z",
-      },
+      data: [
+        {
+          id: "event-started",
+          guest_id: guestId,
+          status: "started",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-03T00:00:00.000Z",
+        },
+        {
+          id: "event-new",
+          guest_id: guestId,
+          status: "finished",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-04T00:00:00.000Z",
+        },
+      ],
       ...okResult,
     });
     vi.mocked(guestRepository.updateGuestStatus).mockResolvedValue({
@@ -736,16 +756,26 @@ describe("setGuestStatusesForManager", () => {
       ...okResult,
     });
     vi.mocked(
-      guestStatusEventRepository.createGuestStatusEvent
+      guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
-      data: {
-        id: "event-new",
-        guest_id: guestId,
-        status: "finished",
-        note: null,
-        created_by: actor.userId,
-        created_at: "2026-01-04T00:00:00.000Z",
-      },
+      data: [
+        {
+          id: "event-started",
+          guest_id: guestId,
+          status: "started",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-03T00:00:00.000Z",
+        },
+        {
+          id: "event-new",
+          guest_id: guestId,
+          status: "finished",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-04T00:00:00.000Z",
+        },
+      ],
       ...okResult,
     });
 
@@ -889,7 +919,7 @@ describe("removeGuestStatusForManager", () => {
       ...okResult,
     });
     vi.mocked(guestStatusEventRepository.listGuestStatusEventsByGuestId)
-      .mockResolvedValueOnce({
+      .mockResolvedValue({
         data: [
           {
             id: "event-3",
@@ -899,27 +929,6 @@ describe("removeGuestStatusForManager", () => {
             created_by: actor.userId,
             created_at: "2026-01-03T00:00:00.000Z",
           },
-          {
-            id: "event-2",
-            guest_id: guestId,
-            status: "finished_meeting",
-            note: "Met",
-            created_by: actor.userId,
-            created_at: "2026-01-02T00:00:00.000Z",
-          },
-          {
-            id: "event-1",
-            guest_id: guestId,
-            status: "started",
-            note: null,
-            created_by: actor.userId,
-            created_at: "2026-01-01T00:00:00.000Z",
-          },
-        ],
-        ...okResult,
-      })
-      .mockResolvedValueOnce({
-        data: [
           {
             id: "event-2",
             guest_id: guestId,
@@ -986,7 +995,7 @@ describe("removeGuestStatusForManager", () => {
       ...okResult,
     });
     vi.mocked(guestStatusEventRepository.listGuestStatusEventsByGuestId)
-      .mockResolvedValueOnce({
+      .mockResolvedValue({
         data: [
           {
             id: "event-finished",
@@ -996,19 +1005,6 @@ describe("removeGuestStatusForManager", () => {
             created_by: actor.userId,
             created_at: "2026-01-04T00:00:00.000Z",
           },
-          {
-            id: "event-1",
-            guest_id: guestId,
-            status: "started",
-            note: null,
-            created_by: actor.userId,
-            created_at: "2026-01-01T00:00:00.000Z",
-          },
-        ],
-        ...okResult,
-      })
-      .mockResolvedValueOnce({
-        data: [
           {
             id: "event-1",
             guest_id: guestId,

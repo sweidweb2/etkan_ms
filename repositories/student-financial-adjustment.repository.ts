@@ -214,3 +214,192 @@ export async function updateAdjustment(
 export async function deleteAdjustment(client: Supabase, id: string) {
   return client.from("student_financial_adjustments").delete().eq("id", id);
 }
+
+export type AdjustmentWriteRpcResult = {
+  adjustment: FinancialAdjustmentRecord | null;
+  previous: FinancialAdjustmentRecord | null;
+  studentPaymentPhaseId: string;
+  paymentPhaseId: string;
+};
+
+export type DeleteAdjustmentRpcResult = {
+  deleted: FinancialAdjustmentRecord | null;
+  studentPaymentPhaseId: string;
+  paymentPhaseId: string;
+};
+
+function asNumber(input: unknown) {
+  return typeof input === "number" ? input : input == null ? 0 : Number(input);
+}
+
+function asAdjustmentRecord(value: unknown): FinancialAdjustmentRecord | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+  if (typeof row.id !== "string") {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    student_payment_phase_id:
+      typeof row.student_payment_phase_id === "string"
+        ? row.student_payment_phase_id
+        : "",
+    type: typeof row.type === "string" ? row.type : "",
+    value_type: typeof row.value_type === "string" ? row.value_type : "",
+    value: asNumber(row.value),
+    reason: typeof row.reason === "string" ? row.reason : null,
+    effective_date:
+      typeof row.effective_date === "string" ? row.effective_date : "",
+    created_at: typeof row.created_at === "string" ? row.created_at : "",
+    updated_at: typeof row.updated_at === "string" ? row.updated_at : "",
+  };
+}
+
+export async function createAdjustmentWithRecalc(
+  client: Supabase,
+  input: CreateFinancialAdjustmentRecordInput
+) {
+  const { data, error } = await client.rpc(
+    "create_student_financial_adjustment",
+    {
+      p_student_payment_phase_id: input.student_payment_phase_id,
+      p_type: input.type,
+      p_value_type: input.value_type,
+      p_value: input.value,
+      p_reason: input.reason,
+      p_effective_date: input.effective_date,
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return {
+      data: {
+        adjustment: null,
+        previous: null,
+        studentPaymentPhaseId: "",
+        paymentPhaseId: "",
+      } satisfies AdjustmentWriteRpcResult,
+      error: null,
+    };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    data: {
+      adjustment: asAdjustmentRecord(row.adjustment),
+      previous: null,
+      studentPaymentPhaseId:
+        typeof row.studentPaymentPhaseId === "string"
+          ? row.studentPaymentPhaseId
+          : "",
+      paymentPhaseId:
+        typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+    } satisfies AdjustmentWriteRpcResult,
+    error: null,
+  };
+}
+
+export async function updateAdjustmentWithRecalc(
+  client: Supabase,
+  input: UpdateFinancialAdjustmentRecordInput & {
+    id: string;
+    student_payment_phase_id: string;
+  }
+) {
+  const { data, error } = await client.rpc(
+    "update_student_financial_adjustment",
+    {
+      p_id: input.id,
+      p_student_payment_phase_id: input.student_payment_phase_id,
+      p_type: input.type,
+      p_value_type: input.value_type,
+      p_value: input.value,
+      p_reason: input.reason,
+      p_effective_date: input.effective_date,
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return {
+      data: {
+        adjustment: null,
+        previous: null,
+        studentPaymentPhaseId: "",
+        paymentPhaseId: "",
+      } satisfies AdjustmentWriteRpcResult,
+      error: null,
+    };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    data: {
+      adjustment: asAdjustmentRecord(row.adjustment),
+      previous: asAdjustmentRecord(row.previous),
+      studentPaymentPhaseId:
+        typeof row.studentPaymentPhaseId === "string"
+          ? row.studentPaymentPhaseId
+          : "",
+      paymentPhaseId:
+        typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+    } satisfies AdjustmentWriteRpcResult,
+    error: null,
+  };
+}
+
+export async function deleteAdjustmentWithRecalc(
+  client: Supabase,
+  id: string,
+  studentPaymentPhaseId?: string
+) {
+  const { data, error } = await client.rpc(
+    "delete_student_financial_adjustment",
+    {
+      p_id: id,
+      ...(studentPaymentPhaseId
+        ? { p_student_payment_phase_id: studentPaymentPhaseId }
+        : {}),
+    }
+  );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return {
+      data: {
+        deleted: null,
+        studentPaymentPhaseId: "",
+        paymentPhaseId: "",
+      } satisfies DeleteAdjustmentRpcResult,
+      error: null,
+    };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    data: {
+      deleted: asAdjustmentRecord(row.deleted),
+      studentPaymentPhaseId:
+        typeof row.studentPaymentPhaseId === "string"
+          ? row.studentPaymentPhaseId
+          : "",
+      paymentPhaseId:
+        typeof row.paymentPhaseId === "string" ? row.paymentPhaseId : "",
+    } satisfies DeleteAdjustmentRpcResult,
+    error: null,
+  };
+}

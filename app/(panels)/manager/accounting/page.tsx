@@ -6,8 +6,8 @@ import {
 import { ManageAccountingPanel } from "@/components/manager/accounting/manage-accounting-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listPaymentPhasesForManager } from "@/services/payment-phase.service";
-import { sumStudentPaymentsForMonthForManager } from "@/services/student-payment.service";
+import { listPaymentPhasesForManager } from "@/services/accounting/payment-phase.service";
+import { sumStudentPaymentsForMonthForManager } from "@/services/accounting/student-payment.service";
 
 export default async function ManagerAccountingPage() {
   const adminClient = createSupabaseAdminClient();

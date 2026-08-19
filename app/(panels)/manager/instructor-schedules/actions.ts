@@ -11,12 +11,14 @@ import {
 import {
   createInstructorScheduleSlotForManager,
   deleteInstructorScheduleSlotForManager,
+  listInstructorScheduleSlotsForCalendarForManager,
   listInstructorScheduleSlotsPageForManager,
   updateInstructorScheduleSlotForManager,
-} from "@/services/instructor-schedule-slot.service";
+} from "@/services/schedule/instructor-schedule-slot.service";
 import type {
   CreateInstructorScheduleSlotActionState,
   DeleteInstructorScheduleSlotActionState,
+  InstructorScheduleCalendarScope,
   ManagerInstructorScheduleSession,
   UpdateInstructorScheduleSlotActionState,
 } from "@/types/manager-instructor-schedule";
@@ -57,6 +59,26 @@ export async function loadInstructorScheduleSlotsPageAction(input: {
       page: input.page,
       pageSize: input.pageSize,
     };
+  }
+}
+
+export async function loadInstructorScheduleSlotsForCalendarAction(
+  scope: InstructorScheduleCalendarScope
+): Promise<ManagerInstructorScheduleSession[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listInstructorScheduleSlotsForCalendarForManager(
+      adminClient,
+      actor.userId,
+      scope
+    );
+  } catch {
+    return [];
   }
 }
 

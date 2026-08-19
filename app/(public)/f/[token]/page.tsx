@@ -3,7 +3,7 @@ import {
   PublicFinancialFormStatus,
 } from "@/components/public/public-financial-form";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getInviteFormContextByToken } from "@/services/student-financial-adjustment.service";
+import { getInviteFormContextByToken } from "@/services/accounting/student-financial-adjustment.service";
 
 export const dynamic = "force-dynamic";
 

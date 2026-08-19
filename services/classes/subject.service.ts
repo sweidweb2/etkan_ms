@@ -13,11 +13,11 @@ import type { SubjectRecord } from "@/repositories/subject.repository";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
@@ -333,30 +333,29 @@ export async function updateSubjectForManager(
     return { success: false, error: "Subject not found." };
   }
 
-  const existingByName = await subjectRepository.findSubjectByName(
-    adminClient,
-    normalizedName
-  );
+  const [existingByName, classCountResult] = await Promise.all([
+    normalizedName !== existingSubject.data.name.trim()
+      ? subjectRepository.findSubjectByName(adminClient, normalizedName)
+      : Promise.resolve({ data: null, error: null }),
+    classRepository.countClassesBySubjectId(adminClient, id),
+  ]);
 
-  if (existingByName.error) {
-    return {
-      success: false,
-      error: mapUpdateSubjectError(existingByName.error.message),
-    };
+  if (normalizedName !== existingSubject.data.name.trim()) {
+    if (existingByName.error) {
+      return {
+        success: false,
+        error: mapUpdateSubjectError(existingByName.error.message),
+      };
+    }
+
+    if (existingByName.data && existingByName.data.id !== id) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: { name: ["A subject with this name already exists."] },
+      };
+    }
   }
-
-  if (existingByName.data && existingByName.data.id !== id) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { name: ["A subject with this name already exists."] },
-    };
-  }
-
-  const classCountResult = await classRepository.countClassesBySubjectId(
-    adminClient,
-    id
-  );
 
   if (classCountResult.error) {
     return {
@@ -428,10 +427,10 @@ export async function deleteSubjectForManager(
     return { success: false, error: unauthorized };
   }
 
-  const existingSubject = await subjectRepository.findSubjectById(
-    adminClient,
-    subjectId
-  );
+  const [existingSubject, classCountResult] = await Promise.all([
+    subjectRepository.findSubjectById(adminClient, subjectId),
+    classRepository.countClassesBySubjectId(adminClient, subjectId),
+  ]);
 
   if (existingSubject.error) {
     return {
@@ -443,11 +442,6 @@ export async function deleteSubjectForManager(
   if (!existingSubject.data) {
     return { success: false, error: "Subject not found." };
   }
-
-  const classCountResult = await classRepository.countClassesBySubjectId(
-    adminClient,
-    subjectId
-  );
 
   if (classCountResult.error) {
     return {

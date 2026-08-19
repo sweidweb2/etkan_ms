@@ -15,7 +15,7 @@ import * as studentTaskRepository from "@/repositories/student-task.repository";
 import {
   UNAUTHORIZED_MESSAGE,
   assertPermission,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   AUDIT_LOG_ACTION_VALUES,
   AUDIT_LOG_SEVERITY_VALUES,

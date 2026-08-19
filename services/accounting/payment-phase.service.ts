@@ -5,8 +5,8 @@ import {
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
-import { buildInitialSppInsert } from "@/lib/manager/accounting/spp-insert";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   STUDENT_STATUS_VALUES,
   STUDENT_STATUSES,
@@ -26,19 +26,15 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import {
-  recalcNonCancelledSppsForPhase,
-  recalcPhaseStatusFromSpps,
-} from "@/services/accounting-recalc.service";
-import { ensureSppForStudentOnPhase } from "@/services/accounting-sync.service";
+import { recalcNonCancelledSppsForPhase } from "@/services/accounting/accounting-recalc.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerBilledWithoutClassRow,
@@ -134,6 +130,102 @@ function isStudentPaymentPhaseStatus(
     value === STUDENT_PAYMENT_PHASE_STATUSES.PAID ||
     value === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
   );
+}
+
+function toPhaseListRecord(
+  phase: {
+    id: string;
+    name: string;
+    semester_id: string;
+    semester_code: string;
+    amount: number;
+    upfront_amount: number;
+    duration_months: number;
+    start_date: string;
+    end_date: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  },
+  semester: { id: string; name: string; semester_code: string } | null
+): PaymentPhaseListRecord {
+  return {
+    ...phase,
+    semesters: semester,
+  };
+}
+
+function mapPhaseWriteError(
+  message: string,
+  fallback: string
+): { success: false; error: string; fieldErrors?: FieldErrors } {
+  if (message.includes("This semester already has an opened payment phase.")) {
+    return {
+      success: false,
+      error: "This semester already has an opened payment phase.",
+      fieldErrors: {
+        semester_id: ["This semester already has an opened payment phase."],
+      },
+    };
+  }
+
+  if (message.includes("This semester has no semester code.")) {
+    return {
+      success: false,
+      error: "This semester has no semester code.",
+      fieldErrors: {
+        semester_id: ["Semester must have a semester code."],
+      },
+    };
+  }
+
+  if (message.includes("Destination payment phase not found.")) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        destination_payment_phase_id: ["Destination payment phase not found."],
+      },
+    };
+  }
+
+  if (
+    message.includes(
+      "Destination must be different from the current payment phase."
+    )
+  ) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        destination_payment_phase_id: [
+          "Destination must be different from the current payment phase.",
+        ],
+      },
+    };
+  }
+
+  const known = [
+    "Semester not found.",
+    "Payment phase not found.",
+    "Only opened or closed payment phases can receive assignments.",
+    "No in-progress class found for this semester.",
+    "Student is not enrolled in this semester's in-progress class.",
+    "Student payment phase not found.",
+    "Cancelled student payment phases cannot be transferred.",
+    "Destination must be an opened or closed payment phase.",
+    "Student already has a payment record on that phase.",
+    "This payment phase is already cancelled.",
+    "Unable to assign student payment phase. Please try again.",
+  ];
+
+  for (const item of known) {
+    if (message.includes(item)) {
+      return { success: false, error: item };
+    }
+  }
+
+  return { success: false, error: fallback };
 }
 
 function mapPhaseRecordToRow(
@@ -392,331 +484,26 @@ export async function listMissingSppForOpenedPhases(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<ManagerMissingSppRow[]> {
-  await assertPermission(
+  const phases = await listPaymentPhasesForManager(adminClient, actorUserId);
+  const snapshot = await getAccountingExceptionsSnapshotForManager(
     adminClient,
     actorUserId,
-    PERMISSIONS.ACCOUNTING_VIEW
+    phases
   );
-
-  const { data: openedPhases, error: openedError } =
-    await paymentPhaseRepository.listOpenedPaymentPhases(adminClient);
-
-  if (openedError) {
-    throw new Error(openedError.message);
-  }
-
-  const phases = (openedPhases ?? []) as PaymentPhaseListRecord[];
-
-  if (phases.length === 0) {
-    return [];
-  }
-
-  const billingBySemester = await buildBillingClassBySemesterId(
-    adminClient,
-    phases.map((phase) => phase.semester_id)
-  );
-
-  const classIds = [
-    ...new Set(
-      [...billingBySemester.values()].map((billingClass) => billingClass.id)
-    ),
-  ];
-  const phaseIds = phases.map((phase) => phase.id);
-
-  if (classIds.length === 0) {
-    return [];
-  }
-
-  const [
-    { data: enrollments, error: enrollmentError },
-    { data: existingSpps, error: sppError },
-  ] = await Promise.all([
-    studentClassRepository.listMemberUserIdsByClassIds(adminClient, classIds),
-    studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
-      adminClient,
-      phaseIds
-    ),
-  ]);
-
-  if (enrollmentError) {
-    throw new Error(enrollmentError.message);
-  }
-
-  if (sppError) {
-    throw new Error(sppError.message);
-  }
-
-  const enrolledByClassId = new Map<string, string[]>();
-  for (const row of enrollments ?? []) {
-    const list = enrolledByClassId.get(row.class_id) ?? [];
-    list.push(row.user_id);
-    enrolledByClassId.set(row.class_id, list);
-  }
-
-  const sppStudentsByPhaseId = new Map<string, Set<string>>();
-  for (const row of existingSpps ?? []) {
-    const set = sppStudentsByPhaseId.get(row.payment_phase_id) ?? new Set();
-    set.add(row.student_id);
-    sppStudentsByPhaseId.set(row.payment_phase_id, set);
-  }
-
-  const missing: Array<{
-    student_id: string;
-    semester_id: string;
-    semester_name: string;
-    billing_class_id: string;
-    billing_class_name: string;
-    payment_phase_id: string;
-    payment_phase_name: string;
-  }> = [];
-
-  for (const phase of phases) {
-    const billingClass = billingBySemester.get(phase.semester_id);
-    if (!billingClass) {
-      continue;
-    }
-
-    const enrolled = enrolledByClassId.get(billingClass.id) ?? [];
-    const existing = sppStudentsByPhaseId.get(phase.id) ?? new Set();
-
-    for (const studentId of enrolled) {
-      if (existing.has(studentId)) {
-        continue;
-      }
-
-      missing.push({
-        student_id: studentId,
-        semester_id: phase.semester_id,
-        semester_name: phase.semesters?.name ?? "Unknown semester",
-        billing_class_id: billingClass.id,
-        billing_class_name: billingClass.name,
-        payment_phase_id: phase.id,
-        payment_phase_name: phase.name,
-      });
-    }
-  }
-
-  if (missing.length === 0) {
-    return [];
-  }
-
-  const labels = await buildStudentLabelsByUserId(
-    adminClient,
-    [...new Set(missing.map((row) => row.student_id))]
-  );
-
-  return missing.map((row) => ({
-    ...row,
-    student_label: labels.get(row.student_id) ?? row.student_id,
-  }));
+  return snapshot.missing;
 }
 
 export async function listSppSemesterMismatchForManager(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<ManagerSppSemesterMismatchRow[]> {
-  await assertPermission(
+  const phases = await listPaymentPhasesForManager(adminClient, actorUserId);
+  const snapshot = await getAccountingExceptionsSnapshotForManager(
     adminClient,
     actorUserId,
-    PERMISSIONS.ACCOUNTING_VIEW
+    phases
   );
-
-  const [
-    { data: phasesData, error: phasesError },
-    { data: inProgressClasses, error: classesError },
-  ] = await Promise.all([
-    paymentPhaseRepository.listPaymentPhases(adminClient),
-    classRepository.listInProgressClassesWithSemester(adminClient),
-  ]);
-
-  if (phasesError) {
-    throw new Error(phasesError.message);
-  }
-
-  if (classesError) {
-    throw new Error(classesError.message);
-  }
-
-  const phases = ((phasesData ?? []) as PaymentPhaseListRecord[]).filter(
-    (phase) => phase.status !== PAYMENT_PHASE_STATUSES.CANCELLED
-  );
-
-  if (phases.length === 0) {
-    return [];
-  }
-
-  const phaseIds = phases.map((phase) => phase.id);
-  const phaseById = new Map(phases.map((phase) => [phase.id, phase]));
-
-  const { data: sppRows, error: sppError } =
-    await studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
-      adminClient,
-      phaseIds
-    );
-
-  if (sppError) {
-    throw new Error(sppError.message);
-  }
-
-  const activeSpps = (sppRows ?? []).filter(
-    (row) => row.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
-  );
-
-  if (activeSpps.length === 0) {
-    return [];
-  }
-
-  const classes = inProgressClasses ?? [];
-  const classIds = classes.map((row) => row.id);
-
-  const membershipsResult =
-    classIds.length === 0
-      ? { data: [] as Array<{ user_id: string; class_id: string }>, error: null }
-      : await studentClassRepository.listMemberUserIdsByClassIds(
-          adminClient,
-          classIds
-        );
-
-  if (membershipsResult.error) {
-    throw new Error(membershipsResult.error.message);
-  }
-
-  const classById = new Map(
-    classes.map((row) => [
-      row.id,
-      {
-        id: row.id,
-        name: row.name,
-        semester_id: row.semester_id,
-      },
-    ])
-  );
-
-  const membershipsByStudent = new Map<
-    string,
-    Array<{ class_id: string; class_name: string; semester_id: string | null }>
-  >();
-
-  for (const row of membershipsResult.data ?? []) {
-    const classRow = classById.get(row.class_id);
-    if (!classRow) {
-      continue;
-    }
-    const list = membershipsByStudent.get(row.user_id) ?? [];
-    list.push({
-      class_id: classRow.id,
-      class_name: classRow.name,
-      semester_id: classRow.semester_id,
-    });
-    membershipsByStudent.set(row.user_id, list);
-  }
-
-  const semesterIds = [
-    ...new Set(
-      [
-        ...phases.map((phase) => phase.semester_id),
-        ...classes
-          .map((row) => row.semester_id)
-          .filter((id): id is string => Boolean(id)),
-      ].filter(Boolean)
-    ),
-  ];
-
-  const semesterNameById = new Map<string, string>();
-  if (semesterIds.length > 0) {
-    const { data: semesters, error: semesterError } =
-      await semesterRepository.listSemesters(adminClient);
-    if (semesterError) {
-      throw new Error(semesterError.message);
-    }
-    const wanted = new Set(semesterIds);
-    for (const semester of semesters ?? []) {
-      if (wanted.has(semester.id)) {
-        semesterNameById.set(semester.id, semester.name);
-      }
-    }
-  }
-
-  for (const phase of phases) {
-    if (!semesterNameById.has(phase.semester_id)) {
-      semesterNameById.set(
-        phase.semester_id,
-        phase.semesters?.name ?? "Unknown semester"
-      );
-    }
-  }
-
-  const mismatches: Array<{
-    spp_id: string;
-    student_id: string;
-    payment_phase_id: string;
-    payment_phase_name: string;
-    phase_semester_id: string;
-    phase_semester_name: string;
-    current_class_id: string;
-    current_class_name: string;
-    current_semester_id: string | null;
-    current_semester_name: string;
-  }> = [];
-
-  for (const spp of activeSpps) {
-    const phase = phaseById.get(spp.payment_phase_id);
-    if (!phase) {
-      continue;
-    }
-
-    const memberships = membershipsByStudent.get(spp.student_id) ?? [];
-    if (memberships.length === 0) {
-      continue;
-    }
-
-    const matchesPhaseSemester = memberships.some(
-      (membership) => membership.semester_id === phase.semester_id
-    );
-    if (matchesPhaseSemester) {
-      continue;
-    }
-
-    const representative =
-      memberships.find((membership) => membership.semester_id != null) ??
-      memberships[0]!;
-
-    mismatches.push({
-      spp_id: spp.id,
-      student_id: spp.student_id,
-      payment_phase_id: phase.id,
-      payment_phase_name: phase.name,
-      phase_semester_id: phase.semester_id,
-      phase_semester_name:
-        semesterNameById.get(phase.semester_id) ??
-        phase.semesters?.name ??
-        "Unknown semester",
-      current_class_id: representative.class_id,
-      current_class_name: representative.class_name,
-      current_semester_id: representative.semester_id,
-      current_semester_name: representative.semester_id
-        ? (semesterNameById.get(representative.semester_id) ?? "—")
-        : "—",
-    });
-  }
-
-  if (mismatches.length === 0) {
-    return [];
-  }
-
-  const meta = await buildStudentMetaByUserId(
-    adminClient,
-    [...new Set(mismatches.map((row) => row.student_id))]
-  );
-
-  return mismatches.map((row) => {
-    const studentMeta = meta.get(row.student_id);
-    return {
-      ...row,
-      student_label: studentMeta?.label ?? row.student_id,
-      student_profile_id: studentMeta?.student_profile_id ?? null,
-    };
-  });
+  return snapshot.sppSemesterMismatches;
 }
 
 /**
@@ -727,121 +514,13 @@ export async function listStudentsBilledWithoutActiveClassForManager(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<ManagerBilledWithoutClassRow[]> {
-  await assertPermission(
+  const phases = await listPaymentPhasesForManager(adminClient, actorUserId);
+  const snapshot = await getAccountingExceptionsSnapshotForManager(
     adminClient,
     actorUserId,
-    PERMISSIONS.ACCOUNTING_VIEW
+    phases
   );
-
-  const [
-    { data: phasesData, error: phasesError },
-    { data: inProgressClasses, error: classesError },
-  ] = await Promise.all([
-    paymentPhaseRepository.listPaymentPhases(adminClient),
-    classRepository.listInProgressClasses(adminClient),
-  ]);
-
-  if (phasesError) {
-    throw new Error(phasesError.message);
-  }
-
-  if (classesError) {
-    throw new Error(classesError.message);
-  }
-
-  const phases = ((phasesData ?? []) as PaymentPhaseListRecord[]).filter(
-    (phase) => phase.status !== PAYMENT_PHASE_STATUSES.CANCELLED
-  );
-
-  if (phases.length === 0) {
-    return [];
-  }
-
-  const inProgressClassIds = (inProgressClasses ?? []).map((row) => row.id);
-  const memberUserIds = new Set<string>();
-
-  if (inProgressClassIds.length > 0) {
-    const { data: memberships, error: membershipError } =
-      await studentClassRepository.listMemberUserIdsByClassIds(
-        adminClient,
-        inProgressClassIds
-      );
-
-    if (membershipError) {
-      throw new Error(membershipError.message);
-    }
-
-    for (const row of memberships ?? []) {
-      memberUserIds.add(row.user_id);
-    }
-  }
-
-  const phaseIds = phases.map((phase) => phase.id);
-  const phaseById = new Map(phases.map((phase) => [phase.id, phase]));
-
-  const { data: sppRows, error: sppError } =
-    await studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
-      adminClient,
-      phaseIds
-    );
-
-  if (sppError) {
-    throw new Error(sppError.message);
-  }
-
-  const billedSpps = (sppRows ?? []).filter(
-    (row) =>
-      row.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED &&
-      !memberUserIds.has(row.student_id)
-  );
-
-  if (billedSpps.length === 0) {
-    return [];
-  }
-
-  const studentIds = [...new Set(billedSpps.map((row) => row.student_id))];
-  const [{ data: studentProfiles }, meta] = await Promise.all([
-    studentProfileRepository.listStudentProfileDetailsByUserIds(
-      adminClient,
-      studentIds
-    ),
-    buildStudentMetaByUserId(adminClient, studentIds),
-  ]);
-
-  const profileByUserId = new Map(
-    (studentProfiles ?? []).map((profile) => [profile.user_id, profile])
-  );
-
-  return billedSpps.map((spp) => {
-    const phase = phaseById.get(spp.payment_phase_id)!;
-    const studentMeta = meta.get(spp.student_id);
-    const profile = profileByUserId.get(spp.student_id);
-    const rawStatus = profile?.status;
-    const studentStatus =
-      rawStatus &&
-      (STUDENT_STATUS_VALUES as readonly string[]).includes(rawStatus)
-        ? (rawStatus as StudentStatusValue)
-        : null;
-
-    return {
-      spp_id: spp.id,
-      student_id: spp.student_id,
-      student_profile_id: studentMeta?.student_profile_id ?? null,
-      student_label: studentMeta?.label ?? spp.student_id,
-      student_status: studentStatus,
-      phone: profile?.phone ?? null,
-      payment_phase_id: phase.id,
-      payment_phase_name: phase.name,
-      phase_status: isPaymentPhaseStatus(phase.status)
-        ? phase.status
-        : PAYMENT_PHASE_STATUSES.OPENED,
-      spp_status: isStudentPaymentPhaseStatus(spp.status)
-        ? spp.status
-        : STUDENT_PAYMENT_PHASE_STATUSES.PENDING,
-      phase_semester_id: phase.semester_id,
-      phase_semester_name: phase.semesters?.name ?? "Unknown semester",
-    };
-  });
+  return snapshot.billedWithoutClass;
 }
 
 export type AccountingExceptionsSnapshot = {
@@ -1142,11 +821,19 @@ export async function getAccountingExceptionsSnapshotForManager(
   const billedStudentIdsForDetails = [
     ...new Set(billedSpps.map((row) => row.student_id)),
   ];
+  const billedProfilesResult =
+    billedStudentIdsForDetails.length === 0
+      ? { data: [] as Awaited<
+          ReturnType<
+            typeof studentProfileRepository.listStudentProfileDetailsByUserIds
+          >
+        >["data"], error: null }
+      : await studentProfileRepository.listStudentProfileDetailsByUserIds(
+          adminClient,
+          billedStudentIdsForDetails
+        );
   const { data: billedProfiles, error: billedProfilesError } =
-    await studentProfileRepository.listStudentProfileDetailsByUserIds(
-      adminClient,
-      billedStudentIdsForDetails
-    );
+    billedProfilesResult;
 
   if (billedProfilesError) {
     throw new Error(billedProfilesError.message);
@@ -1284,206 +971,107 @@ export async function createPaymentPhaseForManager(
     end_date: string;
   }
 ): Promise<CreatePaymentPhaseResult> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const parsed = createPaymentPhaseSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const {
-    name,
-    semester_id,
-    amount,
-    upfront_amount,
-    duration_months,
-    start_date,
-    end_date,
-  } = parsed.data;
-
-  const { data: semesterRow, error: semesterError } =
-    await semesterRepository.findSemesterById(adminClient, semester_id);
-
-  if (semesterError) {
-    return {
-      success: false,
-      error: "Unable to create payment phase. Please try again.",
-    };
-  }
-
-  if (!semesterRow) {
-    return { success: false, error: "Semester not found." };
-  }
-
-  const semesterCode = semesterRow.semester_code?.trim();
-  if (!semesterCode) {
-    return {
-      success: false,
-      error: "This semester has no semester code.",
-      fieldErrors: {
-        semester_id: ["Semester must have a semester code."],
-      },
-    };
-  }
-
-  const { data: existingOpened, error: openedError } =
-    await paymentPhaseRepository.findOpenedPaymentPhaseBySemesterId(
-      adminClient,
-      semester_id
+  const timer = createNavStepTimer("createPaymentPhase");
+  try {
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE
+      )
     );
+    if (unauthorized) {
+      return { success: false, error: unauthorized };
+    }
 
-  if (openedError) {
-    return {
-      success: false,
-      error: "Unable to create payment phase. Please try again.",
-    };
-  }
+    const parsed = createPaymentPhaseSchema.safeParse(input);
 
-  if (existingOpened) {
-    return {
-      success: false,
-      error: "This semester already has an opened payment phase.",
-      fieldErrors: {
-        semester_id: ["This semester already has an opened payment phase."],
-      },
-    };
-  }
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
 
-  const { data: phase, error: createError } =
-    await paymentPhaseRepository.createPaymentPhase(adminClient, {
-      name: name.trim(),
+    const {
+      name,
       semester_id,
-      semester_code: semesterCode,
       amount,
       upfront_amount,
       duration_months,
       start_date,
       end_date,
-      status: PAYMENT_PHASE_STATUSES.OPENED,
-    });
+    } = parsed.data;
 
-  if (createError || !phase) {
-    const message = createError?.message?.toLowerCase() ?? "";
-    if (message.includes("unique") || message.includes("duplicate")) {
+    const { data, error: createError } = await timer.step("rpc", () =>
+      paymentPhaseRepository.createPaymentPhaseWithSpps(adminClient, {
+        name: name.trim(),
+        semester_id,
+        amount,
+        upfront_amount,
+        duration_months,
+        start_date,
+        end_date,
+      })
+    );
+
+    if (createError) {
+      return mapPhaseWriteError(
+        createError.message,
+        "Unable to create payment phase. Please try again."
+      );
+    }
+
+    if (!data?.phase) {
       return {
         success: false,
-        error: "This semester already has an opened payment phase.",
-        fieldErrors: {
-          semester_id: ["This semester already has an opened payment phase."],
-        },
+        error: "Unable to create payment phase. Please try again.",
       };
     }
+
+    const phase = data.phase;
+    const sppCount = data.sppCount;
+    const billingClass = data.billingClass;
+
+    await timer.step("audit", () =>
+      recordManagerAuditLog(adminClient, actor, {
+        action: "insert",
+        severity: "info",
+        table_name: "payment_phases",
+        record_id: phase.id,
+        new_data: {
+          name: phase.name,
+          semester_id: phase.semester_id,
+          semester_code: phase.semester_code,
+          amount: phase.amount,
+          upfront_amount: phase.upfront_amount,
+          duration_months: phase.duration_months,
+          start_date: phase.start_date,
+          end_date: phase.end_date,
+          status: phase.status,
+        },
+        metadata: {
+          spp_count: sppCount,
+          billing_class_id: billingClass?.id ?? null,
+          note: "Payment phase created.",
+        },
+      })
+    );
 
     return {
-      success: false,
-      error: "Unable to create payment phase. Please try again.",
+      success: true,
+      phase: mapPhaseRecordToRow(
+        toPhaseListRecord(phase, data.semester),
+        sppCount,
+        0,
+        billingClass
+      ),
+      message: "Payment phase created.",
     };
+  } finally {
+    timer.end();
   }
-
-  const billingClass = await resolveInProgressClassForSemester(
-    adminClient,
-    semester_id
-  );
-
-  let enrolledUserIds: string[] = [];
-
-  if (billingClass) {
-    const { data: enrolledRows, error: enrolledError } =
-      await studentClassRepository.listMemberUserIdsByClassId(
-        adminClient,
-        billingClass.id
-      );
-
-    if (enrolledError) {
-      return {
-        success: false,
-        error:
-          "Payment phase created, but enrolled students could not be loaded.",
-      };
-    }
-
-    enrolledUserIds = [
-      ...new Set((enrolledRows ?? []).map((row) => row.user_id)),
-    ];
-  }
-
-  const assignedAt = new Date().toISOString();
-  const sppInputs = enrolledUserIds.map((studentId) =>
-    buildInitialSppInsert(studentId, phase.id, amount, assignedAt)
-  );
-
-  if (sppInputs.length > 0) {
-    const { error: sppError } =
-      await studentPaymentPhaseRepository.createStudentPaymentPhases(
-        adminClient,
-        sppInputs
-      );
-
-    if (sppError) {
-      return {
-        success: false,
-        error:
-          "Payment phase created, but student payment phases could not be assigned.",
-      };
-    }
-  }
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "insert",
-    severity: "info",
-    table_name: "payment_phases",
-    record_id: phase.id,
-    new_data: {
-      name: phase.name,
-      semester_id: phase.semester_id,
-      semester_code: phase.semester_code,
-      amount: phase.amount,
-      upfront_amount: phase.upfront_amount,
-      duration_months: phase.duration_months,
-      start_date: phase.start_date,
-      end_date: phase.end_date,
-      status: phase.status,
-    },
-    metadata: {
-      spp_count: sppInputs.length,
-      billing_class_id: billingClass?.id ?? null,
-      note: "Payment phase created.",
-    },
-  });
-
-  const phaseListRecord: PaymentPhaseListRecord = {
-    ...(phase as PaymentPhaseListRecord),
-    semesters: {
-      id: semesterRow.id,
-      name: semesterRow.name,
-      semester_code: semesterCode,
-    },
-  };
-
-  return {
-    success: true,
-    phase: mapPhaseRecordToRow(
-      phaseListRecord,
-      sppInputs.length,
-      0,
-      billingClass
-        ? { id: billingClass.id, name: billingClass.name }
-        : null
-    ),
-    message: "Payment phase created.",
-  };
 }
 
 export async function repairMissingSppForManager(
@@ -1516,209 +1104,80 @@ export async function repairMissingSppForManager(
 
   const { payment_phase_id, student_id } = parsed.data;
 
-  const { data: phase, error: phaseError } =
-    await paymentPhaseRepository.findPaymentPhaseById(
-      adminClient,
-      payment_phase_id
-    );
-
-  if (phaseError) {
-    return {
-      success: false,
-      error: "Unable to assign student payment phase. Please try again.",
-    };
-  }
-
-  if (!phase) {
-    return { success: false, error: "Payment phase not found." };
-  }
-
-  if (
-    phase.status !== PAYMENT_PHASE_STATUSES.OPENED &&
-    phase.status !== PAYMENT_PHASE_STATUSES.CLOSED
-  ) {
-    return {
-      success: false,
-      error: "Only opened or closed payment phases can receive assignments.",
-    };
-  }
-
-  const { data: existingSpp, error: existingError } =
-    await studentPaymentPhaseRepository.findSppByStudentAndPhase(
-      adminClient,
-      student_id,
-      payment_phase_id
-    );
-
-  if (existingError) {
-    return {
-      success: false,
-      error: "Unable to assign student payment phase. Please try again.",
-    };
-  }
-
-  if (
-    existingSpp &&
-    existingSpp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
-  ) {
-    return {
-      success: true,
-      message: "Student payment phase already exists.",
-    };
-  }
-
-  const billingClass = await resolveInProgressClassForSemester(
+  const { data, error } = await studentPaymentPhaseRepository.repairMissingSpp(
     adminClient,
-    phase.semester_id
+    payment_phase_id,
+    student_id
   );
 
-  if (!billingClass) {
-    return {
-      success: false,
-      error: "No in-progress class found for this semester.",
-    };
+  if (error) {
+    return mapPhaseWriteError(
+      error.message,
+      "Unable to assign student payment phase. Please try again."
+    );
   }
 
-  const { data: enrollment, error: enrollmentError } =
-    await studentClassRepository.findStudentClassByUserAndClass(
-      adminClient,
-      student_id,
-      billingClass.id
-    );
-
-  if (enrollmentError) {
+  if (!data) {
     return {
       success: false,
       error: "Unable to assign student payment phase. Please try again.",
     };
   }
 
-  if (!enrollment) {
-    return {
-      success: false,
-      error: "Student is not enrolled in this semester's in-progress class.",
-    };
-  }
-
-  const wasClosed = phase.status === PAYMENT_PHASE_STATUSES.CLOSED;
-
-  let ensured;
-  try {
-    ensured = await ensureSppForStudentOnPhase(adminClient, {
-      studentId: student_id,
-      phase: {
-        id: phase.id,
-        name: phase.name,
-        semester_id: phase.semester_id,
-        semester_code: phase.semester_code,
-        amount: Number(phase.amount),
-        upfront_amount: Number(phase.upfront_amount),
-        duration_months: phase.duration_months,
-        start_date: phase.start_date,
-        end_date: phase.end_date,
-        status: phase.status,
-        created_at: phase.created_at,
-        updated_at: phase.updated_at,
-      },
-    });
-  } catch (err) {
-    return {
-      success: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : "Unable to assign student payment phase. Please try again.",
-    };
-  }
-
-  if (ensured.alreadyExisted && !ensured.reactivated) {
+  if (data.alreadyExisted && !data.reactivated) {
     return {
       success: true,
       message: "Student payment phase already exists.",
     };
   }
 
-  if (!ensured.spp) {
+  if (!data.spp) {
     return {
       success: false,
       error: "Unable to assign student payment phase. Please try again.",
-    };
-  }
-
-  let phaseReopened = false;
-  const shouldReopenPhase =
-    wasClosed && (ensured.created || ensured.reactivated);
-
-  if (shouldReopenPhase) {
-    const { error: reopenError } =
-      await paymentPhaseRepository.updatePaymentPhaseStatus(
-        adminClient,
-        phase.id,
-        PAYMENT_PHASE_STATUSES.OPENED
-      );
-
-    if (reopenError) {
-      return {
-        success: false,
-        error: "Student was assigned, but the phase could not be reopened.",
-      };
-    }
-
-    phaseReopened = true;
-  }
-
-  try {
-    await recalcPhaseStatusFromSpps(adminClient, phase.id);
-  } catch (err) {
-    return {
-      success: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : "Student was assigned, but phase status could not be recalculated.",
     };
   }
 
   await recordManagerAuditLog(adminClient, actor, {
-    action: ensured.created ? "insert" : "update",
+    action: data.created ? "insert" : "update",
     severity: "info",
     table_name: "student_payment_phases",
-    record_id: ensured.spp.id,
+    record_id: data.spp.id,
     new_data: {
-      student_id: ensured.spp.student_id,
-      payment_phase_id: ensured.spp.payment_phase_id,
-      status: ensured.spp.status,
-      original_amount: ensured.spp.original_amount,
-      remaining_amount: ensured.spp.remaining_amount,
+      student_id: data.spp.student_id,
+      payment_phase_id: data.spp.payment_phase_id,
+      status: data.spp.status,
+      original_amount: data.spp.original_amount,
+      remaining_amount: data.spp.remaining_amount,
     },
     metadata: {
-      note: ensured.created
+      note: data.created
         ? "Missing student payment phase repaired."
         : "Cancelled student payment phase reactivated.",
       payment_phase_id,
-      phase_reopened: phaseReopened,
+      phase_reopened: data.phaseReopened,
     },
   });
 
-  if (phaseReopened) {
+  if (data.phaseReopened) {
     await recordManagerAuditLog(adminClient, actor, {
       action: "update",
       severity: "info",
       table_name: "payment_phases",
-      record_id: phase.id,
+      record_id: payment_phase_id,
       old_data: { status: PAYMENT_PHASE_STATUSES.CLOSED },
       new_data: { status: PAYMENT_PHASE_STATUSES.OPENED },
       metadata: {
         note: "Payment phase reopened after assigning an unpaid student.",
         student_id,
-        payment_phase_id: phase.id,
+        payment_phase_id,
       },
     });
   }
 
   return {
     success: true,
-    message: phaseReopened
+    message: data.phaseReopened
       ? "Student payment phase assigned and phase reopened."
       : "Student payment phase assigned.",
   };
@@ -1770,121 +1229,29 @@ export async function transferStudentPaymentPhaseForManager(
 
   const { spp_id, destination_payment_phase_id } = parsed.data;
 
-  const { data: spp, error: sppError } =
-    await studentPaymentPhaseRepository.findSppById(adminClient, spp_id);
-
-  if (sppError) {
-    return {
-      success: false,
-      error: "Unable to transfer student payment phase. Please try again.",
-    };
-  }
-
-  if (!spp) {
-    return { success: false, error: "Student payment phase not found." };
-  }
-
-  if (spp.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return {
-      success: false,
-      error: "Cancelled student payment phases cannot be transferred.",
-    };
-  }
-
-  if (spp.payment_phase_id === destination_payment_phase_id) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: {
-        destination_payment_phase_id: [
-          "Destination must be different from the current payment phase.",
-        ],
-      },
-    };
-  }
-
-  const { data: destinationPhase, error: destError } =
-    await paymentPhaseRepository.findPaymentPhaseById(
-      adminClient,
-      destination_payment_phase_id
-    );
-
-  if (destError) {
-    return {
-      success: false,
-      error: "Unable to transfer student payment phase. Please try again.",
-    };
-  }
-
-  if (!destinationPhase) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: {
-        destination_payment_phase_id: ["Destination payment phase not found."],
-      },
-    };
-  }
-
-  if (
-    destinationPhase.status !== PAYMENT_PHASE_STATUSES.OPENED &&
-    destinationPhase.status !== PAYMENT_PHASE_STATUSES.CLOSED
-  ) {
-    return {
-      success: false,
-      error: "Destination must be an opened or closed payment phase.",
-    };
-  }
-
-  const { data: existingOnDest, error: existingError } =
-    await studentPaymentPhaseRepository.findSppByStudentAndPhase(
-      adminClient,
-      spp.student_id,
-      destination_payment_phase_id
-    );
-
-  if (existingError) {
-    return {
-      success: false,
-      error: "Unable to transfer student payment phase. Please try again.",
-    };
-  }
-
-  if (existingOnDest) {
-    return {
-      success: false,
-      error: "Student already has a payment record on that phase.",
-    };
-  }
-
-  const sourcePhaseId = spp.payment_phase_id;
-
-  const { data: updated, error: updateError } =
-    await studentPaymentPhaseRepository.updateStudentPaymentPhasePaymentPhaseId(
+  const { data, error } =
+    await studentPaymentPhaseRepository.transferStudentPaymentPhase(
       adminClient,
       spp_id,
       destination_payment_phase_id
     );
 
-  if (updateError || !updated) {
-    return {
-      success: false,
-      error:
-        updateError?.message ??
-        "Unable to transfer student payment phase. Please try again.",
-    };
+  if (error) {
+    return mapPhaseWriteError(
+      error.message,
+      "Unable to transfer student payment phase. Please try again."
+    );
   }
 
-  try {
-    await recalcPhaseStatusFromSpps(adminClient, sourcePhaseId);
-    await recalcPhaseStatusFromSpps(adminClient, destination_payment_phase_id);
-  } catch (err) {
+  if (
+    !data?.sppId ||
+    !data.studentId ||
+    !data.fromPaymentPhaseId ||
+    !data.toPaymentPhaseId
+  ) {
     return {
       success: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : "SPP was moved, but phase status could not be recalculated.",
+      error: "Unable to transfer student payment phase. Please try again.",
     };
   }
 
@@ -1892,27 +1259,27 @@ export async function transferStudentPaymentPhaseForManager(
     action: "update",
     severity: "info",
     table_name: "student_payment_phases",
-    record_id: spp_id,
+    record_id: data.sppId,
     old_data: {
-      payment_phase_id: sourcePhaseId,
+      payment_phase_id: data.fromPaymentPhaseId,
     },
     new_data: {
-      payment_phase_id: destination_payment_phase_id,
+      payment_phase_id: data.toPaymentPhaseId,
     },
     metadata: {
       note: "SPP transferred between payment phases.",
-      student_id: spp.student_id,
-      from_payment_phase_id: sourcePhaseId,
-      to_payment_phase_id: destination_payment_phase_id,
+      student_id: data.studentId,
+      from_payment_phase_id: data.fromPaymentPhaseId,
+      to_payment_phase_id: data.toPaymentPhaseId,
     },
   });
 
   return {
     success: true,
     message: "Student payment phase transferred.",
-    spp_id,
-    from_payment_phase_id: sourcePhaseId,
-    to_payment_phase_id: destination_payment_phase_id,
+    spp_id: data.sppId,
+    from_payment_phase_id: data.fromPaymentPhaseId,
+    to_payment_phase_id: data.toPaymentPhaseId,
   };
 }
 
@@ -1940,16 +1307,15 @@ export async function getPaymentPhaseForManager(
     return null;
   }
 
-  const record = data as PaymentPhaseListRecord;
-  const sppCounts = await buildSppCountsByPhaseId(adminClient, [record.id]);
-  const counts = sppCounts.get(record.id) ?? { active: 0, paid: 0 };
-  const billingClass = await resolveInProgressClassForSemester(
-    adminClient,
-    record.semester_id
-  );
+  const phaseRecord = data as PaymentPhaseListRecord;
+  const [sppCounts, billingClass] = await Promise.all([
+    buildSppCountsByPhaseId(adminClient, [phaseRecord.id]),
+    resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
+  ]);
+  const counts = sppCounts.get(phaseRecord.id) ?? { active: 0, paid: 0 };
 
   return mapPhaseRecordToRow(
-    record,
+    phaseRecord,
     counts.active,
     counts.paid,
     billingClass
@@ -2091,20 +1457,6 @@ export async function updatePaymentPhaseForManager(
 
   const updatedRecord = updated as PaymentPhaseListRecord;
 
-  const { data: spps, error: sppError } =
-    await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
-      adminClient,
-      updatedRecord.id
-    );
-
-  if (sppError) {
-    return {
-      success: false,
-      error:
-        "Payment phase updated, but student payment phases could not be recalculated.",
-    };
-  }
-
   const currentPhaseStatus = isPaymentPhaseStatus(updatedRecord.status)
     ? updatedRecord.status
     : PAYMENT_PHASE_STATUSES.OPENED;
@@ -2115,9 +1467,7 @@ export async function updatePaymentPhaseForManager(
   try {
     const recalc = await recalcNonCancelledSppsForPhase(
       adminClient,
-      parsed.data.amount,
-      currentPhaseStatus,
-      (spps ?? []) as StudentPaymentPhaseRecord[]
+      updatedRecord.id
     );
     sppRecalculated = recalc.sppRecalculated;
     nextPhaseStatus = recalc.nextPhaseStatus;
@@ -2129,26 +1479,10 @@ export async function updatePaymentPhaseForManager(
     };
   }
 
-  let finalRecord = updatedRecord;
-
-  if (nextPhaseStatus !== currentPhaseStatus) {
-    const { data: statusUpdated, error: statusError } =
-      await paymentPhaseRepository.updatePaymentPhaseStatus(
-        adminClient,
-        updatedRecord.id,
-        nextPhaseStatus
-      );
-
-    if (statusError || !statusUpdated) {
-      return {
-        success: false,
-        error:
-          "Payment phase updated, but phase status could not be recalculated.",
-      };
-    }
-
-    finalRecord = statusUpdated as PaymentPhaseListRecord;
-  }
+  const finalRecord =
+    nextPhaseStatus !== currentPhaseStatus
+      ? { ...updatedRecord, status: nextPhaseStatus }
+      : updatedRecord;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
@@ -2221,77 +1555,46 @@ export async function cancelPaymentPhaseForManager(
     };
   }
 
-  const existing = await paymentPhaseRepository.findPaymentPhaseById(
+  const { data, error } = await paymentPhaseRepository.cancelPaymentPhase(
     adminClient,
     parsed.data.payment_phase_id
   );
 
-  if (existing.error) {
-    return {
-      success: false,
-      error: "Unable to cancel payment phase. Please try again.",
-    };
-  }
-
-  if (!existing.data) {
-    return { success: false, error: "Payment phase not found." };
-  }
-
-  const existingRecord = existing.data as PaymentPhaseListRecord;
-
-  if (existingRecord.status === PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return {
-      success: false,
-      error: "This payment phase is already cancelled.",
-    };
-  }
-
-  const { data: cancelled, error: cancelError } =
-    await paymentPhaseRepository.updatePaymentPhaseStatus(
-      adminClient,
-      existingRecord.id,
-      PAYMENT_PHASE_STATUSES.CANCELLED
+  if (error) {
+    return mapPhaseWriteError(
+      error.message,
+      "Unable to cancel payment phase. Please try again."
     );
+  }
 
-  if (cancelError || !cancelled) {
+  if (!data?.phase) {
     return {
       success: false,
       error: "Unable to cancel payment phase. Please try again.",
     };
   }
 
-  const cancelledRecord = cancelled as PaymentPhaseListRecord;
+  const cancelledRecord = toPhaseListRecord(data.phase, data.semester);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "warning",
     table_name: "payment_phases",
     record_id: cancelledRecord.id,
-    old_data: { status: existingRecord.status },
+    old_data: { status: data.previousStatus },
     new_data: { status: cancelledRecord.status },
     metadata: {
       note: "Payment phase cancelled.",
     },
   });
 
-  const sppCounts = await buildSppCountsByPhaseId(adminClient, [
-    cancelledRecord.id,
-  ]);
-  const counts = sppCounts.get(cancelledRecord.id) ?? { active: 0, paid: 0 };
-  const billingClass = await resolveInProgressClassForSemester(
-    adminClient,
-    cancelledRecord.semester_id
-  );
-
   return {
     success: true,
     phase: mapPhaseRecordToRow(
       cancelledRecord,
-      counts.active,
-      counts.paid,
-      billingClass
-        ? { id: billingClass.id, name: billingClass.name }
-        : null
+      data.sppActiveCount,
+      data.sppPaidCount,
+      data.billingClass
     ),
     message: "Payment phase cancelled.",
   };

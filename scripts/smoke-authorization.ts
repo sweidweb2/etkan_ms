@@ -5,7 +5,7 @@ import {
   getUserPermissions,
   hasPermission,
   requirePermission,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { createSeedAdminClient } from "@/scripts/lib/create-seed-admin-client";
 import { loadEnvLocal } from "@/scripts/lib/load-env-local";
 

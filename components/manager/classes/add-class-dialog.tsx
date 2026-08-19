@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
-import { createClassAction } from "@/app/manager/classes/actions";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import {
+  createClassAction,
+  loadClassCreateDialogDataAction,
+} from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -48,18 +51,12 @@ const initialState: CreateClassActionState = {};
 type AddClassDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  subjectOptions: ManagerClassSubjectOption[];
-  semesterOptions: ManagerClassSemesterOption[];
-  teacherOptions: ManagerClassTeacherSelectOption[];
   onClassCreated: (classRow: ManagerClassRow) => void;
 };
 
 export function AddClassDialog({
   open,
   onOpenChange,
-  subjectOptions,
-  semesterOptions,
-  teacherOptions,
   onClassCreated,
 }: AddClassDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -68,8 +65,39 @@ export function AddClassDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const [subjectOptions, setSubjectOptions] = useState<
+    ManagerClassSubjectOption[]
+  >([]);
+  const [semesterOptions, setSemesterOptions] = useState<
+    ManagerClassSemesterOption[]
+  >([]);
+  const [teacherOptions, setTeacherOptions] = useState<
+    ManagerClassTeacherSelectOption[]
+  >([]);
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+
+  useEffect(() => {
+    if (!open || optionsLoaded) {
+      return;
+    }
+
+    let cancelled = false;
+    void loadClassCreateDialogDataAction().then((data) => {
+      if (cancelled) {
+        return;
+      }
+      setSubjectOptions(data.subjects);
+      setSemesterOptions(data.semesters);
+      setTeacherOptions(data.teachers);
+      setOptionsLoaded(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, optionsLoaded]);
 
   useActionStateToast(state, isPending);
 
@@ -381,11 +409,11 @@ export function AddClassDialog({
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-class-form" disabled={isPending}>
-            {isPending ? (
+          <Button type="submit" form="add-class-form" disabled={isPending || !optionsLoaded}>
+            {isPending || !optionsLoaded ? (
               <>
                 <InlineSpinner className="mr-2" />
-                Creating class
+                {optionsLoaded ? "Creating class" : "Loading options"}
               </>
             ) : (
               "Create class"

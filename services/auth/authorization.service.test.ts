@@ -13,7 +13,7 @@ import {
   hasPermissionInSet,
   requirePermission,
   requirePermissionInSet,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/permission.repository");

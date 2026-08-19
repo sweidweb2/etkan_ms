@@ -33,7 +33,7 @@ import * as registrationRepository from "@/repositories/student-registration-app
 import type { StudentRegistrationApplicationRecord } from "@/repositories/student-registration-application.repository";
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
-import { assertPermission } from "@/services/authorization.service";
+import { assertPermission } from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerRegistrationApplicationRow,
@@ -44,6 +44,57 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
+
+const REGISTRATION_DOCUMENT_MOVE_CONCURRENCY = 5;
+const REGISTRATION_SIGNED_URL_CONCURRENCY = 5;
+
+async function createSignedUrlsForDocuments(
+  adminClient: Supabase,
+  documentRecords: documentRepository.StudentRegistrationDocumentRecord[]
+): Promise<ManagerRegistrationDocumentSignedRow[]> {
+  if (documentRecords.length === 0) {
+    return [];
+  }
+
+  const signedDocuments: ManagerRegistrationDocumentSignedRow[] = [];
+
+  for (
+    let index = 0;
+    index < documentRecords.length;
+    index += REGISTRATION_SIGNED_URL_CONCURRENCY
+  ) {
+    const chunk = documentRecords.slice(
+      index,
+      index + REGISTRATION_SIGNED_URL_CONCURRENCY
+    );
+    const signedChunk = await Promise.all(
+      chunk.map(async (doc) => {
+        const signed =
+          await registrationStorage.createRegistrationDocumentSignedUrl(
+            adminClient,
+            doc.storage_path
+          );
+
+        if (signed.error || !signed.data) {
+          throw new Error(
+            signed.error?.message ?? "Unable to create download link."
+          );
+        }
+
+        return {
+          id: doc.id,
+          file_name: doc.file_name,
+          mime_type: doc.mime_type,
+          file_size: doc.file_size,
+          signedUrl: signed.data.signedUrl,
+        };
+      })
+    );
+    signedDocuments.push(...signedChunk);
+  }
+
+  return signedDocuments;
+}
 
 function mapDocumentRecord(
   record: documentRepository.StudentRegistrationDocumentRecord
@@ -307,40 +358,62 @@ export async function submitPublicRegistrationApplication(
     [];
 
   try {
-    for (const [index, doc] of input.documents.entries()) {
-      if (
-        !isRegistrationTempStoragePath(
-          doc.storage_path,
-          input.upload_session_id
-        )
-      ) {
-        throw new Error("Invalid document upload path.");
-      }
-
-      const finalPath = buildRegistrationDocumentStoragePath(
-        applicationId,
-        doc.file_name
+    for (
+      let index = 0;
+      index < input.documents.length;
+      index += REGISTRATION_DOCUMENT_MOVE_CONCURRENCY
+    ) {
+      const chunk = input.documents.slice(
+        index,
+        index + REGISTRATION_DOCUMENT_MOVE_CONCURRENCY
       );
 
-      const move = await registrationStorage.moveRegistrationStorageObject(
-        adminClient,
-        doc.storage_path,
-        finalPath
+      const movedChunk = await Promise.all(
+        chunk.map(async (doc, chunkIndex) => {
+          const sortIndex = index + chunkIndex;
+
+          if (
+            !isRegistrationTempStoragePath(
+              doc.storage_path,
+              input.upload_session_id
+            )
+          ) {
+            throw new Error("Invalid document upload path.");
+          }
+
+          const finalPath = buildRegistrationDocumentStoragePath(
+            applicationId,
+            doc.file_name
+          );
+
+          const move = await registrationStorage.moveRegistrationStorageObject(
+            adminClient,
+            doc.storage_path,
+            finalPath
+          );
+
+          if (move.error) {
+            throw new Error(move.error.message ?? "Unable to finalize documents.");
+          }
+
+          return {
+            finalPath,
+            row: {
+              application_id: applicationId,
+              storage_path: finalPath,
+              file_name: doc.file_name,
+              mime_type: doc.mime_type,
+              file_size: doc.file_size,
+              sort_order: sortIndex,
+            } satisfies documentRepository.CreateStudentRegistrationDocumentInput,
+          };
+        })
       );
 
-      if (move.error) {
-        throw new Error(move.error.message ?? "Unable to finalize documents.");
+      for (const moved of movedChunk) {
+        movedFinalPaths.push(moved.finalPath);
+        documentRows.push(moved.row);
       }
-
-      movedFinalPaths.push(finalPath);
-      documentRows.push({
-        application_id: applicationId,
-        storage_path: finalPath,
-        file_name: doc.file_name,
-        mime_type: doc.mime_type,
-        file_size: doc.file_size,
-        sort_order: index,
-      });
     }
 
     const docsResult =
@@ -449,28 +522,10 @@ export async function getRegistrationApplicationDetailForManager(
   const documentRecords = (docsResult.data ??
     []) as documentRepository.StudentRegistrationDocumentRecord[];
   const documents = documentRecords.map((doc) => mapDocumentRecord(doc));
-  const signedDocuments: ManagerRegistrationDocumentSignedRow[] = [];
-
-  for (const doc of documentRecords) {
-    const signed = await registrationStorage.createRegistrationDocumentSignedUrl(
-      adminClient,
-      doc.storage_path
-    );
-
-    if (signed.error || !signed.data) {
-      throw new Error(
-        signed.error?.message ?? "Unable to create download link."
-      );
-    }
-
-    signedDocuments.push({
-      id: doc.id,
-      file_name: doc.file_name,
-      mime_type: doc.mime_type,
-      file_size: doc.file_size,
-      signedUrl: signed.data.signedUrl,
-    });
-  }
+  const signedDocuments = await createSignedUrlsForDocuments(
+    adminClient,
+    documentRecords
+  );
 
   return {
     application: mapApplicationRecord(
@@ -505,32 +560,25 @@ export async function getRegistrationDocumentSignedUrlsForManager(
     return { success: false, error: docsResult.error.message };
   }
 
-  const documents: ManagerRegistrationDocumentSignedRow[] = [];
+  const documentRecords = (docsResult.data ??
+    []) as documentRepository.StudentRegistrationDocumentRecord[];
 
-  for (const doc of (docsResult.data ??
-    []) as documentRepository.StudentRegistrationDocumentRecord[]) {
-    const signed = await registrationStorage.createRegistrationDocumentSignedUrl(
+  try {
+    const documents = await createSignedUrlsForDocuments(
       adminClient,
-      doc.storage_path
+      documentRecords
     );
 
-    if (signed.error || !signed.data) {
-      return {
-        success: false,
-        error: signed.error?.message ?? "Unable to create download link.",
-      };
-    }
-
-    documents.push({
-      id: doc.id,
-      file_name: doc.file_name,
-      mime_type: doc.mime_type,
-      file_size: doc.file_size,
-      signedUrl: signed.data.signedUrl,
-    });
+    return { success: true, documents };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to create download link.",
+    };
   }
-
-  return { success: true, documents };
 }
 
 export async function updateRegistrationApplicationStatusForManager(
@@ -575,18 +623,6 @@ export async function updateRegistrationApplicationStatusForManager(
     };
   }
 
-  const docsResult =
-    await documentRepository.listStudentRegistrationDocumentsByApplicationId(
-      adminClient,
-      input.id
-    );
-
-  const documents = (docsResult.data ?? []).map((doc) =>
-    mapDocumentRecord(
-      doc as documentRepository.StudentRegistrationDocumentRecord
-    )
-  );
-
   return {
     success: true,
     message:
@@ -594,8 +630,7 @@ export async function updateRegistrationApplicationStatusForManager(
         ? "Application updated."
         : "Application status updated.",
     application: mapApplicationRecord(
-      result.data as StudentRegistrationApplicationRecord,
-      documents
+      result.data as StudentRegistrationApplicationRecord
     ),
   };
 }
@@ -673,24 +708,11 @@ export async function updateRegistrationApplicationForManager(
     };
   }
 
-  const docsResult =
-    await documentRepository.listStudentRegistrationDocumentsByApplicationId(
-      adminClient,
-      input.id
-    );
-
-  const documents = (docsResult.data ?? []).map((doc) =>
-    mapDocumentRecord(
-      doc as documentRepository.StudentRegistrationDocumentRecord
-    )
-  );
-
   return {
     success: true,
     message: "Application updated.",
     application: mapApplicationRecord(
-      result.data as StudentRegistrationApplicationRecord,
-      documents
+      result.data as StudentRegistrationApplicationRecord
     ),
   };
 }

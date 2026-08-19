@@ -121,6 +121,10 @@ export async function listInstructorProfiles(client: Supabase) {
     .order("username", { ascending: true });
 }
 
+export async function listInstructorProfileIds(client: Supabase) {
+  return client.from("profiles").select("id").eq("is_instructor", true);
+}
+
 export async function listNonInstructorProfiles(client: Supabase) {
   return client
     .from("profiles")

@@ -14,20 +14,20 @@ import type { FactorWeightsValues } from "@/lib/compute/custom-compute-form-util
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { updateClassWeightsSchema } from "@/lib/validators/manager/update-class-weights";
-import { getUnauthorizedError } from "@/services/authorization.service";
-import { getClassForManager, listClassStudentsForManager } from "@/services/class.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
+import { getClassForManager, listClassStudentsForManager } from "@/services/classes/class.service";
 import {
   computeAllStudentCourseGradesForManager,
   computeStudentCourseGradeForManager,
   deleteStudentCourseGradeForManager,
   getStudentClassGradeDetailForManager,
   listComputedStudentGradeSheetBundlesForManager,
-} from "@/services/student-course-grade.service";
+} from "@/services/classes/student-course-grade.service";
 import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
-import type { ComputedStudentGradeSheetBundle } from "@/services/student-course-grade.service";
+import type { ComputedStudentGradeSheetBundle } from "@/services/classes/student-course-grade.service";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 

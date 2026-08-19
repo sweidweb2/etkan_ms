@@ -21,7 +21,7 @@ import * as studentPaymentRepository from "@/repositories/student-payment.reposi
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as transactionRepository from "@/repositories/transaction.repository";
-import { assertPermission } from "@/services/authorization.service";
+import { assertPermission } from "@/services/auth/authorization.service";
 import type {
   IncomeStatementMonthOption,
   IncomeStatementPeriod,

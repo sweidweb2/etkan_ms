@@ -2,7 +2,7 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseSubmitPublicFinancialFormFormData } from "@/lib/validators/manager/upsert-financial-form";
-import { submitFinancialFormByToken } from "@/services/student-financial-adjustment.service";
+import { submitFinancialFormByToken } from "@/services/accounting/student-financial-adjustment.service";
 import type { SubmitPublicFinancialFormActionState } from "@/types/manager-financial-adjustment";
 
 export async function submitPublicFinancialFormAction(

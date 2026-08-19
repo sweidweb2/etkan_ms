@@ -3,7 +3,7 @@ import * as auditLogRepository from "@/repositories/audit-log.repository";
 import {
   createAuditLogForManager,
   recordManagerAuditLog,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -13,7 +13,7 @@ vi.mock("@/repositories/audit-log.repository", () => ({
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

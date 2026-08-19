@@ -9,7 +9,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getIncomeStatementForManager,
   incomeStatementPeriodLabel,
-} from "@/services/income-statement.service";
+} from "@/services/accounting/income-statement.service";
 
 export default async function ManagerIncomeStatementPage() {
   const adminClient = createSupabaseAdminClient();

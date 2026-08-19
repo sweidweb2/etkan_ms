@@ -4,8 +4,8 @@ import {
   listInstructorsCatalog,
   listSlotsThisWeekCatalog,
   listSubjectsCatalog,
-} from "@/services/schedule-assistant.service";
-import { assertPermission } from "@/services/authorization.service";
+} from "@/services/schedule/schedule-assistant.service";
+import { assertPermission } from "@/services/auth/authorization.service";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { ScheduleAssistantPrefetchCatalogs } from "@/types/schedule-assistant";
 import type { SupabaseClient } from "@supabase/supabase-js";

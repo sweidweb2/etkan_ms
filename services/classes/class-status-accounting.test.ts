@@ -3,18 +3,18 @@ import * as classRepository from "@/repositories/class.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import * as accountingSync from "@/services/accounting-sync.service";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
-import { updateClassStatusForManager } from "@/services/class.service";
+import * as accountingSync from "@/services/accounting/accounting-sync.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
+import { updateClassStatusForManager } from "@/services/classes/class.service";
 
 vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/class-teacher.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
-vi.mock("@/services/accounting-sync.service", async (importOriginal) => {
+vi.mock("@/services/accounting/accounting-sync.service", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/services/accounting-sync.service")>();
+    await importOriginal<typeof import("@/services/accounting/accounting-sync.service")>();
   return {
     ...actual,
     backfillSppsForClassBecomeInProgress: vi.fn(),
@@ -22,22 +22,22 @@ vi.mock("@/services/accounting-sync.service", async (importOriginal) => {
     onStudentLeftClass: vi.fn(),
   };
 });
-vi.mock("@/services/student.service", () => ({
+vi.mock("@/services/students/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));
-vi.mock("@/services/session.service", () => ({
+vi.mock("@/services/classes/session.service", () => ({
   seedLateJoinAttendeesForStudent: vi.fn(),
   seedLateJoinStudentTasksForStudent: vi.fn(),
   ensureSessionAttendeesForMembers: vi.fn(),
 }));
-vi.mock("@/services/class-computed-grade-lock.service", () => ({
+vi.mock("@/services/classes/class-computed-grade-lock.service", () => ({
   assertClassStructureUnlockedForComputedGrades: vi.fn(),
   assertStudentGradeInputsUnlockedForComputedGrade: vi.fn(),
 }));
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

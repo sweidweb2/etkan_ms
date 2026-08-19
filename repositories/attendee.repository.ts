@@ -84,6 +84,43 @@ export async function findAttendeeById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function seedLateJoinAttendees(
+  client: Supabase,
+  classId: string,
+  studentUserId: string
+) {
+  return client.rpc("seed_late_join_attendees", {
+    p_class_id: classId,
+    p_student_id: studentUserId,
+  });
+}
+
+export async function seedLateJoinAttendeesForStudents(
+  client: Supabase,
+  classId: string,
+  studentUserIds: string[]
+) {
+  if (studentUserIds.length === 0) {
+    return { data: 0, error: null };
+  }
+
+  return client.rpc("seed_late_join_attendees_for_students", {
+    p_class_id: classId,
+    p_student_ids: studentUserIds,
+  });
+}
+
+export async function ensureSessionAttendeesForMembers(
+  client: Supabase,
+  sessionId: string,
+  classId: string
+) {
+  return client.rpc("ensure_session_attendees_for_members", {
+    p_session_id: sessionId,
+    p_class_id: classId,
+  });
+}
+
 export async function createAttendees(
   client: Supabase,
   rows: CreateAttendeeInput[]

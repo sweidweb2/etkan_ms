@@ -87,7 +87,7 @@ Each section is a **task / capability**. For every task:
 ### Proof
 - `lib/constants/permissions.ts`
 - `docs/[11] RBAC/[02] permission-definitions.md`
-- `services/weekly-schedule-slot.service.ts`
+- `services/schedule/weekly-schedule-slot.service.ts`
 - `components/manager/schedule/manager-schedule-panel.tsx`
 
 ---
@@ -175,7 +175,7 @@ Each section is a **task / capability**. For every task:
 
 ### Proof
 - `components/manager/schedule/manager-schedule-panel.tsx` (`handleEventDrop`, `handleEventResize`)
-- `services/weekly-schedule-slot.service.ts` (`updateWeeklyScheduleSlotForManager`)
+- `services/schedule/weekly-schedule-slot.service.ts` (`updateWeeklyScheduleSlotForManager`)
 
 ---
 
@@ -213,7 +213,7 @@ Each section is a **task / capability**. For every task:
 
 ### Proof
 - `components/manager/schedule/copy-last-week-schedule-dialog.tsx`
-- `services/weekly-schedule-slot.service.ts` (`previewCopyLastWeekScheduleForManager`, `copyLastWeekScheduleForManager`)
+- `services/schedule/weekly-schedule-slot.service.ts` (`previewCopyLastWeekScheduleForManager`, `copyLastWeekScheduleForManager`)
 - `app/manager/schedule/actions.ts`
 
 ---

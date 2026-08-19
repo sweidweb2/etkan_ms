@@ -12,8 +12,8 @@ import * as transactionRepository from "@/repositories/transaction.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
-import { getUnauthorizedError } from "@/services/authorization.service";
+} from "@/services/ops/audit-log.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerIncomeTransactionRow } from "@/types/manager-income-statement";
 import type { Database } from "@/types/supabase";

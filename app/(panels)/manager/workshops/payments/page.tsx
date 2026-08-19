@@ -1,7 +1,7 @@
 import { WorkshopPaymentsOverviewPanel } from "@/components/manager/workshops/workshop-payments-overview-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getWorkshopPaymentsOverviewForManager } from "@/services/workshop.service";
+import { getWorkshopPaymentsOverviewForManager } from "@/services/workshops/workshop.service";
 
 type ManagerWorkshopsPaymentsPageProps = {
   searchParams: Promise<{ page?: string }>;

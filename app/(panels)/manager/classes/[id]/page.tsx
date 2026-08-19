@@ -4,15 +4,15 @@ import { getSessionPack } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
-import { hasPermissionInSet } from "@/services/authorization.service";
+import { hasPermissionInSet } from "@/services/auth/authorization.service";
 import {
   getClassFinalExamForManager,
   getClassForManager,
   listClassSessionsForManager,
   listClassStudentsForManager,
   listClassTeacherOptionsForManager,
-} from "@/services/class.service";
-import { getClassComputedGradeLockStateForManager } from "@/services/class-computed-grade-lock.service";
+} from "@/services/classes/class.service";
+import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
 import { notFound } from "next/navigation";
 
 type ManagerClassDetailPageProps = {

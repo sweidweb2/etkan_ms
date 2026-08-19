@@ -6,11 +6,11 @@ import type { GalleryImageRecord } from "@/repositories/gallery-image.repository
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerGalleryImageRow } from "@/types/manager-gallery-image";
 import type { SupabaseClient } from "@supabase/supabase-js";

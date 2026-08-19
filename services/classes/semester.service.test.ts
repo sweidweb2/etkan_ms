@@ -1,22 +1,22 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { SEMESTER_STATUSES } from "@/lib/constants/manager-semester-status";
 import * as semesterRepository from "@/repositories/semester.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createSemesterForManager,
   getSemesterForManager,
   listSemestersForManager,
   updateSemesterForManager,
-} from "@/services/semester.service";
+} from "@/services/classes/semester.service";
 
 vi.mock("@/repositories/semester.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { EquipmentDetailsPanel } from "@/components/manager/equipments/equipment-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listEquipmentBorrowsForManager } from "@/services/borrow-equipment.service";
-import { getEquipmentForManager } from "@/services/equipment.service";
+import { listEquipmentBorrowsForManager } from "@/services/equipment/borrow-equipment.service";
+import { getEquipmentForManager } from "@/services/equipment/equipment.service";
 
 type ManagerEquipmentDetailPageProps = {
   params: Promise<{ id: string }>;

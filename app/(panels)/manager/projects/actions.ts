@@ -12,7 +12,7 @@ import {
   createPublicProjectForManager,
   deletePublicProjectForManager,
   updatePublicProjectForManager,
-} from "@/services/public-project.service";
+} from "@/services/public/public-project.service";
 import type {
   CreatePublicProjectActionState,
   DeletePublicProjectActionState,

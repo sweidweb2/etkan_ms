@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as publicProjectRepository from "@/repositories/public-project.repository";
 import * as publicProjectStorageRepository from "@/repositories/public-project-storage.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createPublicProjectForManager,
   deletePublicProjectForManager,
@@ -10,15 +10,15 @@ import {
   listPublicProjectsForManager,
   listPublicProjectsForPublic,
   updatePublicProjectForManager,
-} from "@/services/public-project.service";
+} from "@/services/public/public-project.service";
 
 vi.mock("@/repositories/public-project.repository");
 vi.mock("@/repositories/public-project-storage.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
@@ -15,6 +15,7 @@ import {
   deleteInstructorScheduleSlotAction,
   updateInstructorScheduleSlotAction,
 } from "@/app/manager/instructor-schedules/actions";
+import { loadWorkshopScheduleSlotsAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
 import { AddWorkshopScheduleSlotDialog } from "@/components/manager/workshops/add-workshop-schedule-slot-dialog";
@@ -63,7 +64,6 @@ const TEMP_SLOT_ID_PREFIX = "__temp_workshop_slot_";
 type WorkshopScheduleSlotsSectionProps = {
   workshopId: string;
   workshopName: string;
-  scheduleSlots: ManagerInstructorScheduleSession[];
   mutationsLocked?: boolean;
 };
 
@@ -130,12 +130,10 @@ function sessionFromCreateInput(
 export function WorkshopScheduleSlotsSection({
   workshopId,
   workshopName,
-  scheduleSlots: initialSlots,
   mutationsLocked = false,
 }: WorkshopScheduleSlotsSectionProps) {
   const router = useRouter();
-  const [slots, setSlots] = useState(initialSlots);
-  const [prevInitialSlots, setPrevInitialSlots] = useState(initialSlots);
+  const [slots, setSlots] = useState<ManagerInstructorScheduleSession[]>([]);
   const [selectedSession, setSelectedSession] =
     useState<ManagerInstructorScheduleSession | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -152,10 +150,17 @@ export function WorkshopScheduleSlotsSection({
     }
   );
 
-  if (initialSlots !== prevInitialSlots) {
-    setPrevInitialSlots(initialSlots);
-    setSlots(initialSlots);
-  }
+  useEffect(() => {
+    let cancelled = false;
+    void loadWorkshopScheduleSlotsAction(workshopId).then((rows) => {
+      if (!cancelled) {
+        setSlots(rows);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [workshopId]);
 
   async function handleCreate(values: CreateInstructorScheduleSlotInput) {
     const tempId = makeTempId();

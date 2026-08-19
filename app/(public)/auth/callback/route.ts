@@ -3,8 +3,8 @@ import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import { ROUTES } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { rejectIfMaintenanceBlocksRole } from "@/services/auth.service";
-import { resolveUserRole } from "@/services/role.service";
+import { rejectIfMaintenanceBlocksRole } from "@/services/auth/auth.service";
+import { resolveUserRole } from "@/services/auth/role.service";
 import * as authRepository from "@/repositories/auth.repository";
 
 export async function GET(request: Request) {

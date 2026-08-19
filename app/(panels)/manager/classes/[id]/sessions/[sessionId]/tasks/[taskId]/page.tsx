@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { SessionTaskDetailsPanel } from "@/components/manager/classes/session-task-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassComputedGradeLockStateForManager } from "@/services/class-computed-grade-lock.service";
-import { getSessionTaskDetailForManager } from "@/services/session.service";
+import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
+import { getSessionTaskDetailForManager } from "@/services/classes/session.service";
 
 type ManagerClassSessionTaskDetailPageProps = {
   params: Promise<{ id: string; sessionId: string; taskId: string }>;

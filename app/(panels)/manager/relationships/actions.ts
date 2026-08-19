@@ -8,7 +8,7 @@ import { parseUpdateRelationshipFormData } from "@/lib/validators/manager/update
 import {
   createRelationshipForManager,
   updateRelationshipForManager,
-} from "@/services/relationship.service";
+} from "@/services/relationships/relationship.service";
 import type {
   CreateRelationshipActionState,
   UpdateRelationshipActionState,

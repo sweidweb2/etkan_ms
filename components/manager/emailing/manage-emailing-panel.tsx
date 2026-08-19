@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
@@ -21,6 +21,7 @@ import {
   ComposeEmailDialog,
   type ComposeEmailTarget,
 } from "@/components/manager/emailing/compose-email-dialog";
+import { listEmailingClassMemberUserIdsAction } from "@/app/manager/emailing/actions";
 import { Can } from "@/components/auth/can";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -52,15 +53,15 @@ import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import { EMAIL_REGEX } from "@/lib/validators/auth/fields";
 import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
+import { showErrorToast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { EmailingClassOption } from "@/services/email.service";
+import type { EmailingClassOption } from "@/services/communications/email.service";
 import type { ManagerUserRow } from "@/types/manager-user";
 
 type ManageEmailingPanelProps = {
   initialUsers: ManagerUserRow[];
   classes: EmailingClassOption[];
-  userClassIds: Record<string, string[]>;
 };
 
 type ReadyAction = {
@@ -169,7 +170,6 @@ function getPageNumbers(currentPage: number, totalPages: number) {
 export function ManageEmailingPanel({
   initialUsers,
   classes,
-  userClassIds,
 }: ManageEmailingPanelProps) {
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
     () => new Set()
@@ -187,6 +187,10 @@ export function ManageEmailingPanel({
   const [emailFilter, setEmailFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState(ROLE_FILTER_ALL);
   const [classFilter, setClassFilter] = useState(CLASS_FILTER_ALL);
+  const [classMemberUserIds, setClassMemberUserIds] = useState<Set<string> | null>(
+    null
+  );
+  const [isClassMembersPending, setIsClassMembersPending] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   const stats = useMemo(() => {
@@ -215,13 +219,49 @@ export function ManageEmailingPanel({
 
   const canUseReadyActions = selectedWithEmail.length > 0;
 
+  useEffect(() => {
+    if (classFilter === CLASS_FILTER_ALL) {
+      setClassMemberUserIds(null);
+      setIsClassMembersPending(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsClassMembersPending(true);
+    setClassMemberUserIds(null);
+
+    void listEmailingClassMemberUserIdsAction(classFilter)
+      .then((ids) => {
+        if (cancelled) {
+          return;
+        }
+        setClassMemberUserIds(new Set(ids));
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setClassMemberUserIds(new Set());
+        showErrorToast("Unable to load class members.");
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsClassMembersPending(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [classFilter]);
+
   const filteredUsers = useMemo(() => {
     return initialUsers.filter((user) => {
       const matchesRole =
         roleFilter === ROLE_FILTER_ALL || user.role === roleFilter;
       const matchesClass =
         classFilter === CLASS_FILTER_ALL ||
-        (userClassIds[user.id] ?? []).includes(classFilter);
+        (classMemberUserIds?.has(user.id) ?? false);
 
       return (
         matchesNameFilter(user, nameFilter) &&
@@ -232,11 +272,11 @@ export function ManageEmailingPanel({
     });
   }, [
     classFilter,
+    classMemberUserIds,
     emailFilter,
     initialUsers,
     nameFilter,
     roleFilter,
-    userClassIds,
   ]);
 
   const totalPages = Math.min(
@@ -566,7 +606,11 @@ export function ManageEmailingPanel({
                   resetToFirstPage();
                 }}
               >
-                <SelectTrigger className="w-full" aria-label="Filter by class">
+                <SelectTrigger
+                  className="w-full"
+                  aria-label="Filter by class"
+                  disabled={isClassMembersPending}
+                >
                   <SelectValue placeholder="All classes">
                     {(value) => {
                       if (!value || value === CLASS_FILTER_ALL) {

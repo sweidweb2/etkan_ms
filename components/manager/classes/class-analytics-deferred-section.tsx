@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { ClassAnalyticsSection } from "@/components/manager/classes/class-analytics-section";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassAnalyticsForManager } from "@/services/class.service";
+import { getClassAnalyticsForManager } from "@/services/classes/class.service";
 
 type ClassAnalyticsDeferredSectionProps = {
   classId: string;

@@ -1,7 +1,7 @@
 import { ManagePhasesPanel } from "@/components/manager/phases/manage-phases-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listSemestersForManager } from "@/services/semester.service";
+import { listSemestersForManager } from "@/services/classes/semester.service";
 
 export default async function ManagerPhasesPage() {
   const adminClient = createSupabaseAdminClient();

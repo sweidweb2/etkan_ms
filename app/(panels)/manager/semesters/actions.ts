@@ -10,8 +10,8 @@ import {
   connectClassToSemesterForManager,
   createSemesterForManager,
   updateSemesterForManager,
-} from "@/services/semester.service";
-import { addStudentToSemesterForManager } from "@/services/student-semester.service";
+} from "@/services/classes/semester.service";
+import { addStudentToSemesterForManager } from "@/services/students/student-semester.service";
 import type {
   AddStudentToSemesterActionState,
   ConnectSemesterClassActionState,

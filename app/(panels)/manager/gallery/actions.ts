@@ -8,7 +8,7 @@ import {
   createGalleryImageForManager,
   deleteGalleryImageForManager,
   updateGalleryImageForManager,
-} from "@/services/gallery-image.service";
+} from "@/services/public/gallery-image.service";
 import type {
   CreateGalleryImageActionState,
   DeleteGalleryImageActionState,

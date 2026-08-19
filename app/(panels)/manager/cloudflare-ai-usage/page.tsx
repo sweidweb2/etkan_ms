@@ -1,7 +1,7 @@
 import { ManageCloudflareAiUsagePanel } from "@/components/manager/cloudflare-ai-usage/manage-cloudflare-ai-usage-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listCloudflareAiUsageForManager } from "@/services/cloudflare-ai-usage.service";
+import { listCloudflareAiUsageForManager } from "@/services/ops/cloudflare-ai-usage.service";
 
 export default async function ManagerCloudflareAiUsagePage() {
   const adminClient = createSupabaseAdminClient();

@@ -17,6 +17,21 @@ export async function listAllInstructorSubjectCapabilities(client: Supabase) {
     .order("created_at", { ascending: true });
 }
 
+export async function listInstructorSubjectCapabilitiesByUserIds(
+  client: Supabase,
+  userIds: string[]
+) {
+  if (userIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("instructor_subject_capability")
+    .select("id, user_id, subject_id, created_at")
+    .in("user_id", userIds)
+    .order("created_at", { ascending: true });
+}
+
 export async function deleteCapabilitiesByUserId(
   client: Supabase,
   userId: string

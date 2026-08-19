@@ -9,11 +9,11 @@ import * as sessionRepository from "@/repositories/session.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as taskRepository from "@/repositories/task.repository";
-import * as classService from "@/services/class.service";
+import * as classService from "@/services/classes/class.service";
 import {
   getStudentClassGradeDetailForManager,
   listComputedStudentGradeSheetBundlesForManager,
-} from "@/services/student-course-grade.service";
+} from "@/services/classes/student-course-grade.service";
 
 vi.mock("@/repositories/attendee.repository");
 vi.mock("@/repositories/final-exam.repository");
@@ -21,14 +21,13 @@ vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/task.repository");
-vi.mock("@/services/class.service", () => ({
+vi.mock("@/services/classes/class.service", () => ({
   assertClassGradesUnlockedForManager: vi.fn(),
   listClassStudentsForManager: vi.fn(),
-  getClassFinalExamForManager: vi.fn(),
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -201,19 +200,6 @@ describe("getStudentClassGradeDetailForManager", () => {
     vi.mocked(classService.listClassStudentsForManager).mockResolvedValue([
       enrolledStudent,
     ]);
-
-    vi.mocked(classService.getClassFinalExamForManager).mockResolvedValue({
-      finalExam: {
-        id: finalExamId,
-        class_id: classId,
-        title: "Final exam",
-        description: null,
-        due_date: "2026-08-01T00:00:00.000Z",
-        max_grade: 100,
-        created_at: "2026-07-10T00:00:00.000Z",
-      },
-      studentGrades: [],
-    });
   });
 
   it("returns null when the student is not enrolled", async () => {
@@ -434,19 +420,6 @@ describe("listComputedStudentGradeSheetBundlesForManager", () => {
         teacher_count: 1,
         created_at: "2026-01-01T00:00:00.000Z",
       },
-    });
-
-    vi.mocked(classService.getClassFinalExamForManager).mockResolvedValue({
-      finalExam: {
-        id: finalExamId,
-        class_id: classId,
-        title: "Final exam",
-        description: null,
-        due_date: "2026-08-01T00:00:00.000Z",
-        max_grade: 100,
-        created_at: "2026-07-10T00:00:00.000Z",
-      },
-      studentGrades: [],
     });
   });
 

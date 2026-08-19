@@ -277,6 +277,10 @@ Table student_tasks {
   grade numeric(5,2)
   notes text
   graded_at timestamp
+
+  indexes {
+    (task_id, student_id) [unique, name: 'student_tasks_task_student_unique']
+  }
 }
 
 Table final_exam {

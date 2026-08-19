@@ -2,13 +2,11 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   ATTENDEE_STATUSES,
   type AttendeeStatusValue,
 } from "@/lib/constants/manager-attendee-status";
-import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
-import { isDueDatePast } from "@/lib/manager/late-enrollment";
 import {
   STUDENT_TASK_STATUSES,
   type StudentTaskStatusValue,
@@ -36,11 +34,11 @@ import type { TaskRecord } from "@/repositories/task.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
   assertClassStructureUnlockedForComputedGrades,
   assertStudentGradeInputsUnlockedForComputedGrade,
-} from "@/services/class-computed-grade-lock.service";
+} from "@/services/classes/class-computed-grade-lock.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
@@ -167,32 +165,34 @@ async function buildStudentDisplayByUserId(
     return map;
   }
 
-  const profilesResult =
-    await studentProfileRepository.listStudentProfilesByUserIds(
+  const [profilesResult, emailResult] = await Promise.all([
+    studentProfileRepository.listStudentProfilesByUserIds(
       adminClient,
       uniqueIds
-    );
+    ),
+    authRepository.listAuthEmailsByIds(adminClient, uniqueIds),
+  ]);
 
   if (profilesResult.error) {
     throw new Error(profilesResult.error.message);
   }
 
-  await Promise.all(
-    uniqueIds.map(async (userId) => {
-      const profile = (profilesResult.data ?? []).find(
-        (row) => row.user_id === userId
-      );
-      const authResult = await authRepository.getAuthUserById(
-        adminClient,
-        userId
-      );
-      map.set(userId, {
-        full_name: profile?.full_name ?? "Unknown student",
-        email: authResult.data.user?.email ?? "",
-        student_profile_id: profile?.id ?? null,
-      });
-    })
-  );
+  if (emailResult.error) {
+    throw new Error(emailResult.error.message);
+  }
+
+  const emailById = emailResult.data;
+
+  for (const userId of uniqueIds) {
+    const profile = (profilesResult.data ?? []).find(
+      (row) => row.user_id === userId
+    );
+    map.set(userId, {
+      full_name: profile?.full_name ?? "Unknown student",
+      email: emailById.get(userId) ?? "",
+      student_profile_id: profile?.id ?? null,
+    });
+  }
 
   return map;
 }
@@ -230,42 +230,21 @@ export async function ensureSessionAttendeesForMembers(
   sessionId: string,
   classId: string
 ): Promise<void> {
-  const [membersResult, attendeesResult] = await Promise.all([
-    studentClassRepository.listMemberUserIdsByClassId(adminClient, classId),
-    attendeeRepository.listAttendeesBySessionId(adminClient, sessionId),
-  ]);
+  const timer = createNavStepTimer("ensureSessionAttendees");
+  try {
+    const { error } = await timer.step("rpc", () =>
+      attendeeRepository.ensureSessionAttendeesForMembers(
+        adminClient,
+        sessionId,
+        classId
+      )
+    );
 
-  if (membersResult.error) {
-    throw new Error(membersResult.error.message);
-  }
-
-  if (attendeesResult.error) {
-    throw new Error(attendeesResult.error.message);
-  }
-
-  const existing = new Set(
-    (attendeesResult.data ?? []).map((row) => row.student_id)
-  );
-  const missing = (membersResult.data ?? [])
-    .map((row) => row.user_id)
-    .filter((userId) => !existing.has(userId));
-
-  if (missing.length === 0) {
-    return;
-  }
-
-  const { error } = await attendeeRepository.createAttendees(
-    adminClient,
-    missing.map((studentId) => ({
-      session_id: sessionId,
-      student_id: studentId,
-      status: ATTENDEE_STATUSES.PRESENT,
-      note: null,
-    }))
-  );
-
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+  } finally {
+    timer.end();
   }
 }
 
@@ -280,57 +259,17 @@ export async function seedLateJoinAttendeesForStudent(
 ): Promise<void> {
   const timer = createNavStepTimer("seedAttendees");
   try {
-    const sessionsResult = await timer.step("sessions", () =>
-      sessionRepository.listSessionIdsByClassId(adminClient, classId)
-    );
-
-    if (sessionsResult.error) {
-      throw new Error(sessionsResult.error.message);
-    }
-
-    const sessionIds = (sessionsResult.data ?? []).map((row) => row.id);
-
-    if (sessionIds.length === 0) {
-      return;
-    }
-
-    const attendeesResult = await timer.step("attendees", () =>
-      attendeeRepository.listAttendeesBySessionIds(adminClient, sessionIds)
-    );
-
-    if (attendeesResult.error) {
-      throw new Error(attendeesResult.error.message);
-    }
-
-    const sessionsWithStudent = new Set(
-      (attendeesResult.data ?? [])
-        .filter((row) => row.student_id === studentUserId)
-        .map((row) => row.session_id)
-    );
-
-    const missingSessionIds = sessionIds.filter(
-      (sessionId) => !sessionsWithStudent.has(sessionId)
-    );
-
-    if (missingSessionIds.length === 0) {
-      return;
-    }
-
-    await timer.step("insert", async () => {
-      const { error } = await attendeeRepository.createAttendees(
+    const { error } = await timer.step("rpc", () =>
+      attendeeRepository.seedLateJoinAttendees(
         adminClient,
-        missingSessionIds.map((sessionId) => ({
-          session_id: sessionId,
-          student_id: studentUserId,
-          status: ATTENDEE_STATUSES.ABSENT,
-          note: LATE_ENROLLMENT_NOTE,
-        }))
-      );
+        classId,
+        studentUserId
+      )
+    );
 
-      if (error) {
-        throw new Error(error.message);
-      }
-    });
+    if (error) {
+      throw new Error(error.message);
+    }
   } finally {
     timer.end();
   }
@@ -348,81 +287,71 @@ export async function seedLateJoinStudentTasksForStudent(
 ): Promise<void> {
   const timer = createNavStepTimer("seedTasks");
   try {
-    const sessionsResult = await timer.step("sessions", () =>
-      sessionRepository.listSessionIdsByClassId(adminClient, classId)
-    );
-
-    if (sessionsResult.error) {
-      throw new Error(sessionsResult.error.message);
-    }
-
-    const sessionIds = (sessionsResult.data ?? []).map((row) => row.id);
-
-    if (sessionIds.length === 0) {
-      return;
-    }
-
-    const tasksResult = await timer.step("tasks", () =>
-      taskRepository.listTasksBySessionIds(adminClient, sessionIds)
-    );
-
-    if (tasksResult.error) {
-      throw new Error(tasksResult.error.message);
-    }
-
-    const tasks = tasksResult.data ?? [];
-
-    if (tasks.length === 0) {
-      return;
-    }
-
-    const taskIds = tasks.map((task) => task.id);
-    const existingResult = await timer.step("existing", () =>
-      studentTaskRepository.listStudentTasksByTaskIds(adminClient, taskIds)
-    );
-
-    if (existingResult.error) {
-      throw new Error(existingResult.error.message);
-    }
-
-    const tasksWithStudent = new Set(
-      (existingResult.data ?? [])
-        .filter((row) => row.student_id === studentUserId)
-        .map((row) => row.task_id)
-    );
-
-    const missingTasks = tasks.filter((task) => !tasksWithStudent.has(task.id));
-
-    if (missingTasks.length === 0) {
-      return;
-    }
-
-    await timer.step("insert", async () => {
-      const { error } = await studentTaskRepository.createStudentTasks(
+    const { error } = await timer.step("rpc", () =>
+      studentTaskRepository.seedLateJoinStudentTasks(
         adminClient,
-        missingTasks.map((task) => {
-          if (isDueDatePast(task.due_date ?? null)) {
-            return {
-              task_id: task.id,
-              student_id: studentUserId,
-              status: STUDENT_TASK_STATUSES.MISSING,
-              grade: 0,
-              notes: LATE_ENROLLMENT_NOTE,
-            };
-          }
+        classId,
+        studentUserId
+      )
+    );
 
-          return {
-            task_id: task.id,
-            student_id: studentUserId,
-            status: STUDENT_TASK_STATUSES.PENDING,
-          };
-        })
-      );
+    if (error) {
+      throw new Error(error.message);
+    }
+  } finally {
+    timer.end();
+  }
+}
 
-      if (error) {
-        throw new Error(error.message);
-      }
-    });
+export async function seedLateJoinAttendeesForStudents(
+  adminClient: Supabase,
+  classId: string,
+  studentUserIds: string[]
+): Promise<void> {
+  if (studentUserIds.length === 0) {
+    return;
+  }
+
+  const timer = createNavStepTimer("seedAttendeesBatch");
+  try {
+    const { error } = await timer.step("rpc", () =>
+      attendeeRepository.seedLateJoinAttendeesForStudents(
+        adminClient,
+        classId,
+        studentUserIds
+      )
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  } finally {
+    timer.end();
+  }
+}
+
+export async function seedLateJoinStudentTasksForStudents(
+  adminClient: Supabase,
+  classId: string,
+  studentUserIds: string[]
+): Promise<void> {
+  if (studentUserIds.length === 0) {
+    return;
+  }
+
+  const timer = createNavStepTimer("seedTasksBatch");
+  try {
+    const { error } = await timer.step("rpc", () =>
+      studentTaskRepository.seedLateJoinStudentTasksForStudents(
+        adminClient,
+        classId,
+        studentUserIds
+      )
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
   } finally {
     timer.end();
   }
@@ -658,6 +587,11 @@ export async function updateSessionSettingsForManager(
     input.session_id
   );
 
+  const structureGuardPromise = assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    input.class_id
+  );
+
   if (existing.error) {
     return { success: false, error: existing.error.message };
   }
@@ -693,14 +627,13 @@ export async function updateSessionSettingsForManager(
     };
   }
 
-  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
-    adminClient,
-    input.class_id
-  );
+  const structureGuard = await structureGuardPromise;
 
   if (!structureGuard.ok) {
     return { success: false, error: structureGuard.error };
   }
+
+  let validatedSemester: { id: string; name: string } | null = null;
 
   if (patch.semester_id) {
     const semesterResult = await semesterRepository.findSemesterById(
@@ -717,6 +650,10 @@ export async function updateSessionSettingsForManager(
         fieldErrors: { semester_id: ["Semester not found."] },
       };
     }
+    validatedSemester = {
+      id: semesterResult.data.id,
+      name: semesterResult.data.name,
+    };
   }
 
   const { data, error } = await sessionRepository.updateSessionSettings(
@@ -736,15 +673,22 @@ export async function updateSessionSettingsForManager(
   let linkedPhase: ManagerSessionPhaseLink | null = null;
 
   if (session.semester_id) {
-    const semesterResult = await semesterRepository.findSemesterById(
-      adminClient,
-      session.semester_id
-    );
-    if (semesterResult.data) {
+    if (validatedSemester && validatedSemester.id === session.semester_id) {
       linkedPhase = {
-        phase_id: semesterResult.data.id,
-        phase_name: semesterResult.data.name,
+        phase_id: validatedSemester.id,
+        phase_name: validatedSemester.name,
       };
+    } else {
+      const semesterResult = await semesterRepository.findSemesterById(
+        adminClient,
+        session.semester_id
+      );
+      if (semesterResult.data) {
+        linkedPhase = {
+          phase_id: semesterResult.data.id,
+          phase_name: semesterResult.data.name,
+        };
+      }
     }
   }
 
@@ -815,10 +759,10 @@ export async function updateClassSessionForManager(
     };
   }
 
-  const existing = await sessionRepository.findSessionById(
-    adminClient,
-    input.session_id
-  );
+  const [existing, structureGuard] = await Promise.all([
+    sessionRepository.findSessionById(adminClient, input.session_id),
+    assertClassStructureUnlockedForComputedGrades(adminClient, input.class_id),
+  ]);
 
   if (existing.error) {
     return { success: false, error: existing.error.message };
@@ -827,11 +771,6 @@ export async function updateClassSessionForManager(
   if (!existing.data || existing.data.class_id !== input.class_id) {
     return { success: false, error: "Session not found." };
   }
-
-  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
-    adminClient,
-    input.class_id
-  );
 
   if (!structureGuard.ok) {
     return { success: false, error: structureGuard.error };
@@ -935,10 +874,13 @@ export async function deleteClassSessionForManager(
 
   const session = existing.data;
 
-  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
-    adminClient,
-    session.class_id
-  );
+  const [structureGuard, tasksResult] = await Promise.all([
+    assertClassStructureUnlockedForComputedGrades(
+      adminClient,
+      session.class_id
+    ),
+    taskRepository.listTasksBySessionId(adminClient, sessionId),
+  ]);
 
   if (!structureGuard.ok) {
     return { success: false, error: structureGuard.error };
@@ -950,11 +892,6 @@ export async function deleteClassSessionForManager(
       error: "Clear the session difficulty before deleting.",
     };
   }
-
-  const tasksResult = await taskRepository.listTasksBySessionId(
-    adminClient,
-    sessionId
-  );
 
   if (tasksResult.error) {
     return {
@@ -982,41 +919,17 @@ export async function deleteClassSessionForManager(
     };
   }
 
-  const remainingResult = await sessionRepository.listSessionsByClassId(
-    adminClient,
-    session.class_id
-  );
+  const { error: renumberError } =
+    await sessionRepository.renumberSessionsAfterDelete(
+      adminClient,
+      session.class_id
+    );
 
-  if (remainingResult.error) {
+  if (renumberError) {
     return {
       success: false,
       error: "Session deleted, but unable to renumber remaining sessions.",
     };
-  }
-
-  const remaining = (remainingResult.data ?? []) as SessionRecord[];
-
-  for (let index = 0; index < remaining.length; index += 1) {
-    const expectedOrder = index + 1;
-    const row = remaining[index];
-
-    if (row.nb_order === expectedOrder) {
-      continue;
-    }
-
-    const { error: renumberError } =
-      await sessionRepository.updateSessionNbOrder(
-        adminClient,
-        row.id,
-        expectedOrder
-      );
-
-    if (renumberError) {
-      return {
-        success: false,
-        error: "Session deleted, but unable to renumber remaining sessions.",
-      };
-    }
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -1065,122 +978,117 @@ export async function createSessionTaskForManager(
     max_grade?: string | number;
   }
 ): Promise<CreateSessionTaskResult> {
-  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.TASKS_CREATE);
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
+  const timer = createNavStepTimer("createSessionTask");
+  try {
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.TASKS_CREATE)
+    );
+    if (unauthorized) {
+      return { success: false, error: unauthorized };
+    }
 
-  const parsed = createSessionTaskSchema.safeParse({
-    title: input.title,
-    description: input.description,
-    due_date: input.due_date,
-    max_grade: input.max_grade,
-  });
+    const parsed = createSessionTaskSchema.safeParse({
+      title: input.title,
+      description: input.description,
+      due_date: input.due_date,
+      max_grade: input.max_grade,
+    });
 
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
 
-  const sessionResult = await sessionRepository.findSessionById(
-    adminClient,
-    input.session_id
-  );
-
-  if (sessionResult.error) {
-    return { success: false, error: sessionResult.error.message };
-  }
-
-  if (!sessionResult.data || sessionResult.data.class_id !== input.class_id) {
-    return { success: false, error: "Session not found." };
-  }
-
-  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
-    adminClient,
-    input.class_id
-  );
-
-  if (!structureGuard.ok) {
-    return { success: false, error: structureGuard.error };
-  }
-
-  const maxGrade =
-    parsed.data.max_grade === "" || parsed.data.max_grade === undefined
-      ? null
-      : Number(parsed.data.max_grade);
-
-  const { data, error } = await taskRepository.createTask(adminClient, {
-    session_id: input.session_id,
-    title: parsed.data.title.trim(),
-    description: normalizeOptionalString(parsed.data.description),
-    due_date: toIsoOrNull(parsed.data.due_date),
-    max_grade: maxGrade,
-  });
-
-  if (error || !data) {
-    return {
-      success: false,
-      error: error?.message ?? "Unable to create task.",
-    };
-  }
-
-  const membersResult =
-    await studentClassRepository.listMemberUserIdsByClassId(
-      adminClient,
-      input.class_id
+    const sessionResult = await timer.step("session", () =>
+      sessionRepository.findSessionById(adminClient, input.session_id)
     );
 
-  if (membersResult.error) {
-    return { success: false, error: membersResult.error.message };
+    if (sessionResult.error) {
+      return { success: false, error: sessionResult.error.message };
+    }
+
+    if (!sessionResult.data || sessionResult.data.class_id !== input.class_id) {
+      return { success: false, error: "Session not found." };
+    }
+
+    const structureGuard = await timer.step("structureGuard", () =>
+      assertClassStructureUnlockedForComputedGrades(adminClient, input.class_id)
+    );
+
+    if (!structureGuard.ok) {
+      return { success: false, error: structureGuard.error };
+    }
+
+    const maxGrade =
+      parsed.data.max_grade === "" || parsed.data.max_grade === undefined
+        ? null
+        : Number(parsed.data.max_grade);
+
+    const { data, error } = await timer.step("createTask", () =>
+      taskRepository.createTask(adminClient, {
+        session_id: input.session_id,
+        title: parsed.data.title.trim(),
+        description: normalizeOptionalString(parsed.data.description),
+        due_date: toIsoOrNull(parsed.data.due_date),
+        max_grade: maxGrade,
+      })
+    );
+
+    if (error || !data) {
+      return {
+        success: false,
+        error: error?.message ?? "Unable to create task.",
+      };
+    }
+
+    const gradesResult = await timer.step("seedTasks", () =>
+      studentTaskRepository.seedStudentTasksForNewTask(adminClient, data.id)
+    );
+
+    if (gradesResult.error) {
+      return { success: false, error: gradesResult.error.message };
+    }
+
+    const studentTaskRecords = gradesResult.data ?? [];
+    const displayByUserId = await timer.step("hydrate", () =>
+      buildStudentDisplayByUserId(
+        adminClient,
+        studentTaskRecords.map((row) => row.student_id)
+      )
+    );
+
+    const task = mapTaskRecord(data as TaskRecord);
+    const studentTasks: ManagerStudentTaskRow[] = studentTaskRecords.map((row) =>
+      mapStudentTaskRow(row, displayByUserId)
+    );
+
+    await timer.step("audit", () =>
+      recordManagerAuditLog(adminClient, actor, {
+        action: "insert",
+        severity: "info",
+        table_name: "tasks",
+        record_id: task.id,
+        new_data: {
+          session_id: task.session_id,
+          title: task.title,
+          student_task_count: studentTasks.length,
+        },
+        metadata: { note: "Session task created with pending student rows." },
+      })
+    );
+
+    return {
+      success: true,
+      task,
+      studentTasks,
+      message: "Task created.",
+    };
+  } finally {
+    timer.end();
   }
-
-  const memberUserIds = (membersResult.data ?? []).map((row) => row.user_id);
-  const gradesResult = await studentTaskRepository.createStudentTasks(
-    adminClient,
-    memberUserIds.map((studentId) => ({
-      task_id: data.id,
-      student_id: studentId,
-      status: STUDENT_TASK_STATUSES.PENDING,
-    }))
-  );
-
-  if (gradesResult.error) {
-    return { success: false, error: gradesResult.error.message };
-  }
-
-  const studentTaskRecords = (gradesResult.data ?? []) as StudentTaskRecord[];
-  const displayByUserId = await buildStudentDisplayByUserId(
-    adminClient,
-    studentTaskRecords.map((row) => row.student_id)
-  );
-
-  const task = mapTaskRecord(data as TaskRecord);
-  const studentTasks: ManagerStudentTaskRow[] = studentTaskRecords.map((row) =>
-    mapStudentTaskRow(row, displayByUserId)
-  );
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "insert",
-    severity: "info",
-    table_name: "tasks",
-    record_id: task.id,
-    new_data: {
-      session_id: task.session_id,
-      title: task.title,
-      student_task_count: studentTasks.length,
-    },
-    metadata: { note: "Session task created with pending student rows." },
-  });
-
-  return {
-    success: true,
-    task,
-    studentTasks,
-    message: "Task created.",
-  };
 }
 
 export type UpdateAttendeeResult =
@@ -1225,10 +1133,10 @@ export async function updateAttendeeForManager(
     };
   }
 
-  const existing = await attendeeRepository.findAttendeeById(
-    adminClient,
-    input.id
-  );
+  const [existing, sessionResult] = await Promise.all([
+    attendeeRepository.findAttendeeById(adminClient, input.id),
+    sessionRepository.findSessionById(adminClient, input.session_id),
+  ]);
 
   if (existing.error) {
     return { success: false, error: existing.error.message };
@@ -1237,11 +1145,6 @@ export async function updateAttendeeForManager(
   if (!existing.data || existing.data.session_id !== input.session_id) {
     return { success: false, error: "Attendee not found." };
   }
-
-  const sessionResult = await sessionRepository.findSessionById(
-    adminClient,
-    input.session_id
-  );
 
   if (sessionResult.error) {
     return { success: false, error: sessionResult.error.message };

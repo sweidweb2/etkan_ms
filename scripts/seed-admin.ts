@@ -3,7 +3,7 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { createSeedAdminClient } from "@/scripts/lib/create-seed-admin-client";
 import { loadEnvLocal } from "@/scripts/lib/load-env-local";
-import { syncAuthUserRole } from "@/services/role.service";
+import { syncAuthUserRole } from "@/services/auth/role.service";
 
 async function seedAdminUser(): Promise<void> {
   loadEnvLocal();

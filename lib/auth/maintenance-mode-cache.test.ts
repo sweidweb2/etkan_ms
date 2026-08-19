@@ -8,7 +8,7 @@ import {
   roleFromAuthMetadata,
   roleFromJwtClaims,
   resolveUserRoleForMiddleware,
-} from "@/services/role.service";
+} from "@/services/auth/role.service";
 import { ROLES } from "@/lib/constants/roles";
 import * as profileRepository from "@/repositories/profile.repository";
 import { vi } from "vitest";

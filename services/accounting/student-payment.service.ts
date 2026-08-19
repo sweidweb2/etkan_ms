@@ -9,6 +9,7 @@ import {
 } from "@/lib/manager/accounting/constants";
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { dateRangeForYearMonth } from "@/lib/utils/iso-date-range";
 import { createStudentPaymentSchema } from "@/lib/validators/manager/create-student-payment";
 import { deleteStudentPaymentSchema } from "@/lib/validators/manager/delete-student-payment";
@@ -24,17 +25,13 @@ import type { StudentPaymentRecord } from "@/repositories/student-payment.reposi
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
-  recalcPhaseStatusFromSpps,
-  recalcSppAndPhaseStatus,
-} from "@/services/accounting-recalc.service";
-import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerSppDetail,
@@ -124,6 +121,39 @@ function normalizeOptionalString(value?: string | null): string | null {
   return trimmed ? trimmed : null;
 }
 
+const PAYMENT_AMOUNT_MESSAGE =
+  "Amount must be greater than 0 and at most the payment phase price.";
+
+function mapPaymentWriteError(
+  message: string,
+  fallback: string
+): { success: false; error: string; fieldErrors?: FieldErrors } {
+  if (message.includes(PAYMENT_AMOUNT_MESSAGE)) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { amount: [PAYMENT_AMOUNT_MESSAGE] },
+    };
+  }
+
+  const known = [
+    "Student payment phase not found.",
+    "Cannot record payments on a cancelled payment phase.",
+    "Cannot record payments on a cancelled student assignment.",
+    "Payment not found.",
+    "Payment does not belong to this student.",
+    "This student payment phase has payments. Delete all payments first.",
+  ];
+
+  for (const item of known) {
+    if (message.includes(item)) {
+      return { success: false, error: item };
+    }
+  }
+
+  return { success: false, error: fallback };
+}
+
 function mapPaymentRecordToRow(
   record: StudentPaymentRecord
 ): ManagerStudentPaymentRow {
@@ -164,19 +194,6 @@ async function resolveStudentMeta(
   };
 }
 
-function assertPaymentsAllowed(
-  phaseStatus: string,
-  sppStatus: string
-): string | null {
-  if (phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return "Cannot record payments on a cancelled payment phase.";
-  }
-  if (sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
-    return "Cannot record payments on a cancelled student assignment.";
-  }
-  return null;
-}
-
 export async function getSppDetailForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -213,10 +230,10 @@ export async function getSppDetailForManager(
 
   const phaseRecord = phase as PaymentPhaseListRecord;
   const sppRecord = spp as StudentPaymentPhaseRecord;
-  const studentMeta = await resolveStudentMeta(
-    adminClient,
-    sppRecord.student_id
-  );
+  const [studentMeta, billingClass] = await Promise.all([
+    resolveStudentMeta(adminClient, sppRecord.student_id),
+    resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
+  ]);
   const phaseStatus = isPaymentPhaseStatus(phaseRecord.status)
     ? phaseRecord.status
     : PAYMENT_PHASE_STATUSES.OPENED;
@@ -224,10 +241,6 @@ export async function getSppDetailForManager(
     ? sppRecord.status
     : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
   const remaining = Number(sppRecord.remaining_amount);
-  const billingClass = await resolveInProgressClassForSemester(
-    adminClient,
-    phaseRecord.semester_id
-  );
 
   return {
     id: sppRecord.id,
@@ -329,121 +342,83 @@ export async function createStudentPaymentForManager(
     notes?: string | null;
   }
 ): Promise<CreateStudentPaymentResult> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const parsed = createStudentPaymentSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const { data: spp, error: sppError } =
-    await studentPaymentPhaseRepository.findSppById(
-      adminClient,
-      parsed.data.student_payment_phase_id
-    );
-
-  if (sppError) {
-    return {
-      success: false,
-      error: "Unable to create payment. Please try again.",
-    };
-  }
-
-  if (!spp) {
-    return { success: false, error: "Student payment phase not found." };
-  }
-
-  const { data: phase, error: phaseError } =
-    await paymentPhaseRepository.findPaymentPhaseById(
-      adminClient,
-      spp.payment_phase_id
-    );
-
-  if (phaseError || !phase) {
-    return {
-      success: false,
-      error: "Unable to create payment. Please try again.",
-    };
-  }
-
-  const blocked = assertPaymentsAllowed(phase.status, spp.status);
-  if (blocked) {
-    return { success: false, error: blocked };
-  }
-
-  if (parsed.data.amount <= 0 || parsed.data.amount > phase.amount) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: {
-        amount: [
-          "Amount must be greater than 0 and at most the payment phase price.",
-        ],
-      },
-    };
-  }
-
-  const { data: created, error: createError } =
-    await studentPaymentRepository.createStudentPayment(adminClient, {
-      student_payment_phase_id: parsed.data.student_payment_phase_id,
-      payment_date: parsed.data.payment_date,
-      amount: parsed.data.amount,
-      payment_method: parsed.data.payment_method,
-      received_by: parsed.data.received_by.trim(),
-      received_by_management: parsed.data.received_by_management,
-      receipt_number: null,
-      notes: normalizeOptionalString(parsed.data.notes),
-    });
-
-  if (createError || !created) {
-    return {
-      success: false,
-      error: "Unable to create payment. Please try again.",
-    };
-  }
-
+  const timer = createNavStepTimer("createStudentPayment");
   try {
-    await recalcSppAndPhaseStatus(adminClient, spp.id);
-  } catch {
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.ACCOUNTING_PAYMENTS_CREATE
+      )
+    );
+    if (unauthorized) {
+      return { success: false, error: unauthorized };
+    }
+
+    const parsed = createStudentPaymentSchema.safeParse(input);
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const { data, error } = await timer.step("rpc", () =>
+      studentPaymentRepository.createStudentPaymentWithRecalc(adminClient, {
+        student_payment_phase_id: parsed.data.student_payment_phase_id,
+        payment_date: parsed.data.payment_date,
+        amount: parsed.data.amount,
+        payment_method: parsed.data.payment_method,
+        received_by: parsed.data.received_by.trim(),
+        received_by_management: parsed.data.received_by_management,
+        notes: normalizeOptionalString(parsed.data.notes),
+      })
+    );
+
+    if (error) {
+      return mapPaymentWriteError(
+        error.message,
+        "Unable to create payment. Please try again."
+      );
+    }
+
+    if (!data?.payment || !data.paymentPhaseId) {
+      return {
+        success: false,
+        error: "Unable to create payment. Please try again.",
+      };
+    }
+
+    const created = data.payment;
+
+    await timer.step("audit", () =>
+      recordManagerAuditLog(adminClient, actor, {
+        action: "insert",
+        severity: "info",
+        table_name: "student_payments",
+        record_id: created.id,
+        new_data: {
+          student_payment_phase_id: created.student_payment_phase_id,
+          payment_date: created.payment_date,
+          amount: created.amount,
+          payment_method: created.payment_method,
+          received_by: created.received_by,
+        },
+        metadata: { note: "Student payment created." },
+      })
+    );
+
     return {
-      success: false,
-      error: "Payment created, but balances could not be recalculated.",
+      success: true,
+      payment: mapPaymentRecordToRow(created),
+      message: "Payment recorded.",
+      payment_phase_id: data.paymentPhaseId,
     };
+  } finally {
+    timer.end();
   }
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "insert",
-    severity: "info",
-    table_name: "student_payments",
-    record_id: created.id,
-    new_data: {
-      student_payment_phase_id: created.student_payment_phase_id,
-      payment_date: created.payment_date,
-      amount: created.amount,
-      payment_method: created.payment_method,
-      received_by: created.received_by,
-    },
-    metadata: { note: "Student payment created." },
-  });
-
-  return {
-    success: true,
-    payment: mapPaymentRecordToRow(created as StudentPaymentRecord),
-    message: "Payment recorded.",
-    payment_phase_id: spp.payment_phase_id,
-  };
 }
 
 export async function updateStudentPaymentForManager(
@@ -480,111 +455,48 @@ export async function updateStudentPaymentForManager(
     };
   }
 
-  const { data: existing, error: existingError } =
-    await studentPaymentRepository.findPaymentById(adminClient, parsed.data.id);
+  const { data, error } =
+    await studentPaymentRepository.updateStudentPaymentWithRecalc(adminClient, {
+      id: parsed.data.id,
+      student_payment_phase_id: parsed.data.student_payment_phase_id,
+      payment_date: parsed.data.payment_date,
+      amount: parsed.data.amount,
+      payment_method: parsed.data.payment_method,
+      received_by: parsed.data.received_by.trim(),
+      received_by_management: parsed.data.received_by_management,
+      notes: normalizeOptionalString(parsed.data.notes),
+    });
 
-  if (existingError) {
-    return {
-      success: false,
-      error: "Unable to update payment. Please try again.",
-    };
-  }
-
-  if (!existing) {
-    return { success: false, error: "Payment not found." };
-  }
-
-  if (
-    existing.student_payment_phase_id !== parsed.data.student_payment_phase_id
-  ) {
-    return { success: false, error: "Payment does not belong to this student." };
-  }
-
-  const { data: spp, error: sppError } =
-    await studentPaymentPhaseRepository.findSppById(
-      adminClient,
-      existing.student_payment_phase_id
+  if (error) {
+    return mapPaymentWriteError(
+      error.message,
+      "Unable to update payment. Please try again."
     );
+  }
 
-  if (sppError || !spp) {
+  if (!data?.payment || !data.paymentPhaseId) {
     return {
       success: false,
       error: "Unable to update payment. Please try again.",
     };
   }
 
-  const { data: phase, error: phaseError } =
-    await paymentPhaseRepository.findPaymentPhaseById(
-      adminClient,
-      spp.payment_phase_id
-    );
-
-  if (phaseError || !phase) {
-    return {
-      success: false,
-      error: "Unable to update payment. Please try again.",
-    };
-  }
-
-  const blocked = assertPaymentsAllowed(phase.status, spp.status);
-  if (blocked) {
-    return { success: false, error: blocked };
-  }
-
-  if (parsed.data.amount <= 0 || parsed.data.amount > phase.amount) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: {
-        amount: [
-          "Amount must be greater than 0 and at most the payment phase price.",
-        ],
-      },
-    };
-  }
-
-  const { data: updated, error: updateError } =
-    await studentPaymentRepository.updateStudentPayment(
-      adminClient,
-      parsed.data.id,
-      {
-        payment_date: parsed.data.payment_date,
-        amount: parsed.data.amount,
-        payment_method: parsed.data.payment_method,
-        received_by: parsed.data.received_by.trim(),
-        received_by_management: parsed.data.received_by_management,
-        receipt_number: null,
-        notes: normalizeOptionalString(parsed.data.notes),
-      }
-    );
-
-  if (updateError || !updated) {
-    return {
-      success: false,
-      error: "Unable to update payment. Please try again.",
-    };
-  }
-
-  try {
-    await recalcSppAndPhaseStatus(adminClient, spp.id);
-  } catch {
-    return {
-      success: false,
-      error: "Payment updated, but balances could not be recalculated.",
-    };
-  }
+  const updated = data.payment;
+  const previous = data.previous;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
     severity: "info",
     table_name: "student_payments",
     record_id: updated.id,
-    old_data: {
-      payment_date: existing.payment_date,
-      amount: existing.amount,
-      payment_method: existing.payment_method,
-      received_by: existing.received_by,
-    },
+    old_data: previous
+      ? {
+          payment_date: previous.payment_date,
+          amount: previous.amount,
+          payment_method: previous.payment_method,
+          received_by: previous.received_by,
+        }
+      : null,
     new_data: {
       payment_date: updated.payment_date,
       amount: updated.amount,
@@ -596,9 +508,9 @@ export async function updateStudentPaymentForManager(
 
   return {
     success: true,
-    payment: mapPaymentRecordToRow(updated as StudentPaymentRecord),
+    payment: mapPaymentRecordToRow(updated),
     message: "Payment updated.",
-    payment_phase_id: spp.payment_phase_id,
+    payment_phase_id: data.paymentPhaseId,
   };
 }
 
@@ -630,79 +542,28 @@ export async function deleteStudentPaymentForManager(
     };
   }
 
-  const { data: existing, error: existingError } =
-    await studentPaymentRepository.findPaymentById(adminClient, parsed.data.id);
-
-  if (existingError) {
-    return {
-      success: false,
-      error: "Unable to delete payment. Please try again.",
-    };
-  }
-
-  if (!existing) {
-    return { success: false, error: "Payment not found." };
-  }
-
-  if (
-    parsed.data.student_payment_phase_id &&
-    parsed.data.student_payment_phase_id !== existing.student_payment_phase_id
-  ) {
-    return { success: false, error: "Payment does not belong to this student." };
-  }
-
-  const { data: spp, error: sppError } =
-    await studentPaymentPhaseRepository.findSppById(
+  const { data, error } =
+    await studentPaymentRepository.deleteStudentPaymentWithRecalc(
       adminClient,
-      existing.student_payment_phase_id
+      parsed.data.id,
+      parsed.data.student_payment_phase_id
     );
 
-  if (sppError || !spp) {
-    return {
-      success: false,
-      error: "Unable to delete payment. Please try again.",
-    };
-  }
-
-  const { data: phase, error: phaseError } =
-    await paymentPhaseRepository.findPaymentPhaseById(
-      adminClient,
-      spp.payment_phase_id
+  if (error) {
+    return mapPaymentWriteError(
+      error.message,
+      "Unable to delete payment. Please try again."
     );
+  }
 
-  if (phaseError || !phase) {
+  if (!data?.deleted || !data.studentPaymentPhaseId || !data.paymentPhaseId) {
     return {
       success: false,
       error: "Unable to delete payment. Please try again.",
     };
   }
 
-  const blocked = assertPaymentsAllowed(phase.status, spp.status);
-  if (blocked) {
-    return { success: false, error: blocked };
-  }
-
-  const { error: deleteError } =
-    await studentPaymentRepository.deleteStudentPayment(
-      adminClient,
-      existing.id
-    );
-
-  if (deleteError) {
-    return {
-      success: false,
-      error: "Unable to delete payment. Please try again.",
-    };
-  }
-
-  try {
-    await recalcSppAndPhaseStatus(adminClient, spp.id);
-  } catch {
-    return {
-      success: false,
-      error: "Payment deleted, but balances could not be recalculated.",
-    };
-  }
+  const existing = data.deleted;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",
@@ -721,8 +582,8 @@ export async function deleteStudentPaymentForManager(
   return {
     success: true,
     message: "Payment deleted.",
-    student_payment_phase_id: spp.id,
-    payment_phase_id: spp.payment_phase_id,
+    student_payment_phase_id: data.studentPaymentPhaseId,
+    payment_phase_id: data.paymentPhaseId,
   };
 }
 
@@ -762,69 +623,28 @@ export async function deleteSppForManager(
     };
   }
 
-  const { data: spp, error: sppError } =
-    await studentPaymentPhaseRepository.findSppById(
+  const { data, error } =
+    await studentPaymentPhaseRepository.deleteStudentPaymentPhaseWithRecalc(
       adminClient,
       parsed.data.id
     );
 
-  if (sppError) {
+  if (error) {
+    return mapPaymentWriteError(
+      error.message,
+      "Unable to delete student payment phase. Please try again."
+    );
+  }
+
+  if (!data?.deleted || !data.paymentPhaseId) {
     return {
       success: false,
       error: "Unable to delete student payment phase. Please try again.",
     };
   }
 
-  if (!spp) {
-    return { success: false, error: "Student payment phase not found." };
-  }
-
-  const { data: paymentRows, error: paymentCountError } =
-    await studentPaymentRepository.listPaymentSppIdsBySppIds(adminClient, [
-      spp.id,
-    ]);
-
-  if (paymentCountError) {
-    return {
-      success: false,
-      error: "Unable to verify payments for this student payment phase.",
-    };
-  }
-
-  if ((paymentRows ?? []).length > 0) {
-    return {
-      success: false,
-      error:
-        "This student payment phase has payments. Delete all payments first.",
-    };
-  }
-
-  const paymentPhaseId = spp.payment_phase_id;
-
-  const { data: deleted, error: deleteError } =
-    await studentPaymentPhaseRepository.deleteStudentPaymentPhaseById(
-      adminClient,
-      spp.id
-    );
-
-  if (deleteError || !deleted) {
-    return {
-      success: false,
-      error:
-        deleteError?.message ??
-        "Unable to delete student payment phase. Please try again.",
-    };
-  }
-
-  try {
-    await recalcPhaseStatusFromSpps(adminClient, paymentPhaseId);
-  } catch {
-    return {
-      success: false,
-      error:
-        "Student payment phase deleted, but the parent phase could not be recalculated.",
-    };
-  }
+  const deleted = data.deleted;
+  const paymentPhaseId = data.paymentPhaseId;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",

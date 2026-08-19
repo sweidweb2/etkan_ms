@@ -1,7 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
-import { addWorkshopInstructorAction } from "@/app/manager/workshops/actions";
+import {
+  addWorkshopInstructorAction,
+  loadWorkshopInstructorCandidatesAction,
+} from "@/app/manager/workshops/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -54,7 +57,7 @@ type AddWorkshopInstructorDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workshopId: string;
-  candidates: ManagerWorkshopInstructorCandidate[];
+  candidates?: ManagerWorkshopInstructorCandidate[];
   onAdded: () => void;
 };
 
@@ -62,7 +65,7 @@ export function AddWorkshopInstructorDialog({
   open,
   onOpenChange,
   workshopId,
-  candidates,
+  candidates: candidatesProp = [],
   onAdded,
 }: AddWorkshopInstructorDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -72,12 +75,35 @@ export function AddWorkshopInstructorDialog({
   );
   const isPending = isActionPending || isTransitionPending;
   const [candidateFilter, setCandidateFilter] = useState("");
+  const [fetchedCandidates, setFetchedCandidates] = useState<
+    ManagerWorkshopInstructorCandidate[] | null
+  >(null);
+  const needsFetch = candidatesProp.length === 0;
+  const candidates = needsFetch ? (fetchedCandidates ?? []) : candidatesProp;
   const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
     if (!nextOpen) {
       setCandidateFilter("");
+      setFetchedCandidates(null);
     }
     onOpenChange(nextOpen);
   });
+
+  useEffect(() => {
+    if (!open || !needsFetch) {
+      return;
+    }
+
+    let cancelled = false;
+    void loadWorkshopInstructorCandidatesAction(workshopId).then((rows) => {
+      if (!cancelled) {
+        setFetchedCandidates(rows);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, needsFetch, workshopId]);
 
   useActionStateToast(state, isPending);
 
@@ -236,7 +262,11 @@ export function AddWorkshopInstructorDialog({
             {userError ? (
               <p className="text-sm text-destructive">{userError}</p>
             ) : null}
-            {candidates.length === 0 ? (
+            {needsFetch && fetchedCandidates === null ? (
+              <p className="text-sm text-muted-foreground">
+                Loading instructor candidates…
+              </p>
+            ) : candidates.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 All instructor profiles are already assigned, or none exist.
               </p>

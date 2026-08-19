@@ -205,3 +205,187 @@ export async function updatePaymentPhaseStatus(
     .select(PAYMENT_PHASE_LIST_SELECT)
     .single();
 }
+
+export async function findSyncTargetPhaseForClass(
+  client: Supabase,
+  classId: string
+) {
+  return client.rpc("find_sync_target_phase_for_class", {
+    p_class_id: classId,
+  });
+}
+
+export type BillingClassSummary = { id: string; name: string };
+
+export type CreatePaymentPhaseWithSppsRpcResult = {
+  phase: PaymentPhaseRecord | null;
+  semester: { id: string; name: string; semester_code: string } | null;
+  sppCount: number;
+  billingClass: BillingClassSummary | null;
+};
+
+export type CancelPaymentPhaseRpcResult = {
+  phase: PaymentPhaseRecord | null;
+  previousStatus: string;
+  semester: { id: string; name: string; semester_code: string } | null;
+  sppActiveCount: number;
+  sppPaidCount: number;
+  billingClass: BillingClassSummary | null;
+};
+
+function asNumber(input: unknown) {
+  return typeof input === "number" ? input : input == null ? 0 : Number(input);
+}
+
+function asPhaseRecord(value: unknown): PaymentPhaseRecord | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+  if (typeof row.id !== "string") {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    name: typeof row.name === "string" ? row.name : "",
+    semester_id: typeof row.semester_id === "string" ? row.semester_id : "",
+    semester_code:
+      typeof row.semester_code === "string" ? row.semester_code : "",
+    amount: asNumber(row.amount),
+    upfront_amount: asNumber(row.upfront_amount),
+    duration_months: asNumber(row.duration_months),
+    start_date: typeof row.start_date === "string" ? row.start_date : "",
+    end_date: typeof row.end_date === "string" ? row.end_date : "",
+    status: typeof row.status === "string" ? row.status : "",
+    created_at: typeof row.created_at === "string" ? row.created_at : "",
+    updated_at: typeof row.updated_at === "string" ? row.updated_at : "",
+  };
+}
+
+function asSemesterSummary(
+  value: unknown
+): { id: string; name: string; semester_code: string } | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  if (typeof row.id !== "string") {
+    return null;
+  }
+  return {
+    id: row.id,
+    name: typeof row.name === "string" ? row.name : "",
+    semester_code:
+      typeof row.semester_code === "string" ? row.semester_code : "",
+  };
+}
+
+function asBillingClass(value: unknown): BillingClassSummary | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  if (typeof row.id !== "string" || typeof row.name !== "string") {
+    return null;
+  }
+  return { id: row.id, name: row.name };
+}
+
+export async function createPaymentPhaseWithSpps(
+  client: Supabase,
+  input: {
+    name: string;
+    semester_id: string;
+    amount: number;
+    upfront_amount: number;
+    duration_months: number;
+    start_date: string;
+    end_date: string;
+  }
+) {
+  const { data, error } = await client.rpc("create_payment_phase_with_spps", {
+    p_name: input.name,
+    p_semester_id: input.semester_id,
+    p_amount: input.amount,
+    p_upfront_amount: input.upfront_amount,
+    p_duration_months: input.duration_months,
+    p_start_date: input.start_date,
+    p_end_date: input.end_date,
+  });
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return {
+      data: {
+        phase: null,
+        semester: null,
+        sppCount: 0,
+        billingClass: null,
+      } satisfies CreatePaymentPhaseWithSppsRpcResult,
+      error: null,
+    };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    data: {
+      phase: asPhaseRecord(row.phase),
+      semester: asSemesterSummary(row.semester),
+      sppCount:
+        typeof row.sppCount === "number"
+          ? row.sppCount
+          : Number(row.sppCount) || 0,
+      billingClass: asBillingClass(row.billingClass),
+    } satisfies CreatePaymentPhaseWithSppsRpcResult,
+    error: null,
+  };
+}
+
+export async function cancelPaymentPhase(client: Supabase, phaseId: string) {
+  const { data, error } = await client.rpc("cancel_payment_phase", {
+    p_payment_phase_id: phaseId,
+  });
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data || typeof data !== "object") {
+    return {
+      data: {
+        phase: null,
+        previousStatus: "",
+        semester: null,
+        sppActiveCount: 0,
+        sppPaidCount: 0,
+        billingClass: null,
+      } satisfies CancelPaymentPhaseRpcResult,
+      error: null,
+    };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    data: {
+      phase: asPhaseRecord(row.phase),
+      previousStatus:
+        typeof row.previousStatus === "string" ? row.previousStatus : "",
+      semester: asSemesterSummary(row.semester),
+      sppActiveCount:
+        typeof row.sppActiveCount === "number"
+          ? row.sppActiveCount
+          : Number(row.sppActiveCount) || 0,
+      sppPaidCount:
+        typeof row.sppPaidCount === "number"
+          ? row.sppPaidCount
+          : Number(row.sppPaidCount) || 0,
+      billingClass: asBillingClass(row.billingClass),
+    } satisfies CancelPaymentPhaseRpcResult,
+    error: null,
+  };
+}

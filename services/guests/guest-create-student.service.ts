@@ -14,16 +14,16 @@ import {
 import * as guestRepository from "@/repositories/guest.repository";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import type { StudentRegistrationApplicationRecord } from "@/repositories/student-registration-application.repository";
-import { getUnauthorizedError } from "@/services/authorization.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
   setGuestProfileStatusForManager,
   setGuestStatusesForManager,
-} from "@/services/guest.service";
-import { createStudent } from "@/services/student.service";
+} from "@/services/guests/guest.service";
+import { createStudent } from "@/services/students/student.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerGuestRegistrationApplicationSummary } from "@/types/manager-guest";
 import type { ManagerStudentRow } from "@/types/manager-student";
@@ -100,7 +100,11 @@ export async function createStudentFromGuestRegistrationForManager(
     phone,
   } = resolveCreateStudentFromGuestInput(parsed.data);
 
-  const guestResult = await guestRepository.findGuestById(adminClient, guestId);
+  const [guestResult, applicationResult] = await Promise.all([
+    guestRepository.findGuestById(adminClient, guestId),
+    registrationRepository.findActiveApplicationByGuestId(adminClient, guestId),
+  ]);
+
   if (guestResult.error) {
     return { success: false, error: guestResult.error.message };
   }
@@ -108,11 +112,6 @@ export async function createStudentFromGuestRegistrationForManager(
     return { success: false, error: "Guest not found." };
   }
 
-  const applicationResult =
-    await registrationRepository.findActiveApplicationByGuestId(
-      adminClient,
-      guestId
-    );
   if (applicationResult.error) {
     return { success: false, error: applicationResult.error.message };
   }

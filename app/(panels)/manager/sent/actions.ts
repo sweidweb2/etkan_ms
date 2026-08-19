@@ -3,7 +3,7 @@
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseResendEmailFormData } from "@/lib/validators/manager/resend-email";
-import { resendSentEmailForManager } from "@/services/email.service";
+import { resendSentEmailForManager } from "@/services/communications/email.service";
 import type { SendManagerEmailActionState } from "@/types/manager-emailing";
 
 export async function resendManagerEmailAction(

@@ -34,6 +34,7 @@ const PAGE_SIZE = 20;
 type ManageSentEmailsPanelProps = {
   initialEmails: ManagerEmailSentListRow[];
   initialUsers: ManagerUserRow[];
+  totalCount: number;
 };
 
 function getPageNumbers(currentPage: number, totalPages: number) {
@@ -67,6 +68,7 @@ function getPageNumbers(currentPage: number, totalPages: number) {
 export function ManageSentEmailsPanel({
   initialEmails,
   initialUsers,
+  totalCount,
 }: ManageSentEmailsPanelProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,7 +78,7 @@ export function ManageSentEmailsPanel({
 
   const stats = useMemo(() => {
     return {
-      total: initialEmails.length,
+      total: totalCount,
       recipients: initialEmails.reduce(
         (sum, email) => sum + email.recipient_count,
         0
@@ -84,7 +86,7 @@ export function ManageSentEmailsPanel({
       sent: initialEmails.reduce((sum, email) => sum + email.sent_count, 0),
       failed: initialEmails.reduce((sum, email) => sum + email.failed_count, 0),
     };
-  }, [initialEmails]);
+  }, [initialEmails, totalCount]);
 
   const filteredEmails = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

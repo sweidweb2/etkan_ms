@@ -1,15 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as relationshipRepository from "@/repositories/relationship.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createRelationshipForManager,
   listRelationshipsForManager,
   updateRelationshipForManager,
-} from "@/services/relationship.service";
+} from "@/services/relationships/relationship.service";
 
 vi.mock("@/repositories/relationship.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("next/cache", () => ({
@@ -20,7 +20,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

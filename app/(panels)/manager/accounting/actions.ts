@@ -38,7 +38,7 @@ import {
   repairMissingSppForManager,
   transferStudentPaymentPhaseForManager,
   updatePaymentPhaseForManager,
-} from "@/services/payment-phase.service";
+} from "@/services/accounting/payment-phase.service";
 import {
   createAdjustmentForManager,
   createFinancialFormForManager,
@@ -48,13 +48,13 @@ import {
   deleteFinancialFormInviteForManager,
   updateAdjustmentForManager,
   updateFinancialFormForManager,
-} from "@/services/student-financial-adjustment.service";
+} from "@/services/accounting/student-financial-adjustment.service";
 import {
   createStudentPaymentForManager,
   deleteSppForManager,
   deleteStudentPaymentForManager,
   updateStudentPaymentForManager,
-} from "@/services/student-payment.service";
+} from "@/services/accounting/student-payment.service";
 import type {
   CreateFinancialAdjustmentActionState,
   CreateFinancialFormInviteActionState,

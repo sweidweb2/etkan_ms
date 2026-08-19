@@ -37,6 +37,7 @@ import {
   createClassForManager,
   createClassSessionForManager,
   createFinalExamForManager,
+  getClassCreateDialogDataForManager,
   listAvailableStudentsForClass,
   listClassesForManager,
   transferStudentBetweenClassesForManager,
@@ -46,7 +47,7 @@ import {
   removeStudentFromClassForManager,
   updateFinalExamForManager,
   updateStudentFinalExamGradeForManager,
-} from "@/services/class.service";
+} from "@/services/classes/class.service";
 import {
   createSessionTaskForManager,
   deleteClassSessionForManager,
@@ -54,15 +55,18 @@ import {
   updateClassSessionForManager,
   updateSessionSettingsForManager,
   updateStudentTaskForManager,
-} from "@/services/session.service";
-import { listSemestersForManager } from "@/services/semester.service";
-import { listSubjectsForManager } from "@/services/subject.service";
+} from "@/services/classes/session.service";
+import { listSemestersForManager } from "@/services/classes/semester.service";
+import { listSubjectsForManager } from "@/services/classes/subject.service";
 import type {
   AddStudentToClassActionState,
   AssignClassTeacherActionState,
   CreateClassActionState,
   CreateClassSessionActionState,
   CreateFinalExamActionState,
+  ManagerClassSemesterOption,
+  ManagerClassSubjectOption,
+  ManagerClassTeacherSelectOption,
   TransferStudentBetweenClassesActionState,
   UnassignClassTeacherActionState,
   UpdateClassActionState,
@@ -148,6 +152,24 @@ export async function loadClassEditOptionsAction(): Promise<{
     };
   } catch {
     return { subjects: [], semesters: [] };
+  }
+}
+
+export async function loadClassCreateDialogDataAction(): Promise<{
+  subjects: ManagerClassSubjectOption[];
+  semesters: ManagerClassSemesterOption[];
+  teachers: ManagerClassTeacherSelectOption[];
+}> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return { subjects: [], semesters: [], teachers: [] };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await getClassCreateDialogDataForManager(adminClient, actor.userId);
+  } catch {
+    return { subjects: [], semesters: [], teachers: [] };
   }
 }
 

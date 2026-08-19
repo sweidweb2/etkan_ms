@@ -41,6 +41,17 @@ export async function listEmailSent(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+export async function listEmailSentPage(
+  client: Supabase,
+  options: { offset: number; limit: number }
+) {
+  return client
+    .from("email_sent")
+    .select(EMAIL_SENT_COLUMNS, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(options.offset, options.offset + options.limit - 1);
+}
+
 export async function findEmailSentById(client: Supabase, id: string) {
   return client
     .from("email_sent")

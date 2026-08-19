@@ -1,7 +1,7 @@
 import { GallerySection } from "@/components/public/gallery-section";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { shuffleArray } from "@/lib/utils/shuffle-array";
-import { listGalleryImagesForPublic } from "@/services/gallery-image.service";
+import { listGalleryImagesForPublic } from "@/services/public/gallery-image.service";
 
 export const dynamic = "force-dynamic";
 

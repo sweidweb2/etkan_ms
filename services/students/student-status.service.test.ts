@@ -6,25 +6,21 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import * as accountingRecalcService from "@/services/accounting-recalc.service";
-import * as accountingSyncService from "@/services/accounting-sync.service";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   changeStudentStatusForManager,
   getStudentStatusSideEffectsPreview,
-} from "@/services/student-status.service";
+} from "@/services/students/student-status.service";
 
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-profile.repository");
-vi.mock("@/services/accounting-recalc.service");
-vi.mock("@/services/accounting-sync.service");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -149,35 +145,22 @@ describe("changeStudentStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
-    vi.mocked(accountingSyncService.onStudentLeftClass).mockResolvedValue({
-      phase: null,
-      spp: null,
-      retained: false,
-    } as never);
-    vi.mocked(
-      accountingRecalcService.recalcPhaseStatusFromSpps
-    ).mockResolvedValue(PAYMENT_PHASE_STATUSES.OPENED);
   });
 
   it("activates without side effects", async () => {
     vi.mocked(
-      studentProfileRepository.findStudentProfileByUserId
+      studentProfileRepository.changeStudentStatusWithSideEffects
     ).mockResolvedValue({
-      data: { ...activeProfile, status: STUDENT_STATUSES.INACTIVE },
+      data: {
+        profileId: studentProfileId,
+        previousStatus: STUDENT_STATUSES.INACTIVE,
+        status: STUDENT_STATUSES.ACTIVE,
+        removedClasses: [],
+        retainedSpps: [],
+        deletedSpps: [],
+      },
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      studentProfileRepository.updateStudentProfileStatusById
-    ).mockResolvedValue({
-      data: activeProfile,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
+    } as never);
 
     const result = await changeStudentStatusForManager(
       adminClient,
@@ -196,8 +179,20 @@ describe("changeStudentStatusForManager", () => {
       expect(result.status).toBe(STUDENT_STATUSES.ACTIVE);
     }
     expect(
+      studentProfileRepository.changeStudentStatusWithSideEffects
+    ).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        user_id: studentUserId,
+        target_status: STUDENT_STATUSES.ACTIVE,
+        remove_from_classes: false,
+        remove_open_spps: false,
+      })
+    );
+    expect(
       studentClassRepository.deleteStudentClassById
     ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
 
   it("rejects self status change", async () => {
@@ -213,80 +208,31 @@ describe("changeStudentStatusForManager", () => {
       }
     );
     expect(result.success).toBe(false);
+    expect(
+      studentProfileRepository.changeStudentStatusWithSideEffects
+    ).not.toHaveBeenCalled();
   });
 
   it("inactivates and removes eligible class membership", async () => {
     vi.mocked(
-      studentProfileRepository.findStudentProfileByUserId
-    ).mockResolvedValue({
-      data: activeProfile,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      studentClassRepository.listStudentClassesWithClassByUserId
-    ).mockResolvedValue({
-      data: [
-        {
-          id: studentClassId,
-          user_id: studentUserId,
-          class_id: classId,
-          joined_at: "2026-01-02T00:00:00.000Z",
-          classes: {
-            id: classId,
-            name: "Math A",
-            status: CLASS_STATUSES.SCHEDULED,
-          },
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsWithPhaseByStudentId
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentRepository.listPaymentSppIdsBySppIds
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentClassRepository.deleteStudentClassById
+      studentProfileRepository.changeStudentStatusWithSideEffects
     ).mockResolvedValue({
       data: {
-        id: studentClassId,
-        user_id: studentUserId,
-        class_id: classId,
-        joined_at: "2026-01-02T00:00:00.000Z",
+        profileId: studentProfileId,
+        previousStatus: STUDENT_STATUSES.ACTIVE,
+        status: STUDENT_STATUSES.INACTIVE,
+        removedClasses: [
+          {
+            studentClassId,
+            classId,
+            className: "Math A",
+          },
+        ],
+        retainedSpps: [],
+        deletedSpps: [],
       },
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      studentProfileRepository.updateStudentProfileStatusById
-    ).mockResolvedValue({
-      data: { ...activeProfile, status: STUDENT_STATUSES.INACTIVE },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
+    } as never);
 
     const result = await changeStudentStatusForManager(
       adminClient,
@@ -301,69 +247,30 @@ describe("changeStudentStatusForManager", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(studentClassRepository.deleteStudentClassById).toHaveBeenCalledWith(
+    expect(
+      studentProfileRepository.changeStudentStatusWithSideEffects
+    ).toHaveBeenCalledWith(
       adminClient,
-      studentClassId
+      expect.objectContaining({
+        remove_from_classes: true,
+        remove_open_spps: false,
+      })
     );
-    expect(accountingSyncService.onStudentLeftClass).toHaveBeenCalled();
+    expect(
+      studentClassRepository.deleteStudentClassById
+    ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
 
   it("rejects open SPP delete when payments exist", async () => {
     vi.mocked(
-      studentProfileRepository.findStudentProfileByUserId
+      studentProfileRepository.changeStudentStatusWithSideEffects
     ).mockResolvedValue({
-      data: activeProfile,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      studentClassRepository.listStudentClassesWithClassByUserId
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsWithPhaseByStudentId
-    ).mockResolvedValue({
-      data: [
-        {
-          id: sppId,
-          student_id: studentUserId,
-          payment_phase_id: phaseId,
-          assigned_at: "2026-01-02T00:00:00.000Z",
-          status: "pending",
-          original_amount: 100,
-          adjustment_amount: 0,
-          final_amount_due: 100,
-          total_paid: 20,
-          remaining_amount: 80,
-          created_at: "2026-01-02T00:00:00.000Z",
-          updated_at: "2026-01-02T00:00:00.000Z",
-          payment_phases: {
-            id: phaseId,
-            name: "Phase 1",
-            status: PAYMENT_PHASE_STATUSES.OPENED,
-          },
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentRepository.listPaymentSppIdsBySppIds
-    ).mockResolvedValue({
-      data: [{ student_payment_phase_id: sppId }],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+      data: null,
+      error: {
+        message:
+          "One or more open SPPs have payments. Delete payments from Accounting first.",
+      },
     } as never);
 
     const result = await changeStudentStatusForManager(
@@ -385,96 +292,30 @@ describe("changeStudentStatusForManager", () => {
     expect(
       studentPaymentPhaseRepository.deleteStudentPaymentPhaseById
     ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
   });
 
   it("deletes payment-free open SPPs then inactivates", async () => {
     vi.mocked(
-      studentProfileRepository.findStudentProfileByUserId
-    ).mockResolvedValue({
-      data: activeProfile,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      studentClassRepository.listStudentClassesWithClassByUserId
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.listSppsWithPhaseByStudentId
-    ).mockResolvedValue({
-      data: [
-        {
-          id: sppId,
-          student_id: studentUserId,
-          payment_phase_id: phaseId,
-          assigned_at: "2026-01-02T00:00:00.000Z",
-          status: "pending",
-          original_amount: 100,
-          adjustment_amount: 0,
-          final_amount_due: 100,
-          total_paid: 0,
-          remaining_amount: 100,
-          created_at: "2026-01-02T00:00:00.000Z",
-          updated_at: "2026-01-02T00:00:00.000Z",
-          payment_phases: {
-            id: phaseId,
-            name: "Phase 1",
-            status: PAYMENT_PHASE_STATUSES.OPENED,
-          },
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentRepository.listPaymentSppIdsBySppIds
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      studentPaymentPhaseRepository.deleteStudentPaymentPhaseById
+      studentProfileRepository.changeStudentStatusWithSideEffects
     ).mockResolvedValue({
       data: {
-        id: sppId,
-        student_id: studentUserId,
-        payment_phase_id: phaseId,
-        assigned_at: "2026-01-02T00:00:00.000Z",
-        status: "pending",
-        original_amount: 100,
-        adjustment_amount: 0,
-        final_amount_due: 100,
-        total_paid: 0,
-        remaining_amount: 100,
-        created_at: "2026-01-02T00:00:00.000Z",
-        updated_at: "2026-01-02T00:00:00.000Z",
+        profileId: studentProfileId,
+        previousStatus: STUDENT_STATUSES.ACTIVE,
+        status: STUDENT_STATUSES.INACTIVE,
+        removedClasses: [],
+        retainedSpps: [],
+        deletedSpps: [
+          {
+            sppId,
+            paymentPhaseId: phaseId,
+            paymentPhaseName: "Phase 1",
+            sppStatus: "pending",
+          },
+        ],
       },
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      studentProfileRepository.updateStudentProfileStatusById
-    ).mockResolvedValue({
-      data: { ...activeProfile, status: STUDENT_STATUSES.INACTIVE },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
+    } as never);
 
     const result = await changeStudentStatusForManager(
       adminClient,
@@ -491,9 +332,15 @@ describe("changeStudentStatusForManager", () => {
     expect(result.success).toBe(true);
     expect(
       studentPaymentPhaseRepository.deleteStudentPaymentPhaseById
-    ).toHaveBeenCalledWith(adminClient, sppId);
-    expect(
-      accountingRecalcService.recalcPhaseStatusFromSpps
-    ).toHaveBeenCalledWith(adminClient, phaseId);
+    ).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        action: "delete",
+        table_name: "student_payment_phases",
+        record_id: sppId,
+      })
+    );
   });
 });

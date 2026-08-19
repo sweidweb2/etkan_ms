@@ -2,14 +2,14 @@ import { notFound } from "next/navigation";
 import { StudentDetailsPanel } from "@/components/manager/students/student-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listStudentActivityForManager } from "@/services/student-activity.service";
-import { listStudentClassAcademicBundlesForManager } from "@/services/student-course-grade.service";
+import { listStudentActivityForManager } from "@/services/students/student-activity.service";
+import { listStudentClassAcademicBundlesForManager } from "@/services/classes/student-course-grade.service";
 import {
   getStudentDetailStatsForManager,
   getStudentForManager,
   listAssignableClassesForStudentManager,
   listJoinedClassesForStudentManager,
-} from "@/services/student.service";
+} from "@/services/students/student.service";
 
 type ManagerStudentDetailPageProps = {
   params: Promise<{ id: string }>;

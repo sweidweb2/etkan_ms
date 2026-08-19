@@ -3,8 +3,8 @@ import { GuestDetailsPanel } from "@/components/manager/guests/guest-details-pan
 import { getSessionUser } from "@/lib/auth/session";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getGuestDetailForManager } from "@/services/guest.service";
-import { listUsersForGuestRegistrationLink } from "@/services/guest-registration.service";
+import { getGuestDetailForManager } from "@/services/guests/guest.service";
+import { listUsersForGuestRegistrationLink } from "@/services/guests/guest-registration.service";
 
 type ManagerGuestDetailPageProps = {
   params: Promise<{ id: string }>;

@@ -100,66 +100,38 @@ async function loadAdjustmentAndPaymentsForSppIds(
 }
 
 /**
- * Recalculate every non-cancelled SPP for a phase using the given phase amount,
- * then derive the next phase status.
+ * Recalculate every non-cancelled SPP for a phase, then derive the next
+ * phase status (written in SQL).
  */
 export async function recalcNonCancelledSppsForPhase(
   adminClient: Supabase,
-  phaseAmount: number,
-  phaseStatus: PaymentPhaseStatus,
-  spps: StudentPaymentPhaseRecord[]
+  phaseId: string
 ): Promise<{ sppRecalculated: number; nextPhaseStatus: PaymentPhaseStatus }> {
-  const nonCancelled = spps.filter(
-    (spp) => spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
-  );
-  const cancelledStatuses = spps
-    .filter((spp) => spp.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED)
-    .map(() => STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED);
-
-  const sppIds = nonCancelled.map((spp) => spp.id);
-  const { paymentAmountsBySppId, adjustmentBySppId } =
-    await loadAdjustmentAndPaymentsForSppIds(adminClient, sppIds);
-
-  const derivedStatuses: StudentPaymentPhaseStatus[] = [...cancelledStatuses];
-  let sppRecalculated = 0;
-
-  for (const spp of nonCancelled) {
-    const currentStatus = isStudentPaymentPhaseStatus(spp.status)
-      ? spp.status
-      : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
-    const financials = computeSppFinancials(
-      phaseAmount,
-      adjustmentBySppId.get(spp.id) ?? null,
-      paymentAmountsBySppId.get(spp.id) ?? []
-    );
-    const nextStatus = deriveSppStatus(financials, currentStatus);
-
-    const { error: updateError } =
-      await studentPaymentPhaseRepository.updateStudentPaymentPhaseFinancials(
+  const timer = createNavStepTimer("recalcPhaseSpps");
+  try {
+    const { data, error } = await timer.step("rpc", () =>
+      studentPaymentPhaseRepository.recalcNonCancelledSppsForPhase(
         adminClient,
-        spp.id,
-        {
-          status: nextStatus,
-          original_amount: financials.original,
-          adjustment_amount: financials.adjustmentAmount,
-          final_amount_due: financials.finalDue,
-          total_paid: financials.totalPaid,
-          remaining_amount: financials.remaining,
-        }
-      );
+        phaseId
+      )
+    );
 
-    if (updateError) {
-      throw new Error(updateError.message);
+    if (error) {
+      throw new Error(error.message);
     }
 
-    derivedStatuses.push(nextStatus);
-    sppRecalculated += 1;
-  }
+    const rawStatus = data?.nextPhaseStatus ?? "";
+    const nextPhaseStatus = isPaymentPhaseStatus(rawStatus)
+      ? rawStatus
+      : PAYMENT_PHASE_STATUSES.OPENED;
 
-  return {
-    sppRecalculated,
-    nextPhaseStatus: derivePaymentPhaseStatus(phaseStatus, derivedStatuses),
-  };
+    return {
+      sppRecalculated: data?.sppRecalculated ?? 0,
+      nextPhaseStatus,
+    };
+  } finally {
+    timer.end();
+  }
 }
 
 /**
@@ -313,10 +285,27 @@ export async function recalcSppAndPhaseStatus(
   spp: StudentPaymentPhaseRecord;
   phaseStatus: PaymentPhaseStatus;
 }> {
-  const spp = await recalcSingleSpp(adminClient, sppId);
-  const phaseStatus = await recalcPhaseStatusFromSpps(
-    adminClient,
-    spp.payment_phase_id
-  );
-  return { spp, phaseStatus };
+  const timer = createNavStepTimer("recalcSppAndPhase");
+  try {
+    const { data, error } = await timer.step("rpc", () =>
+      studentPaymentPhaseRepository.recalcSppAndPhaseStatus(adminClient, sppId)
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data?.spp) {
+      throw new Error("Student payment phase not found.");
+    }
+
+    const rawStatus = data.phaseStatus;
+    const phaseStatus = isPaymentPhaseStatus(rawStatus)
+      ? rawStatus
+      : PAYMENT_PHASE_STATUSES.OPENED;
+
+    return { spp: data.spp, phaseStatus };
+  } finally {
+    timer.end();
+  }
 }

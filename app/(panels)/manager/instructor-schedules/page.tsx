@@ -3,7 +3,7 @@ import { InstructorSchedulesPanel } from "@/components/manager/instructor-schedu
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getInstructorSchedulesPageForManager } from "@/services/instructor-schedule-slot.service";
+import { getInstructorSchedulesPageForManager } from "@/services/schedule/instructor-schedule-slot.service";
 
 export default async function ManagerInstructorSchedulesPage() {
   const adminClient = createSupabaseAdminClient();

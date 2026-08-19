@@ -5,7 +5,7 @@ import { IncomeStatementAnalyticsTablesSection } from "@/components/manager/acco
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getIncomeStatementAnalyticsSummaryForManager } from "@/services/income-statement-analytics.service";
+import { getIncomeStatementAnalyticsSummaryForManager } from "@/services/accounting/income-statement-analytics.service";
 
 type ManagerIncomeStatementAnalyticsPageProps = {
   searchParams: Promise<{ year?: string; month?: string }>;

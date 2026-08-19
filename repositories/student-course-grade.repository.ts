@@ -30,6 +30,7 @@ export type UpsertStudentCourseGradeInput = {
   final_exam_grade: number;
   final_exam_weight: number;
   type: string;
+  existing_id?: string | null;
 };
 
 export async function listStudentCourseGradesByClassId(
@@ -102,16 +103,6 @@ export async function saveStudentCourseGrade(
   client: Supabase,
   input: UpsertStudentCourseGradeInput
 ) {
-  const existing = await findStudentCourseGradeByClassAndUser(
-    client,
-    input.class_id,
-    input.user_id
-  );
-
-  if (existing.error) {
-    return { data: null, error: existing.error };
-  }
-
   const payload = {
     task_json_grade_weights: input.task_json_grade_weights ?? null,
     task_weight: input.task_weight,
@@ -121,11 +112,27 @@ export async function saveStudentCourseGrade(
     type: input.type,
   };
 
-  if (existing.data) {
+  let existingId = input.existing_id ?? null;
+
+  if (input.existing_id === undefined) {
+    const existing = await findStudentCourseGradeByClassAndUser(
+      client,
+      input.class_id,
+      input.user_id
+    );
+
+    if (existing.error) {
+      return { data: null, error: existing.error };
+    }
+
+    existingId = existing.data?.id ?? null;
+  }
+
+  if (existingId) {
     return client
       .from("student_course_grade")
       .update(payload)
-      .eq("id", existing.data.id)
+      .eq("id", existingId)
       .select(STUDENT_COURSE_GRADE_COLUMNS)
       .single();
   }

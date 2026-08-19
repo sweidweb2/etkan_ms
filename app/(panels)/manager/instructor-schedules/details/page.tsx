@@ -3,7 +3,7 @@ import { InstructorScheduleSlotsDetailsPanel } from "@/components/manager/instru
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getInstructorScheduleSlotsDetailsForManager } from "@/services/instructor-schedule-slot.service";
+import { getInstructorScheduleSlotsDetailsForManager } from "@/services/schedule/instructor-schedule-slot.service";
 
 type ManagerInstructorScheduleSlotsDetailsPageProps = {
   searchParams: Promise<{

@@ -3,7 +3,7 @@ import type { RoleValue } from "@/lib/constants/roles";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   CLASS_STATUSES,
   type ClassStatusValue,
@@ -55,14 +55,13 @@ import * as taskRepository from "@/repositories/task.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import {
   backfillSppsForClassBecomeInProgress,
   onStudentJoinedClass,
   onStudentLeftClass,
-} from "@/services/accounting-sync.service";
-import { LATE_ENROLLMENT_NOTE } from "@/lib/constants/manager-late-enrollment";
-import { isDueDatePast } from "@/lib/manager/late-enrollment";
+  onStudentsJoinedClass,
+} from "@/services/accounting/accounting-sync.service";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import {
   CLASS_GRADES_LOCKED_ERROR,
@@ -71,9 +70,9 @@ import {
 import {
   assertClassStructureUnlockedForComputedGrades,
   assertStudentGradeInputsUnlockedForComputedGrade,
-} from "@/services/class-computed-grade-lock.service";
-import { ensureSessionAttendeesForMembers, seedLateJoinAttendeesForStudent, seedLateJoinStudentTasksForStudent } from "@/services/session.service";
-import { listStudentsForManager } from "@/services/student.service";
+} from "@/services/classes/class-computed-grade-lock.service";
+import { ensureSessionAttendeesForMembers, seedLateJoinAttendeesForStudent, seedLateJoinAttendeesForStudents, seedLateJoinStudentTasksForStudent, seedLateJoinStudentTasksForStudents } from "@/services/classes/session.service";
+import { listStudentsForManager } from "@/services/students/student.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassAnalyticsPreview } from "@/types/manager-class-analytics";
 import type {
@@ -84,6 +83,8 @@ import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type {
+  ManagerClassSemesterOption,
+  ManagerClassSubjectOption,
   ManagerClassTeacherOption,
   ManagerClassTeacherSelectOption,
 } from "@/types/manager-class-detail";
@@ -230,14 +231,42 @@ function mapStudentFinalExamGradeRecord(
   };
 }
 
-async function mapClassDetailToRow(
+function mapClassDetailRecordToRow(
+  record: ClassDetailRecord,
+  counts: {
+    enrollment_count: number;
+    teacher_count: number;
+    completed_sessions: number;
+  }
+): ManagerClassRow {
+  return {
+    id: record.id,
+    name: record.name,
+    subject_id: record.subject_id ?? "",
+    subject_name: record.subjects?.name ?? "—",
+    subject_nb_sessions: record.subjects?.nb_sessions ?? 0,
+    completed_sessions: counts.completed_sessions,
+    status: mapClassStatus(record.status),
+    semester_id: record.semester_id,
+    semester_name: record.semesters?.name ?? null,
+    enrollment_count: counts.enrollment_count,
+    teacher_count: counts.teacher_count,
+    created_at: record.created_at ?? "",
+  };
+}
+
+async function loadClassDetailCounts(
   adminClient: Supabase,
-  record: ClassDetailRecord
-): Promise<ManagerClassRow> {
+  classId: string
+): Promise<{
+  enrollment_count: number;
+  teacher_count: number;
+  completed_sessions: number;
+}> {
   const [enrollmentResult, teacherResult, sessionResult] = await Promise.all([
-    studentClassRepository.countStudentClassesByClassId(adminClient, record.id),
-    classTeacherRepository.countClassTeachersByClassId(adminClient, record.id),
-    sessionRepository.listSessionCountsByClassIds(adminClient, [record.id]),
+    studentClassRepository.countStudentClassesByClassId(adminClient, classId),
+    classTeacherRepository.countClassTeachersByClassId(adminClient, classId),
+    sessionRepository.listSessionCountsByClassIds(adminClient, [classId]),
   ]);
 
   if (enrollmentResult.error) {
@@ -253,19 +282,29 @@ async function mapClassDetailToRow(
   }
 
   return {
-    id: record.id,
-    name: record.name,
-    subject_id: record.subject_id ?? "",
-    subject_name: record.subjects?.name ?? "—",
-    subject_nb_sessions: record.subjects?.nb_sessions ?? 0,
-    completed_sessions: sessionResult.data?.length ?? 0,
-    status: mapClassStatus(record.status),
-    semester_id: record.semester_id,
-    semester_name: record.semesters?.name ?? null,
     enrollment_count: enrollmentResult.count ?? 0,
     teacher_count: teacherResult.count ?? 0,
-    created_at: record.created_at ?? "",
+    completed_sessions: sessionResult.data?.length ?? 0,
   };
+}
+
+async function mapClassDetailToRow(
+  adminClient: Supabase,
+  record: ClassDetailRecord
+): Promise<ManagerClassRow> {
+  const counts = await loadClassDetailCounts(adminClient, record.id);
+  return mapClassDetailRecordToRow(record, counts);
+}
+
+function mapClassDetailToRowWithCounts(
+  record: ClassDetailRecord,
+  counts: {
+    enrollment_count: number;
+    teacher_count: number;
+    completed_sessions: number;
+  }
+): ManagerClassRow {
+  return mapClassDetailRecordToRow(record, counts);
 }
 
 function buildCountMap(rows: Array<{ class_id: string }> | null | undefined) {
@@ -381,34 +420,6 @@ async function buildFullNameByUserId(
   return map;
 }
 
-function buildEnrollmentFinalExamGradeInput(
-  finalExamId: string,
-  studentId: string,
-  dueDate: string | null
-): {
-  final_exam_id: string;
-  student_id: string;
-  status: string;
-  grade?: number | null;
-  notes?: string | null;
-} {
-  if (isDueDatePast(dueDate)) {
-    return {
-      final_exam_id: finalExamId,
-      student_id: studentId,
-      status: STUDENT_TASK_STATUSES.MISSING,
-      grade: 0,
-      notes: LATE_ENROLLMENT_NOTE,
-    };
-  }
-
-  return {
-    final_exam_id: finalExamId,
-    student_id: studentId,
-    status: STUDENT_TASK_STATUSES.PENDING,
-  };
-}
-
 function isUuid(value: string): boolean {
   return z.string().uuid().safeParse(value).success;
 }
@@ -437,6 +448,54 @@ export async function listClassesForManager(
     adminClient,
     (data ?? []) as ClassDetailRecord[]
   );
+}
+
+export type ManagerClassCreateDialogData = {
+  subjects: ManagerClassSubjectOption[];
+  semesters: ManagerClassSemesterOption[];
+  teachers: ManagerClassTeacherSelectOption[];
+};
+
+export async function getClassCreateDialogDataForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerClassCreateDialogData> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_CREATE);
+
+  const [subjectsResult, semestersResult, teachersResult] = await Promise.all([
+    subjectRepository.listSubjects(adminClient),
+    semesterRepository.listSemesters(adminClient),
+    profileRepository.listProfiles(adminClient),
+  ]);
+
+  if (subjectsResult.error) {
+    throw new Error(subjectsResult.error.message);
+  }
+
+  if (semestersResult.error) {
+    throw new Error(semestersResult.error.message);
+  }
+
+  if (teachersResult.error) {
+    throw new Error(teachersResult.error.message);
+  }
+
+  return {
+    subjects: (subjectsResult.data ?? []).map((subject) => ({
+      id: subject.id,
+      name: subject.name,
+      nb_sessions: subject.nb_sessions,
+    })),
+    semesters: (semestersResult.data ?? []).map((semester) => ({
+      id: semester.id,
+      name: semester.name,
+    })),
+    teachers: (teachersResult.data ?? []).map((teacher) => ({
+      id: teacher.id,
+      username: teacher.username,
+      role: teacher.role as RoleValue,
+    })),
+  };
 }
 
 export type CreateClassResult =
@@ -476,10 +535,37 @@ export async function createClassForManager(
     };
   }
 
-  const subjectResult = await subjectRepository.findSubjectById(
-    adminClient,
-    parsed.data.subject_id
-  );
+  const nextSemesterId =
+    parsed.data.semester_id &&
+    parsed.data.semester_id !== "unlinked" &&
+    parsed.data.semester_id !== ""
+      ? parsed.data.semester_id
+      : null;
+
+  const nextTeacherId =
+    parsed.data.teacher_id &&
+    parsed.data.teacher_id !== "none" &&
+    parsed.data.teacher_id !== ""
+      ? parsed.data.teacher_id
+      : null;
+
+  if (nextTeacherId && !isUuid(nextTeacherId)) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { teacher_id: ["Invalid teacher."] },
+    };
+  }
+
+  const [subjectResult, semesterResult, teacherResult] = await Promise.all([
+    subjectRepository.findSubjectById(adminClient, parsed.data.subject_id),
+    nextSemesterId
+      ? semesterRepository.findSemesterById(adminClient, nextSemesterId)
+      : Promise.resolve({ data: null, error: null }),
+    nextTeacherId
+      ? profileRepository.findProfileById(adminClient, nextTeacherId)
+      : Promise.resolve({ data: null, error: null }),
+  ]);
 
   if (subjectResult.error) {
     return { success: false, error: subjectResult.error.message };
@@ -493,19 +579,7 @@ export async function createClassForManager(
     };
   }
 
-  const nextSemesterId =
-    parsed.data.semester_id &&
-    parsed.data.semester_id !== "unlinked" &&
-    parsed.data.semester_id !== ""
-      ? parsed.data.semester_id
-      : null;
-
   if (nextSemesterId) {
-    const semesterResult = await semesterRepository.findSemesterById(
-      adminClient,
-      nextSemesterId
-    );
-
     if (semesterResult.error) {
       return { success: false, error: semesterResult.error.message };
     }
@@ -519,27 +593,7 @@ export async function createClassForManager(
     }
   }
 
-  const nextTeacherId =
-    parsed.data.teacher_id &&
-    parsed.data.teacher_id !== "none" &&
-    parsed.data.teacher_id !== ""
-      ? parsed.data.teacher_id
-      : null;
-
   if (nextTeacherId) {
-    if (!isUuid(nextTeacherId)) {
-      return {
-        success: false,
-        error: "Please fix the errors below.",
-        fieldErrors: { teacher_id: ["Invalid teacher."] },
-      };
-    }
-
-    const teacherResult = await profileRepository.findProfileById(
-      adminClient,
-      nextTeacherId
-    );
-
     if (teacherResult.error) {
       return { success: false, error: teacherResult.error.message };
     }
@@ -601,10 +655,11 @@ export async function createClassForManager(
     });
   }
 
-  const classRow = await mapClassDetailToRow(
-    adminClient,
-    data as ClassDetailRecord
-  );
+  const classRow = mapClassDetailToRowWithCounts(data as ClassDetailRecord, {
+    enrollment_count: 0,
+    teacher_count: nextTeacherId ? 1 : 0,
+    completed_sessions: 0,
+  });
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
@@ -671,11 +726,27 @@ export async function assertClassGradesUnlockedForManager(
     return { ok: false, error: "Class not found." };
   }
 
-  const classRow = await getClassForManager(adminClient, actorUserId, classId);
+  const [classResult, counts] = await Promise.all([
+    classRepository.findClassDetailById(adminClient, classId),
+    loadClassDetailCounts(adminClient, classId),
+  ]);
 
-  if (!classRow) {
+  if (classResult.error) {
+    if (isInvalidUuidError(classResult.error.message)) {
+      return { ok: false, error: "Class not found." };
+    }
+
+    throw new Error(classResult.error.message);
+  }
+
+  if (!classResult.data) {
     return { ok: false, error: "Class not found." };
   }
+
+  const classRow = mapClassDetailRecordToRow(
+    classResult.data as ClassDetailRecord,
+    counts
+  );
 
   if (!isClassGradesUnlocked(classRow.status)) {
     return { ok: false, error: CLASS_GRADES_LOCKED_ERROR };
@@ -766,10 +837,11 @@ export async function assignTeacherToClassForManager(
     };
   }
 
-  const classResult = await classRepository.findClassDetailById(
-    adminClient,
-    parsed.data.class_id
-  );
+  const [classResult, teacherResult, counts] = await Promise.all([
+    classRepository.findClassDetailById(adminClient, parsed.data.class_id),
+    profileRepository.findProfileById(adminClient, parsed.data.teacher_id),
+    loadClassDetailCounts(adminClient, parsed.data.class_id),
+  ]);
 
   if (classResult.error) {
     return { success: false, error: classResult.error.message };
@@ -778,11 +850,6 @@ export async function assignTeacherToClassForManager(
   if (!classResult.data) {
     return { success: false, error: "Class not found." };
   }
-
-  const teacherResult = await profileRepository.findProfileById(
-    adminClient,
-    parsed.data.teacher_id
-  );
 
   if (teacherResult.error) {
     return { success: false, error: teacherResult.error.message };
@@ -829,9 +896,12 @@ export async function assignTeacherToClassForManager(
     };
   }
 
-  const classRow = await mapClassDetailToRow(
-    adminClient,
-    classResult.data as ClassDetailRecord
+  const classRow = mapClassDetailToRowWithCounts(
+    classResult.data as ClassDetailRecord,
+    {
+      ...counts,
+      teacher_count: counts.teacher_count + 1,
+    }
   );
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -888,10 +958,15 @@ export async function unassignTeacherFromClassForManager(
     };
   }
 
-  const classResult = await classRepository.findClassDetailById(
-    adminClient,
-    parsed.data.class_id
-  );
+  const [classResult, counts, existing] = await Promise.all([
+    classRepository.findClassDetailById(adminClient, parsed.data.class_id),
+    loadClassDetailCounts(adminClient, parsed.data.class_id),
+    classTeacherRepository.findClassTeacherByTeacherAndClass(
+      adminClient,
+      parsed.data.teacher_id,
+      parsed.data.class_id
+    ),
+  ]);
 
   if (classResult.error) {
     return { success: false, error: classResult.error.message };
@@ -900,12 +975,6 @@ export async function unassignTeacherFromClassForManager(
   if (!classResult.data) {
     return { success: false, error: "Class not found." };
   }
-
-  const existing = await classTeacherRepository.findClassTeacherByTeacherAndClass(
-    adminClient,
-    parsed.data.teacher_id,
-    parsed.data.class_id
-  );
 
   if (existing.error) {
     return { success: false, error: existing.error.message };
@@ -924,9 +993,12 @@ export async function unassignTeacherFromClassForManager(
     return { success: false, error: error.message };
   }
 
-  const classRow = await mapClassDetailToRow(
-    adminClient,
-    classResult.data as ClassDetailRecord
+  const classRow = mapClassDetailToRowWithCounts(
+    classResult.data as ClassDetailRecord,
+    {
+      ...counts,
+      teacher_count: Math.max(0, counts.teacher_count - 1),
+    }
   );
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -991,17 +1063,17 @@ export async function listClassStudentsForManager(
 
     const userIds = enrollments.map((row) => row.user_id);
 
-    const [profilesResult, studentProfilesResult] = await timer.step(
-      "profiles",
-      () =>
+    const [profilesResult, studentProfilesResult, emailResult] =
+      await timer.step("profiles", () =>
         Promise.all([
           profileRepository.listProfilesByIds(adminClient, userIds),
           studentProfileRepository.listStudentProfileDetailsByUserIds(
             adminClient,
             userIds
           ),
+          authRepository.listAuthEmailsByIds(adminClient, userIds),
         ])
-    );
+      );
 
     if (profilesResult.error) {
       throw new Error(profilesResult.error.message);
@@ -1011,24 +1083,16 @@ export async function listClassStudentsForManager(
       throw new Error(studentProfilesResult.error.message);
     }
 
+    if (emailResult.error) {
+      throw new Error(emailResult.error.message);
+    }
+
     const profileById = new Map(
       (profilesResult.data ?? []).map((row) => [row.id, row])
     );
     const studentProfileByUserId = new Map(
       (studentProfilesResult.data ?? []).map((row) => [row.user_id, row])
     );
-
-    const emailResult = await timer.step("emails", () =>
-      authRepository.listAuthEmailsByIds(
-        adminClient,
-        enrollments.map((row) => row.user_id)
-      )
-    );
-
-    if (emailResult.error) {
-      throw new Error(emailResult.error.message);
-    }
-
     const emailById = emailResult.data;
     const rows: ManagerClassStudentRow[] = [];
 
@@ -1056,6 +1120,66 @@ export async function listClassStudentsForManager(
   } finally {
     timer.end();
   }
+}
+
+export async function fetchClassStudentRowForManager(
+  adminClient: Supabase,
+  classId: string,
+  userId: string
+): Promise<ManagerClassStudentRow | null> {
+  const { data: enrollment, error } =
+    await studentClassRepository.findStudentClassByUserAndClass(
+      adminClient,
+      userId,
+      classId
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!enrollment) {
+    return null;
+  }
+
+  const [profilesResult, studentProfilesResult, emailResult] = await Promise.all([
+    profileRepository.listProfilesByIds(adminClient, [userId]),
+    studentProfileRepository.listStudentProfileDetailsByUserIds(
+      adminClient,
+      [userId]
+    ),
+    authRepository.listAuthEmailsByIds(adminClient, [userId]),
+  ]);
+
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+
+  if (studentProfilesResult.error) {
+    throw new Error(studentProfilesResult.error.message);
+  }
+
+  if (emailResult.error) {
+    throw new Error(emailResult.error.message);
+  }
+
+  const studentProfile = studentProfilesResult.data?.[0];
+  const profile = profilesResult.data?.[0];
+
+  if (!studentProfile || !profile) {
+    return null;
+  }
+
+  return {
+    id: enrollment.id,
+    student_profile_id: studentProfile.id,
+    user_id: enrollment.user_id,
+    full_name: studentProfile.full_name,
+    username: profile.username,
+    email: emailResult.data.get(userId) ?? "",
+    phone: studentProfile.phone,
+    joined_at: enrollment.joined_at ?? "",
+  };
 }
 
 export async function listAvailableStudentsForClass(
@@ -1322,10 +1446,19 @@ export async function updateClassForManager(
     };
   }
 
-  const existing = await classRepository.findClassDetailById(
-    adminClient,
-    input.class_id
-  );
+  const nextSemesterId =
+    parsed.data.semester_id && parsed.data.semester_id !== "unlinked"
+      ? parsed.data.semester_id
+      : null;
+
+  const [existing, counts, subjectResult, semesterResult] = await Promise.all([
+    classRepository.findClassDetailById(adminClient, input.class_id),
+    loadClassDetailCounts(adminClient, input.class_id),
+    subjectRepository.findSubjectById(adminClient, parsed.data.subject_id),
+    nextSemesterId
+      ? semesterRepository.findSemesterById(adminClient, nextSemesterId)
+      : Promise.resolve({ data: null, error: null }),
+  ]);
 
   if (existing.error) {
     return { success: false, error: existing.error.message };
@@ -1334,11 +1467,6 @@ export async function updateClassForManager(
   if (!existing.data) {
     return { success: false, error: "Class not found." };
   }
-
-  const subjectResult = await subjectRepository.findSubjectById(
-    adminClient,
-    parsed.data.subject_id
-  );
 
   if (subjectResult.error) {
     return { success: false, error: subjectResult.error.message };
@@ -1352,17 +1480,7 @@ export async function updateClassForManager(
     };
   }
 
-  const nextSemesterId =
-    parsed.data.semester_id && parsed.data.semester_id !== "unlinked"
-      ? parsed.data.semester_id
-      : null;
-
   if (nextSemesterId) {
-    const semesterResult = await semesterRepository.findSemesterById(
-      adminClient,
-      nextSemesterId
-    );
-
     if (semesterResult.error) {
       return { success: false, error: semesterResult.error.message };
     }
@@ -1403,9 +1521,9 @@ export async function updateClassForManager(
     ]);
   }
 
-  const classRow = await mapClassDetailToRow(
-    adminClient,
-    data as ClassDetailRecord
+  const classRow = mapClassDetailToRowWithCounts(
+    data as ClassDetailRecord,
+    counts
   );
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -1465,10 +1583,10 @@ export async function updateClassStatusForManager(
     };
   }
 
-  const existing = await classRepository.findClassDetailById(
-    adminClient,
-    input.class_id
-  );
+  const [existing, counts] = await Promise.all([
+    classRepository.findClassDetailById(adminClient, input.class_id),
+    loadClassDetailCounts(adminClient, input.class_id),
+  ]);
 
   if (existing.error) {
     return { success: false, error: existing.error.message };
@@ -1524,9 +1642,9 @@ export async function updateClassStatusForManager(
     };
   }
 
-  const classRow = await mapClassDetailToRow(
-    adminClient,
-    data as ClassDetailRecord
+  const classRow = mapClassDetailToRowWithCounts(
+    data as ClassDetailRecord,
+    counts
   );
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -1607,10 +1725,12 @@ export async function createClassSessionForManager(
     };
   }
 
-  const existing = await classRepository.findClassDetailById(
-    adminClient,
-    input.class_id
-  );
+  const [existing, structureGuard, maxOrderResult, counts] = await Promise.all([
+    classRepository.findClassDetailById(adminClient, input.class_id),
+    assertClassStructureUnlockedForComputedGrades(adminClient, input.class_id),
+    sessionRepository.getMaxSessionNbOrderByClassId(adminClient, input.class_id),
+    loadClassDetailCounts(adminClient, input.class_id),
+  ]);
 
   if (existing.error) {
     return { success: false, error: existing.error.message };
@@ -1620,19 +1740,9 @@ export async function createClassSessionForManager(
     return { success: false, error: "Class not found." };
   }
 
-  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
-    adminClient,
-    input.class_id
-  );
-
   if (!structureGuard.ok) {
     return { success: false, error: structureGuard.error };
   }
-
-  const maxOrderResult = await sessionRepository.getMaxSessionNbOrderByClassId(
-    adminClient,
-    input.class_id
-  );
 
   if (maxOrderResult.error) {
     return { success: false, error: maxOrderResult.error.message };
@@ -1694,21 +1804,12 @@ export async function createClassSessionForManager(
     };
   }
 
-  const refreshed = await classRepository.findClassDetailById(
-    adminClient,
-    input.class_id
-  );
-
-  if (refreshed.error || !refreshed.data) {
-    return {
-      success: false,
-      error: refreshed.error?.message ?? "Session created, but class reload failed.",
-    };
-  }
-
-  const classRow = await mapClassDetailToRow(
-    adminClient,
-    refreshed.data as ClassDetailRecord
+  const classRow = mapClassDetailToRowWithCounts(
+    existing.data as ClassDetailRecord,
+    {
+      ...counts,
+      completed_sessions: counts.completed_sessions + 1,
+    }
   );
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -1771,10 +1872,11 @@ export async function createFinalExamForManager(
     };
   }
 
-  const existingClass = await classRepository.findClassById(
-    adminClient,
-    input.class_id
-  );
+  const [existingClass, structureGuard, existingExam] = await Promise.all([
+    classRepository.findClassById(adminClient, input.class_id),
+    assertClassStructureUnlockedForComputedGrades(adminClient, input.class_id),
+    finalExamRepository.findFinalExamByClassId(adminClient, input.class_id),
+  ]);
 
   if (existingClass.error) {
     return { success: false, error: existingClass.error.message };
@@ -1784,19 +1886,9 @@ export async function createFinalExamForManager(
     return { success: false, error: "Class not found." };
   }
 
-  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
-    adminClient,
-    input.class_id
-  );
-
   if (!structureGuard.ok) {
     return { success: false, error: structureGuard.error };
   }
-
-  const existingExam = await finalExamRepository.findFinalExamByClassId(
-    adminClient,
-    input.class_id
-  );
 
   if (existingExam.error) {
     return { success: false, error: existingExam.error.message };
@@ -2210,8 +2302,31 @@ export async function addStudentToClassForManager(
       };
     }
 
-    const classResult = await timer.step("class", () =>
-      classRepository.findClassDetailById(adminClient, input.class_id)
+    const [
+      classResult,
+      studentProfileResult,
+      enrollmentResult,
+      teacherResult,
+      sessionResult,
+    ] = await timer.step("lookups", () =>
+      Promise.all([
+        classRepository.findClassDetailById(adminClient, input.class_id),
+        studentProfileRepository.findStudentProfileById(
+          adminClient,
+          parsed.data.studentProfileId
+        ),
+        studentClassRepository.countStudentClassesByClassId(
+          adminClient,
+          input.class_id
+        ),
+        classTeacherRepository.countClassTeachersByClassId(
+          adminClient,
+          input.class_id
+        ),
+        sessionRepository.listSessionCountsByClassIds(adminClient, [
+          input.class_id,
+        ]),
+      ])
     );
 
     if (classResult.error) {
@@ -2222,12 +2337,7 @@ export async function addStudentToClassForManager(
       return { success: false, error: "Class not found." };
     }
 
-    const studentProfileResult = await timer.step("student", () =>
-      studentProfileRepository.findStudentProfileById(
-        adminClient,
-        parsed.data.studentProfileId
-      )
-    );
+    const classRecord = classResult.data as ClassDetailRecord;
 
     if (studentProfileResult.error) {
       return { success: false, error: studentProfileResult.error.message };
@@ -2251,21 +2361,38 @@ export async function addStudentToClassForManager(
       };
     }
 
-    const userId = studentProfileResult.data.user_id;
+    if (enrollmentResult.error) {
+      return { success: false, error: enrollmentResult.error.message };
+    }
 
-    const existingEnrollment = await timer.step("existing", () =>
-      studentClassRepository.findStudentClassByUserAndClass(
+    if (teacherResult.error) {
+      return { success: false, error: teacherResult.error.message };
+    }
+
+    if (sessionResult.error) {
+      return { success: false, error: sessionResult.error.message };
+    }
+
+    const studentProfile = studentProfileResult.data;
+    const userId = studentProfile.user_id;
+
+    const enrollResult = await timer.step("enroll", () =>
+      studentClassRepository.enrollStudentInClass(
         adminClient,
         userId,
         input.class_id
       )
     );
 
-    if (existingEnrollment.error) {
-      return { success: false, error: existingEnrollment.error.message };
+    if (enrollResult.error) {
+      return { success: false, error: enrollResult.error.message };
     }
 
-    if (existingEnrollment.data) {
+    if (!enrollResult.data) {
+      return { success: false, error: "Unable to enroll student." };
+    }
+
+    if (!enrollResult.data.ok) {
       return {
         success: false,
         error: "Please fix the errors below.",
@@ -2275,30 +2402,7 @@ export async function addStudentToClassForManager(
       };
     }
 
-    const { data, error } = await timer.step("enroll", () =>
-      studentClassRepository.createStudentClassEnrollment(adminClient, {
-        user_id: userId,
-        class_id: input.class_id,
-      })
-    );
-
-    if (error || !data) {
-      const normalized = (error?.message ?? "").toLowerCase();
-      if (normalized.includes("unique") || normalized.includes("duplicate")) {
-        return {
-          success: false,
-          error: "Please fix the errors below.",
-          fieldErrors: {
-            studentProfileId: ["This student is already enrolled in this class."],
-          },
-        };
-      }
-
-      return {
-        success: false,
-        error: error?.message ?? "Unable to enroll student.",
-      };
-    }
+    const data = enrollResult.data.enrollment;
 
     const [profileResult, authResult] = await Promise.all([
       timer.step("hydrateProfile", () =>
@@ -2318,43 +2422,35 @@ export async function addStudentToClassForManager(
 
     const student: ManagerClassStudentRow = {
       id: data.id,
-      student_profile_id: studentProfileResult.data.id,
+      student_profile_id: studentProfile.id,
       user_id: userId,
-      full_name: studentProfileResult.data.full_name,
+      full_name: studentProfile.full_name,
       username: profileResult.data.username,
       email: authResult.data.user?.email ?? "",
-      phone: studentProfileResult.data.phone,
+      phone: studentProfile.phone,
       joined_at: data.joined_at ?? new Date().toISOString(),
     };
 
     let studentGrade: ManagerStudentFinalExamGradeRow | undefined;
 
-    const examResult = await timer.step("exam", () =>
-      finalExamRepository.findFinalExamByClassId(adminClient, input.class_id)
+    const gradeResult = await timer.step("examGrade", () =>
+      finalExamRepository.ensureEnrollmentFinalExamGrade(
+        adminClient,
+        input.class_id,
+        userId
+      )
     );
 
-    if (examResult.error) {
-      return { success: false, error: examResult.error.message };
+    if (gradeResult.error) {
+      return {
+        success: false,
+        error:
+          gradeResult.error.message ??
+          "Student enrolled, but final exam grade row could not be created.",
+      };
     }
 
-    if (examResult.data) {
-      const exam = examResult.data;
-      const gradeResult = await timer.step("examGrade", () =>
-        finalExamRepository.createStudentFinalExamGrade(
-          adminClient,
-          buildEnrollmentFinalExamGradeInput(exam.id, userId, exam.due_date)
-        )
-      );
-
-      if (gradeResult.error || !gradeResult.data) {
-        return {
-          success: false,
-          error:
-            gradeResult.error?.message ??
-            "Student enrolled, but final exam grade row could not be created.",
-        };
-      }
-
+    if (gradeResult.data) {
       studentGrade = mapStudentFinalExamGradeRecord(
         gradeResult.data as StudentFinalExamGradeRecord,
         student.full_name
@@ -2393,9 +2489,11 @@ export async function addStudentToClassForManager(
       };
     }
 
-    const classRow = await timer.step("classRow", () =>
-      mapClassDetailToRow(adminClient, classResult.data as ClassDetailRecord)
-    );
+    const classRow = mapClassDetailRecordToRow(classRecord, {
+      enrollment_count: (enrollmentResult.count ?? 0) + 1,
+      teacher_count: teacherResult.count ?? 0,
+      completed_sessions: sessionResult.data?.length ?? 0,
+    });
 
     await timer.step("audit", () =>
       recordManagerAuditLog(adminClient, actor, {
@@ -2465,92 +2563,337 @@ export async function addStudentsToClassForManager(
     studentProfileIds: string[];
   }
 ): Promise<AddStudentsToClassResult> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.CLASSES_ADD_STUDENT
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
+  const timer = createNavStepTimer("addStudentsToClass");
+  try {
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.CLASSES_ADD_STUDENT
+      )
+    );
+    if (unauthorized) {
+      return { success: false, error: unauthorized };
+    }
 
-  const parsed = addStudentsToClassSchema.safeParse({
-    studentProfileIds: input.studentProfileIds,
-  });
+    const parsed = addStudentsToClassSchema.safeParse({
+      studentProfileIds: input.studentProfileIds,
+    });
 
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
 
-  const uniqueIds = [...new Set(parsed.data.studentProfileIds)];
-  const students: ManagerClassStudentRow[] = [];
-  const studentGrades: ManagerStudentFinalExamGradeRow[] = [];
-  const failures: string[] = [];
-  const warnings: string[] = [];
-  let classRow: ManagerClassRow | undefined;
+    const uniqueIds = [...new Set(parsed.data.studentProfileIds)];
 
-  for (const studentProfileId of uniqueIds) {
-    const result = await addStudentToClassForManager(
-      adminClient,
-      actorUserId,
-      actor,
-      { class_id: input.class_id, studentProfileId }
+    const [
+      classResult,
+      studentProfilesResult,
+      enrollmentResult,
+      teacherResult,
+      sessionResult,
+    ] = await timer.step("lookups", () =>
+      Promise.all([
+        classRepository.findClassDetailById(adminClient, input.class_id),
+        studentProfileRepository.listStudentProfilesByIds(adminClient, uniqueIds),
+        studentClassRepository.countStudentClassesByClassId(
+          adminClient,
+          input.class_id
+        ),
+        classTeacherRepository.countClassTeachersByClassId(
+          adminClient,
+          input.class_id
+        ),
+        sessionRepository.listSessionCountsByClassIds(adminClient, [
+          input.class_id,
+        ]),
+      ])
     );
 
-    if (!result.success) {
-      const detail =
-        result.fieldErrors?.studentProfileId?.[0] ??
-        result.error ??
-        "Unable to enroll student.";
-      failures.push(detail);
-      continue;
+    if (classResult.error) {
+      return { success: false, error: classResult.error.message };
     }
 
-    students.push(result.student);
-    if (result.studentGrade) {
-      studentGrades.push(result.studentGrade);
+    if (!classResult.data) {
+      return { success: false, error: "Class not found." };
     }
-    if (result.warning) {
-      warnings.push(result.warning);
-    }
-    classRow = result.classRow;
-  }
 
-  if (students.length === 0) {
+    if (studentProfilesResult.error) {
+      return { success: false, error: studentProfilesResult.error.message };
+    }
+
+    if (enrollmentResult.error) {
+      return { success: false, error: enrollmentResult.error.message };
+    }
+
+    if (teacherResult.error) {
+      return { success: false, error: teacherResult.error.message };
+    }
+
+    if (sessionResult.error) {
+      return { success: false, error: sessionResult.error.message };
+    }
+
+    const classRecord = classResult.data as ClassDetailRecord;
+    const profileById = new Map(
+      (studentProfilesResult.data ?? []).map((row) => [row.id, row])
+    );
+
+    const eligibleUserIds: string[] = [];
+    const seenUserIds = new Set<string>();
+    for (const studentProfileId of uniqueIds) {
+      const profile = profileById.get(studentProfileId);
+      if (!profile || profile.status === STUDENT_STATUSES.INACTIVE) {
+        continue;
+      }
+      if (seenUserIds.has(profile.user_id)) {
+        continue;
+      }
+      seenUserIds.add(profile.user_id);
+      eligibleUserIds.push(profile.user_id);
+    }
+
+    const enrollResult = await timer.step("enroll", () =>
+      studentClassRepository.enrollStudentsInClass(
+        adminClient,
+        input.class_id,
+        eligibleUserIds
+      )
+    );
+
+    if (enrollResult.error || !enrollResult.data) {
+      return {
+        success: false,
+        error: enrollResult.error?.message ?? "Unable to enroll students.",
+      };
+    }
+
+    const insertedByUserId = new Map(
+      enrollResult.data.inserted.map((row) => [row.user_id, row])
+    );
+    const alreadyEnrolled = new Set(enrollResult.data.already_enrolled);
+    const insertedUserIds = enrollResult.data.inserted.map((row) => row.user_id);
+
+    const failures: string[] = [];
+    for (const studentProfileId of uniqueIds) {
+      const profile = profileById.get(studentProfileId);
+      if (!profile) {
+        failures.push("Student not found.");
+        continue;
+      }
+      if (profile.status === STUDENT_STATUSES.INACTIVE) {
+        failures.push("Inactive students cannot be added to a class.");
+        continue;
+      }
+      if (alreadyEnrolled.has(profile.user_id)) {
+        failures.push("This student is already enrolled in this class.");
+        continue;
+      }
+      if (!insertedByUserId.has(profile.user_id)) {
+        failures.push("Unable to enroll student.");
+      }
+    }
+
+    if (insertedUserIds.length === 0) {
+      return {
+        success: false,
+        error: failures[0] ?? "Unable to enroll students.",
+        fieldErrors: {
+          studentProfileIds: [failures[0] ?? "Unable to enroll students."],
+        },
+      };
+    }
+
+    let gradeResult: Awaited<
+      ReturnType<typeof finalExamRepository.ensureEnrollmentFinalExamGrades>
+    >;
+    let profilesResult: Awaited<
+      ReturnType<typeof profileRepository.listProfilesByIds>
+    >;
+    let emailsResult: Awaited<
+      ReturnType<typeof authRepository.listAuthEmailsByIds>
+    >;
+
+    try {
+      [gradeResult, , , profilesResult, emailsResult] = await timer.step(
+        "hydrate",
+        () =>
+          Promise.all([
+            finalExamRepository.ensureEnrollmentFinalExamGrades(
+              adminClient,
+              input.class_id,
+              insertedUserIds
+            ),
+            seedLateJoinAttendeesForStudents(
+              adminClient,
+              input.class_id,
+              insertedUserIds
+            ),
+            seedLateJoinStudentTasksForStudents(
+              adminClient,
+              input.class_id,
+              insertedUserIds
+            ),
+            profileRepository.listProfilesByIds(adminClient, insertedUserIds),
+            authRepository.listAuthEmailsByIds(adminClient, insertedUserIds),
+          ])
+      );
+    } catch (err) {
+      return {
+        success: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : "Student enrolled, but attendance or task grade rows could not be created.",
+      };
+    }
+
+    if (gradeResult.error) {
+      return {
+        success: false,
+        error:
+          gradeResult.error.message ??
+          "Student enrolled, but final exam grade row could not be created.",
+      };
+    }
+
+    if (profilesResult.error) {
+      return {
+        success: false,
+        error: profilesResult.error.message ?? "Unable to load student profile.",
+      };
+    }
+
+    if (emailsResult.error) {
+      return {
+        success: false,
+        error: emailsResult.error.message,
+      };
+    }
+
+    const usernameByUserId = new Map(
+      (profilesResult.data ?? []).map((row) => [row.id, row.username])
+    );
+    const emailByUserId = emailsResult.data;
+    const gradeByStudentId = new Map(
+      (gradeResult.data ?? []).map((row) => [row.student_id, row])
+    );
+
+    const students: ManagerClassStudentRow[] = [];
+    const studentGrades: ManagerStudentFinalExamGradeRow[] = [];
+
+    for (const studentProfileId of uniqueIds) {
+      const profile = profileById.get(studentProfileId);
+      if (!profile) {
+        continue;
+      }
+      const enrollment = insertedByUserId.get(profile.user_id);
+      if (!enrollment) {
+        continue;
+      }
+
+      const student: ManagerClassStudentRow = {
+        id: enrollment.id,
+        student_profile_id: profile.id,
+        user_id: profile.user_id,
+        full_name: profile.full_name,
+        username: usernameByUserId.get(profile.user_id) ?? null,
+        email: emailByUserId.get(profile.user_id) ?? "",
+        phone: profile.phone,
+        joined_at: enrollment.joined_at ?? new Date().toISOString(),
+      };
+      students.push(student);
+
+      const gradeRecord = gradeByStudentId.get(profile.user_id);
+      if (gradeRecord) {
+        studentGrades.push(
+          mapStudentFinalExamGradeRecord(gradeRecord, student.full_name)
+        );
+      }
+    }
+
+    const classRow = mapClassDetailRecordToRow(classRecord, {
+      enrollment_count: (enrollmentResult.count ?? 0) + insertedUserIds.length,
+      teacher_count: teacherResult.count ?? 0,
+      completed_sessions: sessionResult.data?.length ?? 0,
+    });
+
+    await timer.step("audit", () =>
+      Promise.all(
+        students.map((student) =>
+          recordManagerAuditLog(adminClient, actor, {
+            action: "insert",
+            table_name: "student_class",
+            record_id: student.id,
+            new_data: {
+              class_id: input.class_id,
+              user_id: student.user_id,
+            },
+          })
+        )
+      )
+    );
+
+    let warning: string | undefined;
+
+    try {
+      const joinItems = await timer.step("paymentSync", () =>
+        onStudentsJoinedClass(
+          adminClient,
+          { classId: input.class_id, studentIds: insertedUserIds },
+          actor
+        )
+      );
+      const failedJoins = joinItems.filter((item) => !item.ok);
+      if (failedJoins.length > 0) {
+        await Promise.all(
+          failedJoins.map((item) =>
+            recordPaymentSyncFailure(adminClient, actor, {
+              studentId: item.studentId,
+              classId: input.class_id,
+              operation: "enroll_join_sync",
+              error: new Error(item.error ?? "Payment sync failed."),
+            })
+          )
+        );
+        warning = PAYMENT_SYNC_FAILURE_WARNING;
+      }
+    } catch (syncError) {
+      await Promise.all(
+        insertedUserIds.map((studentId) =>
+          recordPaymentSyncFailure(adminClient, actor, {
+            studentId,
+            classId: input.class_id,
+            operation: "enroll_join_sync",
+            error: syncError,
+          })
+        )
+      );
+      warning = PAYMENT_SYNC_FAILURE_WARNING;
+    }
+
+    const message =
+      failures.length === 0
+        ? students.length === 1
+          ? `${students[0].full_name} added to class.`
+          : `${students.length} students added to class.`
+        : `Added ${students.length} of ${uniqueIds.length} students. ${failures.length} could not be added.`;
+
     return {
-      success: false,
-      error: failures[0] ?? "Unable to enroll students.",
-      fieldErrors: {
-        studentProfileIds: [failures[0] ?? "Unable to enroll students."],
-      },
+      success: true,
+      students,
+      studentGrades,
+      classRow,
+      message,
+      warning,
     };
+  } finally {
+    timer.end();
   }
-
-  if (!classRow) {
-    return { success: false, error: "Unable to load updated class." };
-  }
-
-  const message =
-    failures.length === 0
-      ? students.length === 1
-        ? `${students[0].full_name} added to class.`
-        : `${students.length} students added to class.`
-      : `Added ${students.length} of ${uniqueIds.length} students. ${failures.length} could not be added.`;
-
-  const uniqueWarnings = [...new Set(warnings)];
-
-  return {
-    success: true,
-    students,
-    studentGrades,
-    classRow,
-    message,
-    warning: uniqueWarnings.length > 0 ? uniqueWarnings.join(" ") : undefined,
-  };
 }
 
 export type RemoveStudentFromClassResult =
@@ -2571,92 +2914,95 @@ export async function removeStudentFromClassForManager(
     class_id: string;
   }
 ): Promise<RemoveStudentFromClassResult> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.CLASSES_REMOVE_STUDENT
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const parsed = removeStudentFromClassSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const existing = await studentClassRepository.findStudentClassById(
-    adminClient,
-    parsed.data.id
-  );
-
-  if (existing.error) {
-    return { success: false, error: existing.error.message };
-  }
-
-  if (!existing.data || existing.data.class_id !== parsed.data.class_id) {
-    return { success: false, error: "Enrollment not found." };
-  }
-
-  const { data: deleted, error: deleteError } =
-    await studentClassRepository.deleteStudentClassById(
-      adminClient,
-      parsed.data.id
-    );
-
-  if (deleteError || !deleted) {
-    return {
-      success: false,
-      error: deleteError?.message ?? "Unable to remove student from class.",
-    };
-  }
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "delete",
-    severity: "info",
-    table_name: "student_class",
-    record_id: deleted.id,
-    old_data: {
-      class_id: parsed.data.class_id,
-      user_id: deleted.user_id,
-    },
-    new_data: null,
-    metadata: {
-      note: "Student removed from class (binary membership).",
-      class_id: parsed.data.class_id,
-      student_id: deleted.user_id,
-    },
-  });
-
-  let warning: string | undefined;
-
+  const timer = createNavStepTimer("removeStudentFromClass");
   try {
-    await onStudentLeftClass(
-      adminClient,
-      { studentId: deleted.user_id, classId: parsed.data.class_id },
-      actor
+    const unauthorized = await timer.step("auth", () =>
+      getUnauthorizedError(
+        adminClient,
+        actorUserId,
+        PERMISSIONS.CLASSES_REMOVE_STUDENT
+      )
     );
-  } catch (syncError) {
-    await recordPaymentSyncFailure(adminClient, actor, {
-      studentId: deleted.user_id,
-      classId: parsed.data.class_id,
-      operation: "enrollment_leave_sync",
-      error: syncError,
-    });
-    warning = PAYMENT_SYNC_FAILURE_WARNING;
-  }
+    if (unauthorized) {
+      return { success: false, error: unauthorized };
+    }
 
-  return {
-    success: true,
-    removedStudentId: deleted.id,
-    message: "Student removed from class.",
-    warning,
-  };
+    const parsed = removeStudentFromClassSchema.safeParse(input);
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const { data: deleted, error: deleteError } = await timer.step(
+      "delete",
+      () =>
+        studentClassRepository.deleteStudentClassMembership(
+          adminClient,
+          parsed.data.id,
+          parsed.data.class_id
+        )
+    );
+
+    if (deleteError) {
+      return { success: false, error: deleteError.message };
+    }
+
+    if (!deleted) {
+      return { success: false, error: "Enrollment not found." };
+    }
+
+    await timer.step("audit", () =>
+      recordManagerAuditLog(adminClient, actor, {
+        action: "delete",
+        severity: "info",
+        table_name: "student_class",
+        record_id: deleted.id,
+        old_data: {
+          class_id: parsed.data.class_id,
+          user_id: deleted.user_id,
+        },
+        new_data: null,
+        metadata: {
+          note: "Student removed from class (binary membership).",
+          class_id: parsed.data.class_id,
+          student_id: deleted.user_id,
+        },
+      })
+    );
+
+    let warning: string | undefined;
+
+    try {
+      await timer.step("paymentSync", () =>
+        onStudentLeftClass(
+          adminClient,
+          { studentId: deleted.user_id, classId: parsed.data.class_id },
+          actor
+        )
+      );
+    } catch (syncError) {
+      await recordPaymentSyncFailure(adminClient, actor, {
+        studentId: deleted.user_id,
+        classId: parsed.data.class_id,
+        operation: "enrollment_leave_sync",
+        error: syncError,
+      });
+      warning = PAYMENT_SYNC_FAILURE_WARNING;
+    }
+
+    return {
+      success: true,
+      removedStudentId: deleted.id,
+      message: "Student removed from class.",
+      warning,
+    };
+  } finally {
+    timer.end();
+  }
 }
 
 export type TransferStudentBetweenClassesResult =
@@ -2680,182 +3026,270 @@ export async function transferStudentBetweenClassesForManager(
     to_class_id: string;
   }
 ): Promise<TransferStudentBetweenClassesResult> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.CLASSES_REMOVE_STUDENT
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const parsed = transferStudentBetweenClassesSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const { student_profile_id, from_class_id, to_class_id } = parsed.data;
-
-  const [fromClassResult, toClassResult, studentProfileResult] =
-    await Promise.all([
-      classRepository.findClassDetailById(adminClient, from_class_id),
-      classRepository.findClassDetailById(adminClient, to_class_id),
-      studentProfileRepository.findStudentProfileById(
-        adminClient,
-        student_profile_id
-      ),
-    ]);
-
-  if (fromClassResult.error) {
-    return { success: false, error: fromClassResult.error.message };
-  }
-  if (!fromClassResult.data) {
-    return { success: false, error: "Source class not found." };
-  }
-
-  if (toClassResult.error) {
-    return { success: false, error: toClassResult.error.message };
-  }
-  if (!toClassResult.data) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { to_class_id: ["Destination class not found."] },
-    };
-  }
-
-  if (studentProfileResult.error || !studentProfileResult.data) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { student_profile_id: ["Student not found."] },
-    };
-  }
-
-  const userId = studentProfileResult.data.user_id;
-
-  const fromEnrollment =
-    await studentClassRepository.findStudentClassByUserAndClass(
-      adminClient,
-      userId,
-      from_class_id
-    );
-
-  if (fromEnrollment.error) {
-    return { success: false, error: fromEnrollment.error.message };
-  }
-
-  if (!fromEnrollment.data) {
-    return {
-      success: false,
-      error: "Student is not enrolled in the source class.",
-    };
-  }
-
-  const toEnrollment =
-    await studentClassRepository.findStudentClassByUserAndClass(
-      adminClient,
-      userId,
-      to_class_id
-    );
-
-  if (toEnrollment.error) {
-    return { success: false, error: toEnrollment.error.message };
-  }
-
-  if (toEnrollment.data) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: {
-        to_class_id: ["Student is already in the destination class."],
-      },
-    };
-  }
-
-  const { data: leftMembership, error: leaveError } =
-    await studentClassRepository.deleteStudentClassById(
-      adminClient,
-      fromEnrollment.data.id
-    );
-
-  if (leaveError || !leftMembership) {
-    return {
-      success: false,
-      error: leaveError?.message ?? "Unable to leave the source class.",
-    };
-  }
-
-  let warning: string | undefined;
-
+  const timer = createNavStepTimer("transferStudentBetweenClasses");
   try {
-    await onStudentLeftClass(
-      adminClient,
-      { studentId: userId, classId: from_class_id },
-      actor
+    const [removeUnauthorized, addUnauthorized] = await timer.step("auth", () =>
+      Promise.all([
+        getUnauthorizedError(
+          adminClient,
+          actorUserId,
+          PERMISSIONS.CLASSES_REMOVE_STUDENT
+        ),
+        getUnauthorizedError(
+          adminClient,
+          actorUserId,
+          PERMISSIONS.CLASSES_ADD_STUDENT
+        ),
+      ])
     );
-  } catch (syncError) {
-    await recordPaymentSyncFailure(adminClient, actor, {
-      studentId: userId,
-      classId: from_class_id,
-      operation: "transfer_leave_sync",
-      error: syncError,
-    });
-    warning = PAYMENT_SYNC_FAILURE_WARNING;
-  }
+    if (removeUnauthorized) {
+      return { success: false, error: removeUnauthorized };
+    }
+    if (addUnauthorized) {
+      return { success: false, error: addUnauthorized };
+    }
 
-  const enrollResult = await addStudentToClassForManager(
-    adminClient,
-    actorUserId,
-    actor,
-    {
-      class_id: to_class_id,
-      studentProfileId: student_profile_id,
-    },
-    { skipPaymentSync: true }
-  );
+    const parsed = transferStudentBetweenClassesSchema.safeParse(input);
 
-  if (!enrollResult.success) {
-    return {
-      success: false,
-      error:
-        enrollResult.error ??
-        "Left source class, but could not enroll in destination.",
-      fieldErrors: enrollResult.fieldErrors,
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const { student_profile_id, from_class_id, to_class_id } = parsed.data;
+
+    const [fromClassResult, toClassResult, studentProfileResult] =
+      await timer.step("lookups", () =>
+        Promise.all([
+          classRepository.findClassDetailById(adminClient, from_class_id),
+          classRepository.findClassDetailById(adminClient, to_class_id),
+          studentProfileRepository.findStudentProfileById(
+            adminClient,
+            student_profile_id
+          ),
+        ])
+      );
+
+    if (fromClassResult.error) {
+      return { success: false, error: fromClassResult.error.message };
+    }
+    if (!fromClassResult.data) {
+      return { success: false, error: "Source class not found." };
+    }
+
+    if (toClassResult.error) {
+      return { success: false, error: toClassResult.error.message };
+    }
+    if (!toClassResult.data) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: { to_class_id: ["Destination class not found."] },
+      };
+    }
+
+    if (studentProfileResult.error || !studentProfileResult.data) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: { student_profile_id: ["Student not found."] },
+      };
+    }
+
+    if (studentProfileResult.data.status === STUDENT_STATUSES.INACTIVE) {
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: {
+          student_profile_id: [
+            "Inactive students cannot be added to a class.",
+          ],
+        },
+      };
+    }
+
+    const studentProfile = studentProfileResult.data;
+    const userId = studentProfile.user_id;
+
+    const transferResult = await timer.step("transfer", () =>
+      studentClassRepository.transferStudentBetweenClasses(
+        adminClient,
+        userId,
+        from_class_id,
+        to_class_id
+      )
+    );
+
+    if (transferResult.error) {
+      return { success: false, error: transferResult.error.message };
+    }
+
+    if (!transferResult.data) {
+      return { success: false, error: "Unable to transfer student." };
+    }
+
+    if (!transferResult.data.ok) {
+      if (transferResult.data.code === "not_in_source") {
+        return {
+          success: false,
+          error: "Student is not enrolled in the source class.",
+        };
+      }
+      if (transferResult.data.code === "already_in_dest") {
+        return {
+          success: false,
+          error: "Please fix the errors below.",
+          fieldErrors: {
+            to_class_id: ["Student is already in the destination class."],
+          },
+        };
+      }
+      return {
+        success: false,
+        error: "Please fix the errors below.",
+        fieldErrors: {
+          to_class_id: [
+            "Destination class must be different from the current class.",
+          ],
+        },
+      };
+    }
+
+    const destEnrollment = transferResult.data.to;
+    const fromEnrollment = transferResult.data.from;
+
+    let warning: string | undefined;
+
+    try {
+      await timer.step("leaveSync", () =>
+        onStudentLeftClass(
+          adminClient,
+          { studentId: userId, classId: from_class_id },
+          actor
+        )
+      );
+    } catch (syncError) {
+      await recordPaymentSyncFailure(adminClient, actor, {
+        studentId: userId,
+        classId: from_class_id,
+        operation: "transfer_leave_sync",
+        error: syncError,
+      });
+      warning = PAYMENT_SYNC_FAILURE_WARNING;
+    }
+
+    let profileResult: Awaited<
+      ReturnType<typeof profileRepository.findProfileById>
+    >;
+    let authResult: Awaited<
+      ReturnType<typeof authRepository.getAuthUserById>
+    >;
+    let gradeResult: Awaited<
+      ReturnType<typeof finalExamRepository.ensureEnrollmentFinalExamGrade>
+    >;
+
+    try {
+      [profileResult, authResult, gradeResult] = await timer.step(
+        "destHydrate",
+        () =>
+          Promise.all([
+            profileRepository.findProfileById(adminClient, userId),
+            authRepository.getAuthUserById(adminClient, userId),
+            finalExamRepository.ensureEnrollmentFinalExamGrade(
+              adminClient,
+              to_class_id,
+              userId
+            ),
+            seedLateJoinAttendeesForStudent(adminClient, to_class_id, userId),
+            seedLateJoinStudentTasksForStudent(
+              adminClient,
+              to_class_id,
+              userId
+            ),
+          ]).then(([profile, auth, grade]) => [profile, auth, grade] as const)
+      );
+    } catch (err) {
+      return {
+        success: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : "Student transferred, but destination attendance or task rows could not be created.",
+      };
+    }
+
+    if (profileResult.error || !profileResult.data) {
+      return {
+        success: false,
+        error: profileResult.error?.message ?? "Unable to load student profile.",
+      };
+    }
+
+    if (gradeResult.error) {
+      return {
+        success: false,
+        error:
+          gradeResult.error.message ??
+          "Student transferred, but final exam grade row could not be created.",
+      };
+    }
+
+    const student: ManagerClassStudentRow = {
+      id: destEnrollment.id,
+      student_profile_id: studentProfile.id,
+      user_id: userId,
+      full_name: studentProfile.full_name,
+      username: profileResult.data.username,
+      email: authResult.data.user?.email ?? "",
+      phone: studentProfile.phone,
+      joined_at: destEnrollment.joined_at ?? new Date().toISOString(),
     };
-  }
 
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "update",
-    severity: "info",
-    table_name: "student_class",
-    record_id: enrollResult.student.id,
-    old_data: {
-      class_id: from_class_id,
-    },
-    new_data: {
-      class_id: to_class_id,
-      from_enrollment_id: fromEnrollment.data.id,
-    },
-    metadata: {
-      note: "Student transferred between classes without destination payment sync.",
+    await timer.step("audit", () =>
+      Promise.all([
+        recordManagerAuditLog(adminClient, actor, {
+          action: "insert",
+          table_name: "student_class",
+          record_id: student.id,
+          new_data: {
+            class_id: to_class_id,
+            user_id: userId,
+          },
+        }),
+        recordManagerAuditLog(adminClient, actor, {
+          action: "update",
+          severity: "info",
+          table_name: "student_class",
+          record_id: student.id,
+          old_data: {
+            class_id: from_class_id,
+          },
+          new_data: {
+            class_id: to_class_id,
+            from_enrollment_id: fromEnrollment.id,
+          },
+          metadata: {
+            note: "Student transferred between classes without destination payment sync.",
+            from_class_id,
+            to_class_id,
+            student_id: userId,
+          },
+        }),
+      ])
+    );
+
+    return {
+      success: true,
+      student,
       from_class_id,
       to_class_id,
-      student_id: userId,
-    },
-  });
-
-  return {
-    success: true,
-    student: enrollResult.student,
-    from_class_id,
-    to_class_id,
-    message: `${enrollResult.student.full_name} transferred. Destination billing was not auto-assigned.`,
-    warning,
-  };
+      message: `${student.full_name} transferred. Destination billing was not auto-assigned.`,
+      warning,
+    };
+  } finally {
+    timer.end();
+  }
 }

@@ -3,7 +3,7 @@
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseSendEmailFormData } from "@/lib/validators/manager/send-email";
-import { sendEmailsForManager } from "@/services/email.service";
+import { sendEmailsForManager, listEmailingClassMemberUserIdsForManager } from "@/services/communications/email.service";
 import type { SendManagerEmailActionState } from "@/types/manager-emailing";
 
 export async function sendManagerEmailAction(
@@ -47,4 +47,24 @@ export async function sendManagerEmailAction(
     skippedCount: result.skippedCount,
     failedCount: result.failedCount,
   };
+}
+
+export async function listEmailingClassMemberUserIdsAction(
+  classId: string
+): Promise<string[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listEmailingClassMemberUserIdsForManager(
+      adminClient,
+      actor.userId,
+      classId
+    );
+  } catch {
+    return [];
+  }
 }

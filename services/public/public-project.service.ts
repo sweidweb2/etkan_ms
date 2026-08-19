@@ -12,11 +12,11 @@ import * as publicProjectStorageRepository from "@/repositories/public-project-s
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
+} from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerPublicProjectRow } from "@/types/manager-public-project";
 import type { SupabaseClient } from "@supabase/supabase-js";

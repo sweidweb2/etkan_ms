@@ -40,12 +40,12 @@ The manager panel UI is **feature-rich and largely aligned with the database sch
 
 | Area | Status | Key files |
 |------|--------|-----------|
-| Auth (login, signup, logout) | Real | `app/auth/*/actions.ts`, `services/auth.service.ts`, `repositories/auth.repository.ts` |
-| Profile + student profile + account on signup | Real | `services/profile.service.ts`, `repositories/account.repository.ts` |
-| Role resolution | Real | `services/role.service.ts`, `middleware.ts` |
+| Auth (login, signup, logout) | Real | `app/auth/*/actions.ts`, `services/auth/auth.service.ts`, `repositories/auth.repository.ts` |
+| Profile + student profile + account on signup | Real | `services/auth/profile.service.ts`, `repositories/account.repository.ts` |
+| Role resolution | Real | `services/auth/role.service.ts`, `middleware.ts` |
 | Maintenance mode | Real | `app/manager/settings/actions.ts`, `repositories/app-settings.repository.ts` |
 | Manager self-credentials | Real | `app/manager/settings/actions.ts` |
-| Backup export | Real (7 TS errors remain) | `app/api/manager/backup/route.ts`, `services/backup.service.ts` |
+| Backup export | Real (7 TS errors remain) | `app/api/manager/backup/route.ts`, `services/backup/backup.service.ts` |
 | Route protection | Real | `middleware.ts`, `lib/auth/path-access.ts` |
 
 **Server actions:** 4 files only (`app/auth/*`, `app/manager/settings/actions.ts`).  

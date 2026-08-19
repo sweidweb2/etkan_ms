@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
 import { ROLES } from "@/lib/constants/roles";
 import * as profileRepository from "@/repositories/profile.repository";
-import { resolveUserRole, syncAuthUserRole } from "@/services/role.service";
+import { resolveUserRole, syncAuthUserRole } from "@/services/auth/role.service";
 import * as authRepository from "@/repositories/auth.repository";
 
 vi.mock("@/repositories/profile.repository");

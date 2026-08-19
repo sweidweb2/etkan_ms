@@ -2,7 +2,7 @@ import { ManageGuestsPanel } from "@/components/manager/guests/manage-guests-pan
 import { getSessionUser } from "@/lib/auth/session";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listGuestsForManager } from "@/services/guest.service";
+import { listGuestsForManager } from "@/services/guests/guest.service";
 
 export default async function ManagerGuestsPage() {
   const adminClient = createSupabaseAdminClient();

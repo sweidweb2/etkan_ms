@@ -5,7 +5,7 @@ import * as studentProfileRepository from "@/repositories/student-profile.reposi
 import {
   ensureStudentRegistration,
   generateUniqueUsername,
-} from "@/services/profile.service";
+} from "@/services/auth/profile.service";
 
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-profile.repository");

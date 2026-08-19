@@ -3,7 +3,7 @@
   STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
 } from "@/lib/manager/class-grades-access";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { assertPermission } from "@/services/authorization.service";
+import { assertPermission } from "@/services/auth/authorization.service";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";

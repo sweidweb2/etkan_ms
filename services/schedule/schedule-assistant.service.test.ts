@@ -11,19 +11,19 @@ import * as instructorSubjectCapabilityRepository from "@/repositories/instructo
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
-import * as authorizationService from "@/services/authorization.service";
+import * as authorizationService from "@/services/auth/authorization.service";
 import {
   listCapabilityMatrixCatalog,
   listInstructorsCatalog,
   listSlotsThisWeekCatalog,
   listSubjectsCatalog,
-} from "@/services/schedule-assistant.service";
+} from "@/services/schedule/schedule-assistant.service";
 
 vi.mock("@/repositories/instructor-subject-capability.repository");
 vi.mock("@/repositories/instructor-schedule-slot.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/subject.repository");
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   assertPermission: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -115,7 +115,7 @@ describe("schedule-assistant catalog loaders", () => {
       ])
     );
     vi.mocked(
-      instructorSubjectCapabilityRepository.listAllInstructorSubjectCapabilities
+      instructorSubjectCapabilityRepository.listInstructorSubjectCapabilitiesByUserIds
     ).mockResolvedValue(
       emptyListResult([
         {
@@ -142,6 +142,9 @@ describe("schedule-assistant catalog loaders", () => {
     expect(result.matrix).toEqual([{ u: "alice", sub: ["Arduino Basics"] }]);
     expect(result.truncated).toBe(false);
     expect(result.total).toBe(1);
+    expect(
+      instructorSubjectCapabilityRepository.listInstructorSubjectCapabilitiesByUserIds
+    ).toHaveBeenCalledWith(adminClient, [instructorId]);
   });
 
   it("projects free slots onto this week Friday and skips busy", async () => {

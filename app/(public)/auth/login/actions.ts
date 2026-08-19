@@ -5,7 +5,7 @@ import { checkAuthRateLimit } from "@/lib/rate-limit/auth-rate-limit";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { parseLoginFormData } from "@/lib/validators/auth/form-data";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { login } from "@/services/auth.service";
+import { login } from "@/services/auth/auth.service";
 import type { LoginActionState } from "@/types/auth";
 
 export async function loginAction(

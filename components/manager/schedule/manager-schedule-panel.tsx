@@ -33,6 +33,7 @@ import {
   createWeeklyScheduleSlotAction,
   copyWeeklyScheduleSlotsAction,
   deleteWeeklyScheduleSlotAction,
+  loadWeeklyScheduleSlotsAction,
   previewCopyLastWeekScheduleAction,
   updateWeeklyScheduleSlotAction,
 } from "@/app/manager/schedule/actions";
@@ -319,15 +320,36 @@ export function ManagerSchedulePanel({
   const isAltDupDragRef = useRef(false);
   const dragSourceRef = useRef<DragSourceSnapshot | null>(null);
   const pendingTempIdsRef = useRef<Set<string>>(new Set());
+  const ssrWeekStartRef = useRef(weekStart);
 
   useEffect(() => {
-    setSessions((prev) => {
-      const pendingTemps = prev.filter((session) =>
-        pendingTempIdsRef.current.has(session.id)
-      );
-      return [...initialSessions, ...pendingTemps];
+    if (weekStart === ssrWeekStartRef.current) {
+      setSessions((prev) => {
+        const pendingTemps = prev.filter((session) =>
+          pendingTempIdsRef.current.has(session.id)
+        );
+        return [...initialSessions, ...pendingTemps];
+      });
+      return;
+    }
+
+    let cancelled = false;
+    void loadWeeklyScheduleSlotsAction(weekStart).then((next) => {
+      if (cancelled) {
+        return;
+      }
+      setSessions((prev) => {
+        const pendingTemps = prev.filter((session) =>
+          pendingTempIdsRef.current.has(session.id)
+        );
+        return [...next, ...pendingTemps];
+      });
     });
-  }, [initialSessions]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [weekStart, initialSessions]);
 
   const events = useMemo<EventInput[]>(() => {
     const filtered =

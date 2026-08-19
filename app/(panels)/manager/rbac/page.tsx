@@ -4,7 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getPermissionCatalogForManager,
   listRolesWithPermissionKeys,
-} from "@/services/rbac.service";
+} from "@/services/auth/rbac.service";
 
 export default async function ManagerRbacPage() {
   const user = await getSessionUser();

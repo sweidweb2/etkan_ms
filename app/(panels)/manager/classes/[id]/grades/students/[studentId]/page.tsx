@@ -17,8 +17,8 @@ import {
 } from "@/lib/constants/routes";
 import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassForManager } from "@/services/class.service";
-import { getStudentClassGradeDetailForManager } from "@/services/student-course-grade.service";
+import { getClassForManager } from "@/services/classes/class.service";
+import { getStudentClassGradeDetailForManager } from "@/services/classes/student-course-grade.service";
 
 type ManagerClassStudentGradesDetailPageProps = {
   params: Promise<{ id: string; studentId: string }>;

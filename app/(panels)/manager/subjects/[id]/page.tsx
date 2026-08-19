@@ -5,7 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getSubjectForManager,
   listSubjectClassesForManager,
-} from "@/services/subject.service";
+} from "@/services/classes/subject.service";
 
 type ManagerSubjectDetailPageProps = {
   params: Promise<{ id: string }>;

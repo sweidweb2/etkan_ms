@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import type { AuditActor } from "@/services/audit-log.service";
-import { listAvailableStudentsForClass } from "@/services/class.service";
-import { computeAllStudentCourseGradesForManager } from "@/services/student-course-grade.service";
-import * as classService from "@/services/class.service";
-import * as studentService from "@/services/student.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
+import { listAvailableStudentsForClass } from "@/services/classes/class.service";
+import { computeAllStudentCourseGradesForManager } from "@/services/classes/student-course-grade.service";
+import * as classService from "@/services/classes/class.service";
+import * as studentService from "@/services/students/student.service";
 
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-course-grade.repository");
@@ -13,15 +13,15 @@ vi.mock("@/repositories/final-exam.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/task.repository");
-vi.mock("@/services/student.service", () => ({
+vi.mock("@/services/students/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/class.service", async (importOriginal) => {
+vi.mock("@/services/classes/class.service", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/services/class.service")>();
+    await importOriginal<typeof import("@/services/classes/class.service")>();
   return {
     ...actual,
     assertClassGradesUnlockedForManager: vi
@@ -33,7 +33,7 @@ vi.mock("@/services/class.service", async (importOriginal) => {
 });
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

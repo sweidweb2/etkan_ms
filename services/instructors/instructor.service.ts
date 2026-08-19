@@ -11,7 +11,7 @@ import * as subjectRepository from "@/repositories/subject.repository";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { saveInstructorCapabilitiesSchema } from "@/lib/validators/manager/save-instructor-capabilities";
 import { addInstructorsSchema } from "@/lib/validators/manager/add-instructors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -61,23 +61,16 @@ async function mapProfilesWithEmail(
 async function fetchInstructorsPageForManager(
   adminClient: Supabase
 ): Promise<ManagerInstructorsPageData> {
-  const [instructorsResult, subjectsResult, capabilitiesResult] =
-    await Promise.all([
-      profileRepository.listInstructorProfiles(adminClient),
-      subjectRepository.listSubjects(adminClient),
-      instructorSubjectCapabilityRepository.listAllInstructorSubjectCapabilities(
-        adminClient
-      ),
-    ]);
+  const [instructorsResult, subjectsResult] = await Promise.all([
+    profileRepository.listInstructorProfiles(adminClient),
+    subjectRepository.listSubjects(adminClient),
+  ]);
 
   if (instructorsResult.error) {
     throw new Error(instructorsResult.error.message);
   }
   if (subjectsResult.error) {
     throw new Error(subjectsResult.error.message);
-  }
-  if (capabilitiesResult.error) {
-    throw new Error(capabilitiesResult.error.message);
   }
 
   const subjects = (subjectsResult.data ?? [])
@@ -93,13 +86,23 @@ async function fetchInstructorsPageForManager(
     (a.username ?? a.email).localeCompare(b.username ?? b.email)
   );
 
-  const instructorIds = new Set(instructors.map((row) => row.id));
+  const instructorIds = instructors.map((row) => row.id);
   const subjectIds = new Set(subjects.map((row) => row.id));
+
+  const capabilitiesResult =
+    await instructorSubjectCapabilityRepository.listInstructorSubjectCapabilitiesByUserIds(
+      adminClient,
+      instructorIds
+    );
+
+  if (capabilitiesResult.error) {
+    throw new Error(capabilitiesResult.error.message);
+  }
 
   const capabilities = (capabilitiesResult.data ?? [])
     .filter(
       (row) =>
-        instructorIds.has(row.user_id) && subjectIds.has(row.subject_id)
+        instructorIds.includes(row.user_id) && subjectIds.has(row.subject_id)
     )
     .map((row) => ({
       user_id: row.user_id,
@@ -195,34 +198,38 @@ export async function saveInstructorSubjectCapabilities(
     return { success: false, error: "Please fix the capability selections." };
   }
 
-  const [instructorsResult, subjectsResult, existingResult] = await Promise.all(
-    [
-      profileRepository.listInstructorProfiles(adminClient),
-      subjectRepository.listSubjects(adminClient),
-      instructorSubjectCapabilityRepository.listAllInstructorSubjectCapabilities(
-        adminClient
-      ),
-    ]
-  );
+  const instructorIdsResult =
+    await profileRepository.listInstructorProfileIds(adminClient);
 
-  if (instructorsResult.error) {
-    return { success: false, error: instructorsResult.error.message };
+  if (instructorIdsResult.error) {
+    return { success: false, error: instructorIdsResult.error.message };
   }
-  if (subjectsResult.error) {
-    return { success: false, error: subjectsResult.error.message };
+
+  const instructorIds = (instructorIdsResult.data ?? []).map((row) => row.id);
+
+  const [subjectIdsResult, existingResult] = await Promise.all([
+    subjectRepository.listSubjectIds(adminClient),
+    instructorSubjectCapabilityRepository.listInstructorSubjectCapabilitiesByUserIds(
+      adminClient,
+      instructorIds
+    ),
+  ]);
+
+  if (subjectIdsResult.error) {
+    return { success: false, error: subjectIdsResult.error.message };
   }
+
+  const subjectIds = new Set((subjectIdsResult.data ?? []).map((row) => row.id));
+
   if (existingResult.error) {
     return { success: false, error: existingResult.error.message };
   }
 
-  const instructorIds = new Set(
-    (instructorsResult.data ?? []).map((row) => row.id)
-  );
-  const subjectIds = new Set((subjectsResult.data ?? []).map((row) => row.id));
+  const instructorIdSet = new Set(instructorIds);
 
   const desired = parsed.data.capabilities.filter(
     (pair) =>
-      instructorIds.has(pair.user_id) && subjectIds.has(pair.subject_id)
+      instructorIdSet.has(pair.user_id) && subjectIds.has(pair.subject_id)
   );
 
   const desiredKeys = new Set(
@@ -230,7 +237,7 @@ export async function saveInstructorSubjectCapabilities(
   );
 
   const existing = (existingResult.data ?? []).filter((row) =>
-    instructorIds.has(row.user_id)
+    instructorIdSet.has(row.user_id)
   );
   const existingKeys = new Set(
     existing.map((row) => pairKey(row.user_id, row.subject_id))

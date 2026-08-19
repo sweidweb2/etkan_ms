@@ -10,7 +10,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
   getUnauthorizedError,
-} from "@/services/authorization.service";
+} from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
@@ -22,8 +22,8 @@ import * as studentProfileRepository from "@/repositories/student-profile.reposi
 import {
   recordManagerAuditLog,
   type AuditActor,
-} from "@/services/audit-log.service";
-import { syncAuthUserRole } from "@/services/role.service";
+} from "@/services/ops/audit-log.service";
+import { syncAuthUserRole } from "@/services/auth/role.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerUserRow } from "@/types/manager-user";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -254,10 +254,10 @@ export async function createStaffUser(
   const normalizedUsername = username.trim();
   const normalizedEmail = email.trim();
 
-  const existingUsername = await profileRepository.findProfileByUsername(
-    adminClient,
-    normalizedUsername
-  );
+  const [existingUsername, existingEmail] = await Promise.all([
+    profileRepository.findProfileByUsername(adminClient, normalizedUsername),
+    authRepository.findAuthUserByEmail(adminClient, normalizedEmail),
+  ]);
 
   if (existingUsername.data) {
     return {
@@ -266,11 +266,6 @@ export async function createStaffUser(
       fieldErrors: { username: ["This username is already taken."] },
     };
   }
-
-  const existingEmail = await authRepository.findAuthUserByEmail(
-    adminClient,
-    normalizedEmail
-  );
 
   if (existingEmail.error) {
     return {
@@ -444,10 +439,29 @@ export async function updateManagerUser(
     return { success: false, error: "User not found." };
   }
 
-  const existingUsername = await profileRepository.findProfileByUsername(
-    adminClient,
-    normalizedUsername
-  );
+  const preUpdateLookups = await Promise.all([
+    profileRepository.findProfileByUsername(adminClient, normalizedUsername),
+    authRepository.findAuthUserByEmail(adminClient, normalizedEmail),
+    authRepository.getAuthUserById(adminClient, userId),
+    ...(role === ROLES.STUDENT
+      ? [
+          studentProfileRepository.findStudentProfileByUserId(
+            adminClient,
+            userId
+          ),
+        ]
+      : []),
+  ]);
+
+  const existingUsername = preUpdateLookups[0];
+  const existingEmail = preUpdateLookups[1];
+  const authUserResult = preUpdateLookups[2];
+  const existingStudentResult =
+    role === ROLES.STUDENT
+      ? (preUpdateLookups[3] as Awaited<
+          ReturnType<typeof studentProfileRepository.findStudentProfileByUserId>
+        >)
+      : null;
 
   if (existingUsername.data && existingUsername.data.id !== userId) {
     return {
@@ -456,11 +470,6 @@ export async function updateManagerUser(
       fieldErrors: { username: ["This username is already taken."] },
     };
   }
-
-  const existingEmail = await authRepository.findAuthUserByEmail(
-    adminClient,
-    normalizedEmail
-  );
 
   if (existingEmail.error) {
     return {
@@ -476,11 +485,6 @@ export async function updateManagerUser(
       fieldErrors: { email: ["This email is already in use."] },
     };
   }
-
-  const authUserResult = await authRepository.getAuthUserById(
-    adminClient,
-    userId
-  );
 
   if (authUserResult.error || !authUserResult.data?.user) {
     return { success: false, error: "User not found." };
@@ -564,25 +568,19 @@ export async function updateManagerUser(
       };
     }
 
-    const existingStudent =
-      await studentProfileRepository.findStudentProfileByUserId(
-        adminClient,
-        userId
-      );
-
-    if (existingStudent.error) {
+    if (existingStudentResult?.error) {
       return {
         success: false,
-        error: mapUpdateManagerUserError(existingStudent.error.message),
+        error: mapUpdateManagerUserError(existingStudentResult.error.message),
       };
     }
 
-    if (existingStudent.data) {
+    if (existingStudentResult?.data) {
       // Existing student_profiles row: override with the submitted form data.
       const { data: updatedStudent, error: studentProfileError } =
         await studentProfileRepository.updateStudentProfileById(
           adminClient,
-          existingStudent.data.id,
+          existingStudentResult.data.id,
           {
             full_name: normalizedFullName,
             birth_date: normalizedBirthDate,
@@ -625,26 +623,11 @@ export async function updateManagerUser(
         };
       }
 
-      const createdDetails =
-        await studentProfileRepository.findStudentProfileById(
-          adminClient,
-          createdStudent.id
-        );
-
-      if (createdDetails.error || !createdDetails.data) {
-        return {
-          success: false,
-          error: mapUpdateManagerUserError(
-            createdDetails.error?.message ?? "Failed to create student profile."
-          ),
-        };
-      }
-
-      studentProfileId = createdDetails.data.id;
-      studentFullName = createdDetails.data.full_name;
-      studentBirthDate = createdDetails.data.birth_date;
-      studentPhone = createdDetails.data.phone;
-      studentStatusValue = mapStudentStatus(createdDetails.data.status);
+      studentProfileId = createdStudent.id;
+      studentFullName = normalizedFullName;
+      studentBirthDate = normalizedBirthDate;
+      studentPhone = normalizedPhone;
+      studentStatusValue = studentStatus;
     }
   } else {
     // Intentionally leave student_profiles intact when demoting so the account

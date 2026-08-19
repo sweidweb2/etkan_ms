@@ -9,7 +9,7 @@ import { emailField } from "@/lib/validators/auth/fields";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
-import { getUnauthorizedError } from "@/services/authorization.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 
 export type UpdateMaintenanceModeActionState = {

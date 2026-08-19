@@ -10,7 +10,7 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStaffUserFormData } from "@/lib/validators/manager/create-user";
 import { parseUpdateManagerUserFormData } from "@/lib/validators/manager/update-user";
-import { createStaffUser, updateManagerUser } from "@/services/user.service";
+import { createStaffUser, updateManagerUser } from "@/services/auth/user.service";
 import type {
   CreateStaffUserActionState,
   UpdateManagerUserActionState,

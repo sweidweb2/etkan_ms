@@ -1,7 +1,7 @@
 import { ManageRelationshipsPanel } from "@/components/manager/relationships/manage-relationships-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listRelationshipsForManager } from "@/services/relationship.service";
+import { listRelationshipsForManager } from "@/services/relationships/relationship.service";
 
 export default async function ManagerRelationshipsPage() {
   const adminClient = createSupabaseAdminClient();

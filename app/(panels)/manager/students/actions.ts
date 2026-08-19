@@ -6,11 +6,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseChangeStudentStatusFormData } from "@/lib/validators/manager/change-student-status";
 import { parseCreateStudentFormData } from "@/lib/validators/manager/create-student";
 import { parseUpdateStudentFormData } from "@/lib/validators/manager/update-student";
-import { createStudent, updateStudent } from "@/services/student.service";
+import { createStudent, updateStudent } from "@/services/students/student.service";
 import {
   changeStudentStatusForManager,
   getStudentStatusSideEffectsPreview,
-} from "@/services/student-status.service";
+} from "@/services/students/student-status.service";
 import type {
   ChangeStudentStatusActionState,
   CreateStudentActionState,

@@ -6,7 +6,7 @@ import {
   getPaymentPhaseForManager,
   listPaymentPhaseTransferOptionsForManager,
   listSppsForPhaseForManager,
-} from "@/services/payment-phase.service";
+} from "@/services/accounting/payment-phase.service";
 
 type ManagerPaymentPhaseDetailPageProps = {
   params: Promise<{ id: string }>;

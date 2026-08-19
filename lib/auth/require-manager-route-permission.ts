@@ -5,7 +5,7 @@ import {
   getDashboardRouteForRole,
   ROUTES,
 } from "@/lib/constants/routes";
-import { hasPermissionInSet } from "@/services/authorization.service";
+import { hasPermissionInSet } from "@/services/auth/authorization.service";
 
 /**
  * Deny manager deep links when the matching view permission is missing.

@@ -8,12 +8,12 @@ import {
   assertClassStructureUnlockedForComputedGrades,
   assertStudentGradeInputsUnlockedForComputedGrade,
   getClassComputedGradeLockStateForManager,
-} from "@/services/class-computed-grade-lock.service";
+} from "@/services/classes/class-computed-grade-lock.service";
 
 vi.mock("@/repositories/student-course-grade.repository");
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

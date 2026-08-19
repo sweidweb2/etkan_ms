@@ -10,7 +10,7 @@ import {
   getRegistrationDocumentSignedUrlsForManager,
   updateRegistrationApplicationForManager,
   updateRegistrationApplicationStatusForManager,
-} from "@/services/student-registration.service";
+} from "@/services/students/student-registration.service";
 import type {
   GetRegistrationDocumentSignedUrlsActionState,
   UpdateRegistrationStatusActionState,

@@ -4,7 +4,7 @@ import * as rateLimit from "@/lib/rate-limit/public-registration-rate-limit";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
-import * as authorizationService from "@/services/authorization.service";
+import * as authorizationService from "@/services/auth/authorization.service";
 import {
   getRegistrationApplicationDetailForManager,
   listRegistrationApplicationsForManager,
@@ -12,7 +12,7 @@ import {
   tempUploadRegistrationDocument,
   updateRegistrationApplicationForManager,
   updateRegistrationApplicationStatusForManager,
-} from "@/services/student-registration.service";
+} from "@/services/students/student-registration.service";
 
 vi.mock("@/repositories/student-registration-application.repository");
 vi.mock("@/repositories/student-registration-document.repository");
@@ -25,7 +25,7 @@ vi.mock("@/lib/rate-limit/public-registration-rate-limit", () => ({
     allowed: true as const,
   })),
 }));
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -345,12 +345,6 @@ describe("student-registration.service", () => {
       data: { ...applicationRecord, status: "missing", notes: "Need ID" },
       error: null,
     } as never);
-    vi.mocked(
-      documentRepository.listStudentRegistrationDocumentsByApplicationId
-    ).mockResolvedValue({
-      data: [],
-      error: null,
-    } as never);
 
     const result = await updateRegistrationApplicationStatusForManager(
       adminClient,
@@ -384,12 +378,6 @@ describe("student-registration.service", () => {
       registrationRepository.updateStudentRegistrationApplication
     ).mockResolvedValue({
       data: { ...applicationRecord, full_name: "Ada Updated" },
-      error: null,
-    } as never);
-    vi.mocked(
-      documentRepository.listStudentRegistrationDocumentsByApplicationId
-    ).mockResolvedValue({
-      data: [],
       error: null,
     } as never);
 

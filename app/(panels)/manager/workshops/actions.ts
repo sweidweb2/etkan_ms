@@ -52,7 +52,11 @@ import {
   updateWorkshopProposalNotesForManager,
   updateWorkshopSessionForManager,
   uploadWorkshopDocumentForManager,
-} from "@/services/workshop.service";
+  listWorkshopInstructorCandidatesForManager,
+  listWorkshopPaymentsForManager,
+  listWorkshopScheduleSlotsForManager,
+} from "@/services/workshops/workshop.service";
+import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
 import type {
   AddWorkshopInstructorActionState,
   ChangeWorkshopStatusActionState,
@@ -63,6 +67,9 @@ import type {
   DeleteWorkshopDocumentActionState,
   DeleteWorkshopPaymentActionState,
   DeleteWorkshopSessionActionState,
+  ManagerWorkshopInstructorCandidate,
+  ManagerWorkshopPaymentRow,
+  ManagerWorkshopPaymentSummary,
   RemoveWorkshopInstructorActionState,
   RenameWorkshopDocumentActionState,
   UpdateWorkshopActionState,
@@ -71,6 +78,69 @@ import type {
   UpdateWorkshopSessionActionState,
   UploadWorkshopDocumentActionState,
 } from "@/types/manager-workshop";
+
+export async function loadWorkshopPaymentsAction(
+  workshopId: string
+): Promise<{
+  payments: ManagerWorkshopPaymentRow[];
+  summary: ManagerWorkshopPaymentSummary;
+} | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listWorkshopPaymentsForManager(
+      adminClient,
+      actor.userId,
+      workshopId
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function loadWorkshopInstructorCandidatesAction(
+  workshopId: string
+): Promise<ManagerWorkshopInstructorCandidate[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listWorkshopInstructorCandidatesForManager(
+      adminClient,
+      actor.userId,
+      workshopId
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function loadWorkshopScheduleSlotsAction(
+  workshopId: string
+): Promise<ManagerInstructorScheduleSession[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listWorkshopScheduleSlotsForManager(
+      adminClient,
+      actor.userId,
+      workshopId
+    );
+  } catch {
+    return [];
+  }
+}
 
 export async function createWorkshopAction(
   _prevState: CreateWorkshopActionState,

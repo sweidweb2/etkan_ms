@@ -16,7 +16,7 @@ import * as studentTaskRepository from "@/repositories/student-task.repository";
 import {
   listStudentActivityForManager,
   listStudentActivityForSelf,
-} from "@/services/student-activity.service";
+} from "@/services/students/student-activity.service";
 import { ROLES } from "@/lib/constants/roles";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -67,7 +67,7 @@ vi.mock("@/repositories/profile.repository", () => ({
   findProfileById: vi.fn(),
 }));
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");

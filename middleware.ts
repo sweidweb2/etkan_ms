@@ -31,7 +31,7 @@ import {
   roleFromJwtClaims,
   resolveUserRole,
   resolveUserRoleForMiddleware,
-} from "@/services/role.service";
+} from "@/services/auth/role.service";
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";

@@ -1,7 +1,7 @@
 import { ManageStudentsPanel } from "@/components/manager/students/manage-students-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listStudentsForManager } from "@/services/student.service";
+import { listStudentsForManager } from "@/services/students/student.service";
 
 export default async function ManagerStudentsPage() {
   const adminClient = createSupabaseAdminClient();

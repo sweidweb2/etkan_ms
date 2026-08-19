@@ -8,10 +8,10 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
-import * as profileService from "@/services/profile.service";
-import * as roleService from "@/services/role.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
+import * as profileService from "@/services/auth/profile.service";
+import * as roleService from "@/services/auth/role.service";
 import {
   createStudent,
   getStudentDetailStatsForManager,
@@ -19,7 +19,7 @@ import {
   listStudentsForManager,
   listStudentsWithoutInProgressClassForManager,
   updateStudent,
-} from "@/services/student.service";
+} from "@/services/students/student.service";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 
 vi.mock("@/repositories/auth.repository");
@@ -28,11 +28,11 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-task.repository");
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/profile.service");
-vi.mock("@/services/role.service");
+vi.mock("@/services/auth/profile.service");
+vi.mock("@/services/auth/role.service");
 vi.mock("next/cache", () => ({
   unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
 }));
@@ -41,7 +41,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -100,8 +100,8 @@ function mockStudentLookups() {
     statusText: "OK",
   });
 
-  vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
-    data: { user: authUser },
+  vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
+    data: new Map([["user-1", "jane@school.com"]]),
     error: null,
   });
 }
@@ -222,51 +222,14 @@ describe("getStudentDetailStatsForManager", () => {
       statusText: "OK",
     });
 
-    vi.mocked(studentClassRepository.listStudentClassesByUserId).mockResolvedValue({
-      data: [
-        {
-          id: "sc-1",
-          user_id: "user-1",
-          class_id: "class-done",
-          joined_at: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: "sc-2",
-          user_id: "user-1",
-          class_id: "class-active",
-          joined_at: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: "sc-3",
-          user_id: "user-1",
-          class_id: "class-2",
-          joined_at: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: "sc-4",
-          user_id: "user-1",
-          class_id: "class-3",
-          joined_at: "2026-01-01T00:00:00.000Z",
-        },
-      ],
+    vi.mocked(
+      studentClassRepository.countDoneStudentClassesByUserId
+    ).mockResolvedValue({
+      count: 1,
       error: null,
-      count: null,
       status: 200,
       statusText: "OK",
-    } as never);
-
-    vi.mocked(classRepository.listClassesWithSubjectByIds).mockResolvedValue({
-      data: [
-        { id: "class-done", status: "done", name: "Done", subjects: { name: "S" } },
-        { id: "class-active", status: "in_progress", name: "Active", subjects: { name: "S" } },
-        { id: "class-2", status: "scheduled", name: "Two", subjects: { name: "S" } },
-        { id: "class-3", status: "scheduled", name: "Three", subjects: { name: "S" } },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
+    });
 
     vi.mocked(studentTaskRepository.countStudentTasksByStudentId).mockResolvedValue({
       count: 10,
@@ -296,11 +259,13 @@ describe("getStudentDetailStatsForManager", () => {
       tasksTotal: 10,
     });
 
-    expect(studentClassRepository.listStudentClassesByUserId).toHaveBeenCalledWith(
+    expect(studentClassRepository.countStudentClassesByUserId).toHaveBeenCalledWith(
       adminClient,
       "user-1"
     );
-    expect(classRepository.listClassesWithSubjectByIds).toHaveBeenCalled();
+    expect(
+      studentClassRepository.countDoneStudentClassesByUserId
+    ).toHaveBeenCalledWith(adminClient, "user-1");
   });
 });
 
@@ -555,11 +520,19 @@ describe("updateStudent", () => {
       statusText: "OK",
     });
 
+    vi.mocked(authRepository.getAuthUserById).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+
     const result = await updateStudent(
       adminClient,
       actor.userId,
       actor,
-      updateInput
+      {
+        ...updateInput,
+        username: "othername",
+      }
     );
 
     expect(result.success).toBe(false);

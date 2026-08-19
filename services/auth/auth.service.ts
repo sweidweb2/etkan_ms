@@ -11,14 +11,14 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { isNavTimingEnabled, navTimingServerLog } from "@/lib/debug/nav-timing";
-import { ensureStudentRegistration } from "@/services/profile.service";
-import { getPermissionsForRoleCached } from "@/services/authorization.service";
+import { ensureStudentRegistration } from "@/services/auth/profile.service";
+import { getPermissionsForRoleCached } from "@/services/auth/authorization.service";
 import {
   roleFromAuthMetadata,
   roleFromJwtClaims,
   syncAuthUserRole,
-} from "@/services/role.service";
-import { displayNameFromAuthUser } from "@/services/user-display.service";
+} from "@/services/auth/role.service";
+import { displayNameFromAuthUser } from "@/services/auth/user-display.service";
 import type { LoginResult, SignupResult } from "@/types/auth";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";

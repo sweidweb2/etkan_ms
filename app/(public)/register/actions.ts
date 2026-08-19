@@ -10,7 +10,7 @@ import {
   removeTempRegistrationDocument,
   submitPublicRegistrationApplication,
   tempUploadRegistrationDocument,
-} from "@/services/student-registration.service";
+} from "@/services/students/student-registration.service";
 import type {
   RemoveTempRegistrationDocumentActionState,
   SubmitPublicRegistrationActionState,

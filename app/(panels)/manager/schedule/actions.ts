@@ -12,14 +12,16 @@ import {
   copyLastWeekScheduleForManager,
   createWeeklyScheduleSlotForManager,
   deleteWeeklyScheduleSlotForManager,
+  listWeeklyScheduleSlotsForManager,
   previewCopyLastWeekScheduleForManager,
   updateWeeklyScheduleSlotForManager,
-} from "@/services/weekly-schedule-slot.service";
+} from "@/services/schedule/weekly-schedule-slot.service";
 import type {
   CopyWeeklySchedulePreview,
   CopyWeeklyScheduleSlotActionState,
   CreateWeeklyScheduleSlotActionState,
   DeleteWeeklyScheduleSlotActionState,
+  ManagerWeeklyScheduleSession,
   UpdateWeeklyScheduleSlotActionState,
 } from "@/types/manager-weekly-schedule";
 
@@ -185,4 +187,24 @@ export async function copyWeeklyScheduleSlotsAction(
     createdCount: result.createdCount,
     skippedCount: result.skippedCount,
   };
+}
+
+export async function loadWeeklyScheduleSlotsAction(
+  weekStart: string
+): Promise<ManagerWeeklyScheduleSession[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listWeeklyScheduleSlotsForManager(
+      adminClient,
+      actor.userId,
+      { weekStart }
+    );
+  } catch {
+    return [];
+  }
 }

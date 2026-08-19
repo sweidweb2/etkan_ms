@@ -1,17 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
-import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import * as accountingSync from "@/services/accounting-sync.service";
-import * as auditLogService from "@/services/audit-log.service";
-import type { AuditActor } from "@/services/audit-log.service";
-import { transferStudentBetweenClassesForManager } from "@/services/class.service";
-import * as sessionService from "@/services/session.service";
+import * as accountingSync from "@/services/accounting/accounting-sync.service";
+import * as auditLogService from "@/services/ops/audit-log.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
+import { transferStudentBetweenClassesForManager } from "@/services/classes/class.service";
+import * as sessionService from "@/services/classes/session.service";
 
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/class.repository");
@@ -21,23 +19,23 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-profile.repository");
-vi.mock("@/services/accounting-sync.service");
-vi.mock("@/services/student.service", () => ({
+vi.mock("@/services/accounting/accounting-sync.service");
+vi.mock("@/services/students/student.service", () => ({
   listStudentsForManager: vi.fn(),
 }));
-vi.mock("@/services/session.service", () => ({
+vi.mock("@/services/classes/session.service", () => ({
   seedLateJoinAttendeesForStudent: vi.fn().mockResolvedValue(undefined),
   seedLateJoinStudentTasksForStudent: vi.fn().mockResolvedValue(undefined),
   ensureSessionAttendeesForMembers: vi.fn(),
 }));
-vi.mock("@/services/class-computed-grade-lock.service", () => ({
+vi.mock("@/services/classes/class-computed-grade-lock.service", () => ({
   assertClassStructureUnlockedForComputedGrades: vi.fn(),
   assertStudentGradeInputsUnlockedForComputedGrade: vi.fn(),
 }));
-vi.mock("@/services/audit-log.service", () => ({
+vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("@/services/authorization.service", () => ({
+vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
@@ -136,58 +134,24 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
     );
 
     vi.mocked(
-      studentClassRepository.findStudentClassByUserAndClass
-    ).mockImplementation(async (_client, _userId, classId) => {
-      if (classId === fromClassId) {
-        return {
-          data: {
-            id: fromEnrollmentId,
-            user_id: userId,
-            class_id: fromClassId,
-            joined_at: "2026-01-01T00:00:00.000Z",
-          },
-          error: null,
-          count: null,
-          status: 200,
-          statusText: "OK",
-        } as never;
-      }
-
-      return {
-        data: null,
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      } as never;
-    });
-
-    vi.mocked(studentClassRepository.deleteStudentClassById).mockResolvedValue({
-      data: {
-        id: fromEnrollmentId,
-        user_id: userId,
-        class_id: fromClassId,
-        joined_at: "2026-01-01T00:00:00.000Z",
-      },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-
-    vi.mocked(
-      studentClassRepository.createStudentClassEnrollment
+      studentClassRepository.transferStudentBetweenClasses
     ).mockResolvedValue({
       data: {
-        id: toEnrollmentId,
-        user_id: userId,
-        class_id: toClassId,
-        joined_at: "2026-07-31T00:00:00.000Z",
+        ok: true,
+        from: {
+          id: fromEnrollmentId,
+          user_id: userId,
+          class_id: fromClassId,
+          joined_at: "2026-01-01T00:00:00.000Z",
+        },
+        to: {
+          id: toEnrollmentId,
+          user_id: userId,
+          class_id: toClassId,
+          joined_at: "2026-07-31T00:00:00.000Z",
+        },
       },
       error: null,
-      count: null,
-      status: 201,
-      statusText: "Created",
     } as never);
 
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
@@ -208,34 +172,10 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
       error: null,
     } as never);
 
-    vi.mocked(finalExamRepository.findFinalExamByClassId).mockResolvedValue({
-      data: null,
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-
     vi.mocked(
-      studentClassRepository.countStudentClassesByClassId
+      finalExamRepository.ensureEnrollmentFinalExamGrade
     ).mockResolvedValue({
-      count: 1,
-      error: null,
       data: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(
-      classTeacherRepository.countClassTeachersByClassId
-    ).mockResolvedValue({
-      count: 0,
-      error: null,
-      data: null,
-      status: 200,
-      statusText: "OK",
-    } as never);
-    vi.mocked(sessionRepository.listSessionCountsByClassIds).mockResolvedValue({
-      data: [],
       error: null,
     } as never);
 
@@ -256,6 +196,9 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
       expect(result.to_class_id).toBe(toClassId);
       expect(result.student.user_id).toBe(userId);
       expect(result.student.student_profile_id).toBe(studentProfileId);
+      expect(result.message).toBe(
+        "Student Transfer transferred. Destination billing was not auto-assigned."
+      );
     }
 
     expect(accountingSync.onStudentLeftClass).toHaveBeenCalledWith(
@@ -272,17 +215,23 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
     );
     expect(accountingSync.onStudentJoinedClass).not.toHaveBeenCalled();
     expect(
+      studentClassRepository.transferStudentBetweenClasses
+    ).toHaveBeenCalledWith(adminClient, userId, fromClassId, toClassId);
+    expect(
       studentClassRepository.createStudentClassEnrollment
-    ).toHaveBeenCalledWith(
+    ).not.toHaveBeenCalled();
+    expect(studentClassRepository.deleteStudentClassById).not.toHaveBeenCalled();
+    expect(studentClassRepository.enrollStudentInClass).not.toHaveBeenCalled();
+    expect(
+      studentClassRepository.findStudentClassByUserAndClass
+    ).not.toHaveBeenCalled();
+    expect(sessionService.seedLateJoinAttendeesForStudent).toHaveBeenCalledWith(
       adminClient,
-      expect.objectContaining({
-        user_id: userId,
-        class_id: toClassId,
-      })
+      toClassId,
+      userId
     );
-    expect(studentClassRepository.deleteStudentClassById).toHaveBeenCalledWith(
-      adminClient,
-      fromEnrollmentId
-    );
+    expect(
+      sessionService.seedLateJoinStudentTasksForStudent
+    ).toHaveBeenCalledWith(adminClient, toClassId, userId);
   });
 });

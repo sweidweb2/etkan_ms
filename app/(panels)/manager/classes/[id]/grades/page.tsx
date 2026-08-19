@@ -13,8 +13,8 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getManagerClassDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassForManager, getClassFinalExamForManager } from "@/services/class.service";
-import { listClassStudentGradesForManager } from "@/services/student-course-grade.service";
+import { getClassForManager, getClassFinalExamForManager } from "@/services/classes/class.service";
+import { listClassStudentGradesForManager } from "@/services/classes/student-course-grade.service";
 
 type ManagerClassGradesPageProps = {
   params: Promise<{ id: string }>;

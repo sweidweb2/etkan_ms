@@ -1,10 +1,13 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { deleteWorkshopPaymentAction } from "@/app/manager/workshops/actions";
+import {
+  deleteWorkshopPaymentAction,
+  loadWorkshopPaymentsAction,
+} from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { AddWorkshopPaymentDialog } from "@/components/manager/workshops/add-workshop-payment-dialog";
@@ -42,10 +45,21 @@ const initialDeleteState: DeleteWorkshopPaymentActionState = {};
 
 type WorkshopPaymentsSectionProps = {
   workshopId: string;
-  payments: ManagerWorkshopPaymentRow[];
-  summary: ManagerWorkshopPaymentSummary;
+  workshopPrice: number | null;
   mutationsLocked?: boolean;
 };
+
+function emptyPaymentSummary(
+  price: number | null
+): ManagerWorkshopPaymentSummary {
+  return {
+    credits: 0,
+    debits: 0,
+    net: 0,
+    price,
+    remaining: price,
+  };
+}
 
 function formatMethod(method: ManagerWorkshopPaymentRow["payment_method"]) {
   if (!method) {
@@ -59,11 +73,15 @@ function formatMethod(method: ManagerWorkshopPaymentRow["payment_method"]) {
 
 export function WorkshopPaymentsSection({
   workshopId,
-  payments,
-  summary,
+  workshopPrice,
   mutationsLocked = false,
 }: WorkshopPaymentsSectionProps) {
   const router = useRouter();
+  const [payments, setPayments] = useState<ManagerWorkshopPaymentRow[]>([]);
+  const [summary, setSummary] = useState<ManagerWorkshopPaymentSummary>(() =>
+    emptyPaymentSummary(workshopPrice)
+  );
+  const [isLoading, setIsLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingPayment, setEditingPayment] =
     useState<ManagerWorkshopPaymentRow | null>(null);
@@ -89,6 +107,24 @@ export function WorkshopPaymentsSection({
     setDeletingPayment(null);
     router.refresh();
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    void loadWorkshopPaymentsAction(workshopId).then((result) => {
+      if (cancelled) {
+        return;
+      }
+      if (result) {
+        setPayments(result.payments);
+        setSummary(result.summary);
+      }
+      setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [workshopId]);
 
   function handleConfirmDelete() {
     if (!deletingPayment) {
@@ -169,9 +205,11 @@ export function WorkshopPaymentsSection({
       <ClassTabCollapsibleSection
         title="Payments"
         description={
-          payments.length === 0
-            ? "No payments yet"
-            : `${payments.length} payment${payments.length === 1 ? "" : "s"}`
+          isLoading
+            ? "Loading payments…"
+            : payments.length === 0
+              ? "No payments yet"
+              : `${payments.length} payment${payments.length === 1 ? "" : "s"}`
         }
         storageKey={`workshop-details-payments-v2:${workshopId}`}
         defaultOpen
@@ -216,7 +254,12 @@ export function WorkshopPaymentsSection({
             />
           </div>
 
-          {payments.length === 0 ? (
+          {isLoading ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <InlineSpinner />
+              Loading payments…
+            </p>
+          ) : payments.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No payments recorded yet.
             </p>

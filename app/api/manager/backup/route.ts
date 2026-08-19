@@ -7,15 +7,15 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { parseBackupExportFormat } from "@/lib/validators/manager/backup-export";
-import { getCurrentUser } from "@/services/auth.service";
-import { getUnauthorizedError } from "@/services/authorization.service";
-import { recordBackupHistory } from "@/services/backup-history.service";
+import { getCurrentUser } from "@/services/auth/auth.service";
+import { getUnauthorizedError } from "@/services/auth/authorization.service";
+import { recordBackupHistory } from "@/services/backup/backup-history.service";
 import {
   exportFullDatabaseBackup,
   exportSingleTableBackup,
   isBackupTableName,
-} from "@/services/backup.service";
-import { resolveDisplayName } from "@/services/user-display.service";
+} from "@/services/backup/backup.service";
+import { resolveDisplayName } from "@/services/auth/user-display.service";
 
 function createBackupFileResponse(
   body: string | Uint8Array,

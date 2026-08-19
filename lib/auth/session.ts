@@ -20,14 +20,14 @@ import {
 import { roleSchema } from "@/lib/validators/role";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import { getSessionAuthIdentity } from "@/services/auth.service";
+import { getSessionAuthIdentity } from "@/services/auth/auth.service";
 import {
   getPermissionsForRoleCached,
   rememberUserRole,
-} from "@/services/authorization.service";
-import type { AuditActor } from "@/services/audit-log.service";
-import { roleFromAuthMetadata } from "@/services/role.service";
-import { displayNameFromAuthUser } from "@/services/user-display.service";
+} from "@/services/auth/authorization.service";
+import type { AuditActor } from "@/services/ops/audit-log.service";
+import { roleFromAuthMetadata } from "@/services/auth/role.service";
+import { displayNameFromAuthUser } from "@/services/auth/user-display.service";
 
 const EMPTY_PERMISSIONS: ReadonlySet<PermissionKey> = new Set();
 

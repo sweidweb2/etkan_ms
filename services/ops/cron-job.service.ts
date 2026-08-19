@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerCronJobsCatalog } from "@/lib/constants/manager-cron-jobs";
-import { assertPermission } from "@/services/authorization.service";
+import { assertPermission } from "@/services/auth/authorization.service";
 import type { ManagerCronJobRow } from "@/types/manager-cron-job";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
