@@ -348,98 +348,52 @@ export async function changeStudentStatusForManager(
     const nextStatus = mapStudentStatus(rpcData.status);
     const isActivate = nextStatus === STUDENT_STATUSES.ACTIVE;
 
-    await timer.step("audit", async () => {
-      const classAudits = rpcData.removedClasses.map((membership) =>
-        recordManagerAuditLog(adminClient, actor, {
-          action: "delete",
-          severity: "info",
-          table_name: "student_class",
-          record_id: membership.studentClassId,
-          old_data: {
+    await timer.step("audit", () =>
+      recordManagerAuditLog(adminClient, actor, {
+        action: "update",
+        severity: rpcData.deletedSpps.length > 0 ? "warning" : "info",
+        table_name: "student_profiles",
+        record_id: rpcData.profileId,
+        old_data: { status: rpcData.previousStatus, user_id: data.user_id },
+        new_data: isActivate
+          ? { status: STUDENT_STATUSES.ACTIVE, user_id: data.user_id }
+          : {
+              status: STUDENT_STATUSES.INACTIVE,
+              user_id: data.user_id,
+              remove_from_classes: data.remove_from_classes,
+              remove_open_spps: data.remove_open_spps,
+            },
+        metadata: {
+          note: isActivate ? "Student activated." : "Student inactivated.",
+          student_id: data.user_id,
+          removed_classes: rpcData.removedClasses.map((membership) => ({
+            student_class_id: membership.studentClassId,
             class_id: membership.classId,
-            user_id: data.user_id,
-          },
-          new_data: null,
-          metadata: {
-            note: "Student removed from class during inactivation.",
-            class_id: membership.classId,
-            student_id: data.user_id,
-          },
-        })
-      );
-
-      const retainedAudits = rpcData.retainedSpps.flatMap((item) => {
-        if (!item.spp) {
-          return [];
-        }
-        return [
-          recordManagerAuditLog(adminClient, actor, {
-            action: "update",
-            severity: "info",
-            table_name: "student_payment_phases",
-            record_id: item.spp.id,
-            old_data: {
-              status: item.spp.status,
-              remaining_amount: item.spp.remaining_amount,
-            },
-            new_data: {
-              status: item.spp.status,
-              remaining_amount: item.spp.remaining_amount,
-            },
-            metadata: {
-              note: "Student left class; SPP retained.",
-              spp_id: item.spp.id,
-              class_id: item.classId,
-              semester_id: item.semesterId,
-              student_id: data.user_id,
-            },
-          }),
-        ];
-      });
-
-      const sppAudits = rpcData.deletedSpps.map((spp) =>
-        recordManagerAuditLog(adminClient, actor, {
-          action: "delete",
-          severity: "warning",
-          table_name: "student_payment_phases",
-          record_id: spp.sppId,
-          old_data: {
-            student_id: data.user_id,
-            payment_phase_id: spp.paymentPhaseId,
-            status: spp.sppStatus,
-          },
-          new_data: null,
-          metadata: {
-            note: "Open SPP deleted during student inactivation.",
-            payment_phase_name: spp.paymentPhaseName,
-          },
-        })
-      );
-
-      await Promise.all([
-        ...classAudits,
-        ...retainedAudits,
-        ...sppAudits,
-        recordManagerAuditLog(adminClient, actor, {
-          action: "update",
-          severity: "info",
-          table_name: "student_profiles",
-          record_id: rpcData.profileId,
-          old_data: { status: rpcData.previousStatus, user_id: data.user_id },
-          new_data: isActivate
-            ? { status: STUDENT_STATUSES.ACTIVE, user_id: data.user_id }
-            : {
-                status: STUDENT_STATUSES.INACTIVE,
-                user_id: data.user_id,
-                remove_from_classes: data.remove_from_classes,
-                remove_open_spps: data.remove_open_spps,
+            class_name: membership.className,
+          })),
+          retained_spps: rpcData.retainedSpps.flatMap((item) => {
+            if (!item.spp) {
+              return [];
+            }
+            return [
+              {
+                spp_id: item.spp.id,
+                class_id: item.classId,
+                semester_id: item.semesterId,
+                status: item.spp.status,
+                remaining_amount: item.spp.remaining_amount,
               },
-          metadata: {
-            note: isActivate ? "Student activated." : "Student inactivated.",
-          },
-        }),
-      ]);
-    });
+            ];
+          }),
+          deleted_spps: rpcData.deletedSpps.map((spp) => ({
+            spp_id: spp.sppId,
+            payment_phase_id: spp.paymentPhaseId,
+            payment_phase_name: spp.paymentPhaseName,
+            status: spp.sppStatus,
+          })),
+        },
+      })
+    );
 
     return {
       success: true,

@@ -24,6 +24,7 @@ import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change
 import type {
   AddInstructorsActionState,
   ManagerInstructorCandidateRow,
+  ManagerInstructorRow,
 } from "@/types/manager-instructor";
 
 const initialState: AddInstructorsActionState = {};
@@ -32,7 +33,7 @@ type AddInstructorsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   candidateUsers: ManagerInstructorCandidateRow[];
-  onAdded: () => void;
+  onAdded: (instructors: ManagerInstructorRow[]) => void;
 };
 
 export function AddInstructorsDialog({
@@ -88,8 +89,19 @@ export function AddInstructorsDialog({
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {
+    const added = selected.map(
+      (user): ManagerInstructorRow => ({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        email: user.email,
+        created_at: new Date().toISOString(),
+      })
+    );
     handleOpenChange(false);
-    onAdded();
+    if (added.length > 0) {
+      onAdded(added);
+    }
   });
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

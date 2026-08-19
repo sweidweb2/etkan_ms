@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   CalendarDaysIcon,
   ChevronLeftIcon,
@@ -95,7 +94,8 @@ type ManageWorkshopsPanelProps = {
 export function ManageWorkshopsPanel({
   initialWorkshops,
 }: ManageWorkshopsPanelProps) {
-  const router = useRouter();
+  const [workshops, setWorkshops] = useState(initialWorkshops);
+  const [prevWorkshops, setPrevWorkshops] = useState(initialWorkshops);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [typeTab, setTypeTab] = useState<WorkshopOfferingType>(
     WORKSHOP_OFFERING_TYPES.WORKSHOP
@@ -104,20 +104,25 @@ export function ManageWorkshopsPanel({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(STATUS_ALL);
   const [page, setPage] = useState(1);
 
+  if (initialWorkshops !== prevWorkshops) {
+    setPrevWorkshops(initialWorkshops);
+    setWorkshops(initialWorkshops);
+  }
+
   const typeCounts = useMemo(() => {
     const counts: Record<WorkshopOfferingType, number> = {
       workshop: 0,
       online: 0,
       course: 0,
     };
-    for (const workshop of initialWorkshops) {
+    for (const workshop of workshops) {
       counts[workshop.type] += 1;
     }
     return counts;
-  }, [initialWorkshops]);
+  }, [workshops]);
 
   const filtered = useMemo(() => {
-    return initialWorkshops.filter((workshop) => {
+    return workshops.filter((workshop) => {
       if (workshop.type !== typeTab) {
         return false;
       }
@@ -126,7 +131,7 @@ export function ManageWorkshopsPanel({
       }
       return matchesSearch(workshop, search);
     });
-  }, [initialWorkshops, search, statusFilter, typeTab]);
+  }, [workshops, search, statusFilter, typeTab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -312,7 +317,10 @@ export function ManageWorkshopsPanel({
       <AddWorkshopDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onWorkshopCreated={() => router.refresh()}
+        onWorkshopCreated={(workshop) => {
+          setWorkshops((current) => [workshop, ...current]);
+          setPage(1);
+        }}
       />
     </div>
   );

@@ -154,6 +154,8 @@ export const copyWeeklyScheduleSlotsSchema = z.object({
     .string()
     .trim()
     .regex(datePattern, { message: "Week start must use YYYY-MM-DD format." }),
+  create_count: z.coerce.number().int().min(0).optional(),
+  skip_count: z.coerce.number().int().min(0).optional(),
 });
 
 export type CreateWeeklyScheduleSlotInput = z.infer<
@@ -240,6 +242,8 @@ export function parseCopyWeeklyScheduleSlotsFormData(formData: FormData):
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const parsed = copyWeeklyScheduleSlotsSchema.safeParse({
     week_start: formData.get("week_start"),
+    create_count: formData.get("create_count") ?? undefined,
+    skip_count: formData.get("skip_count") ?? undefined,
   });
 
   if (!parsed.success) {

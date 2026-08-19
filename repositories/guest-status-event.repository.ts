@@ -71,6 +71,30 @@ export async function listGuestStatusEventsByGuestId(
     .order("created_at", { ascending: false });
 }
 
+export async function listGuestStatusValuesByGuestId(
+  client: Supabase,
+  guestId: string
+) {
+  return client
+    .from("guest_status_events")
+    .select("status")
+    .eq("guest_id", guestId);
+}
+
+export async function guestStatusEventExistsByGuestIdAndStatus(
+  client: Supabase,
+  guestId: string,
+  status: GuestStatus
+) {
+  return client
+    .from("guest_status_events")
+    .select("id")
+    .eq("guest_id", guestId)
+    .eq("status", status)
+    .limit(1)
+    .maybeSingle();
+}
+
 export async function deleteGuestStatusEventsByGuestIdAndStatus(
   client: Supabase,
   guestId: string,

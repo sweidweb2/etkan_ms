@@ -40,71 +40,96 @@ function toBusyMirrorInput(
   };
 }
 
+async function loadInstructorSlotsByUserIds(
+  admin: Supabase,
+  userIds: string[],
+  options?: { ignoreSourceWorkshopId?: string }
+): Promise<
+  | { ok: true; byUser: Map<string, InstructorScheduleSlotRecord[]> }
+  | { ok: false; error: string }
+> {
+  const uniqueUserIds = [...new Set(userIds)];
+  if (uniqueUserIds.length === 0) {
+    return { ok: true, byUser: new Map() };
+  }
+
+  const existingResult =
+    await instructorScheduleSlotRepository.listInstructorScheduleSlotsByInstructorUserIds(
+      admin,
+      uniqueUserIds
+    );
+
+  if (existingResult.error) {
+    return {
+      ok: false,
+      error:
+        existingResult.error.message ||
+        "Unable to verify instructor schedule overlaps.",
+    };
+  }
+
+  const byUser = new Map<string, InstructorScheduleSlotRecord[]>();
+  for (const userId of uniqueUserIds) {
+    byUser.set(userId, []);
+  }
+
+  for (const row of (existingResult.data ?? []) as InstructorScheduleSlotRecord[]) {
+    if (
+      options?.ignoreSourceWorkshopId &&
+      row.source_workshop_id === options.ignoreSourceWorkshopId
+    ) {
+      continue;
+    }
+    const list = byUser.get(row.record_id);
+    if (list) {
+      list.push(row);
+    }
+  }
+
+  return { ok: true, byUser };
+}
+
 async function assertNoOverlapForMirrorInputs(
   admin: Supabase,
   mirrorInputs: CreateInstructorScheduleSlotRecordInput[],
   options?: { ignoreSourceWorkshopId?: string }
 ): Promise<string | null> {
-  const byUser = new Map<string, CreateInstructorScheduleSlotRecordInput[]>();
-  for (const input of mirrorInputs) {
-    const list = byUser.get(input.record_id) ?? [];
-    list.push(input);
-    byUser.set(input.record_id, list);
+  const userIds = mirrorInputs.map((input) => input.record_id);
+  const loaded = await loadInstructorSlotsByUserIds(admin, userIds, options);
+  if (!loaded.ok) {
+    return loaded.error;
   }
 
-  for (const [userId, inputs] of byUser) {
-    const existingResult =
-      await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
-        admin,
-        ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-        userId
-      );
-    if (existingResult.error) {
-      return (
-        existingResult.error.message ||
-        "Unable to verify instructor schedule overlaps."
-      );
-    }
+  const byUser = loaded.byUser;
 
-    const existing = (
-      (existingResult.data ?? []) as InstructorScheduleSlotRecord[]
-    ).filter((row) => {
-      if (
-        options?.ignoreSourceWorkshopId &&
-        row.source_workshop_id === options.ignoreSourceWorkshopId
-      ) {
-        return false;
-      }
-      return true;
+  for (const input of mirrorInputs) {
+    const existing = byUser.get(input.record_id) ?? [];
+
+    const overlap = findOverlappingScheduleSlot(existing, {
+      day_of_week: input.day_of_week,
+      start_time: input.start_time,
+      end_time: input.end_time,
     });
-
-    for (const input of inputs) {
-      const overlap = findOverlappingScheduleSlot(existing, {
-        day_of_week: input.day_of_week,
-        start_time: input.start_time,
-        end_time: input.end_time,
-      });
-      if (overlap) {
-        return SCHEDULE_SLOT_OVERLAP_MESSAGE;
-      }
-
-      // Also detect overlaps among the batch itself for the same user.
-      existing.push({
-        id: `pending:${input.name}:${input.day_of_week}:${input.start_time}`,
-        entity_type: input.entity_type,
-        record_id: input.record_id,
-        name: input.name,
-        type: input.type,
-        slot_date: input.slot_date,
-        day_of_week: input.day_of_week,
-        start_time: input.start_time,
-        end_time: input.end_time,
-        source_workshop_id: input.source_workshop_id ?? null,
-        source_slot_id: input.source_slot_id ?? null,
-        created_at: "",
-        updated_at: "",
-      });
+    if (overlap) {
+      return SCHEDULE_SLOT_OVERLAP_MESSAGE;
     }
+
+    existing.push({
+      id: `pending:${input.name}:${input.day_of_week}:${input.start_time}`,
+      entity_type: input.entity_type,
+      record_id: input.record_id,
+      name: input.name,
+      type: input.type,
+      slot_date: input.slot_date,
+      day_of_week: input.day_of_week,
+      start_time: input.start_time,
+      end_time: input.end_time,
+      source_workshop_id: input.source_workshop_id ?? null,
+      source_slot_id: input.source_slot_id ?? null,
+      created_at: "",
+      updated_at: "",
+    });
+    byUser.set(input.record_id, existing);
   }
 
   return null;
@@ -244,24 +269,14 @@ export async function updateMirrorsForWorkshopSlot(
   }
 
   const instructors = instructorsResult.data ?? [];
-  for (const row of instructors) {
-    const existingResult =
-      await instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord(
-        admin,
-        ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-        row.user_id
-      );
-    if (existingResult.error) {
-      return {
-        error:
-          existingResult.error.message ||
-          "Unable to verify instructor schedule overlaps.",
-      };
-    }
+  const instructorUserIds = instructors.map((row) => row.user_id);
+  const loaded = await loadInstructorSlotsByUserIds(admin, instructorUserIds);
+  if (!loaded.ok) {
+    return { error: loaded.error };
+  }
 
-    const existing = (
-      (existingResult.data ?? []) as InstructorScheduleSlotRecord[]
-    ).filter(
+  for (const row of instructors) {
+    const existing = (loaded.byUser.get(row.user_id) ?? []).filter(
       (slot) =>
         !(
           slot.source_slot_id === workshopSlot.id ||

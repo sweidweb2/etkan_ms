@@ -145,6 +145,72 @@ function joinSyncResultFromRpc(data: unknown): JoinSyncResult {
   };
 }
 
+async function auditBatchJoinSyncResults(
+  adminClient: Supabase,
+  actor: AuditActor,
+  classId: string,
+  items: StudentJoinSyncItem[]
+) {
+  const audited = items.filter(
+    (item) =>
+      item.ok && (item.created || item.reactivated || item.phaseReopened)
+  );
+
+  if (audited.length === 0) {
+    return;
+  }
+
+  const created = audited.flatMap((item) => {
+    if (!item.created || !item.spp) {
+      return [];
+    }
+    return [
+      {
+        student_id: item.studentId,
+        spp_id: item.spp.id,
+        payment_phase_id: item.spp.payment_phase_id,
+        status: item.spp.status,
+      },
+    ];
+  });
+
+  const reactivated = audited.flatMap((item) => {
+    if (!item.reactivated || !item.spp) {
+      return [];
+    }
+    return [
+      {
+        student_id: item.studentId,
+        spp_id: item.spp.id,
+        status: item.spp.status,
+        remaining_amount: item.spp.remaining_amount,
+      },
+    ];
+  });
+
+  const phaseReopened = audited.some((item) => item.phaseReopened);
+  const phase = audited.find((item) => item.phase)?.phase ?? null;
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: created.length > 0 ? "insert" : "update",
+    severity: "info",
+    table_name: "student_payment_phases",
+    record_id: classId,
+    metadata: {
+      note: "Student payment phases synced from batch class enrollment.",
+      class_id: classId,
+      semester_id: phase?.semester_id ?? null,
+      student_count: audited.length,
+      created_count: created.length,
+      reactivated_count: reactivated.length,
+      phase_reopened: phaseReopened,
+      payment_phase_id: phase?.id ?? null,
+      created,
+      reactivated,
+    },
+  });
+}
+
 async function auditJoinSyncResult(
   adminClient: Supabase,
   actor: AuditActor,
@@ -319,18 +385,7 @@ export async function onStudentsJoinedClass(
 
     if (actor) {
       await timer.step("audit", () =>
-        Promise.all(
-          items
-            .filter((item) => item.ok)
-            .map((item) =>
-              auditJoinSyncResult(
-                adminClient,
-                actor,
-                { studentId: item.studentId, classId: input.classId },
-                item
-              )
-            )
-        )
+        auditBatchJoinSyncResults(adminClient, actor, input.classId, items)
       );
     }
 
@@ -455,41 +510,31 @@ export async function backfillSppsForClassBecomeInProgress(
     ) {
       const semesterId = result.semesterId;
       await timer.step("audit", () =>
-        Promise.all([
-          ...result.created.map((spp) =>
-            recordManagerAuditLog(adminClient, actor, {
-              action: "insert",
-              severity: "info",
-              table_name: "student_payment_phases",
-              record_id: spp.id,
-              new_data: {
-                student_id: spp.student_id,
-                payment_phase_id: spp.payment_phase_id,
-                status: spp.status,
-              },
-              metadata: {
-                note: "Student payment phase created from class in_progress backfill.",
-                class_id: classId,
-                semester_id: semesterId,
-              },
-            })
-          ),
-          ...result.reactivated.map((spp) =>
-            recordManagerAuditLog(adminClient, actor, {
-              action: "update",
-              severity: "info",
-              table_name: "student_payment_phases",
-              record_id: spp.id,
-              old_data: { status: STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED },
-              new_data: { status: spp.status },
-              metadata: {
-                note: "Student payment phase reactivated from class in_progress backfill.",
-                class_id: classId,
-                semester_id: semesterId,
-              },
-            })
-          ),
-        ])
+        recordManagerAuditLog(adminClient, actor, {
+          action: result.created.length > 0 ? "insert" : "update",
+          severity: "info",
+          table_name: "student_payment_phases",
+          record_id: classId,
+          metadata: {
+            note: "Student payment phases backfilled for class in_progress.",
+            class_id: classId,
+            semester_id: semesterId,
+            ensured_count: result.ensuredCount,
+            created_count: result.createdCount,
+            reactivated_count: result.reactivatedCount,
+            created: result.created.map((spp) => ({
+              spp_id: spp.id,
+              student_id: spp.student_id,
+              payment_phase_id: spp.payment_phase_id,
+              status: spp.status,
+            })),
+            reactivated: result.reactivated.map((spp) => ({
+              spp_id: spp.id,
+              student_id: spp.student_id,
+              status: spp.status,
+            })),
+          },
+        })
       );
     }
 

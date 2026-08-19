@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PencilIcon, PresentationIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
@@ -24,7 +23,6 @@ type WorkshopCardProps = {
 };
 
 export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
-  const router = useRouter();
   const [workshop, setWorkshop] = useState(initialWorkshop);
   const [prevWorkshop, setPrevWorkshop] = useState(initialWorkshop);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -45,7 +43,6 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
           workshop={workshop}
           onWorkshopUpdated={(updated) => {
             setWorkshop(updated);
-            router.refresh();
           }}
         />
       ) : null}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { removeWorkshopInstructorAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
@@ -58,10 +57,11 @@ function formatWageAmount(
 
 export function WorkshopInstructorsSection({
   workshopId,
-  instructors,
+  instructors: initialInstructors,
   mutationsLocked = false,
 }: WorkshopInstructorsSectionProps) {
-  const router = useRouter();
+  const [instructors, setInstructors] = useState(initialInstructors);
+  const [prevInstructors, setPrevInstructors] = useState(initialInstructors);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] =
     useState<ManagerWorkshopInstructorRow | null>(null);
@@ -82,10 +82,19 @@ export function WorkshopInstructorsSection({
     }
   );
 
+  if (initialInstructors !== prevInstructors) {
+    setPrevInstructors(initialInstructors);
+    setInstructors(initialInstructors);
+  }
+
   useActionStateToast(removeState, isRemoveActionPending);
   useActionStateSuccess(removeState, isRemoveActionPending, () => {
+    if (removingInstructor) {
+      setInstructors((current) =>
+        current.filter((instructor) => instructor.id !== removingInstructor.id)
+      );
+    }
     setRemovingInstructor(null);
-    router.refresh();
   });
 
   function handleConfirmRemove() {
@@ -106,7 +115,13 @@ export function WorkshopInstructorsSection({
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         workshopId={workshopId}
-        onAdded={() => router.refresh()}
+        onAdded={(instructor) => {
+          setInstructors((current) =>
+            current.some((row) => row.id === instructor.id)
+              ? current.map((row) => (row.id === instructor.id ? instructor : row))
+              : [...current, instructor]
+          );
+        }}
       />
 
       <EditWorkshopInstructorDialog
@@ -117,7 +132,14 @@ export function WorkshopInstructorsSection({
           }
         }}
         instructor={editingInstructor}
-        onUpdated={() => router.refresh()}
+        onUpdated={(instructor) => {
+          setInstructors((current) =>
+            current.map((row) => (row.id === instructor.id ? instructor : row))
+          );
+          setEditingInstructor((current) =>
+            current?.id === instructor.id ? instructor : current
+          );
+        }}
       />
 
       <Dialog

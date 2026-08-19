@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
@@ -103,7 +102,6 @@ export function SubjectDetailsPanel({
   subject: initialSubject,
   classes,
 }: SubjectDetailsPanelProps) {
-  const router = useRouter();
   const [subject, setSubject] = useState<ManagerSubjectRow>(initialSubject);
   const [prevSubject, setPrevSubject] =
     useState<ManagerSubjectRow>(initialSubject);
@@ -135,7 +133,6 @@ export function SubjectDetailsPanel({
 
   const handleSubjectUpdated = (updated: ManagerSubjectRow) => {
     setSubject(updated);
-    router.refresh();
   };
 
   function handleConfirmDelete() {

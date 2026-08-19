@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { loadStudentsWithoutActiveClassAction } from "@/app/manager/classes/actions";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -83,15 +84,34 @@ function matchesSearch(classRow: ManagerClassRow, query: string) {
 
 type ManageClassesPanelProps = {
   initialClasses: ManagerClassRow[];
-  initialStudentsWithoutActiveClass: ManagerStudentWithoutActiveClassRow[];
 };
 
 export function ManageClassesPanel({
   initialClasses,
-  initialStudentsWithoutActiveClass,
 }: ManageClassesPanelProps) {
   const [classes, setClasses] = useState(initialClasses);
-  const studentsWithoutActiveClass = initialStudentsWithoutActiveClass;
+  const [studentsWithoutActiveClass, setStudentsWithoutActiveClass] = useState<
+    ManagerStudentWithoutActiveClassRow[]
+  >([]);
+  const [studentsWithoutActiveClassLoaded, setStudentsWithoutActiveClassLoaded] =
+    useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadStudentsWithoutActiveClassAction().then((rows) => {
+      if (cancelled) {
+        return;
+      }
+
+      setStudentsWithoutActiveClass(rows);
+      setStudentsWithoutActiveClassLoaded(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
@@ -109,9 +129,11 @@ export function ManageClassesPanel({
         (row) =>
           row.status === CLASS_STATUSES.PAUSED || row.status === CLASS_STATUSES.STOPPED
       ).length,
-      studentsWithoutActiveClass: studentsWithoutActiveClass.length,
+      studentsWithoutActiveClass: studentsWithoutActiveClassLoaded
+        ? studentsWithoutActiveClass.length
+        : null,
     }),
-    [classes, studentsWithoutActiveClass]
+    [classes, studentsWithoutActiveClass, studentsWithoutActiveClassLoaded]
   );
 
   const semesterOptions = useMemo(() => {
@@ -232,7 +254,9 @@ export function ManageClassesPanel({
         />
         <UserStatCard
           label="No active class"
-          value={stats.studentsWithoutActiveClass}
+          value={
+            stats.studentsWithoutActiveClass ?? "…"
+          }
           accentClassName="border-l-rose-500"
         />
       </div>

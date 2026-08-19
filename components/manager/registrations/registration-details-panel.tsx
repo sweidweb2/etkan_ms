@@ -2,7 +2,6 @@
 
 import { useActionState, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ExternalLinkIcon } from "lucide-react";
 import { updateRegistrationApplicationAction } from "@/app/(panels)/manager/registrations/actions";
@@ -276,7 +275,6 @@ export function RegistrationDetailsPanel({
   application,
   signedDocuments,
 }: RegistrationDetailsPanelProps) {
-  const router = useRouter();
   const permissions = usePermissions();
   const canEdit = hasPermissionInSet(
     permissions,
@@ -314,7 +312,6 @@ export function RegistrationDetailsPanel({
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {
     setBaseline(normalizeDraft(draft));
-    router.refresh();
   });
 
   function patchDraft(partial: Partial<EditDraft>) {

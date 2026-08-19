@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as auditLogRepository from "@/repositories/audit-log.repository";
 import {
+  __resetAfterSchedulerForTests,
+  __setAfterSchedulerForTests,
+} from "@/lib/ops/schedule-after-response";
+import {
   createAuditLogForManager,
   recordManagerAuditLog,
 } from "@/services/ops/audit-log.service";
@@ -123,6 +127,7 @@ describe("createAuditLogForManager", () => {
 describe("recordManagerAuditLog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetAfterSchedulerForTests();
   });
 
   it("records audit entry with actor fields and severity", async () => {
@@ -226,5 +231,42 @@ describe("recordManagerAuditLog", () => {
         table_name: "subjects",
       })
     ).resolves.toBeNull();
+  });
+
+  it("defers the insert when after() is available", async () => {
+    vi.mocked(auditLogRepository.createAuditLog).mockResolvedValue({
+      data: {
+        id: "log-deferred",
+        user_id: "user-1",
+        user_label: "Manager One",
+        action: "insert",
+        severity: "info",
+        table_name: "subjects",
+        record_id: "s-1",
+        old_data: null,
+        new_data: null,
+        metadata: null,
+        created_at: "2026-07-10T00:00:00.000Z",
+      },
+      error: null,
+    } as never);
+
+    const deferredTasks: Array<() => void | Promise<void>> = [];
+    __setAfterSchedulerForTests((task) => {
+      deferredTasks.push(task);
+    });
+
+    const result = await recordManagerAuditLog(adminClient, actor, {
+      action: "insert",
+      table_name: "subjects",
+      record_id: "s-1",
+    });
+
+    expect(result).toBeNull();
+    expect(auditLogRepository.createAuditLog).not.toHaveBeenCalled();
+
+    await deferredTasks[0]?.();
+
+    expect(auditLogRepository.createAuditLog).toHaveBeenCalledTimes(1);
   });
 });

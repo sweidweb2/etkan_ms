@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   changeStudentStatusAction,
   loadStudentStatusSideEffectsPreviewAction,
@@ -49,7 +48,6 @@ export function ActivateInactivateStudentDialog({
   currentStatus,
   onCompleted,
 }: ActivateInactivateStudentDialogProps) {
-  const router = useRouter();
   const isActivate = currentStatus !== STUDENT_STATUSES.ACTIVE;
   const [removeFromClasses, setRemoveFromClasses] = useState(false);
   const [removeOpenSpps, setRemoveOpenSpps] = useState(false);
@@ -82,7 +80,6 @@ export function ActivateInactivateStudentDialog({
       onCompleted?.(next.status);
     }
     onOpenChange(false);
-    router.refresh();
   });
 
   useEffect(() => {

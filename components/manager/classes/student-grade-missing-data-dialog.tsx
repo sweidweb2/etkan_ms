@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { EditStudentFinalExamGradeSheet } from "@/components/manager/classes/edit-student-finalexam-grade-sheet";
 import { EditStudentTaskSheet } from "@/components/manager/classes/edit-student-task-sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -33,6 +32,7 @@ type StudentGradeMissingDataDialogProps = {
   student: ManagerClassStudentGradeRow | null;
   finalExam: ManagerClassFinalExamRow | null;
   finalExamStudentGrade: ManagerStudentFinalExamGradeRow | null;
+  onDataChanged?: () => void;
 };
 
 function formatGrade(value: number | null) {
@@ -86,8 +86,8 @@ export function StudentGradeMissingDataDialog({
   student,
   finalExam,
   finalExamStudentGrade,
+  onDataChanged,
 }: StudentGradeMissingDataDialogProps) {
-  const router = useRouter();
   const [taskEditTarget, setTaskEditTarget] =
     useState<ManagerStudentTaskRow | null>(null);
   const [isTaskEditOpen, setIsTaskEditOpen] = useState(false);
@@ -108,7 +108,7 @@ export function StudentGradeMissingDataDialog({
   );
 
   function handleRefresh() {
-    router.refresh();
+    onDataChanged?.();
   }
 
   function openTaskEdit(item: ManagerClassStudentGradeMissingItem) {

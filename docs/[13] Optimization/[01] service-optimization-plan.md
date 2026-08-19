@@ -1,9 +1,10 @@
 # Service round-trip optimization plan
 
 **Project:** Etkan MS  
-**Date:** 2026-08-19  
+**Date:** 2026-08-19 (plan) · 2026-08-20 (global audit)  
 **Scope:** Every canonical service under `services/<domain>/`  
-**Follows:** `docs/[13] Optimization/rule of optimization.md`
+**Follows:** `docs/[13] Optimization/rule of optimization.md`  
+**Global CRUD audit (post–Wave E):** `docs/[13] Optimization/[02] global-crud-audit.md` — refresh patterns, remaining N+1, page dupes, Waves G–J.
 
 This plan is **not** “optimize enroll and maybe the rest later.” It is a **full pass over all domain services**, one cluster at a time.
 
@@ -798,11 +799,9 @@ No reported export timeout; full DB dump is already parallel and bounded by tabl
 
 ## Wave F — Cross-cut (optional)
 
-### Phase 60 — Deferred `recordManagerAuditLog`
+### Phase 60 — Deferred `recordManagerAuditLog` ✅
 
-**Not default.** Awaited on ~100+ mutation paths.
-
-Only after Waves B–D if audit is still a visible ~200 ms on every save. Options: `waitUntil` / fire-and-forget with error log. Must not lose audit rows on success. Product must accept “UI returns before audit flush.”
+**Decision:** Defer via Next.js `after()` (see `lib/ops/schedule-after-response.ts`). Mutations return before the audit REST insert; `after()` keeps the invocation alive until the insert completes. Vitest and non-Next runtimes await inline.
 
 **Done when:** written decision (do / don’t). If do, enroll + payment + status-change saves drop the extra hop without losing logs.
 

@@ -52,6 +52,18 @@ const emptyList = {
   statusText: "OK",
 } as const;
 
+function mockBatchInstructorSlots(slots: Record<string, unknown>[] = []) {
+  vi.mocked(
+    instructorScheduleSlotRepository.listInstructorScheduleSlotsByInstructorUserIds
+  ).mockResolvedValue({
+    data: slots,
+    error: null,
+    count: slots.length,
+    status: 200,
+    statusText: "OK",
+  } as never);
+}
+
 function mockListByRecord(workshopSlots = [workshopSlot]) {
   vi.mocked(
     instructorScheduleSlotRepository.listInstructorScheduleSlotsByRecord
@@ -76,6 +88,7 @@ describe("mirror-instructor-schedule", () => {
 
   it("mirrorWorkshopSlotsToInstructor inserts busy mirrors with source columns", async () => {
     mockListByRecord();
+    mockBatchInstructorSlots();
     vi.mocked(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
     ).mockResolvedValue({
@@ -125,6 +138,7 @@ describe("mirror-instructor-schedule", () => {
       statusText: "OK",
     } as never);
     mockListByRecord();
+    mockBatchInstructorSlots();
     vi.mocked(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
     ).mockResolvedValue({
@@ -167,6 +181,7 @@ describe("mirror-instructor-schedule", () => {
       statusText: "OK",
     } as never);
     mockListByRecord();
+    mockBatchInstructorSlots();
     vi.mocked(
       instructorScheduleSlotRepository.updateInstructorScheduleSlotsBySourceSlotId
     ).mockResolvedValue({
@@ -262,6 +277,7 @@ describe("mirror-instructor-schedule", () => {
       statusText: "OK",
     } as never);
     mockListByRecord();
+    mockBatchInstructorSlots();
     vi.mocked(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
     ).mockResolvedValue({
@@ -306,25 +322,20 @@ describe("mirror-instructor-schedule", () => {
           statusText: "OK",
         } as never;
       }
-      return {
-        data: [
-          {
-            ...workshopSlot,
-            id: "existing-busy",
-            entity_type: "instructor",
-            record_id: instructorUserId,
-            name: "Other",
-            type: "busy",
-            source_workshop_id: null,
-            source_slot_id: null,
-          },
-        ],
-        error: null,
-        count: 1,
-        status: 200,
-        statusText: "OK",
-      } as never;
+      return emptyList as never;
     });
+    mockBatchInstructorSlots([
+      {
+        ...workshopSlot,
+        id: "existing-busy",
+        entity_type: "instructor",
+        record_id: instructorUserId,
+        name: "Other",
+        type: "busy",
+        source_workshop_id: null,
+        source_slot_id: null,
+      },
+    ]);
 
     const result = await mirrorWorkshopSlotsToInstructor(
       admin,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { transferSppAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -45,6 +44,7 @@ type TransferSppDialogProps = {
   spp: ManagerSppRow | null;
   sourcePhaseId: string;
   phases: ManagerPaymentPhaseRow[];
+  onTransferred?: (sppId: string) => void;
 };
 
 function buildDestinationPhaseOptions(
@@ -70,8 +70,8 @@ export function TransferSppDialog({
   spp,
   sourcePhaseId,
   phases,
+  onTransferred,
 }: TransferSppDialogProps) {
-  const router = useRouter();
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
     transferSppAction,
@@ -109,9 +109,11 @@ export function TransferSppDialog({
   }
 
   useActionStateToast(state, isPending);
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    router.refresh();
+    if (nextState.spp_id) {
+      onTransferred?.(nextState.spp_id);
+    }
   });
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {

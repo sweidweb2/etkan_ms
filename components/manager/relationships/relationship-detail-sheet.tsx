@@ -37,7 +37,7 @@ type RelationshipDetailFormProps = {
   open: boolean;
   relationship: ManagerRelationshipRow;
   onOpenChange: (open: boolean) => void;
-  onRelationshipUpdated: () => void;
+  onRelationshipUpdated: (relationship: ManagerRelationshipRow) => void;
 };
 
 function RelationshipDetailForm({
@@ -91,9 +91,11 @@ function RelationshipDetailForm({
     });
   }, [relationship, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     handleOpenChange(false);
-    onRelationshipUpdated();
+    if (nextState.relationship) {
+      onRelationshipUpdated(nextState.relationship);
+    }
   });
 
   function onSubmit(values: UpdateRelationshipInput) {
@@ -285,7 +287,7 @@ type RelationshipDetailSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   relationship: ManagerRelationshipRow | null;
-  onRelationshipUpdated: () => void;
+  onRelationshipUpdated: (relationship: ManagerRelationshipRow) => void;
 };
 
 export function RelationshipDetailSheet({

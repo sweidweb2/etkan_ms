@@ -37,14 +37,17 @@ import {
   createStaffUserSchema,
   type CreateStaffUserInput,
 } from "@/lib/validators/manager/create-user";
-import type { CreateStaffUserActionState } from "@/types/manager-user";
+import type {
+  CreateStaffUserActionState,
+  ManagerUserRow,
+} from "@/types/manager-user";
 
 const initialState: CreateStaffUserActionState = {};
 
 type AddUserDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUserCreated: () => void;
+  onUserCreated: (user: ManagerUserRow) => void;
 };
 
 export function AddUserDialog({
@@ -97,9 +100,11 @@ export function AddUserDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onUserCreated();
+    if (nextState.user) {
+      onUserCreated(nextState.user);
+    }
   });
 
   function onSubmit(values: CreateStaffUserInput) {

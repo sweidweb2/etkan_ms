@@ -37,7 +37,10 @@ import {
   createFinancialAdjustmentSchema,
   type CreateFinancialAdjustmentInput,
 } from "@/lib/validators/manager/create-financial-adjustment";
-import type { CreateFinancialAdjustmentActionState } from "@/types/manager-financial-adjustment";
+import type {
+  CreateFinancialAdjustmentActionState,
+  ManagerFinancialAdjustmentRow,
+} from "@/types/manager-financial-adjustment";
 
 const initialState: CreateFinancialAdjustmentActionState = {};
 
@@ -45,7 +48,7 @@ type CreateFinancialAdjustmentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sppId: string;
-  onCreated: () => void;
+  onCreated: (adjustment: ManagerFinancialAdjustmentRow) => void;
 };
 
 export function CreateFinancialAdjustmentDialog({
@@ -110,9 +113,11 @@ export function CreateFinancialAdjustmentDialog({
     }
   }, [open, reset, sppId]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onCreated();
+    if (nextState.adjustment) {
+      onCreated(nextState.adjustment);
+    }
   });
 
   function onSubmit(values: CreateFinancialAdjustmentInput) {

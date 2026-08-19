@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -151,7 +150,6 @@ export function WorkshopDetailsPanel({
   documents,
   sessions,
 }: WorkshopDetailsPanelProps) {
-  const router = useRouter();
   const permissions = usePermissions();
   const [workshop, setWorkshop] = useState(initialWorkshop);
   const [prevWorkshop, setPrevWorkshop] = useState(initialWorkshop);
@@ -293,7 +291,6 @@ export function WorkshopDetailsPanel({
         workshop={workshop}
         onWorkshopUpdated={(updated) => {
           setWorkshop(updated);
-          router.refresh();
         }}
       />
 
@@ -364,7 +361,6 @@ export function WorkshopDetailsPanel({
                 workshop={workshop}
                 onStatusChanged={(updated) => {
                   setWorkshop(updated);
-                  router.refresh();
                 }}
               />
             </Can>

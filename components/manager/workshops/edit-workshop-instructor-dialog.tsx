@@ -53,7 +53,7 @@ type EditWorkshopInstructorDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   instructor: ManagerWorkshopInstructorRow | null;
-  onUpdated: () => void;
+  onUpdated: (instructor: ManagerWorkshopInstructorRow) => void;
 };
 
 function toFormDefaults(
@@ -107,9 +107,11 @@ export function EditWorkshopInstructorDialog({
     }
   }, [open, instructor, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
+    if (nextState.instructor) {
+      onUpdated(nextState.instructor);
+    }
     onOpenChange(false);
-    onUpdated();
   });
 
   function onSubmit(values: UpdateWorkshopInstructorInput) {

@@ -1109,6 +1109,15 @@ describe("addWorkshopInstructorForManager", () => {
       } as never;
     });
     vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByInstructorUserIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
       instructorScheduleSlotRepository.createInstructorScheduleSlots
     ).mockResolvedValue({
       data: [],
@@ -1343,6 +1352,12 @@ describe("changeWorkshopStatusForManager", () => {
     if (result.success) {
       expect(result.workshop.status).toBe(WORKSHOP_STATUSES.IN_PROGRESS);
     }
+    expect(
+      instructorScheduleSlotRepository.createInstructorScheduleSlots
+    ).not.toHaveBeenCalled();
+    expect(
+      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsBySourceWorkshopId
+    ).not.toHaveBeenCalled();
   });
 
   it("allows move to scheduled without a start date", async () => {

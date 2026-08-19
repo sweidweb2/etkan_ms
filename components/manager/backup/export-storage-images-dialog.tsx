@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import JSZip from "jszip";
 import { ImagesIcon } from "lucide-react";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PendingFlowChecklist } from "@/components/loaders/pending-flow-checklist";
@@ -18,20 +17,13 @@ import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change
 import { BACKUP_STORAGE_BUCKET_LABELS } from "@/lib/constants/backup-storage";
 import { downloadBlob } from "@/lib/export/download-blob";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
-import { truncateText } from "@/lib/utils/truncate-text";
-import type {
-  BackupStorageImageFile,
-  BackupStorageImageList,
-} from "@/types/backup-storage";
+import type { BackupStorageImageList } from "@/types/backup-storage";
 
 const FLOW_STEPS = [
   { id: "scan", label: "Scan storage buckets" },
-  { id: "download", label: "Download images" },
-  { id: "pack", label: "Pack ZIP archive" },
+  { id: "pack", label: "Pack ZIP archive on server" },
   { id: "save", label: "Save ZIP to your computer" },
 ] as const;
-
-const DOWNLOAD_CONCURRENCY = 3;
 
 type ExportStatus = "idle" | "running" | "success" | "error" | "cancelled";
 
@@ -63,7 +55,6 @@ export function ExportStorageImagesDialog({
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<BackupStorageImageList["buckets"]>([]);
-  const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [progress, setProgress] = useState({
     completed: 0,
     total: 0,
@@ -79,7 +70,6 @@ export function ExportStorageImagesDialog({
       setActiveIndex(0);
       setError(null);
       setSummary([]);
-      setCurrentFile(null);
       setProgress({ completed: 0, total: 0, failed: 0 });
     }
     onOpenChange(nextOpen);
@@ -87,70 +77,12 @@ export function ExportStorageImagesDialog({
 
   const progressPercent =
     progress.total === 0
-      ? 0
+      ? activeIndex >= FLOW_STEPS.length
+        ? 100
+        : Math.round((activeIndex / FLOW_STEPS.length) * 100)
       : Math.round((progress.completed / progress.total) * 100);
   const checklistIndex =
     status === "success" ? FLOW_STEPS.length : activeIndex;
-
-  async function downloadFilesIntoZip(
-    files: BackupStorageImageFile[],
-    zip: JSZip,
-    signal: AbortSignal
-  ) {
-    let nextIndex = 0;
-    let completed = 0;
-    let failed = 0;
-
-    async function worker() {
-      while (nextIndex < files.length) {
-        if (signal.aborted) {
-          throw new DOMException("The export was cancelled.", "AbortError");
-        }
-
-        const current = nextIndex;
-        nextIndex += 1;
-        const file = files[current];
-        if (!file) {
-          continue;
-        }
-
-        setCurrentFile(`${file.bucket}/${file.path}`);
-
-        try {
-          const params = new URLSearchParams({
-            bucket: file.bucket,
-            path: file.path,
-          });
-          const response = await fetch(
-            `/api/manager/backup/storage-images/file?${params.toString()}`,
-            { signal }
-          );
-
-          if (!response.ok) {
-            failed += 1;
-          } else {
-            const blob = await response.blob();
-            zip.file(`${file.bucket}/${file.path}`, blob);
-          }
-        } catch (caught) {
-          if (signal.aborted) {
-            throw caught;
-          }
-          failed += 1;
-        }
-
-        completed += 1;
-        setProgress({ completed, total: files.length, failed });
-      }
-    }
-
-    const workerCount = Math.min(DOWNLOAD_CONCURRENCY, files.length);
-    await Promise.all(
-      Array.from({ length: workerCount }, () => worker())
-    );
-
-    return failed;
-  }
 
   async function startExport() {
     abortRef.current?.abort();
@@ -160,64 +92,45 @@ export function ExportStorageImagesDialog({
     setStatus("running");
     setError(null);
     setSummary([]);
-    setCurrentFile(null);
     setProgress({ completed: 0, total: 0, failed: 0 });
     setActiveIndex(0);
 
     try {
-      const listResponse = await fetch("/api/manager/backup/storage-images", {
+      setActiveIndex(1);
+      const zipResponse = await fetch("/api/manager/backup/storage-images/zip", {
         signal: controller.signal,
       });
 
-      if (!listResponse.ok) {
+      if (!zipResponse.ok) {
         throw new Error(
-          await readErrorMessage(listResponse, "Unable to scan storage.")
+          await readErrorMessage(zipResponse, "Unable to export storage images.")
         );
       }
 
-      const listing = (await listResponse.json()) as BackupStorageImageList;
-      setSummary(listing.buckets);
+      const imageCount = Number(
+        zipResponse.headers.get("X-Backup-Image-Count") ?? "0"
+      );
+      const failedCount = Number(
+        zipResponse.headers.get("X-Backup-Image-Failed") ?? "0"
+      );
 
-      const listingFailed =
-        listing.buckets.length > 0 &&
-        listing.buckets.every((bucket) => bucket.error);
-
-      if (listingFailed) {
-        throw new Error(
-          listing.buckets[0]?.error ?? "Unable to scan storage."
-        );
-      }
       setProgress({
-        completed: 0,
-        total: listing.files.length,
-        failed: 0,
+        completed: imageCount,
+        total: imageCount,
+        failed: failedCount,
       });
 
-      if (listing.files.length === 0) {
+      if (imageCount === 0) {
         setActiveIndex(FLOW_STEPS.length);
         setStatus("success");
         showSuccessToast("No images were found in storage.");
         return;
       }
 
-      setActiveIndex(1);
-      const zip = new JSZip();
-      const failedCount = await downloadFilesIntoZip(
-        listing.files,
-        zip,
-        controller.signal
-      );
-
-      if (failedCount === listing.files.length) {
-        throw new Error("Unable to download storage images.");
-      }
-
-      setCurrentFile(null);
-      setActiveIndex(2);
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-
-      setActiveIndex(3);
+      const zipBlob = await zipResponse.blob();
       const fileName = createStorageImagesZipName();
+
+      setActiveIndex(2);
       downloadBlob({ blob: zipBlob, filename: fileName });
 
       setActiveIndex(FLOW_STEPS.length);
@@ -226,7 +139,7 @@ export function ExportStorageImagesDialog({
       if (failedCount > 0) {
         showSuccessToast(
           "Storage images ZIP downloaded.",
-          `${listing.files.length - failedCount} saved, ${failedCount} skipped.`
+          `${imageCount - failedCount} saved, ${failedCount} skipped.`
         );
       } else {
         showSuccessToast("Storage images ZIP downloaded.", fileName);
@@ -268,9 +181,9 @@ export function ExportStorageImagesDialog({
             Export storage images
           </DialogTitle>
           <DialogDescription>
-            Collects image files from the projects, workshops, and registration
-            buckets, then downloads them as one ZIP. PDFs and other files are
-            skipped. This can take a while if storage is large.
+            Scans image files in the projects, workshops, and registration
+            buckets on the server, packs them into one ZIP, and downloads it.
+            PDFs and other files are skipped.
           </DialogDescription>
         </DialogHeader>
 
@@ -283,113 +196,62 @@ export function ExportStorageImagesDialog({
             }
           }}
         >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ImagesIcon className="size-4 text-muted-foreground" />
-            Export storage images
-          </DialogTitle>
-          <DialogDescription>
-            Collects image files from the projects, workshops, and registration
-            buckets, then downloads them as one ZIP. PDFs and other files are
-            skipped. This can take a while if storage is large.
-          </DialogDescription>
-        </DialogHeader>
+          <div className="space-y-4">
+            <PendingFlowChecklist
+              steps={FLOW_STEPS}
+              activeIndex={checklistIndex}
+            />
 
-        <div className="flex flex-col gap-4">
-          {status === "idle" ? (
-            <ul className="rounded-lg border bg-muted/40 p-3 text-sm">
-              {Object.entries(BACKUP_STORAGE_BUCKET_LABELS).map(
-                ([bucket, label]) => (
-                  <li
-                    key={bucket}
-                    className="flex items-center justify-between py-1"
-                  >
-                    <span>{label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {bucket}
-                    </span>
+            {summary.length > 0 ? (
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                {summary.map((bucket) => (
+                  <li key={bucket.bucket}>
+                    {BACKUP_STORAGE_BUCKET_LABELS[bucket.bucket] ?? bucket.label}:{" "}
+                    {bucket.error
+                      ? bucket.error
+                      : `${bucket.fileCount} image${bucket.fileCount === 1 ? "" : "s"}`}
                   </li>
-                )
-              )}
-            </ul>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <PendingFlowChecklist
-                steps={FLOW_STEPS}
-                activeIndex={checklistIndex}
-              />
+                ))}
+              </ul>
+            ) : null}
 
-              {summary.length > 0 ? (
-                <ul className="grid gap-1 text-xs text-muted-foreground">
-                  {summary.map((bucket) => (
-                    <li key={bucket.bucket}>
-                      {bucket.label}:{" "}
-                      {bucket.error
-                        ? bucket.error
-                        : `${bucket.fileCount} image${
-                            bucket.fileCount === 1 ? "" : "s"
-                          }`}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-
-              {isPending && progress.total > 0 ? (
-                <div className="flex flex-col gap-1.5">
+            {isPending ? (
+              <div className="space-y-2">
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={progressPercent}
-                    aria-label="Image download progress"
-                  >
-                    <div
-                      className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {progress.completed} of {progress.total} images
-                    {progress.failed > 0 ? ` · ${progress.failed} skipped` : ""}
-                  </p>
-                  {currentFile ? (
-                    <p className="truncate text-xs text-muted-foreground">
-                      {truncateText(currentFile, 64).display}
-                    </p>
-                  ) : null}
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${progressPercent}%` }}
+                  />
                 </div>
-              ) : null}
-            </div>
-          )}
+                <p className="text-sm text-muted-foreground">
+                  {activeIndex < 2
+                    ? "Building ZIP on the server…"
+                    : "Saving ZIP to your computer…"}
+                </p>
+              </div>
+            ) : null}
 
-          {error ? (
-            <p className="text-sm text-destructive">{error}</p>
-          ) : null}
-        </div>
+            {error ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : null}
+          </div>
 
           <DialogFooter>
             {isPending ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-              >
+              <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
             ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-              >
-                Close
+              <Button type="submit">
+                {status === "success" ? "Export again" : "Export ZIP"}
               </Button>
             )}
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <InlineSpinner /> : <ImagesIcon aria-hidden />}
-              {status === "success" ? "Export again" : "Start export"}
-            </Button>
+            {isPending ? (
+              <Button type="button" disabled>
+                <InlineSpinner />
+                Exporting…
+              </Button>
+            ) : null}
           </DialogFooter>
         </form>
       </DialogContent>

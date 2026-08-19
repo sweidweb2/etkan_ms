@@ -171,7 +171,13 @@ export async function copyWeeklyScheduleSlotsAction(
     adminClient,
     actor.userId,
     actor,
-    parsed.data.week_start
+    parsed.data.week_start,
+    parsed.data.create_count !== undefined && parsed.data.skip_count !== undefined
+      ? {
+          createCount: parsed.data.create_count,
+          skipCount: parsed.data.skip_count,
+        }
+      : undefined
   );
 
   if (!result.success) {

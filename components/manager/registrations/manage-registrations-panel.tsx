@@ -2,9 +2,8 @@
 
 import { useActionState, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { EyeIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
+import { EyeIcon, SearchIcon } from "lucide-react";
 import { updateRegistrationStatusAction } from "@/app/(panels)/manager/registrations/actions";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -63,16 +62,20 @@ function statusClassName(status: RegistrationApplicationStatus) {
 export function ManageRegistrationsPanel({
   initialApplications,
 }: ManageRegistrationsPanelProps) {
-  const router = useRouter();
   const permissions = usePermissions();
+  const [applications, setApplications] = useState(initialApplications);
+  const [prevApplications, setPrevApplications] = useState(initialApplications);
   const canUpdateStatus = hasPermissionInSet(
     permissions,
     PERMISSIONS.REGISTRATIONS_UPDATE_STATUS
   );
-  const [isRefreshing, startRefreshTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_ALL);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<{
+    id: string;
+    status: RegistrationApplicationStatus;
+  } | null>(null);
   const [statusState, statusAction, isStatusPending] = useActionState(
     updateRegistrationStatusAction,
     initialStatusState
@@ -82,13 +85,27 @@ export function ManageRegistrationsPanel({
 
   useActionStateToast(statusState, isStatusBusy);
   useActionStateSuccess(statusState, isStatusBusy, () => {
+    if (pendingStatus) {
+      setApplications((current) =>
+        current.map((row) =>
+          row.id === pendingStatus.id
+            ? { ...row, status: pendingStatus.status }
+            : row
+        )
+      );
+      setPendingStatus(null);
+    }
     setUpdatingId(null);
-    router.refresh();
   });
+
+  if (initialApplications !== prevApplications) {
+    setPrevApplications(initialApplications);
+    setApplications(initialApplications);
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return initialApplications.filter((row) => {
+    return applications.filter((row) => {
       if (statusFilter !== STATUS_ALL && row.status !== statusFilter) {
         return false;
       }
@@ -98,14 +115,15 @@ export function ManageRegistrationsPanel({
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [initialApplications, search, statusFilter]);
+  }, [applications, search, statusFilter]);
 
   function changeStatus(
     row: ManagerRegistrationApplicationRow,
-    nextStatus: string
+    nextStatus: RegistrationApplicationStatus
   ) {
     if (!canUpdateStatus || nextStatus === row.status) return;
     setUpdatingId(row.id);
+    setPendingStatus({ id: row.id, status: nextStatus });
     const formData = new FormData();
     formData.set("id", row.id);
     formData.set("status", nextStatus);
@@ -149,16 +167,6 @@ export function ManageRegistrationsPanel({
             ))}
           </SelectContent>
         </Select>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label="Refresh"
-          disabled={isRefreshing}
-          onClick={() => startRefreshTransition(() => router.refresh())}
-        >
-          <RefreshCwIcon className={cn(isRefreshing && "animate-spin")} />
-        </Button>
       </div>
 
       <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
@@ -222,7 +230,12 @@ export function ManageRegistrationsPanel({
                             <Select
                               value={row.status}
                               onValueChange={(value) => {
-                                if (value) changeStatus(row, value);
+                                if (value) {
+                                  changeStatus(
+                                    row,
+                                    value as RegistrationApplicationStatus
+                                  );
+                                }
                               }}
                               disabled={rowBusy}
                             >

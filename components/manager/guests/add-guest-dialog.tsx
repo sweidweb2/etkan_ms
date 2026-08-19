@@ -31,7 +31,10 @@ import {
   createGuestSchema,
   type CreateGuestInput,
 } from "@/lib/validators/manager/create-guest";
-import type { CreateGuestActionState } from "@/types/manager-guest";
+import type {
+  CreateGuestActionState,
+  ManagerGuestRow,
+} from "@/types/manager-guest";
 
 const initialState: CreateGuestActionState = {};
 
@@ -49,7 +52,7 @@ const emptyDefaults: CreateGuestInput = {
 type AddGuestDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onGuestCreated: () => void;
+  onGuestCreated: (guest: ManagerGuestRow) => void;
 };
 
 export function AddGuestDialog({
@@ -90,9 +93,11 @@ export function AddGuestDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onGuestCreated();
+    if (nextState.guest) {
+      onGuestCreated(nextState.guest);
+    }
   });
 
   function onSubmit(values: CreateGuestInput) {

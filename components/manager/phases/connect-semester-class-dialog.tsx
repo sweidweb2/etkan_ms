@@ -28,7 +28,10 @@ import {
   connectSemesterClassSchema,
   type ConnectSemesterClassInput,
 } from "@/lib/validators/manager/connect-semester-class";
-import type { ConnectSemesterClassActionState } from "@/types/manager-phase";
+import type {
+  ConnectSemesterClassActionState,
+  ManagerSemesterRow,
+} from "@/types/manager-phase";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 
 const initialState: ConnectSemesterClassActionState = {};
@@ -39,7 +42,11 @@ type ConnectSemesterClassDialogProps = {
   semesterId: string;
   semesterName: string;
   availableClasses: ManagerSemesterClassRow[];
-  onClassConnected: () => void;
+  onClassConnected: (
+    classRow: ManagerSemesterClassRow,
+    connectedClassId: string,
+    semester?: ManagerSemesterRow
+  ) => void;
 };
 
 export function ConnectSemesterClassDialog({
@@ -84,9 +91,15 @@ export function ConnectSemesterClassDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onClassConnected();
+    if (nextState.classRow && selectedClassId) {
+      onClassConnected(
+        nextState.classRow,
+        selectedClassId,
+        nextState.semester
+      );
+    }
   });
 
   function onSubmit(values: ConnectSemesterClassInput) {

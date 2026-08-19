@@ -47,7 +47,7 @@ type EditFinancialAdjustmentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   adjustment: ManagerFinancialAdjustmentRow | null;
-  onUpdated: () => void;
+  onUpdated: (adjustment: ManagerFinancialAdjustmentRow) => void;
 };
 
 export function EditFinancialAdjustmentDialog({
@@ -114,9 +114,11 @@ export function EditFinancialAdjustmentDialog({
     }
   }, [open, adjustment, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onUpdated();
+    if (nextState.adjustment) {
+      onUpdated(nextState.adjustment);
+    }
   });
 
   function onSubmit(values: UpdateFinancialAdjustmentInput) {

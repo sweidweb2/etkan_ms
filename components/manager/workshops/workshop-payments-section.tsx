@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import {
@@ -76,13 +75,18 @@ export function WorkshopPaymentsSection({
   workshopPrice,
   mutationsLocked = false,
 }: WorkshopPaymentsSectionProps) {
-  const router = useRouter();
   const [payments, setPayments] = useState<ManagerWorkshopPaymentRow[]>([]);
   const [summary, setSummary] = useState<ManagerWorkshopPaymentSummary>(() =>
     emptyPaymentSummary(workshopPrice)
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [prevWorkshopId, setPrevWorkshopId] = useState(workshopId);
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  if (workshopId !== prevWorkshopId) {
+    setPrevWorkshopId(workshopId);
+    setIsLoading(true);
+  }
   const [editingPayment, setEditingPayment] =
     useState<ManagerWorkshopPaymentRow | null>(null);
   const [deletingPayment, setDeletingPayment] =
@@ -104,13 +108,20 @@ export function WorkshopPaymentsSection({
 
   useActionStateToast(deleteState, isDeleteActionPending);
   useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+    if (deletingPayment) {
+      const removedId = deletingPayment.id;
+      setPayments((current) => current.filter((payment) => payment.id !== removedId));
+      void loadWorkshopPaymentsAction(workshopId).then((result) => {
+        if (result) {
+          setSummary(result.summary);
+        }
+      });
+    }
     setDeletingPayment(null);
-    router.refresh();
   });
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
     void loadWorkshopPaymentsAction(workshopId).then((result) => {
       if (cancelled) {
         return;
@@ -125,6 +136,30 @@ export function WorkshopPaymentsSection({
       cancelled = true;
     };
   }, [workshopId]);
+
+  async function syncPaymentsFromServer() {
+    const result = await loadWorkshopPaymentsAction(workshopId);
+    if (result) {
+      setPayments(result.payments);
+      setSummary(result.summary);
+    }
+  }
+
+  function handlePaymentCreated(payment: ManagerWorkshopPaymentRow) {
+    setPayments((current) =>
+      current.some((row) => row.id === payment.id)
+        ? current.map((row) => (row.id === payment.id ? payment : row))
+        : [...current, payment]
+    );
+    void syncPaymentsFromServer();
+  }
+
+  function handlePaymentUpdated(payment: ManagerWorkshopPaymentRow) {
+    setPayments((current) =>
+      current.map((row) => (row.id === payment.id ? payment : row))
+    );
+    void syncPaymentsFromServer();
+  }
 
   function handleConfirmDelete() {
     if (!deletingPayment) {
@@ -144,7 +179,7 @@ export function WorkshopPaymentsSection({
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         workshopId={workshopId}
-        onCreated={() => router.refresh()}
+        onCreated={handlePaymentCreated}
       />
 
       <EditWorkshopPaymentDialog
@@ -155,7 +190,7 @@ export function WorkshopPaymentsSection({
           }
         }}
         payment={editingPayment}
-        onUpdated={() => router.refresh()}
+        onUpdated={handlePaymentUpdated}
       />
 
       <Dialog

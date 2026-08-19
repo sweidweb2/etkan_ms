@@ -34,6 +34,7 @@ import {
 } from "@/lib/validators/manager/create-payment-phase";
 import type {
   CreatePaymentPhaseActionState,
+  ManagerPaymentPhaseRow,
   ManagerPaymentPhaseSemesterOption,
 } from "@/types/manager-payment-phase";
 
@@ -52,7 +53,7 @@ const defaultValues: CreatePaymentPhaseInput = {
 type CreatePaymentPhaseDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: () => void;
+  onCreated: (phase: ManagerPaymentPhaseRow) => void;
 };
 
 export function CreatePaymentPhaseDialog({
@@ -131,9 +132,11 @@ export function CreatePaymentPhaseDialog({
     };
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onCreated();
+    if (nextState.phase) {
+      onCreated(nextState.phase);
+    }
   });
 
   function onSubmit(values: CreatePaymentPhaseInput) {

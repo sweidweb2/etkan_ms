@@ -33,7 +33,7 @@ type EditGalleryImageDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   image: ManagerGalleryImageRow | null;
-  onImageUpdated: () => void;
+  onImageUpdated: (image: ManagerGalleryImageRow) => void;
 };
 
 export function EditGalleryImageDialog({
@@ -80,9 +80,11 @@ export function EditGalleryImageDialog({
     });
   }, [image, open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onImageUpdated();
+    if (nextState.image) {
+      onImageUpdated(nextState.image);
+    }
   });
 
   function onSubmit(values: UpdateGalleryImageInput) {

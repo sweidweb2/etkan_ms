@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { PencilIcon, Trash2Icon } from "lucide-react";
@@ -109,7 +108,6 @@ export function GuestDetailsPanel({
   registrationApplication,
   linkUsers,
 }: GuestDetailsPanelProps) {
-  const router = useRouter();
   const [guest, setGuest] = useState(initialGuest);
   const [statusEvents, setStatusEvents] = useState(initialStatusEvents);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -172,7 +170,9 @@ export function GuestDetailsPanel({
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         guest={guest}
-        onGuestUpdated={() => router.refresh()}
+        onGuestUpdated={(updated) => {
+          setGuest(updated);
+        }}
       />
 
       <Dialog open={isDeleteOpen} onOpenChange={handleDeleteOpenChange}>
@@ -253,7 +253,6 @@ export function GuestDetailsPanel({
             setStatusEvents(nextEvents);
             setSyncedEventsFingerprint(fingerprint);
           }
-          router.refresh();
         }}
       />
 

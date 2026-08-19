@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
@@ -78,7 +77,6 @@ export function StudentDetailsPanel({
   classBundles,
   activityRows,
 }: StudentDetailsPanelProps) {
-  const router = useRouter();
   const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
   const [prevStudent, setPrevStudent] =
     useState<ManagerStudentRow>(initialStudent);
@@ -126,7 +124,6 @@ export function StudentDetailsPanel({
         student={student}
         onStudentUpdated={(updatedStudent) => {
           setStudent(updatedStudent);
-          router.refresh();
         }}
       />
 

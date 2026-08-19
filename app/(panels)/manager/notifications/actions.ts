@@ -9,6 +9,7 @@ import { parseUpdateNotificationFormData } from "@/lib/validators/manager/update
 import {
   createNotificationForManager,
   deleteNotificationForManager,
+  listNotificationsPageForManager,
   markNotificationReadForManager,
   updateNotificationForManager,
 } from "@/services/communications/notification.service";
@@ -163,4 +164,36 @@ export async function deleteNotificationAction(
     success: true,
     message: result.message,
   };
+}
+
+export async function loadNotificationsPageAction(input: {
+  page: number;
+  pageSize: number;
+  readFilter?: string;
+  category?: string;
+  search?: string;
+}) {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return {
+      notifications: [],
+      total: 0,
+      page: 1,
+      pageSize: input.pageSize,
+      stats: { total: 0, unread: 0, highPriority: 0 },
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listNotificationsPageForManager(adminClient, actor.userId, input);
+  } catch {
+    return {
+      notifications: [],
+      total: 0,
+      page: input.page,
+      pageSize: input.pageSize,
+      stats: { total: 0, unread: 0, highPriority: 0 },
+    };
+  }
 }

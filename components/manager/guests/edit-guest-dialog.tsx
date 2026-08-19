@@ -33,7 +33,7 @@ type EditGuestDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   guest: ManagerGuestRow;
-  onGuestUpdated: () => void;
+  onGuestUpdated: (guest: ManagerGuestRow) => void;
 };
 
 export function EditGuestDialog({
@@ -94,9 +94,11 @@ export function EditGuestDialog({
     }
   }, [open, guest, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onGuestUpdated();
+    if (nextState.guest) {
+      onGuestUpdated(nextState.guest);
+    }
   });
 
   function onSubmit(values: UpdateGuestInput) {

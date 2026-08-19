@@ -33,7 +33,7 @@ type RenameWorkshopDocumentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   document: ManagerWorkshopDocumentRow | null;
-  onRenamed: () => void;
+  onRenamed: (document: ManagerWorkshopDocumentRow) => void;
 };
 
 function toFormDefaults(
@@ -79,9 +79,11 @@ export function RenameWorkshopDocumentDialog({
     }
   }, [open, document, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
+    if (nextState.document) {
+      onRenamed(nextState.document);
+    }
     onOpenChange(false);
-    onRenamed();
   });
 
   function onSubmit(values: RenameWorkshopDocumentInput) {

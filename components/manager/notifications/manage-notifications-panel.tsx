@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowUpRightIcon,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import {
   deleteNotificationAction,
+  loadNotificationsPageAction,
   markNotificationReadAction,
 } from "@/app/manager/notifications/actions";
 import { Can } from "@/components/auth/can";
@@ -78,6 +78,14 @@ const initialDeleteState: DeleteNotificationActionState = {};
 
 type ManageNotificationsPanelProps = {
   initialNotifications: ManagerNotificationRow[];
+  initialTotal: number;
+  initialStats: {
+    total: number;
+    unread: number;
+    highPriority: number;
+  };
+  initialPage: number;
+  initialPageSize: number;
 };
 
 const PAGE_SIZE_OPTIONS = [5, 8, 12] as const;
@@ -172,8 +180,17 @@ function matchesCategoryFilter(
 
 export function ManageNotificationsPanel({
   initialNotifications,
+  initialTotal,
+  initialStats,
+  initialPage,
+  initialPageSize,
 }: ManageNotificationsPanelProps) {
-  const router = useRouter();
+  const [notifications, setNotifications] = useState(initialNotifications);
+  const [total, setTotal] = useState(initialTotal);
+  const [stats, setStats] = useState(initialStats);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  const [prevNotifications, setPrevNotifications] =
+    useState(initialNotifications);
   const [isTransitionPending, startTransition] = useTransition();
   const [markReadState, markReadAction, isMarkReadPending] = useActionState(
     markNotificationReadAction,
@@ -189,7 +206,13 @@ export function ManageNotificationsPanel({
   useActionStateToast(markReadState, isMarkReadActionPending);
   useActionStateToast(deleteState, isDeleteActionPending);
 
-  const notifications = initialNotifications;
+  if (initialNotifications !== prevNotifications) {
+    setPrevNotifications(initialNotifications);
+    setNotifications(initialNotifications);
+    setTotal(initialTotal);
+    setStats(initialStats);
+  }
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editNotification, setEditNotification] =
@@ -199,23 +222,80 @@ export function ManageNotificationsPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [readFilter, setReadFilter] = useState(READ_FILTER_ALL);
   const [categoryFilter, setCategoryFilter] = useState(CATEGORY_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(8);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
+    initialPageSize as (typeof PAGE_SIZE_OPTIONS)[number]
+  );
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const [detailsNotification, setDetailsNotification] =
     useState<ManagerNotificationRow | null>(null);
 
-  const handleNotificationsChanged = () => {
-    router.refresh();
+  const [pendingMarkReadId, setPendingMarkReadId] = useState<string | null>(
+    null
+  );
+  const [pendingMarkAllRead, setPendingMarkAllRead] = useState(false);
+  const skipInitialPageFetch = useRef(true);
+
+  const handleNotificationCreated = (notification: ManagerNotificationRow) => {
+    setNotifications((current) => [notification, ...current]);
+    setStats((current) => ({
+      total: current.total + 1,
+      unread: current.unread + 1,
+      highPriority:
+        notification.priority === "high"
+          ? current.highPriority + 1
+          : current.highPriority,
+    }));
+    setTotal((current) => current + 1);
+    setCurrentPage(1);
+  };
+
+  const handleNotificationUpdated = (notification: ManagerNotificationRow) => {
+    setNotifications((current) =>
+      current.map((row) => (row.id === notification.id ? notification : row))
+    );
+    setEditNotification((current) =>
+      current?.id === notification.id ? notification : current
+    );
+    setDetailsNotification((current) =>
+      current?.id === notification.id ? notification : current
+    );
   };
 
   useActionStateSuccess(markReadState, isMarkReadActionPending, () => {
-    handleNotificationsChanged();
+    if (pendingMarkAllRead) {
+      setNotifications((current) =>
+        current.map((row) => ({
+          ...row,
+          is_read: true,
+          read_at: row.read_at ?? new Date().toISOString(),
+        }))
+      );
+      setPendingMarkAllRead(false);
+      return;
+    }
+
+    if (pendingMarkReadId) {
+      const markedId = pendingMarkReadId;
+      setNotifications((current) =>
+        current.map((row) =>
+          row.id === markedId
+            ? { ...row, is_read: true, read_at: new Date().toISOString() }
+            : row
+        )
+      );
+      setPendingMarkReadId(null);
+    }
   });
 
   useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+    if (deleteTarget) {
+      const removedId = deleteTarget.id;
+      setNotifications((current) =>
+        current.filter((row) => row.id !== removedId)
+      );
+    }
     setDeleteTarget(null);
     setDetailsNotification(null);
-    handleNotificationsChanged();
   });
 
   const handleDeleteOpenChange = usePendingAwareOpenChange(
@@ -227,47 +307,48 @@ export function ManageNotificationsPanel({
     }
   );
 
-  const stats = useMemo(
-    () => ({
-      total: notifications.length,
-      unread: notifications.filter((notification) => !notification.is_read).length,
-      highPriority: notifications.filter(
-        (notification) => notification.priority === "high"
-      ).length,
-    }),
-    [notifications]
-  );
+  useEffect(() => {
+    if (skipInitialPageFetch.current) {
+      skipInitialPageFetch.current = false;
+      return;
+    }
 
-  const filteredNotifications = useMemo(() => {
-    return notifications.filter((notification) => {
-      return (
-        matchesSearch(notification, searchQuery) &&
-        matchesReadFilter(notification, readFilter) &&
-        matchesCategoryFilter(notification, categoryFilter)
-      );
-    });
-  }, [categoryFilter, notifications, readFilter, searchQuery]);
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      setIsPageLoading(true);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredNotifications.length / pageSize)
-  );
+      void loadNotificationsPageAction({
+        page: currentPage,
+        pageSize,
+        readFilter,
+        category: categoryFilter,
+        search: searchQuery,
+      }).then((pageData) => {
+        if (cancelled) {
+          return;
+        }
+
+        setNotifications(pageData.notifications);
+        setTotal(pageData.total);
+        setStats(pageData.stats);
+        setIsPageLoading(false);
+      });
+    }, searchQuery.trim() ? 250 : 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [categoryFilter, currentPage, pageSize, readFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
-  const paginatedNotifications = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredNotifications.slice(startIndex, startIndex + pageSize);
-  }, [filteredNotifications, pageSize, safeCurrentPage]);
+  const paginatedNotifications = notifications;
 
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-  const rangeStart =
-    filteredNotifications.length === 0
-      ? 0
-      : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(
-    safeCurrentPage * pageSize,
-    filteredNotifications.length
-  );
+  const rangeStart = total === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, total);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -294,6 +375,7 @@ export function ManageNotificationsPanel({
   };
 
   const handleMarkAsRead = (notificationId: string) => {
+    setPendingMarkReadId(notificationId);
     const formData = new FormData();
     formData.set("id", notificationId);
 
@@ -303,6 +385,7 @@ export function ManageNotificationsPanel({
   };
 
   const handleMarkAllAsRead = () => {
+    setPendingMarkAllRead(true);
     const formData = new FormData();
     formData.set("mark_all", "true");
 
@@ -353,17 +436,14 @@ export function ManageNotificationsPanel({
       <AddNotificationDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onNotificationCreated={() => {
-          setCurrentPage(1);
-          handleNotificationsChanged();
-        }}
+        onNotificationCreated={handleNotificationCreated}
       />
 
       <EditNotificationDialog
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         notification={editNotification}
-        onNotificationUpdated={handleNotificationsChanged}
+        onNotificationUpdated={handleNotificationUpdated}
       />
 
       <NotificationDetailsDialog
@@ -639,7 +719,7 @@ export function ManageNotificationsPanel({
           <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>
-                Showing {rangeStart}–{rangeEnd} of {filteredNotifications.length}
+                Showing {rangeStart}–{rangeEnd} of {total}
               </span>
               <span aria-hidden="true">·</span>
               <div className="flex items-center gap-2">

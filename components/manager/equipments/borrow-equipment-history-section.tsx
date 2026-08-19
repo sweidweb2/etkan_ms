@@ -77,7 +77,10 @@ const initialToggleState: ToggleBorrowReturnedActionState = {};
 type BorrowEquipmentHistorySectionProps = {
   borrows: ManagerBorrowEquipmentListRow[];
   equipments: ManagerEquipmentRow[];
-  onRecordsChanged: () => void;
+  onRecordsChanged: (
+    id: string,
+    patch: Partial<ManagerBorrowEquipmentListRow>
+  ) => void;
 };
 
 function TruncatedCell({
@@ -210,15 +213,23 @@ export function BorrowEquipmentHistorySection({
         return;
       }
 
+      const toggledId = pendingToggleId;
+      const isReturned = optimisticReturnedById[toggledId];
+
       setOptimisticReturnedById((current) => {
         const next = { ...current };
-        delete next[pendingToggleId];
+        delete next[toggledId];
         return next;
       });
       setPendingToggleId(null);
 
-      if (nextState.success) {
-        onRecordsChanged();
+      if (nextState.success && isReturned !== undefined) {
+        onRecordsChanged(toggledId, {
+          status: isReturned
+            ? BORROW_EQUIPMENT_STATUSES.RETURNED
+            : BORROW_EQUIPMENT_STATUSES.BORROWED,
+          returned_at: isReturned ? new Date().toISOString() : null,
+        });
       }
     },
     (nextState) => Boolean(nextState.success || nextState.error)
@@ -316,7 +327,9 @@ export function BorrowEquipmentHistorySection({
         onOpenChange={setIsEditOpen}
         borrowRow={editRow}
         equipments={equipments}
-        onSaved={onRecordsChanged}
+        onSaved={(id, patch) => {
+          onRecordsChanged(id, patch);
+        }}
       />
 
       <div className="flex flex-col gap-4">

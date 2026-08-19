@@ -26,14 +26,17 @@ import {
   createStudentSchema,
   type CreateStudentInput,
 } from "@/lib/validators/manager/create-student";
-import type { CreateStudentActionState } from "@/types/manager-student";
+import type {
+  CreateStudentActionState,
+  ManagerStudentRow,
+} from "@/types/manager-student";
 
 const initialState: CreateStudentActionState = {};
 
 type AddStudentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStudentCreated: () => void;
+  onStudentCreated: (student: ManagerStudentRow) => void;
 };
 
 export function AddStudentDialog({
@@ -85,9 +88,11 @@ export function AddStudentDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onStudentCreated();
+    if (nextState.student) {
+      onStudentCreated(nextState.student);
+    }
   });
 
   function onSubmit(values: CreateStudentInput) {

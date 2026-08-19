@@ -28,10 +28,15 @@ export const updateSubjectSchema = z.object({
 
 export type UpdateSubjectInput = z.infer<typeof updateSubjectSchema>;
 
+export type UpdateSubjectFormInput = UpdateSubjectInput & {
+  id: string;
+  class_count?: number;
+};
+
 export function parseUpdateSubjectFormData(formData: FormData):
   | {
       success: true;
-      data: UpdateSubjectInput & { id: string };
+      data: UpdateSubjectFormInput;
     }
   | { success: false; error: string; fieldErrors?: FieldErrors } {
   const id = String(formData.get("id") ?? "").trim();
@@ -65,6 +70,16 @@ export function parseUpdateSubjectFormData(formData: FormData):
     data: {
       ...parsed.data,
       id,
+      class_count: parseOptionalClassCount(formData.get("class_count")),
     },
   };
+}
+
+function parseOptionalClassCount(value: FormDataEntryValue | null): number | undefined {
+  if (value == null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }

@@ -12,6 +12,7 @@ import {
   type CreateStudentFromGuestInput,
 } from "@/lib/validators/manager/create-student-from-guest";
 import * as guestRepository from "@/repositories/guest.repository";
+import type { GuestRecord } from "@/repositories/guest.repository";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import type { StudentRegistrationApplicationRecord } from "@/repositories/student-registration-application.repository";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
@@ -20,8 +21,8 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import {
-  setGuestProfileStatusForManager,
-  setGuestStatusesForManager,
+  applyGuestProfileStatusForGuestRecord,
+  recordGuestPipelineStatusesForGuest,
 } from "@/services/guests/guest.service";
 import { createStudent } from "@/services/students/student.service";
 import type { FieldErrors } from "@/types/auth";
@@ -172,18 +173,19 @@ export async function createStudentFromGuestRegistrationForManager(
     metadata: { note: "Guest registration linked to created student." },
   });
 
+  let guestRecord: GuestRecord = guestResult.data;
   let guestStatus: GuestCurrentStatus | null = isGuestCurrentStatus(
-    guestResult.data.status
+    guestRecord.status
   )
-    ? guestResult.data.status
+    ? guestRecord.status
     : null;
+
   if (guestStatus === GUEST_CURRENT_STATUSES.SCHEDULED) {
-    const pending = await setGuestProfileStatusForManager(
+    const pending = await applyGuestProfileStatusForGuestRecord(
       adminClient,
-      actorUserId,
       actor,
+      guestRecord,
       {
-        id: guestId,
         status: GUEST_CURRENT_STATUSES.PENDING,
         note: "Pending so a student can be created from this registration.",
       }
@@ -195,15 +197,15 @@ export async function createStudentFromGuestRegistrationForManager(
       };
     }
     guestStatus = pending.guest.status;
+    guestRecord = { ...guestRecord, status: pending.guest.status };
   }
 
   if (guestStatus && canMutateGuestPipeline(guestStatus)) {
-    const recorded = await setGuestStatusesForManager(
+    const recorded = await recordGuestPipelineStatusesForGuest(
       adminClient,
-      actorUserId,
       actor,
+      guestRecord,
       {
-        id: guestId,
         statuses: [...GUEST_CREATE_STUDENT_PIPELINE_STATUSES],
         note: "Recorded when creating a student from this registration.",
         finishProfileOnPipelineFinished: false,
@@ -216,18 +218,18 @@ export async function createStudentFromGuestRegistrationForManager(
       };
     }
     guestStatus = recorded.guest.status;
+    guestRecord = { ...guestRecord, status: recorded.guest.status };
   }
 
   if (
     markGuestAsFinished &&
     guestStatus !== GUEST_CURRENT_STATUSES.FINISHED
   ) {
-    const finished = await setGuestProfileStatusForManager(
+    const finished = await applyGuestProfileStatusForGuestRecord(
       adminClient,
-      actorUserId,
       actor,
+      guestRecord,
       {
-        id: guestId,
         status: GUEST_CURRENT_STATUSES.FINISHED,
         note: "Marked finished after creating a student from this registration.",
       }

@@ -3,7 +3,6 @@
 import { format } from "date-fns";
 import { ExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -452,12 +451,30 @@ function AttendanceGradesSection({ detail }: { detail: ManagerStudentClassTabDet
   );
 }
 
+function clearComputedGradeFields(
+  row: ManagerClassStudentGradeRow
+): ManagerClassStudentGradeRow {
+  return {
+    ...row,
+    is_computed: false,
+    total_grade: null,
+    task_total_grade: null,
+    final_exam_grade: null,
+    course_grade_id: null,
+    compute_type: null,
+    stored_tasks_weight: null,
+    stored_final_exam_weight: null,
+    stored_task_weights: null,
+  };
+}
+
 export function StudentClassGradeDetailsPanel({
   classId,
   classRow,
-  bundle,
+  bundle: initialBundle,
 }: StudentClassGradeDetailsPanelProps) {
-  const router = useRouter();
+  const [bundle, setBundle] = useState(initialBundle);
+  const [prevBundle, setPrevBundle] = useState(initialBundle);
   const [isComputeDialogOpen, setIsComputeDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isComputing, setIsComputing] = useState(false);
@@ -471,6 +488,11 @@ export function StudentClassGradeDetailsPanel({
       })
   );
   const [computeWeightError, setComputeWeightError] = useState<string | null>(null);
+
+  if (initialBundle !== prevBundle) {
+    setPrevBundle(initialBundle);
+    setBundle(initialBundle);
+  }
 
   const computeFactorTotal = useMemo(
     () =>
@@ -580,7 +602,11 @@ export function StudentClassGradeDetailsPanel({
           `${hasComputedGrade ? "Recomputed" : "Computed"} ${student.full_name}.`
       );
       setIsComputeDialogOpen(false);
-      router.refresh();
+      if (result.row) {
+        setBundle((current) =>
+          current ? { ...current, gradeRow: result.row! } : current
+        );
+      }
     } finally {
       setIsComputing(false);
     }
@@ -601,7 +627,14 @@ export function StudentClassGradeDetailsPanel({
         result.message ?? `Deleted computed grade for ${student.full_name}.`
       );
       setIsDeleteDialogOpen(false);
-      router.refresh();
+      setBundle((current) =>
+        current
+          ? {
+              ...current,
+              gradeRow: clearComputedGradeFields(current.gradeRow),
+            }
+          : current
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -856,6 +889,11 @@ export function StudentClassGradeDetailsPanel({
         userId={student.user_id}
         studentName={student.full_name}
         classTasks={classTasks}
+        onGradeComputed={(row) => {
+          setBundle((current) =>
+            current ? { ...current, gradeRow: row } : current
+          );
+        }}
       />
     </div>
   );

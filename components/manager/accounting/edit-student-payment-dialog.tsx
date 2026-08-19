@@ -44,7 +44,7 @@ type EditStudentPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payment: ManagerStudentPaymentRow | null;
-  onUpdated: () => void;
+  onUpdated: (payment: ManagerStudentPaymentRow) => void;
 };
 
 export function EditStudentPaymentDialog({
@@ -107,9 +107,11 @@ export function EditStudentPaymentDialog({
     }
   }, [open, payment, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onUpdated();
+    if (nextState.payment) {
+      onUpdated(nextState.payment);
+    }
   });
 
   function onSubmit(values: UpdateStudentPaymentInput) {

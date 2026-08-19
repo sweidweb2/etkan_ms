@@ -10,7 +10,6 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon } from "lucide-react";
 import {
   createBorrowsAction,
@@ -309,7 +308,6 @@ export function BorrowEquipmentPanel({
   initialBorrowHistory,
   borrowHistoryTotalCount,
 }: BorrowEquipmentPanelProps) {
-  const router = useRouter();
   const equipmentSectionRef = useRef<HTMLDivElement>(null);
   const borrowHistorySectionRef = useRef<HTMLDivElement>(null);
   const [isTransitionPending, startTransition] = useTransition();
@@ -324,7 +322,13 @@ export function BorrowEquipmentPanel({
   const [students, setStudents] = useState<ManagerStudentRow[]>([]);
   const [equipments, setEquipments] = useState<ManagerEquipmentRow[]>([]);
   const [isCreateOptionsLoading, setIsCreateOptionsLoading] = useState(true);
-  const borrowHistory = initialBorrowHistory;
+  const [borrowHistory, setBorrowHistory] = useState(initialBorrowHistory);
+  const [prevBorrowHistory, setPrevBorrowHistory] = useState(initialBorrowHistory);
+
+  if (initialBorrowHistory !== prevBorrowHistory) {
+    setPrevBorrowHistory(initialBorrowHistory);
+    setBorrowHistory(initialBorrowHistory);
+  }
 
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
     () => new Set()
@@ -357,7 +361,10 @@ export function BorrowEquipmentPanel({
     setSelectedStudentIds(new Set());
     setEquipmentQuantities({});
     setClassFilter(CLASS_FILTER_ALL);
-    router.refresh();
+    void loadBorrowCreateOptionsAction().then((options) => {
+      setStudents(options.students);
+      setEquipments(options.equipments);
+    });
   });
 
   const studentCount = selectedStudentIds.size;
@@ -1099,7 +1106,11 @@ export function BorrowEquipmentPanel({
         <BorrowEquipmentHistorySection
           borrows={borrowHistory}
           equipments={equipments}
-          onRecordsChanged={() => router.refresh()}
+          onRecordsChanged={(id, patch) => {
+            setBorrowHistory((current) =>
+              current.map((row) => (row.id === id ? { ...row, ...patch } : row))
+            );
+          }}
         />
       </div>
     </div>

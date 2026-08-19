@@ -154,7 +154,13 @@ export function ManageAccountingPanel({
   paidThisMonthTotal,
 }: ManageAccountingPanelProps) {
   const router = useRouter();
-  const phases = initialPhases;
+  const [phases, setPhases] = useState(initialPhases);
+  const [prevPhases, setPrevPhases] = useState(initialPhases);
+
+  if (initialPhases !== prevPhases) {
+    setPrevPhases(initialPhases);
+    setPhases(initialPhases);
+  }
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editPhase, setEditPhase] = useState<ManagerPaymentPhaseRow | null>(
@@ -226,8 +232,9 @@ export function ManageAccountingPanel({
     setCurrentPage(1);
   };
 
-  const handleCreated = () => {
-    router.refresh();
+  const handleCreated = (phase: ManagerPaymentPhaseRow) => {
+    setPhases((current) => [phase, ...current]);
+    setCurrentPage(1);
   };
 
   const openPhaseDetails = (phaseId: string) => {
@@ -271,9 +278,11 @@ export function ManageAccountingPanel({
               }
             }}
             phase={editPhase}
-            onUpdated={() => {
+            onUpdated={(updated) => {
               setEditPhase(null);
-              router.refresh();
+              setPhases((current) =>
+                current.map((phase) => (phase.id === updated.id ? updated : phase))
+              );
             }}
           />
         ) : null}

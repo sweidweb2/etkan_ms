@@ -135,17 +135,101 @@ export async function listNotificationsForManager(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<ManagerNotificationRow[]> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.NOTIFICATIONS_VIEW);
-
-  const { data, error } = await notificationRepository.listNotifications(
-    adminClient
+  const page = await listNotificationsPageForManager(
+    adminClient,
+    actorUserId,
+    { page: 1, pageSize: 100 }
   );
 
-  if (error) {
-    throw new Error(error.message);
+  return page.notifications;
+}
+
+export type ManagerNotificationsPageStats = {
+  total: number;
+  unread: number;
+  highPriority: number;
+};
+
+export type ManagerNotificationsPage = {
+  notifications: ManagerNotificationRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  stats: ManagerNotificationsPageStats;
+};
+
+export async function listNotificationsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  input: {
+    page?: number;
+    pageSize?: number;
+    readFilter?: string;
+    category?: string;
+    search?: string;
+  } = {}
+): Promise<ManagerNotificationsPage> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.NOTIFICATIONS_VIEW);
+
+  const page = Math.max(1, input.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, input.pageSize ?? 8));
+  const offset = (page - 1) * pageSize;
+
+  const readFilter =
+    input.readFilter === "read" || input.readFilter === "unread"
+      ? input.readFilter
+      : "all";
+
+  const filters = {
+    isRead: readFilter as "all" | "read" | "unread",
+    category: input.category ?? "all",
+    search: input.search ?? null,
+  };
+
+  const [listResult, filteredTotalResult, globalTotalResult, unreadResult, highPriorityResult] =
+    await Promise.all([
+      notificationRepository.listNotifications(adminClient, {
+        ...filters,
+        limit: pageSize,
+        offset,
+      }),
+      notificationRepository.countNotifications(adminClient, filters),
+      notificationRepository.countNotifications(adminClient, {}),
+      notificationRepository.countUnreadNotifications(adminClient),
+      notificationRepository.countHighPriorityNotifications(adminClient),
+    ]);
+
+  if (listResult.error) {
+    throw new Error(listResult.error.message);
   }
 
-  return (data ?? []).map(mapNotificationRecordToRow);
+  if (filteredTotalResult.error) {
+    throw new Error(filteredTotalResult.error.message);
+  }
+
+  if (globalTotalResult.error) {
+    throw new Error(globalTotalResult.error.message);
+  }
+
+  if (unreadResult.error) {
+    throw new Error(unreadResult.error.message);
+  }
+
+  if (highPriorityResult.error) {
+    throw new Error(highPriorityResult.error.message);
+  }
+
+  return {
+    notifications: (listResult.data ?? []).map(mapNotificationRecordToRow),
+    total: filteredTotalResult.count ?? 0,
+    page,
+    pageSize,
+    stats: {
+      total: globalTotalResult.count ?? 0,
+      unread: unreadResult.count ?? 0,
+      highPriority: highPriorityResult.count ?? 0,
+    },
+  };
 }
 
 export async function createNotificationForManager(

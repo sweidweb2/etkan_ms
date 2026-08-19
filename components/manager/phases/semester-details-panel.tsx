@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import {
@@ -58,16 +57,51 @@ export function SemesterDetailsPanel({
   initialClasses,
   initialAvailableClasses,
 }: SemesterDetailsPanelProps) {
-  const router = useRouter();
   const [semester, setSemester] = useState<ManagerSemesterRow>(initialSemester);
   const [prevSemester, setPrevSemester] =
     useState<ManagerSemesterRow>(initialSemester);
+  const [students, setStudents] = useState(initialStudents);
+  const [prevStudents, setPrevStudents] = useState(initialStudents);
+  const [availableStudents, setAvailableStudents] = useState(
+    initialAvailableStudents
+  );
+  const [prevAvailableStudents, setPrevAvailableStudents] = useState(
+    initialAvailableStudents
+  );
+  const [classes, setClasses] = useState(initialClasses);
+  const [prevClasses, setPrevClasses] = useState(initialClasses);
+  const [availableClasses, setAvailableClasses] = useState(
+    initialAvailableClasses
+  );
+  const [prevAvailableClasses, setPrevAvailableClasses] = useState(
+    initialAvailableClasses
+  );
   const [editOpen, setEditOpen] = useState(false);
   const [exportedAt, setExportedAt] = useState<Date | null>(null);
 
   if (initialSemester !== prevSemester) {
     setPrevSemester(initialSemester);
     setSemester(initialSemester);
+  }
+
+  if (initialStudents !== prevStudents) {
+    setPrevStudents(initialStudents);
+    setStudents(initialStudents);
+  }
+
+  if (initialAvailableStudents !== prevAvailableStudents) {
+    setPrevAvailableStudents(initialAvailableStudents);
+    setAvailableStudents(initialAvailableStudents);
+  }
+
+  if (initialClasses !== prevClasses) {
+    setPrevClasses(initialClasses);
+    setClasses(initialClasses);
+  }
+
+  if (initialAvailableClasses !== prevAvailableClasses) {
+    setPrevAvailableClasses(initialAvailableClasses);
+    setAvailableClasses(initialAvailableClasses);
   }
 
   const createdText = useMemo(
@@ -142,18 +176,47 @@ export function SemesterDetailsPanel({
       <SemesterStudentsSection
         semesterId={semester.id}
         semesterName={semester.name}
-        initialStudents={initialStudents}
-        initialAvailableStudents={initialAvailableStudents}
-        onStudentsChanged={() => router.refresh()}
+        initialStudents={students}
+        initialAvailableStudents={availableStudents}
+        onStudentsChanged={(enrollment, studentProfileId) => {
+          setStudents((current) =>
+            current.some((row) => row.id === enrollment.id)
+              ? current.map((row) =>
+                  row.id === enrollment.id ? enrollment : row
+                )
+              : [...current, enrollment]
+          );
+          if (studentProfileId) {
+            setAvailableStudents((current) =>
+              current.filter(
+                (row) => row.student_profile_id !== studentProfileId
+              )
+            );
+          }
+        }}
       />
 
       <SemesterClassesSection
         semesterId={semester.id}
         semesterName={semester.name}
-        initialClasses={initialClasses}
-        initialAvailableClasses={initialAvailableClasses}
+        initialClasses={classes}
+        initialAvailableClasses={availableClasses}
         onExportPdf={() => setExportedAt(new Date())}
-        onClassesChanged={() => router.refresh()}
+        onClassesChanged={(classRow, connectedClassId, semesterUpdate) => {
+          setClasses((current) =>
+            current.some((row) => row.id === classRow.id)
+              ? current.map((row) => (row.id === classRow.id ? classRow : row))
+              : [...current, classRow]
+          );
+          if (connectedClassId) {
+            setAvailableClasses((current) =>
+              current.filter((row) => row.id !== connectedClassId)
+            );
+          }
+          if (semesterUpdate) {
+            setSemester(semesterUpdate);
+          }
+        }}
       />
 
       <EditPhaseDialog
@@ -162,7 +225,6 @@ export function SemesterDetailsPanel({
         semester={semester}
         onSemesterUpdated={(updated) => {
           setSemester(updated);
-          router.refresh();
         }}
       />
     </div>

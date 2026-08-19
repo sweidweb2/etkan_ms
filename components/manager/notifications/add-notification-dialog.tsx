@@ -40,14 +40,17 @@ import {
   NOTIFICATION_ACTION_NONE_VALUE,
   type CreateNotificationInput,
 } from "@/lib/validators/manager/create-notification";
-import type { CreateNotificationActionState } from "@/types/manager-notification";
+import type {
+  CreateNotificationActionState,
+  ManagerNotificationRow,
+} from "@/types/manager-notification";
 
 const initialState: CreateNotificationActionState = {};
 
 type AddNotificationDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onNotificationCreated: () => void;
+  onNotificationCreated: (notification: ManagerNotificationRow) => void;
 };
 
 export function AddNotificationDialog({
@@ -129,9 +132,11 @@ export function AddNotificationDialog({
     }
   }, [actionPages, open, selectedActionHref, setValue]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onNotificationCreated();
+    if (nextState.notification) {
+      onNotificationCreated(nextState.notification);
+    }
   });
 
   function onSubmit(values: CreateNotificationInput) {

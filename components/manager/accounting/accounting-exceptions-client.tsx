@@ -21,12 +21,19 @@ type AccountingExceptionsClientProps = {
 
 export function AccountingExceptionsClient({
   phases,
-  missing,
+  missing: initialMissing,
   withoutClassOrPhase,
   billedWithoutClass,
   sppSemesterMismatches,
 }: AccountingExceptionsClientProps) {
   const [assignRow, setAssignRow] = useState<ManagerMissingSppRow | null>(null);
+  const [missing, setMissing] = useState(initialMissing);
+  const [prevMissing, setPrevMissing] = useState(initialMissing);
+
+  if (initialMissing !== prevMissing) {
+    setPrevMissing(initialMissing);
+    setMissing(initialMissing);
+  }
 
   return (
     <>
@@ -39,6 +46,14 @@ export function AccountingExceptionsClient({
         }}
         row={assignRow}
         phases={phases}
+        onAssigned={() => {
+          if (assignRow) {
+            setMissing((current) =>
+              current.filter((row) => row.student_id !== assignRow.student_id)
+            );
+          }
+          setAssignRow(null);
+        }}
       />
       <AccountingExceptionTabs
         billedWithoutClass={billedWithoutClass}

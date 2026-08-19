@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, useActionState } from "react";
 import { format } from "date-fns";
 import {
@@ -135,8 +134,8 @@ export function ManageGalleryPanel({
 }: {
   initialImages: ManagerGalleryImageRow[];
 }) {
-  const router = useRouter();
-  const images = initialImages;
+  const [images, setImages] = useState(initialImages);
+  const [prevImages, setPrevImages] = useState(initialImages);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingImage, setEditingImage] =
     useState<ManagerGalleryImageRow | null>(null);
@@ -157,13 +156,17 @@ export function ManageGalleryPanel({
 
   useActionStateToast(deleteState, isDeleteActionPending);
 
-  const handleImagesChanged = () => {
-    router.refresh();
-  };
+  if (initialImages !== prevImages) {
+    setPrevImages(initialImages);
+    setImages(initialImages);
+  }
 
   useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+    if (deleteTarget) {
+      const removedId = deleteTarget.id;
+      setImages((current) => current.filter((row) => row.id !== removedId));
+    }
     setDeleteTarget(null);
-    handleImagesChanged();
   });
 
   const handleDeleteOpenChange = usePendingAwareOpenChange(
@@ -246,9 +249,9 @@ export function ManageGalleryPanel({
         <AddGalleryImageDialog
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
-          onImageCreated={() => {
+          onImageCreated={(image) => {
+            setImages((current) => [image, ...current]);
             setCurrentPage(1);
-            handleImagesChanged();
           }}
         />
 
@@ -260,7 +263,14 @@ export function ManageGalleryPanel({
             }
           }}
           image={editingImage}
-          onImageUpdated={handleImagesChanged}
+          onImageUpdated={(image) => {
+            setImages((current) =>
+              current.map((row) => (row.id === image.id ? image : row))
+            );
+            setEditingImage((current) =>
+              current?.id === image.id ? image : current
+            );
+          }}
         />
 
         <Dialog

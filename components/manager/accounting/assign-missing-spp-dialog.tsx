@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { repairMissingSppAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -44,6 +43,7 @@ type AssignMissingSppDialogProps = {
   onOpenChange: (open: boolean) => void;
   row: ManagerMissingSppRow | null;
   phases: ManagerPaymentPhaseRow[];
+  onAssigned?: () => void;
 };
 
 function buildAssignablePhaseOptions(
@@ -66,8 +66,8 @@ export function AssignMissingSppDialog({
   onOpenChange,
   row,
   phases,
+  onAssigned,
 }: AssignMissingSppDialogProps) {
-  const router = useRouter();
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
     repairMissingSppAction,
@@ -114,7 +114,7 @@ export function AssignMissingSppDialog({
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
-    router.refresh();
+    onAssigned?.();
   });
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {

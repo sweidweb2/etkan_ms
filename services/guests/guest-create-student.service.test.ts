@@ -15,8 +15,8 @@ vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("@/services/guests/guest.service", () => ({
-  setGuestProfileStatusForManager: vi.fn(),
-  setGuestStatusesForManager: vi.fn(),
+  applyGuestProfileStatusForGuestRecord: vi.fn(),
+  recordGuestPipelineStatusesForGuest: vi.fn(),
 }));
 vi.mock("@/services/students/student.service", () => ({
   createStudent: vi.fn(),
@@ -145,8 +145,8 @@ function mockHappyPath(guestStatus = "pending") {
     data: { ...applicationRecord, user_id: studentUserId },
     ...okResult,
   });
-  vi.mocked(guestService.setGuestProfileStatusForManager).mockImplementation(
-    async (_c, _u, _a, profileInput) => ({
+  vi.mocked(guestService.applyGuestProfileStatusForGuestRecord).mockImplementation(
+    async (_c, _a, guestRecord, profileInput) => ({
       success: true,
       guest: {
         ...guestRecord,
@@ -155,7 +155,7 @@ function mockHappyPath(guestStatus = "pending") {
       message: "Guest status updated.",
     })
   );
-  vi.mocked(guestService.setGuestStatusesForManager).mockResolvedValue({
+  vi.mocked(guestService.recordGuestPipelineStatusesForGuest).mockResolvedValue({
     success: true,
     guest: { ...guestRecord, status: "pending" },
     message: "Statuses recorded.",
@@ -257,22 +257,20 @@ describe("createStudentFromGuestRegistrationForManager", () => {
       applicationId,
       studentUserId
     );
-    expect(guestService.setGuestStatusesForManager).toHaveBeenCalledWith(
+    expect(guestService.recordGuestPipelineStatusesForGuest).toHaveBeenCalledWith(
       adminClient,
-      actor.userId,
       actor,
+      expect.objectContaining({ id: guestId }),
       expect.objectContaining({
-        id: guestId,
         statuses: ["routed_correctly", "finishing_routing_doc", "finished"],
         finishProfileOnPipelineFinished: false,
       })
     );
-    expect(guestService.setGuestProfileStatusForManager).toHaveBeenCalledWith(
+    expect(guestService.applyGuestProfileStatusForGuestRecord).toHaveBeenCalledWith(
       adminClient,
-      actor.userId,
       actor,
+      expect.objectContaining({ id: guestId }),
       expect.objectContaining({
-        id: guestId,
         status: "finished",
       })
     );
@@ -289,8 +287,8 @@ describe("createStudentFromGuestRegistrationForManager", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(guestService.setGuestStatusesForManager).toHaveBeenCalled();
-    expect(guestService.setGuestProfileStatusForManager).not.toHaveBeenCalled();
+    expect(guestService.recordGuestPipelineStatusesForGuest).toHaveBeenCalled();
+    expect(guestService.applyGuestProfileStatusForGuestRecord).not.toHaveBeenCalled();
   });
 
   it("moves a scheduled guest to pending before recording pipeline steps", async () => {
@@ -304,24 +302,22 @@ describe("createStudentFromGuestRegistrationForManager", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(guestService.setGuestProfileStatusForManager).toHaveBeenNthCalledWith(
+    expect(guestService.applyGuestProfileStatusForGuestRecord).toHaveBeenNthCalledWith(
       1,
       adminClient,
-      actor.userId,
       actor,
+      expect.objectContaining({ id: guestId }),
       expect.objectContaining({
-        id: guestId,
         status: "pending",
       })
     );
-    expect(guestService.setGuestStatusesForManager).toHaveBeenCalled();
-    expect(guestService.setGuestProfileStatusForManager).toHaveBeenNthCalledWith(
+    expect(guestService.recordGuestPipelineStatusesForGuest).toHaveBeenCalled();
+    expect(guestService.applyGuestProfileStatusForGuestRecord).toHaveBeenNthCalledWith(
       2,
       adminClient,
-      actor.userId,
       actor,
+      expect.any(Object),
       expect.objectContaining({
-        id: guestId,
         status: "finished",
       })
     );
@@ -338,11 +334,11 @@ describe("createStudentFromGuestRegistrationForManager", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(guestService.setGuestStatusesForManager).not.toHaveBeenCalled();
-    expect(guestService.setGuestProfileStatusForManager).toHaveBeenCalledWith(
+    expect(guestService.recordGuestPipelineStatusesForGuest).not.toHaveBeenCalled();
+    expect(guestService.applyGuestProfileStatusForGuestRecord).toHaveBeenCalledWith(
       adminClient,
-      actor.userId,
       actor,
+      expect.any(Object),
       expect.objectContaining({ status: "finished" })
     );
   });
@@ -358,7 +354,7 @@ describe("createStudentFromGuestRegistrationForManager", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(guestService.setGuestStatusesForManager).not.toHaveBeenCalled();
-    expect(guestService.setGuestProfileStatusForManager).not.toHaveBeenCalled();
+    expect(guestService.recordGuestPipelineStatusesForGuest).not.toHaveBeenCalled();
+    expect(guestService.applyGuestProfileStatusForGuestRecord).not.toHaveBeenCalled();
   });
 });

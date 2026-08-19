@@ -83,6 +83,27 @@ const okResult = {
   statusText: "OK",
 };
 
+function mockPipelineStatusNotExists() {
+  vi.mocked(
+    guestStatusEventRepository.guestStatusEventExistsByGuestIdAndStatus
+  ).mockResolvedValue({ data: null, ...okResult });
+}
+
+function mockPipelineStatusExists(eventId = "existing-event") {
+  vi.mocked(
+    guestStatusEventRepository.guestStatusEventExistsByGuestIdAndStatus
+  ).mockResolvedValue({ data: { id: eventId }, ...okResult });
+}
+
+function mockGuestStatusValues(statuses: string[]) {
+  vi.mocked(
+    guestStatusEventRepository.listGuestStatusValuesByGuestId
+  ).mockResolvedValue({
+    data: statuses.map((status) => ({ status })),
+    ...okResult,
+  });
+}
+
 describe("listGuestsForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -363,6 +384,7 @@ describe("getGuestDetailForManager", () => {
 describe("setGuestStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockPipelineStatusNotExists();
   });
 
   it("denies unauthorized actors", async () => {
@@ -402,12 +424,6 @@ describe("setGuestStatusForManager", () => {
     const finishedGuest = { ...pendingGuest, status: "finished" };
     vi.mocked(guestRepository.findGuestById).mockResolvedValue({
       data: pendingGuest,
-      ...okResult,
-    });
-    vi.mocked(
-      guestStatusEventRepository.listGuestStatusEventsByGuestId
-    ).mockResolvedValue({
-      data: [],
       ...okResult,
     });
     vi.mocked(
@@ -467,21 +483,7 @@ describe("setGuestStatusForManager", () => {
       data: pendingGuest,
       ...okResult,
     });
-    vi.mocked(
-      guestStatusEventRepository.listGuestStatusEventsByGuestId
-    ).mockResolvedValue({
-      data: [
-        {
-          id: "event-2",
-          guest_id: guestId,
-          status: "finished_meeting",
-          note: null,
-          created_by: actor.userId,
-          created_at: "2026-01-02T00:00:00.000Z",
-        },
-      ],
-      ...okResult,
-    });
+    mockGuestStatusValues(["finished_meeting"]);
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvent
     ).mockResolvedValue({
@@ -521,6 +523,7 @@ describe("setGuestStatusForManager", () => {
       data: { ...guestRecord, status: "pending" },
       ...okResult,
     });
+    mockPipelineStatusExists("event-2");
     vi.mocked(
       guestStatusEventRepository.listGuestStatusEventsByGuestId
     ).mockResolvedValue({
@@ -550,19 +553,6 @@ describe("setGuestStatusForManager", () => {
           created_at: "2026-01-03T00:00:00.000Z",
         },
       ],
-      ...okResult,
-    });
-    vi.mocked(
-      guestStatusEventRepository.createGuestStatusEvent
-    ).mockResolvedValue({
-      data: {
-        id: "event-branch",
-        guest_id: guestId,
-        status: "finished_parent_meeting",
-        note: null,
-        created_by: actor.userId,
-        created_at: "2026-01-04T00:00:00.000Z",
-      },
       ...okResult,
     });
 
@@ -620,6 +610,10 @@ describe("setGuestStatusForManager", () => {
 describe("setGuestStatusesForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockGuestStatusValues([]);
+    vi.mocked(
+      guestStatusEventRepository.listGuestStatusEventsByGuestId
+    ).mockResolvedValue({ data: [], ...okResult });
   });
 
   it("records multiple unmade pipeline statuses", async () => {
@@ -628,21 +622,7 @@ describe("setGuestStatusesForManager", () => {
       data: pendingGuest,
       ...okResult,
     });
-    vi.mocked(
-      guestStatusEventRepository.listGuestStatusEventsByGuestId
-    ).mockResolvedValue({
-      data: [
-        {
-          id: "event-1",
-          guest_id: guestId,
-          status: "started",
-          note: null,
-          created_by: actor.userId,
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-      ...okResult,
-    });
+    mockGuestStatusValues(["started"]);
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
@@ -691,12 +671,7 @@ describe("setGuestStatusesForManager", () => {
       data: pendingGuest,
       ...okResult,
     });
-    vi.mocked(
-      guestStatusEventRepository.listGuestStatusEventsByGuestId
-    ).mockResolvedValue({
-      data: [],
-      ...okResult,
-    });
+    mockGuestStatusValues([]);
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
@@ -749,12 +724,7 @@ describe("setGuestStatusesForManager", () => {
       data: pendingGuest,
       ...okResult,
     });
-    vi.mocked(
-      guestStatusEventRepository.listGuestStatusEventsByGuestId
-    ).mockResolvedValue({
-      data: [],
-      ...okResult,
-    });
+    mockGuestStatusValues([]);
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
@@ -885,18 +855,9 @@ describe("removeGuestStatusForManager", () => {
       ...okResult,
     });
     vi.mocked(
-      guestStatusEventRepository.listGuestStatusEventsByGuestId
+      guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
     ).mockResolvedValue({
-      data: [
-        {
-          id: "event-1",
-          guest_id: guestId,
-          status: "started",
-          note: null,
-          created_by: actor.userId,
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-      ],
+      data: [],
       ...okResult,
     });
 
@@ -918,17 +879,24 @@ describe("removeGuestStatusForManager", () => {
       data: { ...guestRecord, status: "pending" },
       ...okResult,
     });
+    vi.mocked(
+      guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "event-3",
+          guest_id: guestId,
+          status: "chose_plan",
+          note: null,
+          created_by: actor.userId,
+          created_at: "2026-01-03T00:00:00.000Z",
+        },
+      ],
+      ...okResult,
+    });
     vi.mocked(guestStatusEventRepository.listGuestStatusEventsByGuestId)
       .mockResolvedValue({
         data: [
-          {
-            id: "event-3",
-            guest_id: guestId,
-            status: "chose_plan",
-            note: null,
-            created_by: actor.userId,
-            created_at: "2026-01-03T00:00:00.000Z",
-          },
           {
             id: "event-2",
             guest_id: guestId,
@@ -948,21 +916,6 @@ describe("removeGuestStatusForManager", () => {
         ],
         ...okResult,
       });
-    vi.mocked(
-      guestStatusEventRepository.deleteGuestStatusEventsByGuestIdAndStatus
-    ).mockResolvedValue({
-      data: [
-        {
-          id: "event-3",
-          guest_id: guestId,
-          status: "chose_plan",
-          note: null,
-          created_by: actor.userId,
-          created_at: "2026-01-03T00:00:00.000Z",
-        },
-      ],
-      ...okResult,
-    });
 
     const result = await removeGuestStatusForManager(
       adminClient,

@@ -49,7 +49,7 @@ type UpsertFinancialFormDialogProps = {
   onOpenChange: (open: boolean) => void;
   sppId: string;
   form: ManagerFinancialFormRow | null;
-  onSaved: () => void;
+  onSaved: (form: ManagerFinancialFormRow) => void;
 };
 
 function BoolField({
@@ -166,9 +166,11 @@ export function UpsertFinancialFormDialog({
     });
   }, [open, sppId, form, isEdit, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onSaved();
+    if (nextState.form) {
+      onSaved(nextState.form);
+    }
   });
 
   function appendOptional(

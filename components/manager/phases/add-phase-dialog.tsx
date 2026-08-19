@@ -34,14 +34,17 @@ import {
   createPhaseSchema,
   type CreatePhaseInput,
 } from "@/lib/validators/manager/create-phase";
-import type { CreateSemesterActionState } from "@/types/manager-phase";
+import type {
+  CreateSemesterActionState,
+  ManagerSemesterRow,
+} from "@/types/manager-phase";
 
 const initialState: CreateSemesterActionState = {};
 
 type AddPhaseDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSemesterCreated: () => void;
+  onSemesterCreated: (semester: ManagerSemesterRow) => void;
 };
 
 export function AddPhaseDialog({
@@ -93,9 +96,11 @@ export function AddPhaseDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onSemesterCreated();
+    if (nextState.semester) {
+      onSemesterCreated(nextState.semester);
+    }
   });
 
   function onSubmit(values: CreatePhaseInput) {

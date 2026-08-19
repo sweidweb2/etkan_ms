@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ChevronLeftIcon,
@@ -201,12 +200,17 @@ type ManageSubjectsPanelProps = {
 export function ManageSubjectsPanel({
   initialSubjects,
 }: ManageSubjectsPanelProps) {
-  const router = useRouter();
-  const subjects = initialSubjects;
+  const [subjects, setSubjects] = useState(initialSubjects);
+  const [prevSubjects, setPrevSubjects] = useState(initialSubjects);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [classSort, setClassSort] = useState<ClassSortValue>(CLASS_SORT_MOST);
   const [currentPage, setCurrentPage] = useState(1);
+
+  if (initialSubjects !== prevSubjects) {
+    setPrevSubjects(initialSubjects);
+    setSubjects(initialSubjects);
+  }
 
   const filteredSubjects = useMemo(() => {
     return subjects
@@ -241,9 +245,9 @@ export function ManageSubjectsPanel({
     setCurrentPage(1);
   };
 
-  const handleSubjectCreated = () => {
+  const handleSubjectCreated = (subject: ManagerSubjectRow) => {
+    setSubjects((current) => [subject, ...current]);
     setCurrentPage(1);
-    router.refresh();
   };
 
   const paginationProps = {

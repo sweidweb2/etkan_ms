@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   ExternalLinkIcon,
@@ -56,10 +55,11 @@ function formatFileSize(bytes: number | null) {
 
 export function WorkshopDocumentsSection({
   workshopId,
-  documents,
+  documents: initialDocuments,
   mutationsLocked = false,
 }: WorkshopDocumentsSectionProps) {
-  const router = useRouter();
+  const [documents, setDocuments] = useState(initialDocuments);
+  const [prevDocuments, setPrevDocuments] = useState(initialDocuments);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [renamingDocument, setRenamingDocument] =
     useState<ManagerWorkshopDocumentRow | null>(null);
@@ -80,10 +80,19 @@ export function WorkshopDocumentsSection({
     }
   );
 
+  if (initialDocuments !== prevDocuments) {
+    setPrevDocuments(initialDocuments);
+    setDocuments(initialDocuments);
+  }
+
   useActionStateToast(deleteState, isDeleteActionPending);
   useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+    if (deletingDocument) {
+      setDocuments((current) =>
+        current.filter((document) => document.id !== deletingDocument.id)
+      );
+    }
     setDeletingDocument(null);
-    router.refresh();
   });
 
   function handleConfirmDelete() {
@@ -104,7 +113,13 @@ export function WorkshopDocumentsSection({
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
         workshopId={workshopId}
-        onUploaded={() => router.refresh()}
+        onUploaded={(document) => {
+          setDocuments((current) =>
+            current.some((row) => row.id === document.id)
+              ? current.map((row) => (row.id === document.id ? document : row))
+              : [...current, document]
+          );
+        }}
       />
 
       <RenameWorkshopDocumentDialog
@@ -115,7 +130,14 @@ export function WorkshopDocumentsSection({
           }
         }}
         document={renamingDocument}
-        onRenamed={() => router.refresh()}
+        onRenamed={(document) => {
+          setDocuments((current) =>
+            current.map((row) => (row.id === document.id ? document : row))
+          );
+          setRenamingDocument((current) =>
+            current?.id === document.id ? document : current
+          );
+        }}
       />
 
       <Dialog

@@ -191,7 +191,19 @@ export function ManageEmailingPanel({
     null
   );
   const [isClassMembersPending, setIsClassMembersPending] = useState(false);
+  const [prevClassFilter, setPrevClassFilter] = useState(classFilter);
   const [currentPage, setCurrentPage] = useState(1);
+
+  if (classFilter !== prevClassFilter) {
+    setPrevClassFilter(classFilter);
+    if (classFilter === CLASS_FILTER_ALL) {
+      setClassMemberUserIds(null);
+      setIsClassMembersPending(false);
+    } else {
+      setClassMemberUserIds(null);
+      setIsClassMembersPending(true);
+    }
+  }
 
   const stats = useMemo(() => {
     const students = initialUsers.filter(
@@ -221,14 +233,10 @@ export function ManageEmailingPanel({
 
   useEffect(() => {
     if (classFilter === CLASS_FILTER_ALL) {
-      setClassMemberUserIds(null);
-      setIsClassMembersPending(false);
       return;
     }
 
     let cancelled = false;
-    setIsClassMembersPending(true);
-    setClassMemberUserIds(null);
 
     void listEmailingClassMemberUserIdsAction(classFilter)
       .then((ids) => {

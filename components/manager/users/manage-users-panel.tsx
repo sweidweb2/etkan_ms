@@ -183,7 +183,13 @@ export function ManageUsersPanel({
   );
   const [currentPage, setCurrentPage] = useState(1);
 
-  const users = initialUsers;
+  const [users, setUsers] = useState(initialUsers);
+  const [prevUsers, setPrevUsers] = useState(initialUsers);
+
+  if (initialUsers !== prevUsers) {
+    setPrevUsers(initialUsers);
+    setUsers(initialUsers);
+  }
 
   const stats = useMemo(
     () => ({
@@ -244,14 +250,16 @@ export function ManageUsersPanel({
     setCurrentPage(1);
   };
 
-  const handleUserCreated = () => {
+  const handleUserCreated = (user: ManagerUserRow) => {
+    setUsers((current) => [user, ...current]);
     setCurrentPage(1);
-    router.refresh();
   };
 
-  const handleUserUpdated = () => {
+  const handleUserUpdated = (user: ManagerUserRow) => {
+    setUsers((current) =>
+      current.map((row) => (row.id === user.id ? user : row))
+    );
     setEditingUser(null);
-    router.refresh();
   };
 
   const openUserDetails = (user: ManagerUserRow) => {
@@ -340,9 +348,17 @@ export function ManageUsersPanel({
               (statusTarget.student_status ??
                 STUDENT_STATUSES.ACTIVE) as StudentStatusValue
             }
-            onCompleted={() => {
+            onCompleted={(status) => {
               setStatusTarget(null);
-              router.refresh();
+              if (statusTarget?.student_profile_id) {
+                setUsers((current) =>
+                  current.map((user) =>
+                    user.id === statusTarget.id
+                      ? { ...user, student_status: status }
+                      : user
+                  )
+                );
+              }
             }}
           />
         ) : null}

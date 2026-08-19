@@ -54,7 +54,7 @@ type EditWorkshopPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payment: ManagerWorkshopPaymentRow | null;
-  onUpdated: () => void;
+  onUpdated: (payment: ManagerWorkshopPaymentRow) => void;
 };
 
 function toFormDefaults(
@@ -111,9 +111,11 @@ export function EditWorkshopPaymentDialog({
     }
   }, [open, payment, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
+    if (nextState.payment) {
+      onUpdated(nextState.payment);
+    }
     onOpenChange(false);
-    onUpdated();
   });
 
   function onSubmit(values: UpdateWorkshopPaymentInput) {

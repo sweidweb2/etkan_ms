@@ -6,7 +6,6 @@ import {
   useState,
   useTransition,
 } from "react";
-import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { CalendarDaysIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
@@ -59,8 +58,25 @@ function toCapabilitySet(pairs: ManagerInstructorCapabilityPair[]) {
 }
 
 export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
-  const router = useRouter();
   const permissions = usePermissions();
+  const [instructors, setInstructors] = useState(data.instructors);
+  const [candidateUsers, setCandidateUsers] = useState(data.candidateUsers);
+  const instructorsKey = data.instructors.map((row) => row.id).join("|");
+  const candidatesKey = data.candidateUsers.map((row) => row.id).join("|");
+  const [syncedInstructorsKey, setSyncedInstructorsKey] =
+    useState(instructorsKey);
+  const [syncedCandidatesKey, setSyncedCandidatesKey] = useState(candidatesKey);
+
+  if (instructorsKey !== syncedInstructorsKey) {
+    setSyncedInstructorsKey(instructorsKey);
+    setInstructors(data.instructors);
+  }
+
+  if (candidatesKey !== syncedCandidatesKey) {
+    setSyncedCandidatesKey(candidatesKey);
+    setCandidateUsers(data.candidateUsers);
+  }
+
   const canUpdateCapabilities = hasPermissionInSet(
     permissions,
     PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE
@@ -124,9 +140,30 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
     setBaselineKeys(next);
   });
 
-  useActionStateSuccess(removeState, isRemovePending, () => {
+  useActionStateSuccess(removeState, isRemovePending, (nextState) => {
+    if (nextState.userId) {
+      setInstructors((current) =>
+        current.filter((row) => row.id !== nextState.userId)
+      );
+      setCandidateUsers((current) => {
+        const removed = instructors.find(
+          (row) => row.id === nextState.userId
+        );
+        if (!removed) {
+          return current;
+        }
+        return [
+          ...current,
+          {
+            id: removed.id,
+            username: removed.username,
+            role: removed.role,
+            email: removed.email,
+          },
+        ];
+      });
+    }
     setRemoveTarget(null);
-    router.refresh();
   });
 
   const isDirty = useMemo(() => {
@@ -249,7 +286,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
               </tr>
             </thead>
             <tbody>
-              {data.instructors.length === 0 ? (
+              {instructors.length === 0 ? (
                 <tr>
                   <td
                     colSpan={5}
@@ -260,7 +297,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
                   </td>
                 </tr>
               ) : (
-                data.instructors.map((instructor) => (
+                instructors.map((instructor) => (
                   <tr
                     key={instructor.id}
                     className="border-b last:border-b-0 hover:bg-muted/30"
@@ -350,19 +387,19 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
               </tr>
             </thead>
             <tbody>
-              {data.instructors.length === 0 || data.subjects.length === 0 ? (
+              {instructors.length === 0 || data.subjects.length === 0 ? (
                 <tr>
                   <td
                     colSpan={Math.max(data.subjects.length + 1, 2)}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
-                    {data.instructors.length === 0
+                    {instructors.length === 0
                       ? "Add instructors to edit capabilities."
                       : "Create subjects to build the capability matrix."}
                   </td>
                 </tr>
               ) : (
-                data.instructors.map((instructor) => (
+                instructors.map((instructor) => (
                   <tr
                     key={instructor.id}
                     className="border-b last:border-b-0 hover:bg-muted/20"
@@ -410,8 +447,18 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
       <AddInstructorsDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        candidateUsers={data.candidateUsers}
-        onAdded={() => router.refresh()}
+        candidateUsers={candidateUsers}
+        onAdded={(added) => {
+          setInstructors((current) => {
+            const existingIds = new Set(current.map((row) => row.id));
+            const next = added.filter((row) => !existingIds.has(row.id));
+            return next.length > 0 ? [...next, ...current] : current;
+          });
+          setCandidateUsers((current) => {
+            const addedIds = new Set(added.map((row) => row.id));
+            return current.filter((row) => !addedIds.has(row.id));
+          });
+        }}
       />
 
       <Dialog

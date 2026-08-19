@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ChartNoAxesColumnIncreasingIcon,
@@ -134,8 +133,8 @@ type ManagePhasesPanelProps = {
 };
 
 export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) {
-  const router = useRouter();
-  const phases = initialSemesters;
+  const [phases, setPhases] = useState(initialSemesters);
+  const [prevPhases, setPrevPhases] = useState(initialSemesters);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingSemester, setEditingSemester] =
     useState<ManagerSemesterRow | null>(null);
@@ -144,6 +143,11 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
   const [sortBy, setSortBy] = useState<SortByValue>(SORT_BY_NAME);
   const [sortOrder, setSortOrder] = useState<SortOrderValue>(SORT_ORDER_ASC);
   const [currentPage, setCurrentPage] = useState(1);
+
+  if (initialSemesters !== prevPhases) {
+    setPrevPhases(initialSemesters);
+    setPhases(initialSemesters);
+  }
 
   const stats = useMemo(
     () => ({
@@ -188,14 +192,16 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
     filteredPhases.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredPhases.length);
 
-  const handleSemesterCreated = () => {
+  const handleSemesterCreated = (semester: ManagerSemesterRow) => {
+    setPhases((current) => [semester, ...current]);
     setCurrentPage(1);
-    router.refresh();
   };
 
-  const handleSemesterUpdated = () => {
+  const handleSemesterUpdated = (semester: ManagerSemesterRow) => {
+    setPhases((current) =>
+      current.map((row) => (row.id === semester.id ? semester : row))
+    );
     setEditingSemester(null);
-    router.refresh();
   };
 
   return (

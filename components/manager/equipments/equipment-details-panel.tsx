@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
@@ -63,11 +62,17 @@ function DetailField({
 }
 
 export function EquipmentDetailsPanel({
-  equipment,
+  equipment: initialEquipment,
   initialBorrows,
 }: EquipmentDetailsPanelProps) {
-  const router = useRouter();
+  const [equipment, setEquipment] = useState(initialEquipment);
+  const [prevEquipment, setPrevEquipment] = useState(initialEquipment);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  if (initialEquipment !== prevEquipment) {
+    setPrevEquipment(initialEquipment);
+    setEquipment(initialEquipment);
+  }
 
   const remaining = getEquipmentRemainingQuantity(equipment);
   const inventoryValue = getEquipmentInventoryValue(equipment);
@@ -92,7 +97,9 @@ export function EquipmentDetailsPanel({
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         equipment={equipment}
-        onEquipmentUpdated={() => router.refresh()}
+        onEquipmentUpdated={(updated) => {
+          setEquipment(updated);
+        }}
       />
 
       <Card className="gap-0 py-0">

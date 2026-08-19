@@ -1083,6 +1083,149 @@ export async function listClassStudentGradesForManager(
   };
 }
 
+function buildFinalExamStudentGradesFromContext(
+  context: ClassGradeContext,
+  students: Awaited<ReturnType<typeof listClassStudentsForManager>>
+): ManagerStudentFinalExamGradeRow[] {
+  if (!context.finalExam) {
+    return [];
+  }
+
+  const nameByUserId = new Map(
+    students.map((student) => [student.user_id, student.full_name])
+  );
+
+  return Array.from(context.finalExamGradesByUserId.values()).map((record) =>
+    mapStudentFinalExamGradeForBundle(
+      record,
+      nameByUserId.get(record.student_id) ?? "Unknown student"
+    )
+  );
+}
+
+export async function loadClassGradesPageData(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<{
+  classRow: ManagerClassRow;
+  rows: ManagerClassStudentGradeRow[];
+  tasks: ManagerClassTaskForGradesRow[];
+  finalExam: ManagerClassFinalExamRow | null;
+  finalExamStudentGrades: ManagerStudentFinalExamGradeRow[];
+}> {
+  const guard = await assertClassGradesUnlockedForManager(
+    adminClient,
+    actorUserId,
+    classId
+  );
+
+  if (!guard.ok) {
+    throw new Error(guard.error);
+  }
+
+  const [students, context] = await Promise.all([
+    listClassStudentsForManager(adminClient, actorUserId, classId),
+    loadClassGradeContext(adminClient, classId),
+  ]);
+
+  const rows = students.map((student) => {
+    const stored = context.storedGradesByUserId.get(student.user_id);
+    if (stored) {
+      return mapStoredGradeRow(student, stored);
+    }
+
+    return mapPendingGradeRow(student, context);
+  });
+
+  return {
+    classRow: guard.classRow,
+    rows,
+    tasks: context.classTasks,
+    finalExam: context.finalExam
+      ? mapFinalExamForStudentBundle(context.finalExam)
+      : null,
+    finalExamStudentGrades: buildFinalExamStudentGradesFromContext(
+      context,
+      students
+    ),
+  };
+}
+
+export async function loadClassStudentGradeDetailPageData(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string,
+  studentProfileId: string
+): Promise<{
+  classRow: ManagerClassRow;
+  student: ManagerClassStudentRow;
+  gradeRow: ManagerClassStudentGradeRow;
+  detail: ManagerStudentClassTabDetail;
+  classTasks: ManagerClassTaskForGradesRow[];
+  finalExam: ManagerClassFinalExamRow | null;
+} | null> {
+  const guard = await assertClassGradesUnlockedForManager(
+    adminClient,
+    actorUserId,
+    classId
+  );
+
+  if (!guard.ok) {
+    throw new Error(guard.error);
+  }
+
+  const profileResult = await studentProfileRepository.findStudentProfileById(
+    adminClient,
+    studentProfileId
+  );
+
+  if (profileResult.error) {
+    throw new Error(profileResult.error.message);
+  }
+
+  if (!profileResult.data) {
+    return null;
+  }
+
+  const [student, context] = await Promise.all([
+    fetchClassStudentRowForManager(
+      adminClient,
+      classId,
+      profileResult.data.user_id
+    ),
+    loadClassGradeContext(adminClient, classId),
+  ]);
+
+  if (!student) {
+    return null;
+  }
+
+  const attendeeStatusBySessionId =
+    context.attendeeStatusMapsByUserId.get(student.user_id) ??
+    new Map<string, string>();
+
+  const stored = context.storedGradesByUserId.get(student.user_id);
+  const gradeRow = stored
+    ? mapStoredGradeRow(student, stored)
+    : mapPendingGradeRow(student, context);
+
+  return {
+    classRow: guard.classRow,
+    student,
+    gradeRow,
+    detail: buildStudentClassTabDetail(
+      context,
+      student.user_id,
+      attendeeStatusBySessionId
+    ),
+    classTasks: context.classTasks,
+    finalExam: context.finalExam
+      ? mapFinalExamForStudentBundle(context.finalExam)
+      : null,
+  };
+}
+
 function evaluateStudentCourseGradeFromContext(
   student: ManagerClassStudentRow,
   classId: string,
@@ -1206,6 +1349,71 @@ async function saveEvaluatedStudentCourseGrade(
   });
 
   return { success: true, row };
+}
+
+async function saveEvaluatedStudentCourseGradesBatch(
+  adminClient: Supabase,
+  actor: AuditActor,
+  classId: string,
+  items: Array<{
+    student: ManagerClassStudentRow;
+    payload: UpsertStudentCourseGradeInput;
+  }>
+): Promise<
+  Array<
+    | { success: true; row: ManagerClassStudentGradeRow }
+    | { success: false; error: string }
+  >
+> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const saveResult = await studentCourseGradeRepository.upsertStudentCourseGrades(
+    adminClient,
+    items.map((item) => item.payload)
+  );
+
+  if (saveResult.error || !saveResult.data) {
+    const message =
+      saveResult.error?.message ?? "Unable to save computed grades.";
+    return items.map(() => ({ success: false as const, error: message }));
+  }
+
+  const savedByUserId = new Map(
+    (saveResult.data as StudentCourseGradeRecord[]).map((record) => [
+      record.user_id,
+      record,
+    ])
+  );
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "student_course_grade",
+    record_id: classId,
+    new_data: {
+      class_id: classId,
+      user_ids: items.map((item) => item.student.user_id),
+      count: items.length,
+    },
+    metadata: { note: "Batch computed student course grades." },
+  });
+
+  return items.map((item) => {
+    const saved = savedByUserId.get(item.student.user_id);
+    if (!saved) {
+      return {
+        success: false as const,
+        error: "Unable to save computed grade.",
+      };
+    }
+
+    return {
+      success: true as const,
+      row: mapStoredGradeRow(item.student, saved),
+    };
+  });
 }
 
 async function computeAndSaveStudentCourseGrade(
@@ -1428,15 +1636,11 @@ export async function computeAllStudentCourseGradesForManager(
           index,
           index + COMPUTE_ALL_SAVE_CHUNK
         );
-        const saved = await Promise.all(
-          chunk.map((item) =>
-            saveEvaluatedStudentCourseGrade(
-              adminClient,
-              actor,
-              item.student,
-              item.payload
-            )
-          )
+        const saved = await saveEvaluatedStudentCourseGradesBatch(
+          adminClient,
+          actor,
+          classId,
+          chunk
         );
 
         for (const result of saved) {

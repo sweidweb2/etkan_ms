@@ -22,14 +22,14 @@ import {
   createSubjectSchema,
   type CreateSubjectInput,
 } from "@/lib/validators/manager/create-subject";
-import type { CreateSubjectActionState } from "@/types/manager-subject";
+import type { CreateSubjectActionState, ManagerSubjectRow } from "@/types/manager-subject";
 
 const initialState: CreateSubjectActionState = {};
 
 type AddSubjectDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubjectCreated: () => void;
+  onSubjectCreated: (subject: ManagerSubjectRow) => void;
 };
 
 export function AddSubjectDialog({
@@ -77,9 +77,11 @@ export function AddSubjectDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onSubjectCreated();
+    if (nextState.subject) {
+      onSubjectCreated(nextState.subject);
+    }
   });
 
   function onSubmit(values: CreateSubjectInput) {

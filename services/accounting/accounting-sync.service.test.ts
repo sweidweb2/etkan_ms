@@ -196,32 +196,31 @@ describe("backfillSppsForClassBecomeInProgress", () => {
     expect(
       studentPaymentPhaseRepository.ensureSppForStudentOnPhase
     ).not.toHaveBeenCalled();
-    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledTimes(2);
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledTimes(1);
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
       adminClient,
       actor,
       expect.objectContaining({
         action: "insert",
         table_name: "student_payment_phases",
-        record_id: sppId,
+        record_id: classId,
         metadata: expect.objectContaining({
-          note: "Student payment phase created from class in_progress backfill.",
+          note: "Student payment phases backfilled for class in_progress.",
           class_id: classId,
           semester_id: semesterId,
-        }),
-      })
-    );
-    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
-      adminClient,
-      actor,
-      expect.objectContaining({
-        action: "update",
-        table_name: "student_payment_phases",
-        record_id: otherSppId,
-        old_data: { status: "cancelled" },
-        metadata: expect.objectContaining({
-          note: "Student payment phase reactivated from class in_progress backfill.",
-          semester_id: semesterId,
+          created_count: 1,
+          reactivated_count: 1,
+          created: expect.arrayContaining([
+            expect.objectContaining({
+              spp_id: sppId,
+              student_id: studentId,
+            }),
+          ]),
+          reactivated: expect.arrayContaining([
+            expect.objectContaining({
+              spp_id: otherSppId,
+            }),
+          ]),
         }),
       })
     );
@@ -473,6 +472,12 @@ describe("onStudentsJoinedClass", () => {
       expect.objectContaining({
         action: "insert",
         table_name: "student_payment_phases",
+        record_id: classId,
+        metadata: expect.objectContaining({
+          note: "Student payment phases synced from batch class enrollment.",
+          class_id: classId,
+          created_count: 1,
+        }),
       })
     );
   });

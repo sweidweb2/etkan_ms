@@ -41,11 +41,91 @@ export type UpdateNotificationRecordInput = {
   action_href?: string | null;
 };
 
-export async function listNotifications(client: Supabase) {
-  return client
+export type NotificationListFilters = {
+  isRead?: "all" | "read" | "unread";
+  category?: string | null;
+  search?: string | null;
+};
+
+export type ListNotificationsOptions = NotificationListFilters & {
+  limit: number;
+  offset: number;
+};
+
+export async function listNotifications(
+  client: Supabase,
+  options: ListNotificationsOptions
+) {
+  const from = options.offset;
+  const to = options.offset + options.limit - 1;
+
+  let query = client
     .from("notifications")
     .select(NOTIFICATION_COLUMNS)
     .order("created_at", { ascending: false });
+
+  if (options.isRead === "read") {
+    query = query.eq("is_read", true);
+  } else if (options.isRead === "unread") {
+    query = query.eq("is_read", false);
+  }
+
+  if (options.category && options.category !== "all") {
+    query = query.eq("category", options.category);
+  }
+
+  const search = options.search?.trim();
+  if (search) {
+    const escaped = search.replace(/[%_,]/g, "");
+    if (escaped) {
+      query = query.or(`title.ilike.%${escaped}%,body.ilike.%${escaped}%`);
+    }
+  }
+
+  return query.range(from, to);
+}
+
+export async function countNotifications(
+  client: Supabase,
+  filters: NotificationListFilters = {}
+) {
+  let query = client
+    .from("notifications")
+    .select("id", { count: "exact", head: true });
+
+  if (filters.isRead === "read") {
+    query = query.eq("is_read", true);
+  } else if (filters.isRead === "unread") {
+    query = query.eq("is_read", false);
+  }
+
+  if (filters.category && filters.category !== "all") {
+    query = query.eq("category", filters.category);
+  }
+
+  const search = filters.search?.trim();
+  if (search) {
+    const escaped = search.replace(/[%_,]/g, "");
+    if (escaped) {
+      query = query.or(`title.ilike.%${escaped}%,body.ilike.%${escaped}%`);
+    }
+  }
+
+  return query;
+}
+
+export async function countUnreadNotifications(client: Supabase) {
+  return client
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("is_read", false);
+}
+
+export async function countHighPriorityNotifications(client: Supabase) {
+  return client
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("priority", "high");
 }
 
 export async function findNotificationById(client: Supabase, id: string) {

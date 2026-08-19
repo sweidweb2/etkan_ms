@@ -23,14 +23,17 @@ import {
   createEquipmentSchema,
   type CreateEquipmentInput,
 } from "@/lib/validators/manager/create-equipment";
-import type { CreateEquipmentActionState } from "@/types/manager-equipment";
+import type {
+  CreateEquipmentActionState,
+  ManagerEquipmentRow,
+} from "@/types/manager-equipment";
 
 const initialState: CreateEquipmentActionState = {};
 
 type AddEquipmentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEquipmentCreated: () => void;
+  onEquipmentCreated: (equipment: ManagerEquipmentRow) => void;
 };
 
 export function AddEquipmentDialog({
@@ -76,9 +79,11 @@ export function AddEquipmentDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onEquipmentCreated();
+    if (nextState.equipment) {
+      onEquipmentCreated(nextState.equipment);
+    }
   });
 
   function onSubmit(values: CreateEquipmentInput) {

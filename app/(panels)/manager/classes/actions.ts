@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { redirect } from "next/navigation";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import {
@@ -58,6 +59,7 @@ import {
 } from "@/services/classes/session.service";
 import { listSemestersForManager } from "@/services/classes/semester.service";
 import { listSubjectsForManager } from "@/services/classes/subject.service";
+import { listStudentsWithoutInProgressClassForManager } from "@/services/students/student.service";
 import type {
   AddStudentToClassActionState,
   AssignClassTeacherActionState,
@@ -75,7 +77,10 @@ import type {
   UpdateFinalExamActionState,
   UpdateStudentFinalExamGradeActionState,
 } from "@/types/manager-class-detail";
-import type { ManagerStudentRow } from "@/types/manager-student";
+import type {
+  ManagerStudentRow,
+  ManagerStudentWithoutActiveClassRow,
+} from "@/types/manager-student";
 import type {
   CreateSessionTaskActionState,
   DeleteClassSessionActionState,
@@ -170,6 +175,26 @@ export async function loadClassCreateDialogDataAction(): Promise<{
     return await getClassCreateDialogDataForManager(adminClient, actor.userId);
   } catch {
     return { subjects: [], semesters: [], teachers: [] };
+  }
+}
+
+export async function loadStudentsWithoutActiveClassAction(): Promise<
+  ManagerStudentWithoutActiveClassRow[]
+> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listStudentsWithoutInProgressClassForManager(
+      adminClient,
+      actor.userId,
+      PERMISSIONS.CLASSES_VIEW
+    );
+  } catch {
+    return [];
   }
 }
 

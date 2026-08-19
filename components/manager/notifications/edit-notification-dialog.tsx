@@ -53,7 +53,7 @@ type EditNotificationDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   notification: ManagerNotificationRow | null;
-  onNotificationUpdated: () => void;
+  onNotificationUpdated: (notification: ManagerNotificationRow) => void;
 };
 
 export function EditNotificationDialog({
@@ -121,9 +121,11 @@ export function EditNotificationDialog({
     });
   }, [notification, open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onNotificationUpdated();
+    if (nextState.notification) {
+      onNotificationUpdated(nextState.notification);
+    }
   });
 
   function onSubmit(values: UpdateNotificationInput) {

@@ -14,7 +14,6 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Can } from "@/components/auth/can";
 import { AddGuestDialog } from "@/components/manager/guests/add-guest-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -163,8 +162,8 @@ type ManageGuestsPanelProps = {
 };
 
 export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
-  const router = useRouter();
-  const guests = initialGuests;
+  const [guests, setGuests] = useState(initialGuests);
+  const [prevGuests, setPrevGuests] = useState(initialGuests);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(FILTER_ALL);
   const [serviceFilter, setServiceFilter] = useState(FILTER_ALL);
@@ -173,6 +172,11 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  if (initialGuests !== prevGuests) {
+    setPrevGuests(initialGuests);
+    setGuests(initialGuests);
+  }
 
   const stats = useMemo(() => {
     return {
@@ -495,7 +499,10 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
         <AddGuestDialog
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
-          onGuestCreated={() => router.refresh()}
+          onGuestCreated={(guest) => {
+            setGuests((current) => [guest, ...current]);
+            setCurrentPage(1);
+          }}
         />
       </div>
     </TooltipProvider>

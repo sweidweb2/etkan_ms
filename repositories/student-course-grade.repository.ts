@@ -183,6 +183,31 @@ export async function saveStudentCourseGrade(
     .single();
 }
 
+export async function upsertStudentCourseGrades(
+  client: Supabase,
+  inputs: UpsertStudentCourseGradeInput[]
+) {
+  if (inputs.length === 0) {
+    return { data: [] as StudentCourseGradeRecord[], error: null };
+  }
+
+  const rows = inputs.map((input) => ({
+    user_id: input.user_id,
+    class_id: input.class_id,
+    task_json_grade_weights: input.task_json_grade_weights ?? null,
+    task_weight: input.task_weight,
+    task_total_grade: input.task_total_grade,
+    final_exam_grade: input.final_exam_grade,
+    final_exam_weight: input.final_exam_weight,
+    type: input.type,
+  }));
+
+  return client
+    .from("student_course_grade")
+    .upsert(rows, { onConflict: "user_id,class_id" })
+    .select(STUDENT_COURSE_GRADE_COLUMNS);
+}
+
 export async function deleteStudentCourseGradeByClassAndUser(
   client: Supabase,
   classId: string,

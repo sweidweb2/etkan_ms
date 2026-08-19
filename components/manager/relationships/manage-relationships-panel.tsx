@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ChevronLeftIcon,
@@ -155,8 +154,9 @@ type ManageRelationshipsPanelProps = {
 export function ManageRelationshipsPanel({
   initialRelationships,
 }: ManageRelationshipsPanelProps) {
-  const router = useRouter();
-  const relationships = initialRelationships;
+  const [relationships, setRelationships] = useState(initialRelationships);
+  const [prevRelationships, setPrevRelationships] =
+    useState(initialRelationships);
   const [searchQuery, setSearchQuery] = useState("");
   const [usefulFilter, setUsefulFilter] = useState<string>(USEFUL_FILTER_ALL);
   const [majorFilter, setMajorFilter] = useState<string>(MAJOR_FILTER_ALL);
@@ -174,6 +174,11 @@ export function ManageRelationshipsPanel({
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  if (initialRelationships !== prevRelationships) {
+    setPrevRelationships(initialRelationships);
+    setRelationships(initialRelationships);
+  }
 
   const stats = useMemo(() => {
     return {
@@ -293,13 +298,21 @@ export function ManageRelationshipsPanel({
     setIsSheetOpen(true);
   };
 
-  const handleRelationshipCreated = () => {
+  const handleRelationshipCreated = (relationship: ManagerRelationshipRow) => {
+    setRelationships((current) => [relationship, ...current]);
     setCurrentPage(1);
-    router.refresh();
   };
 
-  const handleRelationshipUpdated = () => {
-    router.refresh();
+  const handleRelationshipUpdated = (relationship: ManagerRelationshipRow) => {
+    setRelationships((current) =>
+      current.map((row) => (row.id === relationship.id ? relationship : row))
+    );
+    setSelectedRelationship((current) =>
+      current?.id === relationship.id ? relationship : current
+    );
+    setViewingRelationship((current) =>
+      current?.id === relationship.id ? relationship : current
+    );
   };
 
   return (

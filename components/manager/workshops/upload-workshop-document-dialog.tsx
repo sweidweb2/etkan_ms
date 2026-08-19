@@ -29,7 +29,10 @@ import {
   WORKSHOP_DOCUMENT_ACCEPT,
   WORKSHOP_DOCUMENT_MAX_BYTES,
 } from "@/lib/constants/manager-workshop-documents";
-import type { UploadWorkshopDocumentActionState } from "@/types/manager-workshop";
+import type {
+  ManagerWorkshopDocumentRow,
+  UploadWorkshopDocumentActionState,
+} from "@/types/manager-workshop";
 
 const initialState: UploadWorkshopDocumentActionState = {};
 
@@ -37,7 +40,7 @@ type UploadWorkshopDocumentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workshopId: string;
-  onUploaded: () => void;
+  onUploaded: (document: ManagerWorkshopDocumentRow) => void;
 };
 
 export function UploadWorkshopDocumentDialog({
@@ -108,12 +111,14 @@ export function UploadWorkshopDocumentDialog({
     };
   }, [isSelectProgressActive, selectProgress]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     setUploadComplete(true);
     window.setTimeout(() => {
       onOpenChange(false);
       resetUploadForm();
-      onUploaded();
+      if (nextState.document) {
+        onUploaded(nextState.document);
+      }
     }, 220);
   });
 

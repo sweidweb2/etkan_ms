@@ -90,6 +90,15 @@ describe("createInstructorScheduleSlotForManager workshop fan-out", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByInstructorUserIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
   });
 
   it("mirrors a new workshop slot to all instructors", async () => {
@@ -171,6 +180,15 @@ describe("updateInstructorScheduleSlotForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    vi.mocked(
+      instructorScheduleSlotRepository.listInstructorScheduleSlotsByInstructorUserIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+      status: 200,
+      statusText: "OK",
+    } as never);
   });
 
   it("updates mirrors when a workshop slot changes", async () => {

@@ -70,6 +70,7 @@ import {
   formatPaymentPhaseMoney,
   SPP_STATUS_LABELS,
 } from "@/lib/constants/manager-payment-phase-display";
+import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingSppDetailRoute,
@@ -94,6 +95,28 @@ import type {
   ManagerPaymentPhaseRow,
   ManagerSppRow,
 } from "@/types/manager-payment-phase";
+import type { ManagerStudentPaymentRow } from "@/types/manager-student-payment";
+
+function applySppRowAfterPayment(
+  spp: ManagerSppRow,
+  paymentAmount: number
+): ManagerSppRow {
+  const total_paid = spp.total_paid + paymentAmount;
+  const financials = {
+    original: spp.original_amount,
+    adjustmentAmount: spp.adjustment_amount,
+    finalDue: spp.final_amount_due,
+    totalPaid: total_paid,
+    remaining: spp.final_amount_due - total_paid,
+  };
+
+  return {
+    ...spp,
+    total_paid,
+    remaining_amount: financials.remaining,
+    status: deriveSppStatus(financials, spp.status),
+  };
+}
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const STATUS_FILTER_ALL = "all";
@@ -247,7 +270,6 @@ export function PaymentPhaseDetailsPanel({
       setPhase(nextState.phase);
     }
     setIsCancelOpen(false);
-    router.refresh();
   });
 
   if (initialPhase !== prevPhase) {
@@ -267,9 +289,15 @@ export function PaymentPhaseDetailsPanel({
     setRecordPaymentSppId(sppId);
   };
 
-  const handlePaymentCreated = () => {
+  const handlePaymentCreated = (payment: ManagerStudentPaymentRow) => {
     setRecordPaymentSppId(null);
-    router.refresh();
+    setSpps((current) =>
+      current.map((spp) =>
+        spp.id === payment.student_payment_phase_id
+          ? applySppRowAfterPayment(spp, payment.amount)
+          : spp
+      )
+    );
   };
 
   const filteredSpps = useMemo(() => {
@@ -313,7 +341,6 @@ export function PaymentPhaseDetailsPanel({
 
   const handlePhaseUpdated = (updated: ManagerPaymentPhaseRow) => {
     setPhase(updated);
-    router.refresh();
   };
 
   const openSppDetails = (sppId: string) => {
@@ -386,6 +413,10 @@ export function PaymentPhaseDetailsPanel({
           spp={transferringSpp}
           sourcePhaseId={phase.id}
           phases={transferPhaseOptions}
+          onTransferred={(sppId) => {
+            setTransferringSpp(null);
+            setSpps((current) => current.filter((spp) => spp.id !== sppId));
+          }}
         />
 
         <Dialog open={isCancelOpen} onOpenChange={handleCancelOpenChange}>

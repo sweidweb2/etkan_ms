@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -78,10 +77,11 @@ function formatTime(value: string) {
 
 export function WorkshopSessionsSection({
   workshopId,
-  sessions,
+  sessions: initialSessions,
   mutationsLocked = false,
 }: WorkshopSessionsSectionProps) {
-  const router = useRouter();
+  const [sessions, setSessions] = useState(initialSessions);
+  const [prevSessions, setPrevSessions] = useState(initialSessions);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingSession, setEditingSession] =
     useState<ManagerWorkshopSessionRow | null>(null);
@@ -107,10 +107,19 @@ export function WorkshopSessionsSection({
     }
   );
 
+  if (initialSessions !== prevSessions) {
+    setPrevSessions(initialSessions);
+    setSessions(initialSessions);
+  }
+
   useActionStateToast(deleteState, isDeleteActionPending);
   useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+    if (deletingSession) {
+      setSessions((current) =>
+        current.filter((session) => session.id !== deletingSession.id)
+      );
+    }
     setDeletingSession(null);
-    router.refresh();
   });
 
   const filtered = useMemo(() => {
@@ -158,7 +167,13 @@ export function WorkshopSessionsSection({
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         workshopId={workshopId}
-        onCreated={() => router.refresh()}
+        onCreated={(session) => {
+          setSessions((current) =>
+            current.some((row) => row.id === session.id)
+              ? current.map((row) => (row.id === session.id ? session : row))
+              : [...current, session]
+          );
+        }}
       />
 
       <EditWorkshopSessionDialog
@@ -169,7 +184,17 @@ export function WorkshopSessionsSection({
           }
         }}
         session={editingSession}
-        onUpdated={() => router.refresh()}
+        onUpdated={(session) => {
+          setSessions((current) =>
+            current.map((row) => (row.id === session.id ? session : row))
+          );
+          setEditingSession((current) =>
+            current?.id === session.id ? session : current
+          );
+          setViewingSession((current) =>
+            current?.id === session.id ? session : current
+          );
+        }}
       />
 
       <Dialog

@@ -66,6 +66,8 @@ import {
   type FinancialAdjustmentValueType,
   type PaymentMethod,
 } from "@/lib/manager/accounting/constants";
+import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
+import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -89,7 +91,6 @@ import type {
 } from "@/types/manager-student-payment";
 import { CopyIcon, LinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 
@@ -153,6 +154,40 @@ function formatAdjustmentValue(
   return formatPaymentPhaseMoney(value);
 }
 
+function sortPayments(rows: ManagerStudentPaymentRow[]) {
+  return [...rows].sort(
+    (a, b) =>
+      b.payment_date.localeCompare(a.payment_date) ||
+      b.created_at.localeCompare(a.created_at)
+  );
+}
+
+function applySppFinancials(
+  spp: ManagerSppDetail,
+  adjustment: ManagerFinancialAdjustmentRow | null,
+  payments: ManagerStudentPaymentRow[]
+): ManagerSppDetail {
+  const financials = computeSppFinancials(
+    spp.phase_amount,
+    adjustment
+      ? { value_type: adjustment.value_type, value: adjustment.value }
+      : null,
+    payments.map((payment) => payment.amount)
+  );
+  const status = deriveSppStatus(financials, spp.status);
+
+  return {
+    ...spp,
+    original_amount: financials.original,
+    adjustment_amount: financials.adjustmentAmount,
+    final_amount_due: financials.finalDue,
+    total_paid: financials.totalPaid,
+    remaining_amount: financials.remaining,
+    has_credit: financials.remaining < 0,
+    status,
+  };
+}
+
 export function SppDetailsPanel({
   spp: initialSpp,
   initialPayments,
@@ -161,7 +196,6 @@ export function SppDetailsPanel({
   initialInvites,
   actorLabel,
 }: SppDetailsPanelProps) {
-  const router = useRouter();
   const [spp, setSpp] = useState(initialSpp);
   const [prevSpp, setPrevSpp] = useState(initialSpp);
   const [payments, setPayments] = useState(initialPayments);
@@ -262,8 +296,13 @@ export function SppDetailsPanel({
 
   useActionStateToast(deletePaymentState, isDeletePaymentActionPending);
   useActionStateSuccess(deletePaymentState, isDeletePaymentActionPending, () => {
+    const removedId = deletingPayment?.id;
     setDeletingPayment(null);
-    router.refresh();
+    if (removedId) {
+      const nextPayments = payments.filter((payment) => payment.id !== removedId);
+      setPayments(sortPayments(nextPayments));
+      setSpp((current) => applySppFinancials(current, adjustment, nextPayments));
+    }
   });
 
   useActionStateToast(deleteAdjustmentState, isDeleteAdjustmentActionPending);
@@ -272,7 +311,8 @@ export function SppDetailsPanel({
     isDeleteAdjustmentActionPending,
     () => {
       setIsDeleteAdjustmentOpen(false);
-      router.refresh();
+      setAdjustment(null);
+      setSpp((current) => applySppFinancials(current, null, payments));
     }
   );
 
@@ -280,24 +320,34 @@ export function SppDetailsPanel({
 
   useActionStateToast(deleteFormState, isDeleteFormActionPending);
   useActionStateSuccess(deleteFormState, isDeleteFormActionPending, () => {
+    const removedId = deletingForm?.id;
     setDeletingForm(null);
-    router.refresh();
+    if (removedId) {
+      setForms((current) => current.filter((form) => form.id !== removedId));
+    }
   });
 
   useActionStateToast(deleteInviteState, isDeleteInviteActionPending);
   useActionStateSuccess(deleteInviteState, isDeleteInviteActionPending, () => {
+    const removedId = deletingInvite?.id;
     setDeletingInvite(null);
-    router.refresh();
+    if (removedId) {
+      setInvites((current) =>
+        current.filter((invite) => invite.id !== removedId)
+      );
+    }
   });
 
   useActionStateToast(inviteState, isInviteActionPending);
-  useActionStateSuccess(inviteState, isInviteActionPending, () => {
-    if (inviteState.invite?.url) {
-      void navigator.clipboard.writeText(inviteState.invite.url).then(() => {
+  useActionStateSuccess(inviteState, isInviteActionPending, (nextState) => {
+    if (nextState.invite?.url) {
+      void navigator.clipboard.writeText(nextState.invite.url).then(() => {
         showSuccessToast("Invite link copied to clipboard.");
       });
     }
-    router.refresh();
+    if (nextState.invite) {
+      setInvites((current) => [nextState.invite!, ...current]);
+    }
   });
 
   if (initialSpp !== prevSpp) {
@@ -325,8 +375,38 @@ export function SppDetailsPanel({
     setInvites(initialInvites);
   }
 
-  const handleChanged = () => {
-    router.refresh();
+  const handlePaymentCreated = (payment: ManagerStudentPaymentRow) => {
+    const nextPayments = sortPayments([...payments, payment]);
+    setPayments(nextPayments);
+    setSpp((current) => applySppFinancials(current, adjustment, nextPayments));
+  };
+
+  const handlePaymentUpdated = (payment: ManagerStudentPaymentRow) => {
+    const nextPayments = sortPayments(
+      payments.map((row) => (row.id === payment.id ? payment : row))
+    );
+    setPayments(nextPayments);
+    setSpp((current) => applySppFinancials(current, adjustment, nextPayments));
+  };
+
+  const handleAdjustmentCreated = (nextAdjustment: ManagerFinancialAdjustmentRow) => {
+    setAdjustment(nextAdjustment);
+    setSpp((current) => applySppFinancials(current, nextAdjustment, payments));
+  };
+
+  const handleAdjustmentUpdated = (nextAdjustment: ManagerFinancialAdjustmentRow) => {
+    setAdjustment(nextAdjustment);
+    setSpp((current) => applySppFinancials(current, nextAdjustment, payments));
+  };
+
+  const handleFormSaved = (form: ManagerFinancialFormRow) => {
+    setForms((current) => {
+      const existingIndex = current.findIndex((row) => row.id === form.id);
+      if (existingIndex === -1) {
+        return [form, ...current];
+      }
+      return current.map((row) => (row.id === form.id ? form : row));
+    });
   };
 
   function handleConfirmDeletePayment() {
@@ -466,7 +546,7 @@ export function SppDetailsPanel({
           sppId={spp.id}
           maxAmount={spp.phase_amount}
           defaultReceivedBy={actorLabel}
-          onCreated={handleChanged}
+          onCreated={handlePaymentCreated}
         />
 
         <EditStudentPaymentDialog
@@ -475,21 +555,21 @@ export function SppDetailsPanel({
             if (!open) setEditingPayment(null);
           }}
           payment={editingPayment}
-          onUpdated={handleChanged}
+          onUpdated={handlePaymentUpdated}
         />
 
         <CreateFinancialAdjustmentDialog
           open={isCreateAdjustmentOpen}
           onOpenChange={setIsCreateAdjustmentOpen}
           sppId={spp.id}
-          onCreated={handleChanged}
+          onCreated={handleAdjustmentCreated}
         />
 
         <EditFinancialAdjustmentDialog
           open={isEditAdjustmentOpen}
           onOpenChange={setIsEditAdjustmentOpen}
           adjustment={adjustment}
-          onUpdated={handleChanged}
+          onUpdated={handleAdjustmentUpdated}
         />
 
         <UpsertFinancialFormDialog
@@ -498,7 +578,7 @@ export function SppDetailsPanel({
           onOpenChange={handleFormDialogOpenChange}
           sppId={spp.id}
           form={editingForm}
-          onSaved={handleChanged}
+          onSaved={handleFormSaved}
         />
 
         <Dialog

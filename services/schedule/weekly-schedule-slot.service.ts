@@ -564,7 +564,8 @@ export async function copyLastWeekScheduleForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  weekAnchorIso: string
+  weekAnchorIso: string,
+  previewCounts?: { createCount: number; skipCount: number }
 ): Promise<CopyWeeklyScheduleResult> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
@@ -575,27 +576,46 @@ export async function copyLastWeekScheduleForManager(
     return { success: false, error: unauthorized };
   }
 
-  let preview: CopyWeeklySchedulePreview;
-  try {
-    preview = await buildCopyPreview(adminClient, weekAnchorIso);
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unable to copy last week. Please try again.",
-    };
+  const bounds = getSundayWeekBounds(weekAnchorIso);
+  const hasClientPreview =
+    previewCounts !== undefined &&
+    typeof previewCounts.createCount === "number" &&
+    typeof previewCounts.skipCount === "number";
+
+  let weekStart = bounds.weekStart;
+  let lastWeekStart = bounds.lastWeekStart;
+  let expectedCreateCount: number;
+  let expectedSkipCount: number;
+
+  if (hasClientPreview) {
+    expectedCreateCount = previewCounts.createCount;
+    expectedSkipCount = previewCounts.skipCount;
+  } else {
+    try {
+      const preview = await buildCopyPreview(adminClient, weekAnchorIso);
+      weekStart = preview.weekStart;
+      lastWeekStart = preview.lastWeekStart;
+      expectedCreateCount = preview.willCreate.length;
+      expectedSkipCount = preview.willSkip.length;
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to copy last week. Please try again.",
+      };
+    }
   }
 
-  if (preview.willCreate.length === 0) {
+  if (expectedCreateCount === 0) {
     return {
       success: true,
       createdCount: 0,
-      skippedCount: preview.willSkip.length,
+      skippedCount: expectedSkipCount,
       message:
-        preview.willSkip.length > 0
-          ? `Nothing to copy. ${preview.willSkip.length} slot${preview.willSkip.length === 1 ? "" : "s"} already exist this week.`
+        expectedSkipCount > 0
+          ? `Nothing to copy. ${expectedSkipCount} slot${expectedSkipCount === 1 ? "" : "s"} already exist this week.`
           : "Nothing to copy. Last week has no slots.",
     };
   }
@@ -603,7 +623,7 @@ export async function copyLastWeekScheduleForManager(
   const { data, error } =
     await weeklyScheduleSlotRepository.copyWeeklyScheduleFromLastWeek(
       adminClient,
-      preview.weekStart
+      weekStart
     );
 
   if (error) {
@@ -618,7 +638,7 @@ export async function copyLastWeekScheduleForManager(
     skipped_count?: number;
   } | null;
   const createdCount = result?.created_count ?? 0;
-  const skippedCount = result?.skipped_count ?? preview.willSkip.length;
+  const skippedCount = result?.skipped_count ?? expectedSkipCount;
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
@@ -627,8 +647,8 @@ export async function copyLastWeekScheduleForManager(
     record_id: null,
     new_data: {
       created_count: createdCount,
-      week_start: preview.weekStart,
-      last_week_start: preview.lastWeekStart,
+      week_start: weekStart,
+      last_week_start: lastWeekStart,
     },
     metadata: {
       note: "Copied schedule slots from last week.",

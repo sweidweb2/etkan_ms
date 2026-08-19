@@ -48,7 +48,10 @@ type EditBorrowRecordDialogProps = {
   onOpenChange: (open: boolean) => void;
   borrowRow: ManagerBorrowEquipmentListRow | null;
   equipments: ManagerEquipmentRow[];
-  onSaved: () => void;
+  onSaved: (
+    id: string,
+    patch: Partial<ManagerBorrowEquipmentListRow>
+  ) => void;
 };
 
 function toDateInputValue(value: string | null): string {
@@ -134,8 +137,20 @@ export function EditBorrowRecordDialog({
   }, [borrowRow, open, reset]);
 
   useActionStateSuccess(state, isPending, () => {
+    if (!borrowRow) {
+      onOpenChange(false);
+      return;
+    }
+
+    const values = watch();
+    onSaved(borrowRow.id, {
+      quantity: Number(values.quantity),
+      status: values.status as BorrowEquipmentStatusValue,
+      returned_at: values.returnedAt
+        ? `${values.returnedAt}T00:00:00.000Z`
+        : null,
+    });
     onOpenChange(false);
-    onSaved();
   });
 
   function onSubmit(values: UpdateBorrowEquipmentInput) {

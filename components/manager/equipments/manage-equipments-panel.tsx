@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
@@ -127,8 +126,8 @@ export function ManageEquipmentsPanel({
 }: {
   initialEquipments: ManagerEquipmentRow[];
 }) {
-  const router = useRouter();
-  const equipments = initialEquipments;
+  const [equipments, setEquipments] = useState(initialEquipments);
+  const [prevEquipments, setPrevEquipments] = useState(initialEquipments);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] =
     useState<ManagerEquipmentRow | null>(null);
@@ -137,6 +136,11 @@ export function ManageEquipmentsPanel({
     10
   );
   const [currentPage, setCurrentPage] = useState(1);
+
+  if (initialEquipments !== prevEquipments) {
+    setPrevEquipments(initialEquipments);
+    setEquipments(initialEquipments);
+  }
 
   const stats = useMemo(() => {
     const totalStock = equipments.reduce(
@@ -201,8 +205,16 @@ export function ManageEquipmentsPanel({
     setCurrentPage(1);
   };
 
-  const handleEquipmentChanged = () => {
-    router.refresh();
+  const handleEquipmentCreated = (equipment: ManagerEquipmentRow) => {
+    setEquipments((current) => [equipment, ...current]);
+    setCurrentPage(1);
+  };
+
+  const handleEquipmentUpdated = (equipment: ManagerEquipmentRow) => {
+    setEquipments((current) =>
+      current.map((row) => (row.id === equipment.id ? equipment : row))
+    );
+    setEditingEquipment(null);
   };
 
   return (
@@ -240,7 +252,7 @@ export function ManageEquipmentsPanel({
         <AddEquipmentDialog
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
-          onEquipmentCreated={handleEquipmentChanged}
+          onEquipmentCreated={handleEquipmentCreated}
         />
 
         <EditEquipmentDialog
@@ -251,7 +263,7 @@ export function ManageEquipmentsPanel({
             }
           }}
           equipment={editingEquipment}
-          onEquipmentUpdated={handleEquipmentChanged}
+          onEquipmentUpdated={handleEquipmentUpdated}
         />
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

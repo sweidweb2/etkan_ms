@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { CalculatorIcon } from "lucide-react";
@@ -32,6 +31,7 @@ import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-clas
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
+import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import { computeStudentGradeAloneAction } from "@/app/manager/classes/grades/actions";
 
 type StudentComputeAloneSectionProps = {
@@ -39,6 +39,7 @@ type StudentComputeAloneSectionProps = {
   userId: string;
   studentName: string;
   classTasks: ManagerClassTaskForGradesRow[];
+  onGradeComputed?: (row: ManagerClassStudentGradeRow) => void;
 };
 
 export function StudentComputeAloneSection({
@@ -46,8 +47,8 @@ export function StudentComputeAloneSection({
   userId,
   studentName,
   classTasks,
+  onGradeComputed,
 }: StudentComputeAloneSectionProps) {
-  const router = useRouter();
   const defaultFactors = useMemo(
     () => ({
       class_id: classId,
@@ -142,7 +143,9 @@ export function StudentComputeAloneSection({
         guard.message ?? `Computed grade for ${studentName}.`
       );
       setIsConfirmOpen(false);
-      router.refresh();
+      if (guard.row) {
+        onGradeComputed?.(guard.row);
+      }
     } finally {
       setIsConfirmPending(false);
     }

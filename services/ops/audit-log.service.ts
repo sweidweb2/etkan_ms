@@ -1,4 +1,5 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { scheduleAfterResponse } from "@/lib/ops/schedule-after-response";
 import { assertPermission } from "@/services/auth/authorization.service";
 import {
   AUDIT_LOG_ACTION_VALUES,
@@ -188,28 +189,64 @@ export async function createAuditLogForManager(
   return mapAuditLogRecordToRow(data);
 }
 
+function buildCreateAuditLogInput(
+  actor: AuditActor,
+  entry: AuditLogEntry
+): CreateAuditLogInput {
+  return {
+    user_id: actor.userId,
+    user_label: actor.userLabel.trim() || "System",
+    action: entry.action,
+    severity: entry.severity ?? "info",
+    table_name: entry.table_name ?? null,
+    record_id: entry.record_id ?? null,
+    old_data: entry.old_data ?? null,
+    new_data: entry.new_data ?? null,
+    metadata: entry.metadata ?? null,
+  };
+}
+
+async function persistManagerAuditLog(
+  adminClient: Supabase,
+  input: CreateAuditLogInput
+): Promise<ManagerAuditLogRow | null> {
+  try {
+    const row = await createAuditLogForManager(adminClient, input);
+    if (!row) {
+      console.error("[audit] manager audit log insert returned null", {
+        action: input.action,
+        table_name: input.table_name,
+        record_id: input.record_id,
+      });
+    }
+    return row;
+  } catch (error) {
+    console.error("[audit] manager audit log insert threw", error);
+    return null;
+  }
+}
+
 /**
  * Records an audit log after a successful mutation.
  * Never throws — audit failures must not fail the parent use case.
+ *
+ * When Next.js `after()` is available, the insert is deferred until after the
+ * response is sent so mutations do not pay an extra REST round trip on the
+ * critical path. Falls back to an awaited insert in tests and non-Next runtimes.
  */
 export async function recordManagerAuditLog(
   adminClient: Supabase,
   actor: AuditActor,
   entry: AuditLogEntry
 ): Promise<ManagerAuditLogRow | null> {
-  try {
-    return await createAuditLogForManager(adminClient, {
-      user_id: actor.userId,
-      user_label: actor.userLabel.trim() || "System",
-      action: entry.action,
-      severity: entry.severity ?? "info",
-      table_name: entry.table_name ?? null,
-      record_id: entry.record_id ?? null,
-      old_data: entry.old_data ?? null,
-      new_data: entry.new_data ?? null,
-      metadata: entry.metadata ?? null,
-    });
-  } catch {
+  const input = buildCreateAuditLogInput(actor, entry);
+  const write = async () => {
+    await persistManagerAuditLog(adminClient, input);
+  };
+
+  if (scheduleAfterResponse(write)) {
     return null;
   }
+
+  return persistManagerAuditLog(adminClient, input);
 }

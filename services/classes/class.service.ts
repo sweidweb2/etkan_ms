@@ -2823,19 +2823,21 @@ export async function addStudentsToClassForManager(
     });
 
     await timer.step("audit", () =>
-      Promise.all(
-        students.map((student) =>
-          recordManagerAuditLog(adminClient, actor, {
-            action: "insert",
-            table_name: "student_class",
-            record_id: student.id,
-            new_data: {
-              class_id: input.class_id,
-              user_id: student.user_id,
-            },
-          })
-        )
-      )
+      recordManagerAuditLog(adminClient, actor, {
+        action: "insert",
+        table_name: "student_class",
+        record_id: input.class_id,
+        metadata: {
+          note: "Students enrolled in class (batch).",
+          class_id: input.class_id,
+          count: students.length,
+          enrollments: students.map((student) => ({
+            student_class_id: student.id,
+            user_id: student.user_id,
+            student_profile_id: student.student_profile_id,
+          })),
+        },
+      })
     );
 
     let warning: string | undefined;

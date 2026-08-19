@@ -52,7 +52,7 @@ type EditWorkshopSessionDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   session: ManagerWorkshopSessionRow | null;
-  onUpdated: () => void;
+  onUpdated: (session: ManagerWorkshopSessionRow) => void;
 };
 
 function toTimeInput(value: string): string {
@@ -144,8 +144,10 @@ export function EditWorkshopSessionDialog({
     }
   }, [open, startTime, endTime, setValue]);
 
-  useActionStateSuccess(state, isPending, () => {
-    onUpdated();
+  useActionStateSuccess(state, isPending, (nextState) => {
+    if (nextState.session) {
+      onUpdated(nextState.session);
+    }
     onOpenChange(false);
   });
 

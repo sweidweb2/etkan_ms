@@ -34,7 +34,7 @@ import {
   createStudentPaymentFormSchema,
   type CreateStudentPaymentInput,
 } from "@/lib/validators/manager/create-student-payment";
-import type { CreateStudentPaymentActionState } from "@/types/manager-student-payment";
+import type { CreateStudentPaymentActionState, ManagerStudentPaymentRow } from "@/types/manager-student-payment";
 
 const initialState: CreateStudentPaymentActionState = {};
 
@@ -44,7 +44,7 @@ type CreateStudentPaymentDialogProps = {
   sppId: string;
   maxAmount: number;
   defaultReceivedBy: string;
-  onCreated: () => void;
+  onCreated: (payment: ManagerStudentPaymentRow) => void;
 };
 
 export function CreateStudentPaymentDialog({
@@ -112,9 +112,11 @@ export function CreateStudentPaymentDialog({
     }
   }, [open, reset, sppId, defaultReceivedBy]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onCreated();
+    if (nextState.payment) {
+      onCreated(nextState.payment);
+    }
   });
 
   function onSubmit(values: CreateStudentPaymentInput) {

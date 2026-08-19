@@ -97,6 +97,7 @@ export function EditSubjectDialog({
     formData.set("syllabus_link", values.syllabus_link?.trim() ?? "");
     formData.set("reference_link", values.reference_link?.trim() ?? "");
     formData.set("handout_link", values.handout_link?.trim() ?? "");
+    formData.set("class_count", String(subject.class_count));
 
     startTransition(() => {
       formAction(formData);

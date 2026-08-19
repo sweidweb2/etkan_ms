@@ -45,6 +45,7 @@ import {
 import type {
   AddWorkshopInstructorActionState,
   ManagerWorkshopInstructorCandidate,
+  ManagerWorkshopInstructorRow,
 } from "@/types/manager-workshop";
 
 const textareaClassName = cn(
@@ -58,7 +59,7 @@ type AddWorkshopInstructorDialogProps = {
   onOpenChange: (open: boolean) => void;
   workshopId: string;
   candidates?: ManagerWorkshopInstructorCandidate[];
-  onAdded: () => void;
+  onAdded: (instructor: ManagerWorkshopInstructorRow) => void;
 };
 
 export function AddWorkshopInstructorDialog({
@@ -144,9 +145,11 @@ export function AddWorkshopInstructorDialog({
     }
   }, [open, reset, workshopId]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
+    if (nextState.instructor) {
+      onAdded(nextState.instructor);
+    }
     handleOpenChange(false);
-    onAdded();
   });
 
   const filteredCandidates = useMemo(() => {

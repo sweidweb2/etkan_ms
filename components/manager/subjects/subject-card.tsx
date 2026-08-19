@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { EyeIcon, PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
@@ -23,7 +22,6 @@ type SubjectCardProps = {
 };
 
 export function SubjectCard({ subject: initialSubject }: SubjectCardProps) {
-  const router = useRouter();
   const [subject, setSubject] = useState(initialSubject);
   const [prevSubject, setPrevSubject] = useState(initialSubject);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -37,7 +35,6 @@ export function SubjectCard({ subject: initialSubject }: SubjectCardProps) {
 
   const handleSubjectUpdated = (updated: ManagerSubjectRow) => {
     setSubject(updated);
-    router.refresh();
   };
 
   return (

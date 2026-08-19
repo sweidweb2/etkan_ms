@@ -79,6 +79,24 @@ import type {
   UpdateStudentPaymentActionState,
 } from "@/types/manager-student-payment";
 
+function revalidateAccountingList() {
+  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+}
+
+function revalidateAccountingPhaseDetail(phaseId: string) {
+  revalidatePath(getManagerAccountingPhaseDetailRoute(phaseId));
+}
+
+function revalidateAccountingSppDetail(phaseId: string, sppId: string) {
+  revalidateAccountingPhaseDetail(phaseId);
+  revalidatePath(getManagerAccountingSppDetailRoute(phaseId, sppId));
+}
+
+function revalidateAccountingPhaseListAndDetail(phaseId: string) {
+  revalidateAccountingList();
+  revalidateAccountingPhaseDetail(phaseId);
+}
+
 export async function loadPaymentPhaseSemesterOptionsAction(): Promise<
   ManagerPaymentPhaseSemesterOption[]
 > {
@@ -122,7 +140,7 @@ export async function createPaymentPhaseAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidateAccountingList();
 
   return {
     success: true,
@@ -162,7 +180,7 @@ export async function repairMissingSppAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
+  revalidateAccountingList();
 
   return {
     success: true,
@@ -201,13 +219,9 @@ export async function transferSppAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(
-    getManagerAccountingPhaseDetailRoute(result.from_payment_phase_id)
-  );
-  revalidatePath(
-    getManagerAccountingPhaseDetailRoute(result.to_payment_phase_id)
-  );
+  revalidateAccountingList();
+  revalidateAccountingPhaseDetail(result.from_payment_phase_id);
+  revalidateAccountingPhaseDetail(result.to_payment_phase_id);
 
   return {
     success: true,
@@ -249,8 +263,7 @@ export async function updatePaymentPhaseAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.phase.id));
+  revalidateAccountingPhaseListAndDetail(result.phase.id);
 
   return {
     success: true,
@@ -290,8 +303,7 @@ export async function cancelPaymentPhaseAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.phase.id));
+  revalidateAccountingPhaseListAndDetail(result.phase.id);
 
   return {
     success: true,
@@ -331,13 +343,9 @@ export async function createStudentPaymentAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.payment.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.payment.student_payment_phase_id
   );
 
   return {
@@ -378,13 +386,9 @@ export async function updateStudentPaymentAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.payment.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.payment.student_payment_phase_id
   );
 
   return {
@@ -425,13 +429,9 @@ export async function deleteStudentPaymentAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {
@@ -473,8 +473,7 @@ export async function deleteStudentPaymentPhaseAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
+  revalidateAccountingPhaseListAndDetail(result.payment_phase_id);
 
   redirect(
     appendQueryParam(
@@ -516,13 +515,9 @@ export async function createFinancialAdjustmentAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {
@@ -563,13 +558,9 @@ export async function updateFinancialAdjustmentAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {
@@ -610,13 +601,9 @@ export async function deleteFinancialAdjustmentAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {
@@ -658,13 +645,9 @@ export async function createFinancialFormAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {
@@ -707,13 +690,9 @@ export async function updateFinancialFormAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {
@@ -756,13 +735,9 @@ export async function createFinancialFormInviteAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {
@@ -805,13 +780,9 @@ export async function deleteFinancialFormInviteAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {
@@ -853,13 +824,9 @@ export async function deleteFinancialFormAction(
     };
   }
 
-  revalidatePath(ROUTES.MANAGER_ACCOUNTING);
-  revalidatePath(getManagerAccountingPhaseDetailRoute(result.payment_phase_id));
-  revalidatePath(
-    getManagerAccountingSppDetailRoute(
-      result.payment_phase_id,
-      result.student_payment_phase_id
-    )
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
   );
 
   return {

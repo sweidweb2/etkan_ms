@@ -25,14 +25,17 @@ import {
   createRelationshipSchema,
   type CreateRelationshipInput,
 } from "@/lib/validators/manager/create-relationship";
-import type { CreateRelationshipActionState } from "@/types/manager-relationship";
+import type {
+  CreateRelationshipActionState,
+  ManagerRelationshipRow,
+} from "@/types/manager-relationship";
 
 const initialState: CreateRelationshipActionState = {};
 
 type AddRelationshipDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onRelationshipCreated: () => void;
+  onRelationshipCreated: (relationship: ManagerRelationshipRow) => void;
 };
 
 export function AddRelationshipDialog({
@@ -86,9 +89,11 @@ export function AddRelationshipDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onRelationshipCreated();
+    if (nextState.relationship) {
+      onRelationshipCreated(nextState.relationship);
+    }
   });
 
   function onSubmit(values: CreateRelationshipInput) {

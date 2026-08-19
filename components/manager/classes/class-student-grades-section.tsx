@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { EyeIcon, DownloadIcon, MessageSquareTextIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
@@ -146,15 +145,46 @@ function buildRowComputeBatch(
   };
 }
 
+function clearComputedGradeFields(
+  row: ManagerClassStudentGradeRow
+): ManagerClassStudentGradeRow {
+  return {
+    ...row,
+    is_computed: false,
+    total_grade: null,
+    task_total_grade: null,
+    final_exam_grade: null,
+    course_grade_id: null,
+    compute_type: null,
+    stored_tasks_weight: null,
+    stored_final_exam_weight: null,
+    stored_task_weights: null,
+  };
+}
+
+function mergeGradeRow(
+  rows: ManagerClassStudentGradeRow[],
+  updated: ManagerClassStudentGradeRow
+) {
+  return rows.map((row) => (row.user_id === updated.user_id ? updated : row));
+}
+
 export function ClassStudentGradesSection({
   classId,
   classRow,
-  rows,
+  rows: initialRows,
   classTasks,
   finalExam,
   finalExamStudentGrades,
 }: ClassStudentGradesSectionProps) {
-  const router = useRouter();
+  const [gradeRows, setGradeRows] = useState(initialRows);
+  const [prevRows, setPrevRows] = useState(initialRows);
+
+  if (initialRows !== prevRows) {
+    setPrevRows(initialRows);
+    setGradeRows(initialRows);
+  }
+
   const defaultFactorWeights = DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS;
   const defaultTaskWeights = useMemo(
     () => buildDefaultTaskWeights(classTasks),
@@ -164,7 +194,6 @@ export function ClassStudentGradesSection({
     () => new Map(finalExamStudentGrades.map((row) => [row.student_id, row])),
     [finalExamStudentGrades]
   );
-  const gradeRows = rows;
 
   const unreadyRows = useMemo(
     () =>
@@ -308,7 +337,9 @@ export function ClassStudentGradesSection({
       showSuccessToast(result.message ?? `Computed ${selectedRow.full_name}.`);
       setIsComputeOpen(false);
       setSelectedRow(null);
-      router.refresh();
+      if (result.row) {
+        setGradeRows((current) => mergeGradeRow(current, result.row!));
+      }
     } finally {
       setIsStudentComputePending(false);
     }
@@ -328,7 +359,14 @@ export function ClassStudentGradesSection({
 
       showSuccessToast(result.message ?? "Students computed.");
       setIsComputeAllOpen(false);
-      router.refresh();
+      if (result.rows) {
+        setGradeRows((current) =>
+          result.rows!.reduce(
+            (nextRows, row) => mergeGradeRow(nextRows, row),
+            current
+          )
+        );
+      }
     } finally {
       setIsComputeAllPending(false);
     }
@@ -358,7 +396,14 @@ export function ClassStudentGradesSection({
 
       showSuccessToast(result.message ?? "Students computed.");
       setIsCustomizeComputeAllOpen(false);
-      router.refresh();
+      if (result.rows) {
+        setGradeRows((current) =>
+          result.rows!.reduce(
+            (nextRows, row) => mergeGradeRow(nextRows, row),
+            current
+          )
+        );
+      }
     } finally {
       setIsCustomizeComputeAllPending(false);
     }
@@ -384,7 +429,11 @@ export function ClassStudentGradesSection({
       );
       setIsDeleteGradeOpen(false);
       setRowToDelete(null);
-      router.refresh();
+      setGradeRows((current) =>
+        current.map((row) =>
+          row.user_id === rowToDelete.user_id ? clearComputedGradeFields(row) : row
+        )
+      );
     } finally {
       setIsDeleteGradePending(false);
     }

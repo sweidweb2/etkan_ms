@@ -223,6 +223,23 @@ export async function listInstructorScheduleSlotsByRecord(
     .order("start_time", { ascending: true });
 }
 
+export async function listInstructorScheduleSlotsByInstructorUserIds(
+  client: Supabase,
+  userIds: string[]
+) {
+  if (userIds.length === 0) {
+    return { data: [] as InstructorScheduleSlotRecord[], error: null };
+  }
+
+  return client
+    .from("instructor_schedule_slots")
+    .select(SLOT_COLUMNS)
+    .eq("entity_type", "instructor")
+    .in("record_id", userIds)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+}
+
 export async function findInstructorScheduleSlotById(
   client: Supabase,
   id: string

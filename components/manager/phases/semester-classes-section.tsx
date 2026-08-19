@@ -33,6 +33,7 @@ import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-cla
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { printPageSection } from "@/lib/export/print-page-section";
+import type { ManagerSemesterRow } from "@/types/manager-phase";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
 
 const PAGE_SIZE_OPTIONS = [3, 6, 9] as const;
@@ -44,7 +45,11 @@ type SemesterClassesSectionProps = {
   initialClasses: ManagerSemesterClassRow[];
   initialAvailableClasses: ManagerSemesterClassRow[];
   onExportPdf?: () => void;
-  onClassesChanged: () => void;
+  onClassesChanged: (
+    classRow: ManagerSemesterClassRow,
+    connectedClassId: string,
+    semester?: ManagerSemesterRow
+  ) => void;
 };
 
 function getPageNumbers(currentPage: number, totalPages: number) {

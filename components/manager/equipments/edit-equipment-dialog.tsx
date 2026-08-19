@@ -34,7 +34,7 @@ type EditEquipmentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   equipment: ManagerEquipmentRow | null;
-  onEquipmentUpdated: () => void;
+  onEquipmentUpdated: (equipment: ManagerEquipmentRow) => void;
 };
 
 export function EditEquipmentDialog({
@@ -85,9 +85,11 @@ export function EditEquipmentDialog({
     });
   }, [equipment, open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onEquipmentUpdated();
+    if (nextState.equipment) {
+      onEquipmentUpdated(nextState.equipment);
+    }
   });
 
   function onSubmit(values: UpdateEquipmentInput) {

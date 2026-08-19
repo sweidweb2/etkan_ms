@@ -35,7 +35,10 @@ type SemesterStudentsSectionProps = {
   semesterName: string;
   initialStudents: ManagerStudentSemesterRow[];
   initialAvailableStudents: ManagerStudentRow[];
-  onStudentsChanged: () => void;
+  onStudentsChanged: (
+    enrollment: ManagerStudentSemesterRow,
+    studentProfileId: string
+  ) => void;
 };
 
 function TruncatedCell({

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useActionState, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { CopyIcon, LinkIcon } from "lucide-react";
 import {
@@ -117,7 +116,6 @@ export function GuestRegistrationSection({
   application: initialApplication,
   linkUsers,
 }: GuestRegistrationSectionProps) {
-  const router = useRouter();
   const [invite, setInvite] = useState(initialInvite);
   const [application, setApplication] = useState(initialApplication);
   const [prevInvite, setPrevInvite] = useState(initialInvite);
@@ -519,7 +517,11 @@ export function GuestRegistrationSection({
               onPendingChange={setIsStaffFillPending}
               onSuccess={() => {
                 setIsStaffFillOpen(false);
-                router.refresh();
+                setInvite((current) =>
+                  current
+                    ? { ...current, used_at: new Date().toISOString() }
+                    : current
+                );
               }}
               initialDraft={{
                 full_name: guest.full_name,
@@ -538,8 +540,9 @@ export function GuestRegistrationSection({
           onOpenChange={setIsCreateStudentOpen}
           guestId={guest.id}
           application={application}
-          onStudentCreated={() => {
-            router.refresh();
+          onStudentCreated={(nextApplication) => {
+            setApplication(nextApplication);
+            setPrevApplication(nextApplication);
           }}
         />
       ) : null}

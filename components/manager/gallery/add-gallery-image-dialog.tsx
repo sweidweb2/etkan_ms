@@ -22,14 +22,17 @@ import {
   createGalleryImageSchema,
   type CreateGalleryImageInput,
 } from "@/lib/validators/manager/create-gallery-image";
-import type { CreateGalleryImageActionState } from "@/types/manager-gallery-image";
+import type {
+  CreateGalleryImageActionState,
+  ManagerGalleryImageRow,
+} from "@/types/manager-gallery-image";
 
 const initialState: CreateGalleryImageActionState = {};
 
 type AddGalleryImageDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImageCreated: () => void;
+  onImageCreated: (image: ManagerGalleryImageRow) => void;
 };
 
 export function AddGalleryImageDialog({
@@ -71,9 +74,11 @@ export function AddGalleryImageDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onImageCreated();
+    if (nextState.image) {
+      onImageCreated(nextState.image);
+    }
   });
 
   function onSubmit(values: CreateGalleryImageInput) {

@@ -30,8 +30,9 @@ import {
   addStudentToSemesterSchema,
   type AddStudentToSemesterInput,
 } from "@/lib/validators/manager/add-student-to-semester";
-import type { AddStudentToSemesterActionState } from "@/types/manager-phase";
+import type { ManagerSemesterRow, AddStudentToSemesterActionState } from "@/types/manager-phase";
 import type { ManagerStudentRow } from "@/types/manager-student";
+import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
 
 const initialState: AddStudentToSemesterActionState = {};
 
@@ -41,7 +42,10 @@ type AddSemesterStudentDialogProps = {
   semesterId: string;
   semesterName: string;
   availableStudents: ManagerStudentRow[];
-  onStudentAdded: () => void;
+  onStudentAdded: (
+    enrollment: ManagerStudentSemesterRow,
+    studentProfileId: string
+  ) => void;
 };
 
 export function AddSemesterStudentDialog({
@@ -91,9 +95,11 @@ export function AddSemesterStudentDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onStudentAdded();
+    if (nextState.enrollment && selectedStudentId) {
+      onStudentAdded(nextState.enrollment, selectedStudentId);
+    }
   });
 
   function onSubmit(values: AddStudentToSemesterInput) {

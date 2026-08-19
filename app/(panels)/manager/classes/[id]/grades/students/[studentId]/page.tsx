@@ -18,7 +18,7 @@ import {
 import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClassForManager } from "@/services/classes/class.service";
-import { getStudentClassGradeDetailForManager } from "@/services/classes/student-course-grade.service";
+import { loadClassStudentGradeDetailPageData } from "@/services/classes/student-course-grade.service";
 
 type ManagerClassStudentGradesDetailPageProps = {
   params: Promise<{ id: string; studentId: string }>;
@@ -30,7 +30,9 @@ export default async function ManagerClassStudentGradesDetailPage({
   const { id, studentId } = await params;
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
-  const classRow = await getClassForManager(adminClient, user?.id ?? null, id);
+  const actorUserId = user?.id ?? null;
+
+  const classRow = await getClassForManager(adminClient, actorUserId, id);
 
   if (!classRow) {
     notFound();
@@ -72,17 +74,28 @@ export default async function ManagerClassStudentGradesDetailPage({
     );
   }
 
-  const bundle = await getStudentClassGradeDetailForManager(
-    adminClient, user?.id ?? null,
+  const pageData = await loadClassStudentGradeDetailPageData(
+    adminClient,
+    actorUserId,
     id,
     studentId
   );
 
+  if (!pageData) {
+    notFound();
+  }
+
   return (
     <StudentClassGradeDetailsPanel
       classId={id}
-      classRow={classRow}
-      bundle={bundle}
+      classRow={pageData.classRow}
+      bundle={{
+        student: pageData.student,
+        gradeRow: pageData.gradeRow,
+        detail: pageData.detail,
+        classTasks: pageData.classTasks,
+        finalExam: pageData.finalExam,
+      }}
     />
   );
 }

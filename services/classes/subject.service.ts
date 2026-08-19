@@ -44,6 +44,7 @@ export type UpdateSubjectSuccess = {
   success: true;
   subject: ManagerSubjectRow;
   message: string;
+  nbSessionsChanged: boolean;
 };
 
 export type UpdateSubjectFailure = {
@@ -282,6 +283,7 @@ export async function updateSubjectForManager(
     syllabus_link?: string;
     reference_link?: string;
     handout_link?: string;
+    class_count?: number;
   }
 ): Promise<UpdateSubjectResult> {
   const unauthorized = await getUnauthorizedError(
@@ -337,7 +339,9 @@ export async function updateSubjectForManager(
     normalizedName !== existingSubject.data.name.trim()
       ? subjectRepository.findSubjectByName(adminClient, normalizedName)
       : Promise.resolve({ data: null, error: null }),
-    classRepository.countClassesBySubjectId(adminClient, id),
+    typeof input.class_count === "number"
+      ? Promise.resolve({ count: input.class_count, error: null })
+      : classRepository.countClassesBySubjectId(adminClient, id),
   ]);
 
   if (normalizedName !== existingSubject.data.name.trim()) {
@@ -363,6 +367,11 @@ export async function updateSubjectForManager(
       error: mapUpdateSubjectError(classCountResult.error.message),
     };
   }
+
+  const classCount =
+    typeof input.class_count === "number"
+      ? input.class_count
+      : (classCountResult.count ?? 0);
 
   const { data, error } = await subjectRepository.updateSubjectById(
     adminClient,
@@ -407,8 +416,9 @@ export async function updateSubjectForManager(
 
   return {
     success: true,
-    subject: mapSubjectRecordToRow(data, classCountResult.count ?? 0),
+    subject: mapSubjectRecordToRow(data, classCount),
     message: "Subject updated.",
+    nbSessionsChanged: existingSubject.data.nb_sessions !== data.nb_sessions,
   };
 }
 
@@ -540,9 +550,16 @@ export async function listSubjectClassesForManager(
     return [];
   }
 
+  return listSubjectClassesForSubjectRecord(adminClient, subjectResult.data);
+}
+
+async function listSubjectClassesForSubjectRecord(
+  adminClient: Supabase,
+  subjectRecord: SubjectRecord
+): Promise<ManagerSubjectClassRow[]> {
   const { data, error } = await classRepository.listClassesBySubjectId(
     adminClient,
-    subjectId
+    subjectRecord.id
   );
 
   if (error) {
@@ -565,7 +582,7 @@ export async function listSubjectClassesForManager(
     sessionCounts.set(row.class_id, (sessionCounts.get(row.class_id) ?? 0) + 1);
   }
 
-  const subjectNbSessions = subjectResult.data.nb_sessions;
+  const subjectNbSessions = subjectRecord.nb_sessions;
 
   return classes.map((record) =>
     mapClassRecordToSubjectClassRow(
@@ -574,4 +591,38 @@ export async function listSubjectClassesForManager(
       sessionCounts.get(record.id) ?? 0
     )
   );
+}
+
+export async function getSubjectDetailForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  subjectId: string
+): Promise<{
+  subject: ManagerSubjectRow;
+  classes: ManagerSubjectClassRow[];
+} | null> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SUBJECTS_VIEW);
+
+  const subjectResult = await subjectRepository.findSubjectById(
+    adminClient,
+    subjectId
+  );
+
+  if (subjectResult.error) {
+    throw new Error(subjectResult.error.message);
+  }
+
+  if (!subjectResult.data) {
+    return null;
+  }
+
+  const classes = await listSubjectClassesForSubjectRecord(
+    adminClient,
+    subjectResult.data
+  );
+
+  return {
+    subject: mapSubjectRecordToRow(subjectResult.data, classes.length),
+    classes,
+  };
 }

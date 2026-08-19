@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -132,7 +131,6 @@ export function WorkshopScheduleSlotsSection({
   workshopName,
   mutationsLocked = false,
 }: WorkshopScheduleSlotsSectionProps) {
-  const router = useRouter();
   const [slots, setSlots] = useState<ManagerInstructorScheduleSession[]>([]);
   const [selectedSession, setSelectedSession] =
     useState<ManagerInstructorScheduleSession | null>(null);
@@ -183,7 +181,6 @@ export function WorkshopScheduleSlotsSection({
     }
 
     showSuccessToast(result.message ?? "Slot created.");
-    router.refresh();
   }
 
   async function handleUpdate(values: UpdateInstructorScheduleSlotInput) {
@@ -227,7 +224,6 @@ export function WorkshopScheduleSlotsSection({
     }
 
     showSuccessToast(result.message ?? "Slot updated.");
-    router.refresh();
   }
 
   function handleConfirmDelete() {
@@ -254,7 +250,6 @@ export function WorkshopScheduleSlotsSection({
         }
 
         showSuccessToast(result.message ?? "Slot deleted.");
-        router.refresh();
       })();
     });
   }

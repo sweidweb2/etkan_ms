@@ -39,7 +39,9 @@ type CreateStudentFromGuestDialogProps = {
   onOpenChange: (open: boolean) => void;
   guestId: string;
   application: ManagerGuestRegistrationApplicationSummary;
-  onStudentCreated: () => void;
+  onStudentCreated: (
+    application: ManagerGuestRegistrationApplicationSummary
+  ) => void;
 };
 
 function defaultsFromApplication(
@@ -97,9 +99,11 @@ export function CreateStudentFromGuestDialog({
     }
   }, [open, guestId, application, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    onStudentCreated();
+    if (nextState.application) {
+      onStudentCreated(nextState.application);
+    }
   });
 
   function onSubmit(values: CreateStudentFromGuestFormInput) {

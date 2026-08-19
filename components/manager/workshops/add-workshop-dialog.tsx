@@ -36,7 +36,10 @@ import {
   type CreateWorkshopInput,
 } from "@/lib/validators/manager/create-workshop";
 import { cn } from "@/lib/utils";
-import type { CreateWorkshopActionState } from "@/types/manager-workshop";
+import type {
+  CreateWorkshopActionState,
+  ManagerWorkshopRow,
+} from "@/types/manager-workshop";
 
 const textareaClassName = cn(
   "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
@@ -61,7 +64,7 @@ const emptyDefaults = {
 type AddWorkshopDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onWorkshopCreated: () => void;
+  onWorkshopCreated: (workshop: ManagerWorkshopRow) => void;
 };
 
 export function AddWorkshopDialog({
@@ -101,9 +104,11 @@ export function AddWorkshopDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, () => {
+  useActionStateSuccess(state, isPending, (nextState) => {
+    if (nextState.workshop) {
+      onWorkshopCreated(nextState.workshop);
+    }
     onOpenChange(false);
-    onWorkshopCreated();
   });
 
   function onSubmit(values: CreateWorkshopInput) {

@@ -97,7 +97,9 @@ export async function updateSubjectAction(
 
   revalidatePath(ROUTES.MANAGER_SUBJECTS);
   revalidatePath(getManagerSubjectDetailRoute(result.subject.id));
-  revalidatePath(ROUTES.MANAGER_CLASSES);
+  if (result.nbSessionsChanged) {
+    revalidatePath(ROUTES.MANAGER_CLASSES);
+  }
 
   return {
     success: true,

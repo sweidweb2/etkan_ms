@@ -2,10 +2,7 @@ import { notFound } from "next/navigation";
 import { SubjectDetailsPanel } from "@/components/manager/subjects/subject-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import {
-  getSubjectForManager,
-  listSubjectClassesForManager,
-} from "@/services/classes/subject.service";
+import { getSubjectDetailForManager } from "@/services/classes/subject.service";
 
 type ManagerSubjectDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -19,14 +16,13 @@ export default async function ManagerSubjectDetailPage({
   const user = await getSessionUser();
   const actorUserId = user?.id ?? null;
 
-  const [subject, classes] = await Promise.all([
-    getSubjectForManager(adminClient, actorUserId, id),
-    listSubjectClassesForManager(adminClient, actorUserId, id),
-  ]);
+  const detail = await getSubjectDetailForManager(adminClient, actorUserId, id);
 
-  if (!subject) {
+  if (!detail) {
     notFound();
   }
 
-  return <SubjectDetailsPanel subject={subject} classes={classes} />;
+  return (
+    <SubjectDetailsPanel subject={detail.subject} classes={detail.classes} />
+  );
 }

@@ -194,6 +194,8 @@ export function ManageStudentsPanel({
   initialStudents: ManagerStudentRow[];
 }) {
   const router = useRouter();
+  const [students, setStudents] = useState(initialStudents);
+  const [prevStudents, setPrevStudents] = useState(initialStudents);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<ManagerStudentRow | null>(
     null
@@ -205,7 +207,10 @@ export function ManageStudentsPanel({
   );
   const [currentPage, setCurrentPage] = useState(1);
 
-  const students = initialStudents;
+  if (initialStudents !== prevStudents) {
+    setPrevStudents(initialStudents);
+    setStudents(initialStudents);
+  }
 
   const stats = useMemo(
     () => ({
@@ -263,9 +268,9 @@ export function ManageStudentsPanel({
     setCurrentPage(1);
   };
 
-  const handleStudentCreated = () => {
+  const handleStudentCreated = (student: ManagerStudentRow) => {
+    setStudents((current) => [student, ...current]);
     setCurrentPage(1);
-    router.refresh();
   };
 
   const openStudentDetails = (student: ManagerStudentRow) => {
@@ -332,9 +337,17 @@ export function ManageStudentsPanel({
             userId={statusTarget.user_id}
             displayName={statusTarget.full_name}
             currentStatus={statusTarget.status}
-            onCompleted={() => {
+            onCompleted={(status) => {
               setStatusTarget(null);
-              router.refresh();
+              if (statusTarget) {
+                setStudents((current) =>
+                  current.map((student) =>
+                    student.user_id === statusTarget.user_id
+                      ? { ...student, status }
+                      : student
+                  )
+                );
+              }
             }}
           />
         ) : null}

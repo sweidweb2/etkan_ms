@@ -450,22 +450,29 @@ function mapWorkshopSessionRecord(
 
 async function syncWorkshopSessionCount(
   adminClient: Supabase,
-  workshopId: string
+  workshopId: string,
+  delta: number
 ): Promise<string | null> {
-  const countResult =
-    await workshopSessionRepository.countWorkshopSessionsByWorkshopId(
-      adminClient,
-      workshopId
-    );
+  const workshopResult = await workshopRepository.findWorkshopById(
+    adminClient,
+    workshopId
+  );
 
-  if (countResult.error) {
-    return countResult.error.message || "Unable to sync session count.";
+  if (workshopResult.error) {
+    return workshopResult.error.message || "Unable to sync session count.";
   }
+
+  if (!workshopResult.data) {
+    return "Workshop not found.";
+  }
+
+  const current = workshopResult.data.number_of_sessions ?? 0;
+  const nextCount = Math.max(0, current + delta);
 
   const { error } = await workshopRepository.updateWorkshopNumberOfSessionsById(
     adminClient,
     workshopId,
-    countResult.count ?? 0
+    nextCount
   );
 
   if (error) {
@@ -1338,17 +1345,22 @@ export async function changeWorkshopStatusForManager(
     };
   }
 
-  const mirrorSync = await recopyAllMirrorsForWorkshop(adminClient, id);
-  if (mirrorSync.error) {
-    await workshopRepository.updateWorkshopStatusById(
-      adminClient,
-      id,
-      currentStatus
-    );
-    return {
-      success: false,
-      error: mirrorSync.error,
-    };
+  const reopeningFromCancelled =
+    currentStatus === WORKSHOP_STATUSES.CANCELLED;
+
+  if (reopeningFromCancelled) {
+    const mirrorSync = await recopyAllMirrorsForWorkshop(adminClient, id);
+    if (mirrorSync.error) {
+      await workshopRepository.updateWorkshopStatusById(
+        adminClient,
+        id,
+        currentStatus
+      );
+      return {
+        success: false,
+        error: mirrorSync.error,
+      };
+    }
   }
 
   const workshop = mapWorkshopRecordToRow(data);
@@ -2627,7 +2639,8 @@ export async function createWorkshopSessionForManager(
 
   const syncError = await syncWorkshopSessionCount(
     adminClient,
-    dataInput.workshop_id
+    dataInput.workshop_id,
+    1
   );
   if (syncError) {
     return { success: false, error: syncError };
@@ -2751,14 +2764,6 @@ export async function updateWorkshopSessionForManager(
     };
   }
 
-  const syncError = await syncWorkshopSessionCount(
-    adminClient,
-    dataInput.workshop_id
-  );
-  if (syncError) {
-    return { success: false, error: syncError };
-  }
-
   const session = mapWorkshopSessionRecord(data);
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -2868,7 +2873,8 @@ export async function deleteWorkshopSessionForManager(
 
   const syncError = await syncWorkshopSessionCount(
     adminClient,
-    dataInput.workshop_id
+    dataInput.workshop_id,
+    -1
   );
   if (syncError) {
     return { success: false, error: syncError };

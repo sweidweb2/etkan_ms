@@ -337,9 +337,18 @@ describe("changeStudentStatusForManager", () => {
       adminClient,
       actor,
       expect.objectContaining({
-        action: "delete",
-        table_name: "student_payment_phases",
-        record_id: sppId,
+        action: "update",
+        severity: "warning",
+        table_name: "student_profiles",
+        record_id: studentProfileId,
+        metadata: expect.objectContaining({
+          deleted_spps: [
+            expect.objectContaining({
+              spp_id: sppId,
+              payment_phase_id: phaseId,
+            }),
+          ],
+        }),
       })
     );
   });

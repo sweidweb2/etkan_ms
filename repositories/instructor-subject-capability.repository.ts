@@ -50,13 +50,19 @@ export async function deleteCapabilitiesByPairs(
     return { error: null };
   }
 
-  // Delete one pair at a time to avoid complex OR filters.
+  const subjectIdsByUserId = new Map<string, string[]>();
   for (const pair of pairs) {
+    const subjectIds = subjectIdsByUserId.get(pair.user_id) ?? [];
+    subjectIds.push(pair.subject_id);
+    subjectIdsByUserId.set(pair.user_id, subjectIds);
+  }
+
+  for (const [userId, subjectIds] of subjectIdsByUserId) {
     const { error } = await client
       .from("instructor_subject_capability")
       .delete()
-      .eq("user_id", pair.user_id)
-      .eq("subject_id", pair.subject_id);
+      .eq("user_id", userId)
+      .in("subject_id", subjectIds);
 
     if (error) {
       return { error };

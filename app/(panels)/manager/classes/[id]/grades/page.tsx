@@ -13,8 +13,8 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getManagerClassDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassForManager, getClassFinalExamForManager } from "@/services/classes/class.service";
-import { listClassStudentGradesForManager } from "@/services/classes/student-course-grade.service";
+import { getClassForManager } from "@/services/classes/class.service";
+import { loadClassGradesPageData } from "@/services/classes/student-course-grade.service";
 
 type ManagerClassGradesPageProps = {
   params: Promise<{ id: string }>;
@@ -26,7 +26,9 @@ export default async function ManagerClassGradesPage({
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
-  const classRow = await getClassForManager(adminClient, user?.id ?? null, id);
+  const actorUserId = user?.id ?? null;
+
+  const classRow = await getClassForManager(adminClient, actorUserId, id);
 
   if (!classRow) {
     notFound();
@@ -57,7 +59,7 @@ export default async function ManagerClassGradesPage({
       </Breadcrumb>
 
       {gradesUnlocked ? (
-        <ManagerClassGradesContent classId={id} classRow={classRow} />
+        <ManagerClassGradesContent classId={id} actorUserId={actorUserId} />
       ) : (
         <ClassGradesLockedSection status={classRow.status} />
       )}
@@ -67,30 +69,26 @@ export default async function ManagerClassGradesPage({
 
 async function ManagerClassGradesContent({
   classId,
-  classRow,
+  actorUserId,
 }: {
   classId: string;
-  classRow: Awaited<ReturnType<typeof getClassForManager>>;
+  actorUserId: string | null;
 }) {
   const adminClient = createSupabaseAdminClient();
-  const user = await getSessionUser();
-  const [{ rows, tasks }, finalExamBundle] = await Promise.all([
-    listClassStudentGradesForManager(adminClient, user?.id ?? null, classId),
-    getClassFinalExamForManager(adminClient, user?.id ?? null, classId),
-  ]);
-
-  if (!classRow) {
-    return null;
-  }
+  const pageData = await loadClassGradesPageData(
+    adminClient,
+    actorUserId,
+    classId
+  );
 
   return (
     <ClassStudentGradesSection
       classId={classId}
-      classRow={classRow}
-      rows={rows}
-      classTasks={tasks}
-      finalExam={finalExamBundle.finalExam}
-      finalExamStudentGrades={finalExamBundle.studentGrades}
+      classRow={pageData.classRow}
+      rows={pageData.rows}
+      classTasks={pageData.tasks}
+      finalExam={pageData.finalExam}
+      finalExamStudentGrades={pageData.finalExamStudentGrades}
     />
   );
 }

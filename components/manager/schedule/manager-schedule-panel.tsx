@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useEffect, useMemo, useRef, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import FullCalendar from "@fullcalendar/react";
 import type {
@@ -280,7 +279,6 @@ function toUpdateFormData(values: UpdateWeeklyScheduleSlotInput): FormData {
 export function ManagerSchedulePanel({
   initialSessions,
 }: ManagerSchedulePanelProps) {
-  const router = useRouter();
   const calendarRef = useRef<React.ComponentRef<typeof FullCalendar> | null>(
     null
   );
@@ -380,12 +378,6 @@ export function ManagerSchedulePanel({
 
     return counts;
   }, [sessions, weekStart]);
-
-  function softRefresh() {
-    startTransition(() => {
-      router.refresh();
-    });
-  }
 
   function trackPendingTemp(tempId: string) {
     pendingTempIdsRef.current.add(tempId);
@@ -603,6 +595,8 @@ export function ManagerSchedulePanel({
 
     const formData = new FormData();
     formData.set("week_start", preview.weekStart);
+    formData.set("create_count", String(preview.willCreate.length));
+    formData.set("skip_count", String(preview.willSkip.length));
     const result = await copyWeeklyScheduleSlotsAction({}, formData);
 
     if (!result.success) {
@@ -621,7 +615,6 @@ export function ManagerSchedulePanel({
       untrackPendingTemp(tempId);
     }
     showSuccessToast(result.message ?? "Last week copied.");
-    softRefresh();
   }
 
   function handleConfirmDelete() {
