@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
@@ -14,7 +13,7 @@ import {
   SearchIcon,
   XCircleIcon,
 } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Can } from "@/components/auth/can";
 import { AddGuestDialog } from "@/components/manager/guests/add-guest-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -207,6 +206,20 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
   const pageRows = filteredGuests.slice(pageStart, pageStart + pageSize);
   const pageNumbers = getPageNumbers(safePage, totalPages);
 
+  const openGuestDetails = (guest: ManagerGuestRow) => {
+    router.push(getManagerGuestDetailRoute(guest.id));
+  };
+
+  const handleGuestRowKeyDown = (
+    event: React.KeyboardEvent<HTMLTableRowElement>,
+    guest: ManagerGuestRow
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openGuestDetails(guest);
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-6">
@@ -371,27 +384,18 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
                         key={guest.id}
                         className={GUEST_ROW_CLASS}
                         tabIndex={0}
-                        onClick={() =>
-                          router.push(getManagerGuestDetailRoute(guest.id))
+                        role="link"
+                        aria-label={`View details for ${guest.full_name}`}
+                        onClick={() => openGuestDetails(guest)}
+                        onKeyDown={(event) =>
+                          handleGuestRowKeyDown(event, guest)
                         }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            router.push(getManagerGuestDetailRoute(guest.id));
-                          }
-                        }}
                       >
                         <td className="px-4 py-3 font-medium">
-                          <Link
-                            href={getManagerGuestDetailRoute(guest.id)}
-                            className="hover:underline"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <TruncatedCell
-                              value={guest.full_name}
-                              maxLength={COLUMN_LIMITS.name}
-                            />
-                          </Link>
+                          <TruncatedCell
+                            value={guest.full_name}
+                            maxLength={COLUMN_LIMITS.name}
+                          />
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {guest.phone}
