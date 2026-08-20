@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
-import { PencilIcon } from "lucide-react";
+import { FileTextIcon, PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
 import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
@@ -22,7 +23,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ROUTES } from "@/lib/constants/routes";
+import {
+  getManagerRegistrationDetailRoute,
+  ROUTES,
+} from "@/lib/constants/routes";
 import {
   scrollToStudentDetailsSection,
   STUDENT_DETAILS_SECTION_IDS,
@@ -41,6 +45,7 @@ type StudentDetailsPanelProps = {
   availableClasses: ManagerClassOption[];
   classBundles: ManagerStudentClassAcademicBundle[];
   activityRows: ManagerStudentActivityRow[];
+  registrationApplicationId: string | null;
 };
 
 function DetailField({
@@ -76,6 +81,7 @@ export function StudentDetailsPanel({
   availableClasses,
   classBundles,
   activityRows,
+  registrationApplicationId,
 }: StudentDetailsPanelProps) {
   const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
   const [prevStudent, setPrevStudent] =
@@ -130,7 +136,27 @@ export function StudentDetailsPanel({
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle className="text-xl">{student.full_name}</CardTitle>
-          <CardAction className="self-center">
+          <CardAction className="flex flex-wrap items-center justify-end gap-2 self-center">
+            {registrationApplicationId ? (
+              <Can permission={PERMISSIONS.REGISTRATIONS_VIEW}>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={getManagerRegistrationDetailRoute(
+                        registrationApplicationId,
+                        "student"
+                      )}
+                      prefetch={false}
+                    />
+                  }
+                >
+                  <FileTextIcon data-icon="inline-start" />
+                  View registration
+                </Button>
+              </Can>
+            ) : null}
             <Can permission={PERMISSIONS.STUDENTS_UPDATE}>
               <Button type="button" onClick={() => setIsEditOpen(true)}>
                 <PencilIcon data-icon="inline-start" />

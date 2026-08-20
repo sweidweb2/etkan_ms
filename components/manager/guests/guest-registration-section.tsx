@@ -392,7 +392,8 @@ export function GuestRegistrationSection({
               ) : null}
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  href={getManagerRegistrationDetailRoute(application.id)}
+                  href={getManagerRegistrationDetailRoute(application.id, "guest")}
+                  prefetch={false}
                   className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
                 >
                   <LinkIcon className="size-4" />

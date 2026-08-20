@@ -321,6 +321,19 @@ export async function findActiveApplicationByUserId(
     .maybeSingle();
 }
 
+export async function findLatestApplicationIdByUserId(
+  client: Supabase,
+  userId: string
+) {
+  return client
+    .from("student_registration_applications")
+    .select("id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
 export async function updateApplicationUserId(
   client: Supabase,
   applicationId: string,

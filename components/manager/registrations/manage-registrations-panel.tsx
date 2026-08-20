@@ -272,6 +272,7 @@ export function ManageRegistrationsPanel({
                       <td className="px-4 py-3">
                         <Link
                           href={getManagerRegistrationDetailRoute(row.id)}
+                          prefetch={false}
                           aria-label={`View ${row.full_name}`}
                           className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
                         >

@@ -29,17 +29,27 @@ import type {
   UpdateManagerRegistrationInput,
   UpdateRegistrationStatusInput,
 } from "@/lib/validators/public/registration";
+import * as guestRepository from "@/repositories/guest.repository";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import type { StudentRegistrationApplicationRecord } from "@/repositories/student-registration-application.repository";
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
-import { assertPermission } from "@/services/auth/authorization.service";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import {
+  assertPermission,
+  getUnauthorizedError,
+} from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerRegistrationApplicationRow,
   ManagerRegistrationDocumentRow,
   ManagerRegistrationDocumentSignedRow,
 } from "@/types/public-registration";
+import type { RegistrationDetailFrom } from "@/lib/constants/registration-detail-from";
+import {
+  buildRegistrationDetailBreadcrumb,
+  type RegistrationDetailBreadcrumbItem,
+} from "@/lib/manager/registration-detail-breadcrumb";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -75,18 +85,13 @@ async function createSignedUrlsForDocuments(
             doc.storage_path
           );
 
-        if (signed.error || !signed.data) {
-          throw new Error(
-            signed.error?.message ?? "Unable to create download link."
-          );
-        }
-
         return {
           id: doc.id,
           file_name: doc.file_name,
           mime_type: doc.mime_type,
           file_size: doc.file_size,
-          signedUrl: signed.data.signedUrl,
+          signedUrl:
+            signed.error || !signed.data ? null : signed.data.signedUrl,
         };
       })
     );
@@ -455,6 +460,32 @@ export async function submitPublicRegistrationApplication(
   };
 }
 
+export async function getLinkedRegistrationApplicationIdForStudentManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  userId: string
+): Promise<string | null> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.REGISTRATIONS_VIEW
+  );
+  if (unauthorized) {
+    return null;
+  }
+
+  const result = await registrationRepository.findLatestApplicationIdByUserId(
+    adminClient,
+    userId
+  );
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  return result.data?.id ?? null;
+}
+
 export async function listRegistrationApplicationsForManager(
   adminClient: Supabase,
   actorUserId: string | null
@@ -536,6 +567,58 @@ export async function getRegistrationApplicationDetailForManager(
   };
 }
 
+export async function getRegistrationDetailBreadcrumbForManager(
+  adminClient: Supabase,
+  from: RegistrationDetailFrom,
+  application: Pick<
+    ManagerRegistrationApplicationRow,
+    "full_name" | "guest_id" | "user_id"
+  >
+): Promise<RegistrationDetailBreadcrumbItem[]> {
+  let guest: { id: string; full_name: string } | null = null;
+  let student: { id: string; full_name: string } | null = null;
+
+  if (from === "guest" && application.guest_id) {
+    const guestResult = await guestRepository.findGuestById(
+      adminClient,
+      application.guest_id
+    );
+    if (guestResult.error) {
+      throw new Error(guestResult.error.message);
+    }
+    if (guestResult.data) {
+      guest = {
+        id: guestResult.data.id,
+        full_name: guestResult.data.full_name,
+      };
+    }
+  }
+
+  if (from === "student" && application.user_id) {
+    const studentResult =
+      await studentProfileRepository.findStudentProfileByUserId(
+        adminClient,
+        application.user_id
+      );
+    if (studentResult.error) {
+      throw new Error(studentResult.error.message);
+    }
+    if (studentResult.data) {
+      student = {
+        id: studentResult.data.id,
+        full_name: studentResult.data.full_name,
+      };
+    }
+  }
+
+  return buildRegistrationDetailBreadcrumb({
+    from,
+    applicationName: application.full_name,
+    guest,
+    student,
+  });
+}
+
 export async function getRegistrationDocumentSignedUrlsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -563,22 +646,12 @@ export async function getRegistrationDocumentSignedUrlsForManager(
   const documentRecords = (docsResult.data ??
     []) as documentRepository.StudentRegistrationDocumentRecord[];
 
-  try {
-    const documents = await createSignedUrlsForDocuments(
-      adminClient,
-      documentRecords
-    );
+  const documents = await createSignedUrlsForDocuments(
+    adminClient,
+    documentRecords
+  );
 
-    return { success: true, documents };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unable to create download link.",
-    };
-  }
+  return { success: true, documents };
 }
 
 export async function updateRegistrationApplicationStatusForManager(

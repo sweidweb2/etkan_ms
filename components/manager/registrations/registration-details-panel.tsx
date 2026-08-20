@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { Fragment, useActionState, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ExternalLinkIcon } from "lucide-react";
@@ -60,7 +60,8 @@ import {
   REGISTRATION_WEEKDAY_VALUES,
   type RegistrationApplicationStatus,
 } from "@/lib/constants/public-registration";
-import { getManagerGuestDetailRoute, ROUTES } from "@/lib/constants/routes";
+import { getManagerGuestDetailRoute } from "@/lib/constants/routes";
+import type { RegistrationDetailBreadcrumbItem } from "@/lib/manager/registration-detail-breadcrumb";
 import { cn } from "@/lib/utils";
 import type {
   ManagerRegistrationApplicationRow,
@@ -113,6 +114,7 @@ type EditDraft = {
 type RegistrationDetailsPanelProps = {
   application: ManagerRegistrationApplicationRow;
   signedDocuments: ManagerRegistrationDocumentSignedRow[];
+  breadcrumbItems: RegistrationDetailBreadcrumbItem[];
 };
 
 function draftFromApplication(
@@ -274,6 +276,7 @@ function toggleInArray(list: string[], value: string): string[] {
 export function RegistrationDetailsPanel({
   application,
   signedDocuments,
+  breadcrumbItems,
 }: RegistrationDetailsPanelProps) {
   const permissions = usePermissions();
   const canEdit = hasPermissionInSet(
@@ -375,15 +378,23 @@ export function RegistrationDetailsPanel({
     <div className="flex flex-col gap-6 pb-28">
       <Breadcrumb className="min-w-0">
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_REGISTRATIONS}>
-              Registrations
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{application.full_name}</BreadcrumbPage>
-          </BreadcrumbItem>
+          {breadcrumbItems.map((item, index) => {
+            const isLast = index === breadcrumbItems.length - 1;
+            return (
+              <Fragment key={`${item.label}-${index}`}>
+                {index > 0 ? <BreadcrumbSeparator /> : null}
+                <BreadcrumbItem>
+                  {isLast || !item.href ? (
+                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink href={item.href} prefetch={false}>
+                      {item.label}
+                    </BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+              </Fragment>
+            );
+          })}
         </BreadcrumbList>
       </Breadcrumb>
 
@@ -955,23 +966,37 @@ export function RegistrationDetailsPanel({
           <Label>Uploaded files</Label>
           <div className="mt-2 space-y-2">
             {signedDocuments.length > 0 ? (
-              signedDocuments.map((doc) => (
-                <a
-                  key={doc.id}
-                  href={doc.signedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
-                >
-                  <span className="min-w-0 truncate font-medium">
-                    {doc.file_name}
-                  </span>
-                  <span className="inline-flex shrink-0 items-center gap-1 text-primary">
-                    Open
-                    <ExternalLinkIcon className="size-3.5" />
-                  </span>
-                </a>
-              ))
+              signedDocuments.map((doc) =>
+                doc.signedUrl ? (
+                  <a
+                    key={doc.id}
+                    href={doc.signedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+                  >
+                    <span className="min-w-0 truncate font-medium">
+                      {doc.file_name}
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 text-primary">
+                      Open
+                      <ExternalLinkIcon className="size-3.5" />
+                    </span>
+                  </a>
+                ) : (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate font-medium">
+                      {doc.file_name}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">
+                      Not found
+                    </span>
+                  </div>
+                )
+              )
             ) : (
               <p className="text-sm text-muted-foreground">No documents</p>
             )}

@@ -1,4 +1,9 @@
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import {
+  REGISTRATION_DETAIL_FROM_QUERY,
+  type RegistrationDetailFrom,
+} from "@/lib/constants/registration-detail-from";
+import { appendQueryParam } from "@/lib/url/append-query-param";
 
 export const ROUTES = {
   HOME: "/",
@@ -164,9 +169,14 @@ export function getManagerWorkshopDetailRoute(workshopId: string): string {
 }
 
 export function getManagerRegistrationDetailRoute(
-  applicationId: string
+  applicationId: string,
+  from: RegistrationDetailFrom = "registrations"
 ): string {
-  return `/manager/registrations/${applicationId}`;
+  const path = `/manager/registrations/${applicationId}`;
+  if (from === "registrations") {
+    return path;
+  }
+  return appendQueryParam(path, REGISTRATION_DETAIL_FROM_QUERY, from);
 }
 
 export function getManagerEquipmentDetailRoute(equipmentId: string): string {

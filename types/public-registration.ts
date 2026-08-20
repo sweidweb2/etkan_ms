@@ -28,7 +28,7 @@ export type ManagerRegistrationDocumentSignedRow = {
   file_name: string;
   mime_type: string;
   file_size: number;
-  signedUrl: string;
+  signedUrl: string | null;
 };
 
 export type ManagerRegistrationApplicationRow = {

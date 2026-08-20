@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import * as rateLimit from "@/lib/rate-limit/public-registration-rate-limit";
+import * as guestRepository from "@/repositories/guest.repository";
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as authorizationService from "@/services/auth/authorization.service";
 import {
+  getLinkedRegistrationApplicationIdForStudentManager,
   getRegistrationApplicationDetailForManager,
+  getRegistrationDetailBreadcrumbForManager,
   listRegistrationApplicationsForManager,
   submitPublicRegistrationApplication,
   tempUploadRegistrationDocument,
@@ -17,6 +21,8 @@ import {
 vi.mock("@/repositories/student-registration-application.repository");
 vi.mock("@/repositories/student-registration-document.repository");
 vi.mock("@/repositories/registration-storage.repository");
+vi.mock("@/repositories/guest.repository");
+vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/lib/rate-limit/public-registration-rate-limit", () => ({
   checkPublicRegistrationSubmitRateLimit: vi.fn(async () => ({
     allowed: true as const,
@@ -264,6 +270,116 @@ describe("student-registration.service", () => {
     ).not.toHaveBeenCalled();
   });
 
+  it("returns the linked registration id for a student", async () => {
+    const studentUserId = "22222222-2222-4222-8222-222222222222";
+    vi.mocked(
+      registrationRepository.findLatestApplicationIdByUserId
+    ).mockResolvedValue({
+      data: { id: applicationId },
+      error: null,
+    } as never);
+
+    const id = await getLinkedRegistrationApplicationIdForStudentManager(
+      adminClient,
+      actorUserId,
+      studentUserId
+    );
+
+    expect(id).toBe(applicationId);
+    expect(authorizationService.getUnauthorizedError).toHaveBeenCalledWith(
+      adminClient,
+      actorUserId,
+      PERMISSIONS.REGISTRATIONS_VIEW
+    );
+    expect(
+      registrationRepository.findLatestApplicationIdByUserId
+    ).toHaveBeenCalledWith(adminClient, studentUserId);
+  });
+
+  it("returns null when the student has no linked registration", async () => {
+    vi.mocked(
+      registrationRepository.findLatestApplicationIdByUserId
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
+
+    const id = await getLinkedRegistrationApplicationIdForStudentManager(
+      adminClient,
+      actorUserId,
+      "22222222-2222-4222-8222-222222222222"
+    );
+
+    expect(id).toBeNull();
+  });
+
+  it("hides the linked registration when the actor cannot view registrations", async () => {
+    vi.mocked(authorizationService.getUnauthorizedError).mockResolvedValueOnce(
+      "Unauthorized."
+    );
+
+    const id = await getLinkedRegistrationApplicationIdForStudentManager(
+      adminClient,
+      actorUserId,
+      "22222222-2222-4222-8222-222222222222"
+    );
+
+    expect(id).toBeNull();
+    expect(
+      registrationRepository.findLatestApplicationIdByUserId
+    ).not.toHaveBeenCalled();
+  });
+
+  it("builds guest breadcrumbs from the linked guest", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { id: "guest-1", full_name: "Ada Guest" },
+      error: null,
+    } as never);
+
+    const items = await getRegistrationDetailBreadcrumbForManager(
+      adminClient,
+      "guest",
+      {
+        full_name: "Ada Lovelace",
+        guest_id: "guest-1",
+        user_id: null,
+      }
+    );
+
+    expect(items).toEqual([
+      { href: "/manager/guests", label: "Guests" },
+      { href: "/manager/guests/guest-1", label: "Ada Guest" },
+      { label: "Registration" },
+    ]);
+    expect(studentProfileRepository.findStudentProfileByUserId).not.toHaveBeenCalled();
+  });
+
+  it("builds student breadcrumbs from the linked student profile", async () => {
+    vi.mocked(
+      studentProfileRepository.findStudentProfileByUserId
+    ).mockResolvedValue({
+      data: { id: "student-1", full_name: "Ada Student" },
+      error: null,
+    } as never);
+
+    const items = await getRegistrationDetailBreadcrumbForManager(
+      adminClient,
+      "student",
+      {
+        full_name: "Ada Lovelace",
+        guest_id: null,
+        user_id: "user-1",
+      }
+    );
+
+    expect(items).toEqual([
+      { href: "/manager/students", label: "Manage students" },
+      { href: "/manager/students/student-1", label: "Ada Student" },
+      { label: "Registration" },
+    ]);
+    expect(guestRepository.findGuestById).not.toHaveBeenCalled();
+  });
+
   it("returns application detail with signed document urls", async () => {
     vi.mocked(
       registrationRepository.findStudentRegistrationApplicationById
@@ -309,6 +425,55 @@ describe("student-registration.service", () => {
         mime_type: "application/pdf",
         file_size: 100,
         signedUrl: "https://example.com/signed.pdf",
+      },
+    ]);
+  });
+
+  it("keeps missing storage objects as not found instead of failing the page", async () => {
+    vi.mocked(
+      registrationRepository.findStudentRegistrationApplicationById
+    ).mockResolvedValue({
+      data: applicationRecord,
+      error: null,
+    } as never);
+    vi.mocked(
+      documentRepository.listStudentRegistrationDocumentsByApplicationId
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "doc-1",
+          application_id: applicationId,
+          storage_path: `registration/${applicationId}/missing.pdf`,
+          file_name: "missing.pdf",
+          mime_type: "application/pdf",
+          file_size: 100,
+          sort_order: 0,
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(
+      registrationStorage.createRegistrationDocumentSignedUrl
+    ).mockResolvedValue({
+      data: null,
+      error: { message: "Object not found" },
+    });
+
+    const detail = await getRegistrationApplicationDetailForManager(
+      adminClient,
+      actorUserId,
+      applicationId
+    );
+
+    expect(detail?.application.id).toBe(applicationId);
+    expect(detail?.signedDocuments).toEqual([
+      {
+        id: "doc-1",
+        file_name: "missing.pdf",
+        mime_type: "application/pdf",
+        file_size: 100,
+        signedUrl: null,
       },
     ]);
   });
