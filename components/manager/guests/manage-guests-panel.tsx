@@ -120,6 +120,17 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
+function uniqueGuestsById(rows: ManagerGuestRow[]) {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    if (seen.has(row.id)) {
+      return false;
+    }
+    seen.add(row.id);
+    return true;
+  });
+}
+
 function matchesSearch(guest: ManagerGuestRow, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -162,7 +173,7 @@ type ManageGuestsPanelProps = {
 };
 
 export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
-  const [guests, setGuests] = useState(initialGuests);
+  const [guests, setGuests] = useState(() => uniqueGuestsById(initialGuests));
   const [prevGuests, setPrevGuests] = useState(initialGuests);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(FILTER_ALL);
@@ -175,20 +186,22 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
 
   if (initialGuests !== prevGuests) {
     setPrevGuests(initialGuests);
-    setGuests(initialGuests);
+    setGuests(uniqueGuestsById(initialGuests));
   }
+
+  const guestsById = useMemo(() => uniqueGuestsById(guests), [guests]);
 
   const stats = useMemo(() => {
     return {
-      total: guests.length,
-      scheduled: guests.filter((row) => row.status === "scheduled").length,
-      finished: guests.filter((row) => row.status === "finished").length,
-      cancelled: guests.filter((row) => row.status === "cancelled").length,
+      total: guestsById.length,
+      scheduled: guestsById.filter((row) => row.status === "scheduled").length,
+      finished: guestsById.filter((row) => row.status === "finished").length,
+      cancelled: guestsById.filter((row) => row.status === "cancelled").length,
     };
-  }, [guests]);
+  }, [guestsById]);
 
   const filteredGuests = useMemo(() => {
-    return guests.filter((guest) => {
+    return guestsById.filter((guest) => {
       if (!matchesSearch(guest, searchQuery)) {
         return false;
       }
@@ -203,7 +216,7 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
       }
       return true;
     });
-  }, [guests, searchQuery, statusFilter, serviceFilter]);
+  }, [guestsById, searchQuery, statusFilter, serviceFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredGuests.length / pageSize));
   const safePage = Math.min(currentPage, totalPages);
@@ -348,7 +361,7 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
                         colSpan={8}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
-                        {guests.length === 0 ? (
+                        {guestsById.length === 0 ? (
                           <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
                             <p>
                               No guests yet. Create the first intake card to
@@ -500,7 +513,13 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
           onGuestCreated={(guest) => {
-            setGuests((current) => [guest, ...current]);
+            setGuests((current) => {
+              if (current.some((row) => row.id === guest.id)) {
+                return current;
+              }
+
+              return [guest, ...current];
+            });
             setCurrentPage(1);
           }}
         />

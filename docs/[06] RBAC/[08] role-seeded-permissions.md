@@ -14,7 +14,7 @@ Full catalog (`PERMISSION_KEYS`) — every permission.
 
 ## CEO
 
-Full instructors / instructor schedules / workshops module (incl. payments) plus AI usage for Schedule assistant, income statement analytics, and guest follow-up (`CEO_WORKSHOP_SEED_PERMISSIONS`):
+Full instructors / instructor schedules / workshops module (incl. payments) plus AI usage for Schedule assistant, income statement analytics, and the full manage-guests flow (`CEO_WORKSHOP_SEED_PERMISSIONS`):
 
 ```
 instructors.view
@@ -52,14 +52,16 @@ guests.update
 guests.delete
 guests.change_status
 guests.registration.manage
+guests.create_student
+registrations.view
 ```
 
-Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`, `/manager/income-statement/analytics`, `/manager/guests*`.  
-Manage instructors, AI usage, and guests do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
+Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`, `/manager/income-statement/analytics`, `/manager/guests*`, `/manager/registrations*`.  
+Manage instructors, AI usage, guests, and registration dossiers do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
 Schedule assistant UI/API and AI usage page require `cloudflare_ai_usage.view`.  
 Slot details table (`/manager/instructor-schedules/details`) requires `instructor_schedules.details.view` (manager + CEO seed only for now).  
-`guests.create_student` is **manager-only** (full catalog); CEO guest follow-up does not include creating a student from a registration.  
-Re-run `npm run seed:rbac` after deploy so CEO receives the new `guests.*` keys.
+CEO guest follow-up includes `guests.create_student` (create a student from a registration without `students.create`). `registrations.view` lets CEO open the dossier from guest details.  
+Re-run `npm run seed:rbac` after deploy so CEO receives the new `guests.*` / `registrations.view` keys.
 
 ---
 

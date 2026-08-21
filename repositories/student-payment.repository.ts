@@ -97,20 +97,20 @@ export async function listAllPayments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
-/** All-time SPP payment total (server-side sum, not a full table download). */
+/** All-time SPP payment total. PostgREST aggregates are disabled on this API. */
 export async function sumAllPaymentAmounts(client: Supabase) {
-  const { data, error } = await client
-    .from("student_payments")
-    .select("amount.sum()")
-    .returns<{ sum: number | null; amount?: number | null }[]>()
-    .maybeSingle();
+  const { data, error } = await client.from("student_payments").select("amount");
 
-  const row = data as { sum?: number | null; amount?: number | null } | null;
+  if (error) {
+    return { data: 0, error };
+  }
 
-  return {
-    data: Math.max(0, Number(row?.sum ?? row?.amount) || 0),
-    error,
-  };
+  const total = (data ?? []).reduce(
+    (sum, row) => sum + Math.max(0, Number(row.amount) || 0),
+    0
+  );
+
+  return { data: total, error: null };
 }
 
 /** Dates only — used to discover months that have payment activity. */

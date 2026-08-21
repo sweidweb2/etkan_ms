@@ -129,15 +129,21 @@ export async function createStudentFromGuestRegistrationForManager(
     };
   }
 
-  const created = await createStudent(adminClient, actorUserId, actor, {
-    username,
-    fullName,
-    email,
-    password,
-    confirmPassword,
-    birthDate,
-    phone,
-  });
+  const created = await createStudent(
+    adminClient,
+    actorUserId,
+    actor,
+    {
+      username,
+      fullName,
+      email,
+      password,
+      confirmPassword,
+      birthDate,
+      phone,
+    },
+    { skipStudentsCreatePermission: true }
+  );
   if (!created.success) {
     return {
       success: false,

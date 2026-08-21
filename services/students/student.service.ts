@@ -563,11 +563,18 @@ export async function createStudent(
     confirmPassword: string;
     birthDate?: string | null;
     phone?: string | null;
-  }
+  },
+  options?: { skipStudentsCreatePermission?: boolean }
 ): Promise<CreateStudentResult> {
-  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.STUDENTS_CREATE);
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
+  if (!options?.skipStudentsCreatePermission) {
+    const unauthorized = await getUnauthorizedError(
+      adminClient,
+      actorUserId,
+      PERMISSIONS.STUDENTS_CREATE
+    );
+    if (unauthorized) {
+      return { success: false, error: unauthorized };
+    }
   }
 
   const parsed = createStudentSchema.safeParse(input);

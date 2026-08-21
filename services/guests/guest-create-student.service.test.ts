@@ -250,7 +250,8 @@ describe("createStudentFromGuestRegistrationForManager", () => {
       expect.objectContaining({
         username: "ada_lovelace",
         password: DEFAULT_CREATED_STUDENT_PASSWORD,
-      })
+      }),
+      { skipStudentsCreatePermission: true }
     );
     expect(registrationRepository.updateApplicationUserId).toHaveBeenCalledWith(
       adminClient,

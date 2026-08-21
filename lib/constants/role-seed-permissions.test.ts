@@ -13,6 +13,7 @@ const CEO_GUEST_PERMISSIONS = [
   PERMISSIONS.GUESTS_DELETE,
   PERMISSIONS.GUESTS_CHANGE_STATUS,
   PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
+  PERMISSIONS.GUESTS_CREATE_STUDENT,
 ] as const;
 
 describe("role-seed-permissions guests", () => {
@@ -25,5 +26,6 @@ describe("role-seed-permissions guests", () => {
     for (const key of CEO_GUEST_PERMISSIONS) {
       expect(ceoSeed).toContain(key);
     }
+    expect(ceoSeed).toContain(PERMISSIONS.REGISTRATIONS_VIEW);
   });
 });

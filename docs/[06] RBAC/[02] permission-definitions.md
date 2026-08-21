@@ -536,7 +536,7 @@ instructor_schedules.view
 
 ### CEO — workshop / instructor module seed
 
-CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant) + `accounting.income_statement.analytics.view` + all `guests.*`.
+CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant) + `accounting.income_statement.analytics.view` + all `guests.*` + `registrations.view` (open a registration dossier from guest details).
 
 ```
 instructors.view
@@ -574,6 +574,8 @@ guests.update
 guests.delete
 guests.change_status
 guests.registration.manage
+guests.create_student
+registrations.view
 ```
 
 ---

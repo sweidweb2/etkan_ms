@@ -26,7 +26,7 @@ export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
 /**
  * CEO workshop / instructor module: full instructors + schedules + workshops
  * (including payments) plus AI usage for Schedule assistant, income
- * statement analytics, and guest follow-up.
+ * statement analytics, and the full manage-guests flow.
  */
 export const CEO_WORKSHOP_SEED_PERMISSIONS = [
   PERMISSIONS.INSTRUCTORS_VIEW,
@@ -64,6 +64,8 @@ export const CEO_WORKSHOP_SEED_PERMISSIONS = [
   PERMISSIONS.GUESTS_DELETE,
   PERMISSIONS.GUESTS_CHANGE_STATUS,
   PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
+  PERMISSIONS.GUESTS_CREATE_STUDENT,
+  PERMISSIONS.REGISTRATIONS_VIEW,
 ] as const satisfies readonly PermissionKey[];
 
 /**

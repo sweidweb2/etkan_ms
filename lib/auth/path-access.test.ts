@@ -60,6 +60,11 @@ describe("canAccessPath", () => {
     expect(
       canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS, ROLES.CEO)
     ).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_GUESTS, ROLES.CEO)).toBe(true);
+    expect(
+      canAccessPath(`${ROUTES.MANAGER_GUESTS}/abc-123`, ROLES.CEO)
+    ).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_REGISTRATIONS, ROLES.CEO)).toBe(true);
   });
 
   it("still denies non-shared manager paths for other roles", () => {
