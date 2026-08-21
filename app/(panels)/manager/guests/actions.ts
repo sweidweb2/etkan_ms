@@ -36,6 +36,7 @@ import {
   cancelGuestRegistrationApplicationForManager,
   connectGuestRegistrationUserForManager,
   deleteGuestRegistrationApplicationForManager,
+  listUsersForGuestRegistrationLink,
   openGuestRegistrationInviteForManager,
   removeTempGuestRegistrationDocumentForManager,
   stopGuestRegistrationInviteForManager,
@@ -58,6 +59,7 @@ import type {
   SubmitGuestRegistrationStaffActionState,
   UpdateGuestActionState,
   CreateStudentFromGuestActionState,
+  GuestRegistrationLinkUserOption,
 } from "@/types/manager-guest";
 import type {
   RemoveTempRegistrationDocumentActionState,
@@ -208,7 +210,6 @@ export async function changeGuestStatusAction(
   }
 
   revalidatePath(ROUTES.MANAGER_GUESTS);
-  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
   return {
     success: true,
     message: result.message,
@@ -249,7 +250,6 @@ export async function recordGuestStatusesAction(
   }
 
   revalidatePath(ROUTES.MANAGER_GUESTS);
-  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
   return {
     success: true,
     message: result.message,
@@ -290,7 +290,6 @@ export async function setGuestProfileStatusAction(
   }
 
   revalidatePath(ROUTES.MANAGER_GUESTS);
-  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
   return {
     success: true,
     message: result.message,
@@ -330,7 +329,6 @@ export async function removeGuestStatusAction(
   }
 
   revalidatePath(ROUTES.MANAGER_GUESTS);
-  revalidatePath(getManagerGuestDetailRoute(result.guest.id));
   return {
     success: true,
     message: result.message,
@@ -651,4 +649,27 @@ export async function createStudentFromGuestAction(
     message: result.message,
     application: result.application,
   };
+}
+
+export async function listGuestRegistrationLinkUsersAction(): Promise<{
+  users: GuestRegistrationLinkUserOption[];
+  error?: string;
+}> {
+  const actor = await getSessionAuditActor();
+  const adminClient = createSupabaseAdminClient();
+  try {
+    const users = await listUsersForGuestRegistrationLink(
+      adminClient,
+      actor.userId
+    );
+    return { users };
+  } catch (error) {
+    return {
+      users: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load users. Please try again.",
+    };
+  }
 }

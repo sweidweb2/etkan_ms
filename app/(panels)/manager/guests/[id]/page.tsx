@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getGuestDetailForManager } from "@/services/guests/guest.service";
-import { listUsersForGuestRegistrationLink } from "@/services/guests/guest-registration.service";
+import { getGuestRegistrationLinkUserOption } from "@/services/guests/guest-registration.service";
 
 type ManagerGuestDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -26,9 +26,12 @@ export default async function ManagerGuestDetailPage({
     notFound();
   }
 
-  const linkUsers = await timer.step("linkUsers", () =>
-    listUsersForGuestRegistrationLink(adminClient, user?.id ?? null)
-  );
+  const linkedUserId = detail.registrationApplication?.user_id ?? null;
+  const linkedUser = linkedUserId
+    ? await timer.step("linkedUser", () =>
+        getGuestRegistrationLinkUserOption(adminClient, linkedUserId)
+      )
+    : null;
   timer.end();
 
   return (
@@ -37,7 +40,7 @@ export default async function ManagerGuestDetailPage({
       statusEvents={detail.statusEvents}
       registrationInvite={detail.registrationInvite}
       registrationApplication={detail.registrationApplication}
-      linkUsers={linkUsers}
+      linkedUser={linkedUser}
     />
   );
 }

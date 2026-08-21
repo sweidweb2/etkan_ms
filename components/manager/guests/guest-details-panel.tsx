@@ -75,7 +75,7 @@ type GuestDetailsPanelProps = {
   statusEvents: ManagerGuestStatusEventRow[];
   registrationInvite: ManagerGuestRegistrationInvite | null;
   registrationApplication: ManagerGuestRegistrationApplicationSummary | null;
-  linkUsers: GuestRegistrationLinkUserOption[];
+  linkedUser: GuestRegistrationLinkUserOption | null;
 };
 
 function DetailField({
@@ -106,7 +106,7 @@ export function GuestDetailsPanel({
   statusEvents: initialStatusEvents,
   registrationInvite,
   registrationApplication,
-  linkUsers,
+  linkedUser,
 }: GuestDetailsPanelProps) {
   const [guest, setGuest] = useState(initialGuest);
   const [statusEvents, setStatusEvents] = useState(initialStatusEvents);
@@ -263,7 +263,7 @@ export function GuestDetailsPanel({
           guest={guest}
           invite={registrationInvite}
           application={registrationApplication}
-          linkUsers={linkUsers}
+          linkedUser={linkedUser}
         />
       </div>
 

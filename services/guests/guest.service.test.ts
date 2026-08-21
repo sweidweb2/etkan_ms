@@ -83,23 +83,25 @@ const okResult = {
   statusText: "OK",
 };
 
-function mockPipelineStatusNotExists() {
+function mockGuestStatusEvents(
+  events: Array<{
+    id?: string;
+    status: string;
+    note?: string | null;
+    created_at?: string;
+  }>
+) {
   vi.mocked(
-    guestStatusEventRepository.guestStatusEventExistsByGuestIdAndStatus
-  ).mockResolvedValue({ data: null, ...okResult });
-}
-
-function mockPipelineStatusExists(eventId = "existing-event") {
-  vi.mocked(
-    guestStatusEventRepository.guestStatusEventExistsByGuestIdAndStatus
-  ).mockResolvedValue({ data: { id: eventId }, ...okResult });
-}
-
-function mockGuestStatusValues(statuses: string[]) {
-  vi.mocked(
-    guestStatusEventRepository.listGuestStatusValuesByGuestId
+    guestStatusEventRepository.listGuestStatusEventsByGuestId
   ).mockResolvedValue({
-    data: statuses.map((status) => ({ status })),
+    data: events.map((event, index) => ({
+      id: event.id ?? `event-${index + 1}`,
+      guest_id: guestId,
+      status: event.status,
+      note: event.note ?? null,
+      created_by: actor.userId,
+      created_at: event.created_at ?? `2026-01-0${index + 1}T00:00:00.000Z`,
+    })),
     ...okResult,
   });
 }
@@ -384,7 +386,7 @@ describe("getGuestDetailForManager", () => {
 describe("setGuestStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockPipelineStatusNotExists();
+    mockGuestStatusEvents([]);
   });
 
   it("denies unauthorized actors", async () => {
@@ -483,7 +485,7 @@ describe("setGuestStatusForManager", () => {
       data: pendingGuest,
       ...okResult,
     });
-    mockGuestStatusValues(["finished_meeting"]);
+    mockGuestStatusEvents([{ id: "event-branch", status: "finished_meeting" }]);
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvent
     ).mockResolvedValue({
@@ -508,6 +510,10 @@ describe("setGuestStatusForManager", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.guest.status).toBe("pending");
+      expect(result.statusEvents?.map((event) => event.status)).toEqual([
+        "finished_parent_meeting",
+        "finished_meeting",
+      ]);
     }
     expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
     expect(
@@ -523,38 +529,23 @@ describe("setGuestStatusForManager", () => {
       data: { ...guestRecord, status: "pending" },
       ...okResult,
     });
-    mockPipelineStatusExists("event-2");
-    vi.mocked(
-      guestStatusEventRepository.listGuestStatusEventsByGuestId
-    ).mockResolvedValue({
-      data: [
-        {
-          id: "event-1",
-          guest_id: guestId,
-          status: "started",
-          note: null,
-          created_by: actor.userId,
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: "event-2",
-          guest_id: guestId,
-          status: "finished_meeting",
-          note: null,
-          created_by: actor.userId,
-          created_at: "2026-01-02T00:00:00.000Z",
-        },
-        {
-          id: "event-3",
-          guest_id: guestId,
-          status: "chose_plan",
-          note: null,
-          created_by: actor.userId,
-          created_at: "2026-01-03T00:00:00.000Z",
-        },
-      ],
-      ...okResult,
-    });
+    mockGuestStatusEvents([
+      {
+        id: "event-1",
+        status: "started",
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      {
+        id: "event-2",
+        status: "finished_meeting",
+        created_at: "2026-01-02T00:00:00.000Z",
+      },
+      {
+        id: "event-3",
+        status: "chose_plan",
+        created_at: "2026-01-03T00:00:00.000Z",
+      },
+    ]);
 
     const result = await setGuestStatusForManager(
       adminClient,
@@ -610,10 +601,7 @@ describe("setGuestStatusForManager", () => {
 describe("setGuestStatusesForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockGuestStatusValues([]);
-    vi.mocked(
-      guestStatusEventRepository.listGuestStatusEventsByGuestId
-    ).mockResolvedValue({ data: [], ...okResult });
+    mockGuestStatusEvents([]);
   });
 
   it("records multiple unmade pipeline statuses", async () => {
@@ -622,7 +610,7 @@ describe("setGuestStatusesForManager", () => {
       data: pendingGuest,
       ...okResult,
     });
-    mockGuestStatusValues(["started"]);
+    mockGuestStatusEvents([{ id: "event-started", status: "started" }]);
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
@@ -671,7 +659,6 @@ describe("setGuestStatusesForManager", () => {
       data: pendingGuest,
       ...okResult,
     });
-    mockGuestStatusValues([]);
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
@@ -724,7 +711,6 @@ describe("setGuestStatusesForManager", () => {
       data: pendingGuest,
       ...okResult,
     });
-    mockGuestStatusValues([]);
     vi.mocked(
       guestStatusEventRepository.createGuestStatusEvents
     ).mockResolvedValue({
@@ -819,6 +805,7 @@ describe("setGuestProfileStatusForManager", () => {
 describe("removeGuestStatusForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockGuestStatusEvents([]);
   });
 
   it("denies unauthorized actors", async () => {
@@ -894,28 +881,24 @@ describe("removeGuestStatusForManager", () => {
       ],
       ...okResult,
     });
-    vi.mocked(guestStatusEventRepository.listGuestStatusEventsByGuestId)
-      .mockResolvedValue({
-        data: [
-          {
-            id: "event-2",
-            guest_id: guestId,
-            status: "finished_meeting",
-            note: "Met",
-            created_by: actor.userId,
-            created_at: "2026-01-02T00:00:00.000Z",
-          },
-          {
-            id: "event-1",
-            guest_id: guestId,
-            status: "started",
-            note: null,
-            created_by: actor.userId,
-            created_at: "2026-01-01T00:00:00.000Z",
-          },
-        ],
-        ...okResult,
-      });
+    mockGuestStatusEvents([
+      {
+        id: "event-3",
+        status: "chose_plan",
+        created_at: "2026-01-03T00:00:00.000Z",
+      },
+      {
+        id: "event-2",
+        status: "finished_meeting",
+        note: "Met",
+        created_at: "2026-01-02T00:00:00.000Z",
+      },
+      {
+        id: "event-1",
+        status: "started",
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
 
     const result = await removeGuestStatusForManager(
       adminClient,

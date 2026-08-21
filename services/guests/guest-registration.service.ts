@@ -1,7 +1,10 @@
 import { randomBytes } from "crypto";
+import { unstable_cache } from "next/cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { getGuestRegistrationInviteUrl } from "@/lib/manager/guests/guest-registration-invite-url";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { connectGuestRegistrationUserSchema } from "@/lib/validators/manager/connect-guest-registration-user";
 import type {
   RemoveTempRegistrationDocumentInput,
@@ -835,6 +838,74 @@ export async function deleteGuestRegistrationApplicationForManager(
   };
 }
 
+export async function getGuestRegistrationLinkUserOption(
+  adminClient: Supabase,
+  userId: string
+): Promise<GuestRegistrationLinkUserOption | null> {
+  const [profileResult, emailsResult] = await Promise.all([
+    profileRepository.findProfileById(adminClient, userId),
+    authRepository.listAuthEmailsByIds(adminClient, [userId]),
+  ]);
+  if (profileResult.error) {
+    throw new Error(profileResult.error.message);
+  }
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
+  if (!profileResult.data) {
+    return null;
+  }
+
+  return {
+    id: profileResult.data.id,
+    username: profileResult.data.username,
+    email: emailsResult.data.get(userId) ?? "",
+  };
+}
+
+async function fetchGuestRegistrationLinkUsers(
+  adminClient: Supabase
+): Promise<GuestRegistrationLinkUserOption[]> {
+  const { data: profiles, error } = await profileRepository.listProfiles(
+    adminClient
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!profiles?.length) {
+    return [];
+  }
+
+  const emailsResult = await authRepository.listAuthEmailsByIds(
+    adminClient,
+    profiles.map((profile) => profile.id)
+  );
+  if (emailsResult.error) {
+    throw new Error(emailsResult.error.message);
+  }
+
+  return [...profiles]
+    .sort((a, b) =>
+      (a.username ?? a.id).localeCompare(b.username ?? b.id, undefined, {
+        sensitivity: "base",
+      })
+    )
+    .map((profile) => ({
+      id: profile.id,
+      username: profile.username,
+      email: emailsResult.data.get(profile.id) ?? "",
+    }));
+}
+
+const listGuestRegistrationLinkUsersCached = unstable_cache(
+  async () => {
+    const adminClient = createSupabaseAdminClient();
+    return fetchGuestRegistrationLinkUsers(adminClient);
+  },
+  ["guest-registration-link-users"],
+  { tags: [MANAGER_CACHE_TAGS.USERS], revalidate: 3600 }
+);
+
 export async function listUsersForGuestRegistrationLink(
   adminClient: Supabase,
   actorUserId: string | null
@@ -852,37 +923,7 @@ export async function listUsersForGuestRegistrationLink(
       return [];
     }
 
-    const { data: profiles, error } = await timer.step("profiles", () =>
-      profileRepository.listProfiles(adminClient)
-    );
-    if (error) {
-      throw new Error(error.message);
-    }
-    if (!profiles?.length) {
-      return [];
-    }
-
-    const emailsResult = await timer.step("emails", () =>
-      authRepository.listAuthEmailsByIds(
-        adminClient,
-        profiles.map((profile) => profile.id)
-      )
-    );
-    if (emailsResult.error) {
-      throw new Error(emailsResult.error.message);
-    }
-
-    return [...profiles]
-      .sort((a, b) =>
-        (a.username ?? a.id).localeCompare(b.username ?? b.id, undefined, {
-          sensitivity: "base",
-        })
-      )
-      .map((profile) => ({
-        id: profile.id,
-        username: profile.username,
-        email: emailsResult.data.get(profile.id) ?? "",
-      }));
+    return timer.step("users", () => listGuestRegistrationLinkUsersCached());
   } finally {
     timer.end();
   }

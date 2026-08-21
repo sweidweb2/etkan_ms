@@ -418,12 +418,18 @@ export async function setGuestStatusForManager(
 
   const { id, status, note } = parsed.data;
 
-  const existing = await guestRepository.findGuestById(adminClient, id);
+  const [existing, listedEvents] = await Promise.all([
+    guestRepository.findGuestById(adminClient, id),
+    guestStatusEventRepository.listGuestStatusEventsByGuestId(adminClient, id),
+  ]);
   if (existing.error) {
     return { success: false, error: existing.error.message };
   }
   if (!existing.data) {
     return { success: false, error: "Guest not found." };
+  }
+  if (listedEvents.error) {
+    return { success: false, error: listedEvents.error.message };
   }
 
   const current = mapGuestRecordToRow(existing.data);
@@ -431,31 +437,13 @@ export async function setGuestStatusForManager(
     return { success: false, error: PIPELINE_ADD_LOCKED_MESSAGE };
   }
 
-  const eventsResult =
-    await guestStatusEventRepository.guestStatusEventExistsByGuestIdAndStatus(
-      adminClient,
-      id,
-      status
-    );
-  if (eventsResult.error) {
-    return { success: false, error: eventsResult.error.message };
-  }
-
-  if (eventsResult.data) {
-    const listedEvents =
-      await guestStatusEventRepository.listGuestStatusEventsByGuestId(
-        adminClient,
-        id
-      );
-    if (listedEvents.error) {
-      return { success: false, error: listedEvents.error.message };
-    }
-
+  const existingEvents = listedEvents.data ?? [];
+  if (existingEvents.some((event) => event.status === status)) {
     return {
       success: true,
       guest: current,
       message: "This status was already recorded.",
-      statusEvents: (listedEvents.data ?? []).map(mapGuestStatusEventRecordToRow),
+      statusEvents: existingEvents.map(mapGuestStatusEventRecordToRow),
     };
   }
 
@@ -505,7 +493,7 @@ export async function setGuestStatusForManager(
       status === GUEST_PIPELINE_STATUSES.FINISHED
         ? "Status recorded. Guest marked finished."
         : "Status recorded.",
-    statusEvents: [mapGuestStatusEventRecordToRow(eventResult.data)],
+    statusEvents: mergeGuestStatusEventRows(existingEvents, [eventResult.data]),
   };
 }
 
@@ -652,35 +640,25 @@ export async function recordGuestPipelineStatusesForGuest(
     return { success: false, error: PIPELINE_ADD_LOCKED_MESSAGE };
   }
 
-  const valuesResult =
-    await guestStatusEventRepository.listGuestStatusValuesByGuestId(
+  const listedEvents =
+    await guestStatusEventRepository.listGuestStatusEventsByGuestId(
       adminClient,
       id
     );
-  if (valuesResult.error) {
-    return { success: false, error: valuesResult.error.message };
+  if (listedEvents.error) {
+    return { success: false, error: listedEvents.error.message };
   }
 
-  const alreadyRecorded = new Set(
-    (valuesResult.data ?? []).map((row) => row.status)
-  );
+  const existingEvents = listedEvents.data ?? [];
+  const alreadyRecorded = new Set(existingEvents.map((row) => row.status));
   const toRecord = statuses.filter((status) => !alreadyRecorded.has(status));
 
   if (toRecord.length === 0) {
-    const listedEvents =
-      await guestStatusEventRepository.listGuestStatusEventsByGuestId(
-        adminClient,
-        id
-      );
-    if (listedEvents.error) {
-      return { success: false, error: listedEvents.error.message };
-    }
-
     return {
       success: true,
       guest: current,
       message: "These statuses were already recorded.",
-      statusEvents: (listedEvents.data ?? []).map(mapGuestStatusEventRecordToRow),
+      statusEvents: existingEvents.map(mapGuestStatusEventRecordToRow),
     };
   }
 
@@ -724,15 +702,6 @@ export async function recordGuestPipelineStatusesForGuest(
     guest = finished.guest;
   }
 
-  const listedEvents =
-    await guestStatusEventRepository.listGuestStatusEventsByGuestId(
-      adminClient,
-      id
-    );
-  if (listedEvents.error) {
-    return { success: false, error: listedEvents.error.message };
-  }
-
   return {
     success: true,
     guest,
@@ -742,7 +711,7 @@ export async function recordGuestPipelineStatusesForGuest(
         : toRecord.length === 1
           ? "Status recorded."
           : `${toRecord.length} statuses recorded.`,
-    statusEvents: (listedEvents.data ?? []).map(mapGuestStatusEventRecordToRow),
+    statusEvents: mergeGuestStatusEventRows(existingEvents, batchResult.data),
   };
 }
 
@@ -821,12 +790,18 @@ export async function removeGuestStatusForManager(
 
   const { id, status } = parsed.data;
 
-  const existing = await guestRepository.findGuestById(adminClient, id);
+  const [existing, listedEvents] = await Promise.all([
+    guestRepository.findGuestById(adminClient, id),
+    guestStatusEventRepository.listGuestStatusEventsByGuestId(adminClient, id),
+  ]);
   if (existing.error) {
     return { success: false, error: existing.error.message };
   }
   if (!existing.data) {
     return { success: false, error: "Guest not found." };
+  }
+  if (listedEvents.error) {
+    return { success: false, error: listedEvents.error.message };
   }
 
   const guest = mapGuestRecordToRow(existing.data);
@@ -869,14 +844,9 @@ export async function removeGuestStatusForManager(
     metadata: { note: "Guest pipeline status removed." },
   });
 
-  const remainingEvents =
-    await guestStatusEventRepository.listGuestStatusEventsByGuestId(
-      adminClient,
-      id
-    );
-  if (remainingEvents.error) {
-    return { success: false, error: remainingEvents.error.message };
-  }
+  const remainingEvents = (listedEvents.data ?? []).filter(
+    (event) => event.status !== status
+  );
 
   const reopened = await reopenFinishedGuestToPending(
     adminClient,
@@ -896,7 +866,7 @@ export async function removeGuestStatusForManager(
       ? "Status removed. Guest moved back to pending."
       : "Status removed from history.",
     removedStatus: status,
-    statusEvents: (remainingEvents.data ?? []).map(mapGuestStatusEventRecordToRow),
+    statusEvents: remainingEvents.map(mapGuestStatusEventRecordToRow),
   };
 }
 

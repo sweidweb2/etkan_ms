@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState, useSyncExternalStore, useTransition } from "react";
+import { useActionState, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { CopyIcon, LinkIcon } from "lucide-react";
 import {
   cancelGuestRegistrationApplicationAction,
   connectGuestRegistrationUserAction,
   deleteGuestRegistrationApplicationAction,
+  listGuestRegistrationLinkUsersAction,
   openGuestRegistrationInviteAction,
   removeTempGuestRegistrationDocumentAction,
   stopGuestRegistrationInviteAction,
@@ -76,7 +77,7 @@ type GuestRegistrationSectionProps = {
   guest: ManagerGuestRow;
   invite: ManagerGuestRegistrationInvite | null;
   application: ManagerGuestRegistrationApplicationSummary | null;
-  linkUsers: GuestRegistrationLinkUserOption[];
+  linkedUser: GuestRegistrationLinkUserOption | null;
 };
 
 function userOptionLabel(user: GuestRegistrationLinkUserOption): string {
@@ -114,12 +115,20 @@ export function GuestRegistrationSection({
   guest,
   invite: initialInvite,
   application: initialApplication,
-  linkUsers,
+  linkedUser: initialLinkedUser,
 }: GuestRegistrationSectionProps) {
   const [invite, setInvite] = useState(initialInvite);
   const [application, setApplication] = useState(initialApplication);
   const [prevInvite, setPrevInvite] = useState(initialInvite);
   const [prevApplication, setPrevApplication] = useState(initialApplication);
+  const [linkedUser, setLinkedUser] = useState(initialLinkedUser);
+  const [prevLinkedUser, setPrevLinkedUser] = useState(initialLinkedUser);
+  const [linkUsers, setLinkUsers] = useState<GuestRegistrationLinkUserOption[]>(
+    []
+  );
+  const [isLinkUsersLoading, setIsLinkUsersLoading] = useState(false);
+  const [linkUsersError, setLinkUsersError] = useState<string | null>(null);
+  const hasLoadedLinkUsers = useRef(false);
   const [isStaffFillOpen, setIsStaffFillOpen] = useState(false);
   const [isStaffFillPending, setIsStaffFillPending] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
@@ -138,6 +147,10 @@ export function GuestRegistrationSection({
   if (initialApplication !== prevApplication) {
     setApplication(initialApplication);
     setPrevApplication(initialApplication);
+  }
+  if (initialLinkedUser !== prevLinkedUser) {
+    setLinkedUser(initialLinkedUser);
+    setPrevLinkedUser(initialLinkedUser);
   }
 
   const [openState, openAction, isOpenPending] = useActionState(
@@ -191,6 +204,22 @@ export function GuestRegistrationSection({
       if (open) {
         setSelectedUserId(application?.user_id ?? "");
         setUserFilter("");
+        if (!hasLoadedLinkUsers.current && !isLinkUsersLoading) {
+          setIsLinkUsersLoading(true);
+          setLinkUsersError(null);
+          void listGuestRegistrationLinkUsersAction()
+            .then((result) => {
+              hasLoadedLinkUsers.current = true;
+              setLinkUsers(result.users);
+              setLinkUsersError(result.error ?? null);
+            })
+            .catch(() => {
+              setLinkUsersError("Unable to load users. Please try again.");
+            })
+            .finally(() => {
+              setIsLinkUsersLoading(false);
+            });
+        }
       }
     }
   );
@@ -230,6 +259,13 @@ export function GuestRegistrationSection({
     if (connectState.application) {
       setApplication(connectState.application);
       setPrevApplication(connectState.application);
+      const selected = linkUsers.find(
+        (user) => user.id === connectState.application?.user_id
+      );
+      if (selected) {
+        setLinkedUser(selected);
+        setPrevLinkedUser(selected);
+      }
     }
     setIsConnectOpen(false);
   });
@@ -253,11 +289,16 @@ export function GuestRegistrationSection({
     !hasSubmittedApp &&
     (!invite || invite.cancelled_at != null || invite.used_at != null);
   const canConnectUser = hasSubmittedApp;
-  const linkedUser = application?.user_id
+  const linkedUserFromList = application?.user_id
     ? linkUsers.find((user) => user.id === application.user_id)
     : undefined;
-  const linkedUserLabel = linkedUser
-    ? userOptionLabel(linkedUser)
+  const resolvedLinkedUser =
+    linkedUserFromList ??
+    (application?.user_id && linkedUser?.id === application.user_id
+      ? linkedUser
+      : undefined);
+  const linkedUserLabel = resolvedLinkedUser
+    ? userOptionLabel(resolvedLinkedUser)
     : application?.user_id
       ? "Linked user"
       : null;
@@ -653,45 +694,57 @@ export function GuestRegistrationSection({
           </DialogHeader>
           <div className="flex flex-col gap-2">
             <FieldLabel htmlFor="guest-link-user" label="User" hint="Required" />
-            {linkUsers.length > 5 ? (
-              <Input
-                id="guest-link-user-filter"
-                value={userFilter}
-                onChange={(event) => setUserFilter(event.target.value)}
-                placeholder="Filter by name or email"
-                disabled={isConnectBusy}
-              />
-            ) : null}
-            <Select
-              value={selectedUserId || null}
-              items={userSelectItems}
-              onValueChange={(value) => {
-                if (!value) return;
-                setSelectedUserId(value);
-              }}
-              disabled={isConnectBusy || filteredLinkUsers.length === 0}
-            >
-              <SelectTrigger
-                id="guest-link-user"
-                aria-invalid={Boolean(connectUserError)}
-                className="w-full"
-              >
-                <SelectValue placeholder="Select a user">
-                  {selectedUserLabel}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {filteredLinkUsers.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {userOptionLabel(user)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isLinkUsersLoading ? (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InlineSpinner />
+                Loading users…
+              </p>
+            ) : (
+              <>
+                {linkUsers.length > 5 ? (
+                  <Input
+                    id="guest-link-user-filter"
+                    value={userFilter}
+                    onChange={(event) => setUserFilter(event.target.value)}
+                    placeholder="Filter by name or email"
+                    disabled={isConnectBusy}
+                  />
+                ) : null}
+                <Select
+                  value={selectedUserId || null}
+                  items={userSelectItems}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    setSelectedUserId(value);
+                  }}
+                  disabled={isConnectBusy || filteredLinkUsers.length === 0}
+                >
+                  <SelectTrigger
+                    id="guest-link-user"
+                    aria-invalid={Boolean(connectUserError)}
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="Select a user">
+                      {selectedUserLabel}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredLinkUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {userOptionLabel(user)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
             {connectUserError ? (
               <p className="text-sm text-destructive">{connectUserError}</p>
             ) : null}
-            {linkUsers.length === 0 ? (
+            {linkUsersError ? (
+              <p className="text-sm text-destructive">{linkUsersError}</p>
+            ) : null}
+            {!isLinkUsersLoading && linkUsers.length === 0 && !linkUsersError ? (
               <p className="text-sm text-muted-foreground">
                 No users are available to connect.
               </p>
@@ -708,7 +761,7 @@ export function GuestRegistrationSection({
             </Button>
             <Button
               type="button"
-              disabled={isConnectBusy || !selectedUserId}
+              disabled={isConnectBusy || isLinkUsersLoading || !selectedUserId}
               onClick={runConnect}
             >
               {isConnectBusy ? <InlineSpinner /> : null}

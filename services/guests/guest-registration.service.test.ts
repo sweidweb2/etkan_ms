@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import * as authRepository from "@/repositories/auth.repository";
 import * as guestRepository from "@/repositories/guest.repository";
 import * as inviteRepository from "@/repositories/guest-registration-invite.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -9,6 +10,8 @@ import {
   connectGuestRegistrationUserForManager,
   deleteGuestRegistrationApplicationForManager,
   getGuestRegistrationContextByToken,
+  getGuestRegistrationLinkUserOption,
+  listUsersForGuestRegistrationLink,
   openGuestRegistrationInviteForManager,
   removeTempGuestRegistrationDocumentForManager,
   stopGuestRegistrationInviteForManager,
@@ -21,6 +24,7 @@ import type { SubmitPublicRegistrationInput } from "@/lib/validators/public/regi
 import * as documentRepository from "@/repositories/student-registration-document.repository";
 import * as registrationStorage from "@/repositories/registration-storage.repository";
 
+vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/guest.repository");
 vi.mock("@/repositories/guest-registration-invite.repository");
 vi.mock("@/repositories/profile.repository");
@@ -40,6 +44,12 @@ vi.mock("@/lib/manager/guests/guest-registration-invite-url", () => ({
     `https://example.com/register/guest/${token}`,
 }));
 
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: () => adminClient,
+}));
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   getUnauthorizedError: vi.fn(async (_c, userId) =>
@@ -1081,5 +1091,78 @@ describe("removeTempGuestRegistrationDocumentForManager", () => {
     expect(
       studentRegistrationService.removeTempRegistrationDocument
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe("getGuestRegistrationLinkUserOption", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns a username and email for one user", async () => {
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: actor.userId,
+        username: "ada",
+        role: "student",
+        is_instructor: false,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      ...okResult,
+    });
+    vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
+      data: new Map([[actor.userId, "ada@example.com"]]),
+      error: null,
+    });
+
+    await expect(
+      getGuestRegistrationLinkUserOption(adminClient, actor.userId)
+    ).resolves.toEqual({
+      id: actor.userId,
+      username: "ada",
+      email: "ada@example.com",
+    });
+  });
+});
+
+describe("listUsersForGuestRegistrationLink", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns an empty list when unauthorized", async () => {
+    await expect(
+      listUsersForGuestRegistrationLink(adminClient, null)
+    ).resolves.toEqual([]);
+    expect(profileRepository.listProfiles).not.toHaveBeenCalled();
+  });
+
+  it("maps profiles with emails", async () => {
+    vi.mocked(profileRepository.listProfiles).mockResolvedValue({
+      data: [
+        {
+          id: actor.userId,
+          username: "ada",
+          role: "student",
+          is_instructor: false,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      ...okResult,
+    });
+    vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
+      data: new Map([[actor.userId, "ada@example.com"]]),
+      error: null,
+    });
+
+    await expect(
+      listUsersForGuestRegistrationLink(adminClient, actor.userId)
+    ).resolves.toEqual([
+      {
+        id: actor.userId,
+        username: "ada",
+        email: "ada@example.com",
+      },
+    ]);
   });
 });
