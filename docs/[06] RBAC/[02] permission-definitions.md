@@ -160,6 +160,7 @@ Format: `key` — label — access
 |-----|-------|--------|
 | `tasks.view` | View tasks | read |
 | `tasks.create` | Create task | write |
+| `tasks.update` | Edit task | write |
 | `tasks.update_student` | Edit student task | write |
 
 ### Final Exams
@@ -424,6 +425,7 @@ attendance.view
 attendance.update
 tasks.view
 tasks.create
+tasks.update
 tasks.update_student
 final_exams.view
 final_exams.create

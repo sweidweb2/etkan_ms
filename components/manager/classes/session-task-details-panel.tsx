@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { format } from "date-fns";
+import { PencilIcon } from "lucide-react";
+import { Can } from "@/components/auth/can";
+import { EditSessionTaskDialog } from "@/components/manager/classes/edit-session-task-dialog";
+import { SessionTaskStudentTasksSection } from "@/components/manager/classes/session-task-student-tasks-section";
+import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
+import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,13 +23,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { SessionTaskStudentTasksSection } from "@/components/manager/classes/session-task-student-tasks-section";
-import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
 import {
   getManagerClassDetailRoute,
   getManagerClassSessionDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
@@ -74,13 +79,32 @@ function formatDateTime(value: string | null) {
 }
 
 export function SessionTaskDetailsPanel({
-  task,
+  task: initialTask,
   session,
   classRow,
   initialStudentTasks,
   lockedUserIds = [],
 }: SessionTaskDetailsPanelProps) {
+  const [task, setTask] = useState(initialTask);
   const [studentTasks, setStudentTasks] = useState(initialStudentTasks);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  const sessionLabel = `S${session.nb_order} · ${session.topic}`;
+
+  function handleTaskUpdated(
+    nextTask: ManagerSessionTaskRow,
+    options?: { gradesReset?: boolean }
+  ) {
+    setTask(nextTask);
+
+    if (options?.gradesReset) {
+      setStudentTasks((current) =>
+        current.map((row) =>
+          row.grade == null ? row : { ...row, grade: 0 }
+        )
+      );
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,8 +137,19 @@ export function SessionTaskDetailsPanel({
       </Breadcrumb>
 
       <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/50 py-3">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{task.title}</CardTitle>
+          <Can permission={PERMISSIONS.TASKS_UPDATE}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Edit task"
+              onClick={() => setIsEditOpen(true)}
+            >
+              <PencilIcon />
+            </Button>
+          </Can>
         </CardHeader>
         <CardContent className="pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -162,6 +197,16 @@ export function SessionTaskDetailsPanel({
       <SessionTaskAnalyticsSection
         studentTasks={studentTasks}
         maxGrade={task.max_grade}
+      />
+
+      <EditSessionTaskDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        task={task}
+        classId={classRow.id}
+        sessionId={session.id}
+        sessionLabel={sessionLabel}
+        onTaskUpdated={handleTaskUpdated}
       />
     </div>
   );

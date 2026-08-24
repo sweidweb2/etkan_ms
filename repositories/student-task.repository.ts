@@ -300,3 +300,16 @@ export async function updateStudentTask(
     .select(STUDENT_TASK_COLUMNS)
     .single();
 }
+
+/** Sets grade to 0 for rows that already had a grade on this task. */
+export async function zeroGradedStudentTasksByTaskId(
+  client: Supabase,
+  taskId: string
+) {
+  return client
+    .from("student_tasks")
+    .update({ grade: 0 })
+    .eq("task_id", taskId)
+    .not("grade", "is", null)
+    .select("id");
+}

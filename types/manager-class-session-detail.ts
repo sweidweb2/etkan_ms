@@ -76,6 +76,15 @@ export type CreateSessionTaskActionState = {
   task?: ManagerSessionTaskRow;
 };
 
+export type UpdateSessionTaskActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  task?: ManagerSessionTaskRow;
+  gradesReset?: boolean;
+};
+
 export type UpdateAttendeeActionState = {
   success?: boolean;
   error?: string;

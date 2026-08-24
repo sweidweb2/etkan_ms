@@ -29,6 +29,7 @@ import {
   updateAttendeeForManager,
   updateClassSessionForManager,
   updateSessionSettingsForManager,
+  updateSessionTaskForManager,
   updateStudentTaskForManager,
 } from "@/services/classes/session.service";
 import { SESSION_GROUP_GRADE_LEVELS } from "@/types/manager-session-group-grade";
@@ -539,6 +540,159 @@ describe("createSessionTaskForManager", () => {
       error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
     });
     expect(taskRepository.createTask).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateSessionTaskForManager", () => {
+  const existingTask = {
+    id: taskId,
+    session_id: sessionId,
+    title: "Homework 1",
+    description: "Original",
+    due_date: "2099-01-01T00:00:00.000Z",
+    max_grade: 20,
+    created_at: "2026-07-01T00:00:00.000Z",
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
+    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+      data: existingTask,
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+  });
+
+  it("updates task metadata without resetting grades when max grade increases", async () => {
+    vi.mocked(taskRepository.updateTask).mockResolvedValue({
+      data: {
+        ...existingTask,
+        title: "Homework 1 revised",
+        max_grade: 25,
+      },
+      error: null,
+    } as never);
+
+    const result = await updateSessionTaskForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: taskId,
+        class_id: classId,
+        session_id: sessionId,
+        title: "Homework 1 revised",
+        max_grade: 25,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.task.title).toBe("Homework 1 revised");
+      expect(result.gradesReset).toBe(false);
+    }
+    expect(
+      studentTaskRepository.zeroGradedStudentTasksByTaskId
+    ).not.toHaveBeenCalled();
+    expect(taskRepository.updateTask).toHaveBeenCalled();
+  });
+
+  it("resets graded student rows when max grade decreases", async () => {
+    vi.mocked(studentTaskRepository.zeroGradedStudentTasksByTaskId).mockResolvedValue(
+      {
+        data: [{ id: studentTaskId }],
+        error: null,
+      } as never
+    );
+    vi.mocked(taskRepository.updateTask).mockResolvedValue({
+      data: {
+        ...existingTask,
+        max_grade: 10,
+      },
+      error: null,
+    } as never);
+
+    const result = await updateSessionTaskForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: taskId,
+        class_id: classId,
+        session_id: sessionId,
+        title: "Homework 1",
+        max_grade: 10,
+      }
+    );
+
+    expect(
+      studentTaskRepository.zeroGradedStudentTasksByTaskId
+    ).toHaveBeenCalledWith(adminClient, taskId);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.gradesReset).toBe(true);
+    }
+  });
+
+  it("does not reset grades when max grade is unchanged", async () => {
+    vi.mocked(taskRepository.updateTask).mockResolvedValue({
+      data: {
+        ...existingTask,
+        title: "Renamed only",
+      },
+      error: null,
+    } as never);
+
+    const result = await updateSessionTaskForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: taskId,
+        class_id: classId,
+        session_id: sessionId,
+        title: "Renamed only",
+        max_grade: 20,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.gradesReset).toBe(false);
+    }
+    expect(
+      studentTaskRepository.zeroGradedStudentTasksByTaskId
+    ).not.toHaveBeenCalled();
+  });
+
+  it("blocks task update when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+
+    const result = await updateSessionTaskForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: taskId,
+        class_id: classId,
+        session_id: sessionId,
+        title: "Homework 1",
+        max_grade: 10,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+    });
+    expect(taskRepository.updateTask).not.toHaveBeenCalled();
   });
 });
 

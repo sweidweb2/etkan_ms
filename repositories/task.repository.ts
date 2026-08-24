@@ -69,6 +69,13 @@ export async function findTaskById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export type UpdateTaskInput = {
+  title: string;
+  description?: string | null;
+  due_date?: string | null;
+  max_grade?: number | null;
+};
+
 export async function createTask(client: Supabase, input: CreateTaskInput) {
   return client
     .from("tasks")
@@ -79,6 +86,24 @@ export async function createTask(client: Supabase, input: CreateTaskInput) {
       due_date: input.due_date ?? null,
       max_grade: input.max_grade ?? null,
     })
+    .select(TASK_COLUMNS)
+    .single();
+}
+
+export async function updateTask(
+  client: Supabase,
+  id: string,
+  input: UpdateTaskInput
+) {
+  return client
+    .from("tasks")
+    .update({
+      title: input.title,
+      description: input.description ?? null,
+      due_date: input.due_date ?? null,
+      max_grade: input.max_grade ?? null,
+    })
+    .eq("id", id)
     .select(TASK_COLUMNS)
     .single();
 }

@@ -12,6 +12,7 @@ import {
   type StudentTaskStatusValue,
 } from "@/lib/constants/manager-student-task-status";
 import { createSessionTaskSchema } from "@/lib/validators/manager/create-session-task";
+import { updateSessionTaskSchema } from "@/lib/validators/manager/update-session-task";
 import { createEditStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
 import { updateAttendeeSchema } from "@/lib/validators/manager/update-attendee";
 import { updateClassSessionSchema } from "@/lib/validators/manager/update-class-session";
@@ -75,6 +76,25 @@ function normalizeOptionalString(value?: string | null): string | null {
 
 function toIsoOrNull(value?: string | null): string | null {
   return datetimeLocalToUtcIso(value);
+}
+
+function parseTaskMaxGrade(
+  value: string | number | undefined | ""
+): number | null {
+  if (value === "" || value === undefined) {
+    return null;
+  }
+  return Number(value);
+}
+
+function didTaskMaxGradeDecrease(
+  previousMaxGrade: number | null,
+  nextMaxGrade: number | null
+): boolean {
+  if (previousMaxGrade == null || nextMaxGrade == null) {
+    return false;
+  }
+  return nextMaxGrade < previousMaxGrade;
 }
 
 function mapGroupGradeLevel(
@@ -1089,6 +1109,159 @@ export async function createSessionTaskForManager(
   } finally {
     timer.end();
   }
+}
+
+export type UpdateSessionTaskResult =
+  | {
+      success: true;
+      task: ManagerSessionTaskRow;
+      gradesReset: boolean;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function updateSessionTaskForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    class_id: string;
+    session_id: string;
+    title: string;
+    description?: string;
+    due_date?: string;
+    max_grade?: string | number;
+  }
+): Promise<UpdateSessionTaskResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.TASKS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  if (!isUuid(input.id) || !isUuid(input.class_id) || !isUuid(input.session_id)) {
+    return { success: false, error: "Task not found." };
+  }
+
+  const parsed = updateSessionTaskSchema.safeParse({
+    title: input.title,
+    description: input.description,
+    due_date: input.due_date,
+    max_grade: input.max_grade,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const [existingTaskResult, sessionResult] = await Promise.all([
+    taskRepository.findTaskById(adminClient, input.id),
+    sessionRepository.findSessionById(adminClient, input.session_id),
+  ]);
+
+  if (existingTaskResult.error) {
+    return { success: false, error: existingTaskResult.error.message };
+  }
+
+  if (sessionResult.error) {
+    return { success: false, error: sessionResult.error.message };
+  }
+
+  const existingTask = existingTaskResult.data;
+  const session = sessionResult.data;
+
+  if (
+    !existingTask ||
+    !session ||
+    session.class_id !== input.class_id ||
+    existingTask.session_id !== input.session_id
+  ) {
+    return { success: false, error: "Task not found." };
+  }
+
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    input.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
+  }
+
+  const nextMaxGrade = parseTaskMaxGrade(parsed.data.max_grade);
+  const previousMaxGrade = existingTask.max_grade;
+  const shouldResetGrades = didTaskMaxGradeDecrease(
+    previousMaxGrade,
+    nextMaxGrade
+  );
+
+  let gradesReset = false;
+
+  if (shouldResetGrades) {
+    const resetResult = await studentTaskRepository.zeroGradedStudentTasksByTaskId(
+      adminClient,
+      input.id
+    );
+
+    if (resetResult.error) {
+      return { success: false, error: resetResult.error.message };
+    }
+
+    gradesReset = (resetResult.data?.length ?? 0) > 0;
+  }
+
+  const { data, error } = await taskRepository.updateTask(adminClient, input.id, {
+    title: parsed.data.title.trim(),
+    description: normalizeOptionalString(parsed.data.description),
+    due_date: toIsoOrNull(parsed.data.due_date),
+    max_grade: nextMaxGrade,
+  });
+
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message ?? "Unable to update task.",
+    };
+  }
+
+  const task = mapTaskRecord(data as TaskRecord);
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "update",
+    severity: "info",
+    table_name: "tasks",
+    record_id: task.id,
+    old_data: {
+      title: existingTask.title,
+      description: existingTask.description,
+      due_date: existingTask.due_date,
+      max_grade: existingTask.max_grade,
+    },
+    new_data: {
+      title: task.title,
+      description: task.description,
+      due_date: task.due_date,
+      max_grade: task.max_grade,
+    },
+    metadata: gradesReset
+      ? { note: "Task updated; student grades reset to 0 after max grade decrease." }
+      : { note: "Task updated." },
+  });
+
+  return {
+    success: true,
+    task,
+    gradesReset,
+    message: "Task updated.",
+  };
 }
 
 export type UpdateAttendeeResult =

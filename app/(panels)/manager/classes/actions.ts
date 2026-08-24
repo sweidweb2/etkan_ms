@@ -20,6 +20,7 @@ import { parseCreateClassFormData } from "@/lib/validators/manager/create-class"
 import { parseCreateClassSessionFormData } from "@/lib/validators/manager/create-class-session";
 import { parseCreateFinalExamFormData } from "@/lib/validators/manager/create-final-exam";
 import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
+import { parseUpdateSessionTaskFormData } from "@/lib/validators/manager/update-session-task";
 import { parseEditStudentFinalExamGradeFormData } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { parseEditStudentTaskFormData } from "@/lib/validators/manager/edit-student-task";
 import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
@@ -55,6 +56,7 @@ import {
   updateAttendeeForManager,
   updateClassSessionForManager,
   updateSessionSettingsForManager,
+  updateSessionTaskForManager,
   updateStudentTaskForManager,
 } from "@/services/classes/session.service";
 import { listSemestersForManager } from "@/services/classes/semester.service";
@@ -87,6 +89,7 @@ import type {
   UpdateAttendeeActionState,
   UpdateClassSessionActionState,
   UpdateSessionSettingsActionState,
+  UpdateSessionTaskActionState,
   UpdateStudentTaskActionState,
 } from "@/types/manager-class-session-detail";
 
@@ -842,6 +845,58 @@ export async function createSessionTaskAction(
     success: true,
     message: result.message,
     task: result.task,
+  };
+}
+
+export async function updateSessionTaskAction(
+  _prevState: UpdateSessionTaskActionState,
+  formData: FormData
+): Promise<UpdateSessionTaskActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseUpdateSessionTaskFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateSessionTaskForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(getManagerClassDetailRoute(parsed.data.class_id));
+  revalidatePath(
+    getManagerClassSessionDetailRoute(parsed.data.class_id, parsed.data.session_id)
+  );
+  revalidatePath(
+    getManagerClassSessionTaskDetailRoute(
+      parsed.data.class_id,
+      parsed.data.session_id,
+      parsed.data.id
+    )
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    task: result.task,
+    gradesReset: result.gradesReset,
   };
 }
 

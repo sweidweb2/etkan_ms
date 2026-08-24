@@ -6,6 +6,7 @@ import { parseCreateEquipmentFormData } from "@/lib/validators/manager/create-eq
 import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
 import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create-relationship";
 import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
+import { parseUpdateSessionTaskFormData } from "@/lib/validators/manager/update-session-task";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
 import { parseEditStudentTaskFormData, createEditStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
 import { createEditStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
@@ -645,6 +646,26 @@ describe("parseCreateSessionTaskFormData", () => {
     if (result.success) {
       expect(result.data.title).toBe("Homework 1");
       expect(result.data.max_grade).toBe(20);
+    }
+  });
+});
+
+describe("parseUpdateSessionTaskFormData", () => {
+  it("parses task update payload", () => {
+    const formData = new FormData();
+    formData.set("id", relationshipId);
+    formData.set("session_id", relationshipId);
+    formData.set("class_id", relationshipId);
+    formData.set("title", "Homework 1 revised");
+    formData.set("max_grade", "15");
+
+    const result = parseUpdateSessionTaskFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.id).toBe(relationshipId);
+      expect(result.data.title).toBe("Homework 1 revised");
+      expect(result.data.max_grade).toBe(15);
     }
   });
 });
