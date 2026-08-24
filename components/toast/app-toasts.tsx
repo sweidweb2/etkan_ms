@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 export function AppToasts() {
   return (
     <>
-      <Toaster richColors closeButton position="top-right" />
+      <Toaster richColors closeButton />
       <Suspense fallback={null}>
         <SearchParamsToast />
       </Suspense>

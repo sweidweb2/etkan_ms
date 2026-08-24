@@ -46,6 +46,8 @@ export type ManagerIncomeStatementStats = {
   transactionCount: number;
   totalCreditsAmount: number;
   totalDebitsAmount: number;
+  /** Period payments + external credits − external debits. */
+  availableMoney: number;
 };
 
 export type IncomeStatementPeriod = {

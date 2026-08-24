@@ -78,7 +78,7 @@ export function AddSessionTaskDialog({
       title: "",
       description: "",
       due_date: "",
-      max_grade: "",
+      max_grade: 100,
     },
   });
 
@@ -88,7 +88,7 @@ export function AddSessionTaskDialog({
         title: "",
         description: "",
         due_date: "",
-        max_grade: "",
+        max_grade: 100,
       });
       return;
     }
@@ -97,7 +97,7 @@ export function AddSessionTaskDialog({
       title: "",
       description: "",
       due_date: defaultDueDate ?? toDatetimeLocalValue(new Date()),
-      max_grade: 20,
+      max_grade: 100,
     });
   }, [defaultDueDate, open, reset]);
 

@@ -303,6 +303,9 @@ function mapWorkshopStatus(status: string): WorkshopStatusValue {
 }
 
 function mapWorkshopOfferingType(type: string): WorkshopOfferingType {
+  if (type === "online") {
+    return WORKSHOP_OFFERING_TYPES.PRIVATE;
+  }
   if (
     (WORKSHOP_OFFERING_TYPE_VALUES as readonly string[]).includes(type)
   ) {

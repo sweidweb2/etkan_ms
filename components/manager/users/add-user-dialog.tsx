@@ -35,6 +35,7 @@ import {
 import { ROLES } from "@/lib/constants/roles";
 import {
   createStaffUserSchema,
+  type CreateStaffUserFormInput,
   type CreateStaffUserInput,
 } from "@/lib/validators/manager/create-user";
 import type {
@@ -107,11 +108,11 @@ export function AddUserDialog({
     }
   });
 
-  function onSubmit(values: CreateStaffUserInput) {
+  function onSubmit(values: CreateStaffUserFormInput) {
     const formData = new FormData();
     formData.set("username", values.username.trim());
     formData.set("email", values.email.trim());
-    formData.set("password", values.password);
+    formData.set("password", values.password ?? "");
     formData.set("role", values.role);
     formData.set("is_instructor", String(values.is_instructor));
 
@@ -133,7 +134,8 @@ export function AddUserDialog({
         <DialogHeader>
           <DialogTitle>Add user</DialogTitle>
           <DialogDescription>
-            Create a staff account. Student role is not available here.
+            Create a staff account. Student role is not available here. Leave
+            password blank to use the default.
           </DialogDescription>
         </DialogHeader>
 
@@ -191,12 +193,11 @@ export function AddUserDialog({
             <FieldLabel
               htmlFor="add-user-password"
               label="Password"
-              hint={AUTH_FIELD_HINTS.password}
+              hint={AUTH_FIELD_HINTS.passwordOptional}
             />
             <PasswordInput
               id="add-user-password"
               autoComplete="new-password"
-              minLength={AUTH_LIMITS.password.min}
               maxLength={AUTH_LIMITS.password.max}
               aria-invalid={!!passwordError}
               disabled={isPending}

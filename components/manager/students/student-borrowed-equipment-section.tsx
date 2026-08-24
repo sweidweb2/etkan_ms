@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -9,12 +9,13 @@ import {
   PencilIcon,
   SearchIcon,
 } from "lucide-react";
+import { toggleBorrowReturnedAction } from "@/app/manager/equipments/actions";
 import { Can } from "@/components/auth/can";
+import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { BorrowEquipmentStatusBadge } from "@/components/manager/students/borrow-equipment-status-badge";
 import { EditBorrowEquipmentDialog } from "@/components/manager/students/edit-borrow-equipment-dialog";
 import { ViewBorrowEquipmentDialog } from "@/components/manager/students/view-borrow-equipment-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -33,21 +34,23 @@ import {
 import {
   BORROW_EQUIPMENT_STATUSES,
   BORROW_EQUIPMENT_STATUS_VALUES,
-  type BorrowEquipmentStatusValue,
 } from "@/lib/constants/manager-borrow-equipment-status";
+import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import {
   MANAGER_BORROW_EQUIPMENT_STATUS_LABELS,
   MANAGER_BORROW_EQUIPMENT_TOGGLE_LABELS,
 } from "@/lib/constants/manager-student-borrow-equipment-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { getManagerStudentBorrowEquipmentPreview } from "@/lib/manager/get-manager-student-borrow-equipment-preview";
-import { showSuccessToast } from "@/lib/toast";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
+import type { ToggleBorrowReturnedActionState } from "@/types/manager-borrow-equipment-list";
 import type { ManagerStudentBorrowEquipmentRow } from "@/types/manager-student-borrow-equipment";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const STATUS_FILTER_ALL = "all";
+const initialToggleState: ToggleBorrowReturnedActionState = {};
 
 const COLUMN_LIMITS = {
   equipmentName: 28,
@@ -55,7 +58,7 @@ const COLUMN_LIMITS = {
 } as const;
 
 type StudentBorrowedEquipmentSectionProps = {
-  userId: string;
+  initialBorrows: ManagerStudentBorrowEquipmentRow[];
 };
 
 function TruncatedCell({
@@ -126,7 +129,8 @@ function matchesSearch(row: ManagerStudentBorrowEquipmentRow, query: string) {
 
   return (
     row.equipment_name.toLowerCase().includes(normalizedQuery) ||
-    (row.equipment_description?.toLowerCase().includes(normalizedQuery) ?? false) ||
+    (row.equipment_description?.toLowerCase().includes(normalizedQuery) ??
+      false) ||
     row.equipment_id.toLowerCase().includes(normalizedQuery)
   );
 }
@@ -140,11 +144,10 @@ function formatDateCell(value: string | null) {
 }
 
 export function StudentBorrowedEquipmentSection({
-  userId,
+  initialBorrows,
 }: StudentBorrowedEquipmentSectionProps) {
-  const [borrows, setBorrows] = useState<ManagerStudentBorrowEquipmentRow[]>(() =>
-    getManagerStudentBorrowEquipmentPreview(userId)
-  );
+  const [borrows, setBorrows] =
+    useState<ManagerStudentBorrowEquipmentRow[]>(initialBorrows);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(5);
@@ -157,6 +160,55 @@ export function StudentBorrowedEquipmentSection({
   );
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
+  const [optimisticBorrowedById, setOptimisticBorrowedById] = useState<
+    Record<string, boolean>
+  >({});
+  const [isTransitionPending, startTransition] = useTransition();
+  const [toggleState, toggleAction, isTogglePending] = useActionState(
+    toggleBorrowReturnedAction,
+    initialToggleState
+  );
+  const isToggleActionPending = isTogglePending || isTransitionPending;
+
+  useActionStateToast(toggleState, isToggleActionPending);
+
+  useActionStateSuccess(
+    toggleState,
+    isToggleActionPending,
+    (nextState) => {
+      if (!pendingToggleId) {
+        return;
+      }
+
+      const toggledId = pendingToggleId;
+      const isBorrowed = optimisticBorrowedById[toggledId];
+
+      setOptimisticBorrowedById((current) => {
+        const next = { ...current };
+        delete next[toggledId];
+        return next;
+      });
+      setPendingToggleId(null);
+
+      if (nextState.success && isBorrowed !== undefined) {
+        setBorrows((current) =>
+          current.map((row) =>
+            row.id === toggledId
+              ? {
+                  ...row,
+                  status: isBorrowed
+                    ? BORROW_EQUIPMENT_STATUSES.BORROWED
+                    : BORROW_EQUIPMENT_STATUSES.RETURNED,
+                  returned_at: isBorrowed ? null : new Date().toISOString(),
+                }
+              : row
+          )
+        );
+      }
+    },
+    (nextState) => Boolean(nextState.success || nextState.error)
+  );
 
   const filteredBorrows = useMemo(() => {
     return borrows.filter((row) => {
@@ -178,6 +230,14 @@ export function StudentBorrowedEquipmentSection({
     filteredBorrows.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
   const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredBorrows.length);
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
+
+  function getRowIsBorrowed(row: ManagerStudentBorrowEquipmentRow) {
+    if (row.id in optimisticBorrowedById) {
+      return optimisticBorrowedById[row.id]!;
+    }
+
+    return row.status === BORROW_EQUIPMENT_STATUSES.BORROWED;
+  }
 
   function handleSearchChange(value: string) {
     setSearchQuery(value);
@@ -212,22 +272,19 @@ export function StudentBorrowedEquipmentSection({
     row: ManagerStudentBorrowEquipmentRow,
     isBorrowed: boolean
   ) {
-    const nextStatus: BorrowEquipmentStatusValue = isBorrowed
-      ? BORROW_EQUIPMENT_STATUSES.BORROWED
-      : BORROW_EQUIPMENT_STATUSES.RETURNED;
+    setOptimisticBorrowedById((current) => ({
+      ...current,
+      [row.id]: isBorrowed,
+    }));
 
-    const updatedRow: ManagerStudentBorrowEquipmentRow = {
-      ...row,
-      status: nextStatus,
-      returned_at: isBorrowed ? null : new Date().toISOString(),
-    };
+    const formData = new FormData();
+    formData.set("id", row.id);
+    formData.set("isReturned", String(!isBorrowed));
 
-    handleUpdateBorrow(updatedRow);
-    showSuccessToast(
-      isBorrowed
-        ? "Equipment marked as borrowed."
-        : "Equipment marked as returned."
-    );
+    setPendingToggleId(row.id);
+    startTransition(() => {
+      toggleAction(formData);
+    });
   }
 
   function openEditDialog(row: ManagerStudentBorrowEquipmentRow) {
@@ -254,15 +311,12 @@ export function StudentBorrowedEquipmentSection({
         borrowRow={viewRow}
       />
 
-      <Card className="min-w-0 max-w-full overflow-hidden py-0">
-        <CardHeader className="border-b bg-muted/40 py-3">
-          <CardTitle>Borrowed equipment</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            borrow_equipment records for this student with status, dates, and
-            actions.
-          </p>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+      <ClassTabCollapsibleSection
+        title="Borrowed equipment"
+        description="borrow_equipment records for this student with status, dates, and actions."
+        storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.STUDENT_DETAILS_BORROWING}
+        defaultOpen={false}
+      >
           <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:px-5">
             <div className="relative min-w-0 flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -279,9 +333,9 @@ export function StudentBorrowedEquipmentSection({
                 className="w-full sm:w-44"
                 aria-label="Filter by borrow status"
               >
-                <SelectValue placeholder="All statuses" />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent align="end">
+              <SelectContent>
                 <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
                 {BORROW_EQUIPMENT_STATUS_VALUES.map((status) => (
                   <SelectItem key={status} value={status}>
@@ -292,8 +346,8 @@ export function StudentBorrowedEquipmentSection({
             </Select>
           </div>
 
-          <div className="overflow-x-auto px-1 sm:px-2">
-            <table className="w-full min-w-[880px] text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-left">
                   <th className="px-4 py-3 font-medium">Equipment</th>
@@ -301,7 +355,7 @@ export function StudentBorrowedEquipmentSection({
                   <th className="px-4 py-3 font-medium">Borrowed</th>
                   <th className="px-4 py-3 font-medium">Returned</th>
                   <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Active</th>
+                  <th className="px-4 py-3 font-medium">Toggle</th>
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
@@ -312,13 +366,14 @@ export function StudentBorrowedEquipmentSection({
                       colSpan={7}
                       className="px-4 py-10 text-center text-muted-foreground"
                     >
-                      No borrowed equipment matches your filters.
+                      {borrows.length === 0
+                        ? "No borrowed equipment for this student."
+                        : "No borrowed equipment matches your filters."}
                     </td>
                   </tr>
                 ) : (
                   paginatedBorrows.map((row) => {
-                    const isBorrowed =
-                      row.status === BORROW_EQUIPMENT_STATUSES.BORROWED;
+                    const isBorrowed = getRowIsBorrowed(row);
 
                     return (
                       <tr
@@ -347,12 +402,22 @@ export function StudentBorrowedEquipmentSection({
                           {formatDateCell(row.returned_at)}
                         </td>
                         <td className="px-4 py-3">
-                          <BorrowEquipmentStatusBadge status={row.status} />
+                          <BorrowEquipmentStatusBadge
+                            status={
+                              isBorrowed
+                                ? BORROW_EQUIPMENT_STATUSES.BORROWED
+                                : BORROW_EQUIPMENT_STATUSES.RETURNED
+                            }
+                          />
                         </td>
                         <td className="px-4 py-3">
                           <Can permission={PERMISSIONS.EQUIPMENT_BORROW_RETURN}>
                             <Switch
                               checked={isBorrowed}
+                              disabled={
+                                isToggleActionPending &&
+                                pendingToggleId === row.id
+                              }
                               onCheckedChange={(checked) =>
                                 handleToggleStatus(row, checked)
                               }
@@ -401,48 +466,38 @@ export function StudentBorrowedEquipmentSection({
               <span>
                 Showing {rangeStart}–{rangeEnd} of {filteredBorrows.length}
               </span>
-              <span aria-hidden="true">·</span>
-              <div className="flex items-center gap-2">
-                <span>Rows</span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={handlePageSizeChange}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-16"
-                    aria-label="Rows per page"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={String(option)}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                value={String(pageSize)}
+                onValueChange={handlePageSizeChange}
+              >
+                <SelectTrigger className="h-8 w-[4.5rem]" aria-label="Rows per page">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-
             <div className="flex items-center gap-1">
               <Button
                 type="button"
                 variant="outline"
                 size="icon-sm"
                 disabled={safeCurrentPage <= 1}
-                onClick={() => setCurrentPage((page) => page - 1)}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                 aria-label="Previous page"
               >
                 <ChevronLeftIcon />
               </Button>
-
               {pageNumbers.map((page, index) =>
                 page === "ellipsis" ? (
                   <span
                     key={`ellipsis-${index}`}
-                    className="px-1 text-sm text-muted-foreground"
+                    className="px-1 text-muted-foreground"
                   >
                     …
                   </span>
@@ -452,30 +507,27 @@ export function StudentBorrowedEquipmentSection({
                     type="button"
                     variant={page === safeCurrentPage ? "default" : "outline"}
                     size="icon-sm"
-                    className="min-w-8"
                     onClick={() => setCurrentPage(page)}
-                    aria-label={`Page ${page}`}
-                    aria-current={page === safeCurrentPage ? "page" : undefined}
                   >
                     {page}
                   </Button>
                 )
               )}
-
               <Button
                 type="button"
                 variant="outline"
                 size="icon-sm"
                 disabled={safeCurrentPage >= totalPages}
-                onClick={() => setCurrentPage((page) => page + 1)}
+                onClick={() =>
+                  setCurrentPage((page) => Math.min(totalPages, page + 1))
+                }
                 aria-label="Next page"
               >
                 <ChevronRightIcon />
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </ClassTabCollapsibleSection>
     </TooltipProvider>
   );
 }

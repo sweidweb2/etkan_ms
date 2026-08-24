@@ -9,6 +9,7 @@ import {
   createBorrowsForManager,
   listAllBorrowsForManager,
   listEquipmentBorrowsForManager,
+  listStudentBorrowsForManager,
   toggleBorrowReturnedForManager,
   updateBorrowRecordForManager,
 } from "@/services/equipment/borrow-equipment.service";
@@ -124,6 +125,79 @@ describe("listEquipmentBorrowsForManager", () => {
     );
 
     expect(rows).toEqual([]);
+  });
+});
+
+describe("listStudentBorrowsForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("throws when actor is unauthorized", async () => {
+    await expect(
+      listStudentBorrowsForManager(adminClient, null, userId)
+    ).rejects.toThrow("Unauthorized.");
+  });
+
+  it("returns borrows for the student with equipment details", async () => {
+    vi.mocked(borrowEquipmentRepository.listBorrowsByUserId).mockResolvedValue({
+      data: [
+        {
+          id: "borrow-1",
+          equipment_id: equipmentId,
+          user_id: userId,
+          quantity: 2,
+          borrowed_at: "2026-01-02T00:00:00.000Z",
+          returned_at: null,
+          status: BORROW_EQUIPMENT_STATUSES.BORROWED,
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(equipmentRepository.listEquipmentsByIds).mockResolvedValue({
+      data: [
+        {
+          id: equipmentId,
+          name: "Camera",
+          description: "DSLR",
+          unit_price: 100,
+          quantity: 5,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const rows = await listStudentBorrowsForManager(
+      adminClient,
+      actor.userId,
+      userId
+    );
+
+    expect(borrowEquipmentRepository.listBorrowsByUserId).toHaveBeenCalledWith(
+      adminClient,
+      userId
+    );
+    expect(rows).toEqual([
+      {
+        id: "borrow-1",
+        equipment_id: equipmentId,
+        user_id: userId,
+        equipment_name: "Camera",
+        equipment_description: "DSLR",
+        equipment_unit_price: 100,
+        quantity: 2,
+        borrowed_at: "2026-01-02T00:00:00.000Z",
+        returned_at: null,
+        status: BORROW_EQUIPMENT_STATUSES.BORROWED,
+      },
+    ]);
   });
 });
 

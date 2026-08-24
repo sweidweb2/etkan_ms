@@ -119,9 +119,9 @@ export function IncomeStatementAnalyticsPanel({
     (row) => row.payments > 0 || row.credits > 0 || row.debits > 0
   );
 
-  const { payments, credits, debits } = data.totals;
+  const { payments, credits, debits, adjustments } = data.totals;
   const totalInflow = payments + credits;
-  const netCash = totalInflow - debits;
+  const availableMoney = totalInflow - debits;
 
   return (
     <div className="flex flex-col gap-6">
@@ -233,11 +233,10 @@ export function IncomeStatementAnalyticsPanel({
         />
         <AnalyticsStatCard
           label="Adjustments"
-          value="Soon will be activated"
-          description="Financial adjustments (scholarships and similar) for the period — not included in totals yet."
+          value={formatPaymentPhaseMoney(adjustments)}
+          description="Scholarships, discounts, and manual adjustments for the selected period, converted to dollars like the income statement."
           icon={SlidersHorizontalIcon}
-          iconClassName="text-amber-500/60"
-          valueClassName="text-sm font-medium text-muted-foreground"
+          iconClassName="text-amber-500"
         />
         <AnalyticsStatCard
           label="Total inflow"
@@ -247,13 +246,15 @@ export function IncomeStatementAnalyticsPanel({
           iconClassName="text-sky-500"
         />
         <AnalyticsStatCard
-          label="Net cash"
-          value={formatPaymentPhaseMoney(netCash)}
-          description="Total inflow minus debits (payments + credits − debits). Adjustments are excluded."
+          label="Available money"
+          value={formatPaymentPhaseMoney(availableMoney)}
+          description="Payments plus credits minus debits for the selected period."
           icon={WalletIcon}
           iconClassName="text-violet-500"
         />
       </div>
+
+      {tablesSlot}
 
       <TabsPrimitive
         value={bodyTab}
@@ -399,8 +400,6 @@ export function IncomeStatementAnalyticsPanel({
           ) : null}
         </TabsContentsPrimitive>
       </TabsPrimitive>
-
-      {tablesSlot}
     </div>
   );
 }

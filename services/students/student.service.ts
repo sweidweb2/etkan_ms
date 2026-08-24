@@ -11,7 +11,10 @@ import {
 } from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createStudentSchema } from "@/lib/validators/manager/create-student";
+import {
+  createStudentSchema,
+  resolveCreateStudentInput,
+} from "@/lib/validators/manager/create-student";
 import { updateStudentSchema } from "@/lib/validators/manager/update-student";
 import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
@@ -587,7 +590,8 @@ export async function createStudent(
     };
   }
 
-  const { username, fullName, email, password, birthDate, phone } = parsed.data;
+  const { username, fullName, email, password, birthDate, phone } =
+    resolveCreateStudentInput(parsed.data);
   const normalizedUsername = username.trim();
   const normalizedEmail = email.trim();
   const normalizedFullName = fullName.trim();

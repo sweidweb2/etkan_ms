@@ -12,7 +12,7 @@ import {
 
 export const WORKSHOP_OFFERING_TYPES = {
   COURSE: "course",
-  ONLINE: "online",
+  PRIVATE: "private",
   WORKSHOP: "workshop",
 } as const;
 
@@ -21,7 +21,7 @@ export type WorkshopOfferingType =
 
 export const WORKSHOP_OFFERING_TYPE_VALUES = [
   WORKSHOP_OFFERING_TYPES.COURSE,
-  WORKSHOP_OFFERING_TYPES.ONLINE,
+  WORKSHOP_OFFERING_TYPES.PRIVATE,
   WORKSHOP_OFFERING_TYPES.WORKSHOP,
 ] as const;
 
@@ -30,7 +30,7 @@ export const WORKSHOP_OFFERING_TYPE_LABELS: Record<
   string
 > = {
   course: "Course",
-  online: "Online",
+  private: "Private",
   workshop: "Workshop",
 };
 

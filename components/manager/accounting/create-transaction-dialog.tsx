@@ -26,6 +26,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
+  PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_VALUES,
   TRANSACTION_CATEGORIES,
@@ -46,17 +47,17 @@ import type { CreateTransactionActionState } from "@/types/manager-income-statem
 
 const initialState: CreateTransactionActionState = {};
 const EMPTY_PAYMENT_METHOD = "__none__";
+const DEFAULT_PAYMENT_METHOD = PAYMENT_METHODS.WHISH;
+const DEFAULT_RECORDED_BY = "sweid";
 
 type CreateTransactionDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultRecordedBy: string;
 };
 
 export function CreateTransactionDialog({
   open,
   onOpenChange,
-  defaultRecordedBy,
 }: CreateTransactionDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
@@ -85,8 +86,8 @@ export function CreateTransactionDialog({
       description: "",
       category: TRANSACTION_CATEGORIES.DONATION,
       category_custom: "",
-      payment_method: EMPTY_PAYMENT_METHOD,
-      recorded_by: defaultRecordedBy,
+      payment_method: DEFAULT_PAYMENT_METHOD,
+      recorded_by: DEFAULT_RECORDED_BY,
       notes: "",
     },
   });
@@ -106,12 +107,12 @@ export function CreateTransactionDialog({
         description: "",
         category: TRANSACTION_CATEGORIES.DONATION,
         category_custom: "",
-        payment_method: EMPTY_PAYMENT_METHOD,
-        recorded_by: defaultRecordedBy,
+        payment_method: DEFAULT_PAYMENT_METHOD,
+        recorded_by: DEFAULT_RECORDED_BY,
         notes: "",
       });
     }
-  }, [open, reset, defaultRecordedBy]);
+  }, [open, reset]);
 
   useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);

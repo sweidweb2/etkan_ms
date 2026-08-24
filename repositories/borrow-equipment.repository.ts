@@ -43,6 +43,14 @@ export async function listBorrowsByEquipmentId(
     .order("borrowed_at", { ascending: false });
 }
 
+export async function listBorrowsByUserId(client: Supabase, userId: string) {
+  return client
+    .from("borrow_equipment")
+    .select(BORROW_COLUMNS)
+    .eq("user_id", userId)
+    .order("borrowed_at", { ascending: false });
+}
+
 export async function listAllBorrows(client: Supabase) {
   return client
     .from("borrow_equipment")

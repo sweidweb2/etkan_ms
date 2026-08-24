@@ -54,7 +54,7 @@ const STATUS_ALL = "all";
 
 const TYPE_TAB_ORDER = [
   WORKSHOP_OFFERING_TYPES.WORKSHOP,
-  WORKSHOP_OFFERING_TYPES.ONLINE,
+  WORKSHOP_OFFERING_TYPES.PRIVATE,
   WORKSHOP_OFFERING_TYPES.COURSE,
 ] as const satisfies readonly WorkshopOfferingType[];
 
@@ -112,7 +112,7 @@ export function ManageWorkshopsPanel({
   const typeCounts = useMemo(() => {
     const counts: Record<WorkshopOfferingType, number> = {
       workshop: 0,
-      online: 0,
+      private: 0,
       course: 0,
     };
     for (const workshop of workshops) {
@@ -142,8 +142,8 @@ export function ManageWorkshopsPanel({
 
   const typeLabel = WORKSHOP_OFFERING_TYPE_LABELS[typeTab];
   const typeLabelPlural =
-    typeTab === WORKSHOP_OFFERING_TYPES.ONLINE
-      ? "online offerings"
+    typeTab === WORKSHOP_OFFERING_TYPES.PRIVATE
+      ? "private offerings"
       : `${typeLabel.toLowerCase()}s`;
 
   return (
@@ -319,6 +319,7 @@ export function ManageWorkshopsPanel({
         onOpenChange={setIsCreateOpen}
         onWorkshopCreated={(workshop) => {
           setWorkshops((current) => [workshop, ...current]);
+          setTypeTab(workshop.type);
           setPage(1);
         }}
       />

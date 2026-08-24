@@ -1,26 +1,18 @@
 import { z } from "zod";
 import {
-  AUTH_LIMITS,
-  DEFAULT_CREATED_STUDENT_PASSWORD,
-} from "@/lib/constants/auth-limits";
-import {
   birthDateField,
   emailField,
   fullNameField,
-  passwordField,
   phoneField,
   usernameField,
 } from "@/lib/validators/auth/fields";
+import {
+  addOptionalPasswordPairIssues,
+  optionalPasswordInput,
+  resolveCreatedAccountPassword,
+} from "@/lib/validators/auth/optional-created-password";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
-
-const optionalPasswordInput = z
-  .string()
-  .max(AUTH_LIMITS.password.max, {
-    message: `Password must be at most ${AUTH_LIMITS.password.max} characters.`,
-  })
-  .optional()
-  .or(z.literal(""));
 
 function parseBooleanFormValue(value: unknown): boolean {
   return value === true || value === "true" || value === "on" || value === "1";
@@ -39,28 +31,7 @@ export const createStudentFromGuestSchema = z
     markGuestAsFinished: z.preprocess(parseBooleanFormValue, z.boolean()),
   })
   .superRefine((data, ctx) => {
-    const password = data.password ?? "";
-    const confirmPassword = data.confirmPassword ?? "";
-    if (password === "" && confirmPassword === "") {
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Passwords do not match.",
-        path: ["confirmPassword"],
-      });
-    }
-
-    const parsedPassword = passwordField.safeParse(password);
-    if (!parsedPassword.success) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: parsedPassword.error.issues[0]?.message ?? "Invalid password.",
-        path: ["password"],
-      });
-    }
+    addOptionalPasswordPairIssues(data, ctx);
   });
 
 export type CreateStudentFromGuestFormInput = z.infer<
@@ -79,10 +50,10 @@ export type CreateStudentFromGuestInput = Omit<
 export function resolveCreateStudentFromGuestInput(
   data: CreateStudentFromGuestFormInput
 ): CreateStudentFromGuestInput {
-  const password =
-    (data.password ?? "") === "" && (data.confirmPassword ?? "") === ""
-      ? DEFAULT_CREATED_STUDENT_PASSWORD
-      : (data.password ?? "");
+  const password = resolveCreatedAccountPassword(
+    data.password,
+    data.confirmPassword
+  );
 
   return {
     guest_id: data.guest_id,

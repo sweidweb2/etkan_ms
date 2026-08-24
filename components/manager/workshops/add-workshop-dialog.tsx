@@ -197,7 +197,7 @@ export function AddWorkshopDialog({
                     shouldValidate: true,
                   });
                 }}
-                disabled
+                disabled={isPending}
               >
                 <SelectTrigger
                   id="add-workshop-type"

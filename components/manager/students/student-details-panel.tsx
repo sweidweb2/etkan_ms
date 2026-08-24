@@ -38,6 +38,7 @@ import type {
 import type { ManagerStudentActivityRow } from "@/types/manager-student-activity";
 import type { ManagerClassOption } from "@/types/manager-class";
 import type { ManagerStudentClassAcademicBundle } from "@/types/manager-student-class-detail";
+import type { ManagerStudentBorrowEquipmentRow } from "@/types/manager-student-borrow-equipment";
 
 type StudentDetailsPanelProps = {
   student: ManagerStudentRow;
@@ -46,6 +47,7 @@ type StudentDetailsPanelProps = {
   classBundles: ManagerStudentClassAcademicBundle[];
   activityRows: ManagerStudentActivityRow[];
   registrationApplicationId: string | null;
+  borrowRows: ManagerStudentBorrowEquipmentRow[];
 };
 
 function DetailField({
@@ -82,6 +84,7 @@ export function StudentDetailsPanel({
   classBundles,
   activityRows,
   registrationApplicationId,
+  borrowRows,
 }: StudentDetailsPanelProps) {
   const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
   const [prevStudent, setPrevStudent] =
@@ -230,7 +233,7 @@ export function StudentDetailsPanel({
         id={STUDENT_DETAILS_SECTION_IDS.borrowing}
         className="scroll-mt-6"
       >
-        <StudentBorrowedEquipmentSection userId={student.user_id} />
+        <StudentBorrowedEquipmentSection initialBorrows={borrowRows} />
       </div>
 
       <div

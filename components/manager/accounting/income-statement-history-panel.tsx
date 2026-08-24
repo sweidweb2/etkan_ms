@@ -117,7 +117,6 @@ export function IncomeStatementHistoryPanel({
       {months.length === 0 ? null : data && periodLabel ? (
         <IncomeStatementPanel
           data={data}
-          defaultRecordedBy=""
           periodLabel={periodLabel}
           readOnly
           hideAllTimePaymentsCard

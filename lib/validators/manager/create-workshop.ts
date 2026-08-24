@@ -70,7 +70,7 @@ export const workshopFieldsSchema = z.object({
       message: `Workshop name must be at most ${WORKSHOP_FIELD_LIMITS.name.max} characters.`,
     }),
   type: z.enum(WORKSHOP_OFFERING_TYPE_VALUES, {
-    message: "Select a type: course, online, or workshop.",
+    message: "Select a type: course, private, or workshop.",
   }),
   phone: optionalTrimmedString(
     WORKSHOP_FIELD_LIMITS.phone.max,

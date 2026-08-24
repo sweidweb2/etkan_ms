@@ -66,6 +66,22 @@ describe("createWorkshopSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it("rejects the retired online type", () => {
+    const parsed = createWorkshopSchema.safeParse({
+      ...validInput,
+      type: "online",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts private type", () => {
+    const parsed = createWorkshopSchema.safeParse({
+      ...validInput,
+      type: WORKSHOP_OFFERING_TYPES.PRIVATE,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   it("rejects phone over max length", () => {
     const parsed = createWorkshopSchema.safeParse({
       ...validInput,
@@ -95,7 +111,7 @@ describe("parseCreateWorkshopFormData", () => {
   it("parses FormData into typed input", () => {
     const formData = new FormData();
     formData.set("name", "Intro to UX");
-    formData.set("type", "online");
+    formData.set("type", "private");
     formData.set("phone", "+961 71 234 567");
     formData.set("subject", "Design");
     formData.set("nb_participants", "20");
@@ -107,7 +123,7 @@ describe("parseCreateWorkshopFormData", () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.name).toBe("Intro to UX");
-      expect(parsed.data.type).toBe("online");
+      expect(parsed.data.type).toBe("private");
       expect(parsed.data.phone).toBe("+961 71 234 567");
       expect(parsed.data.nb_participants).toBe(20);
       expect(parsed.data.price).toBe(150);

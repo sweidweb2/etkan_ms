@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listStudentActivityForManager } from "@/services/students/student-activity.service";
 import { listStudentClassAcademicBundlesForManager } from "@/services/classes/student-course-grade.service";
+import { listStudentBorrowsForManager } from "@/services/equipment/borrow-equipment.service";
 import { getLinkedRegistrationApplicationIdForStudentManager } from "@/services/students/student-registration.service";
 import {
   getStudentDetailStatsForManager,
@@ -35,6 +36,7 @@ export default async function ManagerStudentDetailPage({
     availableClasses,
     activityRows,
     registrationApplicationId,
+    borrowRows,
   ] = await Promise.all([
       getStudentDetailStatsForManager(
         adminClient,
@@ -61,6 +63,11 @@ export default async function ManagerStudentDetailPage({
         user?.id ?? null,
         student.user_id
       ),
+      listStudentBorrowsForManager(
+        adminClient,
+        user?.id ?? null,
+        student.user_id
+      ),
     ]);
 
   const classBundles = await listStudentClassAcademicBundlesForManager(
@@ -78,6 +85,7 @@ export default async function ManagerStudentDetailPage({
       classBundles={classBundles}
       activityRows={activityRows}
       registrationApplicationId={registrationApplicationId}
+      borrowRows={borrowRows}
     />
   );
 }

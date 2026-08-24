@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
+import { DEFAULT_CREATED_STUDENT_PASSWORD } from "@/lib/constants/auth-limits";
 import { ROLES } from "@/lib/constants/roles";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import * as authRepository from "@/repositories/auth.repository";
@@ -414,6 +415,57 @@ describe("createStudent", () => {
       "user-1",
       ROLES.STUDENT
     );
+  });
+
+  it("defaults a blank password to the literal password string", async () => {
+    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    vi.mocked(authRepository.createAuthUser).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+
+    vi.mocked(profileService.ensureStudentRegistration).mockResolvedValue({
+      profileId: "user-1",
+    });
+
+    vi.mocked(roleService.syncAuthUserRole).mockResolvedValue(undefined);
+
+    vi.mocked(studentProfileRepository.findStudentProfileByUserId).mockResolvedValue({
+      data: studentProfile,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    mockStudentLookups();
+
+    const result = await createStudent(adminClient, actor.userId, actor, {
+      ...validStudentInput,
+      password: "",
+      confirmPassword: "",
+    });
+
+    expect(result.success).toBe(true);
+    expect(authRepository.createAuthUser).toHaveBeenCalledWith(adminClient, {
+      email: "jane@school.com",
+      password: DEFAULT_CREATED_STUDENT_PASSWORD,
+      username: "jane",
+      fullName: "Jane Doe",
+      role: ROLES.STUDENT,
+    });
   });
 
   it("rolls back auth user when registration fails", async () => {

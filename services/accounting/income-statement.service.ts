@@ -1,4 +1,5 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { financialAdjustmentAmountInDollars } from "@/lib/manager/accounting/adjustment-amount";
 import {
   FINANCIAL_ADJUSTMENT_TYPES,
   FINANCIAL_ADJUSTMENT_TYPE_LABELS,
@@ -296,14 +297,12 @@ export async function getIncomeStatementForManager(
     const studentId = spp?.student_id ?? "";
     const phaseId = spp?.payment_phase_id ?? "";
     const phase = phaseById.get(phaseId);
-    const monthlyPhaseAmount = phase
-      ? phase.amount / Math.max(phase.duration_months, 1)
-      : 0;
-
-    const amountInDollars =
-      valueType === FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE
-        ? (value / 100) * monthlyPhaseAmount
-        : value;
+    const amountInDollars = financialAdjustmentAmountInDollars(
+      value,
+      valueType,
+      phase?.amount ?? 0,
+      phase?.duration_months ?? 1
+    );
 
     if (spp?.student_id) {
       allAdjustmentPeople.add(spp.student_id);
@@ -356,6 +355,8 @@ export async function getIncomeStatementForManager(
   const totalDebitsAmount = transactions
     .filter((row) => row.type === TRANSACTION_TYPES.DEBIT)
     .reduce((sum, row) => sum + row.amount, 0);
+  const availableMoney =
+    totalPaymentsAmount + totalCreditsAmount - totalDebitsAmount;
 
   return {
     stats: {
@@ -372,6 +373,7 @@ export async function getIncomeStatementForManager(
       transactionCount: transactions.length,
       totalCreditsAmount,
       totalDebitsAmount,
+      availableMoney,
     },
     adjustments,
     transactions,

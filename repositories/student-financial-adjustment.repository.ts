@@ -101,7 +101,7 @@ export async function listFinancialAdjustmentAmountsBetween(
 ) {
   return client
     .from("student_financial_adjustments")
-    .select("effective_date, value")
+    .select("effective_date, value, value_type, student_payment_phase_id")
     .gte("effective_date", fromInclusive)
     .lt("effective_date", toExclusive);
 }

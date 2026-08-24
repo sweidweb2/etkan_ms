@@ -1,10 +1,27 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import {
+  memo,
+  useActionState,
+  useCallback,
+  useMemo,
+  useState,
+  useTransition,
+  type MouseEvent,
+} from "react";
+import {
+  Background,
+  Handle,
+  Position,
+  ReactFlow,
+  type Edge,
+  type Node,
+  type NodeProps,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import {
   BanIcon,
   CalendarDaysIcon,
-  CheckIcon,
   CircleCheckIcon,
   FileBadgeIcon,
   FilePenLineIcon,
@@ -15,6 +32,7 @@ import {
   updateWorkshopProposalNotesAction,
 } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
+import { usePermissions } from "@/components/auth/permissions-provider";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -26,10 +44,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { MANAGER_WORKSHOP_STATUS_LABELS } from "@/lib/constants/manager-workshop-display";
 import {
   WORKSHOP_STATUSES,
   WORKSHOP_STATUS_FLOW,
+  type WorkshopStatusFlowValue,
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
@@ -58,6 +78,16 @@ type WorkshopStatusStepperProps = {
   onStatusChanged: (workshop: ManagerWorkshopRow) => void;
 };
 
+type StatusNodeData = {
+  status: WorkshopStatusFlowValue;
+  tone: StepTone;
+  clickable: boolean;
+  disabled: boolean;
+  onSelect: (status: WorkshopStatusFlowValue) => void;
+};
+
+type WorkshopFlowNode = Node<StatusNodeData, "status">;
+
 const initialStatusState: ChangeWorkshopStatusActionState = {};
 const initialNotesState: UpdateWorkshopActionState = {};
 
@@ -76,6 +106,43 @@ const STATUS_ICONS = {
   [WORKSHOP_STATUSES.COMPLETED]: CircleCheckIcon,
 } as const;
 
+const FLOW_EDGES: Edge[] = [
+  {
+    id: "e-draft-proposal",
+    source: WORKSHOP_STATUSES.DRAFT,
+    target: WORKSHOP_STATUSES.PROPOSAL,
+    type: "smoothstep",
+  },
+  {
+    id: "e-proposal-scheduled",
+    source: WORKSHOP_STATUSES.PROPOSAL,
+    target: WORKSHOP_STATUSES.SCHEDULED,
+    type: "smoothstep",
+  },
+  {
+    id: "e-scheduled-in-progress",
+    source: WORKSHOP_STATUSES.SCHEDULED,
+    target: WORKSHOP_STATUSES.IN_PROGRESS,
+    type: "smoothstep",
+  },
+  {
+    id: "e-in-progress-completed",
+    source: WORKSHOP_STATUSES.IN_PROGRESS,
+    target: WORKSHOP_STATUSES.COMPLETED,
+    type: "smoothstep",
+  },
+];
+
+/** Horizontal lifecycle positions (React Flow coordinates). */
+const NODE_POSITIONS: Record<WorkshopStatusFlowValue, { x: number; y: number }> =
+  {
+    draft: { x: 0, y: 88 },
+    proposal: { x: 200, y: 88 },
+    scheduled: { x: 400, y: 88 },
+    in_progress: { x: 600, y: 88 },
+    completed: { x: 800, y: 88 },
+  };
+
 function stepTone(
   status: WorkshopStatusValue,
   current: WorkshopStatusValue
@@ -83,12 +150,11 @@ function stepTone(
   if (current === WORKSHOP_STATUSES.CANCELLED) {
     return "cancelled";
   }
-  const flow = WORKSHOP_STATUS_FLOW;
-  const currentIndex = flow.indexOf(
-    current as (typeof WORKSHOP_STATUS_FLOW)[number]
+  const currentIndex = WORKSHOP_STATUS_FLOW.indexOf(
+    current as WorkshopStatusFlowValue
   );
-  const stepIndex = flow.indexOf(
-    status as (typeof WORKSHOP_STATUS_FLOW)[number]
+  const stepIndex = WORKSHOP_STATUS_FLOW.indexOf(
+    status as WorkshopStatusFlowValue
   );
   if (stepIndex < 0 || currentIndex < 0) {
     return "upcoming";
@@ -102,85 +168,96 @@ function stepTone(
   return "upcoming";
 }
 
-function WorkshopStatusCheckpoint({
-  status,
-  tone,
-  clickable,
-  disabled,
-  onSelect,
-}: {
-  status: WorkshopStatusValue;
-  tone: StepTone;
-  clickable: boolean;
-  disabled: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = STATUS_ICONS[status as keyof typeof STATUS_ICONS];
-  const label = MANAGER_WORKSHOP_STATUS_LABELS[status];
-
-  const marker = (
-    <div
-      className={cn(
-        "flex size-10 items-center justify-center rounded-full border-2 bg-background shadow-sm transition-colors sm:size-11",
-        tone === "done" &&
-          "border-emerald-500 bg-emerald-500 text-white shadow-emerald-500/20",
-        tone === "current" &&
-          "border-sky-500 text-sky-600 ring-4 ring-sky-500/20 dark:text-sky-400",
-        tone === "upcoming" &&
-          "border-muted-foreground/25 text-muted-foreground/55",
-        tone === "cancelled" && "border-rose-400/50 text-rose-400/70",
-        clickable &&
-          !disabled &&
-          "group-hover:scale-105 group-hover:border-foreground/40 group-hover:text-foreground"
-      )}
-    >
-      {Icon ? <Icon className="size-4 sm:size-5" strokeWidth={2.25} /> : null}
-    </div>
-  );
+const WorkshopStatusFlowNode = memo(function WorkshopStatusFlowNode({
+  data,
+}: NodeProps<WorkshopFlowNode>) {
+  const Icon = STATUS_ICONS[data.status];
+  const label = MANAGER_WORKSHOP_STATUS_LABELS[data.status];
+  const isCurrent = data.tone === "current";
+  const isDone = data.tone === "done";
+  const isCancelled = data.tone === "cancelled";
 
   return (
-    <div className="relative z-10 flex flex-col items-center gap-2">
-      {clickable ? (
-        <button
-          type="button"
-          className="group relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-60"
-          disabled={disabled}
-          aria-label={`Set status to ${label}`}
-          onClick={onSelect}
-        >
-          {marker}
-          {tone === "done" ? (
-            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
-              <CheckIcon className="size-2.5" strokeWidth={3} />
-            </span>
-          ) : null}
-        </button>
-      ) : (
-        <div className="relative" aria-current="step">
-          {marker}
-          {tone === "done" ? (
-            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
-              <CheckIcon className="size-2.5" strokeWidth={3} />
-            </span>
-          ) : null}
-        </div>
-      )}
-      <span
+    <div className="flex w-[7.5rem] flex-col items-center gap-2">
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!pointer-events-none !h-2 !w-2 !border-emerald-500/50 !bg-emerald-500/40"
+      />
+      {/* nopan/nodrag: keep clicks from being captured by React Flow pan/drag */}
+      <button
+        type="button"
         className={cn(
-          "text-[11px] font-medium leading-tight",
-          tone === "current" ? "text-foreground" : "text-muted-foreground"
+          "nopan nodrag flex flex-col items-center gap-2 rounded-lg px-1 py-0.5",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+          data.clickable
+            ? "disabled:pointer-events-none disabled:opacity-60"
+            : "pointer-events-none disabled:opacity-100"
         )}
+        disabled={!data.clickable || data.disabled}
+        aria-label={
+          data.clickable ? `Set status to ${label}` : `Status ${label}`
+        }
+        aria-current={isCurrent ? "step" : undefined}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (!data.clickable) {
+            return;
+          }
+          data.onSelect(data.status);
+        }}
       >
-        {label}
-      </span>
+        <div
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border-2 shadow-sm transition-colors",
+            isCurrent &&
+              "border-emerald-600 bg-emerald-600 text-white ring-4 ring-emerald-500/35 dark:border-emerald-500 dark:bg-emerald-500",
+            isDone &&
+              !isCurrent &&
+              "border-emerald-600 bg-emerald-600/90 text-white dark:border-emerald-500 dark:bg-emerald-500/90",
+            data.tone === "upcoming" &&
+              "border-muted-foreground/25 bg-background text-muted-foreground/70 hover:scale-105 hover:border-foreground/40 hover:text-foreground",
+            isCancelled &&
+              "border-rose-400/50 bg-background text-rose-400/70 hover:scale-105 hover:border-rose-500 hover:text-rose-500"
+          )}
+        >
+          <Icon className="size-5" strokeWidth={2.25} />
+        </div>
+        <span
+          className={cn(
+            "text-center text-[11px] font-semibold leading-tight",
+            isCurrent || isDone
+              ? "text-emerald-700 dark:text-emerald-300"
+              : isCancelled
+                ? "text-rose-600/80 dark:text-rose-300/80"
+                : "font-medium text-muted-foreground"
+          )}
+        >
+          {label}
+        </span>
+      </button>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!pointer-events-none !h-2 !w-2 !border-emerald-500/50 !bg-emerald-500/40"
+      />
     </div>
   );
-}
+});
+
+const nodeTypes = {
+  status: WorkshopStatusFlowNode,
+};
 
 export function WorkshopStatusStepper({
   workshop,
   onStatusChanged,
 }: WorkshopStatusStepperProps) {
+  const permissions = usePermissions();
+  const canChangeStatus = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.WORKSHOPS_CHANGE_STATUS
+  );
   const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null);
   const [pendingTarget, setPendingTarget] =
     useState<WorkshopStatusValue | null>(null);
@@ -251,6 +328,79 @@ export function WorkshopStatusStepper({
     setPendingTarget(target);
   }
 
+  const openJump = useCallback(
+    (status: WorkshopStatusFlowValue) => {
+      if (isPending || !canChangeStatus || status === workshop.status) {
+        return;
+      }
+      setConfirmKind("jump");
+      setPendingTarget(status);
+    },
+    [canChangeStatus, isPending, workshop.status]
+  );
+
+  const onNodeClick = useCallback(
+    (_event: MouseEvent, node: Node) => {
+      if (node.type !== "status") {
+        return;
+      }
+      const data = node.data as StatusNodeData;
+      if (!data.clickable || data.disabled) {
+        return;
+      }
+      data.onSelect(data.status);
+    },
+    []
+  );
+
+  const nodes = useMemo<WorkshopFlowNode[]>(
+    () =>
+      WORKSHOP_STATUS_FLOW.map((status) => {
+        const tone = stepTone(status, workshop.status);
+        return {
+          id: status,
+          type: "status" as const,
+          position: NODE_POSITIONS[status],
+          data: {
+            status,
+            tone,
+            clickable: canChangeStatus && status !== workshop.status,
+            disabled: isPending,
+            onSelect: openJump,
+          },
+          draggable: false,
+          selectable: true,
+          focusable: true,
+        };
+      }),
+    [canChangeStatus, isPending, openJump, workshop.status]
+  );
+
+  const edges = useMemo<Edge[]>(
+    () =>
+      FLOW_EDGES.map((edge) => {
+        const sourceTone = stepTone(
+          edge.source as WorkshopStatusFlowValue,
+          workshop.status
+        );
+        const isReached = sourceTone === "done";
+        const isCancelled = workshop.status === WORKSHOP_STATUSES.CANCELLED;
+        return {
+          ...edge,
+          animated: false,
+          style: {
+            stroke: isCancelled
+              ? "oklch(0.65 0.18 20 / 0.45)"
+              : isReached
+                ? "oklch(0.65 0.15 155 / 0.75)"
+                : "oklch(0.65 0.15 155 / 0.35)",
+            strokeWidth: 2,
+          },
+        };
+      }),
+    [workshop.status]
+  );
+
   function submitStatusChange() {
     if (!pendingTarget) {
       return;
@@ -287,13 +437,6 @@ export function WorkshopStatusStepper({
     pendingTarget && confirmKind
       ? `Change status from ${MANAGER_WORKSHOP_STATUS_LABELS[workshop.status]} to ${MANAGER_WORKSHOP_STATUS_LABELS[pendingTarget]}?`
       : "";
-
-  const currentFlowIndex =
-    workshop.status === WORKSHOP_STATUSES.CANCELLED
-      ? -1
-      : WORKSHOP_STATUS_FLOW.indexOf(
-          workshop.status as (typeof WORKSHOP_STATUS_FLOW)[number]
-        );
 
   return (
     <>
@@ -334,46 +477,27 @@ export function WorkshopStatusStepper({
             </p>
           ) : null}
 
-          <div className="relative px-1 pt-1">
-            <div className="absolute top-5 right-[10%] left-[10%] h-1.5 overflow-hidden rounded-full bg-muted">
-              {currentFlowIndex > 0 ? (
-                <div
-                  className="h-full rounded-full bg-emerald-500/80 transition-[width] duration-300 ease-out"
-                  style={{
-                    width: `${(currentFlowIndex / (WORKSHOP_STATUS_FLOW.length - 1)) * 100}%`,
-                  }}
-                />
-              ) : null}
-            </div>
-            <div className="relative grid grid-cols-5 gap-1">
-              {WORKSHOP_STATUS_FLOW.map((status) => {
-                const tone = stepTone(status, workshop.status);
-                const isCurrent = status === workshop.status;
-                return (
-                  <Can
-                    key={status}
-                    permission={PERMISSIONS.WORKSHOPS_CHANGE_STATUS}
-                    fallback={
-                      <WorkshopStatusCheckpoint
-                        status={status}
-                        tone={tone}
-                        clickable={false}
-                        disabled
-                        onSelect={() => undefined}
-                      />
-                    }
-                  >
-                    <WorkshopStatusCheckpoint
-                      status={status}
-                      tone={tone}
-                      clickable={!isCurrent}
-                      disabled={isPending}
-                      onSelect={() => openConfirm("jump", status)}
-                    />
-                  </Can>
-                );
-              })}
-            </div>
+          <div className="h-[16rem] w-full overflow-hidden rounded-lg border bg-muted/20">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodeClick={onNodeClick}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              elementsSelectable
+              nodesFocusable
+              panOnDrag
+              zoomOnScroll={false}
+              preventScrolling={false}
+              proOptions={{ hideAttribution: true }}
+              minZoom={0.55}
+              maxZoom={1.25}
+            >
+              <Background gap={18} size={1} />
+            </ReactFlow>
           </div>
 
           <Can permission={PERMISSIONS.WORKSHOPS_CHANGE_STATUS}>

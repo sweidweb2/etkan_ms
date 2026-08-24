@@ -41,8 +41,10 @@ import {
   PAYMENT_METHOD_LABELS,
   TRANSACTION_TYPE_LABELS,
   TRANSACTION_TYPES,
+  TRANSACTION_TYPE_VALUES,
   formatTransactionCategory,
   type FinancialAdjustmentValueType,
+  type TransactionType,
 } from "@/lib/manager/accounting/constants";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -275,11 +277,23 @@ type EtkanTabProps = {
   transactions: ManagerIncomeAnalyticsTransactionRow[];
 };
 
+const TYPE_FILTER_ALL = "all";
+type TransactionTypeFilter = typeof TYPE_FILTER_ALL | TransactionType;
+
 export function IncomeStatementAnalyticsEtkanTab({
   transactions,
 }: EtkanTabProps) {
+  const [typeFilter, setTypeFilter] =
+    useState<TransactionTypeFilter>(TYPE_FILTER_ALL);
+  const filteredTransactions = useMemo(
+    () =>
+      typeFilter === TYPE_FILTER_ALL
+        ? transactions
+        : transactions.filter((row) => row.type === typeFilter),
+    [transactions, typeFilter]
+  );
   const { pageSize, setPageSize, page, setPage, pagedRows } =
-    usePagedRows(transactions);
+    usePagedRows(filteredTransactions);
   const [editOpen, setEditOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<ManagerIncomeAnalyticsTransactionRow | null>(null);
@@ -331,11 +345,37 @@ export function IncomeStatementAnalyticsEtkanTab({
       </div>
 
       <section className="overflow-hidden rounded-xl border">
-        <div className="border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">Etkan transactions</h3>
-          <p className="text-xs text-muted-foreground">
-            External credits and debits in the selected period.
-          </p>
+        <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">Etkan transactions</h3>
+            <p className="text-xs text-muted-foreground">
+              External credits and debits in the selected period.
+            </p>
+          </div>
+          <Select
+            value={typeFilter}
+            onValueChange={(value) => {
+              if (value == null) return;
+              setTypeFilter(value as TransactionTypeFilter);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              className="w-[9.5rem]"
+              aria-label="Filter by type"
+            >
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={TYPE_FILTER_ALL}>All types</SelectItem>
+              {TRANSACTION_TYPE_VALUES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {TRANSACTION_TYPE_LABELS[type]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
@@ -360,7 +400,9 @@ export function IncomeStatementAnalyticsEtkanTab({
                     colSpan={8}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
-                    No transactions in this period.
+                    {typeFilter === TYPE_FILTER_ALL
+                      ? "No transactions in this period."
+                      : `No ${TRANSACTION_TYPE_LABELS[typeFilter].toLowerCase()} transactions in this period.`}
                   </td>
                 </tr>
               ) : (
@@ -446,7 +488,7 @@ export function IncomeStatementAnalyticsEtkanTab({
           </table>
         </div>
         <TablePagination
-          totalCount={transactions.length}
+          totalCount={filteredTransactions.length}
           pageSize={pageSize}
           currentPage={page}
           onPageChange={setPage}

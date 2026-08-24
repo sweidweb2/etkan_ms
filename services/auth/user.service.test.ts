@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
+import { DEFAULT_CREATED_STUDENT_PASSWORD } from "@/lib/constants/auth-limits";
 import { ROLES } from "@/lib/constants/roles";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as authRepository from "@/repositories/auth.repository";
@@ -274,6 +275,50 @@ describe("createStaffUser", () => {
       "user-1",
       ROLES.TEACHER
     );
+  });
+
+  it("defaults a blank password to the literal password string", async () => {
+    vi.mocked(profileRepository.findProfileByUsername).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    vi.mocked(authRepository.findAuthUserByEmail).mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    vi.mocked(authRepository.createAuthUser).mockResolvedValue({
+      data: { user: authUser },
+      error: null,
+    });
+
+    vi.mocked(profileRepository.createProfile).mockResolvedValue({
+      data: { id: "user-1", role: ROLES.TEACHER, is_instructor: false },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    vi.mocked(roleService.syncAuthUserRole).mockResolvedValue(undefined);
+
+    const result = await createStaffUser(adminClient, actor.userId, actor, {
+      ...validStaffInput,
+      password: "",
+    });
+
+    expect(result.success).toBe(true);
+    expect(authRepository.createAuthUser).toHaveBeenCalledWith(adminClient, {
+      email: "teacher@school.com",
+      password: DEFAULT_CREATED_STUDENT_PASSWORD,
+      username: "teacher1",
+      fullName: "teacher1",
+      role: ROLES.TEACHER,
+    });
   });
 
   it("rolls back auth user when profile creation fails", async () => {

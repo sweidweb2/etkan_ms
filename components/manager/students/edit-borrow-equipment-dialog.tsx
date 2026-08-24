@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useZodForm } from "@/hooks/use-zod-form";
+import { useActionState, useEffect, useTransition } from "react";
+import { updateBorrowRecordAction } from "@/app/manager/equipments/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,19 +21,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useZodForm } from "@/hooks/use-zod-form";
 import {
   BORROW_EQUIPMENT_STATUSES,
   BORROW_EQUIPMENT_STATUS_VALUES,
   type BorrowEquipmentStatusValue,
 } from "@/lib/constants/manager-borrow-equipment-status";
 import { MANAGER_BORROW_EQUIPMENT_STATUS_LABELS } from "@/lib/constants/manager-student-borrow-equipment-display";
-import { showSuccessToast } from "@/lib/toast";
 import { getLocalIsoDate } from "@/lib/utils/local-iso-date";
 import {
   updateBorrowEquipmentSchema,
   type UpdateBorrowEquipmentInput,
 } from "@/lib/validators/manager/update-borrow-equipment";
+import type { UpdateBorrowRecordActionState } from "@/types/manager-borrow-equipment-list";
 import type { ManagerStudentBorrowEquipmentRow } from "@/types/manager-student-borrow-equipment";
+
+const initialState: UpdateBorrowRecordActionState = {};
 
 type EditBorrowEquipmentDialogProps = {
   open: boolean;
@@ -55,6 +62,16 @@ export function EditBorrowEquipmentDialog({
   borrowRow,
   onUpdateBorrow,
 }: EditBorrowEquipmentDialogProps) {
+  const [isTransitionPending, startTransition] = useTransition();
+  const [state, formAction, isActionPending] = useActionState(
+    updateBorrowRecordAction,
+    initialState
+  );
+  const isPending = isActionPending || isTransitionPending;
+  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+
+  useActionStateToast(state, isPending);
+
   const {
     register,
     handleSubmit,
@@ -86,32 +103,48 @@ export function EditBorrowEquipmentDialog({
     });
   }, [borrowRow, open, reset]);
 
+  useActionStateSuccess(state, isPending, () => {
+    if (!borrowRow) {
+      onOpenChange(false);
+      return;
+    }
+
+    const values = watch();
+    onUpdateBorrow({
+      ...borrowRow,
+      quantity: Number(values.quantity),
+      status: values.status as BorrowEquipmentStatusValue,
+      returned_at:
+        values.status === BORROW_EQUIPMENT_STATUSES.RETURNED
+          ? values.returnedAt?.trim()
+            ? `${values.returnedAt.trim()}T12:00:00.000Z`
+            : new Date().toISOString()
+          : null,
+    });
+    onOpenChange(false);
+  });
+
   function onSubmit(values: UpdateBorrowEquipmentInput) {
     if (!borrowRow) {
       return;
     }
 
-    const returnedAt =
-      values.status === BORROW_EQUIPMENT_STATUSES.RETURNED
-        ? values.returnedAt?.trim()
-          ? `${values.returnedAt.trim()}T12:00:00.000Z`
-          : new Date().toISOString()
-        : null;
+    const formData = new FormData();
+    formData.set("id", borrowRow.id);
+    formData.set("quantity", String(values.quantity));
+    formData.set("status", values.status);
+    if (values.returnedAt) {
+      formData.set("returnedAt", values.returnedAt);
+    }
 
-    onUpdateBorrow({
-      ...borrowRow,
-      quantity: values.quantity,
-      status: values.status as BorrowEquipmentStatusValue,
-      returned_at: returnedAt,
+    startTransition(() => {
+      formAction(formData);
     });
-
-    showSuccessToast("Borrow record updated.");
-    onOpenChange(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Edit borrow record</DialogTitle>
           <DialogDescription>
@@ -145,6 +178,7 @@ export function EditBorrowEquipmentDialog({
                 type="number"
                 min={1}
                 max={999}
+                disabled={isPending}
                 aria-invalid={!!errors.quantity}
                 {...register("quantity", { valueAsNumber: true })}
               />
@@ -170,6 +204,7 @@ export function EditBorrowEquipmentDialog({
                     shouldValidate: true,
                   });
                 }}
+                disabled={isPending}
               >
                 <SelectTrigger
                   id="edit-borrow-status"
@@ -202,6 +237,7 @@ export function EditBorrowEquipmentDialog({
                   id="edit-borrow-returned-at"
                   type="date"
                   max={getLocalIsoDate()}
+                  disabled={isPending}
                   aria-invalid={!!errors.returnedAt}
                   {...register("returnedAt")}
                 />
@@ -219,12 +255,24 @@ export function EditBorrowEquipmentDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
+            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="edit-borrow-equipment-form" disabled={!borrowRow}>
-            Save changes
+          <Button
+            type="submit"
+            form="edit-borrow-equipment-form"
+            disabled={!borrowRow || isPending}
+          >
+            {isPending ? (
+              <>
+                <InlineSpinner className="mr-2" />
+                Saving
+              </>
+            ) : (
+              "Save changes"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

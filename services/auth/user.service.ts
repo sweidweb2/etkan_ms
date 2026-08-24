@@ -13,7 +13,10 @@ import {
 } from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createStaffUserSchema } from "@/lib/validators/manager/create-user";
+import {
+  createStaffUserSchema,
+  resolveCreateStaffUserInput,
+} from "@/lib/validators/manager/create-user";
 import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
 import * as authRepository from "@/repositories/auth.repository";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
@@ -241,7 +244,8 @@ export async function createStaffUser(
     };
   }
 
-  const { username, email, password, role, is_instructor } = parsed.data;
+  const { username, email, password, role, is_instructor } =
+    resolveCreateStaffUserInput(parsed.data);
 
   if (!MANAGER_CREATABLE_ROLES.includes(role)) {
     return {

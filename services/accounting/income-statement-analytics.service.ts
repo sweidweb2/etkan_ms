@@ -1,4 +1,5 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { financialAdjustmentAmountInDollars } from "@/lib/manager/accounting/adjustment-amount";
 import {
   FINANCIAL_ADJUSTMENT_TYPES,
   FINANCIAL_ADJUSTMENT_TYPE_LABELS,
@@ -234,6 +235,44 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
     }
   }
 
+  const sppIds = [
+    ...new Set(
+      scopedAdjustments.map((row) => row.student_payment_phase_id).filter(Boolean)
+    ),
+  ];
+  const { data: adjustmentSpps, error: adjustmentSppError } =
+    await studentPaymentPhaseRepository.listSppsByIds(adminClient, sppIds);
+  if (adjustmentSppError) {
+    throw new Error(adjustmentSppError.message);
+  }
+
+  const phaseIds = [
+    ...new Set(
+      (adjustmentSpps ?? []).map((spp) => spp.payment_phase_id).filter(Boolean)
+    ),
+  ];
+  const { data: adjustmentPhases, error: adjustmentPhaseError } =
+    await paymentPhaseRepository.listPaymentPhaseAmountsByIds(
+      adminClient,
+      phaseIds
+    );
+  if (adjustmentPhaseError) {
+    throw new Error(adjustmentPhaseError.message);
+  }
+
+  const sppPhaseIdById = new Map(
+    (adjustmentSpps ?? []).map((spp) => [spp.id, spp.payment_phase_id])
+  );
+  const phaseById = new Map(
+    (adjustmentPhases ?? []).map((phase) => [
+      phase.id,
+      {
+        amount: Number(phase.amount),
+        duration_months: Number(phase.duration_months) || 1,
+      },
+    ])
+  );
+
   const periodKeys =
     month === null
       ? MONTH_LABELS.map((_, index) => String(index + 1).padStart(2, "0"))
@@ -294,7 +333,14 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
   }
 
   for (const row of scopedAdjustments) {
-    const amount = Number(row.value);
+    const phaseId = sppPhaseIdById.get(row.student_payment_phase_id);
+    const phase = phaseId ? phaseById.get(phaseId) : undefined;
+    const amount = financialAdjustmentAmountInDollars(
+      Number(row.value),
+      row.value_type,
+      phase?.amount ?? 0,
+      phase?.duration_months ?? 1
+    );
     adjustmentsTotal += amount;
     const part =
       month === null
@@ -590,13 +636,12 @@ export async function getIncomeStatementAnalyticsTablesForManager(
         : FINANCIAL_ADJUSTMENT_VALUE_TYPES.FIXED;
       const value = Number(row.value);
       const phase = phaseById.get(spp.payment_phase_id);
-      const monthlyPhaseAmount = phase
-        ? phase.amount / Math.max(phase.duration_months, 1)
-        : 0;
-      const adjustmentAmount =
-        valueType === FINANCIAL_ADJUSTMENT_VALUE_TYPES.PERCENTAGE
-          ? (value / 100) * monthlyPhaseAmount
-          : value;
+      const adjustmentAmount = financialAdjustmentAmountInDollars(
+        value,
+        valueType,
+        phase?.amount ?? 0,
+        phase?.duration_months ?? 1
+      );
 
       return {
         adjustment_id: row.id,

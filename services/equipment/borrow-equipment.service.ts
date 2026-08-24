@@ -35,6 +35,7 @@ import type {
 } from "@/types/manager-borrow-equipment-list";
 import type { ManagerEquipmentBorrowRow } from "@/types/manager-equipment-borrow";
 import type { ManagerEquipmentRow } from "@/types/manager-equipment";
+import type { ManagerStudentBorrowEquipmentRow } from "@/types/manager-student-borrow-equipment";
 import type { ManagerStudentRow } from "@/types/manager-student";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -530,6 +531,53 @@ export async function listEquipmentBorrowsForManager(
       nameByUserId.get(record.user_id) ?? "Unknown student"
     )
   );
+}
+
+export async function listStudentBorrowsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  userId: string
+): Promise<ManagerStudentBorrowEquipmentRow[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.EQUIPMENT_VIEW_BORROWS
+  );
+
+  const { data: borrows, error } =
+    await borrowEquipmentRepository.listBorrowsByUserId(adminClient, userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const records = borrows ?? [];
+
+  if (records.length === 0) {
+    return [];
+  }
+
+  const equipmentIds = [
+    ...new Set(records.map((record) => record.equipment_id)),
+  ];
+  const equipmentById = await buildEquipmentById(adminClient, equipmentIds);
+
+  return records.map((record) => {
+    const equipment = equipmentById.get(record.equipment_id);
+
+    return {
+      id: record.id,
+      equipment_id: record.equipment_id,
+      user_id: record.user_id,
+      equipment_name: equipment?.name ?? "—",
+      equipment_description: equipment?.description ?? null,
+      equipment_unit_price: equipment?.unit_price ?? 0,
+      quantity: record.quantity ?? 0,
+      borrowed_at: record.borrowed_at ?? "",
+      returned_at: record.returned_at,
+      status: mapBorrowStatus(record.status),
+    };
+  });
 }
 
 export async function createBorrowsForManager(

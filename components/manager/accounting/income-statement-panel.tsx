@@ -49,7 +49,6 @@ function formatAdjustmentValue(
 
 type IncomeStatementPanelProps = {
   data: ManagerIncomeStatementData;
-  defaultRecordedBy: string;
   /** Shown in the subtitle, e.g. "August 2026". */
   periodLabel?: string;
   /** When true, hide create/edit transaction actions. */
@@ -82,7 +81,6 @@ function TruncatedCell({
 
 export function IncomeStatementPanel({
   data,
-  defaultRecordedBy,
   periodLabel,
   readOnly = false,
   hideAllTimePaymentsCard = false,
@@ -145,7 +143,7 @@ export function IncomeStatementPanel({
       <div
         className={cn(
           "grid gap-4 sm:grid-cols-2",
-          hideAllTimePaymentsCard ? "xl:grid-cols-4" : "xl:grid-cols-5"
+          hideAllTimePaymentsCard ? "xl:grid-cols-5" : "xl:grid-cols-6"
         )}
       >
         {hideAllTimePaymentsCard ? null : (
@@ -169,6 +167,11 @@ export function IncomeStatementPanel({
           label="External debits"
           value={formatPaymentPhaseMoney(stats.totalDebitsAmount)}
           accentClassName="border-l-rose-500"
+        />
+        <UserStatCard
+          label="Available money"
+          value={formatPaymentPhaseMoney(stats.availableMoney)}
+          accentClassName="border-l-indigo-500"
         />
         <UserStatCard
           label="Total adjustments"
@@ -450,7 +453,6 @@ export function IncomeStatementPanel({
           <CreateTransactionDialog
             open={createOpen}
             onOpenChange={setCreateOpen}
-            defaultRecordedBy={defaultRecordedBy}
           />
           <EditTransactionDialog
             open={editOpen}

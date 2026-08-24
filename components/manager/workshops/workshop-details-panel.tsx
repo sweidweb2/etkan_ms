@@ -416,10 +416,6 @@ export function WorkshopDetailsPanel({
                       />
                       <DetailField label="Subject" value={workshop.subject} />
                       <DetailField label="Phone" value={workshop.phone} />
-                      <DetailField
-                        label="Audience"
-                        value={workshop.target_audience}
-                      />
                     </dl>
                     <dl className="min-w-0">
                       <DetailField
@@ -442,10 +438,6 @@ export function WorkshopDetailsPanel({
                             : String(workshop.number_of_sessions)
                         }
                       />
-                      <DetailField
-                        label="Price"
-                        value={formatMoney(workshop.price)}
-                      />
                     </dl>
                     <dl className="min-w-0 sm:col-span-2 lg:col-span-1">
                       <DetailField
@@ -462,6 +454,18 @@ export function WorkshopDetailsPanel({
                           new Date(workshop.created_at),
                           "MMM d, yyyy 'at' h:mm a"
                         )}
+                      />
+                    </dl>
+                    <dl className="min-w-0">
+                      <DetailField
+                        label="Audience"
+                        value={workshop.target_audience}
+                      />
+                    </dl>
+                    <dl className="min-w-0">
+                      <DetailField
+                        label="Price"
+                        value={formatMoney(workshop.price)}
                       />
                     </dl>
                   </div>

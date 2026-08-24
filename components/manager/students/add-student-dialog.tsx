@@ -24,7 +24,7 @@ import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import { getLocalIsoDate } from "@/lib/utils/local-iso-date";
 import {
   createStudentSchema,
-  type CreateStudentInput,
+  type CreateStudentFormInput,
 } from "@/lib/validators/manager/create-student";
 import type {
   CreateStudentActionState,
@@ -95,13 +95,13 @@ export function AddStudentDialog({
     }
   });
 
-  function onSubmit(values: CreateStudentInput) {
+  function onSubmit(values: CreateStudentFormInput) {
     const formData = new FormData();
     formData.set("username", values.username.trim());
     formData.set("fullName", values.fullName.trim());
     formData.set("email", values.email.trim());
-    formData.set("password", values.password);
-    formData.set("confirmPassword", values.confirmPassword);
+    formData.set("password", values.password ?? "");
+    formData.set("confirmPassword", values.confirmPassword ?? "");
     formData.set("birthDate", values.birthDate?.trim() ?? "");
     formData.set("phone", values.phone?.trim() ?? "");
 
@@ -129,7 +129,8 @@ export function AddStudentDialog({
         <DialogHeader>
           <DialogTitle>Add student</DialogTitle>
           <DialogDescription>
-            Create a student account and profile.
+            Create a student account and profile. Leave password blank to use
+            the default.
           </DialogDescription>
         </DialogHeader>
 
@@ -209,12 +210,11 @@ export function AddStudentDialog({
             <FieldLabel
               htmlFor="add-student-password"
               label="Password"
-              hint={AUTH_FIELD_HINTS.password}
+              hint={AUTH_FIELD_HINTS.passwordOptional}
             />
             <PasswordInput
               id="add-student-password"
               autoComplete="new-password"
-              minLength={AUTH_LIMITS.password.min}
               maxLength={AUTH_LIMITS.password.max}
               aria-invalid={!!passwordError}
               disabled={isPending}
@@ -229,12 +229,11 @@ export function AddStudentDialog({
             <FieldLabel
               htmlFor="add-student-confirm-password"
               label="Confirm password"
-              hint={AUTH_FIELD_HINTS.confirmPassword}
+              hint={AUTH_FIELD_HINTS.confirmPasswordOptional}
             />
             <PasswordInput
               id="add-student-confirm-password"
               autoComplete="new-password"
-              minLength={AUTH_LIMITS.password.min}
               maxLength={AUTH_LIMITS.password.max}
               aria-invalid={!!confirmPasswordError}
               disabled={isPending}
