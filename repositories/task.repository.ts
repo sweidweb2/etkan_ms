@@ -108,3 +108,7 @@ export async function updateTask(
     .single();
 }
 
+export async function deleteTaskById(client: Supabase, id: string) {
+  return client.from("tasks").delete().eq("id", id);
+}
+

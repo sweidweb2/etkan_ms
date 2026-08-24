@@ -82,7 +82,13 @@ export type UpdateSessionTaskActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   task?: ManagerSessionTaskRow;
-  gradesReset?: boolean;
+  gradesClamped?: boolean;
+};
+
+export type DeleteSessionTaskActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
 };
 
 export type UpdateAttendeeActionState = {

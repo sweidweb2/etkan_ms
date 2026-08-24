@@ -1115,7 +1115,7 @@ export type UpdateSessionTaskResult =
   | {
       success: true;
       task: ManagerSessionTaskRow;
-      gradesReset: boolean;
+      gradesClamped: boolean;
       message: string;
     }
   | MutationFailure;
@@ -1198,24 +1198,25 @@ export async function updateSessionTaskForManager(
 
   const nextMaxGrade = parseTaskMaxGrade(parsed.data.max_grade);
   const previousMaxGrade = existingTask.max_grade;
-  const shouldResetGrades = didTaskMaxGradeDecrease(
+  const shouldClampGrades = didTaskMaxGradeDecrease(
     previousMaxGrade,
     nextMaxGrade
   );
 
-  let gradesReset = false;
+  let gradesClamped = false;
 
-  if (shouldResetGrades) {
-    const resetResult = await studentTaskRepository.zeroGradedStudentTasksByTaskId(
+  if (shouldClampGrades && nextMaxGrade != null) {
+    const clampResult = await studentTaskRepository.clampStudentTaskGradesAboveMax(
       adminClient,
-      input.id
+      input.id,
+      nextMaxGrade
     );
 
-    if (resetResult.error) {
-      return { success: false, error: resetResult.error.message };
+    if (clampResult.error) {
+      return { success: false, error: clampResult.error.message };
     }
 
-    gradesReset = (resetResult.data?.length ?? 0) > 0;
+    gradesClamped = (clampResult.data?.length ?? 0) > 0;
   }
 
   const { data, error } = await taskRepository.updateTask(adminClient, input.id, {
@@ -1251,16 +1252,136 @@ export async function updateSessionTaskForManager(
       due_date: task.due_date,
       max_grade: task.max_grade,
     },
-    metadata: gradesReset
-      ? { note: "Task updated; student grades reset to 0 after max grade decrease." }
+    metadata: gradesClamped
+      ? {
+          note: "Task updated; student grades above the new max were clamped.",
+        }
       : { note: "Task updated." },
   });
 
   return {
     success: true,
     task,
-    gradesReset,
+    gradesClamped,
     message: "Task updated.",
+  };
+}
+
+export type DeleteSessionTaskResult =
+  | {
+      success: true;
+      classId: string;
+      sessionId: string;
+      message: string;
+    }
+  | MutationFailure;
+
+export async function deleteSessionTaskForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    id: string;
+    class_id: string;
+    session_id: string;
+  }
+): Promise<DeleteSessionTaskResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.TASKS_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  if (
+    !isUuid(input.id) ||
+    !isUuid(input.class_id) ||
+    !isUuid(input.session_id)
+  ) {
+    return { success: false, error: "Task not found." };
+  }
+
+  const [existingTaskResult, sessionResult] = await Promise.all([
+    taskRepository.findTaskById(adminClient, input.id),
+    sessionRepository.findSessionById(adminClient, input.session_id),
+  ]);
+
+  if (existingTaskResult.error) {
+    return { success: false, error: existingTaskResult.error.message };
+  }
+
+  if (sessionResult.error) {
+    return { success: false, error: sessionResult.error.message };
+  }
+
+  const existingTask = existingTaskResult.data;
+  const session = sessionResult.data;
+
+  if (
+    !existingTask ||
+    !session ||
+    session.class_id !== input.class_id ||
+    existingTask.session_id !== input.session_id
+  ) {
+    return { success: false, error: "Task not found." };
+  }
+
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    input.class_id
+  );
+
+  if (!structureGuard.ok) {
+    return { success: false, error: structureGuard.error };
+  }
+
+  const studentTasksResult =
+    await studentTaskRepository.deleteStudentTasksByTaskId(
+      adminClient,
+      input.id
+    );
+
+  if (studentTasksResult.error) {
+    return { success: false, error: studentTasksResult.error.message };
+  }
+
+  const deletedStudentTaskCount = studentTasksResult.data?.length ?? 0;
+
+  const { error: deleteError } = await taskRepository.deleteTaskById(
+    adminClient,
+    input.id
+  );
+
+  if (deleteError) {
+    return {
+      success: false,
+      error: deleteError.message ?? "Unable to delete task.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "warning",
+    table_name: "tasks",
+    record_id: input.id,
+    old_data: {
+      title: existingTask.title,
+      session_id: existingTask.session_id,
+      max_grade: existingTask.max_grade,
+      student_task_count: deletedStudentTaskCount,
+    },
+    metadata: {
+      note: "Session task deleted with student task rows.",
+    },
+  });
+
+  return {
+    success: true,
+    classId: input.class_id,
+    sessionId: input.session_id,
+    message: "Task deleted.",
   };
 }
 

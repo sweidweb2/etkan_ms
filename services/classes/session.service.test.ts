@@ -20,6 +20,7 @@ import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
   createSessionTaskForManager,
   deleteClassSessionForManager,
+  deleteSessionTaskForManager,
   ensureSessionAttendeesForMembers,
   getSessionDetailForManager,
   seedLateJoinAttendeesForStudent,
@@ -568,7 +569,7 @@ describe("updateSessionTaskForManager", () => {
     } as never);
   });
 
-  it("updates task metadata without resetting grades when max grade increases", async () => {
+  it("updates task metadata without clamping grades when max grade increases", async () => {
     vi.mocked(taskRepository.updateTask).mockResolvedValue({
       data: {
         ...existingTask,
@@ -594,16 +595,16 @@ describe("updateSessionTaskForManager", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.task.title).toBe("Homework 1 revised");
-      expect(result.gradesReset).toBe(false);
+      expect(result.gradesClamped).toBe(false);
     }
     expect(
-      studentTaskRepository.zeroGradedStudentTasksByTaskId
+      studentTaskRepository.clampStudentTaskGradesAboveMax
     ).not.toHaveBeenCalled();
     expect(taskRepository.updateTask).toHaveBeenCalled();
   });
 
-  it("resets graded student rows when max grade decreases", async () => {
-    vi.mocked(studentTaskRepository.zeroGradedStudentTasksByTaskId).mockResolvedValue(
+  it("clamps student grades above the new max when max grade decreases", async () => {
+    vi.mocked(studentTaskRepository.clampStudentTaskGradesAboveMax).mockResolvedValue(
       {
         data: [{ id: studentTaskId }],
         error: null,
@@ -631,15 +632,15 @@ describe("updateSessionTaskForManager", () => {
     );
 
     expect(
-      studentTaskRepository.zeroGradedStudentTasksByTaskId
-    ).toHaveBeenCalledWith(adminClient, taskId);
+      studentTaskRepository.clampStudentTaskGradesAboveMax
+    ).toHaveBeenCalledWith(adminClient, taskId, 10);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.gradesReset).toBe(true);
+      expect(result.gradesClamped).toBe(true);
     }
   });
 
-  it("does not reset grades when max grade is unchanged", async () => {
+  it("does not clamp grades when max grade is unchanged", async () => {
     vi.mocked(taskRepository.updateTask).mockResolvedValue({
       data: {
         ...existingTask,
@@ -663,10 +664,10 @@ describe("updateSessionTaskForManager", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.gradesReset).toBe(false);
+      expect(result.gradesClamped).toBe(false);
     }
     expect(
-      studentTaskRepository.zeroGradedStudentTasksByTaskId
+      studentTaskRepository.clampStudentTaskGradesAboveMax
     ).not.toHaveBeenCalled();
   });
 
@@ -693,6 +694,116 @@ describe("updateSessionTaskForManager", () => {
       error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
     });
     expect(taskRepository.updateTask).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteSessionTaskForManager", () => {
+  const existingTask = {
+    id: taskId,
+    session_id: sessionId,
+    title: "Homework 1",
+    description: "Original",
+    due_date: "2099-01-01T00:00:00.000Z",
+    max_grade: 20,
+    created_at: "2026-07-01T00:00:00.000Z",
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockUnlockedComputedGrades();
+    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+      data: existingTask,
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+  });
+
+  it("deletes student task rows then the task", async () => {
+    vi.mocked(studentTaskRepository.deleteStudentTasksByTaskId).mockResolvedValue({
+      data: [{ id: studentTaskId }, { id: "st-b" }],
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.deleteTaskById).mockResolvedValue({
+      error: null,
+    } as never);
+
+    const result = await deleteSessionTaskForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: taskId,
+        class_id: classId,
+        session_id: sessionId,
+      }
+    );
+
+    expect(studentTaskRepository.deleteStudentTasksByTaskId).toHaveBeenCalledWith(
+      adminClient,
+      taskId
+    );
+    expect(taskRepository.deleteTaskById).toHaveBeenCalledWith(
+      adminClient,
+      taskId
+    );
+    expect(result).toEqual({
+      success: true,
+      classId,
+      sessionId,
+      message: "Task deleted.",
+    });
+  });
+
+  it("blocks task delete when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+
+    const result = await deleteSessionTaskForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: taskId,
+        class_id: classId,
+        session_id: sessionId,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
+    });
+    expect(studentTaskRepository.deleteStudentTasksByTaskId).not.toHaveBeenCalled();
+    expect(taskRepository.deleteTaskById).not.toHaveBeenCalled();
+  });
+
+  it("returns not found when task does not belong to the session", async () => {
+    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+      data: { ...existingTask, session_id: "99999999-9999-4999-8999-999999999999" },
+      error: null,
+    } as never);
+
+    const result = await deleteSessionTaskForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: taskId,
+        class_id: classId,
+        session_id: sessionId,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Task not found.",
+    });
+    expect(taskRepository.deleteTaskById).not.toHaveBeenCalled();
   });
 });
 

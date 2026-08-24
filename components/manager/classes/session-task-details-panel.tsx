@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, Trash2Icon } from "lucide-react";
+import { deleteSessionTaskAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { EditSessionTaskDialog } from "@/components/manager/classes/edit-session-task-dialog";
 import { SessionTaskStudentTasksSection } from "@/components/manager/classes/session-task-student-tasks-section";
 import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
@@ -24,17 +26,31 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   getManagerClassDetailRoute,
   getManagerClassSessionDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { cn } from "@/lib/utils";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
+  DeleteSessionTaskActionState,
   ManagerSessionTaskRow,
   ManagerStudentTaskRow,
 } from "@/types/manager-class-session-detail";
+
+const initialDeleteState: DeleteSessionTaskActionState = {};
 
 type SessionTaskDetailsPanelProps = {
   task: ManagerSessionTaskRow;
@@ -45,6 +61,7 @@ type SessionTaskDetailsPanelProps = {
   };
   initialStudentTasks: ManagerStudentTaskRow[];
   lockedUserIds?: string[];
+  hasComputedGrades?: boolean;
 };
 
 function DetailField({
@@ -84,26 +101,56 @@ export function SessionTaskDetailsPanel({
   classRow,
   initialStudentTasks,
   lockedUserIds = [],
+  hasComputedGrades = false,
 }: SessionTaskDetailsPanelProps) {
   const [task, setTask] = useState(initialTask);
   const [studentTasks, setStudentTasks] = useState(initialStudentTasks);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isTransitionPending, startTransition] = useTransition();
+  const [deleteState, deleteAction, isDeletePending] = useActionState(
+    deleteSessionTaskAction,
+    initialDeleteState
+  );
+  const isDeleteActionPending = isDeletePending || isTransitionPending;
+  const handleDeleteOpenChange = usePendingAwareOpenChange(
+    isDeleteActionPending,
+    setIsDeleteOpen
+  );
+
+  useActionStateToast(deleteState, isDeleteActionPending);
 
   const sessionLabel = `S${session.nb_order} · ${session.topic}`;
+  const structureLockedTitle = hasComputedGrades
+    ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+    : undefined;
 
   function handleTaskUpdated(
     nextTask: ManagerSessionTaskRow,
-    options?: { gradesReset?: boolean }
+    options?: { gradesClamped?: boolean }
   ) {
     setTask(nextTask);
 
-    if (options?.gradesReset) {
+    if (options?.gradesClamped && nextTask.max_grade != null) {
+      const maxGrade = nextTask.max_grade;
       setStudentTasks((current) =>
         current.map((row) =>
-          row.grade == null ? row : { ...row, grade: 0 }
+          row.grade != null && row.grade > maxGrade
+            ? { ...row, grade: maxGrade }
+            : row
         )
       );
     }
+  }
+
+  function handleConfirmDelete() {
+    const formData = new FormData();
+    formData.set("id", task.id);
+    formData.set("class_id", classRow.id);
+    formData.set("session_id", session.id);
+    startTransition(() => {
+      deleteAction(formData);
+    });
   }
 
   return (
@@ -126,7 +173,7 @@ export function SessionTaskDetailsPanel({
             <BreadcrumbLink
               href={getManagerClassSessionDetailRoute(classRow.id, session.id)}
             >
-              S{session.nb_order} · {session.topic}
+              {sessionLabel}
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -139,17 +186,34 @@ export function SessionTaskDetailsPanel({
       <Card className="gap-0 py-0">
         <CardHeader className="flex flex-row items-center justify-between gap-3 border-b bg-muted/50 py-3">
           <CardTitle className="text-xl">{task.title}</CardTitle>
-          <Can permission={PERMISSIONS.TASKS_UPDATE}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Edit task"
-              onClick={() => setIsEditOpen(true)}
-            >
-              <PencilIcon />
-            </Button>
-          </Can>
+          <div className="flex items-center gap-1">
+            <Can permission={PERMISSIONS.TASKS_UPDATE}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Edit task"
+                disabled={hasComputedGrades}
+                title={structureLockedTitle}
+                onClick={() => setIsEditOpen(true)}
+              >
+                <PencilIcon />
+              </Button>
+            </Can>
+            <Can permission={PERMISSIONS.TASKS_DELETE}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Delete task"
+                disabled={hasComputedGrades || isDeleteActionPending}
+                title={structureLockedTitle}
+                onClick={() => setIsDeleteOpen(true)}
+              >
+                <Trash2Icon className="text-destructive" />
+              </Button>
+            </Can>
+          </div>
         </CardHeader>
         <CardContent className="pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -166,7 +230,7 @@ export function SessionTaskDetailsPanel({
                 href={getManagerClassSessionDetailRoute(classRow.id, session.id)}
                 className="text-primary underline-offset-4 hover:underline"
               >
-                S{session.nb_order} · {session.topic}
+                {sessionLabel}
               </Link>
             </DetailField>
             <DetailField label="Class">
@@ -208,6 +272,47 @@ export function SessionTaskDetailsPanel({
         sessionLabel={sessionLabel}
         onTaskUpdated={handleTaskUpdated}
       />
+
+      <Dialog open={isDeleteOpen} onOpenChange={handleDeleteOpenChange}>
+        <DialogContent
+          className="sm:max-w-md"
+          showCloseButton={!isDeleteActionPending}
+        >
+          <DialogHeader>
+            <DialogTitle>Delete task</DialogTitle>
+            <DialogDescription>
+              {isDeleteActionPending
+                ? "Please wait while this task is removed."
+                : `This will permanently delete “${task.title}” and all student grades for this task. This action cannot be undone.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleDeleteOpenChange(false)}
+              disabled={isDeleteActionPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleteActionPending}
+            >
+              {isDeleteActionPending ? (
+                <>
+                  <InlineSpinner />
+                  Deleting task
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -162,6 +162,7 @@ Format: `key` — label — access
 | `tasks.create` | Create task | write |
 | `tasks.update` | Edit task | write |
 | `tasks.update_student` | Edit student task | write |
+| `tasks.delete` | Delete task | write |
 
 ### Final Exams
 
@@ -427,6 +428,7 @@ tasks.view
 tasks.create
 tasks.update
 tasks.update_student
+tasks.delete
 final_exams.view
 final_exams.create
 final_exams.update

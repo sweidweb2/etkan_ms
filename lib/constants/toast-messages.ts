@@ -13,6 +13,7 @@ export const TOAST_MESSAGES = {
     student_created: "Student account created.",
     student_updated: "Student details updated.",
     session_deleted: "Session deleted.",
+    task_deleted: "Task deleted.",
     subject_deleted: "Subject deleted.",
     workshop_deleted: "Workshop deleted.",
     project_deleted: "Project deleted.",

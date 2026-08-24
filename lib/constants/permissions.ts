@@ -136,6 +136,7 @@ export const PERMISSIONS = {
   TASKS_CREATE: "tasks.create",
   TASKS_UPDATE: "tasks.update",
   TASKS_UPDATE_STUDENT: "tasks.update_student",
+  TASKS_DELETE: "tasks.delete",
 
   FINAL_EXAMS_VIEW: "final_exams.view",
   FINAL_EXAMS_CREATE: "final_exams.create",
@@ -525,6 +526,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.TASKS_UPDATE_STUDENT,
     feature: "tasks",
     label: "Edit student task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TASKS_DELETE,
+    feature: "tasks",
+    label: "Delete task",
     access: PERMISSION_ACCESS.WRITE,
   },
 

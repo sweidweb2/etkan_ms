@@ -53,6 +53,7 @@ import {
 import {
   createSessionTaskForManager,
   deleteClassSessionForManager,
+  deleteSessionTaskForManager,
   updateAttendeeForManager,
   updateClassSessionForManager,
   updateSessionSettingsForManager,
@@ -86,6 +87,7 @@ import type {
 import type {
   CreateSessionTaskActionState,
   DeleteClassSessionActionState,
+  DeleteSessionTaskActionState,
   UpdateAttendeeActionState,
   UpdateClassSessionActionState,
   UpdateSessionSettingsActionState,
@@ -896,8 +898,53 @@ export async function updateSessionTaskAction(
     success: true,
     message: result.message,
     task: result.task,
-    gradesReset: result.gradesReset,
+    gradesClamped: result.gradesClamped,
   };
+}
+
+export async function deleteSessionTaskAction(
+  _prevState: DeleteSessionTaskActionState,
+  formData: FormData
+): Promise<DeleteSessionTaskActionState> {
+  const actor = await getSessionAuditActor();
+
+  const id = String(formData.get("id") ?? "").trim();
+  const class_id = String(formData.get("class_id") ?? "").trim();
+  const session_id = String(formData.get("session_id") ?? "").trim();
+
+  if (!id || !class_id || !session_id) {
+    return {
+      success: false,
+      error: "Task not found.",
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteSessionTaskForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    { id, class_id, session_id }
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  revalidatePath(getManagerClassDetailRoute(result.classId));
+  revalidatePath(
+    getManagerClassSessionDetailRoute(result.classId, result.sessionId)
+  );
+  redirect(
+    appendQueryParam(
+      getManagerClassSessionDetailRoute(result.classId, result.sessionId),
+      "toast",
+      "task_deleted"
+    )
+  );
 }
 
 export async function updateAttendeeAction(

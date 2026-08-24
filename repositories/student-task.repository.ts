@@ -301,15 +301,23 @@ export async function updateStudentTask(
     .single();
 }
 
-/** Sets grade to 0 for rows that already had a grade on this task. */
-export async function zeroGradedStudentTasksByTaskId(
+/** Clamps grades above maxGrade down to maxGrade for this task. */
+export async function clampStudentTaskGradesAboveMax(
   client: Supabase,
-  taskId: string
+  taskId: string,
+  maxGrade: number
 ) {
   return client
     .from("student_tasks")
-    .update({ grade: 0 })
+    .update({ grade: maxGrade })
     .eq("task_id", taskId)
-    .not("grade", "is", null)
+    .gt("grade", maxGrade)
     .select("id");
+}
+
+export async function deleteStudentTasksByTaskId(
+  client: Supabase,
+  taskId: string
+) {
+  return client.from("student_tasks").delete().eq("task_id", taskId).select("id");
 }

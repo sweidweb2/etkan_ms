@@ -40,7 +40,7 @@ type EditSessionTaskDialogProps = {
   sessionLabel: string;
   onTaskUpdated: (
     task: ManagerSessionTaskRow,
-    options?: { gradesReset?: boolean }
+    options?: { gradesClamped?: boolean }
   ) => void;
 };
 
@@ -102,7 +102,7 @@ export function EditSessionTaskDialog({
       }
 
       onTaskUpdated(nextState.task, {
-        gradesReset: nextState.gradesReset,
+        gradesClamped: nextState.gradesClamped,
       });
       onOpenChange(false);
     },
