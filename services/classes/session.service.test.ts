@@ -23,6 +23,7 @@ import {
   deleteSessionTaskForManager,
   ensureSessionAttendeesForMembers,
   getSessionDetailForManager,
+  listClassTasksForManager,
   seedLateJoinAttendeesForStudent,
   seedLateJoinAttendeesForStudents,
   seedLateJoinStudentTasksForStudent,
@@ -227,6 +228,94 @@ describe("getSessionDetailForManager", () => {
     expect(result?.phaseOptions).toEqual([
       { phase_id: semesterId, phase_name: "Fall 2026" },
     ]);
+  });
+});
+
+describe("listClassTasksForManager", () => {
+  const laterSessionId = "c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3";
+  const laterTaskId = "d4d4d4d4-d4d4-4d4d-8d4d-d4d4d4d4d4d4";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("throws for unauthorized actors", async () => {
+    await expect(
+      listClassTasksForManager(adminClient, null, classId)
+    ).rejects.toThrow("Unauthorized.");
+  });
+
+  it("returns an empty list when the class has no sessions", async () => {
+    vi.mocked(sessionRepository.listSessionsByClassId).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    const result = await listClassTasksForManager(
+      adminClient,
+      actor.userId,
+      classId
+    );
+
+    expect(result).toEqual([]);
+    expect(taskRepository.listTaskDetailsBySessionIds).not.toHaveBeenCalled();
+  });
+
+  it("returns tasks from every class session, newest session first", async () => {
+    vi.mocked(sessionRepository.listSessionsByClassId).mockResolvedValue({
+      data: [
+        sessionRecord,
+        {
+          ...sessionRecord,
+          id: laterSessionId,
+          nb_order: 2,
+          topic: "Sensors",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(taskRepository.listTaskDetailsBySessionIds).mockResolvedValue({
+      data: [
+        {
+          id: taskId,
+          session_id: sessionId,
+          title: "Intro homework",
+          description: "Read chapter 1",
+          due_date: "2026-07-12T00:00:00.000Z",
+          max_grade: 10,
+          created_at: "2026-07-11T00:00:00.000Z",
+        },
+        {
+          id: laterTaskId,
+          session_id: laterSessionId,
+          title: "Sensor lab",
+          description: null,
+          due_date: null,
+          max_grade: 20,
+          created_at: "2026-07-18T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    } as never);
+
+    const result = await listClassTasksForManager(
+      adminClient,
+      actor.userId,
+      classId
+    );
+
+    expect(taskRepository.listTaskDetailsBySessionIds).toHaveBeenCalledWith(
+      adminClient,
+      [sessionId, laterSessionId]
+    );
+    expect(result.map((task) => task.id)).toEqual([laterTaskId, taskId]);
+    expect(result[0]).toMatchObject({
+      id: laterTaskId,
+      session_id: laterSessionId,
+      session_nb_order: 2,
+      session_topic: "Sensors",
+      title: "Sensor lab",
+    });
   });
 });
 

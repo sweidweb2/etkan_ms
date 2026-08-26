@@ -43,6 +43,7 @@ import {
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
+  ManagerClassTaskRow,
   ManagerSessionAttendeeRow,
   ManagerSessionTaskRow,
   ManagerStudentTaskRow,
@@ -375,6 +376,70 @@ export async function seedLateJoinStudentTasksForStudents(
   } finally {
     timer.end();
   }
+}
+
+export async function listClassTasksForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<ManagerClassTaskRow[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
+
+  if (!isUuid(classId)) {
+    return [];
+  }
+
+  const sessionsResult = await sessionRepository.listSessionsByClassId(
+    adminClient,
+    classId
+  );
+
+  if (sessionsResult.error) {
+    throw new Error(sessionsResult.error.message);
+  }
+
+  const sessions = (sessionsResult.data ?? []) as SessionRecord[];
+  if (sessions.length === 0) {
+    return [];
+  }
+
+  const sessionIds = sessions.map((session) => session.id);
+  const tasksResult = await taskRepository.listTaskDetailsBySessionIds(
+    adminClient,
+    sessionIds
+  );
+
+  if (tasksResult.error) {
+    throw new Error(tasksResult.error.message);
+  }
+
+  const sessionById = new Map(
+    sessions.map((session) => [session.id, session])
+  );
+
+  return ((tasksResult.data ?? []) as TaskRecord[])
+    .filter((task): task is TaskRecord & { session_id: string } =>
+      Boolean(task.session_id)
+    )
+    .map((task) => {
+      const session = sessionById.get(task.session_id);
+
+      return {
+        ...mapTaskRecord(task),
+        session_nb_order: session?.nb_order ?? 0,
+        session_topic: session?.topic ?? "",
+      };
+    })
+    .sort((left, right) => {
+      const orderCompare = right.session_nb_order - left.session_nb_order;
+      if (orderCompare !== 0) {
+        return orderCompare;
+      }
+
+      return (
+        new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+      );
+    });
 }
 
 export type ManagerSessionDetailBundle = {

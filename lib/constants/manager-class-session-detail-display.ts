@@ -3,6 +3,7 @@ export { SESSION_ATTENDEE_STATUS_LABELS } from "@/lib/constants/manager-attendee
 export const SESSION_TASK_TABLE_LIMITS = {
   title: 48,
   description: 64,
+  session: 40,
 } as const;
 
 export const SESSION_ATTENDEE_TABLE_LIMITS = {

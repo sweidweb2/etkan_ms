@@ -15,6 +15,12 @@ export interface ManagerSessionTaskRow {
   created_at: string;
 }
 
+/** Session task with parent session labels for the class-level tasks table. */
+export interface ManagerClassTaskRow extends ManagerSessionTaskRow {
+  session_nb_order: number;
+  session_topic: string;
+}
+
 /** attendee table row joined with student profile for session detail. */
 export interface ManagerSessionAttendeeRow {
   id: string;

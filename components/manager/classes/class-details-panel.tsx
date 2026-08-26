@@ -11,6 +11,7 @@ import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog"
 import { ClassFinalExamSection } from "@/components/manager/classes/class-final-exam-section";
 import { ClassSessionProgressTrack } from "@/components/manager/classes/class-session-progress-track";
 import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
+import { ClassSessionTasksSection } from "@/components/manager/classes/class-session-tasks-section";
 import { ClassStudentsSection } from "@/components/manager/classes/class-students-section";
 import type { ClassTransferOption } from "@/components/manager/classes/transfer-student-between-classes-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
@@ -64,11 +65,14 @@ import type {
   ManagerClassSubjectOption,
   ManagerClassTeacherOption,
 } from "@/types/manager-class-detail";
+import type { ManagerClassTaskRow } from "@/types/manager-class-session-detail";
 import type { ManagerStudentRow } from "@/types/manager-student";
 
 type ClassDetailsPanelProps = {
   classRow: ManagerClassRow;
   initialSessions: ManagerClassSessionRow[];
+  initialTasks?: ManagerClassTaskRow[];
+  canViewTasks?: boolean;
   initialStudents: ManagerClassStudentRow[];
   initialAvailableStudents: ManagerStudentRow[];
   transferClassOptions: ClassTransferOption[];
@@ -107,6 +111,8 @@ function DetailField({
 export function ClassDetailsPanel({
   classRow: initialClassRow,
   initialSessions,
+  initialTasks = [],
+  canViewTasks = false,
   initialStudents,
   initialAvailableStudents,
   transferClassOptions,
@@ -340,6 +346,14 @@ export function ClassDetailsPanel({
         onClassUpdated={setClassRow}
         hasComputedGrades={hasComputedGrades}
       />
+
+      {canViewTasks ? (
+        <ClassSessionTasksSection
+          classId={classRow.id}
+          className={classRow.name}
+          tasks={initialTasks}
+        />
+      ) : null}
 
       <ClassStudentsSection
         classId={classRow.id}

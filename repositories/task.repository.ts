@@ -61,6 +61,21 @@ export async function listTasksBySessionId(client: Supabase, sessionId: string) 
     .order("created_at", { ascending: true });
 }
 
+export async function listTaskDetailsBySessionIds(
+  client: Supabase,
+  sessionIds: string[]
+) {
+  if (sessionIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("tasks")
+    .select(TASK_COLUMNS)
+    .in("session_id", sessionIds)
+    .order("created_at", { ascending: true });
+}
+
 export async function findTaskById(client: Supabase, id: string) {
   return client
     .from("tasks")

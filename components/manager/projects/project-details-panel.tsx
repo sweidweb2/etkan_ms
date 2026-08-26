@@ -8,6 +8,7 @@ import Link from "next/link";
 import { deletePublicProjectAction } from "@/app/manager/projects/actions";
 import { Can } from "@/components/auth/can";
 import { EditPublicProjectDialog } from "@/components/manager/projects/edit-public-project-dialog";
+import { PublicCoverImage } from "@/components/public/public-cover-image";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
@@ -268,14 +269,12 @@ export function ProjectDetailsPanel({ project }: ProjectDetailsPanelProps) {
 
             <figure className="order-1 mx-auto w-full max-w-sm md:order-2 md:mx-0 md:max-w-none">
               <div className="overflow-hidden rounded-xl border border-border bg-muted/40 p-2 shadow-sm">
-                <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={project.image_url}
-                    alt={project.title}
-                    className="size-full object-cover"
-                  />
-                </div>
+                <PublicCoverImage
+                  src={project.image_url}
+                  alt={project.title}
+                  sizes="(max-width: 768px) 90vw, 320px"
+                  className="aspect-square rounded-lg"
+                />
               </div>
             </figure>
           </div>

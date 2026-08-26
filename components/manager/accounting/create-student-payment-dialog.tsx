@@ -43,16 +43,16 @@ type CreateStudentPaymentDialogProps = {
   onOpenChange: (open: boolean) => void;
   sppId: string;
   maxAmount: number;
-  defaultReceivedBy: string;
   onCreated: (payment: ManagerStudentPaymentRow) => void;
 };
+
+const DEFAULT_RECEIVED_BY = "sweid";
 
 export function CreateStudentPaymentDialog({
   open,
   onOpenChange,
   sppId,
   maxAmount,
-  defaultReceivedBy,
   onCreated,
 }: CreateStudentPaymentDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -84,8 +84,8 @@ export function CreateStudentPaymentDialog({
       student_payment_phase_id: sppId,
       payment_date: "",
       amount: undefined,
-      payment_method: PAYMENT_METHODS.WHISH,
-      received_by: defaultReceivedBy,
+      payment_method: PAYMENT_METHODS.CASH,
+      received_by: DEFAULT_RECEIVED_BY,
       received_by_management: true,
       notes: "",
     },
@@ -104,13 +104,13 @@ export function CreateStudentPaymentDialog({
         student_payment_phase_id: sppId,
         payment_date: new Date().toISOString().slice(0, 10),
         amount: undefined,
-        payment_method: PAYMENT_METHODS.WHISH,
-        received_by: defaultReceivedBy,
+        payment_method: PAYMENT_METHODS.CASH,
+        received_by: DEFAULT_RECEIVED_BY,
         received_by_management: true,
         notes: "",
       });
     }
-  }, [open, reset, sppId, defaultReceivedBy]);
+  }, [open, reset, sppId]);
 
   useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);

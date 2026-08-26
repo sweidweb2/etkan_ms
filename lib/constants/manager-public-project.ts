@@ -12,7 +12,7 @@ export const PUBLIC_PROJECT_FIELD_LIMITS = {
   href: { max: 2000 },
 } as const;
 
-/** Used when create/edit saves without an uploaded image. */
+/** Used when create/edit saves without an uploaded image, and as a load-error fallback. */
 export const PUBLIC_PROJECT_PLACEHOLDER_IMAGE_URL =
   "/public_images/placeholder.jpg";
 

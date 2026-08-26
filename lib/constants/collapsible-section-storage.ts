@@ -5,6 +5,7 @@
 export const COLLAPSIBLE_SECTION_STORAGE_KEYS = {
   CLASS_DETAILS_INFO: "etkan:collapsible:class-details:info",
   CLASS_DETAILS_SESSIONS: "etkan:collapsible:class-details:sessions",
+  CLASS_DETAILS_TASKS: "etkan:collapsible:class-details:tasks",
   CLASS_DETAILS_STUDENTS: "etkan:collapsible:class-details:students",
   CLASS_DETAILS_FINAL_EXAM: "etkan:collapsible:class-details:final-exam",
   CLASS_DETAILS_SESSION_PROGRESS:

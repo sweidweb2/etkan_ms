@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { SppDetailsPanel } from "@/components/manager/accounting/spp-details-panel";
-import { getSessionAuditActor, getSessionUser } from "@/lib/auth/session";
+import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getAdjustmentForSppForManager,
@@ -22,7 +22,6 @@ export default async function ManagerSppDetailPage({
   const { id: phaseId, sppId } = await params;
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
-  const actor = await getSessionAuditActor();
   const actorUserId = user?.id ?? null;
 
   const spp = await getSppDetailForManager(
@@ -50,7 +49,6 @@ export default async function ManagerSppDetailPage({
       initialAdjustment={adjustment}
       initialForms={forms}
       initialInvites={invites}
-      actorLabel={actor.userLabel || "Manager"}
     />
   );
 }

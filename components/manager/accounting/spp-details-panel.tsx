@@ -109,7 +109,6 @@ type SppDetailsPanelProps = {
   initialAdjustment: ManagerFinancialAdjustmentRow | null;
   initialForms: ManagerFinancialFormRow[];
   initialInvites: ManagerFinancialFormInviteRow[];
-  actorLabel: string;
 };
 
 function TruncatedCell({
@@ -194,7 +193,6 @@ export function SppDetailsPanel({
   initialAdjustment,
   initialForms,
   initialInvites,
-  actorLabel,
 }: SppDetailsPanelProps) {
   const [spp, setSpp] = useState(initialSpp);
   const [prevSpp, setPrevSpp] = useState(initialSpp);
@@ -545,7 +543,6 @@ export function SppDetailsPanel({
           onOpenChange={setIsCreatePaymentOpen}
           sppId={spp.id}
           maxAmount={spp.phase_amount}
-          defaultReceivedBy={actorLabel}
           onCreated={handlePaymentCreated}
         />
 

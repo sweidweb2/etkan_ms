@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowUpRightIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import { ProjectsGalaxyBackground } from "@/components/public/projects-galaxy-background";
+import { PublicCoverImage } from "@/components/public/public-cover-image";
 import { useHydrated } from "@/hooks/use-hydrated";
 import type {
   PublicProjectCard,
@@ -53,15 +53,13 @@ function ProjectCard({ project }: { project: PublicProjectCard }) {
   const { t } = usePublicI18n();
   const content = (
     <>
-      <div className="relative aspect-[16/10] overflow-hidden">
-        <Image
-          src={project.imageSrc}
-          alt={project.title}
-          fill
-          sizes={IMAGE_SIZES}
-          className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
-      </div>
+      <PublicCoverImage
+        src={project.imageSrc}
+        alt={project.title}
+        sizes={IMAGE_SIZES}
+        className="aspect-[16/10]"
+        imageClassName="transition-transform duration-500 group-hover:scale-[1.03]"
+      />
       <div className="flex flex-col p-5 sm:p-6">
         <h3 className="text-lg font-semibold tracking-tight text-balance sm:text-xl">
           {project.title}

@@ -13,6 +13,7 @@ import {
   listClassTeacherOptionsForManager,
 } from "@/services/classes/class.service";
 import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
+import { listClassTasksForManager } from "@/services/classes/session.service";
 import { notFound } from "next/navigation";
 
 type ManagerClassDetailPageProps = {
@@ -45,6 +46,7 @@ export default async function ManagerClassDetailPage({
     PERMISSIONS.CLASSES_VIEW_ANALYTICS
   );
   const canGrades = hasPermissionInSet(permissions, PERMISSIONS.GRADES_VIEW);
+  const canTasks = hasPermissionInSet(permissions, PERMISSIONS.TASKS_VIEW);
 
   const timer = createNavStepTimer("class_detail");
   const [
@@ -54,6 +56,7 @@ export default async function ManagerClassDetailPage({
     finalExamBundle,
     teachers,
     computedGradeLock,
+    tasks,
   ] = await Promise.all([
     timer.step("class", () =>
       getClassForManager(adminClient, actorUserId, id)
@@ -81,6 +84,11 @@ export default async function ManagerClassDetailPage({
         ? getClassComputedGradeLockStateForManager(adminClient, actorUserId, id)
         : Promise.resolve({ hasComputedGrades: false, lockedUserIds: [] })
     ),
+    timer.step("tasks", () =>
+      canTasks
+        ? listClassTasksForManager(adminClient, actorUserId, id)
+        : Promise.resolve([])
+    ),
   ]);
   timer.end();
 
@@ -93,6 +101,8 @@ export default async function ManagerClassDetailPage({
       <ClassDetailsPanel
         classRow={classRow}
         initialSessions={sessions}
+        initialTasks={tasks}
+        canViewTasks={canTasks}
         initialStudents={students}
         initialAvailableStudents={[]}
         transferClassOptions={[]}

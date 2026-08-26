@@ -137,7 +137,6 @@ type PaymentPhaseDetailsPanelProps = {
   phase: ManagerPaymentPhaseRow;
   initialSpps: ManagerSppRow[];
   transferPhaseOptions: ManagerPaymentPhaseRow[];
-  actorLabel: string;
 };
 
 function DetailField({
@@ -232,7 +231,6 @@ export function PaymentPhaseDetailsPanel({
   phase: initialPhase,
   initialSpps,
   transferPhaseOptions,
-  actorLabel,
 }: PaymentPhaseDetailsPanelProps) {
   const router = useRouter();
   const [phase, setPhase] = useState(initialPhase);
@@ -399,7 +397,6 @@ export function PaymentPhaseDetailsPanel({
           }}
           sppId={recordPaymentSppId ?? ""}
           maxAmount={phase.amount}
-          defaultReceivedBy={actorLabel}
           onCreated={handlePaymentCreated}
         />
 
