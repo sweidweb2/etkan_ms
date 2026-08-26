@@ -22,6 +22,7 @@ export function parseUpdatePublicProjectFormData(formData: FormData):
     category: formData.get("category"),
     title: formData.get("title"),
     body: formData.get("body"),
+    author: formData.get("author"),
     image: formData.get("image"),
     href: formData.get("href"),
   });

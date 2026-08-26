@@ -237,6 +237,11 @@ export function ProjectDetailsPanel({ project }: ProjectDetailsPanelProps) {
                 </div>
               </div>
 
+              <DetailField
+                label="Author"
+                value={project.author?.trim() ? project.author : "—"}
+              />
+
               <DetailField label="Description" value={project.body} />
 
               <DetailField label="Link">

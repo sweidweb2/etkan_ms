@@ -5,7 +5,7 @@ import type { PublicProjectClassificationValue } from "@/lib/constants/manager-p
 type Supabase = SupabaseClient<Database>;
 
 const PUBLIC_PROJECT_COLUMNS =
-  "id, classification, category, title, body, image_url, href, created_at, updated_at";
+  "id, classification, category, title, body, author, image_url, href, created_at, updated_at";
 
 export type PublicProjectRecord = {
   id: string;
@@ -13,6 +13,7 @@ export type PublicProjectRecord = {
   category: string;
   title: string;
   body: string;
+  author: string | null;
   image_url: string;
   href: string | null;
   created_at: string;
@@ -24,6 +25,7 @@ export type CreatePublicProjectRecordInput = {
   category: string;
   title: string;
   body: string;
+  author: string | null;
   image_url: string;
   href: string | null;
 };
@@ -56,6 +58,7 @@ export async function createPublicProject(
       category: input.category,
       title: input.title,
       body: input.body,
+      author: input.author,
       image_url: input.image_url,
       href: input.href,
     })
@@ -75,6 +78,7 @@ export async function updatePublicProject(
       category: input.category,
       title: input.title,
       body: input.body,
+      author: input.author,
       image_url: input.image_url,
       href: input.href,
       updated_at: new Date().toISOString(),

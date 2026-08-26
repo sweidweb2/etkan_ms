@@ -1,5 +1,8 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import type { PublicProjectClassificationValue } from "@/lib/constants/manager-public-project";
+import {
+  PUBLIC_PROJECT_PLACEHOLDER_IMAGE_URL,
+  type PublicProjectClassificationValue,
+} from "@/lib/constants/manager-public-project";
 import {
   buildProjectImageStoragePath,
   getProjectImageObjectPathFromPublicUrl,
@@ -89,7 +92,10 @@ function mapPublicProjectRecordToRow(
     category: record.category,
     title: record.title,
     body: record.body,
-    image_url: record.image_url,
+    author: record.author,
+    image_url: record.image_url?.trim()
+      ? record.image_url
+      : PUBLIC_PROJECT_PLACEHOLDER_IMAGE_URL,
     href: record.href,
     created_at: record.created_at,
     updated_at: record.updated_at,
@@ -101,6 +107,7 @@ function auditPayload(record: PublicProjectRecord) {
     classification: record.classification,
     category: record.category,
     title: record.title,
+    author: record.author,
     image_url: record.image_url,
     href: record.href,
   };
@@ -266,10 +273,16 @@ export async function createPublicProjectForManager(
     };
   }
 
-  const uploaded = await uploadProjectImage(adminClient, parsed.data.image);
+  let imageUrl = PUBLIC_PROJECT_PLACEHOLDER_IMAGE_URL;
+  let uploadedStoragePath: string | null = null;
 
-  if (!uploaded.success) {
-    return { success: false, error: uploaded.error };
+  if (parsed.data.image) {
+    const uploaded = await uploadProjectImage(adminClient, parsed.data.image);
+    if (!uploaded.success) {
+      return { success: false, error: uploaded.error };
+    }
+    imageUrl = uploaded.publicUrl;
+    uploadedStoragePath = uploaded.storagePath;
   }
 
   const { data, error } = await publicProjectRepository.createPublicProject(
@@ -279,16 +292,19 @@ export async function createPublicProjectForManager(
       category: parsed.data.category,
       title: parsed.data.title,
       body: parsed.data.body,
-      image_url: uploaded.publicUrl,
+      author: parsed.data.author,
+      image_url: imageUrl,
       href: parsed.data.href,
     }
   );
 
   if (error || !data) {
-    await publicProjectStorageRepository.removePublicProjectImages(
-      adminClient,
-      [uploaded.storagePath]
-    );
+    if (uploadedStoragePath) {
+      await publicProjectStorageRepository.removePublicProjectImages(
+        adminClient,
+        [uploadedStoragePath]
+      );
+    }
     return {
       success: false,
       error: mapCreatePublicProjectError(error?.message ?? "Unknown error"),
@@ -372,6 +388,7 @@ export async function updatePublicProjectForManager(
       category: parsed.data.category,
       title: parsed.data.title,
       body: parsed.data.body,
+      author: parsed.data.author,
       image_url: imageUrl,
       href: parsed.data.href,
     }

@@ -7,6 +7,7 @@ type SeedPublicProject = {
   category: string;
   title: string;
   body: string;
+  author: string | null;
   image_url: string;
   href: string;
 };
@@ -17,6 +18,7 @@ const SEED_PUBLIC_PROJECTS: SeedPublicProject[] = [
     category: "Web app",
     title: "Etkan MS",
     body: "This school management system—administration, students, and daily school operations in one platform.",
+    author: "Etkan",
     image_url:
       "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=900&auto=format&fit=crop",
     href: "/",
@@ -26,6 +28,7 @@ const SEED_PUBLIC_PROJECTS: SeedPublicProject[] = [
     category: "Web app",
     title: "Tap2Eat",
     body: "A restaurants directory at tap2eat.food—discover places to eat, browse venues, and explore food spots in one place.",
+    author: null,
     image_url:
       "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=900&auto=format&fit=crop",
     href: "https://tap2eat.food",
@@ -35,6 +38,7 @@ const SEED_PUBLIC_PROJECTS: SeedPublicProject[] = [
     category: "Web app",
     title: "3DBey",
     body: "A 3D printing ecommerce store at 3dbey.com—browse and order printed parts and products online.",
+    author: null,
     image_url:
       "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=900&auto=format&fit=crop",
     href: "https://3dbey.com",

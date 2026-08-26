@@ -254,6 +254,7 @@ export const ar = {
     "مبادرات وأنظمة طُوّرت تحت مظلة إتقان.",
   "projects.section.empty": "ستظهر المشاريع في هذا القسم قريبًا.",
   "projects.card.open": "زيارة المشروع",
+  "projects.card.by": "بواسطة",
   "projects.filterLabel": "تصفية المشاريع حسب الفئة",
   "projects.filter.all": "الكل",
 

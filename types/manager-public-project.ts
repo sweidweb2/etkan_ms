@@ -7,6 +7,7 @@ export interface ManagerPublicProjectRow {
   category: string;
   title: string;
   body: string;
+  author: string | null;
   image_url: string;
   href: string | null;
   created_at: string;

@@ -48,6 +48,7 @@ const projectRecord = {
   category: "Mobile app",
   title: "Student portal",
   body: "A portal for students.",
+  author: "Ali Sweid",
   image_url: storedImageUrl,
   href: "/projects",
   created_at: "2026-01-01T00:00:00.000Z",
@@ -59,6 +60,7 @@ const validCreateInput = {
   category: "Mobile app",
   title: "Student portal",
   body: "A portal for students.",
+  author: "Ali Sweid",
   image: makeImageFile(),
   href: "/projects",
 };
@@ -201,6 +203,40 @@ describe("createPublicProjectForManager", () => {
       expect.objectContaining({ image_url: storedImageUrl })
     );
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates a project with the placeholder image when no file is uploaded", async () => {
+    vi.mocked(publicProjectRepository.createPublicProject).mockResolvedValue({
+      data: {
+        ...projectRecord,
+        image_url: "/public_images/placeholder.jpg",
+      },
+      ...okResult,
+      status: 201,
+      statusText: "Created",
+    });
+
+    const { image: _image, ...withoutImage } = validCreateInput;
+    const result = await createPublicProjectForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      withoutImage
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.project.image_url).toBe("/public_images/placeholder.jpg");
+    }
+    expect(
+      publicProjectStorageRepository.uploadPublicProjectImage
+    ).not.toHaveBeenCalled();
+    expect(publicProjectRepository.createPublicProject).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        image_url: "/public_images/placeholder.jpg",
+      })
+    );
   });
 });
 

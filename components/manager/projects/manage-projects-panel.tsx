@@ -134,6 +134,7 @@ function matchesSearch(project: ManagerPublicProjectRow, query: string) {
 
   const haystack = [
     project.title,
+    project.author ?? "",
     PUBLIC_PROJECT_CLASSIFICATION_LABELS[project.classification],
     project.category,
     project.image_url,
@@ -441,10 +442,17 @@ export function ManageProjectsPanel({
                         }
                       >
                         <td className="max-w-[14rem] px-4 py-3 font-medium">
-                          <TruncatedCell
-                            value={project.title}
-                            maxLength={COLUMN_LIMITS.title}
-                          />
+                          <div className="min-w-0">
+                            <TruncatedCell
+                              value={project.title}
+                              maxLength={COLUMN_LIMITS.title}
+                            />
+                            {project.author ? (
+                              <p className="mt-0.5 truncate text-xs font-normal text-muted-foreground">
+                                {project.author}
+                              </p>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type {
   FieldValues,
   UseFormRegister,
@@ -15,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  PUBLIC_PROJECT_CATEGORY_SUGGESTIONS,
   PUBLIC_PROJECT_CLASSIFICATION_LABELS,
   PUBLIC_PROJECT_CLASSIFICATION_VALUES,
   PUBLIC_PROJECT_FIELD_LIMITS,
@@ -31,6 +33,7 @@ export type PublicProjectFormFieldErrors = {
   classification?: string;
   category?: string;
   title?: string;
+  author?: string;
   body?: string;
   image?: string;
   href?: string;
@@ -41,6 +44,7 @@ type PublicProjectFormFieldsProps = {
   register: UseFormRegister<FieldValues>;
   setValue: UseFormSetValue<FieldValues>;
   classification: string;
+  category: string;
   errors: PublicProjectFormFieldErrors;
   isPending: boolean;
   imageRequired: boolean;
@@ -55,6 +59,7 @@ export function PublicProjectFormFields({
   register,
   setValue,
   classification,
+  category,
   errors,
   isPending,
   imageRequired,
@@ -63,6 +68,30 @@ export function PublicProjectFormFields({
   selectedImageName,
   fileInputKey,
 }: PublicProjectFormFieldsProps) {
+  const [categoryFocused, setCategoryFocused] = useState(false);
+  const categoryRegister = register("category");
+
+  const categorySuggestions = useMemo(() => {
+    const query = category.trim().toLowerCase();
+    if (!query) {
+      return [...PUBLIC_PROJECT_CATEGORY_SUGGESTIONS];
+    }
+
+    return PUBLIC_PROJECT_CATEGORY_SUGGESTIONS.filter((suggestion) => {
+      const haystack =
+        `${suggestion.label} ${suggestion.description}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [category]);
+
+  const showCategorySuggestions =
+    categoryFocused && !isPending && categorySuggestions.length > 0;
+
+  function selectCategorySuggestion(label: string) {
+    setValue("category", label, { shouldValidate: true, shouldDirty: true });
+    setCategoryFocused(false);
+  }
+
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -100,7 +129,7 @@ export function PublicProjectFormFields({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="relative flex flex-col gap-2">
           <FieldLabel
             htmlFor={`${idPrefix}-category`}
             label="Category"
@@ -108,34 +137,98 @@ export function PublicProjectFormFields({
           />
           <Input
             id={`${idPrefix}-category`}
-            placeholder="Mobile app"
+            placeholder="Mobile App"
             maxLength={PUBLIC_PROJECT_FIELD_LIMITS.category.max}
+            autoComplete="off"
             aria-invalid={!!errors.category}
+            aria-autocomplete="list"
+            aria-expanded={showCategorySuggestions}
+            aria-controls={`${idPrefix}-category-suggestions`}
             disabled={isPending}
-            {...register("category")}
+            {...categoryRegister}
+            onFocus={(event) => {
+              setCategoryFocused(true);
+              categoryRegister.onFocus?.(event);
+            }}
+            onBlur={(event) => {
+              window.setTimeout(() => setCategoryFocused(false), 120);
+              categoryRegister.onBlur(event);
+            }}
+            onChange={(event) => {
+              setCategoryFocused(true);
+              categoryRegister.onChange(event);
+            }}
           />
+          {showCategorySuggestions ? (
+            <ul
+              id={`${idPrefix}-category-suggestions`}
+              role="listbox"
+              className="absolute top-full z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
+            >
+              {categorySuggestions.map((suggestion) => (
+                <li key={suggestion.label} role="option">
+                  <button
+                    type="button"
+                    className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-accent"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectCategorySuggestion(suggestion.label)}
+                  >
+                    <span className="text-sm font-medium">
+                      {suggestion.label}
+                    </span>
+                    {suggestion.description ? (
+                      <span className="text-xs leading-snug text-muted-foreground">
+                        {suggestion.description}
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {errors.category ? (
             <p className="text-sm text-destructive">{errors.category}</p>
           ) : null}
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <FieldLabel
-          htmlFor={`${idPrefix}-title`}
-          label="Title"
-          hint="Required"
-        />
-        <Input
-          id={`${idPrefix}-title`}
-          maxLength={PUBLIC_PROJECT_FIELD_LIMITS.title.max}
-          aria-invalid={!!errors.title}
-          disabled={isPending}
-          {...register("title")}
-        />
-        {errors.title ? (
-          <p className="text-sm text-destructive">{errors.title}</p>
-        ) : null}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <FieldLabel
+            htmlFor={`${idPrefix}-title`}
+            label="Title"
+            hint="Required"
+          />
+          <Input
+            id={`${idPrefix}-title`}
+            maxLength={PUBLIC_PROJECT_FIELD_LIMITS.title.max}
+            aria-invalid={!!errors.title}
+            disabled={isPending}
+            {...register("title")}
+          />
+          {errors.title ? (
+            <p className="text-sm text-destructive">{errors.title}</p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <FieldLabel
+            htmlFor={`${idPrefix}-author`}
+            label="Author"
+            hint="Optional"
+          />
+          <Input
+            id={`${idPrefix}-author`}
+            placeholder="Maker name"
+            maxLength={PUBLIC_PROJECT_FIELD_LIMITS.author.max}
+            aria-invalid={!!errors.author}
+            disabled={isPending}
+            {...register("author")}
+          />
+          {errors.author ? (
+            <p className="text-sm text-destructive">{errors.author}</p>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -189,7 +282,7 @@ export function PublicProjectFormFields({
           {Math.round(PUBLIC_PROJECT_IMAGE_MAX_BYTES / (1024 * 1024))} MB
           {imageRequired
             ? "."
-            : ". Leave empty to keep the current image."}
+            : ". Leave empty to keep the current image or use the default placeholder."}
         </p>
         {selectedImageName ? (
           <p className="truncate text-xs text-muted-foreground">

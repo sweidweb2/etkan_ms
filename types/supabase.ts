@@ -990,6 +990,7 @@ export type Database = {
       }
       public_projects: {
         Row: {
+          author: string | null
           body: string
           category: string
           classification: string
@@ -1001,6 +1002,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          author?: string | null
           body: string
           category: string
           classification: string
@@ -1012,6 +1014,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          author?: string | null
           body?: string
           category?: string
           classification?: string

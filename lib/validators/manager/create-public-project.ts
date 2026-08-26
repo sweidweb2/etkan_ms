@@ -11,6 +11,7 @@ import type { FieldErrors } from "@/types/auth";
 const TITLE_MAX = PUBLIC_PROJECT_FIELD_LIMITS.title.max;
 const BODY_MAX = PUBLIC_PROJECT_FIELD_LIMITS.body.max;
 const CATEGORY_MAX = PUBLIC_PROJECT_FIELD_LIMITS.category.max;
+const AUTHOR_MAX = PUBLIC_PROJECT_FIELD_LIMITS.author.max;
 const HREF_MAX = PUBLIC_PROJECT_FIELD_LIMITS.href.max;
 const IMAGE_MAX_MB = PUBLIC_PROJECT_IMAGE_MAX_BYTES / (1024 * 1024);
 
@@ -27,6 +28,16 @@ function requiredText(label: string, max: number) {
     .trim()
     .min(1, { message: `${label} is required.` })
     .max(max, { message: `${label} must be at most ${max} characters.` });
+}
+
+function optionalTrimmedString(max: number, message: string) {
+  return z.preprocess((value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed === "" ? null : trimmed;
+  }, z.string().max(max, { message }).nullable());
 }
 
 function optionalHref() {
@@ -97,11 +108,15 @@ export const publicProjectFieldsSchema = z.object({
   category: requiredText("Category", CATEGORY_MAX),
   title: requiredText("Title", TITLE_MAX),
   body: requiredText("Body", BODY_MAX),
+  author: optionalTrimmedString(
+    AUTHOR_MAX,
+    `Author must be at most ${AUTHOR_MAX} characters.`
+  ),
   href: optionalHref(),
 });
 
 export const createPublicProjectSchema = publicProjectFieldsSchema.extend({
-  image: publicProjectImageFileSchema,
+  image: optionalPublicProjectImageFileSchema,
 });
 
 export type CreatePublicProjectInput = z.infer<typeof createPublicProjectSchema>;
@@ -114,6 +129,7 @@ export function parseCreatePublicProjectFormData(formData: FormData):
     category: formData.get("category"),
     title: formData.get("title"),
     body: formData.get("body"),
+    author: formData.get("author"),
     image: formData.get("image"),
     href: formData.get("href"),
   });

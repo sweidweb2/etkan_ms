@@ -253,6 +253,7 @@ export const en = {
     "Initiatives and systems developed under the Etkan umbrella.",
   "projects.section.empty": "Projects in this section will appear soon.",
   "projects.card.open": "Visit project",
+  "projects.card.by": "By",
   "projects.filterLabel": "Filter projects by category",
   "projects.filter.all": "All",
 

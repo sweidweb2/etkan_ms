@@ -21,10 +21,10 @@ const IMAGE_SIZES = "(max-width: 640px) 85vw, (max-width: 1024px) 40vw, 320px";
 
 /** Stable string — avoid `cn()` on anchors (SSR/client class order mismatches). */
 const PROJECT_CARD_CLASS =
-  "group flex h-full flex-col overflow-hidden rounded-2xl border border-[#C4C4E8]/15 bg-card/80 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.65)] transition-transform duration-300 hover:-translate-y-0.5";
+  "group flex flex-col overflow-hidden rounded-2xl border border-[#C4C4E8]/15 bg-card/80 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.65)] transition-transform duration-300 hover:-translate-y-0.5";
 
 const PROJECT_CARD_STATIC_CLASS =
-  "group flex h-full flex-col overflow-hidden rounded-2xl border border-[#C4C4E8]/15 bg-card/80 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.65)]";
+  "group flex flex-col overflow-hidden rounded-2xl border border-[#C4C4E8]/15 bg-card/80 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.65)]";
 
 const FILTER_TRIGGER_CLASS =
   "inline-flex items-center justify-center rounded-full px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-all duration-300 sm:px-4 text-muted-foreground hover:text-foreground data-[active=true]:bg-[#C4C4E8] data-[active=true]:text-[#2A2A52] data-[active=true]:shadow-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#C4C4E8]/35";
@@ -62,11 +62,16 @@ function ProjectCard({ project }: { project: PublicProjectCard }) {
           className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
       </div>
-      <div className="flex flex-1 flex-col p-5 sm:p-6">
+      <div className="flex flex-col p-5 sm:p-6">
         <h3 className="text-lg font-semibold tracking-tight text-balance sm:text-xl">
           {project.title}
         </h3>
-        <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-muted-foreground text-pretty">
+        {project.author?.trim() ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("projects.card.by")} {project.author.trim()}
+          </p>
+        ) : null}
+        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground text-pretty">
           {project.body}
         </p>
         {project.href ? (
@@ -215,24 +220,40 @@ function ProjectSectionBlock({
           {t(section.emptyKey)}
         </motion.p>
       ) : (
-        <HorizontalScrollCarousel
-          className="mt-8"
-          resetScrollKey={`${section.id}-${activeCategory}`}
-          ariaLabel={t(section.titleKey)}
-          navButtonClassName="text-[#C4C4E8]/80 hover:bg-[#C4C4E8]/10 hover:text-[#C4C4E8] disabled:text-[#C4C4E8]/25"
-          contentClassName="px-1 py-1"
-        >
-          <ul className="flex w-max gap-4 sm:gap-5">
+        <>
+          <HorizontalScrollCarousel
+            className="mt-8 md:hidden"
+            resetScrollKey={`${section.id}-${activeCategory}`}
+            ariaLabel={t(section.titleKey)}
+            navButtonClassName="text-[#C4C4E8]/80 hover:bg-[#C4C4E8]/10 hover:text-[#C4C4E8] disabled:text-[#C4C4E8]/25"
+            contentClassName="px-1 py-1"
+          >
+            <ul className="flex w-max gap-4 sm:gap-5">
+              {filteredProjects.map((project) => (
+                <li
+                  key={project.id}
+                  className="w-[min(18rem,82vw)] shrink-0 snap-start sm:w-[20rem]"
+                >
+                  <ProjectCard project={project} />
+                </li>
+              ))}
+            </ul>
+          </HorizontalScrollCarousel>
+
+          <ul
+            className="mt-8 hidden md:block md:columns-2 md:gap-5 lg:columns-3 lg:gap-6"
+            aria-label={t(section.titleKey)}
+          >
             {filteredProjects.map((project) => (
               <li
                 key={project.id}
-                className="w-[min(18rem,82vw)] shrink-0 snap-start sm:w-[20rem]"
+                className="mb-5 break-inside-avoid lg:mb-6"
               >
                 <ProjectCard project={project} />
               </li>
             ))}
           </ul>
-        </HorizontalScrollCarousel>
+        </>
       )}
     </section>
   );

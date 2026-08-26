@@ -23,6 +23,7 @@ const validInput = {
   category: "Mobile app",
   title: "Student portal",
   body: "A portal for students.",
+  author: "Ali Sweid",
   image: makeImageFile(),
   href: "/projects",
 };
@@ -34,8 +35,28 @@ describe("createPublicProjectSchema", () => {
     if (parsed.success) {
       expect(parsed.data.href).toBe("/projects");
       expect(parsed.data.category).toBe("Mobile app");
+      expect(parsed.data.author).toBe("Ali Sweid");
       expect(parsed.data.image.type).toBe("image/png");
     }
+  });
+
+  it("accepts an empty author as null", () => {
+    const parsed = createPublicProjectSchema.safeParse({
+      ...validInput,
+      author: "   ",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.author).toBeNull();
+    }
+  });
+
+  it("rejects an author over max length", () => {
+    const parsed = createPublicProjectSchema.safeParse({
+      ...validInput,
+      author: "a".repeat(PUBLIC_PROJECT_FIELD_LIMITS.author.max + 1),
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it("accepts an empty href as null", () => {
@@ -81,12 +102,15 @@ describe("createPublicProjectSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("rejects a missing image", () => {
+  it("accepts a missing image", () => {
     const parsed = createPublicProjectSchema.safeParse({
       ...validInput,
       image: undefined,
     });
-    expect(parsed.success).toBe(false);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.image).toBeUndefined();
+    }
   });
 
   it("rejects a disallowed image type", () => {
@@ -149,6 +173,7 @@ describe("parseCreatePublicProjectFormData", () => {
     formData.set("category", "Mobile app");
     formData.set("title", "Teacher app");
     formData.set("body", "For teachers.");
+    formData.set("author", "Sara");
     formData.set("image", makeImageFile("teacher.png"));
     formData.set("href", "");
 
@@ -157,6 +182,7 @@ describe("parseCreatePublicProjectFormData", () => {
     if (parsed.success) {
       expect(parsed.data.classification).toBe("teachers");
       expect(parsed.data.category).toBe("Mobile app");
+      expect(parsed.data.author).toBe("Sara");
       expect(parsed.data.href).toBeNull();
       expect(parsed.data.image.name).toBe("teacher.png");
     }
@@ -172,7 +198,6 @@ describe("parseCreatePublicProjectFormData", () => {
     expect(parsed.success).toBe(false);
     if (!parsed.success) {
       expect(parsed.fieldErrors?.title?.[0]).toBeTruthy();
-      expect(parsed.fieldErrors?.image?.[0]).toBeTruthy();
     }
   });
 });
@@ -192,6 +217,7 @@ describe("updatePublicProjectSchema", () => {
       category: validInput.category,
       title: validInput.title,
       body: validInput.body,
+      author: validInput.author,
       href: validInput.href,
       id: "11111111-1111-4111-8111-111111111111",
     });

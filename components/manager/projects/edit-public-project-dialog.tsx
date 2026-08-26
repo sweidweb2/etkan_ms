@@ -73,11 +73,13 @@ export function EditPublicProjectDialog({
       category: project?.category ?? "",
       title: project?.title ?? "",
       body: project?.body ?? "",
+      author: project?.author ?? "",
       href: project?.href ?? "",
     },
   });
 
   const classification = watch("classification");
+  const category = watch("category");
   const title = watch("title");
   const selectedImage = watch("image");
 
@@ -92,6 +94,7 @@ export function EditPublicProjectDialog({
       category: project.category,
       title: project.title,
       body: project.body,
+      author: project.author ?? "",
       href: project.href ?? "",
       image: undefined,
     });
@@ -109,6 +112,7 @@ export function EditPublicProjectDialog({
     formData.set("category", values.category.trim());
     formData.set("title", values.title.trim());
     formData.set("body", values.body.trim());
+    formData.set("author", values.author ?? "");
     if (values.image instanceof File) {
       formData.set("image", values.image);
     }
@@ -142,6 +146,7 @@ export function EditPublicProjectDialog({
             register={register as unknown as UseFormRegister<FieldValues>}
             setValue={setValue as unknown as UseFormSetValue<FieldValues>}
             classification={classification}
+            category={category ?? ""}
             errors={{
               classification:
                 errors.classification?.message ??
@@ -149,6 +154,7 @@ export function EditPublicProjectDialog({
               category:
                 errors.category?.message ?? state.fieldErrors?.category?.[0],
               title: errors.title?.message ?? state.fieldErrors?.title?.[0],
+              author: errors.author?.message ?? state.fieldErrors?.author?.[0],
               body: errors.body?.message ?? state.fieldErrors?.body?.[0],
               image: errors.image?.message ?? state.fieldErrors?.image?.[0],
               href: errors.href?.message ?? state.fieldErrors?.href?.[0],

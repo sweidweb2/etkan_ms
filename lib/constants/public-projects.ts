@@ -14,6 +14,7 @@ export type PublicProjectCard = {
   body: string;
   imageSrc: string;
   category: string;
+  author?: string | null;
   href?: string | null;
 };
 
@@ -31,6 +32,7 @@ export type PublicProjectListItem = {
   category: string;
   title: string;
   body: string;
+  author: string | null;
   image_url: string;
   href: string | null;
   created_at: string;
@@ -75,6 +77,7 @@ export function groupProjectsIntoPublicSections(
         body: project.body,
         imageSrc: project.image_url,
         category: project.category,
+        author: project.author,
         href: project.href,
       })),
   }));

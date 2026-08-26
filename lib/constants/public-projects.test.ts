@@ -7,6 +7,7 @@ const tap2eat = {
   category: "Web app",
   title: "Tap2Eat",
   body: "A restaurants directory.",
+  author: "Etkan team",
   image_url: "https://example.com/tap2eat.png",
   href: "https://tap2eat.food",
   created_at: "2026-01-02T00:00:00.000Z",
@@ -18,6 +19,7 @@ const etkanMs = {
   category: "Web app",
   title: "Etkan MS",
   body: "School management system.",
+  author: null,
   image_url: "https://example.com/etkan.png",
   href: "/",
   created_at: "2026-01-01T00:00:00.000Z",
@@ -29,6 +31,7 @@ const laterEtkan = {
   category: "Mobile app",
   title: "3DBey",
   body: "3D printing store.",
+  author: null,
   image_url: "https://example.com/3dbey.png",
   href: "https://3dbey.com",
   created_at: "2026-01-03T00:00:00.000Z",
@@ -57,5 +60,6 @@ describe("groupProjectsIntoPublicSections", () => {
     ]);
     expect(sections[1]?.projects[0]?.imageSrc).toBe(etkanMs.image_url);
     expect(sections[1]?.projects[0]?.href).toBe("/");
+    expect(sections[2]?.projects[0]?.author).toBe("Etkan team");
   });
 });
