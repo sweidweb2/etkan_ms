@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { PUBLIC_PROJECT_PLACEHOLDER_IMAGE_URL } from "@/lib/constants/manager-public-project";
 import { cn } from "@/lib/utils";
 
@@ -40,11 +40,13 @@ export function PublicCoverImage({
 }: PublicCoverImageProps) {
   const [activeSrc, setActiveSrc] = useState(src);
   const [hasError, setHasError] = useState(false);
+  const [prevSrc, setPrevSrc] = useState(src);
 
-  useEffect(() => {
+  if (src !== prevSrc) {
+    setPrevSrc(src);
     setActiveSrc(src);
     setHasError(false);
-  }, [src]);
+  }
 
   const isPlaceholder = activeSrc === PUBLIC_PROJECT_PLACEHOLDER_IMAGE_URL;
 

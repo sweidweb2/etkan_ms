@@ -146,9 +146,8 @@ export function PublicProjectFormFields({
             aria-controls={`${idPrefix}-category-suggestions`}
             disabled={isPending}
             {...categoryRegister}
-            onFocus={(event) => {
+            onFocus={() => {
               setCategoryFocused(true);
-              categoryRegister.onFocus?.(event);
             }}
             onBlur={(event) => {
               window.setTimeout(() => setCategoryFocused(false), 120);
@@ -166,7 +165,11 @@ export function PublicProjectFormFields({
               className="absolute top-full z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
             >
               {categorySuggestions.map((suggestion) => (
-                <li key={suggestion.label} role="option">
+                <li
+                  key={suggestion.label}
+                  role="option"
+                  aria-selected={category.trim() === suggestion.label}
+                >
                   <button
                     type="button"
                     className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-accent"
