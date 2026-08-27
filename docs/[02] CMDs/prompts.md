@@ -1,8 +1,10 @@
 make the vitest,built,typescript,eslint tests and fix if ther e any pronblems and sure case fix don't break anything else
 
+<!-- ============================================================== -->
 
 Implement a global top loading bar for the admin panel that provides navigation and network feedback. The loader should appear for route navigations, server actions, page data fetching, and table reloads (search, filters, pagination), but not for purely local UI interactions like opening modals, dropdowns, tabs with cached content, or accordions. Start the loader immediately (or after a configurable 100–200 ms delay to avoid flashing on very fast requests), animate quickly to about 15–20%, then continue progressing with easing and small random increments until reaching approximately 90–95%. Never reach 100% until the associated async operation has actually completed. When all tracked operations finish, animate smoothly to 100%, keep it visible briefly (150–300 ms), then fade it out and reset. If multiple async operations overlap, treat them as a single global loading session: keep the loader visible until the last pending operation completes, preventing flickering or restarting between concurrent requests.
 
+<!-- ============================================================== -->
 
 Implement loading states using **Skeleton + Progressive Section Loading** in Next.js.
 
@@ -18,6 +20,7 @@ Implement loading states using **Skeleton + Progressive Section Loading** in Nex
 * The goal is to maximize **perceived performance** by making the page feel usable immediately, even if some sections are still loading.
 
 
+<!-- ============================================================== -->
 
 for now for student delete all pages for him so the panel only have the normal layout sidebar,header,body
 with no pages in sidebar
@@ -37,9 +40,12 @@ assertPermission (cached, cheap)
 resolveActorRole again (extra profiles.role fetch even though session already has role)
 then the tiny workshops SELECT
 
+<!-- ============================================================== -->
 
 Review the complete flow of the "guest" feature, covering all CRUD operations, business logic, and interconnections. Analyze its end-to-end process, identify what works and what is broken, and highlight any unhandled or problematic edge cases. Provide a detailed assessment of the feature’s current state, including business rule enforcement, data integrity, permission checks, and robustness against error scenarios.
 
+
+<!-- ============================================================== -->
 
 optimization -->
 Yes — **but don't tell the agent "optimize all services" blindly.**
@@ -112,3 +118,25 @@ One important correction: don't assume **every slow request is caused by service
 But the **5.1-second CRUD workflow is overwhelmingly a service/database-round-trip orchestration problem**.
 
 So: **yes, service-by-service optimization is the right next strategy.**
+
+
+<!-- ============================================================== -->
+
+Implement optimistic mutation for [FEATURE / CONTROL] in Etkan MS.
+
+Follow `.cursor/rules/optimistic-mutation.mdc` and match Manage instructors capabilities (`InstructorCapabilitiesMatrix`).
+
+Requirements:
+1. No Save button — each click/toggle is its own mutation.
+2. On click: update TanStack Query cache immediately (optimistic UI). No spinner / pending loader on the control.
+3. Background: call a dedicated server action that mutates one resource (create/update/delete or enable/disable). Validate auth, permission, input, and resource existence in the service.
+4. Success: keep optimistic state + `showSuccessToast` from `@/lib/toast`.
+5. Failure: roll back only that item’s previous state + `showErrorToast`. Never leave a false success state.
+6. Race safety: per-item generation (or equivalent) so a stale response cannot overwrite a newer click on the same item. Concurrent mutations on different items are allowed.
+7. After mutations settle: sync with backend via targeted `invalidateQueries` (defer with `queueMicrotask` — never call invalidate inside a React setState updater).
+8. Layers: UI → server action → service → repository. No Supabase in components/services.
+9. Use existing `QueryProvider` / `@tanstack/react-query`. Prefer cache updates over duplicating server state in local React state.
+
+Target: [PATH / COMPONENT]
+Action: [what the user clicks and what DB change it maps to]
+Permission: [permission key]
