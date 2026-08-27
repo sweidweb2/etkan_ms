@@ -3,9 +3,12 @@ import { isGuestOnlyAuthRoute } from "@/lib/constants/auth";
 import { hidesPublicSiteChrome, ROUTES } from "@/lib/constants/routes";
 
 describe("isGuestOnlyAuthRoute", () => {
-  it("treats public walk-in registration as guest-only", () => {
+  it("treats login as guest-only", () => {
     expect(isGuestOnlyAuthRoute(ROUTES.LOGIN)).toBe(true);
-    expect(isGuestOnlyAuthRoute(ROUTES.REGISTER)).toBe(true);
+  });
+
+  it("keeps public walk-in registration open without auth gating", () => {
+    expect(isGuestOnlyAuthRoute(ROUTES.REGISTER)).toBe(false);
   });
 
   it("does not block guest invite registration links", () => {

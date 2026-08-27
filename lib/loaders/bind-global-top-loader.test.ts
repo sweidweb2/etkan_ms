@@ -47,7 +47,7 @@ describe("shouldTrackFetch", () => {
   });
 
   it("skips unrelated fetches", () => {
-    expect(shouldTrackFetch("/api/auth/navbar-state")).toBe(false);
+    expect(shouldTrackFetch("/api/health")).toBe(false);
   });
 });
 

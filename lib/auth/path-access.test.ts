@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canAccessPath,
   isAdminPath,
+  isLifePath,
   isPanelPath,
 } from "@/lib/auth/path-access";
 import { ROLES } from "@/lib/constants/roles";
@@ -18,8 +19,18 @@ describe("isPanelPath", () => {
     expect(isPanelPath(ROUTES.HOME)).toBe(false);
     expect(isPanelPath(ROUTES.LOGIN)).toBe(false);
     expect(isPanelPath(ROUTES.SIGNUP)).toBe(false);
+    expect(isPanelPath(ROUTES.LIFE)).toBe(false);
   });
 });
+
+describe("isLifePath", () => {
+  it("matches Life index and nested blog routes", () => {
+    expect(isLifePath(ROUTES.LIFE)).toBe(true);
+    expect(isLifePath(`${ROUTES.LIFE}/b1`)).toBe(true);
+    expect(isLifePath(ROUTES.HOME)).toBe(false);
+  });
+});
+
 
 describe("canAccessPath", () => {
   it("allows a role to access its own panel routes", () => {
@@ -77,6 +88,13 @@ describe("canAccessPath", () => {
   it("allows non-panel routes for any role", () => {
     expect(canAccessPath(ROUTES.HOME, ROLES.STUDENT)).toBe(true);
     expect(canAccessPath(ROUTES.HOME, ROLES.ADMIN)).toBe(true);
+  });
+
+  it("allows Life routes only for admin", () => {
+    expect(canAccessPath(ROUTES.LIFE, ROLES.ADMIN)).toBe(true);
+    expect(canAccessPath(`${ROUTES.LIFE}/b1`, ROLES.ADMIN)).toBe(true);
+    expect(canAccessPath(ROUTES.LIFE, ROLES.MANAGER)).toBe(false);
+    expect(canAccessPath(ROUTES.LIFE, ROLES.STUDENT)).toBe(false);
   });
 });
 

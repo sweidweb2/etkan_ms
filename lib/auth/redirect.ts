@@ -5,7 +5,7 @@ import {
   ROUTES,
 } from "@/lib/constants/routes";
 
-const AUTH_ONLY_PATHS = [ROUTES.LOGIN, ROUTES.SIGNUP, ROUTES.REGISTER] as const;
+const AUTH_ONLY_PATHS = [ROUTES.LOGIN, ROUTES.SIGNUP] as const;
 
 export function getSafeRedirectPath(path: string | null | undefined): string {
   if (path && path.startsWith("/") && !path.startsWith("//")) {

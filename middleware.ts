@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { hasSupabaseAuthCookies } from "@/lib/auth/session-cookies";
-import { canAccessPath, isPanelPath } from "@/lib/auth/path-access";
+import {
+  canAccessPath,
+  isLifePath,
+  isPanelPath,
+} from "@/lib/auth/path-access";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import {
   isGuestOnlyAuthRoute,
@@ -151,6 +155,17 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Open marketing / invite routes: no session work (navbar/footer are static).
+  const needsSessionGate =
+    isGuestOnlyAuthRoute(pathname) ||
+    isPublicAuthRoute(pathname) ||
+    isLifePath(pathname) ||
+    isPanelPath(pathname);
+
+  if (!needsSessionGate) {
+    return finish(getResponse());
+  }
+
   const authStart = performance.now();
   const auth = await resolveMiddlewareAuth(supabase, tripId);
   marks.claims = performance.now() - authStart;
@@ -168,12 +183,27 @@ export async function middleware(request: NextRequest) {
     return finish(getResponse());
   }
 
-  if (pathname === ROUTES.HOME) {
-    return finish(getResponse());
-  }
+  if (isLifePath(pathname)) {
+    if (!auth.userId) {
+      const loginUrl = new URL(ROUTES.LOGIN, request.url);
 
-  // Public maintenance page stays reachable without auth work beyond claims.
-  if (pathname === "/maintenance") {
+      if (hasSupabaseAuthCookies(request.cookies.getAll())) {
+        loginUrl.searchParams.set("message", "session_expired");
+      } else {
+        loginUrl.searchParams.set("next", pathname);
+      }
+
+      return redirect(loginUrl);
+    }
+
+    const roleStart = performance.now();
+    const role = await resolveRole(supabase, auth);
+    marks.role = performance.now() - roleStart;
+
+    if (role !== ROLES.ADMIN) {
+      return redirect(new URL(getDashboardRouteForRole(role), request.url));
+    }
+
     return finish(getResponse());
   }
 

@@ -1,6 +1,10 @@
 import { isSharedManagerPath } from "@/lib/auth/shared-manager-routes";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
-import { getPanelRootForRole, PANEL_ROOTS } from "@/lib/constants/routes";
+import {
+  getPanelRootForRole,
+  PANEL_ROOTS,
+  ROUTES,
+} from "@/lib/constants/routes";
 
 export function isPanelPath(pathname: string): boolean {
   return PANEL_ROOTS.some(
@@ -8,7 +12,16 @@ export function isPanelPath(pathname: string): boolean {
   );
 }
 
+/** Public Life section — admin-only (middleware + post-login `next`). */
+export function isLifePath(pathname: string): boolean {
+  return pathname === ROUTES.LIFE || pathname.startsWith(`${ROUTES.LIFE}/`);
+}
+
 export function canAccessPath(pathname: string, role: RoleValue): boolean {
+  if (isLifePath(pathname)) {
+    return role === ROLES.ADMIN;
+  }
+
   if (isSharedManagerPath(pathname)) {
     return true;
   }

@@ -10,7 +10,7 @@ import { HomeContactCtaSection } from "@/components/public/home-contact-cta-sect
 export default function HomePage() {
   return (
     <>
-      <HomeHero initialDashboardHref={null} />
+      <HomeHero />
       <HomeCareerStagesSection />
       <HomeLearningWaysSection />
       <HomeTestimonialsSection />

@@ -39,7 +39,7 @@ describe("getPostLoginRedirect", () => {
     expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.LOGIN)).toBe(
       ROUTES.STUDENT_DASHBOARD
     );
-    expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.REGISTER)).toBe(
+    expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.SIGNUP)).toBe(
       ROUTES.STUDENT_DASHBOARD
     );
   });
@@ -47,6 +47,13 @@ describe("getPostLoginRedirect", () => {
   it("ignores next when path belongs to another role panel", () => {
     expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.MANAGER_USERS)).toBe(
       ROUTES.STUDENT_DASHBOARD
+    );
+  });
+
+  it("honors Life next only for admin", () => {
+    expect(getPostLoginRedirect(ROLES.ADMIN, ROUTES.LIFE)).toBe(ROUTES.LIFE);
+    expect(getPostLoginRedirect(ROLES.MANAGER, ROUTES.LIFE)).toBe(
+      ROUTES.MANAGER_STUDENTS
     );
   });
 });

@@ -6,7 +6,6 @@ import { useState } from "react";
 import { MenuIcon } from "lucide-react";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { useNavbarDashboardHref } from "@/hooks/use-navbar-dashboard-href";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -19,33 +18,6 @@ import {
 } from "@/components/ui/sheet";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-
-type AuthNavLinkProps = {
-  href: string;
-  variant?: "default" | "ghost";
-  children: React.ReactNode;
-  className?: string;
-  onNavigate?: () => void;
-};
-
-function AuthNavLink({
-  href,
-  variant = "default",
-  children,
-  className,
-  onNavigate,
-}: AuthNavLinkProps) {
-  return (
-    <Link
-      href={href}
-      suppressHydrationWarning
-      onClick={onNavigate}
-      className={cn(buttonVariants({ variant, size: "default" }), className)}
-    >
-      {children}
-    </Link>
-  );
-}
 
 function BrandNavLink({
   href,
@@ -70,6 +42,30 @@ function BrandNavLink({
       )}
     >
       {children}
+    </Link>
+  );
+}
+
+function RegisterNavLink({
+  className,
+  onNavigate,
+}: {
+  className?: string;
+  onNavigate?: () => void;
+}) {
+  const { t } = usePublicI18n();
+  const pathname = usePathname();
+  const isActive = pathname === ROUTES.REGISTER;
+
+  return (
+    <Link
+      href={ROUTES.REGISTER}
+      suppressHydrationWarning
+      onClick={onNavigate}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(buttonVariants({ variant: "default", size: "default" }), className)}
+    >
+      {t("nav.register")}
     </Link>
   );
 }
@@ -104,13 +100,7 @@ function MobileNavLink({
   );
 }
 
-function PrimaryNavLinks({
-  className,
-  showRegister,
-}: {
-  className?: string;
-  showRegister: boolean;
-}) {
+function PrimaryNavLinks({ className }: { className?: string }) {
   const { t } = usePublicI18n();
 
   return (
@@ -120,10 +110,6 @@ function PrimaryNavLinks({
       <BrandNavLink href={ROUTES.CAREERS}>{t("nav.careers")}</BrandNavLink>
       <BrandNavLink href={ROUTES.PROJECTS}>{t("nav.projects")}</BrandNavLink>
       <BrandNavLink href={ROUTES.GALLERY}>{t("nav.gallery")}</BrandNavLink>
-      <BrandNavLink href={ROUTES.LIFE}>{t("nav.life")}</BrandNavLink>
-      {showRegister ? (
-        <BrandNavLink href={ROUTES.REGISTER}>{t("nav.register")}</BrandNavLink>
-      ) : null}
     </nav>
   );
 }
@@ -131,11 +117,9 @@ function PrimaryNavLinks({
 function NavbarShell({
   desktopActions,
   mobileMenu,
-  showRegister,
 }: {
   desktopActions?: React.ReactNode;
   mobileMenu?: React.ReactNode;
-  showRegister: boolean;
 }) {
   const { t } = usePublicI18n();
 
@@ -160,10 +144,7 @@ function NavbarShell({
           >
             {t("brand.name")}
           </Link>
-          <PrimaryNavLinks
-            className="min-w-0 justify-self-center"
-            showRegister={showRegister}
-          />
+          <PrimaryNavLinks className="min-w-0 justify-self-center" />
           <div className="justify-self-end">{desktopActions}</div>
         </div>
       </div>
@@ -176,17 +157,10 @@ function NavbarShell({
   );
 }
 
-type SiteNavbarClientProps = {
-  initialDashboardHref: string | null;
-};
-
-export function SiteNavbarClient({
-  initialDashboardHref,
-}: SiteNavbarClientProps) {
+export function SiteNavbarClient() {
   const pathname = usePathname();
   const mounted = useHydrated();
   const { t, dir } = usePublicI18n();
-  const dashboardHref = useNavbarDashboardHref(initialDashboardHref);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [menuPathname, setMenuPathname] = useState(pathname);
 
@@ -197,19 +171,8 @@ export function SiteNavbarClient({
     }
   }
 
-  const isLoginPage = pathname === ROUTES.LOGIN;
-  const isLoggedIn = Boolean(dashboardHref);
-  const showRegister = !isLoggedIn;
   const sheetSide = dir === "rtl" ? "left" : "right";
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
-
-  const authButtons = dashboardHref ? (
-    <AuthNavLink href={dashboardHref}>{t("nav.dashboard")}</AuthNavLink>
-  ) : !isLoginPage ? (
-    <AuthNavLink href={ROUTES.LOGIN} variant="ghost">
-      {t("nav.login")}
-    </AuthNavLink>
-  ) : null;
 
   const mobileMenu = (
     <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -257,23 +220,12 @@ export function SiteNavbarClient({
           <MobileNavLink href={ROUTES.GALLERY} onNavigate={closeMobileMenu}>
             {t("nav.gallery")}
           </MobileNavLink>
-          <MobileNavLink href={ROUTES.LIFE} onNavigate={closeMobileMenu}>
-            {t("nav.life")}
-          </MobileNavLink>
-          {showRegister ? (
-            <MobileNavLink href={ROUTES.REGISTER} onNavigate={closeMobileMenu}>
-              {t("nav.register")}
-            </MobileNavLink>
-          ) : null}
-          {dashboardHref ? (
-            <MobileNavLink href={dashboardHref} onNavigate={closeMobileMenu}>
-              {t("nav.dashboard")}
-            </MobileNavLink>
-          ) : !isLoginPage ? (
-            <MobileNavLink href={ROUTES.LOGIN} onNavigate={closeMobileMenu}>
-              {t("nav.login")}
-            </MobileNavLink>
-          ) : null}
+          <div className="mt-2 px-1">
+            <RegisterNavLink
+              className="w-full justify-center"
+              onNavigate={closeMobileMenu}
+            />
+          </div>
         </nav>
       </SheetContent>
     </Sheet>
@@ -282,10 +234,10 @@ export function SiteNavbarClient({
   if (!mounted) {
     return (
       <NavbarShell
-        showRegister
         desktopActions={
           <div className="flex items-center gap-2" aria-hidden="true">
             <LanguageToggle />
+            <RegisterNavLink />
           </div>
         }
         mobileMenu={
@@ -306,11 +258,10 @@ export function SiteNavbarClient({
 
   return (
     <NavbarShell
-      showRegister={showRegister}
       desktopActions={
         <div className="flex items-center gap-2">
           <LanguageToggle />
-          <div className="flex items-center gap-2">{authButtons}</div>
+          <RegisterNavLink />
         </div>
       }
       mobileMenu={mobileMenu}

@@ -16,7 +16,6 @@ export function isPublicAuthRoute(pathname: string): boolean {
 export function isGuestOnlyAuthRoute(pathname: string): boolean {
   return (
     pathname === ROUTES.LOGIN ||
-    pathname === ROUTES.REGISTER ||
     (PUBLIC_SIGNUP_ENABLED && pathname === ROUTES.SIGNUP)
   );
 }

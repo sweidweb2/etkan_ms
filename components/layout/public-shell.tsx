@@ -14,7 +14,7 @@ type PublicShellProps = {
 
 /**
  * Client shell so dir/lang update with locale without re-fetching the RSC tree.
- * Navbar starts with null session; client refreshes auth via /api/auth/navbar-state.
+ * Public chrome is session-free (login/register live in the footer only).
  */
 export function PublicShell({ children }: PublicShellProps) {
   const { dir, locale } = usePublicI18n();
@@ -23,9 +23,7 @@ export function PublicShell({ children }: PublicShellProps) {
 
   return (
     <div dir={dir} lang={locale} className="relative flex min-h-dvh flex-col">
-      {hideSiteChrome ? null : (
-        <SiteNavbarClient initialDashboardHref={null} />
-      )}
+      {hideSiteChrome ? null : <SiteNavbarClient />}
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       {hideSiteChrome ? null : <SiteFooter />}
       {hideSiteChrome ? null : (

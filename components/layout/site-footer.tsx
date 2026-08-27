@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useNavbarDashboardHref } from "@/hooks/use-navbar-dashboard-href";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { ROUTES } from "@/lib/constants/routes";
 
@@ -22,11 +21,7 @@ const authLinkClassName =
 
 export function SiteFooter() {
   const { t } = usePublicI18n();
-  const dashboardHref = useNavbarDashboardHref(null);
   const year = new Date().getFullYear();
-  const footerLinks = dashboardHref
-    ? FOOTER_LINKS.filter((link) => link.href !== ROUTES.REGISTER)
-    : FOOTER_LINKS;
 
   return (
     <footer className="mt-auto border-t border-border bg-white text-foreground dark:bg-white">
@@ -43,7 +38,7 @@ export function SiteFooter() {
             className="flex flex-wrap gap-x-6 gap-y-2"
             aria-label={t("footer.navLabel")}
           >
-            {footerLinks.map((link) => (
+            {FOOTER_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

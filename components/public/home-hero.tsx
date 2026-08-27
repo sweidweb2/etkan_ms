@@ -16,7 +16,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { TypewriterPoint } from "@/components/public/typewriter-point";
-import { useNavbarDashboardHref } from "@/hooks/use-navbar-dashboard-href";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { ROUTES } from "@/lib/constants/routes";
@@ -393,10 +392,6 @@ function HeroAmbientBackground() {
   );
 }
 
-type HomeHeroProps = {
-  initialDashboardHref: string | null;
-};
-
 function slideOffset(isActive: boolean, isExiting: boolean, direction: number, isRtl: boolean) {
   if (isActive) return 0;
   const sign = isRtl ? -1 : 1;
@@ -405,10 +400,9 @@ function slideOffset(isActive: boolean, isExiting: boolean, direction: number, i
   return direction * 36 * sign;
 }
 
-export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
+export function HomeHero() {
   const { t, dir } = usePublicI18n();
   const router = useRouter();
-  const dashboardHref = useNavbarDashboardHref(initialDashboardHref);
   const [index, setIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -516,7 +510,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                     </p>
                     <div className="mt-8">
                       <Link
-                        href={dashboardHref ?? ROUTES.REGISTER}
+                        href={ROUTES.REGISTER}
                         tabIndex={isActive ? undefined : -1}
                         suppressHydrationWarning
                         className={cn(
@@ -526,9 +520,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                           !isActive && "invisible"
                         )}
                       >
-                        {dashboardHref
-                          ? t("hero.ctaDashboard")
-                          : t(item.ctaKey)}
+                        {t(item.ctaKey)}
                       </Link>
                     </div>
                   </motion.div>
@@ -625,7 +617,7 @@ export function HomeHero({ initialDashboardHref }: HomeHeroProps) {
                 buttonTextColor="#ffffff"
                 shadowSize="sm"
                 onSubmit={() => {
-                  router.push(dashboardHref ?? ROUTES.REGISTER);
+                  router.push(ROUTES.REGISTER);
                 }}
               />
             </div>
