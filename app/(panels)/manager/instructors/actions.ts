@@ -6,17 +6,18 @@ import { revalidateManagerInstructorsList, revalidateManagerUsersList } from "@/
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddInstructorsFormData } from "@/lib/validators/manager/add-instructors";
 import { parseCreateMentorSubjectFormData } from "@/lib/validators/manager/create-mentor-subject";
-import { parseSaveInstructorCapabilitiesFormData } from "@/lib/validators/manager/save-instructor-capabilities";
 import { parseSaveMentorSubjectOrderFormData } from "@/lib/validators/manager/save-mentor-subject-order";
+import { parseSetInstructorCapabilityInput } from "@/lib/validators/manager/set-instructor-capability";
 import { parseUpdateMentorSubjectFormData } from "@/lib/validators/manager/update-mentor-subject";
 import {
   addInstructorsForManager,
   createMentorSubjectForManager,
   deleteMentorSubjectForManager,
+  listInstructorCapabilitiesForManager,
   listInstructorCandidatesForManager,
   removeInstructorForManager,
-  saveInstructorSubjectCapabilities,
   saveMentorSubjectOrderForManager,
+  setInstructorCapabilityForManager,
   updateMentorSubjectForManager,
 } from "@/services/instructors/instructor.service";
 import type {
@@ -24,9 +25,10 @@ import type {
   CreateMentorSubjectActionState,
   DeleteMentorSubjectActionState,
   ManagerInstructorCandidateRow,
+  ManagerInstructorCapabilityPair,
   RemoveInstructorActionState,
-  SaveInstructorCapabilitiesActionState,
   SaveMentorSubjectOrderActionState,
+  SetInstructorCapabilityResult,
   UpdateMentorSubjectActionState,
 } from "@/types/manager-instructor";
 
@@ -46,19 +48,34 @@ export async function loadInstructorCandidatesAction(): Promise<
   }
 }
 
-export async function saveInstructorCapabilitiesAction(
-  _prevState: SaveInstructorCapabilitiesActionState,
-  formData: FormData
-): Promise<SaveInstructorCapabilitiesActionState> {
+export async function loadInstructorCapabilitiesAction(): Promise<
+  ManagerInstructorCapabilityPair[]
+> {
   const actor = await getSessionAuditActor();
-  const parsed = parseSaveInstructorCapabilitiesFormData(formData);
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listInstructorCapabilitiesForManager(adminClient, actor.userId);
+  } catch {
+    return [];
+  }
+}
+
+export async function setInstructorCapabilityAction(
+  input: unknown
+): Promise<SetInstructorCapabilityResult> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseSetInstructorCapabilityInput(input);
 
   if (!parsed.success) {
     return { success: false, error: parsed.error };
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await saveInstructorSubjectCapabilities(
+  const result = await setInstructorCapabilityForManager(
     adminClient,
     actor.userId,
     parsed.data
@@ -73,7 +90,9 @@ export async function saveInstructorCapabilitiesAction(
   return {
     success: true,
     message: result.message,
-    capabilities: result.capabilities,
+    user_id: result.user_id,
+    mentor_subject_id: result.mentor_subject_id,
+    enabled: result.enabled,
   };
 }
 

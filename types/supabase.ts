@@ -2485,6 +2485,29 @@ export type Database = {
         Args: { p_class_id: string; p_user_ids: string[] }
         Returns: Json
       }
+      reorder_mentor_subjects: {
+        Args: { p_ordered_ids: string[] }
+        Returns: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mentor_subjects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      delete_mentor_subject_capability_pairs: {
+        Args: { p_user_ids: string[]; p_mentor_subject_ids: string[] }
+        Returns: number
+      }
+      clear_instructor_related_data: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       delete_student_class_membership: {
         Args: { p_class_id: string; p_id: string }
         Returns: {

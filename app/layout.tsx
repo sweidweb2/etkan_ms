@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Inter, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { RouteTopLoader } from "@/components/loaders/route-top-loader";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { AppToasts } from "@/components/toast/app-toasts";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,12 +46,14 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>
-            <Suspense fallback={null}>
-              <RouteTopLoader />
-            </Suspense>
-            {children}
-            <AppToasts />
-            <Analytics />
+            <QueryProvider>
+              <Suspense fallback={null}>
+                <RouteTopLoader />
+              </Suspense>
+              {children}
+              <AppToasts />
+              <Analytics />
+            </QueryProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>

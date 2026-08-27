@@ -1,0 +1,179 @@
+---
+description: Guidelines for implementing optimistic UI updates and server mutations
+globs: ["**/*.{ts,tsx,js,jsx}"]
+alwaysApply: false
+---
+
+# Optimistic UI & Mutation Pattern
+
+Use this pattern for user actions where the UI should update immediately without requiring a Save button, especially:
+
+- Checkboxes and permission matrices
+- Toggle switches
+- Enable/disable actions
+- Favorites/bookmarks
+- Assign/unassign relationships
+- Status changes
+- Inline CRUD actions
+- Other small, atomic mutations
+
+## Core Behavior
+
+When the user performs an atomic action:
+
+1. Update the UI optimistically immediately.
+2. Send the corresponding API mutation in the background.
+3. Show a subtle pending/loading state while the request is in progress.
+4. If the request succeeds:
+   - Keep the optimistic state.
+   - Show a success toast when appropriate.
+5. If the request fails:
+   - Roll back to the previous state.
+   - Show an error toast.
+6. After the mutation settles, synchronize with the server when necessary.
+
+## No Save Button
+
+Do not add a Save button for atomic interactions that can safely be persisted independently.
+
+Example:
+
+User clicks a permission checkbox:
+
+UI:
+    unchecked → checked immediately
+
+Backend:
+    PATCH/POST/DELETE request
+
+Success:
+    checked remains
+
+Failure:
+    checked → unchecked
+    error toast
+
+## State Management
+
+Use the project's existing server-state/mutation solution.
+
+If TanStack Query is used:
+
+- Use `useMutation` for mutations.
+- Use `onMutate` for optimistic updates.
+- Preserve the previous state for rollback.
+- Use `onError` to rollback.
+- Use `onSuccess` for successful feedback.
+- Use `onSettled` to synchronize/invalidate related queries when appropriate.
+
+Do not duplicate server state unnecessarily in local React state.
+
+Prefer updating the TanStack Query cache when the affected data is already represented there.
+
+## Concurrency & Race Conditions
+
+Handle rapid or repeated user interactions safely.
+
+Consider:
+
+- Multiple mutations on the same resource.
+- Out-of-order API responses.
+- Duplicate clicks.
+- Stale cache data.
+- Conflicting mutations.
+- Whether a control should be temporarily disabled while its mutation is pending.
+
+Do not allow an older API response to overwrite a newer user action.
+
+For operations where ordering matters, use an appropriate serialization/queuing strategy or server-side conflict handling.
+
+## API Design
+
+Each optimistic action must have a reliable backend mutation.
+
+The backend remains the source of truth.
+
+Always perform:
+
+- Authentication
+- Authorization
+- Input validation
+- Resource existence validation
+- Business-rule validation
+- Database transaction/consistency handling where required
+
+Never trust the optimistic client state as proof that the operation succeeded.
+
+## Error Handling
+
+Failures must be visible and recoverable.
+
+On failure:
+
+1. Roll back the affected UI state.
+2. Keep the UI consistent with the known server state.
+3. Show a clear error toast.
+4. Log/handle the actual API error according to project conventions.
+
+Do not leave the UI showing a successful state when the backend rejected the operation.
+
+## UX
+
+Optimistic interactions should feel instant but must still communicate request state.
+
+Use:
+
+- Immediate visual feedback.
+- Subtle pending indicators where useful.
+- Success toasts only when they add value.
+- Error toasts on failures.
+- Disabled/restricted interaction only when necessary.
+
+Avoid:
+
+- Blocking the entire page.
+- Spinners that replace the whole component.
+- Mandatory Save buttons for atomic mutations.
+- Artificial delays.
+- Refetching the entire application after every small mutation.
+
+## Performance
+
+Optimize mutations without sacrificing correctness.
+
+Prefer:
+
+- Targeted cache updates.
+- Targeted query invalidation.
+- Small API payloads.
+- Debouncing only when appropriate.
+- Batching when the user interaction naturally represents a batch.
+- Avoiding unnecessary full-page/full-list refetches.
+
+Do not introduce a queue merely because optimistic UI is being used. Queues are only required when mutation ordering or serialization genuinely matters.
+
+## Implementation Checklist
+
+Before implementing an optimistic interaction, verify:
+
+- Is the action atomic?
+- Can it safely be persisted independently?
+- What is the previous state?
+- What is the optimistic state?
+- How is the state rolled back?
+- What happens if the request fails?
+- What happens if the user clicks repeatedly?
+- Can requests arrive out of order?
+- Does the cache need to be updated?
+- Does the related query need invalidation/refetching?
+- Does the backend enforce all required validation and authorization?
+
+## Principle
+
+The UI should feel immediate.
+
+The backend remains authoritative.
+
+Optimistic state is temporary until the mutation succeeds.
+On failure, always recover to a consistent state.
+:::

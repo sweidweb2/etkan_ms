@@ -25,6 +25,13 @@ import { EditMentorSubjectDialog } from "@/components/manager/instructors/edit-m
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -280,109 +287,104 @@ export function MentorSubjectsSection({
   }
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">
-            Mentor subjects
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Catalog used for instructor capabilities. Drag to reorder, then save
-            the order.
-          </p>
-        </div>
+    <Card className="py-0">
+      <CardHeader className="border-b bg-muted/40 py-3">
+        <CardTitle>Mentor subjects</CardTitle>
+        <CardAction>
+          <div className="flex flex-wrap items-center gap-2">
+            <Can permission={PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_UPDATE}>
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                disabled={
+                  !isOrderDirty || sectionBusy || draftSubjects.length === 0
+                }
+                onClick={handleSaveOrder}
+              >
+                {isOrderPending ? (
+                  <>
+                    <InlineSpinner className="mr-2" />
+                    Saving order…
+                  </>
+                ) : (
+                  "Save order"
+                )}
+              </Button>
+            </Can>
+            <Can permission={PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_CREATE}>
+              <Button
+                type="button"
+                className="shrink-0"
+                disabled={sectionBusy}
+                onClick={() => setIsAddOpen(true)}
+              >
+                <PlusIcon data-icon="inline-start" />
+                Add mentor subject
+              </Button>
+            </Can>
+          </div>
+        </CardAction>
+      </CardHeader>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Can permission={PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_UPDATE}>
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0"
-              disabled={!isOrderDirty || sectionBusy || draftSubjects.length === 0}
-              onClick={handleSaveOrder}
-            >
-              {isOrderPending ? (
-                <>
-                  <InlineSpinner className="mr-2" />
-                  Saving order…
-                </>
-              ) : (
-                "Save order"
-              )}
-            </Button>
-          </Can>
-          <Can permission={PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_CREATE}>
-            <Button
-              type="button"
-              className="shrink-0"
-              disabled={sectionBusy}
-              onClick={() => setIsAddOpen(true)}
-            >
-              <PlusIcon data-icon="inline-start" />
-              Add mentor subject
-            </Button>
-          </Can>
-        </div>
-      </div>
-
-      {draftSubjects.length === 0 ? (
-        <div className="rounded-xl border px-4 py-10 text-center text-sm text-muted-foreground">
-          {canCreate
-            ? "Create a mentor subject to build the capability matrix."
-            : "No mentor subjects yet."}
-        </div>
-      ) : (
-        <DragDropProvider
-          onDragEnd={(event) => {
-            if (event.canceled || !canUpdate || sectionBusy) {
-              return;
-            }
-            const { source } = event.operation;
-            if (!isSortable(source)) {
-              return;
-            }
-            const { initialIndex, index } = source;
-            if (initialIndex === index) {
-              return;
-            }
-            setDraftSubjects((current) => {
-              const next = [...current];
-              const [removed] = next.splice(initialIndex, 1);
-              if (!removed) {
-                return current;
+      <CardContent className="py-4">
+        {draftSubjects.length === 0 ? (
+          <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+            {canCreate
+              ? "Create a mentor subject to build the capability matrix."
+              : "No mentor subjects yet."}
+          </div>
+        ) : (
+          <DragDropProvider
+            onDragEnd={(event) => {
+              if (event.canceled || !canUpdate || sectionBusy) {
+                return;
               }
-              next.splice(index, 0, removed);
-              return next;
-            });
-          }}
-        >
-          <ul className="flex flex-col items-start gap-2">
-            {sortedDraft.map((subject, index) => (
-              <SortableMentorSubjectRow
-                key={subject.id}
-                subject={subject}
-                index={index}
-                disabled={sectionBusy || !canUpdate}
-                canUpdate={canUpdate}
-                canDelete={canDelete}
-                onEdit={() => setEditTarget(subject)}
-                onDelete={() => setDeleteTarget(subject)}
-              />
-            ))}
-          </ul>
-        </DragDropProvider>
-      )}
+              const { source } = event.operation;
+              if (!isSortable(source)) {
+                return;
+              }
+              const { initialIndex, index } = source;
+              if (initialIndex === index) {
+                return;
+              }
+              setDraftSubjects((current) => {
+                const next = [...current];
+                const [removed] = next.splice(initialIndex, 1);
+                if (!removed) {
+                  return current;
+                }
+                next.splice(index, 0, removed);
+                return next;
+              });
+            }}
+          >
+            <ul className="flex flex-wrap items-start gap-2">
+              {sortedDraft.map((subject, index) => (
+                <SortableMentorSubjectRow
+                  key={subject.id}
+                  subject={subject}
+                  index={index}
+                  disabled={sectionBusy || !canUpdate}
+                  canUpdate={canUpdate}
+                  canDelete={canDelete}
+                  onEdit={() => setEditTarget(subject)}
+                  onDelete={() => setDeleteTarget(subject)}
+                />
+              ))}
+            </ul>
+          </DragDropProvider>
+        )}
+      </CardContent>
 
       <AddMentorSubjectDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onCreated={(created) => {
-          setDraftSubjects((current) => {
-            const next = uniqueById([...current, created]);
-            setBaselineKey(orderKey(next));
-            onMentorSubjectsChange(next);
-            return next;
-          });
+          const next = uniqueById([...draftSubjects, created]);
+          setDraftSubjects(next);
+          setBaselineKey(orderKey(next));
+          onMentorSubjectsChange(next);
         }}
       />
 
@@ -396,14 +398,12 @@ export function MentorSubjectsSection({
           }}
           subject={editTarget}
           onUpdated={(updated) => {
-            setDraftSubjects((current) => {
-              const next = uniqueById(
-                current.map((row) => (row.id === updated.id ? updated : row))
-              );
-              setBaselineKey(orderKey(next));
-              onMentorSubjectsChange(next);
-              return next;
-            });
+            const next = uniqueById(
+              draftSubjects.map((row) => (row.id === updated.id ? updated : row))
+            );
+            setDraftSubjects(next);
+            setBaselineKey(orderKey(next));
+            onMentorSubjectsChange(next);
           }}
         />
       ) : null}
@@ -451,6 +451,6 @@ export function MentorSubjectsSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </Card>
   );
 }

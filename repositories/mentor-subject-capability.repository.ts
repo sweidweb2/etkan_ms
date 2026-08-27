@@ -40,29 +40,13 @@ export async function deleteCapabilitiesByPairs(
   pairs: { user_id: string; mentor_subject_id: string }[]
 ) {
   if (pairs.length === 0) {
-    return { error: null };
+    return { data: 0, error: null };
   }
 
-  const subjectIdsByUserId = new Map<string, string[]>();
-  for (const pair of pairs) {
-    const subjectIds = subjectIdsByUserId.get(pair.user_id) ?? [];
-    subjectIds.push(pair.mentor_subject_id);
-    subjectIdsByUserId.set(pair.user_id, subjectIds);
-  }
-
-  for (const [userId, mentorSubjectIds] of subjectIdsByUserId) {
-    const { error } = await client
-      .from("mentor_subject_capability")
-      .delete()
-      .eq("user_id", userId)
-      .in("mentor_subject_id", mentorSubjectIds);
-
-    if (error) {
-      return { error };
-    }
-  }
-
-  return { error: null };
+  return client.rpc("delete_mentor_subject_capability_pairs", {
+    p_user_ids: pairs.map((pair) => pair.user_id),
+    p_mentor_subject_ids: pairs.map((pair) => pair.mentor_subject_id),
+  });
 }
 
 export async function insertCapabilities(

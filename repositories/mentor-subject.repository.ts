@@ -87,6 +87,15 @@ export async function updateMentorSubjectSortOrder(
     .eq("id", id);
 }
 
+export async function reorderMentorSubjects(
+  client: Supabase,
+  orderedIds: string[]
+) {
+  return client.rpc("reorder_mentor_subjects", {
+    p_ordered_ids: orderedIds,
+  });
+}
+
 export async function deleteMentorSubjectById(client: Supabase, id: string) {
   return client.from("mentor_subjects").delete().eq("id", id);
 }

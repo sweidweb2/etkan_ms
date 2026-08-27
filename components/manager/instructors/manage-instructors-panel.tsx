@@ -6,6 +6,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -15,13 +16,15 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import Link from "next/link";
-import {
-  removeInstructorAction,
-  saveInstructorCapabilitiesAction,
-} from "@/app/manager/instructors/actions";
+import { removeInstructorAction } from "@/app/manager/instructors/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { AddInstructorsDialog } from "@/components/manager/instructors/add-instructors-dialog";
+import {
+  InstructorCapabilitiesMatrix,
+  removeInstructorFromCapabilitiesCache,
+  removeMentorSubjectFromCapabilitiesCache,
+} from "@/components/manager/instructors/instructor-capabilities-matrix";
 import { MentorSubjectsSection } from "@/components/manager/instructors/mentor-subjects-section";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -49,17 +52,14 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type {
-  ManagerInstructorCapabilityPair,
   ManagerInstructorRow,
   ManagerInstructorsPageData,
   ManagerMentorSubjectColumn,
   RemoveInstructorActionState,
-  SaveInstructorCapabilitiesActionState,
 } from "@/types/manager-instructor";
 
 const PAGE_SIZE_OPTIONS = [4, 5, 10, 25] as const;
 
-const initialSaveState: SaveInstructorCapabilitiesActionState = {};
 const initialRemoveState: RemoveInstructorActionState = {};
 
 function getPageNumbers(currentPage: number, totalPages: number) {
@@ -94,18 +94,9 @@ type ManageInstructorsPanelProps = {
   data: ManagerInstructorsPageData;
 };
 
-function pairKey(userId: string, mentorSubjectId: string) {
-  return `${userId}:${mentorSubjectId}`;
-}
-
-function toCapabilitySet(pairs: ManagerInstructorCapabilityPair[]) {
-  return new Set(
-    pairs.map((pair) => pairKey(pair.user_id, pair.mentor_subject_id))
-  );
-}
-
 export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
   const permissions = usePermissions();
+  const queryClient = useQueryClient();
   const [instructors, setInstructors] = useState(data.instructors);
   const [candidateUsers, setCandidateUsers] = useState(data.candidateUsers);
   const [mentorSubjects, setMentorSubjects] = useState(data.mentorSubjects);
@@ -140,13 +131,6 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
     PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE
   );
 
-  const [isSaveTransitionPending, startSaveTransition] = useTransition();
-  const [saveState, saveFormAction, isSaveActionPending] = useActionState(
-    saveInstructorCapabilitiesAction,
-    initialSaveState
-  );
-  const isSavePending = isSaveActionPending || isSaveTransitionPending;
-
   const [removeTarget, setRemoveTarget] = useState<ManagerInstructorRow | null>(
     null
   );
@@ -170,37 +154,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
     }
   );
 
-  const [draftKeys, setDraftKeys] = useState(() =>
-    toCapabilitySet(data.capabilities)
-  );
-  const [baselineKeys, setBaselineKeys] = useState(() =>
-    toCapabilitySet(data.capabilities)
-  );
-  const capabilitiesKey = data.capabilities
-    .map((pair) => pairKey(pair.user_id, pair.mentor_subject_id))
-    .sort()
-    .join("|");
-  const [syncedCapabilitiesKey, setSyncedCapabilitiesKey] =
-    useState(capabilitiesKey);
-
-  if (capabilitiesKey !== syncedCapabilitiesKey) {
-    setSyncedCapabilitiesKey(capabilitiesKey);
-    const next = toCapabilitySet(data.capabilities);
-    setDraftKeys(next);
-    setBaselineKeys(next);
-  }
-
-  useActionStateToast(saveState, isSavePending);
   useActionStateToast(removeState, isRemovePending);
-
-  useActionStateSuccess(saveState, isSavePending, (nextState) => {
-    if (!nextState.capabilities) {
-      return;
-    }
-    const next = toCapabilitySet(nextState.capabilities);
-    setDraftKeys(next);
-    setBaselineKeys(next);
-  });
 
   useActionStateSuccess(removeState, isRemovePending, (nextState) => {
     if (nextState.userId) {
@@ -224,24 +178,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
           },
         ];
       });
-      setDraftKeys((current) => {
-        const next = new Set<string>();
-        for (const key of current) {
-          if (!key.startsWith(`${nextState.userId}:`)) {
-            next.add(key);
-          }
-        }
-        return next;
-      });
-      setBaselineKeys((current) => {
-        const next = new Set<string>();
-        for (const key of current) {
-          if (!key.startsWith(`${nextState.userId}:`)) {
-            next.add(key);
-          }
-        }
-        return next;
-      });
+      removeInstructorFromCapabilitiesCache(queryClient, nextState.userId);
     }
     setRemoveTarget(null);
   });
@@ -268,57 +205,6 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
     setCurrentPage(1);
   };
 
-  const isDirty = useMemo(() => {
-    if (draftKeys.size !== baselineKeys.size) {
-      return true;
-    }
-    for (const key of draftKeys) {
-      if (!baselineKeys.has(key)) {
-        return true;
-      }
-    }
-    return false;
-  }, [baselineKeys, draftKeys]);
-
-  const matrixBusy = isSavePending || isRemovePending;
-
-  function toggleCapability(
-    userId: string,
-    mentorSubjectId: string,
-    checked: boolean
-  ) {
-    if (!canUpdateCapabilities || matrixBusy) {
-      return;
-    }
-
-    const key = pairKey(userId, mentorSubjectId);
-    setDraftKeys((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        next.add(key);
-      } else {
-        next.delete(key);
-      }
-      return next;
-    });
-  }
-
-  function handleSave() {
-    const capabilities: ManagerInstructorCapabilityPair[] = [...draftKeys].map(
-      (key) => {
-        const [user_id = "", mentor_subject_id = ""] = key.split(":");
-        return { user_id, mentor_subject_id };
-      }
-    );
-
-    const formData = new FormData();
-    formData.set("capabilities", JSON.stringify(capabilities));
-
-    startSaveTransition(() => {
-      saveFormAction(formData);
-    });
-  }
-
   function handleConfirmRemove() {
     if (!removeTarget) {
       return;
@@ -344,24 +230,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
   }
 
   function handleMentorSubjectDeleted(mentorSubjectId: string) {
-    setDraftKeys((current) => {
-      const next = new Set<string>();
-      for (const key of current) {
-        if (!key.endsWith(`:${mentorSubjectId}`)) {
-          next.add(key);
-        }
-      }
-      return next;
-    });
-    setBaselineKeys((current) => {
-      const next = new Set<string>();
-      for (const key of current) {
-        if (!key.endsWith(`:${mentorSubjectId}`)) {
-          next.add(key);
-        }
-      }
-      return next;
-    });
+    removeMentorSubjectFromCapabilitiesCache(queryClient, mentorSubjectId);
   }
 
   return (
@@ -401,7 +270,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
             <Button
               type="button"
               className="shrink-0"
-              disabled={matrixBusy}
+              disabled={isRemovePending}
               onClick={() => setIsAddOpen(true)}
             >
               <PlusIcon data-icon="inline-start" />
@@ -458,7 +327,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            disabled={matrixBusy}
+                            disabled={isRemovePending}
                             onClick={() => setRemoveTarget(row)}
                             aria-label={`Remove ${row.username ?? row.email}`}
                           >
@@ -545,40 +414,18 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
         mentorSubjects={mentorSubjects}
         onMentorSubjectsChange={handleMentorSubjectsChange}
         onMentorSubjectDeleted={handleMentorSubjectDeleted}
-        busy={matrixBusy}
+        busy={isRemovePending}
       />
 
       <section className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">
-              Mentor subject capabilities
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Check which mentor subjects each instructor can teach. Columns
-              follow mentor subject order.
-            </p>
-          </div>
-
-          <Can permission={PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE}>
-            <Button
-              type="button"
-              className="shrink-0"
-              disabled={
-                !isDirty || matrixBusy || mentorSubjects.length === 0
-              }
-              onClick={handleSave}
-            >
-              {isSavePending ? (
-                <>
-                  <InlineSpinner className="mr-2" />
-                  Saving…
-                </>
-              ) : (
-                "Save capabilities"
-              )}
-            </Button>
-          </Can>
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            Mentor subject capabilities
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Toggle which mentor subjects each instructor can teach. Changes save
+            immediately.
+          </p>
         </div>
 
         {mentorSubjects.length === 0 ? (
@@ -586,78 +433,13 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
             Create a mentor subject first.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border [scrollbar-width:auto] [&::-webkit-scrollbar]:h-4 [&::-webkit-scrollbar-thumb]:rounded-full">
-            <table className="w-max min-w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="sticky left-0 z-10 min-w-[10rem] bg-muted/40 px-4 py-3 font-medium backdrop-blur">
-                    Instructor
-                  </th>
-                  {mentorSubjects.map((subject) => (
-                    <th
-                      key={subject.id}
-                      className="min-w-[8rem] max-w-[10rem] px-3 py-3 text-center font-medium"
-                      title={subject.name}
-                    >
-                      <span className="line-clamp-2">{subject.name}</span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {instructors.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={Math.max(mentorSubjects.length + 1, 2)}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      Add instructors to edit capabilities.
-                    </td>
-                  </tr>
-                ) : (
-                  instructors.map((instructor) => (
-                    <tr
-                      key={instructor.id}
-                      className="border-b last:border-b-0 hover:bg-muted/20"
-                    >
-                      <td
-                        className={cn(
-                          "sticky left-0 z-10 bg-background px-4 py-3 font-medium"
-                        )}
-                      >
-                        {instructor.username ?? instructor.email}
-                      </td>
-                      {mentorSubjects.map((subject) => {
-                        const checked = draftKeys.has(
-                          pairKey(instructor.id, subject.id)
-                        );
-                        return (
-                          <td
-                            key={subject.id}
-                            className="px-3 py-3 text-center"
-                          >
-                            <input
-                              type="checkbox"
-                              aria-label={`${instructor.username ?? instructor.email} — ${subject.name}`}
-                              checked={checked}
-                              disabled={!canUpdateCapabilities || matrixBusy}
-                              onChange={(event) =>
-                                toggleCapability(
-                                  instructor.id,
-                                  subject.id,
-                                  event.target.checked
-                                )
-                              }
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <InstructorCapabilitiesMatrix
+            instructors={instructors}
+            mentorSubjects={mentorSubjects}
+            initialCapabilities={data.capabilities}
+            canUpdate={canUpdateCapabilities}
+            disabled={isRemovePending}
+          />
         )}
       </section>
 

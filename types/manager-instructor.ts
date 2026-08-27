@@ -41,6 +41,15 @@ export type SaveInstructorCapabilitiesActionState = {
   capabilities?: ManagerInstructorCapabilityPair[];
 };
 
+export type SetInstructorCapabilityResult = {
+  success: boolean;
+  error?: string;
+  message?: string;
+  user_id?: string;
+  mentor_subject_id?: string;
+  enabled?: boolean;
+};
+
 export type RemoveInstructorActionState = {
   success?: boolean;
   error?: string;

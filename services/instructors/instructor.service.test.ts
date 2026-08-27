@@ -8,6 +8,8 @@ import {
   addInstructorsForManager,
   removeInstructorForManager,
   saveInstructorSubjectCapabilities,
+  saveMentorSubjectOrderForManager,
+  setInstructorCapabilityForManager,
 } from "@/services/instructors/instructor.service";
 
 vi.mock("@/repositories/auth.repository");
@@ -118,7 +120,7 @@ describe("saveInstructorSubjectCapabilities", () => {
     });
     vi.mocked(
       mentorSubjectCapabilityRepository.deleteCapabilitiesByPairs
-    ).mockResolvedValue({ error: null });
+    ).mockResolvedValue({ data: 0, error: null });
     vi.mocked(
       mentorSubjectCapabilityRepository.insertCapabilities
     ).mockResolvedValue({ error: null });
@@ -144,6 +146,53 @@ describe("saveInstructorSubjectCapabilities", () => {
   });
 });
 
+describe("saveMentorSubjectOrderForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("reorders through one RPC and returns ordered rows", async () => {
+    const firstId = "44444444-4444-4444-8444-444444444444";
+    const secondId = "55555555-5555-4555-8555-555555555555";
+    vi.mocked(mentorSubjectRepository.reorderMentorSubjects).mockResolvedValue({
+      data: [
+        {
+          id: secondId,
+          name: "B",
+          sort_order: 0,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: firstId,
+          name: "A",
+          sort_order: 1,
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      ...okResult,
+    });
+
+    const result = await saveMentorSubjectOrderForManager(
+      adminClient,
+      actorUserId,
+      { orderedIds: [secondId, firstId] }
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "Mentor subject order saved.",
+      mentorSubjects: [
+        { id: secondId, name: "B", sort_order: 0 },
+        { id: firstId, name: "A", sort_order: 1 },
+      ],
+    });
+    expect(mentorSubjectRepository.reorderMentorSubjects).toHaveBeenCalledWith(
+      adminClient,
+      [secondId, firstId]
+    );
+    expect(mentorSubjectRepository.updateMentorSubjectSortOrder).not.toHaveBeenCalled();
+  });
+});
 describe("removeInstructorForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -199,5 +248,66 @@ describe("removeInstructorForManager", () => {
       instructorId,
       false
     );
+  });
+});
+
+describe("setInstructorCapabilityForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("inserts a capability when enabling", async () => {
+    const mentorSubjectId = "44444444-4444-4444-8444-444444444444";
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: instructorId,
+        username: "lead_teacher",
+        role: ROLES.TEACHER,
+        is_instructor: true,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      ...okResult,
+    });
+    vi.mocked(mentorSubjectRepository.findMentorSubjectById).mockResolvedValue({
+      data: {
+        id: mentorSubjectId,
+        name: "Arduino",
+        sort_order: 0,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      ...okResult,
+    });
+    vi.mocked(
+      mentorSubjectCapabilityRepository.listMentorSubjectCapabilitiesByUserIds
+    ).mockResolvedValue({
+      data: [],
+      ...okResult,
+    });
+    vi.mocked(
+      mentorSubjectCapabilityRepository.insertCapabilities
+    ).mockResolvedValue({ error: null });
+
+    const result = await setInstructorCapabilityForManager(
+      adminClient,
+      actorUserId,
+      {
+        user_id: instructorId,
+        mentor_subject_id: mentorSubjectId,
+        enabled: true,
+      }
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: "Capability updated.",
+      user_id: instructorId,
+      mentor_subject_id: mentorSubjectId,
+      enabled: true,
+    });
+    expect(
+      mentorSubjectCapabilityRepository.insertCapabilities
+    ).toHaveBeenCalledWith(adminClient, [
+      { user_id: instructorId, mentor_subject_id: mentorSubjectId },
+    ]);
   });
 });

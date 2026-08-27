@@ -1,51 +1,49 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
-import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
-import * as mentorSubjectCapabilityRepository from "@/repositories/mentor-subject-capability.repository";
-import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
+import * as clearInstructorRelatedRepository from "@/repositories/clear-instructor-related.repository";
 
-vi.mock("@/repositories/instructor-schedule-slot.repository");
-vi.mock("@/repositories/mentor-subject-capability.repository");
-vi.mock("@/repositories/workshop-instructor.repository");
+vi.mock("@/repositories/clear-instructor-related.repository");
 
 const admin = {} as never;
 const userId = "22222222-2222-4222-8222-222222222222";
-
-const ok = {
-  data: null,
-  error: null,
-  count: null,
-  status: 200,
-  statusText: "OK",
-} as const;
 
 describe("clearInstructorWorkshopRelatedData", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("clears capabilities, workshop assignments, then schedule slots", async () => {
+  it("clears related data through one RPC", async () => {
     vi.mocked(
-      mentorSubjectCapabilityRepository.deleteCapabilitiesByUserId
-    ).mockResolvedValue(ok as never);
-    vi.mocked(
-      workshopInstructorRepository.deleteWorkshopInstructorsByUserId
-    ).mockResolvedValue(ok as never);
-    vi.mocked(
-      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsByEntityRecord
-    ).mockResolvedValue(ok as never);
+      clearInstructorRelatedRepository.clearInstructorRelatedData
+    ).mockResolvedValue({
+      data: {
+        capabilities: 2,
+        workshop_instructors: 1,
+        schedule_slots: 3,
+      },
+      error: null,
+    });
 
     const result = await clearInstructorWorkshopRelatedData(admin, userId);
 
     expect(result).toEqual({ error: null });
     expect(
-      mentorSubjectCapabilityRepository.deleteCapabilitiesByUserId
+      clearInstructorRelatedRepository.clearInstructorRelatedData
     ).toHaveBeenCalledWith(admin, userId);
-    expect(
-      workshopInstructorRepository.deleteWorkshopInstructorsByUserId
-    ).toHaveBeenCalledWith(admin, userId);
-    expect(
-      instructorScheduleSlotRepository.deleteInstructorScheduleSlotsByEntityRecord
-    ).toHaveBeenCalledWith(admin, "instructor", userId);
+  });
+
+  it("returns the RPC error message", async () => {
+    vi.mocked(
+      clearInstructorRelatedRepository.clearInstructorRelatedData
+    ).mockResolvedValue({
+      data: null,
+      error: { message: "clear failed" } as never,
+    });
+
+    const result = await clearInstructorWorkshopRelatedData(admin, userId);
+
+    expect(result).toEqual({
+      error: "clear failed",
+    });
   });
 });
