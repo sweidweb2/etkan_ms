@@ -45,10 +45,10 @@ type Supabase = SupabaseClient<Database>;
 
 export type GuestRegistrationInvitePrefill = {
   full_name: string;
-  phone: string;
-  education_level: string;
+  phone: string | null;
+  education_level: string | null;
   organization_name: string | null;
-  age: number;
+  age: number | null;
 };
 
 export type GuestRegistrationInviteContext =

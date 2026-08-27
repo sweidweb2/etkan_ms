@@ -41,8 +41,8 @@ type GuestFormFieldsProps = {
   idPrefix: string;
   register: UseFormRegister<FieldValues>;
   setValue: UseFormSetValue<FieldValues>;
-  educationLevel: string;
-  interestedService: string;
+  educationLevel: string | null | undefined;
+  interestedService: string | null | undefined;
   errors: GuestFormFieldErrors;
   isPending: boolean;
 };
@@ -58,30 +58,30 @@ export function GuestFormFields({
 }: GuestFormFieldsProps) {
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <FieldLabel
-          htmlFor={`${idPrefix}-full-name`}
-          label="Full name"
-          hint="Required"
-        />
-        <Input
-          id={`${idPrefix}-full-name`}
-          maxLength={AUTH_LIMITS.fullName.max}
-          aria-invalid={!!errors.full_name}
-          disabled={isPending}
-          {...register("full_name")}
-        />
-        {errors.full_name ? (
-          <p className="text-sm text-destructive">{errors.full_name}</p>
-        ) : null}
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <FieldLabel
+            htmlFor={`${idPrefix}-full-name`}
+            label="Full name"
+            hint="Required"
+          />
+          <Input
+            id={`${idPrefix}-full-name`}
+            maxLength={AUTH_LIMITS.fullName.max}
+            aria-invalid={!!errors.full_name}
+            disabled={isPending}
+            {...register("full_name")}
+          />
+          {errors.full_name ? (
+            <p className="text-sm text-destructive">{errors.full_name}</p>
+          ) : null}
+        </div>
+
         <div className="flex flex-col gap-2">
           <FieldLabel
             htmlFor={`${idPrefix}-phone`}
             label="Phone"
-            hint="Required"
+            hint="Optional"
           />
           <Input
             id={`${idPrefix}-phone`}
@@ -94,9 +94,31 @@ export function GuestFormFields({
             <p className="text-sm text-destructive">{errors.phone}</p>
           ) : null}
         </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <FieldLabel
+            htmlFor={`${idPrefix}-school`}
+            label="School / university"
+            hint="Optional"
+          />
+          <Input
+            id={`${idPrefix}-school`}
+            maxLength={200}
+            aria-invalid={!!errors.school_or_university}
+            disabled={isPending}
+            {...register("school_or_university")}
+          />
+          {errors.school_or_university ? (
+            <p className="text-sm text-destructive">
+              {errors.school_or_university}
+            </p>
+          ) : null}
+        </div>
 
         <div className="flex flex-col gap-2">
-          <FieldLabel htmlFor={`${idPrefix}-age`} label="Age" hint="Required" />
+          <FieldLabel htmlFor={`${idPrefix}-age`} label="Age" hint="Optional" />
           <Input
             id={`${idPrefix}-age`}
             type="number"
@@ -112,32 +134,12 @@ export function GuestFormFields({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <FieldLabel
-          htmlFor={`${idPrefix}-school`}
-          label="School / university"
-          hint="Optional"
-        />
-        <Input
-          id={`${idPrefix}-school`}
-          maxLength={200}
-          aria-invalid={!!errors.school_or_university}
-          disabled={isPending}
-          {...register("school_or_university")}
-        />
-        {errors.school_or_university ? (
-          <p className="text-sm text-destructive">
-            {errors.school_or_university}
-          </p>
-        ) : null}
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <FieldLabel
             htmlFor={`${idPrefix}-education`}
             label="Education level"
-            hint="Required"
+            hint="Optional"
           />
           <Select
             value={educationLevel || undefined}
@@ -171,7 +173,7 @@ export function GuestFormFields({
           <FieldLabel
             htmlFor={`${idPrefix}-service`}
             label="Interested service"
-            hint="Required"
+            hint="Optional"
           />
           <Select
             value={interestedService || undefined}

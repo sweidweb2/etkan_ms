@@ -9,11 +9,11 @@ import type {
 export interface ManagerGuestRow {
   id: string;
   full_name: string;
-  phone: string;
-  age: number;
+  phone: string | null;
+  age: number | null;
   school_or_university: string | null;
-  education_level: GuestEducationLevel;
-  interested_service: GuestInterestedService;
+  education_level: GuestEducationLevel | null;
+  interested_service: GuestInterestedService | null;
   status: GuestCurrentStatus;
   notes: string | null;
   created_by: string | null;

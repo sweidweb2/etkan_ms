@@ -157,8 +157,10 @@ function isGuestInterestedService(
 
 function mapGuestRecordToRow(record: GuestRecord): ManagerGuestRow {
   if (
-    !isGuestEducationLevel(record.education_level) ||
-    !isGuestInterestedService(record.interested_service) ||
+    (record.education_level != null &&
+      !isGuestEducationLevel(record.education_level)) ||
+    (record.interested_service != null &&
+      !isGuestInterestedService(record.interested_service)) ||
     !isGuestCurrentStatus(record.status)
   ) {
     throw new Error("Invalid guest record.");
@@ -254,6 +256,26 @@ export async function getGuestForManager(
   }
 
   return mapGuestRecordToRow(data);
+}
+
+export async function listGuestStatusEventsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  guestId: string
+): Promise<ManagerGuestStatusEventRow[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GUESTS_VIEW);
+
+  const { data, error } =
+    await guestStatusEventRepository.listGuestStatusEventsByGuestId(
+      adminClient,
+      guestId
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map(mapGuestStatusEventRecordToRow);
 }
 
 export async function getGuestDetailForManager(
@@ -876,11 +898,11 @@ export async function createGuestForManager(
   actor: AuditActor,
   input: {
     full_name: string;
-    phone: string;
-    age: number;
+    phone?: string | null;
+    age?: number | null;
     school_or_university?: string | null;
-    education_level: GuestEducationLevel;
-    interested_service: GuestInterestedService;
+    education_level?: GuestEducationLevel | null;
+    interested_service?: GuestInterestedService | null;
     status?: GuestCurrentStatus;
     notes?: string | null;
   }
@@ -956,11 +978,11 @@ export async function updateGuestForManager(
   input: {
     id: string;
     full_name: string;
-    phone: string;
-    age: number;
+    phone?: string | null;
+    age?: number | null;
     school_or_university?: string | null;
-    education_level: GuestEducationLevel;
-    interested_service: GuestInterestedService;
+    education_level?: GuestEducationLevel | null;
+    interested_service?: GuestInterestedService | null;
     notes?: string | null;
   }
 ): Promise<UpdateGuestResult> {

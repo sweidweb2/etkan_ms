@@ -8,7 +8,9 @@ import {
   CheckCircle2Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  MessageSquareIcon,
   PauseCircleIcon,
+  PencilIcon,
   PlusIcon,
   SearchIcon,
   XCircleIcon,
@@ -16,6 +18,8 @@ import {
 import Link from "next/link";
 import { Can } from "@/components/auth/can";
 import { AddGuestDialog } from "@/components/manager/guests/add-guest-dialog";
+import { EditGuestDialog } from "@/components/manager/guests/edit-guest-dialog";
+import { ViewGuestNotesDialog } from "@/components/manager/guests/view-guest-notes-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,7 +141,11 @@ function matchesSearch(guest: ManagerGuestRow, query: string) {
     return true;
   }
 
-  const haystack = [guest.full_name, guest.phone, guest.school_or_university ?? ""]
+  const haystack = [
+    guest.full_name,
+    guest.phone ?? "",
+    guest.school_or_university ?? "",
+  ]
     .join(" ")
     .toLowerCase();
 
@@ -183,6 +191,10 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [notesGuest, setNotesGuest] = useState<ManagerGuestRow | null>(null);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [editGuest, setEditGuest] = useState<ManagerGuestRow | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   if (initialGuests !== prevGuests) {
     setPrevGuests(initialGuests);
@@ -352,13 +364,16 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
                     <th className="px-4 py-3 font-medium">Service</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Created</th>
+                    <th className="px-4 py-3 font-medium">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageRows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={9}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
                         {guestsById.length === 0 ? (
@@ -402,9 +417,9 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
                           </Link>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {guest.phone}
+                          {guest.phone ?? "—"}
                         </td>
-                        <td className="px-4 py-3">{guest.age}</td>
+                        <td className="px-4 py-3">{guest.age ?? "—"}</td>
                         <td className="px-4 py-3">
                           <TruncatedCell
                             value={guest.school_or_university ?? "—"}
@@ -412,20 +427,56 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
                           />
                         </td>
                         <td className="px-4 py-3">
-                          {GUEST_EDUCATION_LEVEL_LABELS[guest.education_level]}
+                          {guest.education_level
+                            ? GUEST_EDUCATION_LEVEL_LABELS[guest.education_level]
+                            : "—"}
                         </td>
                         <td className="px-4 py-3">
-                          {
-                            GUEST_INTERESTED_SERVICE_LABELS[
-                              guest.interested_service
-                            ]
-                          }
+                          {guest.interested_service
+                            ? GUEST_INTERESTED_SERVICE_LABELS[
+                                guest.interested_service
+                              ]
+                            : "—"}
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge status={guest.status} />
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                           {format(new Date(guest.created_at), "MMM d, yyyy")}
+                        </td>
+                        <td className="relative z-10 px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`View notes for ${guest.full_name}`}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setNotesGuest(guest);
+                                setIsNotesOpen(true);
+                              }}
+                            >
+                              <MessageSquareIcon />
+                            </Button>
+                            <Can permission={PERMISSIONS.GUESTS_UPDATE}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`Edit ${guest.full_name}`}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setEditGuest(guest);
+                                  setIsEditOpen(true);
+                                }}
+                              >
+                                <PencilIcon />
+                              </Button>
+                            </Can>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -523,6 +574,36 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
             setCurrentPage(1);
           }}
         />
+
+        <ViewGuestNotesDialog
+          open={isNotesOpen}
+          onOpenChange={(open) => {
+            setIsNotesOpen(open);
+            if (!open) {
+              setNotesGuest(null);
+            }
+          }}
+          guest={notesGuest}
+        />
+
+        {editGuest ? (
+          <EditGuestDialog
+            open={isEditOpen}
+            onOpenChange={(open) => {
+              setIsEditOpen(open);
+              if (!open) {
+                setEditGuest(null);
+              }
+            }}
+            guest={editGuest}
+            onGuestUpdated={(guest) => {
+              setGuests((current) =>
+                current.map((row) => (row.id === guest.id ? guest : row))
+              );
+              setEditGuest(guest);
+            }}
+          />
+        ) : null}
       </div>
     </TooltipProvider>
   );

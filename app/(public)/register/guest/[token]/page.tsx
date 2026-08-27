@@ -90,8 +90,8 @@ export default async function RegisterGuestPage({
         ageHint={context.prefill.age}
         initialDraft={{
           full_name: context.prefill.full_name,
-          phone: context.prefill.phone,
-          education_level: context.prefill.education_level,
+          phone: context.prefill.phone ?? "",
+          education_level: context.prefill.education_level ?? undefined,
           organization_name: context.prefill.organization_name ?? "",
         }}
       />

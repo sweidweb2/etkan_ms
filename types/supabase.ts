@@ -677,43 +677,43 @@ export type Database = {
       }
       guests: {
         Row: {
-          age: number
+          age: number | null
           created_at: string
           created_by: string | null
-          education_level: string
+          education_level: string | null
           full_name: string
           id: string
-          interested_service: string
+          interested_service: string | null
           notes: string | null
-          phone: string
+          phone: string | null
           school_or_university: string | null
           status: string
           updated_at: string
         }
         Insert: {
-          age: number
+          age?: number | null
           created_at?: string
           created_by?: string | null
-          education_level: string
+          education_level?: string | null
           full_name: string
           id?: string
-          interested_service: string
+          interested_service?: string | null
           notes?: string | null
-          phone: string
+          phone?: string | null
           school_or_university?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
-          age?: number
+          age?: number | null
           created_at?: string
           created_by?: string | null
-          education_level?: string
+          education_level?: string | null
           full_name?: string
           id?: string
-          interested_service?: string
+          interested_service?: string | null
           notes?: string | null
-          phone?: string
+          phone?: string | null
           school_or_university?: string | null
           status?: string
           updated_at?: string

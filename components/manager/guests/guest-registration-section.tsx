@@ -567,8 +567,8 @@ export function GuestRegistrationSection({
               }}
               initialDraft={{
                 full_name: guest.full_name,
-                phone: guest.phone,
-                education_level: guest.education_level,
+                phone: guest.phone ?? "",
+                education_level: guest.education_level ?? undefined,
                 organization_name: guest.school_or_university ?? "",
               }}
             />

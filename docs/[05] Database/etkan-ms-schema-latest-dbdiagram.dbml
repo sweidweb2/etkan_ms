@@ -690,11 +690,11 @@ Ref: mentor_subject_capability.mentor_subject_id > mentor_subjects.id
 Table guests {
   id uuid [pk, default: `gen_random_uuid()`]
   full_name text [not null]
-  phone text [not null]
-  age integer [not null, note: 'age > 0']
+  phone text
+  age integer [note: 'nullable; age > 0 when set']
   school_or_university text
-  education_level text [not null, note: 'school | uni_year_1 | uni_year_2 | uni_year_3 | uni_year_4_plus | uni_graduate | other']
-  interested_service text [not null, note: 'etkan_roadmap | private | workshops']
+  education_level text [note: 'nullable: school | uni_year_1 | uni_year_2 | uni_year_3 | uni_year_4_plus | uni_graduate | other']
+  interested_service text [note: 'nullable: etkan_roadmap | private | workshops']
   status text [not null, default: 'scheduled', note: 'scheduled | pending | cancelled | rejected | finished']
   notes text
   created_by uuid

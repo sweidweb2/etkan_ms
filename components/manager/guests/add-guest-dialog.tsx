@@ -24,8 +24,6 @@ import {
   GUEST_CURRENT_STATUS_LABELS,
   GUEST_CURRENT_STATUSES,
   GUEST_DEFAULT_STATUS,
-  GUEST_EDUCATION_LEVELS,
-  GUEST_INTERESTED_SERVICES,
 } from "@/lib/constants/guest";
 import {
   createGuestSchema,
@@ -40,11 +38,11 @@ const initialState: CreateGuestActionState = {};
 
 const emptyDefaults: CreateGuestInput = {
   full_name: "",
-  phone: "",
-  age: 18,
+  phone: null,
+  age: null,
   school_or_university: null,
-  education_level: GUEST_EDUCATION_LEVELS.SCHOOL,
-  interested_service: GUEST_INTERESTED_SERVICES.ETKAN_ROADMAP,
+  education_level: null,
+  interested_service: null,
   status: GUEST_DEFAULT_STATUS,
   notes: null,
 };
@@ -103,11 +101,11 @@ export function AddGuestDialog({
   function onSubmit(values: CreateGuestInput) {
     const formData = new FormData();
     formData.set("full_name", values.full_name.trim());
-    formData.set("phone", values.phone.trim());
-    formData.set("age", String(values.age));
+    formData.set("phone", values.phone ?? "");
+    formData.set("age", values.age == null ? "" : String(values.age));
     formData.set("school_or_university", values.school_or_university ?? "");
-    formData.set("education_level", values.education_level);
-    formData.set("interested_service", values.interested_service);
+    formData.set("education_level", values.education_level ?? "");
+    formData.set("interested_service", values.interested_service ?? "");
     formData.set("status", values.status);
     formData.set("notes", values.notes ?? "");
 
@@ -122,9 +120,9 @@ export function AddGuestDialog({
         <DialogHeader>
           <DialogTitle>Create guest</DialogTitle>
           <DialogDescription>
-            Minimal intake card. Choose Scheduled or Pending as the starting
-            profile status. Full registration comes later from the guest detail
-            page.
+            Minimal intake card — only full name is required. Choose Scheduled or
+            Pending as the starting profile status. Full registration comes later
+            from the guest detail page.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,8 +136,12 @@ export function AddGuestDialog({
             idPrefix="add-guest"
             register={register as unknown as UseFormRegister<FieldValues>}
             setValue={setValue as unknown as UseFormSetValue<FieldValues>}
-            educationLevel={educationLevel}
-            interestedService={interestedService}
+            educationLevel={
+              typeof educationLevel === "string" ? educationLevel : null
+            }
+            interestedService={
+              typeof interestedService === "string" ? interestedService : null
+            }
             isPending={isPending}
             errors={{
               full_name:

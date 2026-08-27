@@ -297,8 +297,11 @@ export function GuestDetailsPanel({
       >
         <div className="px-3 py-5 sm:px-4">
           <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailField label="Phone" value={guest.phone} />
-            <DetailField label="Age" value={String(guest.age)} />
+            <DetailField label="Phone" value={guest.phone ?? undefined} />
+            <DetailField
+              label="Age"
+              value={guest.age == null ? undefined : String(guest.age)}
+            />
             <DetailField
               label="Status"
               value={GUEST_CURRENT_STATUS_LABELS[guest.status]}
@@ -309,12 +312,18 @@ export function GuestDetailsPanel({
             />
             <DetailField
               label="Education level"
-              value={GUEST_EDUCATION_LEVEL_LABELS[guest.education_level]}
+              value={
+                guest.education_level
+                  ? GUEST_EDUCATION_LEVEL_LABELS[guest.education_level]
+                  : undefined
+              }
             />
             <DetailField
               label="Interested service"
               value={
-                GUEST_INTERESTED_SERVICE_LABELS[guest.interested_service]
+                guest.interested_service
+                  ? GUEST_INTERESTED_SERVICE_LABELS[guest.interested_service]
+                  : undefined
               }
             />
             <DetailField

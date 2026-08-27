@@ -14,11 +14,11 @@ const GUEST_COLUMNS =
 export type GuestRecord = {
   id: string;
   full_name: string;
-  phone: string;
-  age: number;
+  phone: string | null;
+  age: number | null;
   school_or_university: string | null;
-  education_level: string;
-  interested_service: string;
+  education_level: string | null;
+  interested_service: string | null;
   status: string;
   notes: string | null;
   created_by: string | null;
@@ -28,11 +28,11 @@ export type GuestRecord = {
 
 export type CreateGuestRecordInput = {
   full_name: string;
-  phone: string;
-  age: number;
+  phone: string | null;
+  age: number | null;
   school_or_university: string | null;
-  education_level: GuestEducationLevel;
-  interested_service: GuestInterestedService;
+  education_level: GuestEducationLevel | null;
+  interested_service: GuestInterestedService | null;
   status: GuestCurrentStatus;
   notes: string | null;
   created_by: string | null;
@@ -40,11 +40,11 @@ export type CreateGuestRecordInput = {
 
 export type UpdateGuestRecordInput = {
   full_name: string;
-  phone: string;
-  age: number;
+  phone: string | null;
+  age: number | null;
   school_or_university: string | null;
-  education_level: GuestEducationLevel;
-  interested_service: GuestInterestedService;
+  education_level: GuestEducationLevel | null;
+  interested_service: GuestInterestedService | null;
   notes: string | null;
 };
 

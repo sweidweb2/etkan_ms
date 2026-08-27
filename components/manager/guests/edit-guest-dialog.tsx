@@ -105,11 +105,11 @@ export function EditGuestDialog({
     const formData = new FormData();
     formData.set("id", values.id);
     formData.set("full_name", values.full_name.trim());
-    formData.set("phone", values.phone.trim());
-    formData.set("age", String(values.age));
+    formData.set("phone", values.phone ?? "");
+    formData.set("age", values.age == null ? "" : String(values.age));
     formData.set("school_or_university", values.school_or_university ?? "");
-    formData.set("education_level", values.education_level);
-    formData.set("interested_service", values.interested_service);
+    formData.set("education_level", values.education_level ?? "");
+    formData.set("interested_service", values.interested_service ?? "");
     formData.set("notes", values.notes ?? "");
 
     startTransition(() => {
@@ -138,8 +138,12 @@ export function EditGuestDialog({
             idPrefix="edit-guest"
             register={register as unknown as UseFormRegister<FieldValues>}
             setValue={setValue as unknown as UseFormSetValue<FieldValues>}
-            educationLevel={educationLevel}
-            interestedService={interestedService}
+            educationLevel={
+              typeof educationLevel === "string" ? educationLevel : null
+            }
+            interestedService={
+              typeof interestedService === "string" ? interestedService : null
+            }
             isPending={isPending}
             errors={{
               full_name:

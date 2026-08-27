@@ -26,6 +26,7 @@ import {
 import {
   createGuestForManager,
   deleteGuestForManager,
+  listGuestStatusEventsForManager,
   removeGuestStatusForManager,
   setGuestProfileStatusForManager,
   setGuestStatusForManager,
@@ -51,6 +52,7 @@ import type {
   CreateGuestActionState,
   DeleteGuestActionState,
   DeleteGuestRegistrationApplicationActionState,
+  ManagerGuestStatusEventRow,
   OpenGuestRegistrationInviteActionState,
   RecordGuestStatusesActionState,
   RemoveGuestStatusActionState,
@@ -670,6 +672,33 @@ export async function listGuestRegistrationLinkUsersAction(): Promise<{
         error instanceof Error
           ? error.message
           : "Unable to load users. Please try again.",
+    };
+  }
+}
+
+export async function listGuestStatusEventsAction(
+  guestId: string
+): Promise<
+  | { success: true; statusEvents: ManagerGuestStatusEventRow[] }
+  | { success: false; error: string }
+> {
+  const actor = await getSessionAuditActor();
+  const adminClient = createSupabaseAdminClient();
+
+  try {
+    const statusEvents = await listGuestStatusEventsForManager(
+      adminClient,
+      actor.userId,
+      guestId
+    );
+    return { success: true, statusEvents };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load guest statuses. Please try again.",
     };
   }
 }

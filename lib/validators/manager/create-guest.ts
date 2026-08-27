@@ -26,6 +26,35 @@ function optionalTrimmedText(max: number, label: string) {
     .nullable());
 }
 
+function optionalEnum<T extends readonly [string, ...string[]]>(
+  values: T,
+  message: string
+) {
+  return z.preprocess((value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed === "" ? null : trimmed;
+  }, z.enum(values, { message }).nullable());
+}
+
+const optionalAge = z.preprocess((value) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  if (trimmed === "") {
+    return null;
+  }
+  return value;
+}, z.coerce
+  .number({ message: "Age must be a number." })
+  .int({ message: "Age must be a whole number." })
+  .positive({ message: "Age must be greater than 0." })
+  .max(120, { message: "Age must be at most 120." })
+  .nullable());
+
 export const createGuestSchema = z.object({
   full_name: z
     .string()
@@ -34,25 +63,17 @@ export const createGuestSchema = z.object({
     .max(FULL_NAME_MAX, {
       message: `Name must be at most ${FULL_NAME_MAX} characters.`,
     }),
-  phone: z
-    .string()
-    .trim()
-    .min(1, { message: "Phone is required." })
-    .max(AUTH_LIMITS.phone.max, {
-      message: `Phone must be at most ${AUTH_LIMITS.phone.max} characters.`,
-    }),
-  age: z.coerce
-    .number({ message: "Age is required." })
-    .int({ message: "Age must be a whole number." })
-    .positive({ message: "Age must be greater than 0." })
-    .max(120, { message: "Age must be at most 120." }),
+  phone: optionalTrimmedText(AUTH_LIMITS.phone.max, "Phone"),
+  age: optionalAge,
   school_or_university: optionalTrimmedText(SCHOOL_MAX, "School / university"),
-  education_level: z.enum(GUEST_EDUCATION_LEVEL_VALUES, {
-    message: "Select an education level.",
-  }),
-  interested_service: z.enum(GUEST_INTERESTED_SERVICE_VALUES, {
-    message: "Select an interested service.",
-  }),
+  education_level: optionalEnum(
+    GUEST_EDUCATION_LEVEL_VALUES,
+    "Select an education level."
+  ),
+  interested_service: optionalEnum(
+    GUEST_INTERESTED_SERVICE_VALUES,
+    "Select an interested service."
+  ),
   status: z
     .enum(
       [GUEST_CURRENT_STATUSES.SCHEDULED, GUEST_CURRENT_STATUSES.PENDING],
