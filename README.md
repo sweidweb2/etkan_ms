@@ -33,7 +33,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=your-turnstile-site-key
+TURNSTILE_SITE_KEY=your-turnstile-site-key
 TURNSTILE_SECRET=your-turnstile-secret
 TURNSTILE_HOSTNAMES=localhost,127.0.0.1
 ```

@@ -251,6 +251,7 @@ type RegistrationWizardProps = {
   documentRemoveAction?: RegistrationDocumentRemoveAction;
   onSuccess?: () => void;
   onPendingChange?: (isPending: boolean) => void;
+  turnstileSiteKey?: string;
 };
 
 function createDraft(initial?: Partial<Draft>): Draft {
@@ -286,6 +287,7 @@ function RegistrationWizardContent({
   documentRemoveAction,
   onSuccess,
   onPendingChange,
+  turnstileSiteKey = "",
 }: RegistrationWizardProps) {
   const { t } = usePublicI18n();
   const [stepIndex, setStepIndex] = useState(0);
@@ -300,8 +302,6 @@ function RegistrationWizardContent({
   const isSubmitPending = isActionPending || isTransitionPending;
   const isPending = isSubmitPending || isDocumentBusy;
   const requireTurnstile = mode === "public";
-  const turnstileSiteKey =
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
   const [turnstileToken, setTurnstileToken] = useState("");
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const wasSubmitPendingRef = useRef(false);

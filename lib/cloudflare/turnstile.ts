@@ -34,7 +34,7 @@ export function getTurnstileExpectedHostnames(): Set<string> {
 }
 
 export function getTurnstileSiteKey(): string | null {
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
+  const siteKey = process.env.TURNSTILE_SITE_KEY?.trim();
   return siteKey || null;
 }
 

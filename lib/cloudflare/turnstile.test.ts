@@ -10,7 +10,7 @@ vi.mock("server-only", () => ({}));
 const originalEnv = {
   secret: process.env.TURNSTILE_SECRET,
   hostnames: process.env.TURNSTILE_HOSTNAMES,
-  siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+  siteKey: process.env.TURNSTILE_SITE_KEY,
 };
 
 function restoreEnv() {
@@ -25,16 +25,16 @@ function restoreEnv() {
     process.env.TURNSTILE_HOSTNAMES = originalEnv.hostnames;
   }
   if (originalEnv.siteKey === undefined) {
-    delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    delete process.env.TURNSTILE_SITE_KEY;
   } else {
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = originalEnv.siteKey;
+    process.env.TURNSTILE_SITE_KEY = originalEnv.siteKey;
   }
 }
 
 function setRequiredEnv() {
   process.env.TURNSTILE_SECRET = "test-secret";
   process.env.TURNSTILE_HOSTNAMES = "localhost,127.0.0.1";
-  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "test-site-key";
+  process.env.TURNSTILE_SITE_KEY = "test-site-key";
 }
 
 async function loadVerify() {
@@ -167,7 +167,7 @@ describe("verifyTurnstileToken", () => {
   });
 
   it("fails closed when the site key is missing", async () => {
-    delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    delete process.env.TURNSTILE_SITE_KEY;
     const verifyTurnstileToken = await loadVerify();
     const result = await verifyTurnstileToken({
       token: "fresh-token",
