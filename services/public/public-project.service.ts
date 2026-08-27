@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+import { PUBLIC_CONTENT_CACHE_TAGS } from "@/lib/cache/public-content-cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   PUBLIC_PROJECT_PLACEHOLDER_IMAGE_URL,
@@ -7,6 +9,7 @@ import {
   buildProjectImageStoragePath,
   getProjectImageObjectPathFromPublicUrl,
 } from "@/lib/manager/projects/storage-path";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createPublicProjectSchema } from "@/lib/validators/manager/create-public-project";
 import { updatePublicProjectSchema } from "@/lib/validators/manager/update-public-project";
 import * as publicProjectRepository from "@/repositories/public-project.repository";
@@ -214,17 +217,31 @@ export async function listPublicProjectsForManager(
   return (data ?? []).map(mapPublicProjectRecordToRow);
 }
 
+const listPublicProjectsForPublicCached = unstable_cache(
+  async () => {
+    const adminClient = createSupabaseAdminClient();
+    const { data, error } =
+      await publicProjectRepository.listPublicProjects(adminClient);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data ?? []).map(mapPublicProjectRecordToRow);
+  },
+  ["public-projects-list"],
+  { tags: [PUBLIC_CONTENT_CACHE_TAGS.PROJECTS], revalidate: 3600 }
+);
+
+/**
+ * Public projects page. Shared Data Cache — no auth.
+ * `adminClient` is kept for call-site compatibility; the cached path
+ * creates its own admin client inside `unstable_cache`.
+ */
 export async function listPublicProjectsForPublic(
-  adminClient: Supabase
+  _adminClient?: Supabase
 ): Promise<ManagerPublicProjectRow[]> {
-  const { data, error } =
-    await publicProjectRepository.listPublicProjects(adminClient);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data ?? []).map(mapPublicProjectRecordToRow);
+  return listPublicProjectsForPublicCached();
 }
 
 export async function getPublicProjectForManager(

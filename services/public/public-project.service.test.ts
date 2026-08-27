@@ -12,6 +12,14 @@ import {
   updatePublicProjectForManager,
 } from "@/services/public/public-project.service";
 
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: () => adminClient,
+}));
+
 vi.mock("@/repositories/public-project.repository");
 vi.mock("@/repositories/public-project-storage.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({

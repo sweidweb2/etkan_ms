@@ -24,7 +24,8 @@ This document inventories **features/functions** by their most appropriate cache
 - **Shared server cache** (shipped):  
   - Used for: users, students, relationships, schedule instructors, schedule eligible workshops, schedule all sessions  
   - Good fit for: subjects, classes, semesters, equipments  
-  - Optional for: gallery, reports  
+  - Optional for: reports  
+  - **Public gallery / projects lists:** Data-Cached (**shipped**) 
   - **Avoid** for: details, monetary/grade/personalized data
 
 - **Request-scoped cache**:  
@@ -64,7 +65,8 @@ See the [01 caching.md](./[01]%20caching.md) for policy/how-to and `.cursor/rule
 | Classes list | `listClassesForManager` | `manager-classes` | 3600s | **Fit** | Shared manager catalog |
 | Semesters list | `listSemestersForManager` | `manager-semesters` | 3600s | **Fit** | Catalog + accounting semester options |
 | Equipments inventory list | `listEquipmentsForManager` | `manager-equipments` | 3600s | **Fit** | Invalidate on create/update **and** borrow/return that changes availability |
-| Gallery (manager + public) | `listGalleryImagesForManager`, `listGalleryImagesForPublic` | `manager-gallery` / `public-gallery` | 3600s | **Optional** | Public page benefits most; invalidate on CRUD |
+| Gallery (manager + public) | `listGalleryImagesForManager`, `listGalleryImagesForPublic` | `manager-gallery` / `public-gallery` | 3600s | **Shipped** (public) | Public list Data-Cached; invalidate via `revalidatePublicGallery` on CRUD |
+| Public projects list | `listPublicProjectsForPublic` | `public-projects` | 3600s | **Shipped** | Invalidate via `revalidatePublicProjects` on project CRUD |
 | Schedule-assistant catalogs | `listInstructorsCatalog`, `listSubjectsCatalog`, `listCapabilityMatrixCatalog` | `schedule-assistant-*` | 1800–3600s | **Optional** | Shared read catalogs for AI/schedule helpers |
 | Income statement rollup | `getIncomeStatementForManager` | `manager-income-statement` | 60–300s | **Optional** | Expensive aggregate; short TTL + invalidate on accounting money writes |
 | Income analytics | `getIncomeStatementAnalyticsForManager` | `manager-income-analytics` | 60–300s | **Optional** | Same pattern as rollup |

@@ -909,6 +909,12 @@ export const ar = {
   "registration.field.consentTerms": "أوافق على شروط التسجيل.",
   "registration.field.consentPrivacy":
     "أوافق على معالجة بياناتي لهذا الطلب.",
+  "registration.turnstile.required":
+    "أكمل التحقق قبل إرسال الطلب.",
+  "registration.turnstile.failed":
+    "فشل التحقق. أكمل التحقق وحاول مرة أخرى.",
+  "registration.turnstile.unavailable":
+    "التحقق غير متاح. حدّث الصفحة وحاول مرة أخرى.",
 
   "language.en": "EN",
   "language.ar": "ع",

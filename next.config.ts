@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+/** ISR marketing HTML — align with `app/(public)/layout` revalidate=600. */
+const PUBLIC_MARKETING_CACHE_CONTROL =
+  "public, s-maxage=600, stale-while-revalidate=86400";
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -25,6 +29,28 @@ const nextConfig: NextConfig = {
         pathname: "/storage/v1/object/public/**",
       },
     ],
+  },
+  async headers() {
+    const marketingPaths = [
+      "/",
+      "/about",
+      "/careers",
+      "/careers/:path*",
+      "/gallery",
+      "/projects",
+      "/register",
+      "/maintenance",
+    ];
+
+    return marketingPaths.map((source) => ({
+      source,
+      headers: [
+        {
+          key: "Cache-Control",
+          value: PUBLIC_MARKETING_CACHE_CONTROL,
+        },
+      ],
+    }));
   },
   experimental: {
     // Public marketing pages are static — keep their UI in the client router

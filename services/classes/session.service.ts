@@ -26,7 +26,6 @@ import * as classRepository from "@/repositories/class.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
-import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";

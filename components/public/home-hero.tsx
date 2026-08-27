@@ -558,7 +558,7 @@ export function HomeHero() {
                     )}
                     aria-hidden={!isActive}
                   >
-                    {item.cards.map((card) => (
+                    {item.cards.map((card, cardIndex) => (
                       <Link
                         key={card.titleKey}
                         href={ROUTES.CAREERS}
@@ -574,7 +574,7 @@ export function HomeHero() {
                             src={card.imageSrc}
                             alt={t(card.titleKey)}
                             className="bg-muted"
-                            priority={i === 0}
+                            priority={i === 0 && cardIndex === 0}
                           />
                           <CardHeader className="gap-1 p-0 px-0.5">
                             <CardTitle

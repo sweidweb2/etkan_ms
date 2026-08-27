@@ -1636,9 +1636,6 @@ describe("ensureSessionAttendeesForMembers", () => {
 });
 
 describe("deleteClassSessionForManager", () => {
-  const sessionTwoId = "c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3";
-  const sessionThreeId = "d4d4d4d4-d4d4-4d4d-8d4d-d4d4d4d4d4d4";
-
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
@@ -1728,8 +1725,6 @@ describe("deleteClassSessionForManager", () => {
   });
 
   it("deletes the session, renumbers remaining sessions, and audits", async () => {
-    const sessionOneId = "e5e5e5e5-e5e5-4e5e-8e5e-e5e5e5e5e5e5";
-
     vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
       data: { ...sessionRecord, nb_order: 2 },
       error: null,

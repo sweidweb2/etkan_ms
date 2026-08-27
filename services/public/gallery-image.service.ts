@@ -1,4 +1,7 @@
+import { unstable_cache } from "next/cache";
+import { PUBLIC_CONTENT_CACHE_TAGS } from "@/lib/cache/public-content-cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createGalleryImageSchema } from "@/lib/validators/manager/create-gallery-image";
 import { updateGalleryImageSchema } from "@/lib/validators/manager/update-gallery-image";
 import * as galleryImageRepository from "@/repositories/gallery-image.repository";
@@ -96,17 +99,31 @@ function mapUpdateGalleryImageError(message: string): string {
   return "Unable to update gallery image. Please try again.";
 }
 
+const listGalleryImagesForPublicCached = unstable_cache(
+  async () => {
+    const adminClient = createSupabaseAdminClient();
+    const { data, error } =
+      await galleryImageRepository.listGalleryImages(adminClient);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data ?? []).map(mapGalleryImageRecordToRow);
+  },
+  ["public-gallery-images"],
+  { tags: [PUBLIC_CONTENT_CACHE_TAGS.GALLERY], revalidate: 3600 }
+);
+
+/**
+ * Public gallery / about cover URLs. Shared Data Cache — no auth.
+ * `adminClient` is kept for call-site compatibility; the cached path
+ * creates its own admin client inside `unstable_cache`.
+ */
 export async function listGalleryImagesForPublic(
-  adminClient: Supabase
+  _adminClient?: Supabase
 ): Promise<ManagerGalleryImageRow[]> {
-  const { data, error } =
-    await galleryImageRepository.listGalleryImages(adminClient);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data ?? []).map(mapGalleryImageRecordToRow);
+  return listGalleryImagesForPublicCached();
 }
 
 export async function listGalleryImagesForManager(

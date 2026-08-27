@@ -1,6 +1,7 @@
 "use server";
 
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { revalidatePublicGallery } from "@/lib/cache/public-content-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateGalleryImageFormData } from "@/lib/validators/manager/create-gallery-image";
 import { parseUpdateGalleryImageFormData } from "@/lib/validators/manager/update-gallery-image";
@@ -46,6 +47,8 @@ export async function createGalleryImageAction(
     };
   }
 
+  revalidatePublicGallery();
+
   return {
     success: true,
     message: result.message,
@@ -84,6 +87,8 @@ export async function updateGalleryImageAction(
     };
   }
 
+  revalidatePublicGallery();
+
   return {
     success: true,
     message: result.message,
@@ -119,6 +124,8 @@ export async function deleteGalleryImageAction(
       error: result.error,
     };
   }
+
+  revalidatePublicGallery();
 
   return {
     success: true,

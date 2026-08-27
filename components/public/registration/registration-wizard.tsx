@@ -1,6 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { CheckIcon } from "lucide-react";
 import { submitPublicRegistrationAction } from "@/app/(public)/register/actions";
 import { LanguageToggle } from "@/components/layout/language-toggle";
@@ -11,6 +18,10 @@ import {
   type RegistrationDocumentUploadAction,
   type RegistrationUploadedDocument,
 } from "@/components/public/registration/registration-documents-step";
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/public/registration/turnstile-widget";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -60,6 +71,10 @@ import {
   REGISTRATION_WEEKDAY_VALUES,
   type RegistrationStep,
 } from "@/lib/constants/public-registration";
+import {
+  TURNSTILE_REGISTER_ACTION,
+  TURNSTILE_TOKEN_FIELD,
+} from "@/lib/constants/turnstile";
 import {
   PublicI18nBoundary,
   usePublicI18n,
@@ -284,6 +299,12 @@ function RegistrationWizardContent({
   const [isTransitionPending, startTransition] = useTransition();
   const isSubmitPending = isActionPending || isTransitionPending;
   const isPending = isSubmitPending || isDocumentBusy;
+  const requireTurnstile = mode === "public";
+  const turnstileSiteKey =
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const wasSubmitPendingRef = useRef(false);
 
   useEffect(() => {
     onPendingChange?.(isPending);
@@ -293,6 +314,19 @@ function RegistrationWizardContent({
   useActionStateSuccess(state, isSubmitPending, () => {
     onSuccess?.();
   });
+
+  useEffect(() => {
+    if (
+      requireTurnstile &&
+      wasSubmitPendingRef.current &&
+      !isSubmitPending &&
+      !state.success
+    ) {
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
+    }
+    wasSubmitPendingRef.current = isSubmitPending;
+  }, [isSubmitPending, requireTurnstile, state.success]);
 
   const step = REGISTRATION_STEPS[stepIndex]!;
   const needsGraduationYear =
@@ -398,7 +432,15 @@ function RegistrationWizardContent({
 
   function handleSubmit() {
     if (!validateCurrentStep()) return;
+    if (requireTurnstile && !turnstileToken) {
+      setStepErrors((current) => ({
+        ...current,
+        turnstile: t("registration.turnstile.required"),
+      }));
+      return;
+    }
     const formData = new FormData();
+
     formData.set("full_name", draft.full_name);
     formData.set("gender", draft.gender);
     formData.set("date_of_birth", draft.date_of_birth);
@@ -440,6 +482,9 @@ function RegistrationWizardContent({
     }
     if (mode === "guest-staff" && guestId) {
       formData.set("guest_id", guestId);
+    }
+    if (requireTurnstile) {
+      formData.set(TURNSTILE_TOKEN_FIELD, turnstileToken);
     }
 
     startTransition(() => {
@@ -1192,6 +1237,34 @@ function RegistrationWizardContent({
               </label>
               <FieldError message={stepErrors.consent_privacy} />
 
+              {requireTurnstile ? (
+                <div className="space-y-1">
+                  {turnstileSiteKey ? (
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      siteKey={turnstileSiteKey}
+                      action={TURNSTILE_REGISTER_ACTION}
+                      onTokenChange={(token) => {
+                        setTurnstileToken(token);
+                        if (token) {
+                          setStepErrors((current) => {
+                            if (!current.turnstile) return current;
+                            const next = { ...current };
+                            delete next.turnstile;
+                            return next;
+                          });
+                        }
+                      }}
+                    />
+                  ) : (
+                    <p className="text-sm text-destructive">
+                      {t("registration.turnstile.unavailable")}
+                    </p>
+                  )}
+                  <FieldError message={stepErrors.turnstile} />
+                </div>
+              ) : null}
+
               {state.error && !state.fieldErrors ? (
                 <p className="text-sm text-destructive">{state.error}</p>
               ) : null}
@@ -1208,7 +1281,14 @@ function RegistrationWizardContent({
               {t("registration.back")}
             </Button>
             {step === "review" ? (
-              <Button type="button" disabled={isPending} onClick={handleSubmit}>
+              <Button
+                type="button"
+                disabled={
+                  isPending ||
+                  (requireTurnstile && (!turnstileToken || !turnstileSiteKey))
+                }
+                onClick={handleSubmit}
+              >
                 {isPending ? <InlineSpinner className="mr-2" /> : null}
                 {t("registration.submit")}
               </Button>

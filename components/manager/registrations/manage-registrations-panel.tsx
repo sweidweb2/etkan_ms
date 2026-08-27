@@ -7,7 +7,6 @@ import { EyeIcon, SearchIcon } from "lucide-react";
 import { updateRegistrationStatusAction } from "@/app/(panels)/manager/registrations/actions";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,

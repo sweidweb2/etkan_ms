@@ -33,7 +33,12 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=your-turnstile-site-key
+TURNSTILE_SECRET=your-turnstile-secret
+TURNSTILE_HOSTNAMES=localhost,127.0.0.1
 ```
+
+`TURNSTILE_*` gates public `/register` submit. Production `TURNSTILE_HOSTNAMES` must be the live frontend hostname(s) and must not include `localhost` or `127.0.0.1`. Restart the dev server after changing `NEXT_PUBLIC_*` values.
 
 See [docs/config/supabase-auth.md](docs/config/supabase-auth.md) for Supabase redirect URL setup.
 

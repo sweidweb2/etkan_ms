@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { revalidatePublicProjects } from "@/lib/cache/public-content-cache";
 import { ROUTES } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -50,6 +51,8 @@ export async function createPublicProjectAction(
     };
   }
 
+  revalidatePublicProjects();
+
   return {
     success: true,
     message: result.message,
@@ -88,6 +91,8 @@ export async function updatePublicProjectAction(
     };
   }
 
+  revalidatePublicProjects();
+
   return {
     success: true,
     message: result.message,
@@ -124,6 +129,7 @@ export async function deletePublicProjectAction(
     };
   }
 
+  revalidatePublicProjects();
   revalidatePath(ROUTES.MANAGER_PROJECTS);
   redirect(
     appendQueryParam(ROUTES.MANAGER_PROJECTS, "toast", "project_deleted")

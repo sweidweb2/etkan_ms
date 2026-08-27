@@ -1,5 +1,11 @@
 "use server";
 
+import { verifyTurnstileToken } from "@/lib/cloudflare/turnstile";
+import {
+  TURNSTILE_REGISTER_ACTION,
+  TURNSTILE_TOKEN_FIELD,
+} from "@/lib/constants/turnstile";
+import { getClientIp } from "@/lib/rate-limit/client-ip";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   parseRemoveTempRegistrationDocumentFormData,
@@ -21,6 +27,19 @@ export async function submitPublicRegistrationAction(
   _prevState: SubmitPublicRegistrationActionState,
   formData: FormData
 ): Promise<SubmitPublicRegistrationActionState> {
+  const verified = await verifyTurnstileToken({
+    token: formData.get(TURNSTILE_TOKEN_FIELD),
+    expectedAction: TURNSTILE_REGISTER_ACTION,
+    remoteip: await getClientIp(),
+  });
+
+  if (!verified.ok) {
+    return {
+      success: false,
+      error: verified.error,
+    };
+  }
+
   const parsed = parseSubmitPublicRegistrationFormData(formData);
 
   if (!parsed.success) {

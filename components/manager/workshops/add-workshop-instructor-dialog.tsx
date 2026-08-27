@@ -80,7 +80,10 @@ export function AddWorkshopInstructorDialog({
     ManagerWorkshopInstructorCandidate[] | null
   >(null);
   const needsFetch = candidatesProp.length === 0;
-  const candidates = needsFetch ? (fetchedCandidates ?? []) : candidatesProp;
+  const candidates = useMemo(
+    () => (needsFetch ? (fetchedCandidates ?? []) : candidatesProp),
+    [needsFetch, fetchedCandidates, candidatesProp]
+  );
   const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
     if (!nextOpen) {
       setCandidateFilter("");

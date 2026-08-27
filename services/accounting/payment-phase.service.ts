@@ -330,20 +330,6 @@ async function buildStudentMetaByUserId(
   return meta;
 }
 
-async function buildStudentLabelsByUserId(
-  adminClient: Supabase,
-  studentIds: string[]
-): Promise<Map<string, string>> {
-  const meta = await buildStudentMetaByUserId(adminClient, studentIds);
-  const labels = new Map<string, string>();
-
-  for (const [studentId, entry] of meta) {
-    labels.set(studentId, entry.label);
-  }
-
-  return labels;
-}
-
 function mapSppRecordToRow(
   record: StudentPaymentPhaseRecord,
   studentLabel: string,

@@ -139,45 +139,6 @@ function getCategoryIcon(category: NotificationCategoryValue) {
   }
 }
 
-function matchesSearch(notification: ManagerNotificationRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const haystack = [notification.title, notification.body]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(normalizedQuery);
-}
-
-function matchesReadFilter(
-  notification: ManagerNotificationRow,
-  readFilter: string
-) {
-  if (readFilter === READ_FILTER_UNREAD) {
-    return !notification.is_read;
-  }
-
-  if (readFilter === READ_FILTER_READ) {
-    return notification.is_read;
-  }
-
-  return true;
-}
-
-function matchesCategoryFilter(
-  notification: ManagerNotificationRow,
-  categoryFilter: string
-) {
-  if (categoryFilter === CATEGORY_FILTER_ALL) {
-    return true;
-  }
-
-  return notification.category === categoryFilter;
-}
-
 export function ManageNotificationsPanel({
   initialNotifications,
   initialTotal,
@@ -188,7 +149,6 @@ export function ManageNotificationsPanel({
   const [notifications, setNotifications] = useState(initialNotifications);
   const [total, setTotal] = useState(initialTotal);
   const [stats, setStats] = useState(initialStats);
-  const [isPageLoading, setIsPageLoading] = useState(false);
   const [prevNotifications, setPrevNotifications] =
     useState(initialNotifications);
   const [isTransitionPending, startTransition] = useTransition();
@@ -315,8 +275,6 @@ export function ManageNotificationsPanel({
 
     let cancelled = false;
     const timeoutId = window.setTimeout(() => {
-      setIsPageLoading(true);
-
       void loadNotificationsPageAction({
         page: currentPage,
         pageSize,
@@ -331,7 +289,6 @@ export function ManageNotificationsPanel({
         setNotifications(pageData.notifications);
         setTotal(pageData.total);
         setStats(pageData.stats);
-        setIsPageLoading(false);
       });
     }, searchQuery.trim() ? 250 : 0);
 

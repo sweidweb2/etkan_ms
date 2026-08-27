@@ -30,7 +30,7 @@ import {
   addStudentToSemesterSchema,
   type AddStudentToSemesterInput,
 } from "@/lib/validators/manager/add-student-to-semester";
-import type { ManagerSemesterRow, AddStudentToSemesterActionState } from "@/types/manager-phase";
+import type { AddStudentToSemesterActionState } from "@/types/manager-phase";
 import type { ManagerStudentRow } from "@/types/manager-student";
 import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
 

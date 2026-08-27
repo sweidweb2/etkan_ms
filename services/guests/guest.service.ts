@@ -765,7 +765,7 @@ export async function setGuestProfileStatusForManager(
     };
   }
 
-  const { id, status, note } = parsed.data;
+  const { id } = parsed.data;
 
   const existing = await guestRepository.findGuestById(adminClient, id);
   if (existing.error) {

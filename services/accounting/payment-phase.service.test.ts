@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as classRepository from "@/repositories/class.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import * as semesterRepository from "@/repositories/semester.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -68,15 +67,6 @@ const validCreateInput = {
   duration_months: 4,
   start_date: "2026-09-01",
   end_date: "2026-12-31",
-};
-
-const semesterRow = {
-  id: semesterId,
-  name: "Fall 2026",
-  semester_code: "F26",
-  start_date: "2026-09-01",
-  end_date: "2026-12-31",
-  created_at: "2026-01-01T00:00:00.000Z",
 };
 
 const billingClass = {

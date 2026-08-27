@@ -909,6 +909,12 @@ export const en = {
   "registration.field.consentTerms": "I agree to the terms of registration.",
   "registration.field.consentPrivacy":
     "I agree to the processing of my data for this application.",
+  "registration.turnstile.required":
+    "Complete the verification check before submitting.",
+  "registration.turnstile.failed":
+    "Verification failed. Complete the check and try again.",
+  "registration.turnstile.unavailable":
+    "Verification is unavailable. Refresh the page and try again.",
 
   "language.en": "EN",
   "language.ar": "ع",
