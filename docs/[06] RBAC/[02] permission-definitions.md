@@ -89,7 +89,10 @@ Format: `key` — label — access
 | `instructors.view` | View instructors | read |
 | `instructors.create` | Add instructors (`is_instructor` on) | write |
 | `instructors.delete` | Remove instructors (`is_instructor` off) | write |
-| `instructors.capabilities.update` | Update instructor subject capabilities | write |
+| `instructors.capabilities.update` | Update instructor mentor subject capabilities | write |
+| `instructors.mentor_subjects.create` | Create mentor subjects | write |
+| `instructors.mentor_subjects.update` | Update mentor subjects (rename + reorder) | write |
+| `instructors.mentor_subjects.delete` | Delete mentor subjects | write |
 
 ### Instructor schedules
 
@@ -375,6 +378,9 @@ instructors.view
 instructors.create
 instructors.delete
 instructors.capabilities.update
+instructors.mentor_subjects.create
+instructors.mentor_subjects.update
+instructors.mentor_subjects.delete
 
 instructor_schedules.view
 instructor_schedules.details.view
@@ -547,6 +553,9 @@ instructors.view
 instructors.create
 instructors.delete
 instructors.capabilities.update
+instructors.mentor_subjects.create
+instructors.mentor_subjects.update
+instructors.mentor_subjects.delete
 instructor_schedules.view
 instructor_schedules.details.view
 instructor_schedules.create

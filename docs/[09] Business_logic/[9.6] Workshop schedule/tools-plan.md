@@ -8,18 +8,18 @@ Create these **read-only** tools for the Cloudflare tool loop. No writes.
 
 ## Tool 1 — `search_instructors_by_subject`
 
-**Purpose:** Find instructors whose subject capabilities match a query string.
+**Purpose:** Find instructors whose mentor subject capabilities match a query string.
 
 | | |
 |--|--|
-| Args | `query` (string, required) — subject keywords (e.g. `"Arduino"`) |
+| Args | `query` (string, required) — mentor subject keywords (e.g. `"Arduino"`) |
 | Returns | `{ instructors: [{ id, username, subjects: string[] }] }` |
 
 **Backend steps**
 
-1. Load all subjects; match names with case-insensitive contains / token overlap.  
-2. Load `instructor_subject_capability` pairs.  
-3. Keep instructors (`profiles.is_instructor`) who have at least one matched subject.  
+1. Load all mentor subjects; match names with case-insensitive contains / token overlap.  
+2. Load `mentor_subject_capability` pairs.  
+3. Keep instructors (`profiles.is_instructor`) who have at least one matched mentor subject.  
 4. Return compact JSON for the model.
 
 ## Tool 2 — `list_free_slots_for_instructors`

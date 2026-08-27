@@ -5,28 +5,45 @@ import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import * as authRepository from "@/repositories/auth.repository";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
-import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
+import * as mentorSubjectCapabilityRepository from "@/repositories/mentor-subject-capability.repository";
+import * as mentorSubjectRepository from "@/repositories/mentor-subject.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import * as subjectRepository from "@/repositories/subject.repository";
 import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { saveInstructorCapabilitiesSchema } from "@/lib/validators/manager/save-instructor-capabilities";
+import { createMentorSubjectSchema } from "@/lib/validators/manager/create-mentor-subject";
+import { updateMentorSubjectSchema } from "@/lib/validators/manager/update-mentor-subject";
+import { saveMentorSubjectOrderSchema } from "@/lib/validators/manager/save-mentor-subject-order";
 import { addInstructorsSchema } from "@/lib/validators/manager/add-instructors";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   ManagerInstructorCandidateRow,
   ManagerInstructorCapabilityPair,
   ManagerInstructorsPageData,
+  ManagerMentorSubjectColumn,
 } from "@/types/manager-instructor";
+import type { FieldErrors } from "@/types/auth";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Supabase = SupabaseClient<Database>;
 
-function pairKey(userId: string, subjectId: string) {
-  return `${userId}:${subjectId}`;
+function pairKey(userId: string, mentorSubjectId: string) {
+  return `${userId}:${mentorSubjectId}`;
+}
+
+function toMentorSubjectColumn(row: {
+  id: string;
+  name: string;
+  sort_order: number;
+}): ManagerMentorSubjectColumn {
+  return {
+    id: row.id,
+    name: row.name,
+    sort_order: row.sort_order,
+  };
 }
 
 async function mapProfilesWithEmail(
@@ -61,21 +78,21 @@ async function mapProfilesWithEmail(
 async function fetchInstructorsPageForManager(
   adminClient: Supabase
 ): Promise<ManagerInstructorsPageData> {
-  const [instructorsResult, subjectsResult] = await Promise.all([
+  const [instructorsResult, mentorSubjectsResult] = await Promise.all([
     profileRepository.listInstructorProfiles(adminClient),
-    subjectRepository.listSubjects(adminClient),
+    mentorSubjectRepository.listMentorSubjects(adminClient),
   ]);
 
   if (instructorsResult.error) {
     throw new Error(instructorsResult.error.message);
   }
-  if (subjectsResult.error) {
-    throw new Error(subjectsResult.error.message);
+  if (mentorSubjectsResult.error) {
+    throw new Error(mentorSubjectsResult.error.message);
   }
 
-  const subjects = (subjectsResult.data ?? [])
-    .map((row) => ({ id: row.id, name: row.name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const mentorSubjects = (mentorSubjectsResult.data ?? []).map(
+    toMentorSubjectColumn
+  );
 
   const instructorsMapped = await mapProfilesWithEmail(
     adminClient,
@@ -87,10 +104,10 @@ async function fetchInstructorsPageForManager(
   );
 
   const instructorIds = instructors.map((row) => row.id);
-  const subjectIds = new Set(subjects.map((row) => row.id));
+  const mentorSubjectIds = new Set(mentorSubjects.map((row) => row.id));
 
   const capabilitiesResult =
-    await instructorSubjectCapabilityRepository.listInstructorSubjectCapabilitiesByUserIds(
+    await mentorSubjectCapabilityRepository.listMentorSubjectCapabilitiesByUserIds(
       adminClient,
       instructorIds
     );
@@ -102,17 +119,18 @@ async function fetchInstructorsPageForManager(
   const capabilities = (capabilitiesResult.data ?? [])
     .filter(
       (row) =>
-        instructorIds.includes(row.user_id) && subjectIds.has(row.subject_id)
+        instructorIds.includes(row.user_id) &&
+        mentorSubjectIds.has(row.mentor_subject_id)
     )
     .map((row) => ({
       user_id: row.user_id,
-      subject_id: row.subject_id,
+      mentor_subject_id: row.mentor_subject_id,
     }));
 
   return {
     instructors,
     candidateUsers: [],
-    subjects,
+    mentorSubjects,
     capabilities,
   };
 }
@@ -207,19 +225,21 @@ export async function saveInstructorSubjectCapabilities(
 
   const instructorIds = (instructorIdsResult.data ?? []).map((row) => row.id);
 
-  const [subjectIdsResult, existingResult] = await Promise.all([
-    subjectRepository.listSubjectIds(adminClient),
-    instructorSubjectCapabilityRepository.listInstructorSubjectCapabilitiesByUserIds(
+  const [mentorSubjectIdsResult, existingResult] = await Promise.all([
+    mentorSubjectRepository.listMentorSubjectIds(adminClient),
+    mentorSubjectCapabilityRepository.listMentorSubjectCapabilitiesByUserIds(
       adminClient,
       instructorIds
     ),
   ]);
 
-  if (subjectIdsResult.error) {
-    return { success: false, error: subjectIdsResult.error.message };
+  if (mentorSubjectIdsResult.error) {
+    return { success: false, error: mentorSubjectIdsResult.error.message };
   }
 
-  const subjectIds = new Set((subjectIdsResult.data ?? []).map((row) => row.id));
+  const mentorSubjectIds = new Set(
+    (mentorSubjectIdsResult.data ?? []).map((row) => row.id)
+  );
 
   if (existingResult.error) {
     return { success: false, error: existingResult.error.message };
@@ -229,29 +249,35 @@ export async function saveInstructorSubjectCapabilities(
 
   const desired = parsed.data.capabilities.filter(
     (pair) =>
-      instructorIdSet.has(pair.user_id) && subjectIds.has(pair.subject_id)
+      instructorIdSet.has(pair.user_id) &&
+      mentorSubjectIds.has(pair.mentor_subject_id)
   );
 
   const desiredKeys = new Set(
-    desired.map((pair) => pairKey(pair.user_id, pair.subject_id))
+    desired.map((pair) => pairKey(pair.user_id, pair.mentor_subject_id))
   );
 
   const existing = (existingResult.data ?? []).filter((row) =>
     instructorIdSet.has(row.user_id)
   );
   const existingKeys = new Set(
-    existing.map((row) => pairKey(row.user_id, row.subject_id))
+    existing.map((row) => pairKey(row.user_id, row.mentor_subject_id))
   );
 
   const toInsert = desired.filter(
-    (pair) => !existingKeys.has(pairKey(pair.user_id, pair.subject_id))
+    (pair) => !existingKeys.has(pairKey(pair.user_id, pair.mentor_subject_id))
   );
   const toDelete = existing
-    .filter((row) => !desiredKeys.has(pairKey(row.user_id, row.subject_id)))
-    .map((row) => ({ user_id: row.user_id, subject_id: row.subject_id }));
+    .filter(
+      (row) => !desiredKeys.has(pairKey(row.user_id, row.mentor_subject_id))
+    )
+    .map((row) => ({
+      user_id: row.user_id,
+      mentor_subject_id: row.mentor_subject_id,
+    }));
 
   const { error: deleteError } =
-    await instructorSubjectCapabilityRepository.deleteCapabilitiesByPairs(
+    await mentorSubjectCapabilityRepository.deleteCapabilitiesByPairs(
       adminClient,
       toDelete
     );
@@ -260,7 +286,7 @@ export async function saveInstructorSubjectCapabilities(
   }
 
   const { error: insertError } =
-    await instructorSubjectCapabilityRepository.insertCapabilities(
+    await mentorSubjectCapabilityRepository.insertCapabilities(
       adminClient,
       toInsert
     );
@@ -272,6 +298,277 @@ export async function saveInstructorSubjectCapabilities(
     success: true,
     message: "Instructor capabilities saved.",
     capabilities: desired,
+  };
+}
+
+export type MentorSubjectMutationResult =
+  | {
+      success: true;
+      message: string;
+      mentorSubject: ManagerMentorSubjectColumn;
+    }
+  | { success: false; error: string; fieldErrors?: FieldErrors };
+
+export async function createMentorSubjectForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  input: { name: string }
+): Promise<MentorSubjectMutationResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_CREATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = createMentorSubjectSchema.safeParse(input);
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        name: flattened.name,
+      },
+    };
+  }
+
+  const name = parsed.data.name.trim();
+  const existingByName = await mentorSubjectRepository.findMentorSubjectByName(
+    adminClient,
+    name
+  );
+  if (existingByName.error) {
+    return { success: false, error: existingByName.error.message };
+  }
+  if (existingByName.data) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { name: ["A mentor subject with this name already exists."] },
+    };
+  }
+
+  const maxSortResult =
+    await mentorSubjectRepository.getMaxMentorSubjectSortOrder(adminClient);
+  if (maxSortResult.error) {
+    return { success: false, error: maxSortResult.error.message };
+  }
+
+  const nextSortOrder =
+    maxSortResult.data?.sort_order !== undefined
+      ? maxSortResult.data.sort_order + 1
+      : 0;
+
+  const created = await mentorSubjectRepository.createMentorSubject(
+    adminClient,
+    { name, sort_order: nextSortOrder }
+  );
+  if (created.error || !created.data) {
+    return {
+      success: false,
+      error: created.error?.message ?? "Unable to create mentor subject.",
+    };
+  }
+
+  return {
+    success: true,
+    message: "Mentor subject created.",
+    mentorSubject: toMentorSubjectColumn(created.data),
+  };
+}
+
+export async function updateMentorSubjectForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  input: { id: string; name: string }
+): Promise<MentorSubjectMutationResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = updateMentorSubjectSchema.safeParse(input);
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        id: flattened.id,
+        name: flattened.name,
+      },
+    };
+  }
+
+  const existing = await mentorSubjectRepository.findMentorSubjectById(
+    adminClient,
+    parsed.data.id
+  );
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+  if (!existing.data) {
+    return { success: false, error: "Mentor subject not found." };
+  }
+
+  const name = parsed.data.name.trim();
+  const existingByName = await mentorSubjectRepository.findMentorSubjectByName(
+    adminClient,
+    name
+  );
+  if (existingByName.error) {
+    return { success: false, error: existingByName.error.message };
+  }
+  if (existingByName.data && existingByName.data.id !== parsed.data.id) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { name: ["A mentor subject with this name already exists."] },
+    };
+  }
+
+  const updated = await mentorSubjectRepository.updateMentorSubjectById(
+    adminClient,
+    parsed.data.id,
+    { name }
+  );
+  if (updated.error || !updated.data) {
+    return {
+      success: false,
+      error: updated.error?.message ?? "Unable to update mentor subject.",
+    };
+  }
+
+  return {
+    success: true,
+    message: "Mentor subject updated.",
+    mentorSubject: toMentorSubjectColumn(updated.data),
+  };
+}
+
+export type DeleteMentorSubjectResult =
+  | { success: true; message: string; mentorSubjectId: string }
+  | { success: false; error: string };
+
+export async function deleteMentorSubjectForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  mentorSubjectId: string
+): Promise<DeleteMentorSubjectResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const trimmedId = mentorSubjectId.trim();
+  if (!trimmedId) {
+    return { success: false, error: "Mentor subject not found." };
+  }
+
+  const existing = await mentorSubjectRepository.findMentorSubjectById(
+    adminClient,
+    trimmedId
+  );
+  if (existing.error) {
+    return { success: false, error: existing.error.message };
+  }
+  if (!existing.data) {
+    return { success: false, error: "Mentor subject not found." };
+  }
+
+  const { error } = await mentorSubjectRepository.deleteMentorSubjectById(
+    adminClient,
+    trimmedId
+  );
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return {
+    success: true,
+    message: "Mentor subject deleted.",
+    mentorSubjectId: trimmedId,
+  };
+}
+
+export type SaveMentorSubjectOrderResult =
+  | {
+      success: true;
+      message: string;
+      mentorSubjects: ManagerMentorSubjectColumn[];
+    }
+  | { success: false; error: string };
+
+export async function saveMentorSubjectOrderForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  input: { orderedIds: string[] }
+): Promise<SaveMentorSubjectOrderResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_UPDATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = saveMentorSubjectOrderSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Please fix the mentor subject order." };
+  }
+
+  const allResult = await mentorSubjectRepository.listMentorSubjects(adminClient);
+  if (allResult.error) {
+    return { success: false, error: allResult.error.message };
+  }
+
+  const existingIds = new Set((allResult.data ?? []).map((row) => row.id));
+  const orderedIds = parsed.data.orderedIds;
+
+  if (
+    orderedIds.length !== existingIds.size ||
+    orderedIds.some((id) => !existingIds.has(id)) ||
+    new Set(orderedIds).size !== orderedIds.length
+  ) {
+    return {
+      success: false,
+      error: "Mentor subject order does not match the current catalog.",
+    };
+  }
+
+  for (let index = 0; index < orderedIds.length; index += 1) {
+    const id = orderedIds[index]!;
+    const { error } = await mentorSubjectRepository.updateMentorSubjectSortOrder(
+      adminClient,
+      id,
+      index
+    );
+    if (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  const refreshed = await mentorSubjectRepository.listMentorSubjects(adminClient);
+  if (refreshed.error) {
+    return { success: false, error: refreshed.error.message };
+  }
+
+  return {
+    success: true,
+    message: "Mentor subject order saved.",
+    mentorSubjects: (refreshed.data ?? []).map(toMentorSubjectColumn),
   };
 }
 

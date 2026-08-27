@@ -791,41 +791,62 @@ export type Database = {
           },
         ]
       }
-      instructor_subject_capability: {
+      mentor_subject_capability: {
         Row: {
           created_at: string
           id: string
-          subject_id: string
+          mentor_subject_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          subject_id: string
+          mentor_subject_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          subject_id?: string
+          mentor_subject_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "instructor_subject_capability_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: "mentor_subject_capability_mentor_subject_id_fkey"
+            columns: ["mentor_subject_id"]
             isOneToOne: false
-            referencedRelation: "subjects"
+            referencedRelation: "mentor_subjects"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "instructor_subject_capability_user_id_fkey"
+            foreignKeyName: "mentor_subject_capability_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
+      }
+      mentor_subjects: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       notifications: {
         Row: {

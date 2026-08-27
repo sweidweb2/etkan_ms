@@ -112,6 +112,9 @@ export const PERMISSIONS = {
   INSTRUCTORS_CREATE: "instructors.create",
   INSTRUCTORS_DELETE: "instructors.delete",
   INSTRUCTORS_CAPABILITIES_UPDATE: "instructors.capabilities.update",
+  INSTRUCTORS_MENTOR_SUBJECTS_CREATE: "instructors.mentor_subjects.create",
+  INSTRUCTORS_MENTOR_SUBJECTS_UPDATE: "instructors.mentor_subjects.update",
+  INSTRUCTORS_MENTOR_SUBJECTS_DELETE: "instructors.mentor_subjects.delete",
 
   CLASSES_VIEW: "classes.view",
   CLASSES_CREATE: "classes.create",
@@ -401,7 +404,25 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE,
     feature: "instructors",
-    label: "Update instructor subject capabilities",
+    label: "Update instructor mentor subject capabilities",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_CREATE,
+    feature: "instructors",
+    label: "Create mentor subjects",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_UPDATE,
+    feature: "instructors",
+    label: "Update mentor subjects",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_DELETE,
+    feature: "instructors",
+    label: "Delete mentor subjects",
     access: PERMISSION_ACCESS.WRITE,
   },
 

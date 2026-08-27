@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const capabilityPairSchema = z.object({
   user_id: z.string().uuid(),
-  subject_id: z.string().uuid(),
+  mentor_subject_id: z.string().uuid(),
 });
 
 export const saveInstructorCapabilitiesSchema = z.object({

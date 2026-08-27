@@ -10,7 +10,8 @@ TRUNCATE TABLE
   public.semesters,
   public.student_semester,
   public.subjects,
-  public.instructor_subject_capability,
+  public.mentor_subjects,
+  public.mentor_subject_capability,
   public.classes,
   public.class_teacher,
   public.student_class,
@@ -632,14 +633,6 @@ INSERT INTO "subjects" ("id", "name", "syllabus_link", "reference_link", "handou
 INSERT INTO "subjects" ("id", "name", "syllabus_link", "reference_link", "handout_link", "nb_sessions", "created_at") VALUES ('23d468f3-2e99-4282-a9e6-39dc9710bd46', 'Project Planning & Device structure', NULL, NULL, NULL, 28, '2026-07-12T14:06:40.478005');
 INSERT INTO "subjects" ("id", "name", "syllabus_link", "reference_link", "handout_link", "nb_sessions", "created_at") VALUES ('d04634c5-41a9-4206-b05e-3d8b0ff2e4a4', 'Microcontroller + assembly', NULL, NULL, NULL, 28, '2026-07-21T12:23:58.449427');
 INSERT INTO "subjects" ("id", "name", "syllabus_link", "reference_link", "handout_link", "nb_sessions", "created_at") VALUES ('0bb7efb7-dc17-4291-9225-eb6d415b90fb', 'Python', NULL, NULL, NULL, 28, '2026-07-12T14:01:36.378785');
-
--- Table: instructor_subject_capability
-INSERT INTO "instructor_subject_capability" ("id", "user_id", "subject_id", "created_at") VALUES ('6177de08-08de-4cb5-9ab8-f444d7326c1e', '48b1bf9c-1720-4b83-91ee-7654b8598f0f', 'bf7b2499-c424-43c3-b67f-fff9165fad06', '2026-08-02T13:25:40.358151+00:00');
-INSERT INTO "instructor_subject_capability" ("id", "user_id", "subject_id", "created_at") VALUES ('0bb360d6-2787-4ad4-85a9-47ba8c42adcf', 'c155792a-1dc5-458b-aeed-a62a09654527', '0bb7efb7-dc17-4291-9225-eb6d415b90fb', '2026-08-03T08:34:44.397934+00:00');
-INSERT INTO "instructor_subject_capability" ("id", "user_id", "subject_id", "created_at") VALUES ('86c2b923-3fa4-46a5-94e0-65452fdf42c5', '529cbaa0-c1b8-4b46-ada9-228e598f33f6', '0bb7efb7-dc17-4291-9225-eb6d415b90fb', '2026-08-03T08:34:44.397934+00:00');
-INSERT INTO "instructor_subject_capability" ("id", "user_id", "subject_id", "created_at") VALUES ('7b6b6200-48c5-4c4c-8204-68904f10dbfe', '48b1bf9c-1720-4b83-91ee-7654b8598f0f', '0bb7efb7-dc17-4291-9225-eb6d415b90fb', '2026-08-03T08:34:44.397934+00:00');
-INSERT INTO "instructor_subject_capability" ("id", "user_id", "subject_id", "created_at") VALUES ('2ce11be1-268e-4dde-9a0c-753b82c3dca5', 'c155792a-1dc5-458b-aeed-a62a09654527', 'bf7b2499-c424-43c3-b67f-fff9165fad06', '2026-08-04T10:46:37.607826+00:00');
-INSERT INTO "instructor_subject_capability" ("id", "user_id", "subject_id", "created_at") VALUES ('526dddc5-3b46-4553-bead-259afaa19b81', '48b1bf9c-1720-4b83-91ee-7654b8598f0f', '52d16792-2d52-4a51-abaa-032804713e1b', '2026-08-04T10:46:37.607826+00:00');
 
 -- Table: classes
 INSERT INTO "classes" ("id", "subject_id", "semester_id", "name", "status", "created_at") VALUES ('5af98cdd-cb53-4f71-a2a1-d25e8f06e3b4', 'bf7b2499-c424-43c3-b67f-fff9165fad06', '12d30e8d-23bb-49f9-ac7b-1fec0127058a', 'Ardiuno-Team-3', 'in_progress', '2026-07-12T15:13:58.033703');

@@ -1,4 +1,5 @@
 import type { RoleValue } from "@/lib/constants/roles";
+import type { FieldErrors } from "@/types/auth";
 
 export type ManagerInstructorRow = {
   id: string;
@@ -15,20 +16,21 @@ export type ManagerInstructorCandidateRow = {
   email: string;
 };
 
-export type ManagerInstructorSubjectColumn = {
+export type ManagerMentorSubjectColumn = {
   id: string;
   name: string;
+  sort_order: number;
 };
 
 export type ManagerInstructorCapabilityPair = {
   user_id: string;
-  subject_id: string;
+  mentor_subject_id: string;
 };
 
 export type ManagerInstructorsPageData = {
   instructors: ManagerInstructorRow[];
   candidateUsers: ManagerInstructorCandidateRow[];
-  subjects: ManagerInstructorSubjectColumn[];
+  mentorSubjects: ManagerMentorSubjectColumn[];
   capabilities: ManagerInstructorCapabilityPair[];
 };
 
@@ -51,4 +53,34 @@ export type AddInstructorsActionState = {
   error?: string;
   message?: string;
   addedCount?: number;
+};
+
+export type CreateMentorSubjectActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  mentorSubject?: ManagerMentorSubjectColumn;
+};
+
+export type UpdateMentorSubjectActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  mentorSubject?: ManagerMentorSubjectColumn;
+};
+
+export type DeleteMentorSubjectActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  mentorSubjectId?: string;
+};
+
+export type SaveMentorSubjectOrderActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  mentorSubjects?: ManagerMentorSubjectColumn[];
 };

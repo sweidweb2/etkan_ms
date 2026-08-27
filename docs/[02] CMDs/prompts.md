@@ -38,7 +38,7 @@ resolveActorRole again (extra profiles.role fetch even though session already ha
 then the tiny workshops SELECT
 
 
-now go bro check all the flow of the all feature guest from its crud with its business logic its connections its flow,its edge cases and tell me what is working and what is broken and if there any edge cases not handled and so on...
+Review the complete flow of the "guest" feature, covering all CRUD operations, business logic, and interconnections. Analyze its end-to-end process, identify what works and what is broken, and highlight any unhandled or problematic edge cases. Provide a detailed assessment of the feature’s current state, including business rule enforcement, data integrity, permission checks, and robustness against error scenarios.
 
 
 optimization -->

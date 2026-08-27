@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ENTITY_SCHEDULE_TYPE_INSTRUCTOR } from "@/lib/validators/manager/instructor-schedule-slot";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
-import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
+import * as mentorSubjectCapabilityRepository from "@/repositories/mentor-subject-capability.repository";
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 import type { Database } from "@/types/supabase";
 
@@ -20,7 +20,7 @@ export async function clearInstructorWorkshopRelatedData(
   userId: string
 ): Promise<ClearInstructorRelatedResult> {
   const { error: capabilityError } =
-    await instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId(
+    await mentorSubjectCapabilityRepository.deleteCapabilitiesByUserId(
       admin,
       userId
     );
@@ -28,7 +28,7 @@ export async function clearInstructorWorkshopRelatedData(
     return {
       error:
         capabilityError.message ||
-        "Unable to clear instructor subject capabilities.",
+        "Unable to clear instructor mentor subject capabilities.",
     };
   }
 

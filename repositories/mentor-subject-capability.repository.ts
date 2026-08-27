@@ -3,21 +3,14 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-export type InstructorSubjectCapabilityRecord = {
+export type MentorSubjectCapabilityRecord = {
   id: string;
   user_id: string;
-  subject_id: string;
+  mentor_subject_id: string;
   created_at: string;
 };
 
-export async function listAllInstructorSubjectCapabilities(client: Supabase) {
-  return client
-    .from("instructor_subject_capability")
-    .select("id, user_id, subject_id, created_at")
-    .order("created_at", { ascending: true });
-}
-
-export async function listInstructorSubjectCapabilitiesByUserIds(
+export async function listMentorSubjectCapabilitiesByUserIds(
   client: Supabase,
   userIds: string[]
 ) {
@@ -26,8 +19,8 @@ export async function listInstructorSubjectCapabilitiesByUserIds(
   }
 
   return client
-    .from("instructor_subject_capability")
-    .select("id, user_id, subject_id, created_at")
+    .from("mentor_subject_capability")
+    .select("id, user_id, mentor_subject_id, created_at")
     .in("user_id", userIds)
     .order("created_at", { ascending: true });
 }
@@ -37,14 +30,14 @@ export async function deleteCapabilitiesByUserId(
   userId: string
 ) {
   return client
-    .from("instructor_subject_capability")
+    .from("mentor_subject_capability")
     .delete()
     .eq("user_id", userId);
 }
 
 export async function deleteCapabilitiesByPairs(
   client: Supabase,
-  pairs: { user_id: string; subject_id: string }[]
+  pairs: { user_id: string; mentor_subject_id: string }[]
 ) {
   if (pairs.length === 0) {
     return { error: null };
@@ -53,16 +46,16 @@ export async function deleteCapabilitiesByPairs(
   const subjectIdsByUserId = new Map<string, string[]>();
   for (const pair of pairs) {
     const subjectIds = subjectIdsByUserId.get(pair.user_id) ?? [];
-    subjectIds.push(pair.subject_id);
+    subjectIds.push(pair.mentor_subject_id);
     subjectIdsByUserId.set(pair.user_id, subjectIds);
   }
 
-  for (const [userId, subjectIds] of subjectIdsByUserId) {
+  for (const [userId, mentorSubjectIds] of subjectIdsByUserId) {
     const { error } = await client
-      .from("instructor_subject_capability")
+      .from("mentor_subject_capability")
       .delete()
       .eq("user_id", userId)
-      .in("subject_id", subjectIds);
+      .in("mentor_subject_id", mentorSubjectIds);
 
     if (error) {
       return { error };
@@ -74,14 +67,14 @@ export async function deleteCapabilitiesByPairs(
 
 export async function insertCapabilities(
   client: Supabase,
-  pairs: { user_id: string; subject_id: string }[]
+  pairs: { user_id: string; mentor_subject_id: string }[]
 ) {
   if (pairs.length === 0) {
     return { data: [], error: null };
   }
 
   return client
-    .from("instructor_subject_capability")
+    .from("mentor_subject_capability")
     .insert(pairs)
-    .select("id, user_id, subject_id, created_at");
+    .select("id, user_id, mentor_subject_id, created_at");
 }

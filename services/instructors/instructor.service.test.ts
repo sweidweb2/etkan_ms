@@ -1,9 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ROLES } from "@/lib/constants/roles";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
-import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
+import * as mentorSubjectCapabilityRepository from "@/repositories/mentor-subject-capability.repository";
+import * as mentorSubjectRepository from "@/repositories/mentor-subject.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import * as subjectRepository from "@/repositories/subject.repository";
 import {
   addInstructorsForManager,
   removeInstructorForManager,
@@ -12,8 +12,8 @@ import {
 
 vi.mock("@/repositories/auth.repository");
 vi.mock("@/repositories/profile.repository");
-vi.mock("@/repositories/subject.repository");
-vi.mock("@/repositories/instructor-subject-capability.repository");
+vi.mock("@/repositories/mentor-subject.repository");
+vi.mock("@/repositories/mentor-subject-capability.repository");
 vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
   clearInstructorWorkshopRelatedData: vi.fn(),
 }));
@@ -101,43 +101,45 @@ describe("saveInstructorSubjectCapabilities", () => {
   });
 
   it("loads id lists and applies batch insert/delete", async () => {
-    const subjectId = "44444444-4444-4444-8444-444444444444";
+    const mentorSubjectId = "44444444-4444-4444-8444-444444444444";
     vi.mocked(profileRepository.listInstructorProfileIds).mockResolvedValue({
       data: [{ id: instructorId }],
       ...okResult,
     });
-    vi.mocked(subjectRepository.listSubjectIds).mockResolvedValue({
-      data: [{ id: subjectId }],
+    vi.mocked(mentorSubjectRepository.listMentorSubjectIds).mockResolvedValue({
+      data: [{ id: mentorSubjectId }],
       ...okResult,
     });
     vi.mocked(
-      instructorSubjectCapabilityRepository.listInstructorSubjectCapabilitiesByUserIds
+      mentorSubjectCapabilityRepository.listMentorSubjectCapabilitiesByUserIds
     ).mockResolvedValue({
       data: [],
       ...okResult,
     });
     vi.mocked(
-      instructorSubjectCapabilityRepository.deleteCapabilitiesByPairs
+      mentorSubjectCapabilityRepository.deleteCapabilitiesByPairs
     ).mockResolvedValue({ error: null });
     vi.mocked(
-      instructorSubjectCapabilityRepository.insertCapabilities
+      mentorSubjectCapabilityRepository.insertCapabilities
     ).mockResolvedValue({ error: null });
 
     const result = await saveInstructorSubjectCapabilities(
       adminClient,
       actorUserId,
       {
-        capabilities: [{ user_id: instructorId, subject_id: subjectId }],
+        capabilities: [
+          { user_id: instructorId, mentor_subject_id: mentorSubjectId },
+        ],
       }
     );
 
     expect(result.success).toBe(true);
     expect(profileRepository.listInstructorProfiles).not.toHaveBeenCalled();
-    expect(subjectRepository.listSubjects).not.toHaveBeenCalled();
+    expect(mentorSubjectRepository.listMentorSubjects).not.toHaveBeenCalled();
     expect(
-      instructorSubjectCapabilityRepository.insertCapabilities
+      mentorSubjectCapabilityRepository.insertCapabilities
     ).toHaveBeenCalledWith(adminClient, [
-      { user_id: instructorId, subject_id: subjectId },
+      { user_id: instructorId, mentor_subject_id: mentorSubjectId },
     ]);
   });
 });

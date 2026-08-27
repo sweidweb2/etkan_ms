@@ -16,7 +16,7 @@
 | UI phases | SSE: `reasoning` → `tool_start` / `tool_result` → `token` / `done` / `error` |
 | Off-topic | Refuse or ignore; see [guardrails.md](./guardrails.md) |
 
-Schema / data: existing `instructor_schedule_slots`, `instructor_subject_capability`, `subjects`, `profiles.is_instructor`.
+Schema / data: existing `instructor_schedule_slots`, `mentor_subject_capability`, `mentor_subjects`, `profiles.is_instructor`.
 
 ---
 

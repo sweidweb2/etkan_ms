@@ -5,18 +5,29 @@ import { revalidateManagerScheduleInstructors } from "@/lib/cache/instructor-sch
 import { revalidateManagerInstructorsList, revalidateManagerUsersList } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddInstructorsFormData } from "@/lib/validators/manager/add-instructors";
+import { parseCreateMentorSubjectFormData } from "@/lib/validators/manager/create-mentor-subject";
 import { parseSaveInstructorCapabilitiesFormData } from "@/lib/validators/manager/save-instructor-capabilities";
+import { parseSaveMentorSubjectOrderFormData } from "@/lib/validators/manager/save-mentor-subject-order";
+import { parseUpdateMentorSubjectFormData } from "@/lib/validators/manager/update-mentor-subject";
 import {
   addInstructorsForManager,
+  createMentorSubjectForManager,
+  deleteMentorSubjectForManager,
   listInstructorCandidatesForManager,
   removeInstructorForManager,
   saveInstructorSubjectCapabilities,
+  saveMentorSubjectOrderForManager,
+  updateMentorSubjectForManager,
 } from "@/services/instructors/instructor.service";
 import type {
   AddInstructorsActionState,
+  CreateMentorSubjectActionState,
+  DeleteMentorSubjectActionState,
   ManagerInstructorCandidateRow,
   RemoveInstructorActionState,
   SaveInstructorCapabilitiesActionState,
+  SaveMentorSubjectOrderActionState,
+  UpdateMentorSubjectActionState,
 } from "@/types/manager-instructor";
 
 export async function loadInstructorCandidatesAction(): Promise<
@@ -63,6 +74,146 @@ export async function saveInstructorCapabilitiesAction(
     success: true,
     message: result.message,
     capabilities: result.capabilities,
+  };
+}
+
+export async function createMentorSubjectAction(
+  _prevState: CreateMentorSubjectActionState,
+  formData: FormData
+): Promise<CreateMentorSubjectActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateMentorSubjectFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createMentorSubjectForManager(
+    adminClient,
+    actor.userId,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidateManagerInstructorsList();
+
+  return {
+    success: true,
+    message: result.message,
+    mentorSubject: result.mentorSubject,
+  };
+}
+
+export async function updateMentorSubjectAction(
+  _prevState: UpdateMentorSubjectActionState,
+  formData: FormData
+): Promise<UpdateMentorSubjectActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseUpdateMentorSubjectFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateMentorSubjectForManager(
+    adminClient,
+    actor.userId,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidateManagerInstructorsList();
+
+  return {
+    success: true,
+    message: result.message,
+    mentorSubject: result.mentorSubject,
+  };
+}
+
+export async function deleteMentorSubjectAction(
+  _prevState: DeleteMentorSubjectActionState,
+  formData: FormData
+): Promise<DeleteMentorSubjectActionState> {
+  const actor = await getSessionAuditActor();
+  const mentorSubjectId = String(formData.get("id") ?? "").trim();
+
+  if (!mentorSubjectId) {
+    return { success: false, error: "Mentor subject not found." };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteMentorSubjectForManager(
+    adminClient,
+    actor.userId,
+    mentorSubjectId
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidateManagerInstructorsList();
+
+  return {
+    success: true,
+    message: result.message,
+    mentorSubjectId: result.mentorSubjectId,
+  };
+}
+
+export async function saveMentorSubjectOrderAction(
+  _prevState: SaveMentorSubjectOrderActionState,
+  formData: FormData
+): Promise<SaveMentorSubjectOrderActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseSaveMentorSubjectOrderFormData(formData);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await saveMentorSubjectOrderForManager(
+    adminClient,
+    actor.userId,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidateManagerInstructorsList();
+
+  return {
+    success: true,
+    message: result.message,
+    mentorSubjects: result.mentorSubjects,
   };
 }
 

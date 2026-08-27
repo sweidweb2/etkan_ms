@@ -1,11 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
-import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
+import * as mentorSubjectCapabilityRepository from "@/repositories/mentor-subject-capability.repository";
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
 
 vi.mock("@/repositories/instructor-schedule-slot.repository");
-vi.mock("@/repositories/instructor-subject-capability.repository");
+vi.mock("@/repositories/mentor-subject-capability.repository");
 vi.mock("@/repositories/workshop-instructor.repository");
 
 const admin = {} as never;
@@ -26,7 +26,7 @@ describe("clearInstructorWorkshopRelatedData", () => {
 
   it("clears capabilities, workshop assignments, then schedule slots", async () => {
     vi.mocked(
-      instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId
+      mentorSubjectCapabilityRepository.deleteCapabilitiesByUserId
     ).mockResolvedValue(ok as never);
     vi.mocked(
       workshopInstructorRepository.deleteWorkshopInstructorsByUserId
@@ -39,7 +39,7 @@ describe("clearInstructorWorkshopRelatedData", () => {
 
     expect(result).toEqual({ error: null });
     expect(
-      instructorSubjectCapabilityRepository.deleteCapabilitiesByUserId
+      mentorSubjectCapabilityRepository.deleteCapabilitiesByUserId
     ).toHaveBeenCalledWith(admin, userId);
     expect(
       workshopInstructorRepository.deleteWorkshopInstructorsByUserId

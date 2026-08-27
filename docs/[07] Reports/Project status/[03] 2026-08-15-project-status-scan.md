@@ -73,7 +73,7 @@ July 12 `accounting.service` was replaced by the payment-phase / payment / adjus
 
 ### 1.3 Repositories
 
-`app-settings`, `attendee`, `audit-log`, `auth`, `backup`, `backup-history`, `borrow-equipment`, `class`, `class-teacher`, `cloudflare-ai-usage`, `email-sent`, `email-users`, `equipment`, `final-exam`, `gallery-image`, `instructor-schedule-slot`, `instructor-subject-capability`, `notification`, `payment-phase`, `permission`, `profile`, `public-project`, `registration-storage`, `relationship`, `semester`, `session`, `student-class`, `student-course-grade`, `student-financial-adjustment`, `student-financial-form`, `student-financial-form-invite`, `student-payment`, `student-payment-phase`, `student-profile`, `student-registration-application`, `student-registration-document`, `student-semester`, `student-task`, `subject`, `task`, `transaction`, `weekly-schedule-slot`, `workshop`, `workshop-document`, `workshop-instructor`, `workshop-payment`, `workshop-session`, `workshop-storage`
+`app-settings`, `attendee`, `audit-log`, `auth`, `backup`, `backup-history`, `borrow-equipment`, `class`, `class-teacher`, `cloudflare-ai-usage`, `email-sent`, `email-users`, `equipment`, `final-exam`, `gallery-image`, `instructor-schedule-slot`, `mentor-subject`, `mentor-subject-capability`, `notification`, `payment-phase`, `permission`, `profile`, `public-project`, `registration-storage`, `relationship`, `semester`, `session`, `student-class`, `student-course-grade`, `student-financial-adjustment`, `student-financial-form`, `student-financial-form-invite`, `student-payment`, `student-payment-phase`, `student-profile`, `student-registration-application`, `student-registration-document`, `student-semester`, `student-task`, `subject`, `task`, `transaction`, `weekly-schedule-slot`, `workshop`, `workshop-document`, `workshop-instructor`, `workshop-payment`, `workshop-session`, `workshop-storage`
 
 Dropped since July 12: `account`, `account-special-case`, `scheduled-payment`, `subscribed-semester` (accounting rewrite).
 
@@ -209,7 +209,7 @@ RBAC: `permissions`, `role_permissions`
 
 Finance (post-rewrite): `payment_phases`, `student_payment_phases`, `student_payments`, `student_financial_adjustments`, `student_financial_forms`, `student_financial_form_invites`, `transactions`
 
-Workshops / instructors: `workshops`, `workshop_instructors`, `workshop_documents`, `workshop_payments`, `workshop_sessions`, `instructor_schedule_slots`, `instructor_subject_capability`
+Workshops / instructors: `workshops`, `workshop_instructors`, `workshop_documents`, `workshop_payments`, `workshop_sessions`, `instructor_schedule_slots`, `mentor_subjects`, `mentor_subject_capability`
 
 Comms / public / AI: `email_sent`, `email_users`, `gallery_images`, `public_projects`, `student_registration_applications`, `student_registration_documents`, `cloudflare_ai_usage`
 
