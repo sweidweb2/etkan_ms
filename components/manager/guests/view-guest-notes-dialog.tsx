@@ -45,38 +45,45 @@ export function ViewGuestNotesDialog({
   onOpenChange,
   guest,
 }: ViewGuestNotesDialogProps) {
+  const guestId = guest?.id ?? null;
   const [isPending, startTransition] = useTransition();
-  const [events, setEvents] = useState<ManagerGuestStatusEventRow[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [events, setEvents] = useState<{
+    id: string;
+    rows: ManagerGuestStatusEventRow[];
+  } | null>(null);
+  const [loadError, setLoadError] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
-    if (!open || !guest) {
+    if (!open || !guestId) {
       return;
     }
 
     let cancelled = false;
-    setLoadError(null);
-    setEvents([]);
 
     startTransition(async () => {
-      const result = await listGuestStatusEventsAction(guest.id);
+      const result = await listGuestStatusEventsAction(guestId);
       if (cancelled) {
         return;
       }
       if (!result.success) {
-        setLoadError(result.error);
-        setEvents([]);
+        setLoadError({ id: guestId, message: result.error });
         return;
       }
-      setEvents(result.statusEvents);
+      setLoadError(null);
+      setEvents({ id: guestId, rows: result.statusEvents });
     });
 
     return () => {
       cancelled = true;
     };
-  }, [open, guest]);
+  }, [open, guestId]);
 
-  const pipelineStatuses = uniquePipelineStatuses(events);
+  const displayEvents = events?.id === guestId ? events.rows : [];
+  const errorMessage = loadError?.id === guestId ? loadError.message : null;
+  const pipelineStatuses = uniquePipelineStatuses(displayEvents);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -116,8 +123,8 @@ export function ViewGuestNotesDialog({
                   <InlineSpinner />
                   Loading statuses…
                 </div>
-              ) : loadError ? (
-                <p className="text-sm text-destructive">{loadError}</p>
+              ) : errorMessage ? (
+                <p className="text-sm text-destructive">{errorMessage}</p>
               ) : pipelineStatuses.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No pipeline statuses recorded yet.
@@ -134,9 +141,9 @@ export function ViewGuestNotesDialog({
                   ))}
                 </ul>
               )}
-              {!isPending && !loadError && events.length > 0 ? (
+              {!isPending && !errorMessage && displayEvents.length > 0 ? (
                 <ol className="mt-1 max-h-40 space-y-2 overflow-y-auto border-l border-border pl-3">
-                  {events.map((event) => (
+                  {displayEvents.map((event) => (
                     <li key={event.id} className="text-sm">
                       <div className="flex flex-wrap items-baseline gap-x-2">
                         <span className="font-medium">

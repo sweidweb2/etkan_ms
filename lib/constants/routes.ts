@@ -128,8 +128,8 @@ export function getPanelRootForRole(role: RoleValue): string {
   return ROLE_PANEL_ROOTS[role];
 }
 
-export function getCareersRoadmapDetailRoute(roadmapId: string): string {
-  return `/careers/roadmap/${roadmapId}`;
+export function getCareersRoadmapDetailRoute(stageId: string): string {
+  return `/careers/roadmap/${stageId}`;
 }
 
 export function getLifeBlogDetailRoute(blogId: string): string {

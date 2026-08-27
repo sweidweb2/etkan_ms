@@ -509,6 +509,55 @@ export const en = {
   "careers.roadmap.note.closing":
     "In this way Etkan goes beyond conventional schooling. It offers a productive educational model grounded in an Islamic outlook: shaping the person before the product, emphasizing practical experience, structured thinking, and professional responsibility, and bringing genuine industrial experience to the rising generation.",
 
+  "careers.roadmap.stagesLabel": "Roadmap stages",
+  "careers.roadmap.chain.title": "The Etkan roadmap",
+  "careers.roadmap.chain.lead":
+    "Five stages take you through the general learning path. The sixth node opens a separate specialization roadmap for going deeper after the core journey.",
+  "careers.roadmap.stage1": "Stage 1",
+  "careers.roadmap.stage2": "Stage 2",
+  "careers.roadmap.stage3": "Stage 3",
+  "careers.roadmap.stage4": "Stage 4",
+  "careers.roadmap.stage5": "Stage 5",
+  "careers.roadmap.stage6": "Specialization",
+  "careers.roadmap.stage1.title": "Intro to mechatronics",
+  "careers.roadmap.stage2.title": "Mechanic and power",
+  "careers.roadmap.stage3.title": "Development",
+  "careers.roadmap.stage4.title": "Prototype",
+  "careers.roadmap.stage5.title": "PCB design",
+  "careers.roadmap.stage6.title": "Specialization roadmap",
+  "careers.roadmap.stage.back": "Back to careers",
+  "careers.roadmap.stage.prev": "Previous stage",
+  "careers.roadmap.stage.next": "Next stage",
+  "careers.roadmap.stage.placeholder":
+    "Stage details will be added here.",
+
+  "careers.syllabus.label": "Syllabus",
+  "careers.syllabus.courseBadge": "Course",
+  "careers.syllabus.milestoneBadge": "Milestone",
+  "careers.syllabus.empty": "Syllabus for this stage will be added soon.",
+
+  "careers.syllabus.s1.programming.title": "Intro to programming",
+  "careers.syllabus.s1.programming.body":
+    "Build coding foundations step by step—from basic syntax to problem-solving patterns.",
+  "careers.syllabus.s1.programming.m.basics": "Basics",
+  "careers.syllabus.s1.programming.m.ifCondition": "If conditions",
+  "careers.syllabus.s1.programming.m.loops": "Loops",
+  "careers.syllabus.s1.programming.m.arrays": "Arrays",
+  "careers.syllabus.s1.programming.m.functions": "Functions",
+  "careers.syllabus.s1.programming.m.debugging": "Debugging and exceptions",
+  "careers.syllabus.s1.programming.m.strings": "Strings",
+  "careers.syllabus.s1.programming.m.classes": "Classes",
+  "careers.syllabus.s1.programming.m.dataStructures": "Data structures",
+  "careers.syllabus.s1.programming.m.problemSolving": "Problem-solving patterns",
+  "careers.syllabus.s1.programming.m.leetcode": "LeetCode practice",
+
+  "careers.syllabus.s1.arduino.title": "Arduino",
+  "careers.syllabus.s1.arduino.body":
+    "Hands-on boards, sensors, and circuits—bring code into the physical world.",
+  "careers.syllabus.s1.security.title": "Security",
+  "careers.syllabus.s1.security.body":
+    "Core security awareness for systems, devices, and safe engineering practice.",
+
   "careers.workshop.badge.workshop": "Workshop",
   "careers.workshop.badge.level1": "Level 1",
   "careers.workshop.badge.level2": "Level 2",

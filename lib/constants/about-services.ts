@@ -64,7 +64,7 @@ export const ABOUT_FOUNDATIONS: AboutFoundation[] = [
   {
     id: "education",
     featured: true,
-    href: `${ROUTES.CAREERS}?tab=workshops`,
+    href: ROUTES.CAREERS,
     imageSrc:
       "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=900&auto=format&fit=crop",
     tagKeys: [

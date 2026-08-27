@@ -510,6 +510,55 @@ export const ar = {
   "careers.roadmap.note.closing":
     "وبذلك تتجاوز إتقان مفهوم التعليم التقليدي لتقدّم نموذجًا تربويًا إنتاجيًا من منطلق إسلامي: بناء الإنسان قبل المنتج، مع التركيز على الخبرة العملية والتفكير المنهجي والمسؤولية المهنية، ونقل حقيقي للتجارب الصناعية إلى الجيل الناشئ.",
 
+  "careers.roadmap.stagesLabel": "مراحل خارطة الطريق",
+  "careers.roadmap.chain.title": "خارطة طريق إتقان",
+  "careers.roadmap.chain.lead":
+    "خمس مراحل تشكّل المسار العام للتعلّم. العقدة السادسة تفتح خارطة طريق تخصّصية منفصلة للتعمّق بعد إتمام الرحلة الأساسية.",
+  "careers.roadmap.stage1": "المرحلة ١",
+  "careers.roadmap.stage2": "المرحلة ٢",
+  "careers.roadmap.stage3": "المرحلة ٣",
+  "careers.roadmap.stage4": "المرحلة ٤",
+  "careers.roadmap.stage5": "المرحلة ٥",
+  "careers.roadmap.stage6": "التخصّص",
+  "careers.roadmap.stage1.title": "مقدمة في الميكاترونكس",
+  "careers.roadmap.stage2.title": "الميكانيك والطاقة",
+  "careers.roadmap.stage3.title": "التطوير",
+  "careers.roadmap.stage4.title": "نموذج أولي",
+  "careers.roadmap.stage5.title": "تصميم لوحات الدارات",
+  "careers.roadmap.stage6.title": "خارطة الطريق التخصّصية",
+  "careers.roadmap.stage.back": "العودة إلى المسارات",
+  "careers.roadmap.stage.prev": "المرحلة السابقة",
+  "careers.roadmap.stage.next": "المرحلة التالية",
+  "careers.roadmap.stage.placeholder":
+    "تفاصيل المرحلة ستُضاف هنا.",
+
+  "careers.syllabus.label": "المنهج",
+  "careers.syllabus.courseBadge": "مساق",
+  "careers.syllabus.milestoneBadge": "محطة",
+  "careers.syllabus.empty": "منهج هذه المرحلة سيُضاف قريبًا.",
+
+  "careers.syllabus.s1.programming.title": "مقدمة في البرمجة",
+  "careers.syllabus.s1.programming.body":
+    "ابنِ أساسيات البرمجة خطوة بخطوة—من الصياغة الأساسية إلى أنماط حل المشكلات.",
+  "careers.syllabus.s1.programming.m.basics": "الأساسيات",
+  "careers.syllabus.s1.programming.m.ifCondition": "الجمل الشرطية",
+  "careers.syllabus.s1.programming.m.loops": "الحلقات",
+  "careers.syllabus.s1.programming.m.arrays": "المصفوفات",
+  "careers.syllabus.s1.programming.m.functions": "الدوال",
+  "careers.syllabus.s1.programming.m.debugging": "التنقيح والاستثناءات",
+  "careers.syllabus.s1.programming.m.strings": "السلاسل النصية",
+  "careers.syllabus.s1.programming.m.classes": "الفئات",
+  "careers.syllabus.s1.programming.m.dataStructures": "هياكل البيانات",
+  "careers.syllabus.s1.programming.m.problemSolving": "أنماط حل المشكلات",
+  "careers.syllabus.s1.programming.m.leetcode": "تدريب LeetCode",
+
+  "careers.syllabus.s1.arduino.title": "أردوينو",
+  "careers.syllabus.s1.arduino.body":
+    "لوحات ومستشعرات ودارات عملية—انقل الشيفرة إلى العالم المادي.",
+  "careers.syllabus.s1.security.title": "الأمن",
+  "careers.syllabus.s1.security.body":
+    "وعي أمني أساسي للأنظمة والأجهزة وممارسات هندسية آمنة.",
+
   "careers.workshop.badge.workshop": "ورشة",
   "careers.workshop.badge.level1": "المستوى ١",
   "careers.workshop.badge.level2": "المستوى ٢",
