@@ -44,6 +44,7 @@ type HeroSlide = {
   pointTitleKey: MessageKey;
   pointDescKey: MessageKey;
   ctaKey: MessageKey;
+  ctaHref: string;
   cards: Array<{
     titleKey: MessageKey;
     bodyKey: MessageKey;
@@ -57,6 +58,7 @@ const SLIDES: HeroSlide[] = [
     pointTitleKey: "hero.point1.title",
     pointDescKey: "hero.point1.desc",
     ctaKey: "hero.slide1.cta",
+    ctaHref: ROUTES.CAREERS,
     cards: [
       {
         titleKey: "hero.slide1.card1.title",
@@ -77,6 +79,7 @@ const SLIDES: HeroSlide[] = [
     pointTitleKey: "hero.point2.title",
     pointDescKey: "hero.point2.desc",
     ctaKey: "hero.slide2.cta",
+    ctaHref: `${ROUTES.CAREERS}#roadmap-stages`,
     cards: [
       {
         titleKey: "hero.slide2.card1.title",
@@ -97,6 +100,7 @@ const SLIDES: HeroSlide[] = [
     pointTitleKey: "hero.point3.title",
     pointDescKey: "hero.point3.desc",
     ctaKey: "hero.slide3.cta",
+    ctaHref: ROUTES.REGISTER,
     cards: [
       {
         titleKey: "hero.slide3.card1.title",
@@ -510,7 +514,7 @@ export function HomeHero() {
                     </p>
                     <div className="mt-8">
                       <Link
-                        href={ROUTES.REGISTER}
+                        href={item.ctaHref}
                         tabIndex={isActive ? undefined : -1}
                         suppressHydrationWarning
                         className={cn(

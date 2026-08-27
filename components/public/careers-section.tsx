@@ -283,7 +283,10 @@ export function CareersSection() {
           </div>
         </div>
 
-        <div className="mx-auto mt-14 max-w-5xl sm:mt-16">
+        <div
+          id="roadmap-stages"
+          className="mx-auto mt-14 max-w-5xl scroll-mt-28 sm:mt-16"
+        >
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">
               {t("careers.roadmap.chain.title")}
