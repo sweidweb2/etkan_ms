@@ -13,6 +13,7 @@ const validInput = {
   password: "",
   role: ROLES.TEACHER,
   is_instructor: false,
+  is_mentor: false,
 };
 
 describe("createStaffUserSchema", () => {
@@ -63,6 +64,7 @@ describe("parseCreateStaffUserFormData", () => {
     formData.set("password", "");
     formData.set("role", ROLES.TEACHER);
     formData.set("is_instructor", "false");
+    formData.set("is_mentor", "false");
 
     const parsed = parseCreateStaffUserFormData(formData);
     expect(parsed.success).toBe(true);

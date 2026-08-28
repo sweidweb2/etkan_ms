@@ -12,6 +12,7 @@ import {
   PlusIcon,
   PowerIcon,
   SearchIcon,
+  XIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { ActivateInactivateStudentDialog } from "@/components/manager/students/activate-inactivate-student-dialog";
@@ -383,9 +384,19 @@ export function ManageUsersPanel({
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
                   placeholder="Search username or email…"
-                  className="pl-8"
+                  className="pr-8 pl-8"
                   aria-label="Search users"
                 />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSearchChange("")}
+                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Clear search"
+                  >
+                    <XIcon className="size-4" />
+                  </button>
+                ) : null}
               </div>
               <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
                 <SelectTrigger className="w-full sm:w-44" aria-label="Filter by role">

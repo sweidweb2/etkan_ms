@@ -457,6 +457,22 @@ export function InstructorSchedulesPanel({
   const isAltDupDragRef = useRef(false);
   const dragSourceRef = useRef<DragSourceSnapshot | null>(null);
   const pendingTempIdsRef = useRef<Set<string>>(new Set());
+  // FullCalendar fires datesSet during its initial render, before this
+  // component is mounted, so the first value has to be applied in an effect.
+  const isMountedRef = useRef(false);
+  const pendingWeekStartRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    if (pendingWeekStartRef.current !== null) {
+      const pending = pendingWeekStartRef.current;
+      pendingWeekStartRef.current = null;
+      setWeekStart((prev) => (prev === pending ? prev : pending));
+    }
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -1247,7 +1263,11 @@ export function InstructorSchedulesPanel({
 
   function handleDatesSet(info: DatesSetInfo) {
     const bounds = getSundayWeekBounds(formatDateFromDate(info.start));
-    setWeekStart(bounds.weekStart);
+    if (!isMountedRef.current) {
+      pendingWeekStartRef.current = bounds.weekStart;
+      return;
+    }
+    setWeekStart((prev) => (prev === bounds.weekStart ? prev : bounds.weekStart));
   }
 
   const hasNoScheduleEntities =

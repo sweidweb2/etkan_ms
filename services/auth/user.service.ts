@@ -171,6 +171,7 @@ async function fetchUsersForManager(
       username: profile.username,
       role: profile.role as RoleValue,
       is_instructor: profile.is_instructor,
+      is_mentor: profile.is_mentor,
       created_at: profile.created_at ?? "",
       email: emailById.get(profile.id) ?? "",
     };
@@ -227,6 +228,7 @@ export async function createStaffUser(
     password: string;
     role: string;
     is_instructor: boolean;
+    is_mentor: boolean;
   }
 ): Promise<CreateStaffUserResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.USERS_CREATE);
@@ -244,7 +246,7 @@ export async function createStaffUser(
     };
   }
 
-  const { username, email, password, role, is_instructor } =
+  const { username, email, password, role, is_instructor, is_mentor } =
     resolveCreateStaffUserInput(parsed.data);
 
   if (!MANAGER_CREATABLE_ROLES.includes(role)) {
@@ -327,6 +329,7 @@ export async function createStaffUser(
         username: normalizedUsername,
         role,
         is_instructor,
+        is_mentor,
       }
     );
 
@@ -341,6 +344,7 @@ export async function createStaffUser(
       username: normalizedUsername,
       role,
       is_instructor,
+      is_mentor,
       created_at: authData.user.created_at,
       email: normalizedEmail,
     };
@@ -366,6 +370,7 @@ export async function createStaffUser(
         role,
         email: normalizedEmail,
         is_instructor,
+        is_mentor,
       },
       metadata: { note: "Staff account created." },
     });
@@ -395,6 +400,7 @@ export async function updateManagerUser(
     email: string;
     role: string;
     is_instructor: boolean;
+    is_mentor: boolean;
     fullName?: string;
     birthDate?: string | null;
     phone?: string | null;
@@ -411,6 +417,7 @@ export async function updateManagerUser(
     email: input.email,
     role: input.role,
     is_instructor: input.is_instructor,
+    is_mentor: input.is_mentor,
     fullName: input.fullName,
     birthDate: input.birthDate ?? "",
     phone: input.phone ?? "",
@@ -426,7 +433,7 @@ export async function updateManagerUser(
   }
 
   const { userId } = input;
-  const { username, email, role, is_instructor } = parsed.data;
+  const { username, email, role, is_instructor, is_mentor } = parsed.data;
   const normalizedUsername = username.trim();
   const normalizedEmail = email.trim();
   const normalizedFullName = normalizeOptionalString(parsed.data.fullName);
@@ -496,6 +503,7 @@ export async function updateManagerUser(
 
   const previousRole = existingProfile.data.role as RoleValue;
   const previousIsInstructor = existingProfile.data.is_instructor;
+  const previousIsMentor = existingProfile.data.is_mentor;
   const previousEmail = authUserResult.data.user.email ?? null;
 
   const { data: updatedProfile, error: profileError } =
@@ -503,6 +511,7 @@ export async function updateManagerUser(
       username: normalizedUsername,
       role,
       is_instructor,
+      is_mentor,
     });
 
   if (profileError || !updatedProfile) {
@@ -656,6 +665,7 @@ export async function updateManagerUser(
     username: updatedProfile.username,
     role,
     is_instructor,
+    is_mentor,
     created_at:
       updatedProfile.created_at ?? authUserResult.data.user.created_at,
     email: normalizedEmail,
@@ -680,12 +690,14 @@ export async function updateManagerUser(
       role: previousRole,
       email: previousEmail,
       is_instructor: previousIsInstructor,
+      is_mentor: previousIsMentor,
     },
     new_data: {
       username: normalizedUsername,
       role,
       email: normalizedEmail,
       is_instructor,
+      is_mentor,
       ...(studentProfileId
         ? {
             student_profile_id: studentProfileId,

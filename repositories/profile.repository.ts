@@ -4,7 +4,8 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-const PROFILE_COLUMNS = "id, username, role, is_instructor, created_at";
+const PROFILE_COLUMNS =
+  "id, username, role, is_instructor, is_mentor, created_at";
 
 export async function findProfileById(client: Supabase, id: string) {
   return client
@@ -33,6 +34,7 @@ export async function createProfile(
     username: string;
     role: RoleValue;
     is_instructor?: boolean;
+    is_mentor?: boolean;
   }
 ) {
   return client
@@ -42,8 +44,9 @@ export async function createProfile(
       username: input.username,
       role: input.role,
       is_instructor: input.is_instructor ?? false,
+      is_mentor: input.is_mentor ?? false,
     })
-    .select("id, role, is_instructor")
+    .select("id, role, is_instructor, is_mentor")
     .single();
 }
 
@@ -58,6 +61,7 @@ export async function updateProfileById(
     username: string;
     role?: RoleValue;
     is_instructor?: boolean;
+    is_mentor?: boolean;
   }
 ) {
   return client
@@ -67,6 +71,9 @@ export async function updateProfileById(
       ...(input.role ? { role: input.role } : {}),
       ...(typeof input.is_instructor === "boolean"
         ? { is_instructor: input.is_instructor }
+        : {}),
+      ...(typeof input.is_mentor === "boolean"
+        ? { is_mentor: input.is_mentor }
         : {}),
     })
     .eq("id", id)

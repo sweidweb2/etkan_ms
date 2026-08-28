@@ -118,9 +118,11 @@ function ProjectCard({ project }: { project: PublicProjectCard }) {
 function ProjectSectionBlock({
   section,
   canAnimate,
+  headingAs = "h2",
 }: {
   section: PublicProjectSection;
   canAnimate: boolean;
+  headingAs?: "h1" | "h2";
 }) {
   const { t } = usePublicI18n();
   const [activeCategory, setActiveCategory] = useState("all");
@@ -129,6 +131,7 @@ function ProjectSectionBlock({
     [section.projects]
   );
   const showFilters = categories.length > 1;
+  const Title = headingAs === "h1" ? motion.h1 : motion.h2;
 
   const filteredProjects = useMemo(() => {
     if (activeCategory === "all") {
@@ -144,7 +147,7 @@ function ProjectSectionBlock({
       aria-labelledby={`projects-${section.id}-title`}
       className="scroll-mt-28"
     >
-      <motion.h2
+      <Title
         id={`projects-${section.id}-title`}
         className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
         initial={canAnimate ? { opacity: 0, y: 16 } : false}
@@ -153,7 +156,7 @@ function ProjectSectionBlock({
         transition={{ duration: 0.7, ease: EASE }}
       >
         {t(section.titleKey)}
-      </motion.h2>
+      </Title>
       <motion.p
         className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground text-pretty sm:text-base"
         initial={canAnimate ? { opacity: 0, y: 14 } : false}
@@ -263,7 +266,6 @@ export function ProjectsSection({
 }: {
   sections: PublicProjectSection[];
 }) {
-  const { t } = usePublicI18n();
   const hydrated = useHydrated();
   const reduceMotion = useReducedMotion();
   const canAnimate = hydrated && !reduceMotion;
@@ -273,42 +275,11 @@ export function ProjectsSection({
       <ProjectsGalaxyBackground />
 
       <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col gap-24 px-4 pt-32 pb-28 sm:gap-28 sm:px-6 sm:pt-36 sm:pb-36">
-        <header className="max-w-3xl space-y-6 sm:space-y-7">
-          <motion.p
-            className="text-sm font-semibold tracking-[0.2em] text-[#C4C4E8] uppercase"
-            initial={canAnimate ? { opacity: 0, y: 16 } : false}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={VIEWPORT}
-            transition={{ duration: 0.7, ease: EASE }}
-          >
-            {t("projects.eyebrow")}
-          </motion.p>
-
-          <motion.h1
-            className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]"
-            initial={canAnimate ? { opacity: 0, y: 20 } : false}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={VIEWPORT}
-            transition={{ duration: 0.8, ease: EASE, delay: 0.05 }}
-          >
-            {t("projects.title")}
-          </motion.h1>
-
-          <motion.p
-            className="max-w-2xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg"
-            initial={canAnimate ? { opacity: 0, y: 20 } : false}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={VIEWPORT}
-            transition={{ duration: 0.8, ease: EASE, delay: 0.1 }}
-          >
-            {t("projects.lead")}
-          </motion.p>
-        </header>
-
-        {sections.map((section) => (
+        {sections.map((section, index) => (
           <ProjectSectionBlock
             key={section.id}
             section={section}
+            headingAs={index === 0 ? "h1" : "h2"}
             canAnimate={canAnimate}
           />
         ))}

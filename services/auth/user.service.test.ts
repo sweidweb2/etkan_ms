@@ -64,6 +64,7 @@ const validStaffInput = {
   password: "secret123",
   role: ROLES.TEACHER,
   is_instructor: false,
+  is_mentor: false,
 };
 
 describe("listUsersForManager", () => {
@@ -85,6 +86,7 @@ describe("listUsersForManager", () => {
           username: "teacher1",
           role: ROLES.TEACHER,
           is_instructor: false,
+          is_mentor: false,
           created_at: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -117,6 +119,7 @@ describe("listUsersForManager", () => {
         username: "teacher1",
         role: ROLES.TEACHER,
         is_instructor: false,
+        is_mentor: false,
         created_at: "2026-01-01T00:00:00.000Z",
         email: "teacher@school.com",
       },
@@ -240,7 +243,12 @@ describe("createStaffUser", () => {
     });
 
     vi.mocked(profileRepository.createProfile).mockResolvedValue({
-      data: { id: "user-1", role: ROLES.TEACHER, is_instructor: false },
+      data: {
+        id: "user-1",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+        is_mentor: false,
+      },
       error: null,
       count: null,
       status: 200,
@@ -297,7 +305,12 @@ describe("createStaffUser", () => {
     });
 
     vi.mocked(profileRepository.createProfile).mockResolvedValue({
-      data: { id: "user-1", role: ROLES.TEACHER, is_instructor: false },
+      data: {
+        id: "user-1",
+        role: ROLES.TEACHER,
+        is_instructor: false,
+        is_mentor: false,
+      },
       error: null,
       count: null,
       status: 200,
@@ -381,6 +394,7 @@ describe("updateManagerUser", () => {
         username: "teacher1",
         role: ROLES.TEACHER,
         is_instructor: true,
+        is_mentor: false,
         created_at: "2026-01-01T00:00:00.000Z",
       },
       error: null,
@@ -412,6 +426,7 @@ describe("updateManagerUser", () => {
         username: "teacher1",
         role: ROLES.TEACHER,
         is_instructor: false,
+        is_mentor: false,
         created_at: "2026-01-01T00:00:00.000Z",
       },
       error: null,
@@ -446,6 +461,7 @@ describe("updateManagerUser", () => {
         email: "teacher@school.com",
         role: ROLES.TEACHER,
         is_instructor: false,
+        is_mentor: false,
       }
     );
 

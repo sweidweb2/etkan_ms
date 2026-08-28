@@ -239,10 +239,6 @@ export const ar = {
   "courseLogos.title": "دورات عبر البرمجة والعتاد والصناعة",
   "courseLogos.ariaLabel": "مواضيع دورات إتقان",
 
-  "projects.eyebrow": "نبني",
-  "projects.title": "تقنية حقيقية من فرق إتقان",
-  "projects.lead":
-    "مشاريع طلاب وورش تنتقل من الفكرة إلى أنظمة تعمل—عتاد وبرمجيات وكل ما بينهما.",
   "projects.section.students.title": "مشاريع الطلاب",
   "projects.section.students.lead":
     "أعمال يبنيها طلاب إتقان على امتداد مسار التعلم.",

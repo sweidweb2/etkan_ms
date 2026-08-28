@@ -38,7 +38,7 @@ const laterEtkan = {
 };
 
 describe("groupProjectsIntoPublicSections", () => {
-  it("groups projects into students, teachers, and etkan in created order", () => {
+  it("groups projects into etkan, students, and teachers in created order", () => {
     const sections = groupProjectsIntoPublicSections([
       laterEtkan,
       etkanMs,
@@ -46,20 +46,20 @@ describe("groupProjectsIntoPublicSections", () => {
     ]);
 
     expect(sections.map((section) => section.id)).toEqual([
+      "etkan",
       "students",
       "teachers",
-      "etkan",
     ]);
-    expect(sections[0]?.projects).toEqual([]);
-    expect(sections[1]?.projects.map((project) => project.title)).toEqual([
-      "Etkan MS",
-    ]);
-    expect(sections[2]?.projects.map((project) => project.title)).toEqual([
+    expect(sections[0]?.projects.map((project) => project.title)).toEqual([
       "Tap2Eat",
       "3DBey",
     ]);
-    expect(sections[1]?.projects[0]?.imageSrc).toBe(etkanMs.image_url);
-    expect(sections[1]?.projects[0]?.href).toBe("/");
-    expect(sections[2]?.projects[0]?.author).toBe("Etkan team");
+    expect(sections[1]?.projects).toEqual([]);
+    expect(sections[2]?.projects.map((project) => project.title)).toEqual([
+      "Etkan MS",
+    ]);
+    expect(sections[2]?.projects[0]?.imageSrc).toBe(etkanMs.image_url);
+    expect(sections[2]?.projects[0]?.href).toBe("/");
+    expect(sections[0]?.projects[0]?.author).toBe("Etkan team");
   });
 });

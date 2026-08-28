@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import { CLASS_STATUSES, type ClassStatusValue } from "@/lib/constants/manager-class-status";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
 import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
-import { ROLES } from "@/lib/constants/roles";
+import { ROLES, ROLE_VALUES, type RoleValue } from "@/lib/constants/roles";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
@@ -126,6 +126,11 @@ function mapStudentStatus(status: string | null): StudentStatusValue {
   return STUDENT_STATUSES.ACTIVE;
 }
 
+function mapProfileRole(role: string | null | undefined): RoleValue {
+  const match = ROLE_VALUES.find((value) => value === role);
+  return match ?? ROLES.STUDENT;
+}
+
 /** Phase 2: send welcome email with account credentials. */
 async function notifyStudentCreated(
   payload: StudentWelcomeEmailPayload
@@ -145,7 +150,15 @@ async function mapStudentProfileToManagerStudentRow(
     status: string | null;
     created_at: string | null;
   },
-  profile?: { username: string | null; created_at: string | null } | null,
+  profile?:
+    | {
+        username: string | null;
+        created_at: string | null;
+        role?: string | null;
+        is_instructor?: boolean | null;
+        is_mentor?: boolean | null;
+      }
+    | null,
   email?: string | null
 ): Promise<ManagerStudentRow | null> {
   let resolvedProfile = profile;
@@ -185,6 +198,9 @@ async function mapStudentProfileToManagerStudentRow(
       studentProfile.created_at ??
       resolvedProfile.created_at ??
       new Date(0).toISOString(),
+    role: mapProfileRole(resolvedProfile.role),
+    is_instructor: resolvedProfile.is_instructor ?? false,
+    is_mentor: resolvedProfile.is_mentor ?? false,
   };
 }
 
@@ -241,6 +257,9 @@ async function fetchStudentsForManager(
         studentProfile.created_at ??
         profile.created_at ??
         new Date(0).toISOString(),
+      role: mapProfileRole(profile.role),
+      is_instructor: profile.is_instructor ?? false,
+      is_mentor: profile.is_mentor ?? false,
     });
   }
 
@@ -687,7 +706,13 @@ export async function createStudent(
     const student = await mapStudentProfileToManagerStudentRow(
       adminClient,
       studentProfile,
-      { username: normalizedUsername, created_at: studentProfile.created_at },
+      {
+        username: normalizedUsername,
+        created_at: studentProfile.created_at,
+        role: ROLES.STUDENT,
+        is_instructor: false,
+        is_mentor: false,
+      },
       normalizedEmail
     );
 
@@ -923,7 +948,13 @@ export async function updateStudent(
   const student = await mapStudentProfileToManagerStudentRow(
     adminClient,
     updatedStudentProfile,
-    { username: normalizedUsername, created_at: existingProfile.data.created_at },
+    {
+      username: normalizedUsername,
+      created_at: existingProfile.data.created_at,
+      role: existingProfile.data.role,
+      is_instructor: existingProfile.data.is_instructor,
+      is_mentor: existingProfile.data.is_mentor,
+    },
     normalizedEmail
   );
 

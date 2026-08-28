@@ -63,6 +63,7 @@ function getDefaultValues(user: ManagerUserRow): UpdateManagerUserInput {
     email: user.email,
     role: user.role,
     is_instructor: user.is_instructor,
+    is_mentor: user.is_mentor,
     fullName: user.student_full_name ?? "",
     birthDate: user.student_birth_date ?? "",
     phone: user.student_phone ?? "",
@@ -103,6 +104,7 @@ export function EditUserDialog({
   const selectedRole = watch("role");
   const selectedStatus = watch("status");
   const isInstructor = watch("is_instructor");
+  const isMentor = watch("is_mentor");
   const isStudentRole = selectedRole === ROLES.STUDENT;
 
   useEffect(() => {
@@ -125,6 +127,7 @@ export function EditUserDialog({
     formData.set("email", values.email.trim());
     formData.set("role", values.role);
     formData.set("is_instructor", String(values.is_instructor));
+    formData.set("is_mentor", String(values.is_mentor));
 
     if (values.role === ROLES.STUDENT) {
       formData.set("fullName", values.fullName?.trim() ?? "");
@@ -253,23 +256,43 @@ export function EditUserDialog({
             ) : null}
           </div>
 
-          <label
-            htmlFor="edit-user-is-instructor"
-            className="flex items-center gap-2 text-sm"
-          >
-            <input
-              id="edit-user-is-instructor"
-              type="checkbox"
-              checked={isInstructor}
-              disabled={isPending}
-              onChange={(event) =>
-                setValue("is_instructor", event.target.checked, {
-                  shouldValidate: true,
-                })
-              }
-            />
-            Instructor
-          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <label
+              htmlFor="edit-user-is-instructor"
+              className="flex items-center gap-2 text-sm"
+            >
+              <input
+                id="edit-user-is-instructor"
+                type="checkbox"
+                checked={isInstructor}
+                disabled={isPending}
+                onChange={(event) =>
+                  setValue("is_instructor", event.target.checked, {
+                    shouldValidate: true,
+                  })
+                }
+              />
+              Instructor
+            </label>
+
+            <label
+              htmlFor="edit-user-is-mentor"
+              className="flex items-center gap-2 text-sm"
+            >
+              <input
+                id="edit-user-is-mentor"
+                type="checkbox"
+                checked={isMentor}
+                disabled={isPending}
+                onChange={(event) =>
+                  setValue("is_mentor", event.target.checked, {
+                    shouldValidate: true,
+                  })
+                }
+              />
+              Mentor
+            </label>
+          </div>
 
           {isStudentRole ? (
             <>

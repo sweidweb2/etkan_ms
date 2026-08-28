@@ -43,6 +43,12 @@ export const PUBLIC_PROJECT_SECTION_META: Omit<
   "projects"
 >[] = [
   {
+    id: "etkan",
+    titleKey: "projects.section.etkan.title",
+    leadKey: "projects.section.etkan.lead",
+    emptyKey: "projects.section.empty",
+  },
+  {
     id: "students",
     titleKey: "projects.section.students.title",
     leadKey: "projects.section.students.lead",
@@ -52,12 +58,6 @@ export const PUBLIC_PROJECT_SECTION_META: Omit<
     id: "teachers",
     titleKey: "projects.section.teachers.title",
     leadKey: "projects.section.teachers.lead",
-    emptyKey: "projects.section.empty",
-  },
-  {
-    id: "etkan",
-    titleKey: "projects.section.etkan.title",
-    leadKey: "projects.section.etkan.lead",
     emptyKey: "projects.section.empty",
   },
 ];

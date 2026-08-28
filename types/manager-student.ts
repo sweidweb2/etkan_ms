@@ -1,4 +1,5 @@
 import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
+import type { RoleValue } from "@/lib/constants/roles";
 import type { FieldErrors } from "@/types/auth";
 
 /** Combined profiles + student_profiles row for manager student list UI. */
@@ -12,6 +13,10 @@ export interface ManagerStudentRow {
   phone: string | null;
   status: StudentStatusValue;
   created_at: string;
+  /** Account fields, present when the row is built from a profiles read. */
+  role?: RoleValue;
+  is_instructor?: boolean;
+  is_mentor?: boolean;
 }
 
 /** Student with no enrolled membership on any in_progress class. */

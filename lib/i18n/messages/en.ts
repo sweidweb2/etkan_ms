@@ -238,10 +238,6 @@ export const en = {
   "courseLogos.title": "Courses across code, hardware, and making",
   "courseLogos.ariaLabel": "Etkan course topics",
 
-  "projects.eyebrow": "Build",
-  "projects.title": "Real technology from Etkan teams",
-  "projects.lead":
-    "Student and workshop projects that move from idea to working systems—hardware, software, and everything in between.",
   "projects.section.students.title": "Student projects",
   "projects.section.students.lead":
     "Builds created by Etkan students along the learning path.",

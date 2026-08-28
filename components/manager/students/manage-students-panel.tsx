@@ -8,14 +8,17 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
+  PencilIcon,
   PlusIcon,
   PowerIcon,
   SearchIcon,
+  XIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { ActivateInactivateStudentDialog } from "@/components/manager/students/activate-inactivate-student-dialog";
 import { AddStudentDialog } from "@/components/manager/students/add-student-dialog";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
+import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,9 +45,11 @@ import {
 } from "@/lib/constants/manager-student-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
+import { ROLES } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerStudentRow } from "@/types/manager-student";
+import type { ManagerUserRow } from "@/types/manager-user";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 const COLUMN_LIMITS = {
@@ -159,6 +164,65 @@ function StudentViewAction({ student }: { student: ManagerStudentRow }) {
   );
 }
 
+function toManagerUserRow(student: ManagerStudentRow): ManagerUserRow {
+  return {
+    id: student.user_id,
+    username: student.username,
+    email: student.email,
+    role: student.role ?? ROLES.STUDENT,
+    is_instructor: student.is_instructor ?? false,
+    is_mentor: student.is_mentor ?? false,
+    created_at: student.created_at,
+    student_profile_id: student.student_profile_id,
+    student_full_name: student.full_name,
+    student_birth_date: student.birth_date,
+    student_phone: student.phone,
+    student_status: student.status,
+  };
+}
+
+function mergeUpdatedUserIntoStudent(
+  student: ManagerStudentRow,
+  user: ManagerUserRow
+): ManagerStudentRow {
+  return {
+    ...student,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    is_instructor: user.is_instructor,
+    is_mentor: user.is_mentor,
+    full_name: user.student_full_name ?? student.full_name,
+    birth_date: user.student_birth_date ?? null,
+    phone: user.student_phone ?? null,
+    status: user.student_status ?? student.status,
+  };
+}
+
+function StudentEditAction({
+  student,
+  onOpen,
+}: {
+  student: ManagerStudentRow;
+  onOpen: (student: ManagerStudentRow) => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+      aria-label={`Edit ${student.full_name}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen(student);
+      }}
+    >
+      <PencilIcon className="size-4" />
+    </Button>
+  );
+}
+
 function StudentStatusAction({
   student,
   onOpen,
@@ -198,6 +262,9 @@ export function ManageStudentsPanel({
   const [prevStudents, setPrevStudents] = useState(initialStudents);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<ManagerStudentRow | null>(
+    null
+  );
+  const [editingStudent, setEditingStudent] = useState<ManagerStudentRow | null>(
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
@@ -273,6 +340,16 @@ export function ManageStudentsPanel({
     setCurrentPage(1);
   };
 
+  const handleUserUpdated = (user: ManagerUserRow) => {
+    setStudents((current) =>
+      current.map((student) =>
+        student.user_id === user.id
+          ? mergeUpdatedUserIntoStudent(student, user)
+          : student
+      )
+    );
+  };
+
   const openStudentDetails = (student: ManagerStudentRow) => {
     router.push(getManagerStudentDetailRoute(student.student_profile_id));
   };
@@ -325,6 +402,19 @@ export function ManageStudentsPanel({
           onOpenChange={setIsAddStudentOpen}
           onStudentCreated={handleStudentCreated}
         />
+
+        {editingStudent ? (
+          <EditUserDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setEditingStudent(null);
+              }
+            }}
+            user={toManagerUserRow(editingStudent)}
+            onUserUpdated={handleUserUpdated}
+          />
+        ) : null}
 
         {statusTarget ? (
           <ActivateInactivateStudentDialog
@@ -476,6 +566,12 @@ export function ManageStudentsPanel({
                           onClick={(event) => event.stopPropagation()}
                         >
                           <div className="inline-flex items-center justify-end gap-1">
+                            <Can permission={PERMISSIONS.USERS_UPDATE}>
+                              <StudentEditAction
+                                student={student}
+                                onOpen={setEditingStudent}
+                              />
+                            </Can>
                             <Can permission={PERMISSIONS.STUDENTS_CHANGE_STATUS}>
                               <StudentStatusAction
                                 student={student}

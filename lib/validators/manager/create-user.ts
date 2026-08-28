@@ -18,6 +18,7 @@ export const createStaffUserSchema = z
       message: "Please select a role.",
     }),
     is_instructor: z.boolean(),
+    is_mentor: z.boolean(),
   })
   .superRefine((data, ctx) => {
     addOptionalPasswordIssues(data.password, ctx);
@@ -38,6 +39,7 @@ export function resolveCreateStaffUserInput(
     password: resolveCreatedAccountPassword(data.password),
     role: data.role,
     is_instructor: data.is_instructor,
+    is_mentor: data.is_mentor,
   };
 }
 
@@ -50,6 +52,7 @@ export function parseCreateStaffUserFormData(formData: FormData):
     password: formData.get("password") ?? "",
     role: formData.get("role"),
     is_instructor: formData.get("is_instructor") === "true",
+    is_mentor: formData.get("is_mentor") === "true",
   });
 
   if (!parsed.success) {
