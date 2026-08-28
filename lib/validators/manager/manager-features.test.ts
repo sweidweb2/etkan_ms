@@ -4,13 +4,11 @@ import { parseConnectSemesterClassFormData } from "@/lib/validators/manager/conn
 import { parseCreateBorrowsFormData } from "@/lib/validators/manager/create-borrows";
 import { parseCreateEquipmentFormData } from "@/lib/validators/manager/create-equipment";
 import { parseCreatePhaseFormData } from "@/lib/validators/manager/create-phase";
-import { parseCreateRelationshipFormData } from "@/lib/validators/manager/create-relationship";
 import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
 import { parseUpdateSessionTaskFormData } from "@/lib/validators/manager/update-session-task";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
 import { parseEditStudentTaskFormData, createEditStudentTaskSchema } from "@/lib/validators/manager/edit-student-task";
 import { createEditStudentFinalExamGradeSchema } from "@/lib/validators/manager/edit-student-finalexam-grade";
-import { parseUpdateRelationshipFormData } from "@/lib/validators/manager/update-relationship";
 import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
 import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
@@ -22,99 +20,7 @@ import { parseUpdateNotificationFormData } from "@/lib/validators/manager/update
 import { parseNotificationIdFormData } from "@/lib/validators/manager/notification-id";
 import { parseMarkNotificationReadFormData } from "@/lib/validators/manager/mark-notifications-read";
 
-const relationshipId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
-
-describe("parseCreateRelationshipFormData", () => {
-  it("parses valid relationship form data", () => {
-    const formData = new FormData();
-    formData.set("name", "Khaled Ahmad");
-    formData.set("phone", "+961 3 123 456");
-    formData.set("relation_with", "Father");
-    formData.set("major", "Engineering");
-    formData.set("speciality", "Civil Engineering");
-    formData.set("is_useful", "true");
-
-    const result = parseCreateRelationshipFormData(formData);
-
-    expect(result).toEqual({
-      success: true,
-      data: {
-        name: "Khaled Ahmad",
-        phone: "+961 3 123 456",
-        relation_with: "Father",
-        major: "Engineering",
-        speciality: "Civil Engineering",
-        is_useful: true,
-      },
-    });
-  });
-
-  it("coerces is_useful from false string", () => {
-    const formData = new FormData();
-    formData.set("name", "Contact");
-    formData.set("phone", "");
-    formData.set("relation_with", "");
-    formData.set("major", "");
-    formData.set("speciality", "");
-    formData.set("is_useful", "false");
-
-    const result = parseCreateRelationshipFormData(formData);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.is_useful).toBe(false);
-    }
-  });
-
-  it("rejects missing name", () => {
-    const formData = new FormData();
-    formData.set("name", "");
-    formData.set("is_useful", "true");
-
-    const result = parseCreateRelationshipFormData(formData);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toBe("Please fix the errors below.");
-      expect(result.fieldErrors?.name).toBeDefined();
-    }
-  });
-});
-
-describe("parseUpdateRelationshipFormData", () => {
-  it("parses valid update form data", () => {
-    const formData = new FormData();
-    formData.set("id", relationshipId);
-    formData.set("name", "Updated Contact");
-    formData.set("phone", "");
-    formData.set("relation_with", "");
-    formData.set("major", "");
-    formData.set("speciality", "");
-    formData.set("is_useful", "true");
-
-    const result = parseUpdateRelationshipFormData(formData);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.id).toBe(relationshipId);
-      expect(result.data.name).toBe("Updated Contact");
-    }
-  });
-
-  it("rejects invalid relationship id", () => {
-    const formData = new FormData();
-    formData.set("id", "not-a-uuid");
-    formData.set("name", "Updated Contact");
-    formData.set("is_useful", "true");
-
-    const result = parseUpdateRelationshipFormData(formData);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.fieldErrors?.id).toBeDefined();
-    }
-  });
-});
+const sampleId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 
 describe("parseCreateSubjectFormData", () => {
   it("parses valid subject form data", () => {
@@ -244,8 +150,8 @@ describe("parseCreatePhaseFormData", () => {
 describe("parseAddStudentToSemesterFormData", () => {
   it("parses valid enrollment form data", () => {
     const formData = new FormData();
-    formData.set("semester_id", relationshipId);
-    formData.set("student_profile_id", relationshipId);
+    formData.set("semester_id", sampleId);
+    formData.set("student_profile_id", sampleId);
     formData.set("status", "pending");
 
     const result = parseAddStudentToSemesterFormData(formData);
@@ -253,7 +159,7 @@ describe("parseAddStudentToSemesterFormData", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.status).toBe("pending");
-      expect(result.data.semester_id).toBe(relationshipId);
+      expect(result.data.semester_id).toBe(sampleId);
     }
   });
 });
@@ -261,15 +167,15 @@ describe("parseAddStudentToSemesterFormData", () => {
 describe("parseConnectSemesterClassFormData", () => {
   it("parses valid connect class form data", () => {
     const formData = new FormData();
-    formData.set("semester_id", relationshipId);
-    formData.set("classId", relationshipId);
+    formData.set("semester_id", sampleId);
+    formData.set("classId", sampleId);
 
     const result = parseConnectSemesterClassFormData(formData);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.classId).toBe(relationshipId);
-      expect(result.data.semester_id).toBe(relationshipId);
+      expect(result.data.classId).toBe(sampleId);
+      expect(result.data.semester_id).toBe(sampleId);
     }
   });
 });
@@ -310,7 +216,7 @@ describe("parseCreateEquipmentFormData", () => {
 describe("parseUpdateEquipmentFormData", () => {
   it("parses valid update equipment form data", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
+    formData.set("id", sampleId);
     formData.set("name", "Microscope");
     formData.set("description", "");
     formData.set("quantity", "8");
@@ -320,7 +226,7 @@ describe("parseUpdateEquipmentFormData", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.id).toBe(relationshipId);
+      expect(result.data.id).toBe(sampleId);
       expect(result.data.quantity).toBe(8);
     }
   });
@@ -347,8 +253,8 @@ describe("parseCreateBorrowsFormData", () => {
       "items",
       JSON.stringify([
         {
-          user_id: relationshipId,
-          equipment_id: relationshipId,
+          user_id: sampleId,
+          equipment_id: sampleId,
           quantity: 2,
         },
       ])
@@ -409,7 +315,7 @@ describe("parseCreateNotificationFormData", () => {
 describe("parseUpdateNotificationFormData", () => {
   it("parses valid update form data", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
+    formData.set("id", sampleId);
     formData.set("title", "Updated title");
     formData.set("body", "Updated body");
     formData.set("audience", "teacher");
@@ -421,7 +327,7 @@ describe("parseUpdateNotificationFormData", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.id).toBe(relationshipId);
+      expect(result.data.id).toBe(sampleId);
     }
   });
 });
@@ -429,7 +335,7 @@ describe("parseUpdateNotificationFormData", () => {
 describe("parseNotificationIdFormData", () => {
   it("parses notification id", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
+    formData.set("id", sampleId);
 
     const result = parseNotificationIdFormData(formData);
 
@@ -440,7 +346,7 @@ describe("parseNotificationIdFormData", () => {
 describe("parseMarkNotificationReadFormData", () => {
   it("parses single mark read", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
+    formData.set("id", sampleId);
 
     const result = parseMarkNotificationReadFormData(formData);
 
@@ -463,22 +369,22 @@ describe("parseMarkNotificationReadFormData", () => {
 describe("parseUpdateSessionSettingsFormData", () => {
   it("parses phase link fields", () => {
     const formData = new FormData();
-    formData.set("session_id", relationshipId);
-    formData.set("class_id", relationshipId);
-    formData.set("semester_id", relationshipId);
+    formData.set("session_id", sampleId);
+    formData.set("class_id", sampleId);
+    formData.set("semester_id", sampleId);
 
     const result = parseUpdateSessionSettingsFormData(formData);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.semester_id).toBe(relationshipId);
+      expect(result.data.semester_id).toBe(sampleId);
       expect(result.data.group_grade_level).toBeUndefined();
     }
   });
 
   it("rejects missing session or class", () => {
     const formData = new FormData();
-    formData.set("semester_id", relationshipId);
+    formData.set("semester_id", sampleId);
 
     const result = parseUpdateSessionSettingsFormData(formData);
 
@@ -489,8 +395,8 @@ describe("parseUpdateSessionSettingsFormData", () => {
 describe("parseUpdateClassSessionFormData", () => {
   it("parses valid session update payload", () => {
     const formData = new FormData();
-    formData.set("session_id", relationshipId);
-    formData.set("class_id", relationshipId);
+    formData.set("session_id", sampleId);
+    formData.set("class_id", sampleId);
     formData.set("topic", "Updated topic");
     formData.set("starts_at", "2026-07-01T10:00");
     formData.set("ends_at", "2026-07-01T12:00");
@@ -499,8 +405,8 @@ describe("parseUpdateClassSessionFormData", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.session_id).toBe(relationshipId);
-      expect(result.data.class_id).toBe(relationshipId);
+      expect(result.data.session_id).toBe(sampleId);
+      expect(result.data.class_id).toBe(sampleId);
       expect(result.data.topic).toBe("Updated topic");
       expect(result.data.starts_at).toBe("2026-07-01T10:00");
       expect(result.data.ends_at).toBe("2026-07-01T12:00");
@@ -509,8 +415,8 @@ describe("parseUpdateClassSessionFormData", () => {
 
   it("rejects end before start", () => {
     const formData = new FormData();
-    formData.set("session_id", relationshipId);
-    formData.set("class_id", relationshipId);
+    formData.set("session_id", sampleId);
+    formData.set("class_id", sampleId);
     formData.set("topic", "Updated topic");
     formData.set("starts_at", "2026-07-01T12:00");
     formData.set("ends_at", "2026-07-01T10:00");
@@ -535,9 +441,9 @@ describe("parseUpdateClassSessionFormData", () => {
 describe("parseUpdateAttendeeFormData", () => {
   it("parses attendance status enum", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
-    formData.set("session_id", relationshipId);
-    formData.set("class_id", relationshipId);
+    formData.set("id", sampleId);
+    formData.set("session_id", sampleId);
+    formData.set("class_id", sampleId);
     formData.set("status", "late");
 
     const result = parseUpdateAttendeeFormData(formData);
@@ -552,8 +458,8 @@ describe("parseUpdateAttendeeFormData", () => {
 describe("parseCreateSessionTaskFormData", () => {
   it("parses task create payload", () => {
     const formData = new FormData();
-    formData.set("session_id", relationshipId);
-    formData.set("class_id", relationshipId);
+    formData.set("session_id", sampleId);
+    formData.set("class_id", sampleId);
     formData.set("title", "Homework 1");
     formData.set("max_grade", "20");
 
@@ -570,9 +476,9 @@ describe("parseCreateSessionTaskFormData", () => {
 describe("parseUpdateSessionTaskFormData", () => {
   it("parses task update payload", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
-    formData.set("session_id", relationshipId);
-    formData.set("class_id", relationshipId);
+    formData.set("id", sampleId);
+    formData.set("session_id", sampleId);
+    formData.set("class_id", sampleId);
     formData.set("title", "Homework 1 revised");
     formData.set("max_grade", "15");
 
@@ -580,7 +486,7 @@ describe("parseUpdateSessionTaskFormData", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.id).toBe(relationshipId);
+      expect(result.data.id).toBe(sampleId);
       expect(result.data.title).toBe("Homework 1 revised");
       expect(result.data.max_grade).toBe(15);
     }
@@ -590,7 +496,7 @@ describe("parseUpdateSessionTaskFormData", () => {
 describe("parseEditStudentTaskFormData", () => {
   it("parses student task update", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
+    formData.set("id", sampleId);
     formData.set("status", "graded");
     formData.set("grade", "18");
 
@@ -615,7 +521,7 @@ describe("parseEditStudentTaskFormData", () => {
 
   it("promotes pending to graded when a grade is provided", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
+    formData.set("id", sampleId);
     formData.set("status", "pending");
     formData.set("grade", "18");
 
@@ -630,7 +536,7 @@ describe("parseEditStudentTaskFormData", () => {
 
   it("keeps pending when no grade is provided", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
+    formData.set("id", sampleId);
     formData.set("status", "pending");
 
     const result = parseEditStudentTaskFormData(formData);
@@ -643,7 +549,7 @@ describe("parseEditStudentTaskFormData", () => {
 
   it("does not change submitted when a grade is provided", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
+    formData.set("id", sampleId);
     formData.set("status", "submitted");
     formData.set("grade", "18");
 
@@ -750,15 +656,15 @@ describe("createEditStudentFinalExamGradeSchema", () => {
 describe("parseRemoveStudentFromClassFormData", () => {
   it("parses remove student form data", () => {
     const formData = new FormData();
-    formData.set("id", relationshipId);
-    formData.set("class_id", relationshipId);
+    formData.set("id", sampleId);
+    formData.set("class_id", sampleId);
 
     const result = parseRemoveStudentFromClassFormData(formData);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.id).toBe(relationshipId);
-      expect(result.data.class_id).toBe(relationshipId);
+      expect(result.data.id).toBe(sampleId);
+      expect(result.data.class_id).toBe(sampleId);
     }
   });
 
@@ -775,15 +681,15 @@ describe("parseRemoveStudentFromClassFormData", () => {
 describe("parseTransferSppFormData", () => {
   it("parses transfer SPP form data", () => {
     const formData = new FormData();
-    formData.set("spp_id", relationshipId);
-    formData.set("destination_payment_phase_id", relationshipId);
+    formData.set("spp_id", sampleId);
+    formData.set("destination_payment_phase_id", sampleId);
 
     const result = parseTransferSppFormData(formData);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.spp_id).toBe(relationshipId);
-      expect(result.data.destination_payment_phase_id).toBe(relationshipId);
+      expect(result.data.spp_id).toBe(sampleId);
+      expect(result.data.destination_payment_phase_id).toBe(sampleId);
     }
   });
 

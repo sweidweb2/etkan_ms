@@ -155,9 +155,6 @@ INSERT INTO "student_profiles" ("id", "user_id", "full_name", "birth_date", "pho
 INSERT INTO "student_profiles" ("id", "user_id", "full_name", "birth_date", "phone", "status", "created_at") VALUES ('5a52f20b-dc6c-49e4-a726-891fdf5ca02e', '40553a18-e707-4d2e-84df-176b459488f0', 'Ali Kabalan', '2007-10-05', '76698218', 'active', '2026-07-22T04:46:01.936744');
 INSERT INTO "student_profiles" ("id", "user_id", "full_name", "birth_date", "phone", "status", "created_at") VALUES ('d5ea3864-e9c8-4de8-a8ef-845603c90fb1', 'd3971bd3-499c-464b-97b1-a37a530d8808', 'ahmad 3bedi', '2011-08-30', '78752242', 'active', '2026-08-18T19:52:52.858295');
 
--- Table: relationships
--- No rows in "relationships"
-
 -- Table: equipments
 -- No rows in "equipments"
 

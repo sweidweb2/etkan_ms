@@ -58,7 +58,6 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Sent | `/manager/sent` | list |
 | [~] | Sent detail | `/manager/sent/[id]` | detail |
 | [~] | Settings | `/manager/settings` | form |
-| [~] | Analytics | `/manager/analytics` | dashboard |
 | [~] | Backup | `/manager/backup` | form / list |
 | [~] | Logs | `/manager/logs` | list |
 | [~] | Cloudflare AI usage | `/manager/cloudflare-ai-usage` | list |

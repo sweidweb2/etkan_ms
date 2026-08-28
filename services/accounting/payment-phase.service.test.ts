@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as classRepository from "@/repositories/class.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -11,6 +11,7 @@ import {
   cancelPaymentPhaseForManager,
   createPaymentPhaseForManager,
   listMissingSppForOpenedPhases,
+  listPaymentPhasesForManager,
   repairMissingSppForManager,
   transferStudentPaymentPhaseForManager,
   updatePaymentPhaseForManager,
@@ -845,5 +846,81 @@ describe("transferStudentPaymentPhaseForManager", () => {
     if (!result.success) {
       expect(result.error).toMatch(/cancelled/i);
     }
+  });
+});
+
+describe("listPaymentPhasesForManager SPP counts", () => {
+  // Upfront 200 of a 1000 phase: one student covered the upfront only, one is
+  // short of it, one is fully paid, one is cancelled.
+  const sppStatusRows = [
+    { payment_phase_id: phaseId, status: "partially_paid", total_paid: 200 },
+    { payment_phase_id: phaseId, status: "partially_paid", total_paid: 150 },
+    { payment_phase_id: phaseId, status: "paid", total_paid: 1000 },
+    { payment_phase_id: phaseId, status: "cancelled", total_paid: 0 },
+  ];
+
+  function mockPhaseList(record: typeof phaseListRecord) {
+    vi.mocked(paymentPhaseRepository.listPaymentPhases).mockResolvedValue({
+      data: [record],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppStatusRowsByPaymentPhaseIds
+    ).mockResolvedValue({ data: sppStatusRows, error: null } as never);
+    mockBillingClass();
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("counts upfront payers during the first month of an upfront phase", async () => {
+    vi.setSystemTime(new Date("2026-09-20T09:00:00Z"));
+    mockPhaseList(phaseListRecord);
+
+    const [phase] = await listPaymentPhasesForManager(adminClient, actor.userId);
+
+    expect(phase.upfront_window_active).toBe(true);
+    expect(phase.spp_paid_count).toBe(2);
+    expect(phase.spp_active_count).toBe(3);
+  });
+
+  it("counts only fully paid students once the first month has passed", async () => {
+    vi.setSystemTime(new Date("2026-10-01T09:00:00Z"));
+    mockPhaseList(phaseListRecord);
+
+    const [phase] = await listPaymentPhasesForManager(adminClient, actor.userId);
+
+    expect(phase.upfront_window_active).toBe(false);
+    expect(phase.spp_paid_count).toBe(1);
+    expect(phase.spp_active_count).toBe(3);
+  });
+
+  it("ignores upfront mode for phases that are not opened", async () => {
+    vi.setSystemTime(new Date("2026-09-20T09:00:00Z"));
+    mockPhaseList({ ...phaseListRecord, status: "closed" });
+
+    const [phase] = await listPaymentPhasesForManager(adminClient, actor.userId);
+
+    expect(phase.upfront_window_active).toBe(false);
+    expect(phase.spp_paid_count).toBe(1);
+  });
+
+  it("ignores upfront mode when the phase has no upfront amount", async () => {
+    vi.setSystemTime(new Date("2026-09-20T09:00:00Z"));
+    mockPhaseList({ ...phaseListRecord, upfront_amount: 0 });
+
+    const [phase] = await listPaymentPhasesForManager(adminClient, actor.userId);
+
+    expect(phase.upfront_window_active).toBe(false);
+    expect(phase.spp_paid_count).toBe(1);
   });
 });

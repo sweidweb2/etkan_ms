@@ -22,6 +22,8 @@ export type ManagerPaymentPhaseRow = {
   created_at: string;
   spp_active_count: number;
   spp_paid_count: number;
+  /** First month of an opened phase that has an upfront amount. */
+  upfront_window_active: boolean;
 };
 
 export type ManagerMissingSppRow = {

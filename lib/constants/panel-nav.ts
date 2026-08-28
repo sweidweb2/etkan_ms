@@ -94,11 +94,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       defaultOpen: true,
       items: [
         {
-          title: "Manage relationships",
-          href: ROUTES.MANAGER_RELATIONSHIPS,
-          icon: "users",
-        },
-        {
           title: "Manage equipments",
           href: ROUTES.MANAGER_EQUIPMENTS,
           icon: "package",
@@ -185,18 +180,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           title: "Manage projects",
           href: ROUTES.MANAGER_PROJECTS,
           icon: "folder-kanban",
-        },
-      ],
-    },
-    {
-      id: "insights",
-      label: "Reports & analytics",
-      defaultOpen: true,
-      items: [
-        {
-          title: "Analytics ❗",
-          href: ROUTES.MANAGER_ANALYTICS,
-          icon: "analytics",
         },
       ],
     },

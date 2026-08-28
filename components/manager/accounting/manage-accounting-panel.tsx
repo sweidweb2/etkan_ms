@@ -16,6 +16,7 @@ import { Can } from "@/components/auth/can";
 import { CreatePaymentPhaseDialog } from "@/components/manager/accounting/create-payment-phase-dialog";
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
+import { UpfrontWindowChip } from "@/components/manager/accounting/upfront-window-chip";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
@@ -455,7 +456,14 @@ export function ManageAccountingPanel({
                           {format(new Date(phase.end_date), "MMM d, yyyy")}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
-                          {phase.spp_paid_count}/{phase.spp_active_count}
+                          <span className="inline-flex items-center justify-end gap-2">
+                            {phase.upfront_window_active ? (
+                              <UpfrontWindowChip />
+                            ) : null}
+                            <span>
+                              {phase.spp_paid_count}/{phase.spp_active_count}
+                            </span>
+                          </span>
                         </td>
                         <td
                           className="px-4 py-3"

@@ -44,6 +44,27 @@ export const SPP_STATUS_BADGE_CLASSES: Record<
     "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
 
+/** Display-only status: paid the upfront while the phase is in its first month. */
+export const SPP_UPFRONT_PAID_DISPLAY_STATUS = "upfront_paid" as const;
+
+export type SppDisplayStatus =
+  | StudentPaymentPhaseStatus
+  | typeof SPP_UPFRONT_PAID_DISPLAY_STATUS;
+
+export const SPP_DISPLAY_STATUS_LABELS: Record<SppDisplayStatus, string> = {
+  ...SPP_STATUS_LABELS,
+  [SPP_UPFRONT_PAID_DISPLAY_STATUS]: "Upfront paid",
+};
+
+export const SPP_DISPLAY_STATUS_BADGE_CLASSES: Record<
+  SppDisplayStatus,
+  string
+> = {
+  ...SPP_STATUS_BADGE_CLASSES,
+  [SPP_UPFRONT_PAID_DISPLAY_STATUS]:
+    "bg-teal-500/15 text-teal-700 dark:text-teal-300",
+};
+
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",

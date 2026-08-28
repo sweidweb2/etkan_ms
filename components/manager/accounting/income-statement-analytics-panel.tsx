@@ -9,19 +9,9 @@ import {
   SlidersHorizontalIcon,
   TrendingUpIcon,
   WalletIcon,
-  type LucideIcon,
 } from "lucide-react";
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { Can } from "@/components/auth/can";
+import { AnalyticsStatCard } from "@/components/manager/accounting/analytics-stat-card";
 import {
   Tabs as TabsPrimitive,
   TabsContent as TabsContentPrimitive,
@@ -30,7 +20,6 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { IncomeStatementAnalyticsEtkanTab, IncomeStatementAnalyticsStudentsTab } from "@/components/manager/accounting/income-statement-analytics-tables";
-import { AnalyticsChartCard } from "@/components/manager/analytics/analytics-chart-card";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -51,12 +40,6 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import type { ManagerIncomeStatementAnalyticsData } from "@/types/manager-income-statement-analytics";
-
-const FLOW_COLORS = {
-  payments: "#10b981",
-  credits: "#14b8a6",
-  debits: "#f43f5e",
-} as const;
 
 const MONTH_OPTIONS = [
   { value: "all", label: "All months" },
@@ -81,26 +64,24 @@ const TAB_TRIGGER_CLASS = cn(
   "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
 );
 
-type BodyTab = "graphs" | "etkan" | "students";
+type BodyTab = "etkan" | "students";
 
 type IncomeStatementAnalyticsPanelProps = {
   data: ManagerIncomeStatementAnalyticsData;
   /** When set, Etkan/Students tab bodies are replaced by this slot (Suspense tables). */
   tablesSlot?: ReactNode;
+  /** Next-month forecast cards, loaded separately from the period stats. */
+  forecastSlot?: ReactNode;
 };
-
-function moneyTooltip(value: unknown) {
-  return formatPaymentPhaseMoney(Number(value ?? 0));
-}
 
 export function IncomeStatementAnalyticsPanel({
   data,
   tablesSlot,
+  forecastSlot,
 }: IncomeStatementAnalyticsPanelProps) {
   const router = useRouter();
-  const [bodyTab, setBodyTab] = useState<BodyTab>("graphs");
+  const [bodyTab, setBodyTab] = useState<BodyTab>("etkan");
   const monthValue = data.month === null ? "all" : String(data.month);
-  const periodLabel = data.month === null ? "by month" : "by day";
   const selectedMonthLabel =
     MONTH_OPTIONS.find((option) => option.value === monthValue)?.label ??
     "All months";
@@ -114,10 +95,6 @@ export function IncomeStatementAnalyticsPanel({
       `${ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS}?${params.toString()}`
     );
   }
-
-  const hasPeriodData = data.periodSeries.some(
-    (row) => row.payments > 0 || row.credits > 0 || row.debits > 0
-  );
 
   const { payments, credits, debits, adjustments } = data.totals;
   const totalInflow = payments + credits;
@@ -254,206 +231,49 @@ export function IncomeStatementAnalyticsPanel({
         />
       </div>
 
+      {forecastSlot}
+
       {tablesSlot}
 
-      <TabsPrimitive
-        value={bodyTab}
-        onValueChange={(value) => setBodyTab(value as BodyTab)}
-        className="flex flex-col gap-4"
-      >
-        <div className="flex justify-center">
-          <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
-            <TabsTriggerPrimitive value="graphs" className={TAB_TRIGGER_CLASS}>
-              Graphs
-            </TabsTriggerPrimitive>
-            {!tablesSlot ? (
-              <>
-                <TabsTriggerPrimitive value="etkan" className={TAB_TRIGGER_CLASS}>
-                  Etkan
-                </TabsTriggerPrimitive>
-                <TabsTriggerPrimitive
-                  value="students"
-                  className={TAB_TRIGGER_CLASS}
-                >
-                  Students
-                </TabsTriggerPrimitive>
-              </>
-            ) : null}
-          </TabsListPrimitive>
-        </div>
-
-        <TabsContentsPrimitive>
-          <TabsContentPrimitive value="graphs" className="outline-none">
-            <div className="grid gap-6 xl:grid-cols-2">
-              <AnalyticsChartCard
-                title={`Cash flow ${periodLabel}`}
-                description="Line chart of payments, credits, and debits."
-              >
-                <div className="h-[18rem] w-full min-w-0">
-                  {hasPeriodData ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={data.periodSeries}
-                        margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          className="stroke-border/60"
-                          vertical={false}
-                        />
-                        <XAxis
-                          dataKey="label"
-                          tick={{ fontSize: 11 }}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 11 }}
-                          tickLine={false}
-                          axisLine={false}
-                          tickFormatter={(value) =>
-                            formatPaymentPhaseMoney(Number(value))
-                          }
-                          width={72}
-                        />
-                        <Tooltip formatter={moneyTooltip} />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="payments"
-                          name="Payments"
-                          stroke={FLOW_COLORS.payments}
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="credits"
-                          name="Credits"
-                          stroke={FLOW_COLORS.credits}
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="debits"
-                          name="Debits"
-                          stroke={FLOW_COLORS.debits}
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <EmptyChart />
-                  )}
-                </div>
-              </AnalyticsChartCard>
-
-              <AnalyticsChartCard
-                title={`Stacked volume ${periodLabel}`}
-                description="Area chart including adjustments."
-              >
-                <div className="h-[18rem] w-full min-w-0">
-                  <ComingSoonChart />
-                </div>
-              </AnalyticsChartCard>
-
-              <AnalyticsChartCard
-                title={`Comparison ${periodLabel}`}
-                description="Grouped bars for the selected period."
-              >
-                <div className="h-[18rem] w-full min-w-0">
-                  <ComingSoonChart />
-                </div>
-              </AnalyticsChartCard>
-
-              <AnalyticsChartCard
-                title="Composition"
-                description="Share of payments, credits, debits, and adjustments."
-              >
-                <div className="h-[18rem] w-full min-w-0">
-                  <ComingSoonChart />
-                </div>
-              </AnalyticsChartCard>
-            </div>
-          </TabsContentPrimitive>
-
-          {!tablesSlot ? (
-            <>
-              <TabsContentPrimitive value="etkan" className="outline-none">
-                <IncomeStatementAnalyticsEtkanTab
-                  key={`etkan-${data.year}-${data.month ?? "all"}`}
-                  transactions={data.transactions}
-                />
-              </TabsContentPrimitive>
-
-              <TabsContentPrimitive value="students" className="outline-none">
-                <IncomeStatementAnalyticsStudentsTab
-                  key={`students-${data.year}-${data.month ?? "all"}`}
-                  payments={data.payments}
-                  unpaidStudents={data.unpaidStudents}
-                  adjustedStudents={data.adjustedStudents}
-                />
-              </TabsContentPrimitive>
-            </>
-          ) : null}
-        </TabsContentsPrimitive>
-      </TabsPrimitive>
-    </div>
-  );
-}
-
-function AnalyticsStatCard({
-  label,
-  value,
-  description,
-  icon: Icon,
-  iconClassName,
-  valueClassName,
-}: {
-  label: string;
-  value: string;
-  description?: string;
-  icon: LucideIcon;
-  iconClassName: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-xl border px-4 py-3">
-      <Icon
-        className={`mt-0.5 size-4 shrink-0 ${iconClassName}`}
-        aria-hidden
-      />
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p
-          className={`mt-1 tabular-nums ${valueClassName ?? "text-xl font-semibold"}`}
+      {!tablesSlot ? (
+        <TabsPrimitive
+          value={bodyTab}
+          onValueChange={(value) => setBodyTab(value as BodyTab)}
+          className="flex flex-col gap-4"
         >
-          {value}
-        </p>
-        {description ? (
-          <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
+          <div className="flex justify-center">
+            <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+              <TabsTriggerPrimitive value="etkan" className={TAB_TRIGGER_CLASS}>
+                Etkan
+              </TabsTriggerPrimitive>
+              <TabsTriggerPrimitive
+                value="students"
+                className={TAB_TRIGGER_CLASS}
+              >
+                Students
+              </TabsTriggerPrimitive>
+            </TabsListPrimitive>
+          </div>
 
-function EmptyChart() {
-  return (
-    <div className="flex h-full items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-      No data for this period.
-    </div>
-  );
-}
+          <TabsContentsPrimitive>
+            <TabsContentPrimitive value="etkan" className="outline-none">
+              <IncomeStatementAnalyticsEtkanTab
+                key={`etkan-${data.year}-${data.month ?? "all"}`}
+                transactions={data.transactions}
+              />
+            </TabsContentPrimitive>
 
-function ComingSoonChart() {
-  return (
-    <div className="flex h-full items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-      Soon will be activated
+            <TabsContentPrimitive value="students" className="outline-none">
+              <IncomeStatementAnalyticsStudentsTab
+                key={`students-${data.year}-${data.month ?? "all"}`}
+                payments={data.payments}
+                unpaidStudents={data.unpaidStudents}
+                adjustedStudents={data.adjustedStudents}
+              />
+            </TabsContentPrimitive>
+          </TabsContentsPrimitive>
+        </TabsPrimitive>
+      ) : null}
     </div>
   );
 }

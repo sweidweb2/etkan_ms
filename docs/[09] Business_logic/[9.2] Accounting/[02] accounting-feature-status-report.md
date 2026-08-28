@@ -150,14 +150,26 @@ Services assert permissions; UI uses `<Can>`.
 - Edit amount/upfront/dates → recalc non-cancelled SPPs; may reopen `closed` → `opened` (**E11**)
 - Cancel → phase `cancelled`; existing SPPs/payments **kept**; new payments blocked (**E14** path)
 
+### Upfront-aware paid counter
+
+A phase is in **upfront mode** when it is `opened`, has `upfront_amount > 0`, and today (in `Asia/Beirut`) falls in `[start_date, start_date + 1 month)`.
+
+- In upfront mode the numerator of `SPP paid / active` counts non-cancelled SPPs where `total_paid >= upfront_amount`, **or** the SPP is already fully `paid`. Adjustments are deliberately ignored in the threshold — the upfront is a phase-level amount compared against the raw paid total — while the `paid` branch keeps fully settled students counted when a discount pushed their due below the upfront.
+- Outside upfront mode (no upfront, past the first month, or a `closed` / `cancelled` phase) the numerator is SPPs with status `paid`, as before. The denominator is always the non-cancelled SPP count.
+- The mode is decided server-side and shipped as `upfront_window_active` on the phase row, so the list cell, the detail field, and the per-student badges cannot disagree or drift with the viewer's clock. An "Upfront" chip marks the counter while the mode is on.
+- Students who covered the upfront show a display-only **Upfront paid** badge. Nothing is persisted: `deriveSppStatus`, recalc, and all money math are untouched, and the status filters still filter on the persisted status.
+
 ### Caveats / risks
 - Managers **cannot** manually set phase to `closed` / `opened` (except cancel, and system reopen) — by design.
 - Cancel does **not** cancel SPPs or delete payments.
 - Empty active SPP set (everyone left unpaid then cancelled) → phase stays **`opened`** until manual cancel (plan §11).
+- An upfront-paid student still appears under the "Partially paid" filter, matching their persisted status and money columns.
 
 ### Proof
 - `payment-phase-details-panel.tsx`
 - `updatePaymentPhaseForManager` / `cancelPaymentPhaseForManager` tests
+- `lib/manager/accounting/upfront-window.test.ts`, `lib/manager/accounting/spp-display-status.test.ts`
+- `listPaymentPhasesForManager SPP counts` tests
 
 ---
 
@@ -269,6 +281,38 @@ Services assert permissions; UI uses `<Can>`.
 ### Proof
 - Plan §7 Phase 6 checklist
 - Accounting UI panels under `components/manager/accounting/`
+
+---
+
+## Task 11 — Next-month income forecast (income analytics)
+
+**Status:** Working
+
+A row of three stat cards on `/manager/income-statement/analytics` estimating money arriving next month. It always covers the **real next calendar month** in `Asia/Beirut` and ignores the page's year/month filters, since a forecast for a past period is meaningless. The covered month is named in the card labels.
+
+### How the number is built
+
+Expected total = expected student payments + expected external credits.
+
+**Student payments** sum, over every non-cancelled SPP with `remaining_amount > 0` on an `opened` phase whose `end_date` falls on or after the first day of next month:
+
+- the phase `upfront_amount` when next month is the month the phase **starts in**, capped by remaining;
+- otherwise `final_amount_due / duration_months`, capped by remaining.
+
+`final_amount_due` already reflects scholarships and discounts, so adjustments need no special handling. This matches `approx_monthly_remaining` in the unpaid-students table, so the card and the table reconcile.
+
+**External credits** are the average of the last **3 completed months** of `credit` transactions (the current, in-progress month is excluded). Credits have no recurrence data, so history is the only available signal.
+
+### Caveats / risks
+- It is an **estimate**, not committed revenue, and is labeled as such in the UI.
+- No payment-cadence modeling: a student who prepaid several months ahead still contributes one installment, because only `remaining_amount` is considered.
+- "First month" is a calendar-month test on `start_date`, deliberately **not** the rolling window used by `isPhaseUpfrontWindowActive` — a phase starting on the 5th belongs to that month only, so the upfront is never expected twice.
+- A one-off large donation inflates the credits average for three months.
+
+### Proof
+- `lib/manager/accounting/next-month-forecast.ts` + `next-month-forecast.test.ts`
+- `getNextMonthIncomeForecastForManager` in `services/accounting/income-statement-analytics.service.ts`
+- `income-statement-next-month-cards.tsx`, loaded through a `Suspense` section so the SPP scan stays off the page's critical path
 
 ---
 

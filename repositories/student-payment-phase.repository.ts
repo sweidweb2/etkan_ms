@@ -53,12 +53,19 @@ export async function listSppStatusRowsByPaymentPhaseIds(
   paymentPhaseIds: string[]
 ) {
   if (paymentPhaseIds.length === 0) {
-    return { data: [] as Array<{ payment_phase_id: string; status: string }>, error: null };
+    return {
+      data: [] as Array<{
+        payment_phase_id: string;
+        status: string;
+        total_paid: number;
+      }>,
+      error: null,
+    };
   }
 
   return client
     .from("student_payment_phases")
-    .select("payment_phase_id, status")
+    .select("payment_phase_id, status, total_paid")
     .in("payment_phase_id", paymentPhaseIds);
 }
 

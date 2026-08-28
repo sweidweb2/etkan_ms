@@ -1,12 +1,12 @@
 import {
-  SPP_STATUS_BADGE_CLASSES,
-  SPP_STATUS_LABELS,
+  SPP_DISPLAY_STATUS_BADGE_CLASSES,
+  SPP_DISPLAY_STATUS_LABELS,
+  type SppDisplayStatus,
 } from "@/lib/constants/manager-payment-phase-display";
-import type { StudentPaymentPhaseStatus } from "@/lib/manager/accounting/constants";
 import { cn } from "@/lib/utils";
 
 type SppStatusBadgeProps = {
-  status: StudentPaymentPhaseStatus;
+  status: SppDisplayStatus;
   className?: string;
 };
 
@@ -15,11 +15,11 @@ export function SppStatusBadge({ status, className }: SppStatusBadgeProps) {
     <span
       className={cn(
         "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
-        SPP_STATUS_BADGE_CLASSES[status],
+        SPP_DISPLAY_STATUS_BADGE_CLASSES[status],
         className
       )}
     >
-      {SPP_STATUS_LABELS[status]}
+      {SPP_DISPLAY_STATUS_LABELS[status]}
     </span>
   );
 }

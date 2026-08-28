@@ -19,6 +19,13 @@ import {
   type TransactionType,
 } from "@/lib/manager/accounting/constants";
 import {
+  averageMonthlyCredits,
+  expectedSppAmountForMonth,
+  lastCompletedMonthsRange,
+  nextMonthStart,
+  phaseRunsInMonth,
+} from "@/lib/manager/accounting/next-month-forecast";
+import {
   dateRangeForYearMonth,
   yearsFromDateBounds,
 } from "@/lib/utils/iso-date-range";
@@ -34,6 +41,7 @@ import type {
   ManagerIncomeStatementAnalyticsData,
   ManagerIncomeStatementAnalyticsSummary,
   ManagerIncomeStatementAnalyticsTables,
+  ManagerNextMonthIncomeForecast,
 } from "@/types/manager-income-statement-analytics";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -666,6 +674,108 @@ export async function getIncomeStatementAnalyticsTablesForManager(
     transactions,
     unpaidStudents,
     adjustedStudents,
+  };
+}
+
+const CREDIT_SAMPLE_MONTHS = 3;
+
+type ForecastPhaseRecord = {
+  id: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  upfront_amount: number;
+  duration_months: number;
+};
+
+/**
+ * Rough expectation of money arriving next month: one installment (or the
+ * upfront, in a phase's first month) from every student who still owes on an
+ * open phase, plus the recent average of external credits.
+ *
+ * Independent of the page period filters — a forecast only makes sense for the
+ * real next month.
+ */
+export async function getNextMonthIncomeForecastForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerNextMonthIncomeForecast> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW
+  );
+
+  const { monthStart, label } = nextMonthStart();
+  const creditsRange = lastCompletedMonthsRange(CREDIT_SAMPLE_MONTHS);
+
+  const [unpaidSppsResult, phasesResult, creditsResult] = await Promise.all([
+    studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+    paymentPhaseRepository.listOpenedPaymentPhases(adminClient),
+    transactionRepository.listTransactionAmountsBetween(
+      adminClient,
+      creditsRange.fromInclusive,
+      creditsRange.toExclusive
+    ),
+  ]);
+
+  if (unpaidSppsResult.error) throw new Error(unpaidSppsResult.error.message);
+  if (phasesResult.error) throw new Error(phasesResult.error.message);
+  if (creditsResult.error) throw new Error(creditsResult.error.message);
+
+  const phaseById = new Map(
+    ((phasesResult.data ?? []) as unknown as ForecastPhaseRecord[])
+      .filter((phase) => phaseRunsInMonth(phase, monthStart))
+      .map((phase) => [phase.id, phase])
+  );
+
+  let expectedStudentPayments = 0;
+  let studentCount = 0;
+  const contributingPhaseIds = new Set<string>();
+
+  for (const spp of unpaidSppsResult.data ?? []) {
+    const phase = phaseById.get(spp.payment_phase_id);
+    if (!phase) {
+      continue;
+    }
+
+    const expected = expectedSppAmountForMonth(
+      {
+        remaining_amount: Number(spp.remaining_amount),
+        final_amount_due: Number(spp.final_amount_due),
+      },
+      {
+        status: phase.status,
+        start_date: phase.start_date,
+        end_date: phase.end_date,
+        upfront_amount: Number(phase.upfront_amount),
+        duration_months: Number(phase.duration_months),
+      },
+      monthStart
+    );
+
+    if (expected <= 0) {
+      continue;
+    }
+
+    expectedStudentPayments += expected;
+    studentCount += 1;
+    contributingPhaseIds.add(phase.id);
+  }
+
+  const expectedCredits = averageMonthlyCredits(
+    creditsResult.data ?? [],
+    CREDIT_SAMPLE_MONTHS
+  );
+
+  return {
+    month_label: label,
+    expected_student_payments: expectedStudentPayments,
+    expected_credits: expectedCredits,
+    expected_total: expectedStudentPayments + expectedCredits,
+    student_count: studentCount,
+    phase_count: contributingPhaseIds.size,
+    credits_months_sampled: CREDIT_SAMPLE_MONTHS,
   };
 }
 

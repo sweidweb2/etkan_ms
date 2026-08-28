@@ -18,8 +18,6 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 
 - [ ] **Users** — `/manager/users`: list, open detail, create staff user, edit user
 - [ ] **Students** — `/manager/students`: list, detail, create, edit, change status if used
-- [ ] **Relationships** — `/manager/relationships`: list, create, edit
-
 ### Academics
 
 - [ ] **Subjects** — `/manager/subjects`: list, detail, create, edit, delete (when allowed)
@@ -41,7 +39,6 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 
 ### System
 
-- [ ] **Analytics** — `/manager/analytics`: opens
 - [ ] **Backup** — `/manager/backup`: export table / full, download / re-export
 - [ ] **Logs** — `/manager/logs`: list opens
 - [ ] **Permissions** — `/manager/rbac`: change a non-critical grant and save (then restore)

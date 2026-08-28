@@ -8,6 +8,7 @@ import {
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
+import { isPhaseUpfrontWindowActive } from "@/lib/manager/accounting/upfront-window";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { dateRangeForYearMonth } from "@/lib/utils/iso-date-range";
@@ -256,6 +257,12 @@ export async function getSppDetailForManager(
     billing_class_id: billingClass?.id ?? null,
     billing_class_name: billingClass?.name ?? null,
     phase_amount: Number(phaseRecord.amount),
+    phase_upfront_amount: Number(phaseRecord.upfront_amount),
+    upfront_window_active: isPhaseUpfrontWindowActive({
+      status: phaseStatus,
+      start_date: phaseRecord.start_date,
+      upfront_amount: Number(phaseRecord.upfront_amount),
+    }),
     status: sppStatus,
     original_amount: Number(sppRecord.original_amount),
     adjustment_amount: Number(sppRecord.adjustment_amount),

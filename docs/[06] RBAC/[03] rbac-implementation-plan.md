@@ -161,7 +161,6 @@ Do one feature group per pass. Check off when service checks are permission-base
 
 - [x] Users
 - [x] Students
-- [x] Relationships
 - [x] Classes
 - [x] Sessions
 - [x] Attendance

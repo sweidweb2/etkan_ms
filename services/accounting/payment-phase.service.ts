@@ -5,6 +5,10 @@ import {
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
+import {
+  countsAsUpfrontPaid,
+  isPhaseUpfrontWindowActive,
+} from "@/lib/manager/accounting/upfront-window";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
@@ -253,6 +257,7 @@ function mapPhaseRecordToRow(
     created_at: record.created_at,
     spp_active_count: sppActiveCount,
     spp_paid_count: sppPaidCount,
+    upfront_window_active: isPhaseUpfrontWindowActive(record),
   };
 }
 
@@ -354,24 +359,34 @@ function mapSppRecordToRow(
   };
 }
 
+type SppCountPhase = Pick<
+  PaymentPhaseListRecord,
+  "id" | "status" | "start_date" | "upfront_amount"
+>;
+
 async function buildSppCountsByPhaseId(
   adminClient: Supabase,
-  phaseIds: string[]
+  phases: SppCountPhase[]
 ): Promise<Map<string, { active: number; paid: number }>> {
   const counts = new Map<string, { active: number; paid: number }>();
+  const upfrontPhases = new Map<string, number>();
 
-  for (const phaseId of phaseIds) {
-    counts.set(phaseId, { active: 0, paid: 0 });
+  for (const phase of phases) {
+    counts.set(phase.id, { active: 0, paid: 0 });
+
+    if (isPhaseUpfrontWindowActive(phase)) {
+      upfrontPhases.set(phase.id, Number(phase.upfront_amount));
+    }
   }
 
-  if (phaseIds.length === 0) {
+  if (phases.length === 0) {
     return counts;
   }
 
   const { data, error } =
     await studentPaymentPhaseRepository.listSppStatusRowsByPaymentPhaseIds(
       adminClient,
-      phaseIds
+      phases.map((phase) => phase.id)
     );
 
   if (error) {
@@ -388,7 +403,17 @@ async function buildSppCountsByPhaseId(
       current.active += 1;
     }
 
-    if (row.status === STUDENT_PAYMENT_PHASE_STATUSES.PAID) {
+    const upfrontAmount = upfrontPhases.get(row.payment_phase_id);
+    const isPaid =
+      upfrontAmount === undefined
+        ? row.status === STUDENT_PAYMENT_PHASE_STATUSES.PAID
+        : countsAsUpfrontPaid({
+            status: row.status,
+            totalPaid: Number(row.total_paid),
+            upfrontAmount,
+          });
+
+    if (isPaid) {
       current.paid += 1;
     }
 
@@ -421,11 +446,10 @@ export async function listPaymentPhasesForManager(
     return [];
   }
 
-  const sppPhaseIds = records.map((record) => record.id);
   const semesterIds = records.map((record) => record.semester_id);
 
   const [sppCounts, billingBySemester] = await Promise.all([
-    buildSppCountsByPhaseId(adminClient, sppPhaseIds),
+    buildSppCountsByPhaseId(adminClient, records),
     buildBillingClassBySemesterId(adminClient, semesterIds),
   ]);
 
@@ -1295,7 +1319,7 @@ export async function getPaymentPhaseForManager(
 
   const phaseRecord = data as PaymentPhaseListRecord;
   const [sppCounts, billingClass] = await Promise.all([
-    buildSppCountsByPhaseId(adminClient, [phaseRecord.id]),
+    buildSppCountsByPhaseId(adminClient, [phaseRecord]),
     resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
   ]);
   const counts = sppCounts.get(phaseRecord.id) ?? { active: 0, paid: 0 };
@@ -1491,9 +1515,7 @@ export async function updatePaymentPhaseForManager(
     },
   });
 
-  const sppCounts = await buildSppCountsByPhaseId(adminClient, [
-    finalRecord.id,
-  ]);
+  const sppCounts = await buildSppCountsByPhaseId(adminClient, [finalRecord]);
   const counts = sppCounts.get(finalRecord.id) ?? { active: 0, paid: 0 };
   const billingClass = await resolveInProgressClassForSemester(
     adminClient,

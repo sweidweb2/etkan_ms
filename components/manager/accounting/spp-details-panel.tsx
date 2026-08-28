@@ -66,6 +66,7 @@ import {
   type FinancialAdjustmentValueType,
   type PaymentMethod,
 } from "@/lib/manager/accounting/constants";
+import { resolveSppDisplayStatus } from "@/lib/manager/accounting/spp-display-status";
 import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
 import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
@@ -780,7 +781,15 @@ export function SppDetailsPanel({
               )}
             </CardTitle>
             <CardAction className="flex flex-wrap items-center gap-2">
-              <SppStatusBadge status={spp.status} />
+              <SppStatusBadge
+                status={resolveSppDisplayStatus(
+                  { status: spp.status, totalPaid: spp.total_paid },
+                  {
+                    upfrontWindowActive: spp.upfront_window_active,
+                    upfrontAmount: spp.phase_upfront_amount,
+                  }
+                )}
+              />
               <PaymentPhaseStatusBadge status={spp.payment_phase_status} />
             </CardAction>
           </CardHeader>

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { IncomeStatementAnalyticsPanel } from "@/components/manager/accounting/income-statement-analytics-panel";
 import { IncomeStatementAnalyticsTablesSection } from "@/components/manager/accounting/income-statement-analytics-tables-section";
+import { IncomeStatementNextMonthSection } from "@/components/manager/accounting/income-statement-next-month-section";
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -59,6 +60,25 @@ export default async function ManagerIncomeStatementAnalyticsPage({
         unpaidStudents: [],
         adjustedStudents: [],
       }}
+      forecastSlot={
+        <Suspense
+          fallback={
+            <div
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              aria-hidden
+            >
+              {[0, 1, 2].map((index) => (
+                <div
+                  key={index}
+                  className="min-h-[6.5rem] animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
+                />
+              ))}
+            </div>
+          }
+        >
+          <IncomeStatementNextMonthSection actorUserId={user.id} />
+        </Suspense>
+      }
       tablesSlot={
         <Suspense
           fallback={

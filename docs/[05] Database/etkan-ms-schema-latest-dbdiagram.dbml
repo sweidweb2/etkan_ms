@@ -348,17 +348,6 @@ Table borrow_equipment {
   status text [default: 'borrowed']
 }
 
-Table relationships {
-  id uuid [pk, default: `gen_random_uuid()`]
-  name text [not null]
-  phone text
-  relation_with text
-  major text
-  speciality text
-  is_useful boolean [default: true]
-  created_at timestamp [default: `now()`]
-}
-
 Table student_takeouts {
   id uuid [pk, default: `gen_random_uuid()`]
   user_id uuid [not null]

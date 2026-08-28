@@ -93,6 +93,17 @@ export type ManagerIncomeStatementAnalyticsData = {
   adjustedStudents: ManagerIncomeAnalyticsAdjustedStudentRow[];
 };
 
+export type ManagerNextMonthIncomeForecast = {
+  /** Human month the forecast covers, e.g. "October 2026". */
+  month_label: string;
+  expected_student_payments: number;
+  expected_credits: number;
+  expected_total: number;
+  student_count: number;
+  phase_count: number;
+  credits_months_sampled: number;
+};
+
 export type ManagerIncomeStatementAnalyticsSummary = Pick<
   ManagerIncomeStatementAnalyticsData,
   | "year"

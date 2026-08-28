@@ -6,7 +6,6 @@ import { ROUTES } from "@/lib/constants/routes";
 export const MANAGER_CACHE_TAGS = {
   USERS: "manager-users",
   STUDENTS: "manager-students",
-  RELATIONSHIPS: "manager-relationships",
   INSTRUCTORS: "manager-instructors",
   MENTORS: "manager-mentors",
   MENTOR_SUBJECTS: "manager-mentor-subjects",
@@ -51,9 +50,4 @@ export function revalidateManagerMentorsList(): void {
 export function revalidateManagerMentorSubjects(): void {
   revalidateTag(MANAGER_CACHE_TAGS.MENTOR_SUBJECTS, REVALIDATE_PROFILE);
   revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
-}
-
-export function revalidateManagerRelationshipsList(): void {
-  revalidateTag(MANAGER_CACHE_TAGS.RELATIONSHIPS, REVALIDATE_PROFILE);
-  revalidatePath(ROUTES.MANAGER_RELATIONSHIPS);
 }

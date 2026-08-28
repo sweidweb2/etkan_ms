@@ -1108,39 +1108,6 @@ export type Database = {
         }
         Relationships: []
       }
-      relationships: {
-        Row: {
-          created_at: string | null
-          id: string
-          is_useful: boolean | null
-          major: string | null
-          name: string
-          phone: string | null
-          relation_with: string | null
-          speciality: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          is_useful?: boolean | null
-          major?: string | null
-          name: string
-          phone?: string | null
-          relation_with?: string | null
-          speciality?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          is_useful?: boolean | null
-          major?: string | null
-          name?: string
-          phone?: string | null
-          relation_with?: string | null
-          speciality?: string | null
-        }
-        Relationships: []
-      }
       role_permissions: {
         Row: {
           permission_key: string

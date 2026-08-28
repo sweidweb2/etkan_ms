@@ -18,7 +18,6 @@ export const PERMISSION_FEATURES = [
   "dashboard",
   "users",
   "students",
-  "relationships",
   "subjects",
   "instructors",
   "mentors",
@@ -37,7 +36,6 @@ export const PERMISSION_FEATURES = [
   "notifications",
   "emailing",
   "accounting",
-  "analytics",
   "backup",
   "logs",
   "cloudflare_ai_usage",
@@ -54,7 +52,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   dashboard: "Dashboard",
   users: "Users",
   students: "Students",
-  relationships: "Relationships",
   subjects: "Subjects",
   instructors: "Instructors",
   mentors: "Mentors",
@@ -73,7 +70,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   notifications: "Notifications",
   emailing: "Emailing",
   accounting: "Accounting",
-  analytics: "Analytics",
   backup: "Backup",
   logs: "Logs",
   cloudflare_ai_usage: "Cloudflare AI usage",
@@ -96,11 +92,6 @@ export const PERMISSIONS = {
   STUDENTS_CREATE: "students.create",
   STUDENTS_UPDATE: "students.update",
   STUDENTS_CHANGE_STATUS: "students.change_status",
-
-  RELATIONSHIPS_VIEW: "relationships.view",
-  RELATIONSHIPS_CREATE: "relationships.create",
-  RELATIONSHIPS_UPDATE: "relationships.update",
-
   SUBJECTS_VIEW: "subjects.view",
   SUBJECTS_CREATE: "subjects.create",
   SUBJECTS_UPDATE: "subjects.update",
@@ -239,8 +230,6 @@ export const PERMISSIONS = {
   ACCOUNTING_ADJUSTMENTS_UPDATE: "accounting.adjustments.update",
   ACCOUNTING_ADJUSTMENTS_DELETE: "accounting.adjustments.delete",
 
-  ANALYTICS_VIEW: "analytics.view",
-
   BACKUP_VIEW: "backup.view",
   BACKUP_EXPORT_TABLE: "backup.export_table",
   BACKUP_EXPORT_FULL: "backup.export_full",
@@ -333,25 +322,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.STUDENTS_CHANGE_STATUS,
     feature: "students",
     label: "Activate / inactivate student",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-
-  {
-    key: PERMISSIONS.RELATIONSHIPS_VIEW,
-    feature: "relationships",
-    label: "View relationships",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.RELATIONSHIPS_CREATE,
-    feature: "relationships",
-    label: "Create relationship",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.RELATIONSHIPS_UPDATE,
-    feature: "relationships",
-    label: "Edit relationship",
     access: PERMISSION_ACCESS.WRITE,
   },
 
@@ -1085,13 +1055,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "accounting",
     label: "Delete financial adjustment",
     access: PERMISSION_ACCESS.WRITE,
-  },
-
-  {
-    key: PERMISSIONS.ANALYTICS_VIEW,
-    feature: "analytics",
-    label: "View analytics",
-    access: PERMISSION_ACCESS.READ,
   },
 
   {

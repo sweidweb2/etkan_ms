@@ -19,6 +19,9 @@ export type ManagerSppDetail = {
   billing_class_id: string | null;
   billing_class_name: string | null;
   phase_amount: number;
+  phase_upfront_amount: number;
+  /** First month of an opened phase that has an upfront amount. */
+  upfront_window_active: boolean;
   status: StudentPaymentPhaseStatus;
   original_amount: number;
   adjustment_amount: number;

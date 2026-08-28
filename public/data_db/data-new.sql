@@ -5,7 +5,6 @@ TRUNCATE TABLE
   public.role_permissions,
   public.profiles,
   public.student_profiles,
-  public.relationships,
   public.equipments,
   public.semesters,
   public.student_semester,
@@ -184,9 +183,6 @@ INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_a
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('accounting.transactions.delete', 'Delete external transaction', 'accounting', 'write', '2026-08-02T12:15:28.26654+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('students.update', 'Edit student', 'students', 'write', '2026-07-29T13:28:39.973937+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('students.change_status', 'Activate / inactivate student', 'students', 'write', '2026-07-29T13:28:39.973937+00:00');
-INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('relationships.view', 'View relationships', 'relationships', 'read', '2026-07-29T13:28:39.973937+00:00');
-INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('relationships.create', 'Create relationship', 'relationships', 'write', '2026-07-29T13:28:39.973937+00:00');
-INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('relationships.update', 'Edit relationship', 'relationships', 'write', '2026-07-29T13:28:39.973937+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('subjects.view', 'View subjects', 'subjects', 'read', '2026-07-29T13:28:39.973937+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('subjects.create', 'Create subject', 'subjects', 'write', '2026-07-29T13:28:39.973937+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('subjects.update', 'Edit subject', 'subjects', 'write', '2026-07-29T13:28:39.973937+00:00');
@@ -401,9 +397,6 @@ INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'st
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'students.create');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'students.update');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'students.change_status');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'relationships.view');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'relationships.create');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'relationships.update');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'subjects.view');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'subjects.create');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'subjects.update');
@@ -584,9 +577,6 @@ INSERT INTO "student_profiles" ("id", "user_id", "full_name", "birth_date", "pho
 INSERT INTO "student_profiles" ("id", "user_id", "full_name", "birth_date", "phone", "status", "created_at") VALUES ('a5d4392a-284f-4521-86e7-53394b195db2', '25e694d3-a646-471d-9da3-7a1690851e7b', 'Ali Khaddouj', NULL, '81754201', 'active', '2026-08-14T12:50:49.757935');
 INSERT INTO "student_profiles" ("id", "user_id", "full_name", "birth_date", "phone", "status", "created_at") VALUES ('5a52f20b-dc6c-49e4-a726-891fdf5ca02e', '40553a18-e707-4d2e-84df-176b459488f0', 'Ali Kabalan', '2007-10-05', '76698218', 'active', '2026-07-22T04:46:01.936744');
 INSERT INTO "student_profiles" ("id", "user_id", "full_name", "birth_date", "phone", "status", "created_at") VALUES ('d5ea3864-e9c8-4de8-a8ef-845603c90fb1', 'd3971bd3-499c-464b-97b1-a37a530d8808', 'ahmad 3bedi', '2011-08-30', '78752242', 'active', '2026-08-18T19:52:52.858295');
-
--- Table: relationships
--- No rows in "relationships"
 
 -- Table: equipments
 -- No rows in "equipments"

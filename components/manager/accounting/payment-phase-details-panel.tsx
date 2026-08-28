@@ -27,6 +27,7 @@ import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-pay
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { TransferSppDialog } from "@/components/manager/accounting/transfer-spp-dialog";
+import { UpfrontWindowChip } from "@/components/manager/accounting/upfront-window-chip";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
@@ -70,6 +71,7 @@ import {
   formatPaymentPhaseMoney,
   SPP_STATUS_LABELS,
 } from "@/lib/constants/manager-payment-phase-display";
+import { resolveSppDisplayStatus } from "@/lib/manager/accounting/spp-display-status";
 import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
@@ -532,10 +534,14 @@ export function PaymentPhaseDetailsPanel({
                 label="Created"
                 value={format(new Date(phase.created_at), "MMM d, yyyy")}
               />
-              <DetailField
-                label="SPP paid / active"
-                value={`${phase.spp_paid_count}/${phase.spp_active_count}`}
-              />
+              <DetailField label="SPP paid / active">
+                <span className="inline-flex items-center gap-2">
+                  <span>
+                    {phase.spp_paid_count}/{phase.spp_active_count}
+                  </span>
+                  {phase.upfront_window_active ? <UpfrontWindowChip /> : null}
+                </span>
+              </DetailField>
             </dl>
           </CardContent>
         </Card>
@@ -651,7 +657,18 @@ export function PaymentPhaseDetailsPanel({
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <SppStatusBadge status={spp.status} />
+                          <SppStatusBadge
+                            status={resolveSppDisplayStatus(
+                              {
+                                status: spp.status,
+                                totalPaid: spp.total_paid,
+                              },
+                              {
+                                upfrontWindowActive: phase.upfront_window_active,
+                                upfrontAmount: phase.upfront_amount,
+                              }
+                            )}
+                          />
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
                           {formatPaymentPhaseMoney(spp.original_amount)}

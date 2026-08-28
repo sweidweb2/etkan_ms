@@ -21,7 +21,6 @@ The initial migration defines the Etkan MS data model:
 | --- | --- |
 | Identity | `profiles`, `student_profiles` |
 | RBAC | `permissions`, `role_permissions` |
-| Relationships | `relationships` |
 | Academics | `subjects`, `classes`, `class_teacher`, `student_class`, `tasks`, `student_tasks`, `student_course_grade` |
 | Equipment | `equipments`, `borrow_equipment` |
 | Other | `student_takeouts`, `audit_logs`, `email_sent`, `email_users` |
