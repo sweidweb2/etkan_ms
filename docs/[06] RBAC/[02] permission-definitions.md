@@ -32,7 +32,7 @@ Search, filter, and list↔detail are part of the matching `*.view` key (not sep
 
 Kept as separate groups (match manager domains):
 
-Dashboard · Users · Students · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Workshops · Notifications · Emailing · Accounting · Reports · Backup · Logs · Cloudflare AI usage · Registrations · Guests · Cron Jobs · Settings · RBAC
+Dashboard · Users · Students · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Workshops · Notifications · Emailing · Accounting · Reports · Backup · Logs · Cloudflare AI usage · Registrations · Guests · Teams · Cron Jobs · Settings · RBAC
 
 Collapsed into `*.view` (not separate permissions): search, filter, schedule/alerts widgets on dashboard, student detail sub-tabs (classes/grades/borrows summaries).
 
@@ -314,6 +314,16 @@ Format: `key` — label — access
 | `guests.registration.manage` | Open, rotate, or stop invite; cancel or hard-delete application; staff-fill; connect a dossier to a user | write |
 | `guests.create_student` | Create a student from a guest registration | write |
 
+### Teams
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `teams.view` | View guest teams and their members | read |
+| `teams.create` | Create teams | write |
+| `teams.update` | Edit team name, expected start date, and status | write |
+| `teams.delete` | Delete teams and release their guests | write |
+| `teams.assign_guest` | Assign guests to a team or remove them from one | write |
+
 ### Cron Jobs
 
 | Key | Label | Access |
@@ -497,6 +507,11 @@ guests.delete
 guests.change_status
 guests.registration.manage
 guests.create_student
+teams.view
+teams.create
+teams.update
+teams.delete
+teams.assign_guest
 cron_jobs.view
 settings.view
 settings.maintenance

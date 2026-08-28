@@ -18,6 +18,9 @@ import { parseRecordGuestStatusesFormData } from "@/lib/validators/manager/recor
 import { parseRemoveGuestStatusFormData } from "@/lib/validators/manager/remove-guest-status";
 import { parseSetGuestProfileStatusFormData } from "@/lib/validators/manager/set-guest-profile-status";
 import { parseUpdateGuestFormData } from "@/lib/validators/manager/update-guest";
+import { parseAssignGuestToTeamFormData } from "@/lib/validators/manager/assign-guest-to-team";
+import { parseCreateTeamFormData } from "@/lib/validators/manager/create-team";
+import { parseUpdateTeamFormData } from "@/lib/validators/manager/update-team";
 import {
   parseRemoveTempRegistrationDocumentFormData,
   parseSubmitGuestRegistrationStaffFormData,
@@ -45,6 +48,12 @@ import {
   tempUploadGuestRegistrationDocumentForManager,
 } from "@/services/guests/guest-registration.service";
 import { createStudentFromGuestRegistrationForManager } from "@/services/guests/guest-create-student.service";
+import {
+  assignGuestToTeamForManager,
+  createTeamForManager,
+  deleteTeamForManager,
+  updateTeamForManager,
+} from "@/services/teams/team.service";
 import type {
   CancelGuestRegistrationApplicationActionState,
   ChangeGuestStatusActionState,
@@ -63,6 +72,12 @@ import type {
   CreateStudentFromGuestActionState,
   GuestRegistrationLinkUserOption,
 } from "@/types/manager-guest";
+import type {
+  AssignGuestToTeamActionState,
+  CreateTeamActionState,
+  DeleteTeamActionState,
+  UpdateTeamActionState,
+} from "@/types/manager-team";
 import type {
   RemoveTempRegistrationDocumentActionState,
   TempUploadRegistrationDocumentActionState,
@@ -650,6 +665,139 @@ export async function createStudentFromGuestAction(
     success: true,
     message: result.message,
     application: result.application,
+  };
+}
+
+export async function createTeamAction(
+  _prevState: CreateTeamActionState,
+  formData: FormData
+): Promise<CreateTeamActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateTeamFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createTeamForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  return { success: true, message: result.message, team: result.team };
+}
+
+export async function updateTeamAction(
+  _prevState: UpdateTeamActionState,
+  formData: FormData
+): Promise<UpdateTeamActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseUpdateTeamFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateTeamForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  return { success: true, message: result.message, team: result.team };
+}
+
+export async function deleteTeamAction(
+  _prevState: DeleteTeamActionState,
+  formData: FormData
+): Promise<DeleteTeamActionState> {
+  const actor = await getSessionAuditActor();
+  const teamId = String(formData.get("id") ?? "").trim();
+
+  if (!teamId) {
+    return { success: false, error: "Team not found." };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteTeamForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    teamId
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  return {
+    success: true,
+    message: result.message,
+    teamId: result.teamId,
+  };
+}
+
+export async function assignGuestToTeamAction(
+  _prevState: AssignGuestToTeamActionState,
+  formData: FormData
+): Promise<AssignGuestToTeamActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseAssignGuestToTeamFormData(formData);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await assignGuestToTeamForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath(ROUTES.MANAGER_GUESTS);
+  return {
+    success: true,
+    message: result.message,
+    guestId: result.guestId,
+    teamId: result.teamId,
   };
 }
 

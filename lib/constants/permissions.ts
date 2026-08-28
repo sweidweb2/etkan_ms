@@ -41,6 +41,7 @@ export const PERMISSION_FEATURES = [
   "cloudflare_ai_usage",
   "registrations",
   "guests",
+  "teams",
   "cron_jobs",
   "settings",
   "rbac",
@@ -75,6 +76,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   cloudflare_ai_usage: "Cloudflare AI usage",
   registrations: "Registrations",
   guests: "Guests",
+  teams: "Teams",
   cron_jobs: "Cron Jobs",
   settings: "Settings",
   rbac: "RBAC",
@@ -250,6 +252,12 @@ export const PERMISSIONS = {
   GUESTS_CHANGE_STATUS: "guests.change_status",
   GUESTS_REGISTRATION_MANAGE: "guests.registration.manage",
   GUESTS_CREATE_STUDENT: "guests.create_student",
+
+  TEAMS_VIEW: "teams.view",
+  TEAMS_CREATE: "teams.create",
+  TEAMS_UPDATE: "teams.update",
+  TEAMS_DELETE: "teams.delete",
+  TEAMS_ASSIGN_GUEST: "teams.assign_guest",
 
   CRON_JOBS_VIEW: "cron_jobs.view",
 
@@ -1156,6 +1164,37 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.GUESTS_CREATE_STUDENT,
     feature: "guests",
     label: "Create a student from a guest registration",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.TEAMS_VIEW,
+    feature: "teams",
+    label: "View guest teams and their members",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.TEAMS_CREATE,
+    feature: "teams",
+    label: "Create teams",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAMS_UPDATE,
+    feature: "teams",
+    label: "Edit team name, expected start date, and status",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAMS_DELETE,
+    feature: "teams",
+    label: "Delete teams and release their guests",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TEAMS_ASSIGN_GUEST,
+    feature: "teams",
+    label: "Assign guests to a team or remove them from one",
     access: PERMISSION_ACCESS.WRITE,
   },
 
