@@ -168,6 +168,15 @@ const validAddInstructorInput = {
 describe("listWorkshopsForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
   });
 
   it("throws when actor is unauthorized", async () => {
@@ -184,6 +193,26 @@ describe("listWorkshopsForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [
+        {
+          workshop_id: workshopId,
+          amount: 100,
+          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        },
+        {
+          workshop_id: workshopId,
+          amount: 40,
+          type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
 
     const workshops = await listWorkshopsForManager(
       adminClient,
@@ -193,6 +222,7 @@ describe("listWorkshopsForManager", () => {
 
     expect(workshops).toHaveLength(1);
     expect(workshops[0]?.name).toBe("Intro to UX");
+    expect(workshops[0]?.paid_net).toBe(60);
     expect(workshops[0]?.status).toBe(WORKSHOP_STATUSES.DRAFT);
     expect(workshopRepository.listWorkshops).toHaveBeenCalled();
     expect(profileRepository.findRoleById).not.toHaveBeenCalled();

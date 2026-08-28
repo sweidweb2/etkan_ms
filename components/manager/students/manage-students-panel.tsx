@@ -12,7 +12,6 @@ import {
   PlusIcon,
   PowerIcon,
   SearchIcon,
-  XIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { ActivateInactivateStudentDialog } from "@/components/manager/students/activate-inactivate-student-dialog";

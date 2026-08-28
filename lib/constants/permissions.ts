@@ -32,7 +32,6 @@ export const PERMISSION_FEATURES = [
   "equipment",
   "gallery",
   "projects",
-  "schedule",
   "instructor_schedules",
   "workshops",
   "notifications",
@@ -69,7 +68,6 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   equipment: "Equipment",
   gallery: "Gallery",
   projects: "Projects",
-  schedule: "Schedule",
   instructor_schedules: "Instructor Schedules",
   workshops: "Workshops",
   notifications: "Notifications",
@@ -186,11 +184,6 @@ export const PERMISSIONS = {
   PROJECTS_CREATE: "projects.create",
   PROJECTS_UPDATE: "projects.update",
   PROJECTS_DELETE: "projects.delete",
-
-  SCHEDULE_VIEW: "schedule.view",
-  SCHEDULE_CREATE: "schedule.create",
-  SCHEDULE_UPDATE: "schedule.update",
-  SCHEDULE_DELETE: "schedule.delete",
 
   INSTRUCTOR_SCHEDULES_VIEW: "instructor_schedules.view",
   INSTRUCTOR_SCHEDULES_DETAILS_VIEW: "instructor_schedules.details.view",
@@ -798,31 +791,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.PROJECTS_DELETE,
     feature: "projects",
     label: "Delete public project",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-
-  {
-    key: PERMISSIONS.SCHEDULE_VIEW,
-    feature: "schedule",
-    label: "View schedule",
-    access: PERMISSION_ACCESS.READ,
-  },
-  {
-    key: PERMISSIONS.SCHEDULE_CREATE,
-    feature: "schedule",
-    label: "Create schedule slot",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.SCHEDULE_UPDATE,
-    feature: "schedule",
-    label: "Edit schedule slot",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.SCHEDULE_DELETE,
-    feature: "schedule",
-    label: "Delete schedule slot",
     access: PERMISSION_ACCESS.WRITE,
   },
 

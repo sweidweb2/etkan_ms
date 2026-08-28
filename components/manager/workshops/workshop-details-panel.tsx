@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { format } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -64,7 +70,10 @@ import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { WORKSHOP_OFFERING_TYPE_LABELS } from "@/lib/constants/manager-workshop-display";
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ROUTES } from "@/lib/constants/routes";
+import {
+  ROUTES,
+  WORKSHOP_SCHEDULE_SLOTS_ANCHOR,
+} from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -210,6 +219,32 @@ export function WorkshopDetailsPanel({
   const resolvedTab = availableTabs.includes(activeTab)
     ? activeTab
     : (availableTabs[0] ?? "schedule");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("section") !== "schedule") {
+      return;
+    }
+
+    setPageTab("manage");
+    setActiveTab("schedule");
+
+    // The section only mounts once the manage/schedule tabs finish animating.
+    let attempts = 0;
+    let frame = requestAnimationFrame(function locate() {
+      const target = document.getElementById(WORKSHOP_SCHEDULE_SLOTS_ANCHOR);
+      if (target && target.getBoundingClientRect().height > 0) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 90) {
+        frame = requestAnimationFrame(locate);
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const hasPayments = paymentCount > 0;
   const deleteBlockedReason = hasPayments
@@ -529,6 +564,7 @@ export function WorkshopDetailsPanel({
                     <TabsContentPrimitive
                       value="schedule"
                       className={NESTED_TAB_BODY_CLASS}
+                      id={WORKSHOP_SCHEDULE_SLOTS_ANCHOR}
                     >
                       <WorkshopScheduleSlotsSection
                         workshopId={workshop.id}

@@ -8,11 +8,35 @@ type ClaimsTracker = {
   getUserMs: number;
 };
 
+type FetchWrapState = {
+  wrapper: typeof fetch | null;
+  original: typeof fetch | null;
+  saved: typeof fetch | null;
+  count: number;
+};
+
+const FETCH_WRAP_KEY = Symbol.for("etkan.claimsTiming.fetchWrap");
+
+/**
+ * Shared across bundle copies (edge middleware + SSR) and HMR reloads so two
+ * copies can never wrap each other into a self-calling fetch chain.
+ */
+function getFetchWrapState(): FetchWrapState {
+  const host = globalThis as typeof globalThis & {
+    [FETCH_WRAP_KEY]?: FetchWrapState;
+  };
+  host[FETCH_WRAP_KEY] ??= {
+    wrapper: null,
+    original: null,
+    saved: null,
+    count: 0,
+  };
+  return host[FETCH_WRAP_KEY];
+}
+
 const trackers = new AsyncLocalStorage<ClaimsTracker>();
 
 let claimsInFlight = 0;
-let wrapCount = 0;
-let savedFetch: typeof fetch | null = null;
 
 function requestUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") return input;
@@ -34,8 +58,12 @@ async function instrumentedFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
+  const state = getFetchWrapState();
   const tracker = trackers.getStore();
-  const dest = savedFetch ?? fetch;
+  const dest = state.saved ?? state.original;
+  if (!dest) {
+    throw new TypeError("claims timing fetch wrapper has no delegate");
+  }
   if (!tracker) {
     return dest(input, init);
   }
@@ -59,19 +87,28 @@ async function instrumentedFetch(
 }
 
 function installFetchWrap() {
-  if (wrapCount === 0) {
-    savedFetch = globalThis.fetch.bind(globalThis);
-    globalThis.fetch = instrumentedFetch as typeof fetch;
+  const state = getFetchWrapState();
+  state.wrapper ??= instrumentedFetch as typeof fetch;
+  state.count += 1;
+
+  if (globalThis.fetch !== state.wrapper) {
+    state.saved = globalThis.fetch.bind(globalThis);
+    state.original ??= state.saved;
+    globalThis.fetch = state.wrapper;
   }
-  wrapCount += 1;
 }
 
 function uninstallFetchWrap() {
-  wrapCount = Math.max(0, wrapCount - 1);
-  if (wrapCount === 0 && savedFetch) {
-    globalThis.fetch = savedFetch;
-    savedFetch = null;
+  const state = getFetchWrapState();
+  state.count = Math.max(0, state.count - 1);
+
+  if (state.count > 0) {
+    return;
   }
+  if (globalThis.fetch === state.wrapper && state.saved) {
+    globalThis.fetch = state.saved;
+  }
+  state.saved = null;
 }
 
 /**

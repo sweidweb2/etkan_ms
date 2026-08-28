@@ -21,11 +21,6 @@ import { parseCreateNotificationFormData } from "@/lib/validators/manager/create
 import { parseUpdateNotificationFormData } from "@/lib/validators/manager/update-notification";
 import { parseNotificationIdFormData } from "@/lib/validators/manager/notification-id";
 import { parseMarkNotificationReadFormData } from "@/lib/validators/manager/mark-notifications-read";
-import {
-  parseCreateWeeklyScheduleSlotFormData,
-  parseUpdateWeeklyScheduleSlotFormData,
-  parseWeeklyScheduleSlotIdFormData,
-} from "@/lib/validators/manager/weekly-schedule-slot";
 
 const relationshipId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 
@@ -462,84 +457,6 @@ describe("parseMarkNotificationReadFormData", () => {
     if (result.success) {
       expect(result.data.mark_all).toBe(true);
     }
-  });
-});
-
-describe("parseCreateWeeklyScheduleSlotFormData", () => {
-  it("parses valid schedule slot form data", () => {
-    const formData = new FormData();
-    formData.set("name", "Algebra A");
-    formData.set("type", "class");
-    formData.set("slot_date", "2026-08-03");
-    formData.set("start_time", "09:00");
-    formData.set("end_time", "10:30");
-    formData.set("color", "#BAE6FD");
-
-    const result = parseCreateWeeklyScheduleSlotFormData(formData);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.slot_date).toBe("2026-08-03");
-      expect(result.data.name).toBe("Algebra A");
-      expect(result.data.type).toBe("class");
-      expect(result.data.color).toBe("#BAE6FD");
-    }
-  });
-
-  it("rejects end time before start time", () => {
-    const formData = new FormData();
-    formData.set("name", "Algebra A");
-    formData.set("type", "workshop");
-    formData.set("slot_date", "2026-08-03");
-    formData.set("start_time", "11:00");
-    formData.set("end_time", "10:00");
-    formData.set("color", "#A7F3D0");
-
-    const result = parseCreateWeeklyScheduleSlotFormData(formData);
-
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects color outside the palette", () => {
-    const formData = new FormData();
-    formData.set("name", "Algebra A");
-    formData.set("type", "class");
-    formData.set("slot_date", "2026-08-03");
-    formData.set("start_time", "09:00");
-    formData.set("end_time", "10:30");
-    formData.set("color", "#ffffff");
-
-    const result = parseCreateWeeklyScheduleSlotFormData(formData);
-
-    expect(result.success).toBe(false);
-  });
-});
-
-describe("parseUpdateWeeklyScheduleSlotFormData", () => {
-  it("parses valid update form data", () => {
-    const formData = new FormData();
-    formData.set("id", relationshipId);
-    formData.set("name", "Team standup");
-    formData.set("type", "meeting");
-    formData.set("slot_date", "2026-08-04");
-    formData.set("start_time", "08:00");
-    formData.set("end_time", "09:30");
-    formData.set("color", "#FECDD3");
-
-    const result = parseUpdateWeeklyScheduleSlotFormData(formData);
-
-    expect(result.success).toBe(true);
-  });
-});
-
-describe("parseWeeklyScheduleSlotIdFormData", () => {
-  it("parses slot id", () => {
-    const formData = new FormData();
-    formData.set("id", relationshipId);
-
-    const result = parseWeeklyScheduleSlotIdFormData(formData);
-
-    expect(result.success).toBe(true);
   });
 });
 

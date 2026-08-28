@@ -24,7 +24,7 @@ export const MANAGER_NOTIFICATIONS_MOCK: ManagerNotificationRow[] = [
     priority: "normal",
     title: "New class session added",
     body: "Advanced Algebra II now has a Saturday review session from 10:00 AM to 11:30 AM in Room B12.",
-    action_href: ROUTES.MANAGER_SCHEDULE,
+    action_href: ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
     is_read: false,
     read_at: null,
     created_by: null,

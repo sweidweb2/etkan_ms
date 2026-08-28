@@ -206,11 +206,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       defaultOpen: true,
       items: [
         {
-          title: "Schedule",
-          href: ROUTES.MANAGER_SCHEDULE,
-          icon: "calendar-days",
-        },
-        {
           title: "Notifications ❗",
           href: ROUTES.MANAGER_NOTIFICATIONS,
           icon: "bell",

@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,6 +42,7 @@ import {
   type WorkshopOfferingType,
 } from "@/lib/constants/manager-workshop-display";
 import {
+  WORKSHOP_STATUSES,
   WORKSHOP_STATUS_VALUES,
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
@@ -59,6 +61,12 @@ const TYPE_TAB_ORDER = [
 ] as const satisfies readonly WorkshopOfferingType[];
 
 type StatusFilter = typeof STATUS_ALL | WorkshopStatusValue;
+
+const INITIAL_SHOW_COMPLETED: Record<WorkshopOfferingType, boolean> = {
+  workshop: true,
+  private: true,
+  course: true,
+};
 
 const TAB_TRIGGER_CLASS = cn(
   "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm",
@@ -102,7 +110,12 @@ export function ManageWorkshopsPanel({
   );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(STATUS_ALL);
+  const [showCompletedByType, setShowCompletedByType] = useState(
+    INITIAL_SHOW_COMPLETED
+  );
   const [page, setPage] = useState(1);
+
+  const showCompleted = showCompletedByType[typeTab];
 
   if (initialWorkshops !== prevWorkshops) {
     setPrevWorkshops(initialWorkshops);
@@ -129,9 +142,12 @@ export function ManageWorkshopsPanel({
       if (statusFilter !== STATUS_ALL && workshop.status !== statusFilter) {
         return false;
       }
+      if (!showCompleted && workshop.status === WORKSHOP_STATUSES.COMPLETED) {
+        return false;
+      }
       return matchesSearch(workshop, search);
     });
-  }, [workshops, search, statusFilter, typeTab]);
+  }, [workshops, search, showCompleted, statusFilter, typeTab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -140,6 +156,7 @@ export function ManageWorkshopsPanel({
     safePage * PAGE_SIZE
   );
 
+  const showCompletedCheckboxId = `show-completed-${typeTab}`;
   const typeLabel = WORKSHOP_OFFERING_TYPE_LABELS[typeTab];
   const typeLabelPlural =
     typeTab === WORKSHOP_OFFERING_TYPES.PRIVATE
@@ -255,6 +272,24 @@ export function ManageWorkshopsPanel({
             ))}
           </SelectContent>
         </Select>
+        <label
+          htmlFor={showCompletedCheckboxId}
+          className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+        >
+          <Checkbox
+            id={showCompletedCheckboxId}
+            checked={showCompleted}
+            onCheckedChange={(checked) => {
+              setShowCompletedByType((current) => ({
+                ...current,
+                [typeTab]: checked,
+              }));
+              setPage(1);
+            }}
+            aria-label={`Show completed ${typeLabelPlural}`}
+          />
+          Show completed
+        </label>
       </div>
 
       {pageItems.length === 0 ? (

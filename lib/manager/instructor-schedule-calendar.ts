@@ -1,3 +1,4 @@
+import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import type { EventInput } from "@fullcalendar/react";
 import {
   ENTITY_SCHEDULE_TYPE_WORKSHOP,
@@ -6,15 +7,60 @@ import {
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
 
-export {
-  TEMP_SCHEDULE_ID_PREFIX,
-  isTempScheduleId,
-  formatTimeFromDate,
-  formatDateFromDate,
-  formatDateOnly,
-  getSundayWeekBounds,
-  type CreateSlotDefaults,
-} from "@/lib/manager/weekly-schedule-calendar";
+/** Optimistic create/copy ids before the server returns a real UUID. */
+export const TEMP_SCHEDULE_ID_PREFIX = "__temp_";
+
+export function isTempScheduleId(id: string): boolean {
+  return id.startsWith(TEMP_SCHEDULE_ID_PREFIX);
+}
+
+export function formatTimeFromDate(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+export function formatDateFromDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function formatDateOnly(value: string | Date): string {
+  if (typeof value === "string") {
+    return value.slice(0, 10);
+  }
+
+  return format(value, "yyyy-MM-dd");
+}
+
+/** Sunday-start week containing the given ISO date (or any day in that week). */
+export function getSundayWeekBounds(weekAnchorIso: string): {
+  weekStart: string;
+  weekEnd: string;
+  lastWeekStart: string;
+  lastWeekEnd: string;
+} {
+  const anchor = parseISO(formatDateOnly(weekAnchorIso));
+  const weekStartDate = startOfWeek(anchor, { weekStartsOn: 0 });
+  const weekEndDate = addDays(weekStartDate, 6);
+  const lastWeekStartDate = addDays(weekStartDate, -7);
+  const lastWeekEndDate = addDays(weekStartDate, -1);
+
+  return {
+    weekStart: format(weekStartDate, "yyyy-MM-dd"),
+    weekEnd: format(weekEndDate, "yyyy-MM-dd"),
+    lastWeekStart: format(lastWeekStartDate, "yyyy-MM-dd"),
+    lastWeekEnd: format(lastWeekEndDate, "yyyy-MM-dd"),
+  };
+}
+
+export type CreateSlotDefaults = {
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+};
 
 function normalizeTimeForCalendar(value: string): string {
   const [hours = "00", minutes = "00"] = value.split(":");

@@ -106,6 +106,100 @@ const STATUS_ICONS = {
   [WORKSHOP_STATUSES.COMPLETED]: CircleCheckIcon,
 } as const;
 
+/** draft + proposal share a tone, scheduled + in progress share a tone. */
+const STATUS_PALETTE = {
+  [WORKSHOP_STATUSES.DRAFT]: {
+    active:
+      "border-amber-600 bg-amber-600 text-white dark:border-amber-500 dark:bg-amber-500",
+    ring: "ring-4 ring-amber-500/35",
+    upcoming:
+      "border-amber-500/35 bg-background text-amber-700/70 hover:border-amber-600 hover:text-amber-700 dark:text-amber-300/70 dark:hover:text-amber-300",
+    label: "text-amber-700 dark:text-amber-300",
+  },
+  [WORKSHOP_STATUSES.PROPOSAL]: {
+    active:
+      "border-amber-600 bg-amber-600 text-white dark:border-amber-500 dark:bg-amber-500",
+    ring: "ring-4 ring-amber-500/35",
+    upcoming:
+      "border-amber-500/35 bg-background text-amber-700/70 hover:border-amber-600 hover:text-amber-700 dark:text-amber-300/70 dark:hover:text-amber-300",
+    label: "text-amber-700 dark:text-amber-300",
+  },
+  [WORKSHOP_STATUSES.SCHEDULED]: {
+    active:
+      "border-sky-600 bg-sky-600 text-white dark:border-sky-500 dark:bg-sky-500",
+    ring: "ring-4 ring-sky-500/35",
+    upcoming:
+      "border-sky-500/35 bg-background text-sky-700/70 hover:border-sky-600 hover:text-sky-700 dark:text-sky-300/70 dark:hover:text-sky-300",
+    label: "text-sky-700 dark:text-sky-300",
+  },
+  [WORKSHOP_STATUSES.IN_PROGRESS]: {
+    active:
+      "border-sky-600 bg-sky-600 text-white dark:border-sky-500 dark:bg-sky-500",
+    ring: "ring-4 ring-sky-500/35",
+    upcoming:
+      "border-sky-500/35 bg-background text-sky-700/70 hover:border-sky-600 hover:text-sky-700 dark:text-sky-300/70 dark:hover:text-sky-300",
+    label: "text-sky-700 dark:text-sky-300",
+  },
+  [WORKSHOP_STATUSES.COMPLETED]: {
+    active:
+      "border-emerald-600 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-500",
+    ring: "ring-4 ring-emerald-500/35",
+    upcoming:
+      "border-emerald-500/35 bg-background text-emerald-700/70 hover:border-emerald-600 hover:text-emerald-700 dark:text-emerald-300/70 dark:hover:text-emerald-300",
+    label: "text-emerald-700 dark:text-emerald-300",
+  },
+} as const;
+
+/** Stroke colors used to split each connector 50/50 between its two nodes. */
+const STATUS_STROKE: Record<WorkshopStatusFlowValue, string> = {
+  draft: "#d97706",
+  proposal: "#d97706",
+  scheduled: "#0284c7",
+  in_progress: "#0284c7",
+  completed: "#059669",
+};
+
+const CANCELLED_STROKE = "#e11d48";
+
+/** Matches the node wrapper width (w-[7.5rem]) in flow coordinates. */
+const NODE_WIDTH = 120;
+
+function edgeGradientId(source: string, target: string) {
+  return `workshop-status-edge-${source}-${target}`;
+}
+
+/** Hard 50/50 split gradients referenced by the edge strokes. */
+function StatusEdgeGradients() {
+  return (
+    <svg className="pointer-events-none absolute size-0" aria-hidden="true">
+      <defs>
+        {FLOW_EDGES.map((edge) => {
+          const source = edge.source as WorkshopStatusFlowValue;
+          const target = edge.target as WorkshopStatusFlowValue;
+          const from = STATUS_STROKE[source];
+          const to = STATUS_STROKE[target];
+          return (
+            <linearGradient
+              key={edge.id}
+              id={edgeGradientId(edge.source, edge.target)}
+              gradientUnits="userSpaceOnUse"
+              x1={NODE_POSITIONS[source].x + NODE_WIDTH}
+              y1={0}
+              x2={NODE_POSITIONS[target].x}
+              y2={0}
+            >
+              <stop offset="0%" stopColor={from} />
+              <stop offset="50%" stopColor={from} />
+              <stop offset="50%" stopColor={to} />
+              <stop offset="100%" stopColor={to} />
+            </linearGradient>
+          );
+        })}
+      </defs>
+    </svg>
+  );
+}
+
 const FLOW_EDGES: Edge[] = [
   {
     id: "e-draft-proposal",
@@ -176,13 +270,15 @@ const WorkshopStatusFlowNode = memo(function WorkshopStatusFlowNode({
   const isCurrent = data.tone === "current";
   const isDone = data.tone === "done";
   const isCancelled = data.tone === "cancelled";
+  const palette = STATUS_PALETTE[data.status];
 
   return (
     <div className="flex w-[7.5rem] flex-col items-center gap-2">
       <Handle
         type="target"
         position={Position.Left}
-        className="!pointer-events-none !h-2 !w-2 !border-emerald-500/50 !bg-emerald-500/40"
+        className="!pointer-events-none !h-2 !w-2 !border-transparent"
+        style={{ backgroundColor: STATUS_STROKE[data.status], opacity: 0.5 }}
       />
       {/* nopan/nodrag: keep clicks from being captured by React Flow pan/drag */}
       <button
@@ -210,13 +306,9 @@ const WorkshopStatusFlowNode = memo(function WorkshopStatusFlowNode({
         <div
           className={cn(
             "flex size-11 items-center justify-center rounded-full border-2 shadow-sm transition-colors",
-            isCurrent &&
-              "border-emerald-600 bg-emerald-600 text-white ring-4 ring-emerald-500/35 dark:border-emerald-500 dark:bg-emerald-500",
-            isDone &&
-              !isCurrent &&
-              "border-emerald-600 bg-emerald-600/90 text-white dark:border-emerald-500 dark:bg-emerald-500/90",
-            data.tone === "upcoming" &&
-              "border-muted-foreground/25 bg-background text-muted-foreground/70 hover:scale-105 hover:border-foreground/40 hover:text-foreground",
+            isCurrent && cn(palette.active, palette.ring),
+            isDone && !isCurrent && palette.active,
+            data.tone === "upcoming" && cn("hover:scale-105", palette.upcoming),
             isCancelled &&
               "border-rose-400/50 bg-background text-rose-400/70 hover:scale-105 hover:border-rose-500 hover:text-rose-500"
           )}
@@ -226,11 +318,11 @@ const WorkshopStatusFlowNode = memo(function WorkshopStatusFlowNode({
         <span
           className={cn(
             "text-center text-[11px] font-semibold leading-tight",
-            isCurrent || isDone
-              ? "text-emerald-700 dark:text-emerald-300"
-              : isCancelled
-                ? "text-rose-600/80 dark:text-rose-300/80"
-                : "font-medium text-muted-foreground"
+            isCancelled
+              ? "text-rose-600/80 dark:text-rose-300/80"
+              : isCurrent || isDone
+                ? palette.label
+                : cn("font-medium", palette.label, "opacity-70")
           )}
         >
           {label}
@@ -239,7 +331,8 @@ const WorkshopStatusFlowNode = memo(function WorkshopStatusFlowNode({
       <Handle
         type="source"
         position={Position.Right}
-        className="!pointer-events-none !h-2 !w-2 !border-emerald-500/50 !bg-emerald-500/40"
+        className="!pointer-events-none !h-2 !w-2 !border-transparent"
+        style={{ backgroundColor: STATUS_STROKE[data.status], opacity: 0.5 }}
       />
     </div>
   );
@@ -390,10 +483,9 @@ export function WorkshopStatusStepper({
           animated: false,
           style: {
             stroke: isCancelled
-              ? "oklch(0.65 0.18 20 / 0.45)"
-              : isReached
-                ? "oklch(0.65 0.15 155 / 0.75)"
-                : "oklch(0.65 0.15 155 / 0.35)",
+              ? CANCELLED_STROKE
+              : `url(#${edgeGradientId(edge.source, edge.target)})`,
+            strokeOpacity: isCancelled ? 0.45 : isReached ? 0.9 : 0.45,
             strokeWidth: 2,
           },
         };
@@ -496,6 +588,7 @@ export function WorkshopStatusStepper({
               minZoom={0.55}
               maxZoom={1.25}
             >
+              <StatusEdgeGradients />
               <Background gap={18} size={1} />
             </ReactFlow>
           </div>

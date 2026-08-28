@@ -22,7 +22,7 @@ import {
   ScheduleTanks,
   type ScheduleTankDay,
   type ScheduleTankSegment,
-} from "@/components/manager/schedule/schedule-tanks";
+} from "@/components/manager/instructor-schedules/schedule-tanks";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -88,31 +88,8 @@ const WEEKDAY_LABELS = [
   "Saturday",
 ] as const;
 
-type ScheduleEntitySelection = { kind: "instructor"; id: string };
-
-function parseEntityFilterKey(value: string): ScheduleEntitySelection | null {
-  if (value.startsWith("instructor:")) {
-    return { kind: "instructor", id: value.slice("instructor:".length) };
-  }
-  return null;
-}
-
-function entityFilterKey(selection: ScheduleEntitySelection): string {
-  return `${selection.kind}:${selection.id}`;
-}
-
 function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
   return `${entityType}:${recordId}`;
-}
-
-function calendarScopeFromKeys(
-  keys: string[]
-): InstructorScheduleCalendarScope {
-  const parsed = keys[0] ? parseEntityFilterKey(keys[0]) : null;
-  return {
-    kind: "instructor",
-    recordId: parsed?.id,
-  };
 }
 
 function calendarScopeKey(scope: InstructorScheduleCalendarScope): string {
@@ -122,20 +99,15 @@ function calendarScopeKey(scope: InstructorScheduleCalendarScope): string {
   return `${scope.kind}:${scope.recordId ?? "*"}`;
 }
 
-function filterSessionsForSelection(
+function filterSessionsForInstructor(
   sessions: ManagerInstructorScheduleSession[],
-  selectedKeys: string[]
+  instructorId: string
 ): ManagerInstructorScheduleSession[] {
-  const instructorSessions = sessions.filter(
-    (session) => session.entityType === ENTITY_SCHEDULE_TYPE_INSTRUCTOR
+  return sessions.filter(
+    (session) =>
+      session.entityType === ENTITY_SCHEDULE_TYPE_INSTRUCTOR &&
+      session.recordId === instructorId
   );
-
-  const parsed = selectedKeys[0] ? parseEntityFilterKey(selectedKeys[0]) : null;
-  if (!parsed) {
-    return instructorSessions;
-  }
-
-  return instructorSessions.filter((session) => session.recordId === parsed.id);
 }
 
 function makeTempId(): string {
@@ -152,8 +124,6 @@ function minutesToTime(value: number): string {
   const minutes = value % 60;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
-
-const ENTITY_FILTER_ALL = "all";
 
 type InstructorSchedulesPanelProps = {
   data: ManagerInstructorSchedulesPageData;
@@ -222,14 +192,7 @@ export function InstructorSchedulesPanel({
     PERMISSIONS.INSTRUCTOR_SCHEDULES_UPDATE
   );
 
-  const initialSelectedKeys = data.initialBrowse.recordId
-    ? [
-        entityFilterKey({
-          kind: "instructor",
-          id: data.initialBrowse.recordId,
-        }),
-      ]
-    : [];
+  const firstInstructorId = data.instructors[0]?.id ?? "";
 
   const [sessions, setSessions] = React.useState(data.sessions);
   const initialCalendarScope = useMemo<InstructorScheduleCalendarScope>(
@@ -240,9 +203,9 @@ export function InstructorSchedulesPanel({
     [data.initialBrowse.recordId]
   );
   const loadedScopeKeyRef = useRef(calendarScopeKey(initialCalendarScope));
-  /** Empty = all instructors. At most one instructor key selected. */
-  const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
-    () => initialSelectedKeys
+  /** Always exactly one instructor — the panel has no all-instructors mode. */
+  const [selectedInstructorId, setSelectedInstructorId] = React.useState(
+    () => data.initialBrowse.recordId ?? firstInstructorId
   );
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
@@ -268,24 +231,15 @@ export function InstructorSchedulesPanel({
     () => new Set(data.instructors.map((instructor) => instructor.id)),
     [data.instructors]
   );
-  const resolvedEntityKeys = useMemo(() => {
-    return selectedEntityKeys.filter((key) => {
-      const parsed = parseEntityFilterKey(key);
-      return parsed ? instructorIds.has(parsed.id) : false;
-    });
-  }, [selectedEntityKeys, instructorIds]);
-
-  if (
-    resolvedEntityKeys.length !== selectedEntityKeys.length ||
-    resolvedEntityKeys.some((key, index) => key !== selectedEntityKeys[index])
-  ) {
-    setSelectedEntityKeys(resolvedEntityKeys);
+  if (selectedInstructorId && !instructorIds.has(selectedInstructorId)) {
+    setSelectedInstructorId(firstInstructorId);
   }
 
-  const resolvedEntityKeysJoined = resolvedEntityKeys.join(",");
-
   useEffect(() => {
-    const scope = calendarScopeFromKeys(resolvedEntityKeys);
+    const scope: InstructorScheduleCalendarScope = {
+      kind: "instructor",
+      recordId: selectedInstructorId || undefined,
+    };
     const key = calendarScopeKey(scope);
     if (key === loadedScopeKeyRef.current) {
       return;
@@ -306,30 +260,20 @@ export function InstructorSchedulesPanel({
     return () => {
       cancelled = true;
     };
-  }, [resolvedEntityKeys, resolvedEntityKeysJoined]);
-  const entitySelectValue = useMemo(() => {
-    if (resolvedEntityKeys.length !== 1) {
-      return ENTITY_FILTER_ALL;
-    }
-    return resolvedEntityKeys[0]!;
-  }, [resolvedEntityKeys]);
+  }, [selectedInstructorId]);
+
   const entitySelectLabel = useMemo(() => {
-    if (entitySelectValue === ENTITY_FILTER_ALL) {
-      return "All instructors";
-    }
-    const parsed = parseEntityFilterKey(entitySelectValue);
-    if (!parsed) {
-      return entitySelectValue;
-    }
     return (
-      data.instructors.find((instructor) => instructor.id === parsed.id)
-        ?.username ?? "Unknown"
+      data.instructors.find(
+        (instructor) => instructor.id === selectedInstructorId
+      )?.username ?? "Unknown"
     );
-  }, [entitySelectValue, data.instructors]);
+  }, [selectedInstructorId, data.instructors]);
+
   function handleEntitySelectChange(value: string | null) {
-    const next = value ?? ENTITY_FILTER_ALL;
-    const nextKeys = next === ENTITY_FILTER_ALL ? [] : [next];
-    setSelectedEntityKeys(nextKeys);
+    if (value) {
+      setSelectedInstructorId(value);
+    }
   }
 
   const entityLabelByKey = useMemo(() => {
@@ -345,18 +289,12 @@ export function InstructorSchedulesPanel({
 
   const createPrefill =
     useMemo((): AddInstructorScheduleSlotDefaults | null => {
-      if (resolvedEntityKeys.length === 1) {
-        const only = parseEntityFilterKey(resolvedEntityKeys[0]!);
-        if (only) {
-          return { record_id: only.id };
-        }
-      }
-      return null;
-    }, [resolvedEntityKeys]);
+      return selectedInstructorId ? { record_id: selectedInstructorId } : null;
+    }, [selectedInstructorId]);
 
   const filteredSessions = useMemo(
-    () => filterSessionsForSelection(sessions, resolvedEntityKeys),
-    [sessions, resolvedEntityKeys]
+    () => filterSessionsForInstructor(sessions, selectedInstructorId),
+    [sessions, selectedInstructorId]
   );
 
   const sessionById = useMemo(() => {
@@ -381,15 +319,9 @@ export function InstructorSchedulesPanel({
         continue;
       }
 
-      const entityLabel =
-        entityLabelByKey
-          .get(entityMapKey(session.entityType, session.recordId))
-          ?.trim() || null;
-
       day.segments.push({
         id: session.id,
         label: session.name,
-        sublabel: entityLabel,
         startMinutes: timeToMinutes(session.startTime),
         endMinutes: timeToMinutes(session.endTime),
         color: session.color,
@@ -400,7 +332,7 @@ export function InstructorSchedulesPanel({
     }
 
     return days;
-  }, [filteredSessions, entityLabelByKey, canUpdate]);
+  }, [filteredSessions, canUpdate]);
 
   function handleSegmentSelect(segment: ScheduleTankSegment) {
     const session = sessionById.get(segment.id);
@@ -728,28 +660,21 @@ export function InstructorSchedulesPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Select
-            value={entitySelectValue}
+            value={selectedInstructorId}
             onValueChange={handleEntitySelectChange}
           >
             <SelectTrigger
               size="sm"
               className="min-w-40 max-w-full sm:min-w-48"
-              aria-label="Filter by instructor"
+              aria-label="Select instructor"
             >
-              <SelectValue placeholder="All instructors">
+              <SelectValue placeholder="Select instructor">
                 {entitySelectLabel}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent align="start">
-              <SelectItem value={ENTITY_FILTER_ALL}>All instructors</SelectItem>
+            <SelectContent align="start" alignItemWithTrigger={false}>
               {data.instructors.map((instructor) => (
-                <SelectItem
-                  key={instructor.id}
-                  value={entityFilterKey({
-                    kind: "instructor",
-                    id: instructor.id,
-                  })}
-                >
+                <SelectItem key={instructor.id} value={instructor.id}>
                   {instructor.username ?? "Unknown"}
                 </SelectItem>
               ))}

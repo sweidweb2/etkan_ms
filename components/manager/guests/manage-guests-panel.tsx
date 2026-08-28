@@ -23,6 +23,7 @@ import { ViewGuestNotesDialog } from "@/components/manager/guests/view-guest-not
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -60,6 +61,16 @@ const COLUMN_LIMITS = {
 } as const;
 
 const FILTER_ALL = "all";
+
+const CLOSED_STATUSES: readonly GuestCurrentStatus[] = [
+  "rejected",
+  "cancelled",
+  "finished",
+];
+
+function isClosedStatus(status: GuestCurrentStatus) {
+  return CLOSED_STATUSES.includes(status);
+}
 
 const GUEST_ROW_CLASS =
   "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
@@ -186,6 +197,7 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(FILTER_ALL);
   const [serviceFilter, setServiceFilter] = useState(FILTER_ALL);
+  const [showClosedStatuses, setShowClosedStatuses] = useState(false);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
     10
   );
@@ -217,6 +229,9 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
       if (!matchesSearch(guest, searchQuery)) {
         return false;
       }
+      if (!showClosedStatuses && isClosedStatus(guest.status)) {
+        return false;
+      }
       if (statusFilter !== FILTER_ALL && guest.status !== statusFilter) {
         return false;
       }
@@ -228,7 +243,13 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
       }
       return true;
     });
-  }, [guestsById, searchQuery, statusFilter, serviceFilter]);
+  }, [
+    guestsById,
+    searchQuery,
+    statusFilter,
+    serviceFilter,
+    showClosedStatuses,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredGuests.length / pageSize));
   const safePage = Math.min(currentPage, totalPages);
@@ -315,7 +336,9 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={FILTER_ALL}>All statuses</SelectItem>
-                    {GUEST_CURRENT_STATUS_VALUES.map((value) => (
+                    {GUEST_CURRENT_STATUS_VALUES.filter(
+                      (value) => showClosedStatuses || !isClosedStatus(value)
+                    ).map((value) => (
                       <SelectItem key={value} value={value}>
                         {GUEST_CURRENT_STATUS_LABELS[value]}
                       </SelectItem>
@@ -348,6 +371,29 @@ export function ManageGuestsPanel({ initialGuests }: ManageGuestsPanelProps) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex items-center gap-2 sm:h-9">
+                <Checkbox
+                  id="guest-filter-show-closed"
+                  checked={showClosedStatuses}
+                  onCheckedChange={(checked) => {
+                    setShowClosedStatuses(checked);
+                    if (
+                      !checked &&
+                      statusFilter !== FILTER_ALL &&
+                      isClosedStatus(statusFilter as GuestCurrentStatus)
+                    ) {
+                      setStatusFilter(FILTER_ALL);
+                    }
+                    setCurrentPage(1);
+                  }}
+                />
+                <Label
+                  htmlFor="guest-filter-show-closed"
+                  className="cursor-pointer font-normal"
+                >
+                  Show rejected, cancelled &amp; finished
+                </Label>
               </div>
             </div>
           </CardHeader>

@@ -44,7 +44,6 @@ export const ROUTES = {
   MANAGER_ACCOUNTING_PHASE_DETAIL: "/manager/accounting/phases/[id]",
   MANAGER_ACCOUNTING_SPP_DETAIL:
     "/manager/accounting/phases/[id]/students/[sppId]",
-  MANAGER_SCHEDULE: "/manager/schedule",
   MANAGER_NOTIFICATIONS: "/manager/notifications",
   MANAGER_EMAILING: "/manager/emailing",
   MANAGER_EMAILING_COMPOSE: "/manager/emailing/compose",
@@ -165,6 +164,14 @@ export function getManagerSubjectDetailRoute(subjectId: string): string {
 
 export function getManagerWorkshopDetailRoute(workshopId: string): string {
   return `/manager/workshops/${workshopId}`;
+}
+
+export const WORKSHOP_SCHEDULE_SLOTS_ANCHOR = "workshop-schedule-slots";
+
+export function getManagerWorkshopScheduleCreateRoute(
+  workshopId: string
+): string {
+  return `${getManagerWorkshopDetailRoute(workshopId)}?tab=manage&section=schedule#${WORKSHOP_SCHEDULE_SLOTS_ANCHOR}`;
 }
 
 export function getManagerRegistrationDetailRoute(

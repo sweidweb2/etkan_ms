@@ -2,10 +2,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BanknoteIcon, PencilIcon, PresentationIcon } from "lucide-react";
+import {
+  BanknoteIcon,
+  CalendarDaysIcon,
+  PencilIcon,
+  PresentationIcon,
+} from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddWorkshopPaymentDialog } from "@/components/manager/workshops/add-workshop-payment-dialog";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
+import { WorkshopSchedulesDialog } from "@/components/manager/workshops/workshop-schedules-dialog";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +65,7 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
   const [prevWorkshop, setPrevWorkshop] = useState(initialWorkshop);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
+  const [isSchedulesOpen, setIsSchedulesOpen] = useState(false);
   const [paidNet, setPaidNet] = useState(initialWorkshop.paid_net ?? 0);
 
   if (initialWorkshop !== prevWorkshop) {
@@ -95,6 +102,14 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
                 : current - created.amount
             );
           }}
+        />
+      ) : null}
+      {isSchedulesOpen ? (
+        <WorkshopSchedulesDialog
+          open={isSchedulesOpen}
+          onOpenChange={setIsSchedulesOpen}
+          workshopId={workshop.id}
+          workshopName={workshop.name}
         />
       ) : null}
       <Card className="group relative flex h-full flex-col overflow-hidden gap-0 py-0 transition-all duration-200 hover:border-sky-400/45 hover:shadow-[0_12px_32px_rgba(14,165,233,0.16)]">
@@ -139,13 +154,13 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
           </span>
         </CardContent>
 
-        <CardFooter className="relative z-10 mt-auto flex items-center justify-end gap-1.5 border-t bg-muted/20 px-3 py-2 pointer-events-none">
+        <CardFooter className="relative z-10 mt-auto flex items-center gap-1.5 border-t bg-muted/20 px-3 py-2 pointer-events-none">
           <Can permission={PERMISSIONS.WORKSHOPS_UPDATE}>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
+              className="h-7 flex-1 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
               aria-label={`Edit ${workshop.name}`}
               onClick={(event) => {
                 event.preventDefault();
@@ -157,12 +172,29 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
               Edit
             </Button>
           </Can>
+          <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 flex-1 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
+              aria-label={`View schedules for ${workshop.name}`}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setIsSchedulesOpen(true);
+              }}
+            >
+              <CalendarDaysIcon data-icon="inline-start" />
+              Schedules
+            </Button>
+          </Can>
           <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE}>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
+              className="h-7 flex-1 px-2.5 text-xs pointer-events-auto relative z-10 border-violet-500/40 bg-background text-violet-700 hover:bg-violet-500/10 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-200"
               aria-label={`Record payment for ${workshop.name}`}
               onClick={(event) => {
                 event.preventDefault();
@@ -174,15 +206,6 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
               Pay
             </Button>
           </Can>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
-            nativeButton={false}
-            render={<Link href={detailHref} />}
-          >
-            View
-          </Button>
         </CardFooter>
       </Card>
     </>
