@@ -133,6 +133,20 @@ export async function aggregateWorkshopPaymentsTotals(
   };
 }
 
+/** Net paid per workshop without loading full payment rows. */
+export async function listWorkshopPaymentAmounts(
+  client: Supabase,
+  workshopIds?: string[]
+) {
+  const query = client.from("workshop_payments").select("workshop_id, amount, type");
+
+  if (workshopIds) {
+    return query.in("workshop_id", workshopIds);
+  }
+
+  return query;
+}
+
 export async function findWorkshopPaymentById(client: Supabase, id: string) {
   return client
     .from("workshop_payments")

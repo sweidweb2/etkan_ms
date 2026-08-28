@@ -179,6 +179,7 @@ export function WorkshopPaymentsSection({
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         workshopId={workshopId}
+        defaultAmount={workshopPrice}
         onCreated={handlePaymentCreated}
       />
 

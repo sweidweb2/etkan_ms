@@ -68,7 +68,6 @@ export const ROUTES = {
   MANAGER_SEMESTERS: "/manager/semesters",
   MANAGER_SEMESTERS_PROGRESS: "/manager/semesters/progress",
   MANAGER_SETTINGS: "/manager/settings",
-  MANAGER_REPORTS: "/manager/reports",
   MANAGER_ANALYTICS: "/manager/analytics",
   MANAGER_BACKUP: "/manager/backup",
   MANAGER_LOGS: "/manager/logs",

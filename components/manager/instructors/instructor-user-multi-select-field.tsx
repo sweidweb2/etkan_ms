@@ -21,6 +21,7 @@ type InstructorUserMultiSelectFieldProps = {
   disabled?: boolean;
   invalid?: boolean;
   inputId?: string;
+  emptyMessage?: string;
 };
 
 function getUserLabel(user: ManagerInstructorCandidateRow) {
@@ -34,6 +35,7 @@ export function InstructorUserMultiSelectField({
   disabled = false,
   invalid = false,
   inputId = "instructor-user-multi-select",
+  emptyMessage = "All users are already instructors.",
 }: InstructorUserMultiSelectFieldProps) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -193,9 +195,7 @@ export function InstructorUserMultiSelectField({
       ) : null}
 
       {isFocused && users.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          All users are already instructors.
-        </p>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : null}
 
       {isFocused &&

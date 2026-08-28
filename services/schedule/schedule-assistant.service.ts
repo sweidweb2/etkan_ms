@@ -10,10 +10,10 @@ import {
   projectInstructorSlotDate,
 } from "@/lib/manager/instructor-schedule-calendar";
 import { ENTITY_SCHEDULE_TYPE_INSTRUCTOR } from "@/lib/validators/manager/instructor-schedule-slot";
-import * as mentorSubjectCapabilityRepository from "@/repositories/mentor-subject-capability.repository";
+import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import * as mentorSubjectRepository from "@/repositories/mentor-subject.repository";
+import * as instructorSubjectRepository from "@/repositories/instructor-subject.repository";
 import { assertPermission } from "@/services/auth/authorization.service";
 import type {
   ScheduleAssistantCompactInstructor,
@@ -87,7 +87,8 @@ export async function listSubjectsCatalog(
     PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW
   );
 
-  const result = await mentorSubjectRepository.listMentorSubjects(adminClient);
+  const result =
+    await instructorSubjectRepository.listInstructorSubjects(adminClient);
   if (result.error) {
     throw new Error(result.error.message);
   }
@@ -115,7 +116,7 @@ export async function listCapabilityMatrixCatalog(
   );
 
   const [subjectsResult, instructorsResult] = await Promise.all([
-    mentorSubjectRepository.listMentorSubjects(adminClient),
+    instructorSubjectRepository.listInstructorSubjects(adminClient),
     profileRepository.listInstructorProfiles(adminClient),
   ]);
 
@@ -132,7 +133,7 @@ export async function listCapabilityMatrixCatalog(
     SCHEDULE_ASSISTANT_MAX_INSTRUCTORS
   );
   const capabilitiesResult =
-    await mentorSubjectCapabilityRepository.listMentorSubjectCapabilitiesByUserIds(
+    await instructorSubjectCapabilityRepository.listCapabilitiesByUserIds(
       adminClient,
       cappedInstructors.rows.map((profile) => profile.id)
     );
@@ -154,7 +155,7 @@ export async function listCapabilityMatrixCatalog(
   const subjectsByUsername = new Map<string, Set<string>>();
   for (const pair of capabilitiesResult.data ?? []) {
     const username = usernameById.get(pair.user_id);
-    const subjectName = subjectNameById.get(pair.mentor_subject_id);
+    const subjectName = subjectNameById.get(pair.subject_id);
     if (!username || !subjectName) {
       continue;
     }

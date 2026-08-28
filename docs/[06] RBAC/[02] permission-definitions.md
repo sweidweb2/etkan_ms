@@ -89,10 +89,22 @@ Format: `key` — label — access
 | `instructors.view` | View instructors | read |
 | `instructors.create` | Add instructors (`is_instructor` on) | write |
 | `instructors.delete` | Remove instructors (`is_instructor` off) | write |
-| `instructors.capabilities.update` | Update instructor mentor subject capabilities | write |
-| `instructors.mentor_subjects.create` | Create mentor subjects | write |
-| `instructors.mentor_subjects.update` | Update mentor subjects (rename + reorder) | write |
-| `instructors.mentor_subjects.delete` | Delete mentor subjects | write |
+| `instructors.capabilities.update` | Update instructor subject capabilities | write |
+| `instructors.subjects.create` | Create instructor subjects | write |
+| `instructors.subjects.update` | Update instructor subjects (rename + reorder) | write |
+| `instructors.subjects.delete` | Delete instructor subjects | write |
+
+### Mentors
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `mentors.view` | View mentors | read |
+| `mentors.create` | Add mentors (`is_mentor` on) | write |
+| `mentors.delete` | Remove mentors (`is_mentor` off) | write |
+| `mentors.capabilities.update` | Update mentor subject capabilities | write |
+| `mentors.subjects.create` | Create mentor subjects | write |
+| `mentors.subjects.update` | Update mentor subjects (rename + reorder) | write |
+| `mentors.subjects.delete` | Delete mentor subjects | write |
 
 ### Instructor schedules
 
@@ -278,14 +290,6 @@ Format: `key` — label — access
 | `accounting.adjustments.update` | Edit financial adjustment | write |
 | `accounting.adjustments.delete` | Delete financial adjustment | write |
 
-### Reports
-
-| Key | Label | Access |
-|-----|-------|--------|
-| `reports.view` | View reports | read |
-| `reports.export` | Export report CSV | write |
-| `reports.print` | Print report | write |
-
 ### Analytics
 
 | Key | Label | Access |
@@ -378,9 +382,17 @@ instructors.view
 instructors.create
 instructors.delete
 instructors.capabilities.update
-instructors.mentor_subjects.create
-instructors.mentor_subjects.update
-instructors.mentor_subjects.delete
+instructors.subjects.create
+instructors.subjects.update
+instructors.subjects.delete
+
+mentors.view
+mentors.create
+mentors.delete
+mentors.capabilities.update
+mentors.subjects.create
+mentors.subjects.update
+mentors.subjects.delete
 
 instructor_schedules.view
 instructor_schedules.details.view
@@ -499,9 +511,6 @@ accounting.adjustments.create
 accounting.adjustments.update
 accounting.adjustments.delete
 
-reports.view
-reports.export
-reports.print
 analytics.view
 backup.view
 backup.export_table
@@ -553,9 +562,16 @@ instructors.view
 instructors.create
 instructors.delete
 instructors.capabilities.update
-instructors.mentor_subjects.create
-instructors.mentor_subjects.update
-instructors.mentor_subjects.delete
+instructors.subjects.create
+instructors.subjects.update
+instructors.subjects.delete
+mentors.view
+mentors.create
+mentors.delete
+mentors.capabilities.update
+mentors.subjects.create
+mentors.subjects.update
+mentors.subjects.delete
 instructor_schedules.view
 instructor_schedules.details.view
 instructor_schedules.create

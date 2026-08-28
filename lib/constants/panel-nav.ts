@@ -194,11 +194,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
       defaultOpen: true,
       items: [
         {
-          title: "Reports ❗",
-          href: ROUTES.MANAGER_REPORTS,
-          icon: "reports",
-        },
-        {
           title: "Analytics ❗",
           href: ROUTES.MANAGER_ANALYTICS,
           icon: "analytics",

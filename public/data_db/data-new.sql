@@ -261,9 +261,6 @@ INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_a
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('accounting.payment_phases.create', 'Create payment phase', 'accounting', 'write', '2026-07-31T16:36:58.239455+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('accounting.payments.create', 'Record student payment', 'accounting', 'write', '2026-07-31T16:36:58.239455+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('accounting.adjustments.create', 'Create financial adjustment', 'accounting', 'write', '2026-07-31T16:36:58.239455+00:00');
-INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('reports.view', 'View reports', 'reports', 'read', '2026-07-29T13:28:39.973937+00:00');
-INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('reports.export', 'Export report CSV', 'reports', 'write', '2026-07-29T13:28:39.973937+00:00');
-INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('reports.print', 'Print report', 'reports', 'write', '2026-07-29T13:28:39.973937+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('analytics.view', 'View analytics', 'analytics', 'read', '2026-07-29T13:28:39.973937+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('backup.view', 'View backup history', 'backup', 'read', '2026-07-29T13:28:39.973937+00:00');
 INSERT INTO "permissions" ("key", "label", "feature_group", "access", "created_at") VALUES ('backup.export_table', 'Export table backup', 'backup', 'write', '2026-07-29T13:28:39.973937+00:00');
@@ -303,9 +300,6 @@ INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'ac
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'accounting.adjustments.create');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'accounting.adjustments.update');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'accounting.adjustments.delete');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'reports.view');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'reports.export');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'reports.print');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'analytics.view');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'backup.view');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('manager', 'backup.export_table');

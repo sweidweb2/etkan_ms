@@ -32,6 +32,8 @@ export interface ManagerWorkshopRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Credits minus debits, only attached on list queries. */
+  paid_net?: number;
 }
 
 export interface ManagerWorkshopInstructorRow {

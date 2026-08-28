@@ -90,11 +90,10 @@
 These are soft / intentional — not “broken RBAC”:
 
 1. **`students.change_status`** — catalog key exists; status changes currently go through `students.update`. Fine if you treat them as one write; split later if you want separate grants.
-2. **`reports.export` / `reports.print`** — UI `Can` only; data already loaded under `reports.view` (client CSV/print). Server-side export gate only matters if you add a dedicated export API later.
-3. **Dashboard shortcuts** — quick links on the dashboard are not permission-filtered in the widget; opening a denied deep link is still blocked by the route gate.
-4. **Backup history fetch** — history helper itself does not re-assert `backup.view`; the page/route already requires it.
-5. **`attendance.view`** — attendance UI lives under sessions; writes use `attendance.update`. View is covered by session/class access in practice.
-6. **Manual regression** — `[06]` checklist items are for humans to tick; automated tests cover engine/map/RBAC safety, not every UI click path.
+2. **Dashboard shortcuts** — quick links on the dashboard are not permission-filtered in the widget; opening a denied deep link is still blocked by the route gate.
+3. **Backup history fetch** — history helper itself does not re-assert `backup.view`; the page/route already requires it.
+4. **`attendance.view`** — attendance UI lives under sessions; writes use `attendance.update`. View is covered by session/class access in practice.
+5. **Manual regression** — `[06]` checklist items are for humans to tick; automated tests cover engine/map/RBAC safety, not every UI click path.
 
 ---
 

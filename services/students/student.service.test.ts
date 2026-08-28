@@ -160,6 +160,9 @@ describe("listStudentsForManager", () => {
         phone: "+96170000000",
         status: STUDENT_STATUSES.ACTIVE,
         created_at: "2026-01-01T00:00:00.000Z",
+        role: ROLES.STUDENT,
+        is_instructor: false,
+        is_mentor: false,
       },
     ]);
   });

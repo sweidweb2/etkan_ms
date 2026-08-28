@@ -7,10 +7,12 @@ import { parseCreateGalleryImageFormData } from "@/lib/validators/manager/create
 import { parseUpdateGalleryImageFormData } from "@/lib/validators/manager/update-gallery-image";
 import {
   createGalleryImageForManager,
+  createGalleryImagesBulkForManager,
   deleteGalleryImageForManager,
   updateGalleryImageForManager,
 } from "@/services/public/gallery-image.service";
 import type {
+  BulkCreateGalleryImagesActionState,
   CreateGalleryImageActionState,
   DeleteGalleryImageActionState,
   UpdateGalleryImageActionState,
@@ -53,6 +55,37 @@ export async function createGalleryImageAction(
     success: true,
     message: result.message,
     image: result.image,
+  };
+}
+
+export async function createGalleryImagesBulkAction(
+  _prevState: BulkCreateGalleryImagesActionState,
+  formData: FormData
+): Promise<BulkCreateGalleryImagesActionState> {
+  const actor = await getSessionAuditActor();
+  const rawJson = String(formData.get("records_json") ?? "");
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createGalleryImagesBulkForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    rawJson
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  revalidatePublicGallery();
+
+  return {
+    success: true,
+    message: result.message,
+    images: result.images,
   };
 }
 

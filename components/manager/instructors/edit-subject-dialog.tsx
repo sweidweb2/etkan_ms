@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useTransition } from "react";
-import { updateMentorSubjectAction } from "@/app/manager/instructors/actions";
+import { updateSubjectAction } from "@/app/manager/instructors/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -19,32 +19,39 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
-  createMentorSubjectSchema,
-  type CreateMentorSubjectInput,
-} from "@/lib/validators/manager/create-mentor-subject";
+  SUBJECT_SCOPE_COPY,
+  type SubjectScope,
+} from "@/lib/constants/subject-scope";
+import {
+  createCapabilitySubjectSchema,
+  type CreateCapabilitySubjectInput,
+} from "@/lib/validators/manager/create-capability-subject";
 import type {
-  ManagerMentorSubjectColumn,
-  UpdateMentorSubjectActionState,
-} from "@/types/manager-instructor";
+  ManagerSubjectColumn,
+  UpdateSubjectActionState,
+} from "@/types/manager-capability-subject";
 
-const initialState: UpdateMentorSubjectActionState = {};
+const initialState: UpdateSubjectActionState = {};
 
-type EditMentorSubjectDialogProps = {
+type EditSubjectDialogProps = {
+  scope: SubjectScope;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  subject: ManagerMentorSubjectColumn;
-  onUpdated: (subject: ManagerMentorSubjectColumn) => void;
+  subject: ManagerSubjectColumn;
+  onUpdated: (subject: ManagerSubjectColumn) => void;
 };
 
-export function EditMentorSubjectDialog({
+export function EditSubjectDialog({
+  scope,
   open,
   onOpenChange,
   subject,
   onUpdated,
-}: EditMentorSubjectDialogProps) {
+}: EditSubjectDialogProps) {
+  const copy = SUBJECT_SCOPE_COPY[scope];
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
-    updateMentorSubjectAction,
+    updateSubjectAction,
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
@@ -59,7 +66,7 @@ export function EditMentorSubjectDialog({
     reset,
     formState: { errors },
   } = useZodForm({
-    schema: createMentorSubjectSchema,
+    schema: createCapabilitySubjectSchema,
     mode: "onBlur",
     defaultValues: { name: subject.name },
   });
@@ -71,14 +78,15 @@ export function EditMentorSubjectDialog({
   }, [open, reset, subject]);
 
   useActionStateSuccess(state, isPending, (nextState) => {
-    if (nextState.mentorSubject) {
-      onUpdated(nextState.mentorSubject);
+    if (nextState.subject) {
+      onUpdated(nextState.subject);
     }
     onOpenChange(false);
   });
 
-  function onSubmit(values: CreateMentorSubjectInput) {
+  function onSubmit(values: CreateCapabilitySubjectInput) {
     const formData = new FormData();
+    formData.set("scope", scope);
     formData.set("id", subject.id);
     formData.set("name", values.name.trim());
     startTransition(() => {
@@ -87,26 +95,24 @@ export function EditMentorSubjectDialog({
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const inputId = `edit-${scope}-subject-name`;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Edit mentor subject</DialogTitle>
+          <DialogTitle>Edit {copy.subjectSingularLower}</DialogTitle>
           <DialogDescription>
-            Rename this mentor subject. Capability checkboxes stay linked by id.
+            Rename this {copy.subjectSingularLower}. Capability checkboxes stay
+            linked by id.
           </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-2">
-            <FieldLabel
-              htmlFor="edit-mentor-subject-name"
-              label="Name"
-              hint="Required"
-            />
+            <FieldLabel htmlFor={inputId} label="Name" hint="Required" />
             <Input
-              id="edit-mentor-subject-name"
+              id={inputId}
               autoComplete="off"
               disabled={isPending}
               aria-invalid={Boolean(nameError)}

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useActionState,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import {
@@ -15,13 +10,13 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import {
-  deleteMentorSubjectAction,
-  saveMentorSubjectOrderAction,
+  deleteSubjectAction,
+  saveSubjectOrderAction,
 } from "@/app/manager/instructors/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
-import { AddMentorSubjectDialog } from "@/components/manager/instructors/add-mentor-subject-dialog";
-import { EditMentorSubjectDialog } from "@/components/manager/instructors/edit-mentor-subject-dialog";
+import { AddSubjectDialog } from "@/components/manager/instructors/add-subject-dialog";
+import { EditSubjectDialog } from "@/components/manager/instructors/edit-subject-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,31 +38,36 @@ import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
-import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  SUBJECT_SCOPE_COPY,
+  SUBJECT_SCOPE_PERMISSIONS,
+  type SubjectScope,
+} from "@/lib/constants/subject-scope";
 import { cn } from "@/lib/utils";
 import type {
-  DeleteMentorSubjectActionState,
-  ManagerMentorSubjectColumn,
-  SaveMentorSubjectOrderActionState,
-} from "@/types/manager-instructor";
+  DeleteSubjectActionState,
+  ManagerSubjectColumn,
+  SaveSubjectOrderActionState,
+} from "@/types/manager-capability-subject";
 
-const initialDeleteState: DeleteMentorSubjectActionState = {};
-const initialOrderState: SaveMentorSubjectOrderActionState = {};
+const initialDeleteState: DeleteSubjectActionState = {};
+const initialOrderState: SaveSubjectOrderActionState = {};
 
-type MentorSubjectsSectionProps = {
-  mentorSubjects: ManagerMentorSubjectColumn[];
-  onMentorSubjectsChange: (subjects: ManagerMentorSubjectColumn[]) => void;
-  onMentorSubjectDeleted: (mentorSubjectId: string) => void;
+type SubjectCatalogSectionProps = {
+  scope: SubjectScope;
+  subjects: ManagerSubjectColumn[];
+  onSubjectsChange: (subjects: ManagerSubjectColumn[]) => void;
+  onSubjectDeleted: (subjectId: string) => void;
   busy?: boolean;
 };
 
-function orderKey(subjects: ManagerMentorSubjectColumn[]) {
+function orderKey(subjects: ManagerSubjectColumn[]) {
   return subjects.map((row) => row.id).join("|");
 }
 
-function uniqueById(subjects: ManagerMentorSubjectColumn[]) {
+function uniqueById(subjects: ManagerSubjectColumn[]) {
   const seen = new Set<string>();
-  const unique: ManagerMentorSubjectColumn[] = [];
+  const unique: ManagerSubjectColumn[] = [];
   for (const row of subjects) {
     if (seen.has(row.id)) {
       continue;
@@ -78,7 +78,7 @@ function uniqueById(subjects: ManagerMentorSubjectColumn[]) {
   return unique;
 }
 
-function SortableMentorSubjectRow({
+function SortableSubjectRow({
   subject,
   index,
   disabled,
@@ -87,7 +87,7 @@ function SortableMentorSubjectRow({
   onEdit,
   onDelete,
 }: {
-  subject: ManagerMentorSubjectColumn;
+  subject: ManagerSubjectColumn;
   index: number;
   disabled: boolean;
   canUpdate: boolean;
@@ -165,55 +165,59 @@ function SortableMentorSubjectRow({
   );
 }
 
-export function MentorSubjectsSection({
-  mentorSubjects,
-  onMentorSubjectsChange,
-  onMentorSubjectDeleted,
+export function SubjectCatalogSection({
+  scope,
+  subjects,
+  onSubjectsChange,
+  onSubjectDeleted,
   busy = false,
-}: MentorSubjectsSectionProps) {
+}: SubjectCatalogSectionProps) {
+  const copy = SUBJECT_SCOPE_COPY[scope];
+  const scopePermissions = SUBJECT_SCOPE_PERMISSIONS[scope];
   const permissions = usePermissions();
   const canCreate = hasPermissionInSet(
     permissions,
-    PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_CREATE
+    scopePermissions.subjectsCreate
   );
   const canUpdate = hasPermissionInSet(
     permissions,
-    PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_UPDATE
+    scopePermissions.subjectsUpdate
   );
   const canDelete = hasPermissionInSet(
     permissions,
-    PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_DELETE
+    scopePermissions.subjectsDelete
   );
 
-  const [draftSubjects, setDraftSubjects] = useState(mentorSubjects);
-  const subjectsSyncKey = orderKey(mentorSubjects);
+  const [draftSubjects, setDraftSubjects] = useState(subjects);
+  const subjectsSyncKey = orderKey(subjects);
   const [syncedKey, setSyncedKey] = useState(subjectsSyncKey);
 
   if (subjectsSyncKey !== syncedKey) {
     setSyncedKey(subjectsSyncKey);
-    setDraftSubjects(uniqueById(mentorSubjects));
+    setDraftSubjects(uniqueById(subjects));
   }
 
   const [baselineKey, setBaselineKey] = useState(subjectsSyncKey);
   const isOrderDirty = orderKey(draftSubjects) !== baselineKey;
 
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<ManagerMentorSubjectColumn | null>(
+  const [editTarget, setEditTarget] = useState<ManagerSubjectColumn | null>(
     null
   );
-  const [deleteTarget, setDeleteTarget] =
-    useState<ManagerMentorSubjectColumn | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ManagerSubjectColumn | null>(
+    null
+  );
 
   const [isOrderTransitionPending, startOrderTransition] = useTransition();
   const [orderState, orderFormAction, isOrderActionPending] = useActionState(
-    saveMentorSubjectOrderAction,
+    saveSubjectOrderAction,
     initialOrderState
   );
   const isOrderPending = isOrderActionPending || isOrderTransitionPending;
 
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
   const [deleteState, deleteFormAction, isDeleteActionPending] = useActionState(
-    deleteMentorSubjectAction,
+    deleteSubjectAction,
     initialDeleteState
   );
   const isDeletePending = isDeleteActionPending || isDeleteTransitionPending;
@@ -231,25 +235,23 @@ export function MentorSubjectsSection({
   useActionStateToast(deleteState, isDeletePending);
 
   useActionStateSuccess(orderState, isOrderPending, (nextState) => {
-    if (!nextState.mentorSubjects) {
+    if (!nextState.subjects) {
       return;
     }
-    onMentorSubjectsChange(nextState.mentorSubjects);
-    setDraftSubjects(nextState.mentorSubjects);
-    setBaselineKey(orderKey(nextState.mentorSubjects));
+    onSubjectsChange(nextState.subjects);
+    setDraftSubjects(nextState.subjects);
+    setBaselineKey(orderKey(nextState.subjects));
   });
 
   useActionStateSuccess(deleteState, isDeletePending, (nextState) => {
-    if (!nextState.mentorSubjectId) {
+    if (!nextState.subjectId) {
       return;
     }
-    const next = draftSubjects.filter(
-      (row) => row.id !== nextState.mentorSubjectId
-    );
+    const next = draftSubjects.filter((row) => row.id !== nextState.subjectId);
     setDraftSubjects(next);
     setBaselineKey(orderKey(next));
-    onMentorSubjectsChange(next);
-    onMentorSubjectDeleted(nextState.mentorSubjectId);
+    onSubjectsChange(next);
+    onSubjectDeleted(nextState.subjectId);
     setDeleteTarget(null);
   });
 
@@ -266,6 +268,7 @@ export function MentorSubjectsSection({
 
   function handleSaveOrder() {
     const formData = new FormData();
+    formData.set("scope", scope);
     formData.set(
       "orderedIds",
       JSON.stringify(draftSubjects.map((row) => row.id))
@@ -280,6 +283,7 @@ export function MentorSubjectsSection({
       return;
     }
     const formData = new FormData();
+    formData.set("scope", scope);
     formData.set("id", deleteTarget.id);
     startDeleteTransition(() => {
       deleteFormAction(formData);
@@ -289,10 +293,10 @@ export function MentorSubjectsSection({
   return (
     <Card className="py-0">
       <CardHeader className="border-b bg-muted/40 py-3">
-        <CardTitle>Mentor subjects</CardTitle>
+        <CardTitle>{copy.subjectPlural}</CardTitle>
         <CardAction>
           <div className="flex flex-wrap items-center gap-2">
-            <Can permission={PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_UPDATE}>
+            <Can permission={scopePermissions.subjectsUpdate}>
               <Button
                 type="button"
                 variant="outline"
@@ -312,7 +316,7 @@ export function MentorSubjectsSection({
                 )}
               </Button>
             </Can>
-            <Can permission={PERMISSIONS.INSTRUCTORS_MENTOR_SUBJECTS_CREATE}>
+            <Can permission={scopePermissions.subjectsCreate}>
               <Button
                 type="button"
                 className="shrink-0"
@@ -320,7 +324,7 @@ export function MentorSubjectsSection({
                 onClick={() => setIsAddOpen(true)}
               >
                 <PlusIcon data-icon="inline-start" />
-                Add mentor subject
+                Add {copy.subjectSingularLower}
               </Button>
             </Can>
           </div>
@@ -331,8 +335,8 @@ export function MentorSubjectsSection({
         {draftSubjects.length === 0 ? (
           <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
             {canCreate
-              ? "Create a mentor subject to build the capability matrix."
-              : "No mentor subjects yet."}
+              ? `Create a ${copy.subjectSingularLower} to build the capability matrix.`
+              : `No ${copy.subjectPluralLower} yet.`}
           </div>
         ) : (
           <DragDropProvider
@@ -361,7 +365,7 @@ export function MentorSubjectsSection({
           >
             <ul className="flex flex-wrap items-start gap-2">
               {sortedDraft.map((subject, index) => (
-                <SortableMentorSubjectRow
+                <SortableSubjectRow
                   key={subject.id}
                   subject={subject}
                   index={index}
@@ -377,19 +381,21 @@ export function MentorSubjectsSection({
         )}
       </CardContent>
 
-      <AddMentorSubjectDialog
+      <AddSubjectDialog
+        scope={scope}
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onCreated={(created) => {
           const next = uniqueById([...draftSubjects, created]);
           setDraftSubjects(next);
           setBaselineKey(orderKey(next));
-          onMentorSubjectsChange(next);
+          onSubjectsChange(next);
         }}
       />
 
       {editTarget ? (
-        <EditMentorSubjectDialog
+        <EditSubjectDialog
+          scope={scope}
           open={editTarget !== null}
           onOpenChange={(open) => {
             if (!open) {
@@ -403,25 +409,23 @@ export function MentorSubjectsSection({
             );
             setDraftSubjects(next);
             setBaselineKey(orderKey(next));
-            onMentorSubjectsChange(next);
+            onSubjectsChange(next);
           }}
         />
       ) : null}
 
-      <Dialog
-        open={deleteTarget !== null}
-        onOpenChange={handleDeleteOpenChange}
-      >
+      <Dialog open={deleteTarget !== null} onOpenChange={handleDeleteOpenChange}>
         <DialogContent
           className="sm:max-w-md"
           showCloseButton={!isDeletePending}
         >
           <DialogHeader>
-            <DialogTitle>Delete mentor subject</DialogTitle>
+            <DialogTitle>Delete {copy.subjectSingularLower}</DialogTitle>
             <DialogDescription>
               This permanently deletes{" "}
-              {deleteTarget?.name ?? "this mentor subject"} and removes all
-              instructor capability checkboxes for it.
+              {deleteTarget?.name ?? `this ${copy.subjectSingularLower}`} and
+              removes all {copy.personSingular.toLowerCase()} capability
+              checkboxes for it.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-end">

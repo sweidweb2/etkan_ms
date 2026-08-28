@@ -26,6 +26,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
+  WORKSHOP_PAYMENT_METHODS,
   WORKSHOP_PAYMENT_METHOD_LABELS,
   WORKSHOP_PAYMENT_METHOD_VALUES,
   WORKSHOP_PAYMENT_TYPE_LABELS,
@@ -54,13 +55,23 @@ type AddWorkshopPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workshopId: string;
+  /** Prefills the amount, typically the workshop price. */
+  defaultAmount?: number | null;
   onCreated: (payment: ManagerWorkshopPaymentRow) => void;
 };
+
+function todayInputValue(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
 
 export function AddWorkshopPaymentDialog({
   open,
   onOpenChange,
   workshopId,
+  defaultAmount,
   onCreated,
 }: AddWorkshopPaymentDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -73,6 +84,15 @@ export function AddWorkshopPaymentDialog({
 
   useActionStateToast(state, isPending);
 
+  const defaultValues = {
+    workshop_id: workshopId,
+    amount: defaultAmount ?? 0,
+    type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+    payment_date: todayInputValue(),
+    payment_method: WORKSHOP_PAYMENT_METHODS.WHISH,
+    notes: null,
+  };
+
   const {
     register,
     handleSubmit,
@@ -83,31 +103,22 @@ export function AddWorkshopPaymentDialog({
   } = useZodForm({
     schema: createWorkshopPaymentSchema,
     mode: "onBlur",
-    defaultValues: {
-      workshop_id: workshopId,
-      amount: 0,
-      type: WORKSHOP_PAYMENT_TYPES.CREDIT,
-      payment_date: "",
-      payment_method: null,
-      notes: null,
-    },
+    defaultValues,
   });
 
   const type = watch("type");
   const paymentMethod = watch("payment_method");
 
   useEffect(() => {
-    if (!open) {
-      reset({
-        workshop_id: workshopId,
-        amount: 0,
-        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
-        payment_date: "",
-        payment_method: null,
-        notes: null,
-      });
-    }
-  }, [open, reset, workshopId]);
+    reset({
+      workshop_id: workshopId,
+      amount: defaultAmount ?? 0,
+      type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+      payment_date: todayInputValue(),
+      payment_method: WORKSHOP_PAYMENT_METHODS.WHISH,
+      notes: null,
+    });
+  }, [open, reset, workshopId, defaultAmount]);
 
   useActionStateSuccess(state, isPending, (nextState) => {
     if (nextState.payment) {

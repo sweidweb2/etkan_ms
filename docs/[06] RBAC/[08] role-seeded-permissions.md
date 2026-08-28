@@ -21,9 +21,13 @@ instructors.view
 instructors.create
 instructors.delete
 instructors.capabilities.update
-instructors.mentor_subjects.create
-instructors.mentor_subjects.update
-instructors.mentor_subjects.delete
+instructors.subjects.create
+instructors.subjects.update
+instructors.subjects.delete
+mentors.capabilities.update
+mentors.subjects.create
+mentors.subjects.update
+mentors.subjects.delete
 instructor_schedules.view
 instructor_schedules.details.view
 instructor_schedules.create

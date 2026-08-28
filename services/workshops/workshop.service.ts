@@ -547,6 +547,41 @@ async function actorCanAccessWorkshop(
   return Boolean(assignment.data);
 }
 
+async function attachPaidNet(
+  adminClient: Supabase,
+  workshops: ManagerWorkshopRow[],
+  workshopIds?: string[]
+): Promise<ManagerWorkshopRow[]> {
+  if (workshops.length === 0) {
+    return workshops;
+  }
+
+  const { data, error } =
+    await workshopPaymentRepository.listWorkshopPaymentAmounts(
+      adminClient,
+      workshopIds
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const netByWorkshop = new Map<string, number>();
+  for (const row of data ?? []) {
+    const amount = Number(row.amount ?? 0);
+    const signed = row.type === WORKSHOP_PAYMENT_TYPES.CREDIT ? amount : -amount;
+    netByWorkshop.set(
+      row.workshop_id,
+      (netByWorkshop.get(row.workshop_id) ?? 0) + signed
+    );
+  }
+
+  return workshops.map((workshop) => ({
+    ...workshop,
+    paid_net: netByWorkshop.get(workshop.id) ?? 0,
+  }));
+}
+
 export async function listWorkshopsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -569,7 +604,10 @@ export async function listWorkshopsForManager(
     if (result.error) {
       throw new Error(result.error.message);
     }
-    return (result.data ?? []).map(mapWorkshopRecordToRow);
+    return attachPaidNet(
+      adminClient,
+      (result.data ?? []).map(mapWorkshopRecordToRow)
+    );
   }
 
   const assignmentsResult =
@@ -597,7 +635,11 @@ export async function listWorkshopsForManager(
     throw new Error(result.error.message);
   }
 
-  return (result.data ?? []).map(mapWorkshopRecordToRow);
+  return attachPaidNet(
+    adminClient,
+    (result.data ?? []).map(mapWorkshopRecordToRow),
+    workshopIds
+  );
 }
 
 export function buildWorkshopPaymentsTotals(

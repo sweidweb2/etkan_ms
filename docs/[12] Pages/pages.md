@@ -58,7 +58,6 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Sent | `/manager/sent` | list |
 | [~] | Sent detail | `/manager/sent/[id]` | detail |
 | [~] | Settings | `/manager/settings` | form |
-| [~] | Reports | `/manager/reports` | dashboard |
 | [~] | Analytics | `/manager/analytics` | dashboard |
 | [~] | Backup | `/manager/backup` | form / list |
 | [~] | Logs | `/manager/logs` | list |

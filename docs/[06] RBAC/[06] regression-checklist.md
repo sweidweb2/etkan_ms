@@ -41,7 +41,6 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 
 ### System
 
-- [ ] **Reports** — `/manager/reports`: open, export CSV, print
 - [ ] **Analytics** — `/manager/analytics`: opens
 - [ ] **Backup** — `/manager/backup`: export table / full, download / re-export
 - [ ] **Logs** — `/manager/logs`: list opens

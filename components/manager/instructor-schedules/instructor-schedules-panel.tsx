@@ -1,28 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useMemo, useRef, useTransition } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
-import FullCalendar from "@fullcalendar/react";
-import type {
-  DateSelectInfo,
-  DatesSetInfo,
-  EventClickInfo,
-  EventDragStartInfo,
-  EventDropInfo,
-  EventInput,
-  EventResizeDoneInfo,
-} from "@fullcalendar/react";
-import type { CalendarApi } from "@fullcalendar/react";
-import themePlugin from "@fullcalendar/react/themes/monarch";
-import interactionPlugin from "@fullcalendar/react/interaction";
-import dayGridPlugin from "@fullcalendar/react/daygrid";
-import timeGridPlugin from "@fullcalendar/react/timegrid";
-import listPlugin from "@fullcalendar/react/list";
-import {
-  ListIcon,
-  PlusIcon,
-} from "lucide-react";
+import { ListIcon, PlusIcon } from "lucide-react";
 import {
   createInstructorScheduleSlotAction,
   deleteInstructorScheduleSlotAction,
@@ -37,6 +18,11 @@ import {
 } from "@/components/manager/instructor-schedules/add-instructor-schedule-slot-dialog";
 import { EditInstructorScheduleSlotDialog } from "@/components/manager/instructor-schedules/edit-instructor-schedule-slot-dialog";
 import { ScheduleAssistantPrompt } from "@/components/manager/instructor-schedules/schedule-assistant-prompt";
+import {
+  ScheduleTanks,
+  type ScheduleTankDay,
+  type ScheduleTankSegment,
+} from "@/components/manager/schedule/schedule-tanks";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,13 +44,8 @@ import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import {
-  formatDateFromDate,
-  formatTimeFromDate,
-  getSundayWeekBounds,
-  instructorScheduleSessionsToEvents,
   isTempScheduleId,
   TEMP_SCHEDULE_ID_PREFIX,
-  type CreateSlotDefaults,
 } from "@/lib/manager/instructor-schedule-calendar";
 import { SCHEDULE_SLOT_DURATION_LIMITS } from "@/lib/constants/workshop-field-limits";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast";
@@ -72,10 +53,8 @@ import { cn } from "@/lib/utils";
 import {
   dayOfWeekFromIsoDate,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-  ENTITY_SCHEDULE_TYPE_WORKSHOP,
   getInstructorScheduleSlotDisplayColor,
   getInstructorScheduleSlotStrongColor,
-  resolveInstructorScheduleSlotType,
   type CreateInstructorScheduleSlotInput,
   type UpdateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
@@ -86,11 +65,19 @@ import type {
   ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
-import "@fullcalendar/react/skeleton.css";
-import "@fullcalendar/react/themes/monarch/theme.css";
-import "@/components/manager/schedule/fullcalendar-dark.css";
+/** Tank range: 08:00 → 19:00. */
+const TANK_START_MINUTES = 8 * 60;
+const TANK_END_MINUTES = 19 * 60;
 
-const DUP_GHOST_ID_PREFIX = "__dup_ghost_";
+const WEEKDAY_SHORT_LABELS = [
+  "Sun",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+] as const;
 const WEEKDAY_LABELS = [
   "Sunday",
   "Monday",
@@ -101,16 +88,11 @@ const WEEKDAY_LABELS = [
   "Saturday",
 ] as const;
 
-type ScheduleEntitySelection =
-  | { kind: "instructor"; id: string }
-  | { kind: "workshop"; id: string };
+type ScheduleEntitySelection = { kind: "instructor"; id: string };
 
 function parseEntityFilterKey(value: string): ScheduleEntitySelection | null {
   if (value.startsWith("instructor:")) {
     return { kind: "instructor", id: value.slice("instructor:".length) };
-  }
-  if (value.startsWith("workshop:")) {
-    return { kind: "workshop", id: value.slice("workshop:".length) };
   }
   return null;
 }
@@ -123,25 +105,13 @@ function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
   return `${entityType}:${recordId}`;
 }
 
-type EntityBrowseKind = "all" | "instructor" | "workshop";
-
-function calendarScopeFromBrowse(
-  kind: EntityBrowseKind,
+function calendarScopeFromKeys(
   keys: string[]
 ): InstructorScheduleCalendarScope {
-  if (kind === "all") {
-    return { kind: "all" };
-  }
   const parsed = keys[0] ? parseEntityFilterKey(keys[0]) : null;
-  if (kind === "instructor") {
-    return {
-      kind: "instructor",
-      recordId: parsed?.kind === "instructor" ? parsed.id : undefined,
-    };
-  }
   return {
-    kind: "workshop",
-    recordId: parsed?.kind === "workshop" ? parsed.id : undefined,
+    kind: "instructor",
+    recordId: parsed?.id,
   };
 }
 
@@ -152,28 +122,20 @@ function calendarScopeKey(scope: InstructorScheduleCalendarScope): string {
   return `${scope.kind}:${scope.recordId ?? "*"}`;
 }
 
-function filterSessionsForBrowse(
+function filterSessionsForSelection(
   sessions: ManagerInstructorScheduleSession[],
-  kind: EntityBrowseKind,
   selectedKeys: string[]
 ): ManagerInstructorScheduleSession[] {
-  if (kind === "all") {
-    return sessions;
-  }
-
-  if (selectedKeys.length === 0) {
-    return sessions.filter((session) => session.entityType === kind);
-  }
-
-  const parsed = parseEntityFilterKey(selectedKeys[0]!);
-  if (!parsed || parsed.kind !== kind) {
-    return sessions.filter((session) => session.entityType === kind);
-  }
-
-  return sessions.filter(
-    (session) =>
-      session.entityType === parsed.kind && session.recordId === parsed.id
+  const instructorSessions = sessions.filter(
+    (session) => session.entityType === ENTITY_SCHEDULE_TYPE_INSTRUCTOR
   );
+
+  const parsed = selectedKeys[0] ? parseEntityFilterKey(selectedKeys[0]) : null;
+  if (!parsed) {
+    return instructorSessions;
+  }
+
+  return instructorSessions.filter((session) => session.recordId === parsed.id);
 }
 
 function makeTempId(): string {
@@ -185,165 +147,17 @@ function timeToMinutes(value: string): number {
   return hours * 60 + minutes;
 }
 
-function firstFieldError(
-  fieldErrors?: Partial<Record<string, string[]>>
-): string | undefined {
-  if (!fieldErrors) {
-    return undefined;
-  }
-  for (const messages of Object.values(fieldErrors)) {
-    const message = messages?.[0];
-    if (message) {
-      return message;
-    }
-  }
-  return undefined;
-}
-
-function actionErrorMessage(
-  result: { error?: string; fieldErrors?: Partial<Record<string, string[]>> },
-  fallback: string
-): string {
-  return firstFieldError(result.fieldErrors) ?? result.error ?? fallback;
+function minutesToTime(value: number): string {
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 const ENTITY_FILTER_ALL = "all";
 
-const ENTITY_BROWSE_OPTIONS: { kind: EntityBrowseKind; label: string }[] = [
-  { kind: "all", label: "All" },
-  { kind: "instructor", label: "Instructors" },
-  { kind: "workshop", label: "Workshops" },
-];
-
-type DragSourceSnapshot = {
-  session: ManagerInstructorScheduleSession;
-  start: Date;
-  end: Date | null;
-};
-
 type InstructorSchedulesPanelProps = {
   data: ManagerInstructorSchedulesPageData;
 };
-
-function getSessionFromEventProps(event: {
-  extendedProps: Record<string, unknown>;
-}): ManagerInstructorScheduleSession | null {
-  const session = event.extendedProps.session as
-    | ManagerInstructorScheduleSession
-    | undefined;
-  return session ?? null;
-}
-
-function getSessionFromEvent(
-  info: EventClickInfo
-): ManagerInstructorScheduleSession | null {
-  return getSessionFromEventProps(info.event);
-}
-
-function buildCreateDefaultsFromDates(
-  start: Date,
-  end: Date,
-  allDay: boolean
-): CreateSlotDefaults {
-  const slotDate = formatDateFromDate(start);
-
-  if (allDay) {
-    return {
-      slot_date: slotDate,
-      start_time: "09:00",
-      end_time: "10:30",
-    };
-  }
-
-  const startTime = formatTimeFromDate(start);
-  let endTime = formatTimeFromDate(end);
-
-  if (endTime <= startTime) {
-    const next = new Date(start);
-    next.setMinutes(next.getMinutes() + 90);
-    endTime = formatTimeFromDate(next);
-  }
-
-  return {
-    slot_date: slotDate,
-    start_time: startTime,
-    end_time: endTime,
-  };
-}
-
-function buildDuplicatePayload(
-  source: ManagerInstructorScheduleSession,
-  dropStart: Date | null,
-  dropEnd: Date | null,
-  allDay: boolean
-): CreateInstructorScheduleSlotInput | null {
-  if (!dropStart) {
-    return null;
-  }
-
-  if (allDay) {
-    return {
-      entity_type: source.entityType,
-      record_id: source.recordId,
-      name: source.name,
-      type: resolveInstructorScheduleSlotType({
-        entityType: source.entityType,
-        sourceWorkshopId: source.sourceWorkshopId,
-      }),
-      slot_date: formatDateFromDate(dropStart),
-      start_time: source.startTime,
-      end_time: source.endTime,
-    };
-  }
-
-  const startTime = formatTimeFromDate(dropStart);
-  let endTime = dropEnd ? formatTimeFromDate(dropEnd) : source.endTime;
-
-  if (endTime <= startTime) {
-    endTime = source.endTime;
-    if (endTime <= startTime) {
-      const next = new Date(dropStart);
-      next.setMinutes(next.getMinutes() + 90);
-      endTime = formatTimeFromDate(next);
-    }
-  }
-
-  return {
-    entity_type: source.entityType,
-    record_id: source.recordId,
-    name: source.name,
-    type: resolveInstructorScheduleSlotType({
-      entityType: source.entityType,
-      sourceWorkshopId: source.sourceWorkshopId,
-    }),
-    slot_date: formatDateFromDate(dropStart),
-    start_time: startTime,
-    end_time: endTime,
-  };
-}
-
-function buildDuplicateGhostEvent(
-  session: ManagerInstructorScheduleSession,
-  start: Date,
-  end: Date | null
-): EventInput {
-  const color = session.color;
-  return {
-    id: `${DUP_GHOST_ID_PREFIX}${session.id}`,
-    title: session.name,
-    start,
-    end: end ?? undefined,
-    color,
-    contrastColor: getInstructorScheduleSlotStrongColor(color),
-    editable: false,
-    startEditable: false,
-    durationEditable: false,
-    classNames: ["fc-schedule-dup-ghost"],
-    extendedProps: {
-      isDuplicateGhost: true,
-    },
-  };
-}
 
 function sessionFromCreateInput(
   values: CreateInstructorScheduleSlotInput,
@@ -398,9 +212,6 @@ function toUpdateFormData(values: UpdateInstructorScheduleSlotInput): FormData {
 export function InstructorSchedulesPanel({
   data,
 }: InstructorSchedulesPanelProps) {
-  const calendarRef = useRef<React.ComponentRef<typeof FullCalendar> | null>(
-    null
-  );
   const permissions = usePermissions();
   const canCreate = hasPermissionInSet(
     permissions,
@@ -410,10 +221,7 @@ export function InstructorSchedulesPanel({
     permissions,
     PERMISSIONS.INSTRUCTOR_SCHEDULES_UPDATE
   );
-  const [, startTransition] = useTransition();
 
-  const initialBrowseKind: EntityBrowseKind =
-    data.initialBrowse.kind === "instructor" ? "instructor" : "all";
   const initialSelectedKeys = data.initialBrowse.recordId
     ? [
         entityFilterKey({
@@ -424,60 +232,28 @@ export function InstructorSchedulesPanel({
     : [];
 
   const [sessions, setSessions] = React.useState(data.sessions);
-  const workshops = data.workshops;
   const initialCalendarScope = useMemo<InstructorScheduleCalendarScope>(
-    () =>
-      data.initialBrowse.kind === "instructor"
-        ? {
-            kind: "instructor",
-            recordId: data.initialBrowse.recordId ?? undefined,
-          }
-        : { kind: "all" },
-    [data.initialBrowse.kind, data.initialBrowse.recordId]
+    () => ({
+      kind: "instructor",
+      recordId: data.initialBrowse.recordId ?? undefined,
+    }),
+    [data.initialBrowse.recordId]
   );
   const loadedScopeKeyRef = useRef(calendarScopeKey(initialCalendarScope));
-  /** Empty = all within the current browse kind. At most one entity key selected. */
+  /** Empty = all instructors. At most one instructor key selected. */
   const [selectedEntityKeys, setSelectedEntityKeys] = React.useState<string[]>(
     () => initialSelectedKeys
   );
-  const [entityBrowseKind, setEntityBrowseKind] =
-    React.useState<EntityBrowseKind>(() => initialBrowseKind);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
-  const [createDefaults, setCreateDefaults] =
-    React.useState<CreateSlotDefaults | null>(null);
   const [deleteTarget, setDeleteTarget] =
     React.useState<ManagerInstructorScheduleSession | null>(null);
   const [selectedSession, setSelectedSession] =
     React.useState<ManagerInstructorScheduleSession | null>(null);
-  const [weekStart, setWeekStart] = React.useState(() =>
-    getSundayWeekBounds(formatDateFromDate(new Date())).weekStart
-  );
-  const [isAltDuplicating, setIsAltDuplicating] = React.useState(false);
-  const isAltDupDragRef = useRef(false);
-  const dragSourceRef = useRef<DragSourceSnapshot | null>(null);
   const pendingTempIdsRef = useRef<Set<string>>(new Set());
-  // FullCalendar fires datesSet during its initial render, before this
-  // component is mounted, so the first value has to be applied in an effect.
-  const isMountedRef = useRef(false);
-  const pendingWeekStartRef = useRef<string | null>(null);
 
   useEffect(() => {
-    isMountedRef.current = true;
-    if (pendingWeekStartRef.current !== null) {
-      const pending = pendingWeekStartRef.current;
-      pendingWeekStartRef.current = null;
-      setWeekStart((prev) => (prev === pending ? prev : pending));
-    }
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      loadedScopeKeyRef.current !== calendarScopeKey(initialCalendarScope)
-    ) {
+    if (loadedScopeKeyRef.current !== calendarScopeKey(initialCalendarScope)) {
       return;
     }
     setSessions((prev) => {
@@ -492,23 +268,12 @@ export function InstructorSchedulesPanel({
     () => new Set(data.instructors.map((instructor) => instructor.id)),
     [data.instructors]
   );
-  const workshopIds = useMemo(
-    () => new Set(workshops.map((workshop) => workshop.id)),
-    [workshops]
-  );
-
   const resolvedEntityKeys = useMemo(() => {
     return selectedEntityKeys.filter((key) => {
       const parsed = parseEntityFilterKey(key);
-      if (!parsed) {
-        return false;
-      }
-      if (parsed.kind === "instructor") {
-        return instructorIds.has(parsed.id);
-      }
-      return workshopIds.has(parsed.id);
+      return parsed ? instructorIds.has(parsed.id) : false;
     });
-  }, [selectedEntityKeys, instructorIds, workshopIds]);
+  }, [selectedEntityKeys, instructorIds]);
 
   if (
     resolvedEntityKeys.length !== selectedEntityKeys.length ||
@@ -517,18 +282,10 @@ export function InstructorSchedulesPanel({
     setSelectedEntityKeys(resolvedEntityKeys);
   }
 
-  const showWorkshopBrowse = canCreate || workshops.length > 0;
-  const effectiveBrowseKind: EntityBrowseKind =
-    entityBrowseKind === "workshop" && !showWorkshopBrowse
-      ? "all"
-      : entityBrowseKind;
   const resolvedEntityKeysJoined = resolvedEntityKeys.join(",");
 
   useEffect(() => {
-    const scope = calendarScopeFromBrowse(
-      effectiveBrowseKind,
-      resolvedEntityKeys
-    );
+    const scope = calendarScopeFromKeys(resolvedEntityKeys);
     const key = calendarScopeKey(scope);
     if (key === loadedScopeKeyRef.current) {
       return;
@@ -549,64 +306,31 @@ export function InstructorSchedulesPanel({
     return () => {
       cancelled = true;
     };
-  }, [effectiveBrowseKind, resolvedEntityKeys, resolvedEntityKeysJoined]);
-  const isAllBrowseSelected = effectiveBrowseKind === "all";
+  }, [resolvedEntityKeys, resolvedEntityKeysJoined]);
   const entitySelectValue = useMemo(() => {
-    if (isAllBrowseSelected || resolvedEntityKeys.length !== 1) {
-      return ENTITY_FILTER_ALL;
-    }
-    const parsed = parseEntityFilterKey(resolvedEntityKeys[0]!);
-    if (parsed?.kind !== effectiveBrowseKind) {
+    if (resolvedEntityKeys.length !== 1) {
       return ENTITY_FILTER_ALL;
     }
     return resolvedEntityKeys[0]!;
-  }, [resolvedEntityKeys, effectiveBrowseKind, isAllBrowseSelected]);
+  }, [resolvedEntityKeys]);
   const entitySelectLabel = useMemo(() => {
-    if (isAllBrowseSelected) {
-      return "All schedules";
-    }
     if (entitySelectValue === ENTITY_FILTER_ALL) {
-      return effectiveBrowseKind === "instructor"
-        ? "All instructors"
-        : "All workshops";
+      return "All instructors";
     }
     const parsed = parseEntityFilterKey(entitySelectValue);
     if (!parsed) {
       return entitySelectValue;
     }
-    if (parsed.kind === "instructor") {
-      return (
-        data.instructors.find((instructor) => instructor.id === parsed.id)
-          ?.username ?? "Unknown"
-      );
-    }
     return (
-      workshops.find((workshop) => workshop.id === parsed.id)?.name ?? "Unknown"
+      data.instructors.find((instructor) => instructor.id === parsed.id)
+        ?.username ?? "Unknown"
     );
-  }, [
-    entitySelectValue,
-    effectiveBrowseKind,
-    isAllBrowseSelected,
-    data.instructors,
-    workshops,
-  ]);
-  const canCreateOnCalendar = canCreate;
-
-  function handleEntityBrowseKindChange(kind: EntityBrowseKind) {
-    setEntityBrowseKind(kind);
-    setSelectedEntityKeys([]);
-  }
-
+  }, [entitySelectValue, data.instructors]);
   function handleEntitySelectChange(value: string | null) {
     const next = value ?? ENTITY_FILTER_ALL;
     const nextKeys = next === ENTITY_FILTER_ALL ? [] : [next];
     setSelectedEntityKeys(nextKeys);
   }
-
-  const eligibleWorkshops = useMemo(
-    () => workshops.filter((workshop) => workshop.eligible_for_create),
-    [workshops]
-  );
 
   const entityLabelByKey = useMemo(() => {
     const map = new Map<string, string>();
@@ -616,87 +340,169 @@ export function InstructorSchedulesPanel({
         instructor.username?.trim() || "Unknown"
       );
     }
-    for (const workshop of workshops) {
-      map.set(
-        entityMapKey(ENTITY_SCHEDULE_TYPE_WORKSHOP, workshop.id),
-        workshop.name
-      );
-    }
     return map;
-  }, [data.instructors, workshops]);
+  }, [data.instructors]);
 
-  const workshopBoundsById = useMemo(() => {
-    const map = new Map<
-      string,
-      { start_date: string | null; end_date: string | null }
-    >();
-    for (const workshop of workshops) {
-      map.set(workshop.id, {
-        start_date: workshop.start_date,
-        end_date: workshop.end_date,
-      });
-    }
-    return map;
-  }, [workshops]);
-
-  const createPrefill = useMemo((): AddInstructorScheduleSlotDefaults | null => {
-    const fromDates = createDefaults ?? undefined;
-    const timeDefaults = fromDates
-      ? {
-          start_time: fromDates.start_time,
-          end_time: fromDates.end_time,
+  const createPrefill =
+    useMemo((): AddInstructorScheduleSlotDefaults | null => {
+      if (resolvedEntityKeys.length === 1) {
+        const only = parseEntityFilterKey(resolvedEntityKeys[0]!);
+        if (only) {
+          return { record_id: only.id };
         }
-      : undefined;
-
-    if (resolvedEntityKeys.length === 1) {
-      const only = parseEntityFilterKey(resolvedEntityKeys[0]!);
-      if (only?.kind === "instructor") {
-        return {
-          entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-          record_id: only.id,
-          ...timeDefaults,
-        };
       }
-      if (only?.kind === "workshop") {
-        return {
-          entity_type: ENTITY_SCHEDULE_TYPE_WORKSHOP,
-          record_id: only.id,
-          ...timeDefaults,
-        };
-      }
-    }
-    return timeDefaults ?? null;
-  }, [createDefaults, resolvedEntityKeys]);
+      return null;
+    }, [resolvedEntityKeys]);
 
   const filteredSessions = useMemo(
-    () =>
-      filterSessionsForBrowse(
-        sessions,
-        effectiveBrowseKind,
-        resolvedEntityKeys
-      ),
-    [sessions, effectiveBrowseKind, resolvedEntityKeys]
+    () => filterSessionsForSelection(sessions, resolvedEntityKeys),
+    [sessions, resolvedEntityKeys]
   );
 
-  const events = useMemo<EventInput[]>(() => {
-    return instructorScheduleSessionsToEvents(filteredSessions, {
-      weekStart,
-      includeEntityInTitle: resolvedEntityKeys.length !== 1,
-      entityLabelByKey,
-      workshopBoundsById,
-    });
-  }, [
-    filteredSessions,
-    weekStart,
-    resolvedEntityKeys.length,
-    entityLabelByKey,
-    workshopBoundsById,
-  ]);
+  const sessionById = useMemo(() => {
+    const map = new Map<string, ManagerInstructorScheduleSession>();
+    for (const session of filteredSessions) {
+      map.set(session.id, session);
+    }
+    return map;
+  }, [filteredSessions]);
+
+  const tankDays = useMemo<ScheduleTankDay[]>(() => {
+    const days: ScheduleTankDay[] = WEEKDAY_LABELS.map((label, index) => ({
+      key: String(index),
+      label,
+      shortLabel: WEEKDAY_SHORT_LABELS[index]!,
+      segments: [],
+    }));
+
+    for (const session of filteredSessions) {
+      const day = days[session.dayOfWeek];
+      if (!day) {
+        continue;
+      }
+
+      const entityLabel =
+        entityLabelByKey
+          .get(entityMapKey(session.entityType, session.recordId))
+          ?.trim() || null;
+
+      day.segments.push({
+        id: session.id,
+        label: session.name,
+        sublabel: entityLabel,
+        startMinutes: timeToMinutes(session.startTime),
+        endMinutes: timeToMinutes(session.endTime),
+        color: session.color,
+        accentColor: getInstructorScheduleSlotStrongColor(session.color),
+        locked: isTempScheduleId(session.id),
+        resizable: canUpdate && !session.sourceWorkshopId,
+      });
+    }
+
+    return days;
+  }, [filteredSessions, entityLabelByKey, canUpdate]);
+
+  function handleSegmentSelect(segment: ScheduleTankSegment) {
+    const session = sessionById.get(segment.id);
+    if (session) {
+      openEditSession(session);
+    }
+  }
+
+  function handleSegmentResize(
+    segment: ScheduleTankSegment,
+    next: { startMinutes: number; endMinutes: number }
+  ) {
+    const session = sessionById.get(segment.id);
+    if (!session || !canUpdate) {
+      return;
+    }
+
+    if (isTempScheduleId(session.id)) {
+      showInfoToast("Still saving this slot…");
+      return;
+    }
+
+    if (session.sourceWorkshopId) {
+      showErrorToast(
+        "This slot is mirrored from a workshop schedule and cannot be resized here."
+      );
+      return;
+    }
+
+    const durationMinutes = next.endMinutes - next.startMinutes;
+    if (durationMinutes < SCHEDULE_SLOT_DURATION_LIMITS.minMinutes) {
+      showErrorToast(
+        `Slot must be at least ${SCHEDULE_SLOT_DURATION_LIMITS.minMinutes} minutes.`
+      );
+      return;
+    }
+    if (durationMinutes > SCHEDULE_SLOT_DURATION_LIMITS.maxMinutes) {
+      showErrorToast(
+        `Slot must be under 24 hours (max ${SCHEDULE_SLOT_DURATION_LIMITS.maxMinutes} minutes).`
+      );
+      return;
+    }
+
+    const startTime = minutesToTime(next.startMinutes);
+    const endTime = minutesToTime(next.endMinutes);
+    const previous = session;
+    const optimistic: ManagerInstructorScheduleSession = {
+      ...session,
+      startTime,
+      endTime,
+    };
+
+    setSessions((prev) =>
+      prev.map((item) => (item.id === session.id ? optimistic : item))
+    );
+    if (selectedSession?.id === session.id) {
+      setSelectedSession(optimistic);
+    }
+
+    void (async () => {
+      const result = await updateInstructorScheduleSlotAction(
+        {},
+        toUpdateFormData({
+          id: session.id,
+          entity_type: session.entityType,
+          record_id: session.recordId,
+          name: session.name,
+          type: session.type,
+          slot_date: session.slotDate,
+          start_time: startTime,
+          end_time: endTime,
+        })
+      );
+
+      if (!result.success) {
+        setSessions((prev) =>
+          prev.map((item) => (item.id === session.id ? previous : item))
+        );
+        if (selectedSession?.id === session.id) {
+          setSelectedSession(previous);
+        }
+        showErrorToast(result.error ?? "Unable to update slot time.");
+        return;
+      }
+
+      if (result.session) {
+        setSessions((prev) =>
+          prev.map((item) => (item.id === session.id ? result.session! : item))
+        );
+        if (selectedSession?.id === session.id) {
+          setSelectedSession(result.session);
+        }
+      }
+
+      showSuccessToast(result.message ?? "Slot time updated.");
+    })();
+  }
 
   const selectedSessionEntityLabel = selectedSession
-    ? entityLabelByKey.get(
+    ? (entityLabelByKey.get(
         entityMapKey(selectedSession.entityType, selectedSession.recordId)
-      ) ?? null
+      ) ?? null)
     : null;
 
   function trackPendingTemp(tempId: string) {
@@ -706,75 +512,6 @@ export function InstructorSchedulesPanel({
   function untrackPendingTemp(tempId: string) {
     pendingTempIdsRef.current.delete(tempId);
   }
-
-  function showDuplicateGhost(snapshot: DragSourceSnapshot) {
-    const api = calendarRef.current?.getApi?.() as CalendarApi | undefined;
-    if (!api) {
-      return;
-    }
-
-    const ghostId = `${DUP_GHOST_ID_PREFIX}${snapshot.session.id}`;
-    api.getEventById(ghostId)?.remove();
-    api.addEvent(
-      buildDuplicateGhostEvent(snapshot.session, snapshot.start, snapshot.end)
-    );
-    isAltDupDragRef.current = true;
-    setIsAltDuplicating(true);
-  }
-
-  function clearDuplicateGhostVisual() {
-    const api = calendarRef.current?.getApi?.() as CalendarApi | undefined;
-    if (api) {
-      for (const event of api.getEvents()) {
-        if (
-          event.id.startsWith(DUP_GHOST_ID_PREFIX) ||
-          event.extendedProps.isDuplicateGhost
-        ) {
-          event.remove();
-        }
-      }
-    }
-    setIsAltDuplicating(false);
-  }
-
-  function clearDuplicateDragState() {
-    clearDuplicateGhostVisual();
-    dragSourceRef.current = null;
-    window.setTimeout(() => {
-      isAltDupDragRef.current = false;
-    }, 0);
-  }
-
-  React.useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Alt" || !canCreateOnCalendar) {
-        return;
-      }
-      const snapshot = dragSourceRef.current;
-      if (!snapshot || isAltDupDragRef.current) {
-        return;
-      }
-      showDuplicateGhost(snapshot);
-    }
-
-    function onKeyUp(event: KeyboardEvent) {
-      if (event.key !== "Alt") {
-        return;
-      }
-      if (!dragSourceRef.current) {
-        return;
-      }
-      isAltDupDragRef.current = false;
-      clearDuplicateGhostVisual();
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-    };
-  }, [canCreateOnCalendar]);
 
   const handleDeleteOpenChange = usePendingAwareOpenChange(
     false,
@@ -795,8 +532,7 @@ export function InstructorSchedulesPanel({
     setIsEditOpen(true);
   }
 
-  function openCreate(defaults?: CreateSlotDefaults | null) {
-    setCreateDefaults(defaults ?? null);
+  function openCreate() {
     setIsCreateOpen(true);
   }
 
@@ -874,9 +610,7 @@ export function InstructorSchedulesPanel({
 
     if (!result.success) {
       setSessions((prev) =>
-        prev.map((session) =>
-          session.id === values.id ? previous : session
-        )
+        prev.map((session) => (session.id === values.id ? previous : session))
       );
       if (selectedSession?.id === values.id) {
         setSelectedSession(previous);
@@ -914,9 +648,7 @@ export function InstructorSchedulesPanel({
     setDeleteTarget(null);
     setIsEditOpen(false);
     setSelectedSession(null);
-    setSessions((prev) =>
-      prev.filter((session) => session.id !== removed.id)
-    );
+    setSessions((prev) => prev.filter((session) => session.id !== removed.id));
 
     void (async () => {
       const formData = new FormData();
@@ -933,347 +665,7 @@ export function InstructorSchedulesPanel({
     })();
   }
 
-  function handleEventClick(info: EventClickInfo) {
-    if (info.event.extendedProps.isDuplicateGhost) {
-      return;
-    }
-
-    const session = getSessionFromEvent(info);
-    if (!session) {
-      return;
-    }
-
-    info.jsEvent.preventDefault();
-    openEditSession(session);
-  }
-
-  function handleDateSelect(info: DateSelectInfo) {
-    if (!canCreateOnCalendar) {
-      info.view.calendar.unselect();
-      return;
-    }
-
-    openCreate(
-      buildCreateDefaultsFromDates(info.start, info.end, info.allDay)
-    );
-    info.view.calendar.unselect();
-  }
-
-  function handleEventDragStart(info: EventDragStartInfo) {
-    if (info.event.extendedProps.isDuplicateGhost) {
-      return;
-    }
-
-    const session = getSessionFromEventProps(info.event);
-    if (!session || !info.event.start || isTempScheduleId(session.id)) {
-      dragSourceRef.current = null;
-      return;
-    }
-
-    if (session.sourceWorkshopId) {
-      dragSourceRef.current = null;
-      return;
-    }
-
-    const snapshot: DragSourceSnapshot = {
-      session,
-      start: info.event.start,
-      end: info.event.end,
-    };
-    dragSourceRef.current = snapshot;
-
-    if (canCreateOnCalendar && info.jsEvent.altKey) {
-      showDuplicateGhost(snapshot);
-    } else {
-      isAltDupDragRef.current = false;
-      clearDuplicateGhostVisual();
-    }
-  }
-
-  function handleEventDragStop() {
-    clearDuplicateDragState();
-  }
-
-  function handleEventDrop(info: EventDropInfo) {
-    const dropStart = info.event.start;
-    const dropEnd = info.event.end;
-    const allDay = info.event.allDay;
-    const wantsDuplicate = info.jsEvent.altKey || isAltDupDragRef.current;
-    const source = getSessionFromEventProps(info.oldEvent);
-    const previousStart = info.oldEvent.start;
-    const previousEnd = info.oldEvent.end;
-
-    clearDuplicateGhostVisual();
-
-    if (!source || isTempScheduleId(source.id)) {
-      info.revert();
-      return;
-    }
-
-    if (source.sourceWorkshopId) {
-      info.revert();
-      showErrorToast(
-        "This slot is mirrored from a workshop schedule and cannot be moved here."
-      );
-      return;
-    }
-
-    if (wantsDuplicate) {
-      info.revert();
-
-      if (!canCreateOnCalendar) {
-        return;
-      }
-
-      const payload = buildDuplicatePayload(
-        source,
-        dropStart,
-        dropEnd,
-        allDay
-      );
-      if (!payload) {
-        return;
-      }
-
-      void handleOptimisticCreate(payload);
-      return;
-    }
-
-    if (!canUpdate) {
-      info.revert();
-      return;
-    }
-
-    if (!dropStart) {
-      info.revert();
-      return;
-    }
-
-    const slotDate = formatDateFromDate(dropStart);
-    let startTime: string;
-    let endTime: string;
-
-    if (allDay) {
-      startTime = source.startTime;
-      endTime = source.endTime;
-    } else {
-      startTime = formatTimeFromDate(dropStart);
-      endTime = dropEnd ? formatTimeFromDate(dropEnd) : source.endTime;
-      if (endTime <= startTime) {
-        endTime = source.endTime;
-        if (endTime <= startTime) {
-          const next = new Date(dropStart);
-          next.setMinutes(next.getMinutes() + 90);
-          endTime = formatTimeFromDate(next);
-        }
-      }
-    }
-
-    if (endTime <= startTime) {
-      info.revert();
-      showErrorToast("End time must be after start time.");
-      return;
-    }
-
-    const previous = source;
-    const optimistic: ManagerInstructorScheduleSession = {
-      ...source,
-      dayOfWeek: dayOfWeekFromIsoDate(slotDate),
-      startTime,
-      endTime,
-    };
-
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === source.id ? optimistic : session
-      )
-    );
-    if (selectedSession?.id === source.id) {
-      setSelectedSession(optimistic);
-    }
-
-    const formData = new FormData();
-    formData.set("id", source.id);
-    formData.set("entity_type", source.entityType);
-    formData.set("record_id", source.recordId);
-    formData.set("name", source.name);
-    formData.set("type", source.type);
-    formData.set("slot_date", slotDate);
-    formData.set("start_time", startTime);
-    formData.set("end_time", endTime);
-
-    startTransition(() => {
-      void (async () => {
-        const result = await updateInstructorScheduleSlotAction({}, formData);
-        if (!result.success) {
-          setSessions((prev) =>
-            prev.map((session) =>
-              session.id === source.id ? previous : session
-            )
-          );
-          if (selectedSession?.id === source.id) {
-            setSelectedSession(previous);
-          }
-          if (previousStart) {
-            info.event.setDates(previousStart, previousEnd);
-          } else {
-            info.revert();
-          }
-          showErrorToast(actionErrorMessage(result, "Unable to move slot."));
-          return;
-        }
-
-        if (result.session) {
-          setSessions((prev) =>
-            prev.map((session) =>
-              session.id === source.id ? result.session! : session
-            )
-          );
-          if (selectedSession?.id === source.id) {
-            setSelectedSession(result.session);
-          }
-        }
-
-        showSuccessToast(result.message ?? "Slot moved.");
-      })();
-    });
-  }
-
-  function handleEventResize(info: EventResizeDoneInfo) {
-    if (!canUpdate || info.event.extendedProps.isDuplicateGhost) {
-      info.revert();
-      return;
-    }
-
-    const session =
-      getSessionFromEventProps(info.oldEvent) ??
-      getSessionFromEventProps(info.event);
-    const start = info.event.start;
-    const end = info.event.end;
-
-    if (!session || !start || !end || isTempScheduleId(session.id)) {
-      info.revert();
-      return;
-    }
-
-    if (session.sourceWorkshopId) {
-      info.revert();
-      showErrorToast(
-        "This slot is mirrored from a workshop schedule and cannot be resized here."
-      );
-      return;
-    }
-
-    const slotDate = formatDateFromDate(start);
-    const endDate = formatDateFromDate(end);
-    const startTime = formatTimeFromDate(start);
-    const endTime = formatTimeFromDate(end);
-
-    if (endDate !== slotDate) {
-      info.revert();
-      showErrorToast("Slots must stay on the same day (cannot cross midnight).");
-      return;
-    }
-
-    if (endTime <= startTime) {
-      info.revert();
-      showErrorToast("End time must be after start time.");
-      return;
-    }
-
-    const durationMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
-    if (durationMinutes > SCHEDULE_SLOT_DURATION_LIMITS.maxMinutes) {
-      info.revert();
-      showErrorToast(
-        `Slot must be under 24 hours (max ${SCHEDULE_SLOT_DURATION_LIMITS.maxMinutes} minutes).`
-      );
-      return;
-    }
-    if (durationMinutes < SCHEDULE_SLOT_DURATION_LIMITS.minMinutes) {
-      info.revert();
-      showErrorToast(
-        `Slot must be at least ${SCHEDULE_SLOT_DURATION_LIMITS.minMinutes} minutes.`
-      );
-      return;
-    }
-
-    const previousStart = info.oldEvent.start;
-    const previousEnd = info.oldEvent.end;
-    const previous = session;
-    const optimistic: ManagerInstructorScheduleSession = {
-      ...session,
-      dayOfWeek: dayOfWeekFromIsoDate(slotDate),
-      startTime,
-      endTime,
-    };
-
-    setSessions((prev) =>
-      prev.map((item) => (item.id === session.id ? optimistic : item))
-    );
-    if (selectedSession?.id === session.id) {
-      setSelectedSession(optimistic);
-    }
-
-    const formData = new FormData();
-    formData.set("id", session.id);
-    formData.set("entity_type", session.entityType);
-    formData.set("record_id", session.recordId);
-    formData.set("name", session.name);
-    formData.set("type", session.type);
-    formData.set("slot_date", slotDate);
-    formData.set("start_time", startTime);
-    formData.set("end_time", endTime);
-
-    startTransition(() => {
-      void (async () => {
-        const result = await updateInstructorScheduleSlotAction({}, formData);
-        if (!result.success) {
-          setSessions((prev) =>
-            prev.map((item) => (item.id === session.id ? previous : item))
-          );
-          if (selectedSession?.id === session.id) {
-            setSelectedSession(previous);
-          }
-          if (previousStart) {
-            info.event.setDates(previousStart, previousEnd);
-          } else {
-            info.revert();
-          }
-          showErrorToast(
-            actionErrorMessage(result, "Unable to update slot time.")
-          );
-          return;
-        }
-
-        if (result.session) {
-          setSessions((prev) =>
-            prev.map((item) =>
-              item.id === session.id ? result.session! : item
-            )
-          );
-          if (selectedSession?.id === session.id) {
-            setSelectedSession(result.session);
-          }
-        }
-
-        showSuccessToast(result.message ?? "Slot time updated.");
-      })();
-    });
-  }
-
-  function handleDatesSet(info: DatesSetInfo) {
-    const bounds = getSundayWeekBounds(formatDateFromDate(info.start));
-    if (!isMountedRef.current) {
-      pendingWeekStartRef.current = bounds.weekStart;
-      return;
-    }
-    setWeekStart((prev) => (prev === bounds.weekStart ? prev : bounds.weekStart));
-  }
-
-  const hasNoScheduleEntities =
-    data.instructors.length === 0 && workshops.length === 0;
-
-  if (hasNoScheduleEntities) {
+  if (data.instructors.length === 0) {
     return (
       <div className="flex flex-col gap-6">
         <div className="min-w-0">
@@ -1281,13 +673,12 @@ export function InstructorSchedulesPanel({
             Instructor schedules
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Free and busy slots for instructors and workshops.
+            Free and busy slots for instructors.
           </p>
         </div>
         <div className="rounded-xl border px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground">
-            No instructors or workshops yet. Add one first, then manage schedule
-            slots here.
+            No instructors yet. Add one first, then manage schedule slots here.
           </p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Link
@@ -1295,12 +686,6 @@ export function InstructorSchedulesPanel({
               className={cn(buttonVariants({ variant: "outline" }))}
             >
               Manage instructors
-            </Link>
-            <Link
-              href={ROUTES.MANAGER_WORKSHOPS}
-              className={cn(buttonVariants({ variant: "outline" }))}
-            >
-              Manage workshops
             </Link>
           </div>
         </div>
@@ -1316,16 +701,13 @@ export function InstructorSchedulesPanel({
             Instructor schedules
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Weekly free and busy slots for instructors and workshops. Slots
-            repeat every week until edited or deleted
-            {canCreate
-              ? ". Click a slot to edit it, drag to select a range to add one, or hold Alt and drag a slot to duplicate it"
-              : ". Click a slot to edit it"}
+            Weekly free and busy slots for instructors, shown as one tank per
+            day from 8 AM to 7 PM. Slots repeat every week until edited or
+            deleted
             {canUpdate
-              ? ", drag a slot to change weekday/time, or drag the top/bottom edge to change duration"
+              ? ". Click a slot to edit it, or drag its top/bottom edge to change its time"
               : ""}
-            . Workshop slots only appear between the workshop start and end
-            dates.
+            .
           </p>
         </div>
         <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_DETAILS_VIEW}>
@@ -1345,83 +727,32 @@ export function InstructorSchedulesPanel({
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <div
-            role="group"
-            aria-label="Filter by entity type"
-            className="inline-flex w-fit items-center gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8"
-          >
-            {ENTITY_BROWSE_OPTIONS.filter(
-              (option) => option.kind !== "workshop" || showWorkshopBrowse
-            ).map((option) => {
-              const selected = effectiveBrowseKind === option.kind;
-              return (
-                <button
-                  key={option.kind}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => handleEntityBrowseKindChange(option.kind)}
-                  className={cn(
-                    "inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
-                    "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground",
-                    selected &&
-                      "border-border bg-background text-foreground shadow-sm"
-                  )}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-
           <Select
             value={entitySelectValue}
             onValueChange={handleEntitySelectChange}
-            disabled={isAllBrowseSelected}
           >
             <SelectTrigger
               size="sm"
               className="min-w-40 max-w-full sm:min-w-48"
-              aria-label={
-                isAllBrowseSelected
-                  ? "All schedules"
-                  : effectiveBrowseKind === "instructor"
-                    ? "Filter by instructor"
-                    : "Filter by workshop"
-              }
+              aria-label="Filter by instructor"
             >
-              <SelectValue placeholder="All schedules">
+              <SelectValue placeholder="All instructors">
                 {entitySelectLabel}
               </SelectValue>
             </SelectTrigger>
             <SelectContent align="start">
-              <SelectItem value={ENTITY_FILTER_ALL}>
-                {effectiveBrowseKind === "instructor"
-                  ? "All instructors"
-                  : "All workshops"}
-              </SelectItem>
-              {effectiveBrowseKind === "instructor"
-                ? data.instructors.map((instructor) => (
-                    <SelectItem
-                      key={instructor.id}
-                      value={entityFilterKey({
-                        kind: "instructor",
-                        id: instructor.id,
-                      })}
-                    >
-                      {instructor.username ?? "Unknown"}
-                    </SelectItem>
-                  ))
-                : workshops.map((workshop) => (
-                    <SelectItem
-                      key={workshop.id}
-                      value={entityFilterKey({
-                        kind: "workshop",
-                        id: workshop.id,
-                      })}
-                    >
-                      {workshop.name}
-                    </SelectItem>
-                  ))}
+              <SelectItem value={ENTITY_FILTER_ALL}>All instructors</SelectItem>
+              {data.instructors.map((instructor) => (
+                <SelectItem
+                  key={instructor.id}
+                  value={entityFilterKey({
+                    kind: "instructor",
+                    id: instructor.id,
+                  })}
+                >
+                  {instructor.username ?? "Unknown"}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -1432,7 +763,7 @@ export function InstructorSchedulesPanel({
             size="sm"
             className="shrink-0 self-start sm:self-auto"
             disabled={!canCreate}
-            onClick={() => openCreate(null)}
+            onClick={() => openCreate()}
           >
             <PlusIcon data-icon="inline-start" />
             Add slot
@@ -1442,16 +773,10 @@ export function InstructorSchedulesPanel({
 
       <AddInstructorScheduleSlotDialog
         open={isCreateOpen}
-        onOpenChange={(next) => {
-          setIsCreateOpen(next);
-          if (!next) {
-            setCreateDefaults(null);
-          }
-        }}
+        onOpenChange={setIsCreateOpen}
         onCreate={handleOptimisticCreate}
         defaults={createPrefill}
         instructors={data.instructors}
-        eligibleWorkshops={eligibleWorkshops}
       />
 
       <EditInstructorScheduleSlotDialog
@@ -1504,54 +829,13 @@ export function InstructorSchedulesPanel({
         </DialogContent>
       </Dialog>
 
-      <div
-        className={cn(
-          "fc-schedule-theme fc-schedule-theme--compact-days relative min-h-0",
-          isAltDuplicating && "is-alt-duplicating"
-        )}
-      >
-        <FullCalendar
-          ref={calendarRef}
-          plugins={[
-            themePlugin,
-            interactionPlugin,
-            dayGridPlugin,
-            timeGridPlugin,
-            listPlugin,
-          ]}
-          initialView="timeGridWeek"
-          headerToolbar={false}
-          firstDay={0}
-          height="auto"
-          expandRows={false}
-          nowIndicator
-          weekends
-          slotMinTime="08:00:00"
-          slotMaxTime="24:00:00"
-          slotDuration="00:30:00"
-          scrollTime="08:00:00"
-          allDaySlot={false}
-          events={events}
-          editable={canCreateOnCalendar || canUpdate}
-          eventStartEditable={canCreateOnCalendar || canUpdate}
-          eventDurationEditable={canUpdate}
-          eventResizableFromStart={canUpdate}
-          selectable={canCreateOnCalendar}
-          selectMirror={canCreateOnCalendar}
-          select={handleDateSelect}
-          eventDragStart={handleEventDragStart}
-          eventDragStop={handleEventDragStop}
-          eventDrop={handleEventDrop}
-          eventResize={handleEventResize}
-          datesSet={handleDatesSet}
-          eventClick={handleEventClick}
-          eventTimeFormat={{
-            hour: "numeric",
-            minute: "2-digit",
-            meridiem: "short",
-          }}
-          dayHeaderFormat={{ weekday: "short", day: "numeric" }}
-          eventDisplay="block"
+      <div className="rounded-2xl border bg-card p-3 sm:p-4">
+        <ScheduleTanks
+          days={tankDays}
+          startMinutes={TANK_START_MINUTES}
+          endMinutes={TANK_END_MINUTES}
+          onSegmentSelect={canUpdate ? handleSegmentSelect : undefined}
+          onSegmentResize={canUpdate ? handleSegmentResize : undefined}
         />
       </div>
     </div>

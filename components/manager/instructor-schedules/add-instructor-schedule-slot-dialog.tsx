@@ -26,21 +26,16 @@ import { SCHEDULE_SLOT_FIELD_LIMITS } from "@/lib/constants/workshop-field-limit
 import {
   createInstructorScheduleSlotSchema,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-  ENTITY_SCHEDULE_TYPE_LABELS,
-  ENTITY_SCHEDULE_TYPE_VALUES,
-  ENTITY_SCHEDULE_TYPE_WORKSHOP,
   resolveInstructorScheduleSlotType,
   todayIsoDateLocal,
   type CreateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
   ManagerInstructorScheduleTab,
-  ManagerScheduleWorkshopTab,
   ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
 export type AddInstructorScheduleSlotDefaults = {
-  entity_type?: ScheduleEntityType;
   record_id?: string;
   start_time?: string;
   end_time?: string;
@@ -52,7 +47,6 @@ type AddInstructorScheduleSlotDialogProps = {
   onCreate: (values: CreateInstructorScheduleSlotInput) => void | Promise<void>;
   defaults: AddInstructorScheduleSlotDefaults | null;
   instructors: ManagerInstructorScheduleTab[];
-  eligibleWorkshops: ManagerScheduleWorkshopTab[];
 };
 
 export function AddInstructorScheduleSlotDialog({
@@ -61,7 +55,6 @@ export function AddInstructorScheduleSlotDialog({
   onCreate,
   defaults,
   instructors,
-  eligibleWorkshops,
 }: AddInstructorScheduleSlotDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const isPending = isTransitionPending;
@@ -78,7 +71,7 @@ export function AddInstructorScheduleSlotDialog({
     schema: createInstructorScheduleSlotSchema,
     mode: "onBlur",
     defaultValues: {
-      entity_type: defaults?.entity_type ?? ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+      entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
       record_id: defaults?.record_id ?? "",
       name: "",
       start_time: defaults?.start_time ?? "09:00",
@@ -86,22 +79,16 @@ export function AddInstructorScheduleSlotDialog({
     },
   });
 
-  const selectedEntityType = watch("entity_type");
   const selectedRecordId = watch("record_id");
 
-  const entityOptions = useMemo(() => {
-    if (selectedEntityType === ENTITY_SCHEDULE_TYPE_WORKSHOP) {
-      return eligibleWorkshops.map((workshop) => ({
-        id: workshop.id,
-        label: workshop.name,
-      }));
-    }
-
-    return instructors.map((instructor) => ({
-      id: instructor.id,
-      label: instructor.username?.trim() || "Unknown",
-    }));
-  }, [eligibleWorkshops, instructors, selectedEntityType]);
+  const entityOptions = useMemo(
+    () =>
+      instructors.map((instructor) => ({
+        id: instructor.id,
+        label: instructor.username?.trim() || "Unknown",
+      })),
+    [instructors]
+  );
 
   const entitySelectItems = useMemo(
     () =>
@@ -122,7 +109,7 @@ export function AddInstructorScheduleSlotDialog({
     }
 
     reset({
-      entity_type: defaults?.entity_type ?? ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+      entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
       record_id: defaults?.record_id ?? "",
       name: "",
       start_time: defaults?.start_time ?? "09:00",
@@ -152,14 +139,12 @@ export function AddInstructorScheduleSlotDialog({
     });
   }
 
-  const entityTypeError = errors.entity_type?.message;
   const recordIdError = errors.record_id?.message;
   const nameError = errors.name?.message;
   const startTimeError = errors.start_time?.message;
   const endTimeError = errors.end_time?.message;
 
   const canSubmit =
-    Boolean(selectedEntityType) &&
     Boolean(selectedRecordId) &&
     entityOptions.some((option) => option.id === selectedRecordId);
 
@@ -169,8 +154,7 @@ export function AddInstructorScheduleSlotDialog({
         <DialogHeader>
           <DialogTitle>Add schedule slot</DialogTitle>
           <DialogDescription>
-            Instructor slots are free availability. Workshop slots are busy and
-            mirror onto assigned instructors.
+            Instructor slots are free availability on the weekly calendar.
           </DialogDescription>
         </DialogHeader>
 
@@ -183,51 +167,11 @@ export function AddInstructorScheduleSlotDialog({
           <input type="hidden" {...register("entity_type")} />
           <input type="hidden" {...register("record_id")} />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="add-schedule-slot-entity-type"
-                label="Entity"
-                hint="Required"
-              />
-              <Select
-                value={selectedEntityType}
-                onValueChange={(value) => {
-                  if (!value) return;
-                  const nextType = value as ScheduleEntityType;
-                  setValue("entity_type", nextType, { shouldValidate: true });
-                  setValue("record_id", "", { shouldValidate: true });
-                }}
-                disabled={isPending}
-              >
-                <SelectTrigger
-                  id="add-schedule-slot-entity-type"
-                  className="w-full"
-                  aria-invalid={Boolean(entityTypeError)}
-                >
-                  <SelectValue placeholder="Select entity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ENTITY_SCHEDULE_TYPE_VALUES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {ENTITY_SCHEDULE_TYPE_LABELS[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {entityTypeError ? (
-                <p className="text-sm text-destructive">{entityTypeError}</p>
-              ) : null}
-            </div>
-
+          <div className="grid gap-4">
             <div className="flex flex-col gap-2">
               <FieldLabel
                 htmlFor="add-schedule-slot-record-id"
-                label={
-                  selectedEntityType === ENTITY_SCHEDULE_TYPE_WORKSHOP
-                    ? "Workshop"
-                    : "Instructor"
-                }
+                label="Instructor"
                 hint="Required"
               />
               <Select
@@ -244,13 +188,7 @@ export function AddInstructorScheduleSlotDialog({
                   className="w-full"
                   aria-invalid={Boolean(recordIdError)}
                 >
-                  <SelectValue
-                    placeholder={
-                      selectedEntityType === ENTITY_SCHEDULE_TYPE_WORKSHOP
-                        ? "Select workshop"
-                        : "Select instructor"
-                    }
-                  >
+                  <SelectValue placeholder="Select instructor">
                     {selectedEntityLabel}
                   </SelectValue>
                 </SelectTrigger>
@@ -267,9 +205,7 @@ export function AddInstructorScheduleSlotDialog({
               ) : null}
               {entityOptions.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  {selectedEntityType === ENTITY_SCHEDULE_TYPE_WORKSHOP
-                    ? "No eligible workshops (need open end date or future end, and not completed/cancelled)."
-                    : "No instructors available."}
+                  No instructors available.
                 </p>
               ) : null}
             </div>

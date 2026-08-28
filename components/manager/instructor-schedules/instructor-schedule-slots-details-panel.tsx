@@ -40,16 +40,12 @@ import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import {
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-  ENTITY_SCHEDULE_TYPE_LABELS,
-  ENTITY_SCHEDULE_TYPE_VALUES,
-  ENTITY_SCHEDULE_TYPE_WORKSHOP,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS,
   INSTRUCTOR_SCHEDULE_SLOT_TYPE_VALUES,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
   ManagerInstructorScheduleSession,
   ManagerInstructorScheduleSlotsDetailsData,
-  ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
@@ -116,7 +112,6 @@ export function InstructorScheduleSlotsDetailsPanel({
   const skipNextFetch = useRef(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [entityTypeFilter, setEntityTypeFilter] = useState<string>(FILTER_ALL);
   const [slotTypeFilter, setSlotTypeFilter] = useState<string>(FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
     (PAGE_SIZE_OPTIONS.includes(
@@ -137,14 +132,8 @@ export function InstructorScheduleSlotsDetailsPanel({
         instructor.username?.trim() || "Unknown"
       );
     }
-    for (const workshop of data.workshops) {
-      map.set(
-        `${ENTITY_SCHEDULE_TYPE_WORKSHOP}:${workshop.id}`,
-        workshop.name
-      );
-    }
     return map;
-  }, [data.instructors, data.workshops]);
+  }, [data.instructors]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -164,7 +153,7 @@ export function InstructorScheduleSlotsDetailsPanel({
       void loadInstructorScheduleSlotsPageAction({
         page: currentPage,
         pageSize,
-        entityType: entityTypeFilter,
+        entityType: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
         type: slotTypeFilter,
         search: debouncedSearch,
       }).then((result) => {
@@ -178,13 +167,7 @@ export function InstructorScheduleSlotsDetailsPanel({
     return () => {
       cancelled = true;
     };
-  }, [
-    currentPage,
-    pageSize,
-    entityTypeFilter,
-    slotTypeFilter,
-    debouncedSearch,
-  ]);
+  }, [currentPage, pageSize, slotTypeFilter, debouncedSearch]);
 
   const rows = useMemo<SlotRow[]>(
     () =>
@@ -207,11 +190,6 @@ export function InstructorScheduleSlotsDetailsPanel({
 
   function handleSearchChange(value: string) {
     setSearchQuery(value);
-    setCurrentPage(1);
-  }
-
-  function handleEntityTypeFilterChange(value: string | null) {
-    setEntityTypeFilter(value ?? FILTER_ALL);
     setCurrentPage(1);
   }
 
@@ -250,7 +228,7 @@ export function InstructorScheduleSlotsDetailsPanel({
             Schedule slot details
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Browse all weekly free and busy slots for instructors and workshops.
+            Browse all weekly free and busy slots for instructors.
           </p>
         </div>
         <Link
@@ -279,8 +257,8 @@ export function InstructorScheduleSlotsDetailsPanel({
           accentClassName="border-l-rose-500"
         />
         <UserStatCard
-          label="Instructor / workshop"
-          value={`${stats.instructorSlots} / ${stats.workshopSlots}`}
+          label="Instructor slots"
+          value={stats.instructorSlots}
           accentClassName="border-l-violet-500"
         />
       </div>
@@ -315,25 +293,6 @@ export function InstructorScheduleSlotsDetailsPanel({
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Select
-                value={entityTypeFilter}
-                onValueChange={handleEntityTypeFilterChange}
-              >
-                <SelectTrigger
-                  className="w-full sm:w-44"
-                  aria-label="Filter by entity type"
-                >
-                  <SelectValue placeholder="All entities" />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={FILTER_ALL}>All entities</SelectItem>
-                  {ENTITY_SCHEDULE_TYPE_VALUES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {ENTITY_SCHEDULE_TYPE_LABELS[value as ScheduleEntityType]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
                 value={slotTypeFilter}
                 onValueChange={handleSlotTypeFilterChange}
               >
@@ -360,8 +319,7 @@ export function InstructorScheduleSlotsDetailsPanel({
               <thead>
                 <tr className="border-b bg-muted/40 text-left">
                   <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Entity</th>
-                  <th className="px-4 py-3 font-medium">Entity type</th>
+                  <th className="px-4 py-3 font-medium">Instructor</th>
                   <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Weekday</th>
                   <th className="px-4 py-3 font-medium">Time</th>
@@ -373,7 +331,7 @@ export function InstructorScheduleSlotsDetailsPanel({
                 {rows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={7}
                       className="px-4 py-10 text-center text-muted-foreground"
                     >
                       No schedule slots match your filters.
@@ -390,9 +348,6 @@ export function InstructorScheduleSlotsDetailsPanel({
                       </td>
                       <td className="max-w-[12rem] truncate px-4 py-3">
                         {row.entityLabel}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                        {ENTITY_SCHEDULE_TYPE_LABELS[row.entityType]}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
                         {INSTRUCTOR_SCHEDULE_SLOT_TYPE_LABELS[row.type]}

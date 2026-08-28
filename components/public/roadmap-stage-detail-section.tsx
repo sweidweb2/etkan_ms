@@ -205,23 +205,36 @@ export function RoadmapStageDetailSection({
           {courses.length === 0 ? (
             <div className="mt-4 min-h-32 rounded-2xl border border-dashed border-[#3E3E75]/20 bg-muted/20 px-5 py-8 dark:border-[#C4C4E8]/15">
               <p
-                className="text-sm leading-relaxed text-muted-foreground"
+                className="text-sm leading-relaxed text-muted-foreground text-pretty"
                 suppressHydrationWarning
               >
-                {t("careers.syllabus.empty")}
+                {syllabus?.noteKey
+                  ? t(syllabus.noteKey)
+                  : t("careers.syllabus.empty")}
               </p>
             </div>
           ) : (
-            <ol className="mt-5 flex flex-col gap-3">
-              {courses.map((course) => (
-                <CourseSyllabusCard
-                  key={course.id}
-                  course={course}
-                  open={openCourseIds.has(course.id)}
-                  onToggle={() => toggleCourse(course.id)}
-                />
-              ))}
-            </ol>
+            <>
+              {syllabus?.noteKey ? (
+                <p
+                  className="mt-4 text-sm leading-relaxed text-muted-foreground text-pretty"
+                  suppressHydrationWarning
+                >
+                  {t(syllabus.noteKey)}
+                </p>
+              ) : null}
+
+              <ol className="mt-5 flex flex-col gap-3">
+                {courses.map((course) => (
+                  <CourseSyllabusCard
+                    key={course.id}
+                    course={course}
+                    open={openCourseIds.has(course.id)}
+                    onToggle={() => toggleCourse(course.id)}
+                  />
+                ))}
+              </ol>
+            </>
           )}
         </div>
 

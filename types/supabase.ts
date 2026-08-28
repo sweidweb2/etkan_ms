@@ -791,6 +791,63 @@ export type Database = {
           },
         ]
       }
+      instructor_subject_capability: {
+        Row: {
+          created_at: string
+          id: string
+          instructor_subject_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instructor_subject_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instructor_subject_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instructor_subject_capability_instructor_subject_id_fkey"
+            columns: ["instructor_subject_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_subject_capability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instructor_subjects: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       mentor_subject_capability: {
         Row: {
           created_at: string
@@ -2507,7 +2564,30 @@ export type Database = {
         Args: { p_user_ids: string[]; p_mentor_subject_ids: string[] }
         Returns: number
       }
+      reorder_instructor_subjects: {
+        Args: { p_ordered_ids: string[] }
+        Returns: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "instructor_subjects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      delete_instructor_subject_capability_pairs: {
+        Args: { p_user_ids: string[]; p_instructor_subject_ids: string[] }
+        Returns: number
+      }
       clear_instructor_related_data: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      clear_mentor_related_data: {
         Args: { p_user_id: string }
         Returns: Json
       }

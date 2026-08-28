@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useTransition } from "react";
-import { createMentorSubjectAction } from "@/app/manager/instructors/actions";
+import { createSubjectAction } from "@/app/manager/instructors/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -19,30 +19,37 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
-  createMentorSubjectSchema,
-  type CreateMentorSubjectInput,
-} from "@/lib/validators/manager/create-mentor-subject";
+  SUBJECT_SCOPE_COPY,
+  type SubjectScope,
+} from "@/lib/constants/subject-scope";
+import {
+  createCapabilitySubjectSchema,
+  type CreateCapabilitySubjectInput,
+} from "@/lib/validators/manager/create-capability-subject";
 import type {
-  CreateMentorSubjectActionState,
-  ManagerMentorSubjectColumn,
-} from "@/types/manager-instructor";
+  CreateSubjectActionState,
+  ManagerSubjectColumn,
+} from "@/types/manager-capability-subject";
 
-const initialState: CreateMentorSubjectActionState = {};
+const initialState: CreateSubjectActionState = {};
 
-type AddMentorSubjectDialogProps = {
+type AddSubjectDialogProps = {
+  scope: SubjectScope;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: (subject: ManagerMentorSubjectColumn) => void;
+  onCreated: (subject: ManagerSubjectColumn) => void;
 };
 
-export function AddMentorSubjectDialog({
+export function AddSubjectDialog({
+  scope,
   open,
   onOpenChange,
   onCreated,
-}: AddMentorSubjectDialogProps) {
+}: AddSubjectDialogProps) {
+  const copy = SUBJECT_SCOPE_COPY[scope];
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
-    createMentorSubjectAction,
+    createSubjectAction,
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
@@ -57,7 +64,7 @@ export function AddMentorSubjectDialog({
     reset,
     formState: { errors },
   } = useZodForm({
-    schema: createMentorSubjectSchema,
+    schema: createCapabilitySubjectSchema,
     mode: "onBlur",
     defaultValues: { name: "" },
   });
@@ -70,13 +77,14 @@ export function AddMentorSubjectDialog({
 
   useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
-    if (nextState.mentorSubject) {
-      onCreated(nextState.mentorSubject);
+    if (nextState.subject) {
+      onCreated(nextState.subject);
     }
   });
 
-  function onSubmit(values: CreateMentorSubjectInput) {
+  function onSubmit(values: CreateCapabilitySubjectInput) {
     const formData = new FormData();
+    formData.set("scope", scope);
     formData.set("name", values.name.trim());
     startTransition(() => {
       formAction(formData);
@@ -84,26 +92,24 @@ export function AddMentorSubjectDialog({
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
+  const inputId = `add-${scope}-subject-name`;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Add mentor subject</DialogTitle>
+          <DialogTitle>Add {copy.subjectSingularLower}</DialogTitle>
           <DialogDescription>
-            Create a mentor subject for the instructor capability matrix.
+            Create a {copy.subjectSingularLower} for the {copy.personSingular.toLowerCase()}{" "}
+            capability matrix.
           </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-2">
-            <FieldLabel
-              htmlFor="mentor-subject-name"
-              label="Name"
-              hint="Required"
-            />
+            <FieldLabel htmlFor={inputId} label="Name" hint="Required" />
             <Input
-              id="mentor-subject-name"
+              id={inputId}
               autoComplete="off"
               disabled={isPending}
               aria-invalid={Boolean(nameError)}

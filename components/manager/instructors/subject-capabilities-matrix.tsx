@@ -7,74 +7,87 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
-  loadInstructorCapabilitiesAction,
-  setInstructorCapabilityAction,
+  loadSubjectCapabilitiesAction,
+  setSubjectCapabilityAction,
 } from "@/app/manager/instructors/actions";
+import {
+  SUBJECT_SCOPE_COPY,
+  type SubjectScope,
+} from "@/lib/constants/subject-scope";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import type {
-  ManagerInstructorCapabilityPair,
-  ManagerInstructorRow,
-  ManagerMentorSubjectColumn,
-} from "@/types/manager-instructor";
+  ManagerSubjectCapabilityPair,
+  ManagerSubjectColumn,
+} from "@/types/manager-capability-subject";
 
-export const INSTRUCTOR_CAPABILITIES_QUERY_KEY = [
-  "manager-instructor-capabilities",
-] as const;
-
-function pairKey(userId: string, mentorSubjectId: string) {
-  return `${userId}:${mentorSubjectId}`;
+/** Each scope keeps its own cache entry so the two matrices never share rows. */
+export function subjectCapabilitiesQueryKey(scope: SubjectScope) {
+  return ["manager-subject-capabilities", scope] as const;
 }
 
-function toCapabilitySet(pairs: ManagerInstructorCapabilityPair[]) {
-  return new Set(
-    pairs.map((pair) => pairKey(pair.user_id, pair.mentor_subject_id))
-  );
+function pairKey(userId: string, subjectId: string) {
+  return `${userId}:${subjectId}`;
+}
+
+function toCapabilitySet(pairs: ManagerSubjectCapabilityPair[]) {
+  return new Set(pairs.map((pair) => pairKey(pair.user_id, pair.subject_id)));
 }
 
 type CapabilityToggleVars = {
   user_id: string;
-  mentor_subject_id: string;
+  subject_id: string;
   enabled: boolean;
 };
 
-type InstructorCapabilitiesMatrixProps = {
-  instructors: ManagerInstructorRow[];
-  mentorSubjects: ManagerMentorSubjectColumn[];
-  initialCapabilities: ManagerInstructorCapabilityPair[];
+/** A person row in the matrix (instructor or mentor). */
+export type SubjectCapabilityRow = {
+  id: string;
+  username: string | null;
+  email: string;
+};
+
+type SubjectCapabilitiesMatrixProps = {
+  scope: SubjectScope;
+  rows: SubjectCapabilityRow[];
+  subjects: ManagerSubjectColumn[];
+  initialCapabilities: ManagerSubjectCapabilityPair[];
   canUpdate: boolean;
   disabled?: boolean;
 };
 
 function applyPairState(
-  pairs: ManagerInstructorCapabilityPair[],
+  pairs: ManagerSubjectCapabilityPair[],
   userId: string,
-  mentorSubjectId: string,
+  subjectId: string,
   enabled: boolean
 ) {
-  const key = pairKey(userId, mentorSubjectId);
+  const key = pairKey(userId, subjectId);
   const next = pairs.filter(
-    (pair) => pairKey(pair.user_id, pair.mentor_subject_id) !== key
+    (pair) => pairKey(pair.user_id, pair.subject_id) !== key
   );
   if (enabled) {
-    next.push({ user_id: userId, mentor_subject_id: mentorSubjectId });
+    next.push({ user_id: userId, subject_id: subjectId });
   }
   return next;
 }
 
-export function InstructorCapabilitiesMatrix({
-  instructors,
-  mentorSubjects,
+export function SubjectCapabilitiesMatrix({
+  scope,
+  rows,
+  subjects,
   initialCapabilities,
   canUpdate,
   disabled = false,
-}: InstructorCapabilitiesMatrixProps) {
+}: SubjectCapabilitiesMatrixProps) {
+  const copy = SUBJECT_SCOPE_COPY[scope];
+  const queryKey = useMemo(() => subjectCapabilitiesQueryKey(scope), [scope]);
   const queryClient = useQueryClient();
   const generationByKeyRef = useRef(new Map<string, number>());
   const pendingKeysRef = useRef(new Set<string>());
 
   const { data: capabilityPairs = initialCapabilities } = useQuery({
-    queryKey: INSTRUCTOR_CAPABILITIES_QUERY_KEY,
-    queryFn: () => loadInstructorCapabilitiesAction(),
+    queryKey,
+    queryFn: () => loadSubjectCapabilitiesAction(scope),
     initialData: initialCapabilities,
     staleTime: Infinity,
   });
@@ -95,45 +108,33 @@ export function InstructorCapabilitiesMatrix({
       return;
     }
     syncedInitialKeyRef.current = initialKey;
-    queryClient.setQueryData(
-      INSTRUCTOR_CAPABILITIES_QUERY_KEY,
-      initialCapabilities
-    );
-  }, [initialCapabilities, initialKey, queryClient]);
+    queryClient.setQueryData(queryKey, initialCapabilities);
+  }, [initialCapabilities, initialKey, queryClient, queryKey]);
 
   const toggleMutation = useMutation({
     mutationFn: async (vars: CapabilityToggleVars) => {
-      const result = await setInstructorCapabilityAction(vars);
+      const result = await setSubjectCapabilityAction({ ...vars, scope });
       if (!result.success) {
         throw new Error(result.error || "Unable to update capability.");
       }
       return result;
     },
     onMutate: async (vars) => {
-      const key = pairKey(vars.user_id, vars.mentor_subject_id);
+      const key = pairKey(vars.user_id, vars.subject_id);
       const generation = (generationByKeyRef.current.get(key) ?? 0) + 1;
       generationByKeyRef.current.set(key, generation);
 
-      await queryClient.cancelQueries({
-        queryKey: INSTRUCTOR_CAPABILITIES_QUERY_KEY,
-      });
+      await queryClient.cancelQueries({ queryKey });
 
       const previous =
-        queryClient.getQueryData<ManagerInstructorCapabilityPair[]>(
-          INSTRUCTOR_CAPABILITIES_QUERY_KEY
-        ) ?? [];
+        queryClient.getQueryData<ManagerSubjectCapabilityPair[]>(queryKey) ?? [];
       const previousEnabled = previous.some(
-        (pair) => pairKey(pair.user_id, pair.mentor_subject_id) === key
+        (pair) => pairKey(pair.user_id, pair.subject_id) === key
       );
 
       queryClient.setQueryData(
-        INSTRUCTOR_CAPABILITIES_QUERY_KEY,
-        applyPairState(
-          previous,
-          vars.user_id,
-          vars.mentor_subject_id,
-          vars.enabled
-        )
+        queryKey,
+        applyPairState(previous, vars.user_id, vars.subject_id, vars.enabled)
       );
 
       pendingKeysRef.current.add(key);
@@ -153,15 +154,14 @@ export function InstructorCapabilitiesMatrix({
       const latest = generationByKeyRef.current.get(context.key);
       if (latest === context.generation) {
         const current =
-          queryClient.getQueryData<ManagerInstructorCapabilityPair[]>(
-            INSTRUCTOR_CAPABILITIES_QUERY_KEY
-          ) ?? [];
+          queryClient.getQueryData<ManagerSubjectCapabilityPair[]>(queryKey) ??
+          [];
         queryClient.setQueryData(
-          INSTRUCTOR_CAPABILITIES_QUERY_KEY,
+          queryKey,
           applyPairState(
             current,
             vars.user_id,
-            vars.mentor_subject_id,
+            vars.subject_id,
             context.previousEnabled
           )
         );
@@ -172,7 +172,7 @@ export function InstructorCapabilitiesMatrix({
       );
     },
     onSuccess: (result, _vars, context) => {
-      if (!context || !result.user_id || !result.mentor_subject_id) {
+      if (!context || !result.user_id || !result.subject_id) {
         return;
       }
       if (typeof result.enabled !== "boolean") {
@@ -185,15 +185,13 @@ export function InstructorCapabilitiesMatrix({
       }
 
       const current =
-        queryClient.getQueryData<ManagerInstructorCapabilityPair[]>(
-          INSTRUCTOR_CAPABILITIES_QUERY_KEY
-        ) ?? [];
+        queryClient.getQueryData<ManagerSubjectCapabilityPair[]>(queryKey) ?? [];
       queryClient.setQueryData(
-        INSTRUCTOR_CAPABILITIES_QUERY_KEY,
+        queryKey,
         applyPairState(
           current,
           result.user_id,
-          result.mentor_subject_id,
+          result.subject_id,
           result.enabled
         )
       );
@@ -213,9 +211,7 @@ export function InstructorCapabilitiesMatrix({
 
       if (pendingKeysRef.current.size === 0) {
         queueMicrotask(() => {
-          void queryClient.invalidateQueries({
-            queryKey: INSTRUCTOR_CAPABILITIES_QUERY_KEY,
-          });
+          void queryClient.invalidateQueries({ queryKey });
         });
       }
     },
@@ -227,9 +223,9 @@ export function InstructorCapabilitiesMatrix({
         <thead>
           <tr className="border-b bg-muted/40 text-left">
             <th className="sticky left-0 z-10 min-w-[10rem] bg-muted/40 px-4 py-3 font-medium backdrop-blur">
-              Instructor
+              {copy.personSingular}
             </th>
-            {mentorSubjects.map((subject) => (
+            {subjects.map((subject) => (
               <th
                 key={subject.id}
                 className="min-w-[8rem] max-w-[10rem] px-3 py-3 text-center font-medium"
@@ -241,33 +237,33 @@ export function InstructorCapabilitiesMatrix({
           </tr>
         </thead>
         <tbody>
-          {instructors.length === 0 ? (
+          {rows.length === 0 ? (
             <tr>
               <td
-                colSpan={Math.max(mentorSubjects.length + 1, 2)}
+                colSpan={Math.max(subjects.length + 1, 2)}
                 className="px-4 py-10 text-center text-muted-foreground"
               >
-                Add instructors to edit capabilities.
+                Add {copy.personPluralLower} to edit capabilities.
               </td>
             </tr>
           ) : (
-            instructors.map((instructor) => (
+            rows.map((row) => (
               <tr
-                key={instructor.id}
+                key={row.id}
                 className="border-b last:border-b-0 hover:bg-muted/20"
               >
                 <td className="sticky left-0 z-10 bg-background px-4 py-3 font-medium">
-                  {instructor.username ?? instructor.email}
+                  {row.username ?? row.email}
                 </td>
-                {mentorSubjects.map((subject) => {
-                  const key = pairKey(instructor.id, subject.id);
+                {subjects.map((subject) => {
+                  const key = pairKey(row.id, subject.id);
                   const checked = capabilityKeys.has(key);
 
                   return (
                     <td key={subject.id} className="px-3 py-3 text-center">
                       <input
                         type="checkbox"
-                        aria-label={`${instructor.username ?? instructor.email} — ${subject.name}`}
+                        aria-label={`${row.username ?? row.email} — ${subject.name}`}
                         checked={checked}
                         disabled={disabled || !canUpdate}
                         onChange={(event) => {
@@ -275,8 +271,8 @@ export function InstructorCapabilitiesMatrix({
                             return;
                           }
                           toggleMutation.mutate({
-                            user_id: instructor.id,
-                            mentor_subject_id: subject.id,
+                            user_id: row.id,
+                            subject_id: subject.id,
                             enabled: event.target.checked,
                           });
                         }}
@@ -293,25 +289,24 @@ export function InstructorCapabilitiesMatrix({
   );
 }
 
-export function removeMentorSubjectFromCapabilitiesCache(
+export function removeSubjectFromCapabilitiesCache(
   queryClient: ReturnType<typeof useQueryClient>,
-  mentorSubjectId: string
+  scope: SubjectScope,
+  subjectId: string
 ) {
-  queryClient.setQueryData<ManagerInstructorCapabilityPair[]>(
-    INSTRUCTOR_CAPABILITIES_QUERY_KEY,
-    (current) =>
-      (current ?? []).filter(
-        (pair) => pair.mentor_subject_id !== mentorSubjectId
-      )
+  queryClient.setQueryData<ManagerSubjectCapabilityPair[]>(
+    subjectCapabilitiesQueryKey(scope),
+    (current) => (current ?? []).filter((pair) => pair.subject_id !== subjectId)
   );
 }
 
-export function removeInstructorFromCapabilitiesCache(
+export function removePersonFromCapabilitiesCache(
   queryClient: ReturnType<typeof useQueryClient>,
+  scope: SubjectScope,
   userId: string
 ) {
-  queryClient.setQueryData<ManagerInstructorCapabilityPair[]>(
-    INSTRUCTOR_CAPABILITIES_QUERY_KEY,
+  queryClient.setQueryData<ManagerSubjectCapabilityPair[]>(
+    subjectCapabilitiesQueryKey(scope),
     (current) => (current ?? []).filter((pair) => pair.user_id !== userId)
   );
 }

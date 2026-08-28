@@ -7,10 +7,10 @@ import {
   getSundayWeekBounds,
   projectInstructorSlotDate,
 } from "@/lib/manager/instructor-schedule-calendar";
-import * as mentorSubjectCapabilityRepository from "@/repositories/mentor-subject-capability.repository";
+import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
 import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import * as mentorSubjectRepository from "@/repositories/mentor-subject.repository";
+import * as instructorSubjectRepository from "@/repositories/instructor-subject.repository";
 import * as authorizationService from "@/services/auth/authorization.service";
 import {
   listCapabilityMatrixCatalog,
@@ -19,10 +19,10 @@ import {
   listSubjectsCatalog,
 } from "@/services/schedule/schedule-assistant.service";
 
-vi.mock("@/repositories/mentor-subject-capability.repository");
+vi.mock("@/repositories/instructor-subject-capability.repository");
 vi.mock("@/repositories/instructor-schedule-slot.repository");
 vi.mock("@/repositories/profile.repository");
-vi.mock("@/repositories/mentor-subject.repository");
+vi.mock("@/repositories/instructor-subject.repository");
 vi.mock("@/services/auth/authorization.service", () => ({
   assertPermission: vi.fn().mockResolvedValue(undefined),
 }));
@@ -30,7 +30,7 @@ vi.mock("@/services/auth/authorization.service", () => ({
 const adminClient = {} as never;
 const actorId = "11111111-1111-4111-8111-111111111111";
 const instructorId = "22222222-2222-4222-8222-222222222222";
-const mentorSubjectId = "33333333-3333-4333-8333-333333333333";
+const instructorSubjectId = "33333333-3333-4333-8333-333333333333";
 
 function emptyListResult<T>(data: T[] = []) {
   return {
@@ -89,9 +89,9 @@ describe("schedule-assistant catalog loaders", () => {
   });
 
   it("returns empty subjects catalog", async () => {
-    vi.mocked(mentorSubjectRepository.listMentorSubjects).mockResolvedValue(
-      emptyListResult()
-    );
+    vi.mocked(
+      instructorSubjectRepository.listInstructorSubjects
+    ).mockResolvedValue(emptyListResult());
 
     await expect(listSubjectsCatalog(adminClient, actorId)).resolves.toEqual({
       subjects: [],
@@ -101,10 +101,12 @@ describe("schedule-assistant catalog loaders", () => {
   });
 
   it("builds capability matrix for instructors", async () => {
-    vi.mocked(mentorSubjectRepository.listMentorSubjects).mockResolvedValue(
+    vi.mocked(
+      instructorSubjectRepository.listInstructorSubjects
+    ).mockResolvedValue(
       emptyListResult([
         {
-          id: mentorSubjectId,
+          id: instructorSubjectId,
           name: "Arduino Basics",
           sort_order: 0,
           created_at: "2026-01-01T00:00:00.000Z",
@@ -112,17 +114,18 @@ describe("schedule-assistant catalog loaders", () => {
       ])
     );
     vi.mocked(
-      mentorSubjectCapabilityRepository.listMentorSubjectCapabilitiesByUserIds
-    ).mockResolvedValue(
-      emptyListResult([
+      instructorSubjectCapabilityRepository.listCapabilitiesByUserIds
+    ).mockResolvedValue({
+      data: [
         {
           id: "c1",
           user_id: instructorId,
-          mentor_subject_id: mentorSubjectId,
+          subject_id: instructorSubjectId,
           created_at: "2026-01-01T00:00:00.000Z",
         },
-      ])
-    );
+      ],
+      error: null,
+    });
     vi.mocked(profileRepository.listInstructorProfiles).mockResolvedValue(
       emptyListResult([
         {
@@ -140,7 +143,7 @@ describe("schedule-assistant catalog loaders", () => {
     expect(result.truncated).toBe(false);
     expect(result.total).toBe(1);
     expect(
-      mentorSubjectCapabilityRepository.listMentorSubjectCapabilitiesByUserIds
+      instructorSubjectCapabilityRepository.listCapabilitiesByUserIds
     ).toHaveBeenCalledWith(adminClient, [instructorId]);
   });
 

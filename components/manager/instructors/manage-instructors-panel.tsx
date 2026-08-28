@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useActionState,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -17,15 +12,24 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { removeInstructorAction } from "@/app/manager/instructors/actions";
+import {
+  Tabs as TabsPrimitive,
+  TabsContent as TabsContentPrimitive,
+  TabsContents as TabsContentsPrimitive,
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { AddInstructorsDialog } from "@/components/manager/instructors/add-instructors-dialog";
 import {
-  InstructorCapabilitiesMatrix,
-  removeInstructorFromCapabilitiesCache,
-  removeMentorSubjectFromCapabilitiesCache,
-} from "@/components/manager/instructors/instructor-capabilities-matrix";
-import { MentorSubjectsSection } from "@/components/manager/instructors/mentor-subjects-section";
+  SubjectCapabilitiesMatrix,
+  removePersonFromCapabilitiesCache,
+  removeSubjectFromCapabilitiesCache,
+} from "@/components/manager/instructors/subject-capabilities-matrix";
+import { MentorSubjectsPanel } from "@/components/manager/instructors/mentor-subjects-panel";
+import { SubjectCatalogSection } from "@/components/manager/instructors/subject-catalog-section";
+import { MentorsSection } from "@/components/manager/instructors/mentors-section";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -50,66 +54,65 @@ import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
+import { SUBJECT_SCOPES } from "@/lib/constants/subject-scope";
+import { getPageNumbers } from "@/lib/pagination/page-numbers";
 import { cn } from "@/lib/utils";
+import type { ManagerMentorRow } from "@/types/manager-mentor";
 import type {
   ManagerInstructorRow,
   ManagerInstructorsPageData,
-  ManagerMentorSubjectColumn,
   RemoveInstructorActionState,
 } from "@/types/manager-instructor";
+import type { ManagerSubjectColumn } from "@/types/manager-capability-subject";
 
 const PAGE_SIZE_OPTIONS = [4, 5, 10, 25] as const;
 
 const initialRemoveState: RemoveInstructorActionState = {};
 
-function getPageNumbers(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
+const TAB_TRIGGER_CLASS = cn(
+  "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm",
+  "border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/80 hover:text-foreground hover:shadow-sm",
+  "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md",
+  "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+);
 
-  const pages = new Set<number>([1, totalPages, currentPage]);
-
-  for (let offset = -1; offset <= 1; offset += 1) {
-    const page = currentPage + offset;
-    if (page > 1 && page < totalPages) {
-      pages.add(page);
-    }
-  }
-
-  const sortedPages = [...pages].sort((a, b) => a - b);
-  const result: Array<number | "ellipsis"> = [];
-
-  sortedPages.forEach((page, index) => {
-    const previousPage = sortedPages[index - 1];
-    if (previousPage !== undefined && page - previousPage > 1) {
-      result.push("ellipsis");
-    }
-    result.push(page);
-  });
-
-  return result;
-}
+const TABS = {
+  INSTRUCTORS: "instructors",
+  MENTORS: "mentors",
+} as const;
 
 type ManageInstructorsPanelProps = {
   data: ManagerInstructorsPageData;
+  mentors: ManagerMentorRow[];
 };
 
-export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
+export function ManageInstructorsPanel({
+  data,
+  mentors: mentorsProp,
+}: ManageInstructorsPanelProps) {
   const permissions = usePermissions();
   const queryClient = useQueryClient();
   const [instructors, setInstructors] = useState(data.instructors);
   const [candidateUsers, setCandidateUsers] = useState(data.candidateUsers);
-  const [mentorSubjects, setMentorSubjects] = useState(data.mentorSubjects);
+  const [instructorSubjects, setInstructorSubjects] = useState(data.subjects);
+  const [mentors, setMentors] = useState(mentorsProp);
+  const mentorsKey = mentorsProp.map((row) => row.id).join("|");
+  const [syncedMentorsKey, setSyncedMentorsKey] = useState(mentorsKey);
+
+  if (mentorsKey !== syncedMentorsKey) {
+    setSyncedMentorsKey(mentorsKey);
+    setMentors(mentorsProp);
+  }
+
   const instructorsKey = data.instructors.map((row) => row.id).join("|");
   const candidatesKey = data.candidateUsers.map((row) => row.id).join("|");
-  const mentorSubjectsKey = data.mentorSubjects
+  const subjectsKey = data.subjects
     .map((row) => `${row.id}:${row.name}:${row.sort_order}`)
     .join("|");
   const [syncedInstructorsKey, setSyncedInstructorsKey] =
     useState(instructorsKey);
   const [syncedCandidatesKey, setSyncedCandidatesKey] = useState(candidatesKey);
-  const [syncedMentorSubjectsKey, setSyncedMentorSubjectsKey] =
-    useState(mentorSubjectsKey);
+  const [syncedSubjectsKey, setSyncedSubjectsKey] = useState(subjectsKey);
 
   if (instructorsKey !== syncedInstructorsKey) {
     setSyncedInstructorsKey(instructorsKey);
@@ -121,23 +124,29 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
     setCandidateUsers(data.candidateUsers);
   }
 
-  if (mentorSubjectsKey !== syncedMentorSubjectsKey) {
-    setSyncedMentorSubjectsKey(mentorSubjectsKey);
-    setMentorSubjects(data.mentorSubjects);
+  if (subjectsKey !== syncedSubjectsKey) {
+    setSyncedSubjectsKey(subjectsKey);
+    setInstructorSubjects(data.subjects);
   }
 
   const canUpdateCapabilities = hasPermissionInSet(
     permissions,
     PERMISSIONS.INSTRUCTORS_CAPABILITIES_UPDATE
   );
+  const canViewMentors = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.MENTORS_VIEW
+  );
+  const [activeTab, setActiveTab] = useState<string>(TABS.INSTRUCTORS);
+  // Mentor catalog + matrix stay unfetched until the tab is first opened.
+  const [hasOpenedMentorsTab, setHasOpenedMentorsTab] = useState(false);
 
   const [removeTarget, setRemoveTarget] = useState<ManagerInstructorRow | null>(
     null
   );
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    4
-  );
+  const [pageSize, setPageSize] =
+    useState<(typeof PAGE_SIZE_OPTIONS)[number]>(4);
   const [currentPage, setCurrentPage] = useState(1);
   const [isRemoveTransitionPending, startRemoveTransition] = useTransition();
   const [removeState, removeFormAction, isRemoveActionPending] = useActionState(
@@ -162,9 +171,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
         current.filter((row) => row.id !== nextState.userId)
       );
       setCandidateUsers((current) => {
-        const removed = instructors.find(
-          (row) => row.id === nextState.userId
-        );
+        const removed = instructors.find((row) => row.id === nextState.userId);
         if (!removed) {
           return current;
         }
@@ -178,7 +185,11 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
           },
         ];
       });
-      removeInstructorFromCapabilitiesCache(queryClient, nextState.userId);
+      removePersonFromCapabilitiesCache(
+        queryClient,
+        SUBJECT_SCOPES.INSTRUCTOR,
+        nextState.userId
+      );
     }
     setRemoveTarget(null);
   });
@@ -216,9 +227,9 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
     });
   }
 
-  function handleMentorSubjectsChange(next: ManagerMentorSubjectColumn[]) {
+  function handleInstructorSubjectsChange(next: ManagerSubjectColumn[]) {
     const seen = new Set<string>();
-    const unique: ManagerMentorSubjectColumn[] = [];
+    const unique: ManagerSubjectColumn[] = [];
     for (const row of next) {
       if (seen.has(row.id)) {
         continue;
@@ -226,11 +237,22 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
       seen.add(row.id);
       unique.push(row);
     }
-    setMentorSubjects(unique);
+    setInstructorSubjects(unique);
   }
 
-  function handleMentorSubjectDeleted(mentorSubjectId: string) {
-    removeMentorSubjectFromCapabilitiesCache(queryClient, mentorSubjectId);
+  function handleInstructorSubjectDeleted(subjectId: string) {
+    removeSubjectFromCapabilitiesCache(
+      queryClient,
+      SUBJECT_SCOPES.INSTRUCTOR,
+      subjectId
+    );
+  }
+
+  function handleTabChange(value: string) {
+    if (value === TABS.MENTORS) {
+      setHasOpenedMentorsTab(true);
+    }
+    setActiveTab(value);
   }
 
   return (
@@ -241,7 +263,8 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
             Manage instructors
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Users marked as instructors and the mentor subjects they can teach.
+            Users marked as instructors and the instructor subjects they can
+            teach.
           </p>
         </div>
         <Can permission={PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW}>
@@ -255,193 +278,250 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
         </Can>
       </div>
 
-      <section className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">
-              Instructors
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Users with the instructor flag enabled.
-            </p>
-          </div>
-
-          <Can permission={PERMISSIONS.INSTRUCTORS_CREATE}>
-            <Button
-              type="button"
-              className="shrink-0"
-              disabled={isRemovePending}
-              onClick={() => setIsAddOpen(true)}
+      <TabsPrimitive
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex flex-col gap-6"
+      >
+        <TabsListPrimitive className="mx-auto flex h-auto w-full flex-wrap items-center justify-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+          <TabsTriggerPrimitive
+            value={TABS.INSTRUCTORS}
+            className={TAB_TRIGGER_CLASS}
+          >
+            Instructors
+          </TabsTriggerPrimitive>
+          {canViewMentors ? (
+            <TabsTriggerPrimitive
+              value={TABS.MENTORS}
+              className={TAB_TRIGGER_CLASS}
             >
-              <PlusIcon data-icon="inline-start" />
-              Add instructors
-            </Button>
-          </Can>
-        </div>
+              Mentors
+            </TabsTriggerPrimitive>
+          ) : null}
+        </TabsListPrimitive>
 
-        <div className="overflow-hidden rounded-xl border">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Username</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Role</th>
-                  <th className="px-4 py-3 font-medium">Added</th>
-                  <th className="px-4 py-3 font-medium">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedInstructors.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No instructors yet. Add users to get started.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedInstructors.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b last:border-b-0 hover:bg-muted/20"
-                    >
-                      <td className="px-4 py-3 font-medium">
-                        {row.username ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.email || "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <UserRoleBadge role={row.role} />
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {format(new Date(row.created_at), "MMM d, yyyy")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Can permission={PERMISSIONS.INSTRUCTORS_DELETE}>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={isRemovePending}
-                            onClick={() => setRemoveTarget(row)}
-                            aria-label={`Remove ${row.username ?? row.email}`}
-                          >
-                            <Trash2Icon />
-                          </Button>
-                        </Can>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <TabsContentsPrimitive>
+          <TabsContentPrimitive
+            value={TABS.INSTRUCTORS}
+            className="flex flex-col gap-6"
+          >
+            <section className="space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight">
+                    Instructors
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Users with the instructor flag enabled.
+                  </p>
+                </div>
 
-          <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Showing {rangeStart}–{rangeEnd} of {instructors.length}
-              </span>
-              <Select
-                value={String(pageSize)}
-                onValueChange={handlePageSizeChange}
-              >
-                <SelectTrigger className="h-8 w-[4.5rem]" size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAGE_SIZE_OPTIONS.map((size) => (
-                    <SelectItem key={size} value={String(size)}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={safeCurrentPage <= 1}
-                onClick={() => setCurrentPage((page) => page - 1)}
-                aria-label="Previous page"
-              >
-                <ChevronLeftIcon />
-              </Button>
-              {pageNumbers.map((page, index) =>
-                page === "ellipsis" ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="px-1 text-muted-foreground"
-                  >
-                    …
-                  </span>
-                ) : (
+                <Can permission={PERMISSIONS.INSTRUCTORS_CREATE}>
                   <Button
-                    key={page}
                     type="button"
-                    variant={page === safeCurrentPage ? "default" : "outline"}
-                    size="icon-sm"
-                    onClick={() => setCurrentPage(page)}
+                    className="shrink-0"
+                    disabled={isRemovePending}
+                    onClick={() => setIsAddOpen(true)}
                   >
-                    {page}
+                    <PlusIcon data-icon="inline-start" />
+                    Add instructors
                   </Button>
-                )
+                </Can>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/40 text-left">
+                        <th className="px-4 py-3 font-medium">Username</th>
+                        <th className="px-4 py-3 font-medium">Email</th>
+                        <th className="px-4 py-3 font-medium">Role</th>
+                        <th className="px-4 py-3 font-medium">Added</th>
+                        <th className="px-4 py-3 font-medium">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedInstructors.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="px-4 py-10 text-center text-muted-foreground"
+                          >
+                            No instructors yet. Add users to get started.
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedInstructors.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-b last:border-b-0 hover:bg-muted/20"
+                          >
+                            <td className="px-4 py-3 font-medium">
+                              {row.username ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {row.email || "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <UserRoleBadge role={row.role} />
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {format(new Date(row.created_at), "MMM d, yyyy")}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Can permission={PERMISSIONS.INSTRUCTORS_DELETE}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  disabled={isRemovePending}
+                                  onClick={() => setRemoveTarget(row)}
+                                  aria-label={`Remove ${row.username ?? row.email}`}
+                                >
+                                  <Trash2Icon />
+                                </Button>
+                              </Can>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>
+                      Showing {rangeStart}–{rangeEnd} of {instructors.length}
+                    </span>
+                    <Select
+                      value={String(pageSize)}
+                      onValueChange={handlePageSizeChange}
+                    >
+                      <SelectTrigger className="h-8 w-[4.5rem]" size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAGE_SIZE_OPTIONS.map((size) => (
+                          <SelectItem key={size} value={String(size)}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={safeCurrentPage <= 1}
+                      onClick={() => setCurrentPage((page) => page - 1)}
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeftIcon />
+                    </Button>
+                    {pageNumbers.map((page, index) =>
+                      page === "ellipsis" ? (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="px-1 text-muted-foreground"
+                        >
+                          …
+                        </span>
+                      ) : (
+                        <Button
+                          key={page}
+                          type="button"
+                          variant={
+                            page === safeCurrentPage ? "default" : "outline"
+                          }
+                          size="icon-sm"
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={safeCurrentPage >= totalPages}
+                      onClick={() => setCurrentPage((page) => page + 1)}
+                      aria-label="Next page"
+                    >
+                      <ChevronRightIcon />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <SubjectCatalogSection
+              scope={SUBJECT_SCOPES.INSTRUCTOR}
+              subjects={instructorSubjects}
+              onSubjectsChange={handleInstructorSubjectsChange}
+              onSubjectDeleted={handleInstructorSubjectDeleted}
+              busy={isRemovePending}
+            />
+
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Instructor subject capabilities
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Toggle which instructor subjects each instructor can teach.
+                  Changes save immediately.
+                </p>
+              </div>
+
+              {instructorSubjects.length === 0 ? (
+                <div className="rounded-xl border px-4 py-10 text-center text-sm text-muted-foreground">
+                  Create an instructor subject first.
+                </div>
+              ) : (
+                <SubjectCapabilitiesMatrix
+                  scope={SUBJECT_SCOPES.INSTRUCTOR}
+                  rows={instructors}
+                  subjects={instructorSubjects}
+                  initialCapabilities={data.capabilities}
+                  canUpdate={canUpdateCapabilities}
+                  disabled={isRemovePending}
+                />
               )}
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                disabled={safeCurrentPage >= totalPages}
-                onClick={() => setCurrentPage((page) => page + 1)}
-                aria-label="Next page"
-              >
-                <ChevronRightIcon />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+            </section>
+          </TabsContentPrimitive>
 
-      <MentorSubjectsSection
-        mentorSubjects={mentorSubjects}
-        onMentorSubjectsChange={handleMentorSubjectsChange}
-        onMentorSubjectDeleted={handleMentorSubjectDeleted}
-        busy={isRemovePending}
-      />
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">
-            Mentor subject capabilities
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Toggle which mentor subjects each instructor can teach. Changes save
-            immediately.
-          </p>
-        </div>
-
-        {mentorSubjects.length === 0 ? (
-          <div className="rounded-xl border px-4 py-10 text-center text-sm text-muted-foreground">
-            Create a mentor subject first.
-          </div>
-        ) : (
-          <InstructorCapabilitiesMatrix
-            instructors={instructors}
-            mentorSubjects={mentorSubjects}
-            initialCapabilities={data.capabilities}
-            canUpdate={canUpdateCapabilities}
-            disabled={isRemovePending}
-          />
-        )}
-      </section>
+          {canViewMentors ? (
+            <TabsContentPrimitive
+              value={TABS.MENTORS}
+              className="flex flex-col gap-6"
+            >
+              <MentorsSection
+                mentors={mentors}
+                onMentorsChange={setMentors}
+                onMentorRemoved={(userId) => {
+                  removePersonFromCapabilitiesCache(
+                    queryClient,
+                    SUBJECT_SCOPES.MENTOR,
+                    userId
+                  );
+                }}
+              />
+              <MentorSubjectsPanel
+                mentors={mentors}
+                enabled={hasOpenedMentorsTab}
+              />
+            </TabsContentPrimitive>
+          ) : null}
+        </TabsContentsPrimitive>
+      </TabsPrimitive>
 
       <AddInstructorsDialog
         open={isAddOpen}
@@ -472,7 +552,7 @@ export function ManageInstructorsPanel({ data }: ManageInstructorsPanelProps) {
           <DialogHeader>
             <DialogTitle>Remove instructor</DialogTitle>
             <DialogDescription>
-              This clears all mentor subject capabilities for{" "}
+              This clears all instructor subject capabilities for{" "}
               {removeTarget?.username ?? removeTarget?.email ?? "this user"} and
               turns off their instructor flag. Their account stays intact.
             </DialogDescription>

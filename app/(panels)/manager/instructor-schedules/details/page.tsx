@@ -3,13 +3,13 @@ import { InstructorScheduleSlotsDetailsPanel } from "@/components/manager/instru
 import { getSessionUser } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { ENTITY_SCHEDULE_TYPE_INSTRUCTOR } from "@/lib/validators/manager/instructor-schedule-slot";
 import { getInstructorScheduleSlotsDetailsForManager } from "@/services/schedule/instructor-schedule-slot.service";
 
 type ManagerInstructorScheduleSlotsDetailsPageProps = {
   searchParams: Promise<{
     page?: string;
     pageSize?: string;
-    entityType?: string;
     type?: string;
     q?: string;
   }>;
@@ -35,7 +35,7 @@ export default async function ManagerInstructorScheduleSlotsDetailsPage({
     {
       page,
       pageSize,
-      entityType: params.entityType,
+      entityType: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
       type: params.type,
       search: params.q,
     }

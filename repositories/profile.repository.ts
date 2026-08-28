@@ -94,6 +94,19 @@ export async function updateProfileInstructorFlag(
     .single();
 }
 
+export async function updateProfileMentorFlag(
+  client: Supabase,
+  id: string,
+  isMentor: boolean
+) {
+  return client
+    .from("profiles")
+    .update({ is_mentor: isMentor })
+    .eq("id", id)
+    .select(PROFILE_COLUMNS)
+    .single();
+}
+
 export type ListProfilesOptions = {
   roles?: RoleValue[];
   search?: string;
@@ -138,6 +151,42 @@ export async function listNonInstructorProfiles(client: Supabase) {
     .select(PROFILE_COLUMNS)
     .eq("is_instructor", false)
     .order("username", { ascending: true });
+}
+
+export async function listMentorProfiles(client: Supabase) {
+  return client
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("is_mentor", true)
+    .order("username", { ascending: true });
+}
+
+export async function listMentorProfileIds(client: Supabase) {
+  return client.from("profiles").select("id").eq("is_mentor", true);
+}
+
+export async function listNonMentorProfiles(client: Supabase) {
+  return client
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("is_mentor", false)
+    .order("username", { ascending: true });
+}
+
+export async function setProfilesMentorFlag(
+  client: Supabase,
+  ids: string[],
+  isMentor: boolean
+) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client
+    .from("profiles")
+    .update({ is_mentor: isMentor })
+    .in("id", ids)
+    .select(PROFILE_COLUMNS);
 }
 
 export async function setProfilesInstructorFlag(

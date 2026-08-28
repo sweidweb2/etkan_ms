@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { PUBLIC_CONTENT_CACHE_TAGS } from "@/lib/cache/public-content-cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { parseBulkGalleryImagesJson } from "@/lib/validators/manager/bulk-create-gallery-images";
 import { createGalleryImageSchema } from "@/lib/validators/manager/create-gallery-image";
 import { updateGalleryImageSchema } from "@/lib/validators/manager/update-gallery-image";
 import * as galleryImageRepository from "@/repositories/gallery-image.repository";
@@ -36,6 +37,21 @@ export type CreateGalleryImageFailure = {
 export type CreateGalleryImageResult =
   | CreateGalleryImageSuccess
   | CreateGalleryImageFailure;
+
+export type BulkCreateGalleryImagesSuccess = {
+  success: true;
+  images: ManagerGalleryImageRow[];
+  message: string;
+};
+
+export type BulkCreateGalleryImagesFailure = {
+  success: false;
+  error: string;
+};
+
+export type BulkCreateGalleryImagesResult =
+  | BulkCreateGalleryImagesSuccess
+  | BulkCreateGalleryImagesFailure;
 
 export type UpdateGalleryImageSuccess = {
   success: true;
@@ -201,6 +217,77 @@ export async function createGalleryImageForManager(
     image: mapGalleryImageRecordToRow(data),
     message: "Gallery image created.",
   };
+}
+
+export async function createGalleryImagesBulkForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  rawJson: string
+): Promise<BulkCreateGalleryImagesResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.GALLERY_CREATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = parseBulkGalleryImagesJson(rawJson);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error };
+  }
+
+  const seenUrls = new Set<string>();
+  const rows: Array<{ name: string; direct_url: string }> = [];
+
+  for (const record of parsed.data) {
+    const directUrl = record.direct_url.trim();
+    if (seenUrls.has(directUrl)) {
+      continue;
+    }
+    seenUrls.add(directUrl);
+    rows.push({ name: record.name.trim(), direct_url: directUrl });
+  }
+
+  const { data, error } = await galleryImageRepository.bulkInsertGalleryImages(
+    adminClient,
+    rows
+  );
+
+  if (error) {
+    return {
+      success: false,
+      error: mapCreateGalleryImageError(error.message),
+    };
+  }
+
+  const images = (data ?? []).map(mapGalleryImageRecordToRow);
+  const skipped = parsed.data.length - images.length;
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "gallery_images",
+    new_data: {
+      direct_urls: images.map((image) => image.direct_url),
+    },
+    metadata: {
+      note: "Gallery images imported from JSON.",
+      requested: parsed.data.length,
+      inserted: images.length,
+      skipped,
+    },
+  });
+
+  const message =
+    skipped > 0
+      ? `Imported ${images.length} images (${skipped} skipped as duplicates).`
+      : `Imported ${images.length} images.`;
+
+  return { success: true, images, message };
 }
 
 export async function updateGalleryImageForManager(

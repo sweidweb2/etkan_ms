@@ -2,35 +2,71 @@
 
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { revalidateManagerScheduleInstructors } from "@/lib/cache/instructor-schedule-cache";
-import { revalidateManagerInstructorsList, revalidateManagerUsersList } from "@/lib/cache/manager-list-cache";
+import {
+  revalidateManagerInstructorsList,
+  revalidateManagerMentorSubjects,
+  revalidateManagerMentorsList,
+  revalidateManagerUsersList,
+} from "@/lib/cache/manager-list-cache";
+import {
+  SUBJECT_SCOPES,
+  isSubjectScope,
+  type SubjectScope,
+} from "@/lib/constants/subject-scope";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseAddInstructorsFormData } from "@/lib/validators/manager/add-instructors";
-import { parseCreateMentorSubjectFormData } from "@/lib/validators/manager/create-mentor-subject";
-import { parseSaveMentorSubjectOrderFormData } from "@/lib/validators/manager/save-mentor-subject-order";
-import { parseSetInstructorCapabilityInput } from "@/lib/validators/manager/set-instructor-capability";
-import { parseUpdateMentorSubjectFormData } from "@/lib/validators/manager/update-mentor-subject";
+import { parseAddMentorsFormData } from "@/lib/validators/manager/add-mentors";
+import { parseCreateCapabilitySubjectFormData } from "@/lib/validators/manager/create-capability-subject";
+import { parseSaveCapabilitySubjectOrderFormData } from "@/lib/validators/manager/save-capability-subject-order";
+import { parseSetSubjectCapabilityInput } from "@/lib/validators/manager/set-subject-capability";
+import { parseUpdateCapabilitySubjectFormData } from "@/lib/validators/manager/update-capability-subject";
 import {
   addInstructorsForManager,
-  createMentorSubjectForManager,
-  deleteMentorSubjectForManager,
-  listInstructorCapabilitiesForManager,
   listInstructorCandidatesForManager,
   removeInstructorForManager,
-  saveMentorSubjectOrderForManager,
-  setInstructorCapabilityForManager,
-  updateMentorSubjectForManager,
 } from "@/services/instructors/instructor.service";
+import {
+  addMentorsForManager,
+  getMentorSubjectsPageForManager,
+  listMentorCandidatesForManager,
+  removeMentorForManager,
+} from "@/services/mentors/mentor.service";
+import {
+  createSubjectForManager,
+  deleteSubjectForManager,
+  listSubjectCapabilitiesForManager,
+  saveSubjectOrderForManager,
+  setSubjectCapabilityForManager,
+  updateSubjectForManager,
+} from "@/services/subjects/subject-catalog.service";
+import type {
+  AddMentorsActionState,
+  ManagerMentorCandidateRow,
+  RemoveMentorActionState,
+} from "@/types/manager-mentor";
 import type {
   AddInstructorsActionState,
-  CreateMentorSubjectActionState,
-  DeleteMentorSubjectActionState,
   ManagerInstructorCandidateRow,
-  ManagerInstructorCapabilityPair,
   RemoveInstructorActionState,
-  SaveMentorSubjectOrderActionState,
-  SetInstructorCapabilityResult,
-  UpdateMentorSubjectActionState,
 } from "@/types/manager-instructor";
+import type {
+  CreateSubjectActionState,
+  DeleteSubjectActionState,
+  ManagerSubjectCapabilityPair,
+  ManagerSubjectScopeData,
+  SaveSubjectOrderActionState,
+  SetSubjectCapabilityResult,
+  UpdateSubjectActionState,
+} from "@/types/manager-capability-subject";
+
+/** Subject mutations only invalidate their own scope's cache. */
+function revalidateSubjectScope(scope: SubjectScope): void {
+  if (scope === SUBJECT_SCOPES.MENTOR) {
+    revalidateManagerMentorSubjects();
+    return;
+  }
+  revalidateManagerInstructorsList();
+}
 
 export async function loadInstructorCandidatesAction(): Promise<
   ManagerInstructorCandidateRow[]
@@ -48,60 +84,83 @@ export async function loadInstructorCandidatesAction(): Promise<
   }
 }
 
-export async function loadInstructorCapabilitiesAction(): Promise<
-  ManagerInstructorCapabilityPair[]
-> {
+export async function loadSubjectCapabilitiesAction(
+  scope: SubjectScope
+): Promise<ManagerSubjectCapabilityPair[]> {
   const actor = await getSessionAuditActor();
-  if (!actor.userId) {
+  if (!actor.userId || !isSubjectScope(scope)) {
     return [];
   }
 
   const adminClient = createSupabaseAdminClient();
   try {
-    return await listInstructorCapabilitiesForManager(adminClient, actor.userId);
+    return await listSubjectCapabilitiesForManager(
+      adminClient,
+      actor.userId,
+      scope
+    );
   } catch {
     return [];
   }
 }
 
-export async function setInstructorCapabilityAction(
-  input: unknown
-): Promise<SetInstructorCapabilityResult> {
+/** Lazy payload for the Mentors tab (catalog + matrix), fetched on first switch. */
+export async function loadMentorSubjectsPageAction(): Promise<ManagerSubjectScopeData | null> {
   const actor = await getSessionAuditActor();
-  const parsed = parseSetInstructorCapabilityInput(input);
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await getMentorSubjectsPageForManager(adminClient, actor.userId);
+  } catch {
+    return null;
+  }
+}
+
+export async function setSubjectCapabilityAction(
+  input: unknown
+): Promise<SetSubjectCapabilityResult> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseSetSubjectCapabilityInput(input);
 
   if (!parsed.success) {
     return { success: false, error: parsed.error };
   }
 
+  const { scope, ...capability } = parsed.data;
+
   const adminClient = createSupabaseAdminClient();
-  const result = await setInstructorCapabilityForManager(
+  const result = await setSubjectCapabilityForManager(
     adminClient,
     actor.userId,
-    parsed.data
+    scope,
+    capability
   );
 
   if (!result.success) {
     return { success: false, error: result.error };
   }
 
-  revalidateManagerInstructorsList();
+  revalidateSubjectScope(scope);
 
   return {
     success: true,
     message: result.message,
+    scope,
     user_id: result.user_id,
-    mentor_subject_id: result.mentor_subject_id,
+    subject_id: result.subject_id,
     enabled: result.enabled,
   };
 }
 
-export async function createMentorSubjectAction(
-  _prevState: CreateMentorSubjectActionState,
+export async function createSubjectAction(
+  _prevState: CreateSubjectActionState,
   formData: FormData
-): Promise<CreateMentorSubjectActionState> {
+): Promise<CreateSubjectActionState> {
   const actor = await getSessionAuditActor();
-  const parsed = parseCreateMentorSubjectFormData(formData);
+  const parsed = parseCreateCapabilitySubjectFormData(formData);
 
   if (!parsed.success) {
     return {
@@ -112,9 +171,10 @@ export async function createMentorSubjectAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await createMentorSubjectForManager(
+  const result = await createSubjectForManager(
     adminClient,
     actor.userId,
+    parsed.scope,
     parsed.data
   );
 
@@ -126,21 +186,21 @@ export async function createMentorSubjectAction(
     };
   }
 
-  revalidateManagerInstructorsList();
+  revalidateSubjectScope(parsed.scope);
 
   return {
     success: true,
     message: result.message,
-    mentorSubject: result.mentorSubject,
+    subject: result.subject,
   };
 }
 
-export async function updateMentorSubjectAction(
-  _prevState: UpdateMentorSubjectActionState,
+export async function updateSubjectAction(
+  _prevState: UpdateSubjectActionState,
   formData: FormData
-): Promise<UpdateMentorSubjectActionState> {
+): Promise<UpdateSubjectActionState> {
   const actor = await getSessionAuditActor();
-  const parsed = parseUpdateMentorSubjectFormData(formData);
+  const parsed = parseUpdateCapabilitySubjectFormData(formData);
 
   if (!parsed.success) {
     return {
@@ -151,9 +211,10 @@ export async function updateMentorSubjectAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await updateMentorSubjectForManager(
+  const result = await updateSubjectForManager(
     adminClient,
     actor.userId,
+    parsed.scope,
     parsed.data
   );
 
@@ -165,61 +226,67 @@ export async function updateMentorSubjectAction(
     };
   }
 
-  revalidateManagerInstructorsList();
+  revalidateSubjectScope(parsed.scope);
 
   return {
     success: true,
     message: result.message,
-    mentorSubject: result.mentorSubject,
+    subject: result.subject,
   };
 }
 
-export async function deleteMentorSubjectAction(
-  _prevState: DeleteMentorSubjectActionState,
+export async function deleteSubjectAction(
+  _prevState: DeleteSubjectActionState,
   formData: FormData
-): Promise<DeleteMentorSubjectActionState> {
+): Promise<DeleteSubjectActionState> {
   const actor = await getSessionAuditActor();
-  const mentorSubjectId = String(formData.get("id") ?? "").trim();
+  const scope = formData.get("scope");
+  const subjectId = String(formData.get("id") ?? "").trim();
 
-  if (!mentorSubjectId) {
-    return { success: false, error: "Mentor subject not found." };
+  if (!isSubjectScope(scope)) {
+    return { success: false, error: "Invalid subject scope." };
+  }
+  if (!subjectId) {
+    return { success: false, error: "Subject not found." };
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await deleteMentorSubjectForManager(
+  const result = await deleteSubjectForManager(
     adminClient,
     actor.userId,
-    mentorSubjectId
+    scope,
+    subjectId
   );
 
   if (!result.success) {
     return { success: false, error: result.error };
   }
 
-  revalidateManagerInstructorsList();
+  revalidateSubjectScope(scope);
 
   return {
     success: true,
     message: result.message,
-    mentorSubjectId: result.mentorSubjectId,
+    subjectId: result.subjectId,
   };
 }
 
-export async function saveMentorSubjectOrderAction(
-  _prevState: SaveMentorSubjectOrderActionState,
+export async function saveSubjectOrderAction(
+  _prevState: SaveSubjectOrderActionState,
   formData: FormData
-): Promise<SaveMentorSubjectOrderActionState> {
+): Promise<SaveSubjectOrderActionState> {
   const actor = await getSessionAuditActor();
-  const parsed = parseSaveMentorSubjectOrderFormData(formData);
+  const parsed = parseSaveCapabilitySubjectOrderFormData(formData);
 
   if (!parsed.success) {
     return { success: false, error: parsed.error };
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await saveMentorSubjectOrderForManager(
+  const result = await saveSubjectOrderForManager(
     adminClient,
     actor.userId,
+    parsed.scope,
     parsed.data
   );
 
@@ -227,12 +294,12 @@ export async function saveMentorSubjectOrderAction(
     return { success: false, error: result.error };
   }
 
-  revalidateManagerInstructorsList();
+  revalidateSubjectScope(parsed.scope);
 
   return {
     success: true,
     message: result.message,
-    mentorSubjects: result.mentorSubjects,
+    subjects: result.subjects,
   };
 }
 
@@ -266,6 +333,86 @@ export async function removeInstructorAction(
     success: true,
     message: result.message,
     userId: result.userId,
+  };
+}
+
+export async function loadMentorCandidatesAction(): Promise<
+  ManagerMentorCandidateRow[]
+> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listMentorCandidatesForManager(adminClient, actor.userId);
+  } catch {
+    return [];
+  }
+}
+
+export async function removeMentorAction(
+  _prevState: RemoveMentorActionState,
+  formData: FormData
+): Promise<RemoveMentorActionState> {
+  const actor = await getSessionAuditActor();
+  const userId = String(formData.get("userId") ?? "").trim();
+
+  if (!userId) {
+    return { success: false, error: "Mentor not found." };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await removeMentorForManager(
+    adminClient,
+    actor.userId,
+    userId
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidateManagerMentorsList();
+  revalidateManagerUsersList();
+
+  return {
+    success: true,
+    message: result.message,
+    userId: result.userId,
+  };
+}
+
+export async function addMentorsAction(
+  _prevState: AddMentorsActionState,
+  formData: FormData
+): Promise<AddMentorsActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseAddMentorsFormData(formData);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await addMentorsForManager(
+    adminClient,
+    actor.userId,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidateManagerMentorsList();
+  revalidateManagerUsersList();
+
+  return {
+    success: true,
+    message: result.message,
+    addedCount: result.addedCount,
   };
 }
 

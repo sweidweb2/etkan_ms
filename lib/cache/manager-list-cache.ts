@@ -8,6 +8,8 @@ export const MANAGER_CACHE_TAGS = {
   STUDENTS: "manager-students",
   RELATIONSHIPS: "manager-relationships",
   INSTRUCTORS: "manager-instructors",
+  MENTORS: "manager-mentors",
+  MENTOR_SUBJECTS: "manager-mentor-subjects",
 } as const;
 
 const REVALIDATE_PROFILE = "max" as const;
@@ -35,6 +37,20 @@ export function revalidateManagerInstructorsList(): void {
   revalidateTag(MANAGER_CACHE_TAGS.INSTRUCTORS, REVALIDATE_PROFILE);
   revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
   clearCachedAuthEmails();
+}
+
+export function revalidateManagerMentorsList(): void {
+  revalidateTag(MANAGER_CACHE_TAGS.MENTORS, REVALIDATE_PROFILE);
+  // Matrix rows are mentors, so the roster and the matrix move together.
+  revalidateTag(MANAGER_CACHE_TAGS.MENTOR_SUBJECTS, REVALIDATE_PROFILE);
+  revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
+  clearCachedAuthEmails();
+}
+
+/** Mentor catalog and capability matrix only — leaves the instructors cache alone. */
+export function revalidateManagerMentorSubjects(): void {
+  revalidateTag(MANAGER_CACHE_TAGS.MENTOR_SUBJECTS, REVALIDATE_PROFILE);
+  revalidatePath(ROUTES.MANAGER_INSTRUCTORS);
 }
 
 export function revalidateManagerRelationshipsList(): void {

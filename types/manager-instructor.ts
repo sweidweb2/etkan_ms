@@ -1,5 +1,8 @@
 import type { RoleValue } from "@/lib/constants/roles";
-import type { FieldErrors } from "@/types/auth";
+import type {
+  ManagerSubjectCapabilityPair,
+  ManagerSubjectColumn,
+} from "@/types/manager-capability-subject";
 
 export type ManagerInstructorRow = {
   id: string;
@@ -16,38 +19,11 @@ export type ManagerInstructorCandidateRow = {
   email: string;
 };
 
-export type ManagerMentorSubjectColumn = {
-  id: string;
-  name: string;
-  sort_order: number;
-};
-
-export type ManagerInstructorCapabilityPair = {
-  user_id: string;
-  mentor_subject_id: string;
-};
-
 export type ManagerInstructorsPageData = {
   instructors: ManagerInstructorRow[];
   candidateUsers: ManagerInstructorCandidateRow[];
-  mentorSubjects: ManagerMentorSubjectColumn[];
-  capabilities: ManagerInstructorCapabilityPair[];
-};
-
-export type SaveInstructorCapabilitiesActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  capabilities?: ManagerInstructorCapabilityPair[];
-};
-
-export type SetInstructorCapabilityResult = {
-  success: boolean;
-  error?: string;
-  message?: string;
-  user_id?: string;
-  mentor_subject_id?: string;
-  enabled?: boolean;
+  subjects: ManagerSubjectColumn[];
+  capabilities: ManagerSubjectCapabilityPair[];
 };
 
 export type RemoveInstructorActionState = {
@@ -62,34 +38,4 @@ export type AddInstructorsActionState = {
   error?: string;
   message?: string;
   addedCount?: number;
-};
-
-export type CreateMentorSubjectActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  fieldErrors?: FieldErrors;
-  mentorSubject?: ManagerMentorSubjectColumn;
-};
-
-export type UpdateMentorSubjectActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  fieldErrors?: FieldErrors;
-  mentorSubject?: ManagerMentorSubjectColumn;
-};
-
-export type DeleteMentorSubjectActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  mentorSubjectId?: string;
-};
-
-export type SaveMentorSubjectOrderActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  mentorSubjects?: ManagerMentorSubjectColumn[];
 };

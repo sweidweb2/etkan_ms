@@ -520,7 +520,7 @@ export const ar = {
   "careers.roadmap.stage2.title": "الميكانيك والطاقة",
   "careers.roadmap.stage3.title": "التطوير",
   "careers.roadmap.stage4.title": "نموذج أولي",
-  "careers.roadmap.stage5.title": "تصميم لوحات الدارات",
+  "careers.roadmap.stage5.title": "تصميم لوحات الدارات والتصميم لأجل التصنيع",
   "careers.roadmap.stage6.title": "خارطة الطريق التخصّصية",
   "careers.roadmap.stage.back": "العودة إلى المسارات",
   "careers.roadmap.stage.prev": "المرحلة السابقة",
@@ -533,7 +533,7 @@ export const ar = {
   "careers.syllabus.milestoneBadge": "محطة",
   "careers.syllabus.empty": "منهج هذه المرحلة سيُضاف قريبًا.",
 
-  "careers.syllabus.s1.programming.title": "مقدمة في البرمجة",
+  "careers.syllabus.s1.programming.title": "بايثون",
   "careers.syllabus.s1.programming.body":
     "ابنِ أساسيات البرمجة خطوة بخطوة—من الصياغة الأساسية إلى أنماط حل المشكلات.",
   "careers.syllabus.s1.programming.m.basics": "الأساسيات",
@@ -551,10 +551,173 @@ export const ar = {
   "careers.syllabus.s1.arduino.title": "أردوينو",
   "careers.syllabus.s1.arduino.body":
     "لوحات ومستشعرات ودارات عملية—انقل الشيفرة إلى العالم المادي.",
-  "careers.syllabus.s1.security.title": "الأمن",
-  "careers.syllabus.s1.security.body":
-    "وعي أمني أساسي للأنظمة والأجهزة وممارسات هندسية آمنة.",
+  "careers.syllabus.s1.arduino.m.electricity":
+    "أساسيات الكهرباء (الجهد والتيار والقدرة والمكوّنات)",
+  "careers.syllabus.s1.arduino.m.mcuIde":
+    "أساسيات المتحكّم الدقيق وبيئة أردوينو",
+  "careers.syllabus.s1.arduino.m.io":
+    "المداخل والمخارج الرقمية والتناظرية وPWM وADC",
+  "careers.syllabus.s1.arduino.m.breadboard": "تدريب عملي على لوحة التجارب والدارات",
+  "careers.syllabus.s1.arduino.m.serial": "مراقب المنفذ التسلسلي والتنقيح",
+  "careers.syllabus.s1.arduino.m.motors": "قيادة المحركات والمرحّلات",
+  "careers.syllabus.s1.arduino.m.blockDiagrams":
+    "المخططات الصندوقية ومنهجية التوصيل",
+  "careers.syllabus.s1.arduino.m.power": "تحويل الطاقة وأساسيات البطاريات",
+  "careers.syllabus.s1.arduino.m.libraries": "المكتبات ودمج المستشعرات",
+  "careers.syllabus.s1.arduino.m.protocols":
+    "بروتوكولات الاتصال (UART وI2C وSPI)",
+  "careers.syllabus.s1.arduino.m.architecture":
+    "بنية المتحكّم الدقيق وأنوية ESP",
+  "careers.syllabus.s1.arduino.m.embedded":
+    "تكامل الأنظمة المدمجة (RTOS وواجهات المستخدم)",
 
+  "careers.syllabus.s1.dataComputer.title": "البيانات والحاسوب",
+  "careers.syllabus.s1.dataComputer.body":
+    "كيف يمثّل الحاسوب البيانات ويخزّنها وينقلها—الأساس الذي يقوم عليه كل نظام تبنيه.",
+
+  "careers.syllabus.s2.toolsSoldering.title": "العدد واللحام",
+  "careers.syllabus.s2.toolsSoldering.body":
+    "إتقان العدد اليدوية وأجهزة القياس وتقنية اللحام قبل بناء أي شيء.",
+  "careers.syllabus.s2.toolsSoldering.m.fundamentals":
+    "أساسيات اللحام (أنواع القصدير والحرارة والفلكس)",
+  "careers.syllabus.s2.toolsSoldering.m.smd":
+    "المكوّنات السطحية وإعادة العمل بالهواء الساخن",
+  "careers.syllabus.s2.toolsSoldering.m.pads": "وسائد اللوحة والموصّلات",
+  "careers.syllabus.s2.toolsSoldering.m.handTools":
+    "العدد اليدوية والقياس (القدمة والمفكات وعزم الربط)",
+  "careers.syllabus.s2.toolsSoldering.m.multimeter":
+    "الملتيميتر واختبار الاستمرارية",
+  "careers.syllabus.s2.toolsSoldering.m.oscilloscope":
+    "راسم الإشارة ومولّد الدوال",
+  "careers.syllabus.s2.toolsSoldering.m.powerSupply":
+    "تدريب على مزوّد الطاقة والكلامب ميتر",
+
+  "careers.syllabus.s2.solidworks.title": "سوليدوركس",
+  "careers.syllabus.s2.solidworks.body":
+    "النمذجة ثلاثية الأبعاد والتصميم الميكانيكي من الرسم الأولي إلى القطعة النهائية.",
+  "careers.syllabus.s2.solidworks.m.interface": "الواجهة وأساسيات الرسم",
+  "careers.syllabus.s2.solidworks.m.features":
+    "الأدوات الأساسية (البثق والتدوير والتدوير الحوافي والشطف)",
+  "careers.syllabus.s2.solidworks.m.modelMania": "تدرّج تدريبات Model Mania",
+  "careers.syllabus.s2.solidworks.m.reverseEngineering":
+    "الهندسة العكسية والقياس",
+  "careers.syllabus.s2.solidworks.m.dfm": "مبادئ التصميم لأجل التصنيع",
+  "careers.syllabus.s2.solidworks.m.assembly": "التجميعات والقيود (DFA)",
+  "careers.syllabus.s2.solidworks.m.advanced":
+    "النمذجة المتقدّمة (CAM وFEA وأنواع الملفات)",
+  "careers.syllabus.s2.solidworks.m.cswp": "التحضير لشهادة CSWP",
+
+  "careers.syllabus.s2.printing3d.title": "الطباعة ثلاثية الأبعاد",
+  "careers.syllabus.s2.printing3d.body":
+    "التصنيع الإضافي من إعداد برنامج التقطيع إلى قطع جاهزة للإنتاج.",
+  "careers.syllabus.s2.printing3d.m.fundamentals":
+    "أساسيات الطباعة ثلاثية الأبعاد وبرامج التقطيع",
+  "careers.syllabus.s2.printing3d.m.calibration":
+    "المعايرة ومعالجة الأعطال الشائعة",
+  "careers.syllabus.s2.printing3d.m.finishing":
+    "التشطيب والصيانة والتصميم لأجل الطباعة",
+
+  "careers.syllabus.s2.circuitsPower.title": "الدارات والطاقة",
+  "careers.syllabus.s2.circuitsPower.body":
+    "أنظمة البطاريات وتصميم الطاقة، من النظرية إلى الحزم المجمّعة.",
+  "careers.syllabus.s2.circuitsPower.m.fundamentals":
+    "أساسيات الكهرباء والمكوّنات",
+  "careers.syllabus.s2.circuitsPower.m.lithium":
+    "كيمياء بطاريات الليثيوم وخصائصها",
+  "careers.syllabus.s2.circuitsPower.m.packDesign":
+    "تصميم حزم البطاريات (توالٍ وتوازٍ)",
+  "careers.syllabus.s2.circuitsPower.m.bms":
+    "نظام إدارة البطارية ووحدات الطاقة",
+  "careers.syllabus.s2.circuitsPower.m.spotWelding":
+    "اللحام النقطي وضبط الجودة",
+
+  "careers.syllabus.s3.mobile.title": "تطوير تطبيقات الهاتف (فلاتر)",
+  "careers.syllabus.s3.mobile.body":
+    "بناء تطبيقات متعددة المنصات من أساسيات دارت إلى مشاريع مدعومة بـFirebase.",
+  "careers.syllabus.s3.mobile.m.dart": "دارت ومنطق البرمجة",
+  "careers.syllabus.s3.mobile.m.oop": "البرمجة كائنية التوجه في دارت",
+  "careers.syllabus.s3.mobile.m.widgets": "أساسيات عناصر فلاتر",
+  "careers.syllabus.s3.mobile.m.github": "GitHub وسير عمل المطوّر",
+  "careers.syllabus.s3.mobile.m.layout": "التخطيط والواجهات المتجاوبة",
+  "careers.syllabus.s3.mobile.m.navigation": "التنقّل والنماذج",
+  "careers.syllabus.s3.mobile.m.state": "أساسيات إدارة الحالة",
+  "careers.syllabus.s3.mobile.m.api": "التكامل مع الواجهات البرمجية",
+  "careers.syllabus.s3.mobile.m.storage": "التخزين المحلي وعمليات CRUD",
+  "careers.syllabus.s3.mobile.m.provider": "إدارة الحالة عبر Provider",
+  "careers.syllabus.s3.mobile.m.firebase": "أساسيات Firebase",
+  "careers.syllabus.s3.mobile.m.architecture": "بنية المشروع ومعماريته",
+
+  "careers.syllabus.s3.web.title": "تطوير الويب (رياكت)",
+  "careers.syllabus.s3.web.body":
+    "من كيفية عمل الإنترنت إلى بناء واجهات رياكت متجاوبة.",
+  "careers.syllabus.s3.web.m.internet": "أساسيات الإنترنت والويب",
+  "careers.syllabus.s3.web.m.html": "أساسيات HTML",
+  "careers.syllabus.s3.web.m.css": "أساسيات CSS",
+  "careers.syllabus.s3.web.m.flexbox": "Flexbox والتصميم المتجاوب",
+  "careers.syllabus.s3.web.m.advancedCss":
+    "CSS المتقدّم (الشبكات والحركات والانتقالات)",
+  "careers.syllabus.s3.web.m.jsBasics": "أساسيات جافاسكربت",
+  "careers.syllabus.s3.web.m.dom": "التعامل مع DOM في جافاسكربت",
+  "careers.syllabus.s3.web.m.modernJs": "جافاسكربت الحديثة (ES6)",
+  "careers.syllabus.s3.web.m.async":
+    "جافاسكربت غير المتزامنة والواجهات البرمجية",
+  "careers.syllabus.s3.web.m.react": "أساسيات رياكت",
+  "careers.syllabus.s3.web.m.reactAdvanced":
+    "رياكت المتقدّمة (الخطافات والتوجيه وبنية المشروع)",
+
+  "careers.syllabus.s3.vibeCoding.title": "البرمجة بالذكاء الاصطناعي",
+  "careers.syllabus.s3.vibeCoding.body":
+    "التطوير بمساعدة الذكاء الاصطناعي—الصياغة والأدوات والبناء بنماذج اللغة.",
+  "careers.syllabus.s3.vibeCoding.m.prompting":
+    "هندسة الأوامر وأدوات التطوير بالذكاء الاصطناعي",
+  "careers.syllabus.s3.vibeCoding.m.animation":
+    "الحركات والواجهات بمساعدة الذكاء الاصطناعي",
+  "careers.syllabus.s3.vibeCoding.m.rag": "RAG وبناء روبوتات المحادثة",
+
+  "careers.syllabus.s3.backend.title": "تطوير الواجهة الخلفية (لارافيل)",
+  "careers.syllabus.s3.backend.body":
+    "تطوير جانب الخادم من أساسيات MVC إلى النشر.",
+  "careers.syllabus.s3.backend.m.intro": "مقدمة في لارافيل وMVC",
+  "careers.syllabus.s3.backend.m.routes": "المسارات والمتحكّمات",
+  "careers.syllabus.s3.backend.m.connections": "الربط بين الواجهة والخادم",
+  "careers.syllabus.s3.backend.m.sql": "أساسيات SQL",
+  "careers.syllabus.s3.backend.m.database":
+    "قواعد البيانات والترحيلات وEloquent ORM",
+  "careers.syllabus.s3.backend.m.crud": "واجهات CRUD البرمجية",
+  "careers.syllabus.s3.backend.m.relationships": "علاقات النماذج",
+  "careers.syllabus.s3.backend.m.auth": "المصادقة (Sanctum)",
+  "careers.syllabus.s3.backend.m.storage": "التخزين والتعامل مع الملفات",
+  "careers.syllabus.s3.backend.m.security":
+    "الأمان (تحديد المعدّل والتجزئة والتشفير)",
+  "careers.syllabus.s3.backend.m.linux": "بيئة لينكس وأوبنتو",
+  "careers.syllabus.s3.backend.m.deployment": "النشر وDevOps",
+
+  "careers.syllabus.s4.note":
+    "هذه مرحلة البناء. يتولّى الفريق مشروع جهاز متكامل يوظّف فيه كل ما تعلّمه في المراحل السابقة دفعةً واحدة—العتاد والدارات، والتصميم الميكانيكي والقطع المطبوعة ثلاثية الأبعاد، والتحكّم المدمج، والبرمجيات فوقها—حتى يصل إلى نموذج أولي عامل بين يديه. المنهج التفصيلي سيُضاف قريبًا.",
+
+  "careers.syllabus.s6.note":
+    "بعد المسار العام، يختار كل فريق مجالًا واحدًا ويسير في خارطة طريق خاصة به—تعمّقًا لا توسّعًا. المسارات الحالية هي الذكاء الاصطناعي المدمج، وإنترنت الأشياء، والاتصالات والإشارات، والأمن السيبراني، وتُفتح مسارات أخرى مع نمو الفرق واحتياجات السوق. خارطة الطريق التفصيلية لكل تخصّص ستُضاف قريبًا.",
+
+  "careers.syllabus.s5.altium.title": "ألتيوم والإلكترونيات",
+  "careers.syllabus.s5.altium.body":
+    "من نظرية الدارات إلى تصميم المخططات ولوحة دارات نهائية قابلة للتصنيع.",
+  "careers.syllabus.s5.altium.m.circuitTheory":
+    "مراجعة نظرية الدارات (KVL وKCL والثنائيات)",
+  "careers.syllabus.s5.altium.m.acdc":
+    "التيار المتردد والمستمر والمكوّنات السلبية (المكثفات والملفات)",
+  "careers.syllabus.s5.altium.m.altiumBasics":
+    "أساسيات ورشة ألتيوم (المخطط وقائمة المواد وملفات Gerber)",
+  "careers.syllabus.s5.altium.m.transistors":
+    "الترانزستورات والمضخّمات ومكبّرات العمليات",
+  "careers.syllabus.s5.altium.m.components":
+    "اختيار المكوّنات وقراءة صحائف البيانات",
+  "careers.syllabus.s5.altium.m.digitalLogic": "المنطق الرقمي وجداول الحقيقة",
+  "careers.syllabus.s5.altium.m.combinational":
+    "المنطق التوافقي والقلّابات",
+  "careers.syllabus.s5.altium.m.logicDesign":
+    "تصميم البوابات المنطقية (Mealy وMoore)",
+  "careers.syllabus.s5.altium.m.mcu": "بنية المتحكّم الدقيق",
+  "careers.syllabus.s5.altium.m.layout": "تخطيط لوحة الدارات والتدريب العملي",
   "careers.workshop.badge.workshop": "ورشة",
   "careers.workshop.badge.level1": "المستوى ١",
   "careers.workshop.badge.level2": "المستوى ٢",

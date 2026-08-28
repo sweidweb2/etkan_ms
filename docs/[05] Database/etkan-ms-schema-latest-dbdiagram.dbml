@@ -688,6 +688,27 @@ Table mentor_subject_capability {
 Ref: mentor_subject_capability.user_id > profiles.id
 Ref: mentor_subject_capability.mentor_subject_id > mentor_subjects.id
 
+Table instructor_subjects {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name text [not null, note: 'unique case-insensitive']
+  sort_order integer [not null]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table instructor_subject_capability {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  instructor_subject_id uuid [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, instructor_subject_id) [unique]
+  }
+}
+
+Ref: instructor_subject_capability.user_id > profiles.id
+Ref: instructor_subject_capability.instructor_subject_id > instructor_subjects.id
+
 Table guests {
   id uuid [pk, default: `gen_random_uuid()`]
   full_name text [not null]

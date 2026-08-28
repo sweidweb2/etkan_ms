@@ -519,7 +519,7 @@ export const en = {
   "careers.roadmap.stage2.title": "Mechanic and power",
   "careers.roadmap.stage3.title": "Development",
   "careers.roadmap.stage4.title": "Prototype",
-  "careers.roadmap.stage5.title": "PCB design",
+  "careers.roadmap.stage5.title": "PCB design and product DFM",
   "careers.roadmap.stage6.title": "Specialization roadmap",
   "careers.roadmap.stage.back": "Back to careers",
   "careers.roadmap.stage.prev": "Previous stage",
@@ -532,7 +532,7 @@ export const en = {
   "careers.syllabus.milestoneBadge": "Milestone",
   "careers.syllabus.empty": "Syllabus for this stage will be added soon.",
 
-  "careers.syllabus.s1.programming.title": "Intro to programming",
+  "careers.syllabus.s1.programming.title": "Python",
   "careers.syllabus.s1.programming.body":
     "Build coding foundations step by step—from basic syntax to problem-solving patterns.",
   "careers.syllabus.s1.programming.m.basics": "Basics",
@@ -550,10 +550,169 @@ export const en = {
   "careers.syllabus.s1.arduino.title": "Arduino",
   "careers.syllabus.s1.arduino.body":
     "Hands-on boards, sensors, and circuits—bring code into the physical world.",
-  "careers.syllabus.s1.security.title": "Security",
-  "careers.syllabus.s1.security.body":
-    "Core security awareness for systems, devices, and safe engineering practice.",
+  "careers.syllabus.s1.arduino.m.electricity":
+    "Electricity fundamentals (voltage, current, power, components)",
+  "careers.syllabus.s1.arduino.m.mcuIde": "Microcontroller and Arduino IDE basics",
+  "careers.syllabus.s1.arduino.m.io": "Digital and analog I/O, PWM, ADC",
+  "careers.syllabus.s1.arduino.m.breadboard": "Breadboard and circuit practice",
+  "careers.syllabus.s1.arduino.m.serial": "Serial monitor and debugging",
+  "careers.syllabus.s1.arduino.m.motors": "Motor drivers and relays",
+  "careers.syllabus.s1.arduino.m.blockDiagrams":
+    "Block diagrams and wiring methodology",
+  "careers.syllabus.s1.arduino.m.power": "Power conversion and battery basics",
+  "careers.syllabus.s1.arduino.m.libraries": "Libraries and sensor integration",
+  "careers.syllabus.s1.arduino.m.protocols":
+    "Communication protocols (UART, I2C, SPI)",
+  "careers.syllabus.s1.arduino.m.architecture": "MCU architecture and ESP cores",
+  "careers.syllabus.s1.arduino.m.embedded":
+    "Embedded systems integration (RTOS, GUI)",
 
+  "careers.syllabus.s1.dataComputer.title": "Data and computer",
+  "careers.syllabus.s1.dataComputer.body":
+    "How computers represent, store, and move data—the ground layer under every system you build.",
+
+  "careers.syllabus.s2.toolsSoldering.title": "Tools and soldering",
+  "careers.syllabus.s2.toolsSoldering.body":
+    "Master hand tools, test equipment, and soldering technique before building anything.",
+  "careers.syllabus.s2.toolsSoldering.m.fundamentals":
+    "Soldering fundamentals (solder types, temperature, flux)",
+  "careers.syllabus.s2.toolsSoldering.m.smd": "SMD and hot-air rework",
+  "careers.syllabus.s2.toolsSoldering.m.pads": "PCB pads and connectors",
+  "careers.syllabus.s2.toolsSoldering.m.handTools":
+    "Hand tools and measurement (calipers, drivers, torque)",
+  "careers.syllabus.s2.toolsSoldering.m.multimeter":
+    "Multimeter and continuity testing",
+  "careers.syllabus.s2.toolsSoldering.m.oscilloscope":
+    "Oscilloscope and function generator",
+  "careers.syllabus.s2.toolsSoldering.m.powerSupply":
+    "Power supply and clamp meter practice",
+
+  "careers.syllabus.s2.solidworks.title": "SolidWorks",
+  "careers.syllabus.s2.solidworks.body":
+    "3D modeling and mechanical design from sketch to finished part.",
+  "careers.syllabus.s2.solidworks.m.interface": "Interface and sketching basics",
+  "careers.syllabus.s2.solidworks.m.features":
+    "Core features (extrude, revolve, fillet, chamfer)",
+  "careers.syllabus.s2.solidworks.m.modelMania":
+    "Model Mania practice progression",
+  "careers.syllabus.s2.solidworks.m.reverseEngineering":
+    "Reverse engineering and measurement",
+  "careers.syllabus.s2.solidworks.m.dfm": "DFM principles",
+  "careers.syllabus.s2.solidworks.m.assembly": "Assembly and mates (DFA)",
+  "careers.syllabus.s2.solidworks.m.advanced":
+    "Advanced modeling (CAM, FEA, file types)",
+  "careers.syllabus.s2.solidworks.m.cswp": "CSWP certification prep",
+
+  "careers.syllabus.s2.printing3d.title": "3D printing",
+  "careers.syllabus.s2.printing3d.body":
+    "Additive manufacturing from slicer setup to production-ready parts.",
+  "careers.syllabus.s2.printing3d.m.fundamentals":
+    "3D printing fundamentals and slicer basics",
+  "careers.syllabus.s2.printing3d.m.calibration":
+    "Calibration and common failure troubleshooting",
+  "careers.syllabus.s2.printing3d.m.finishing":
+    "Finishing, maintenance, and DFM for 3D printing",
+
+  "careers.syllabus.s2.circuitsPower.title": "Circuits and power",
+  "careers.syllabus.s2.circuitsPower.body":
+    "Battery systems and power design, from theory to assembled packs.",
+  "careers.syllabus.s2.circuitsPower.m.fundamentals":
+    "Electricity and component fundamentals",
+  "careers.syllabus.s2.circuitsPower.m.lithium":
+    "Lithium battery chemistry and characteristics",
+  "careers.syllabus.s2.circuitsPower.m.packDesign":
+    "Battery pack design (series and parallel)",
+  "careers.syllabus.s2.circuitsPower.m.bms": "BMS and power modules",
+  "careers.syllabus.s2.circuitsPower.m.spotWelding":
+    "Spot welding and quality control",
+
+  "careers.syllabus.s3.mobile.title": "Mobile development (Flutter)",
+  "careers.syllabus.s3.mobile.body":
+    "Build cross-platform apps from Dart basics to Firebase-backed projects.",
+  "careers.syllabus.s3.mobile.m.dart": "Dart and programming logic",
+  "careers.syllabus.s3.mobile.m.oop": "OOP in Dart",
+  "careers.syllabus.s3.mobile.m.widgets": "Flutter widget basics",
+  "careers.syllabus.s3.mobile.m.github": "GitHub and developer workflow",
+  "careers.syllabus.s3.mobile.m.layout": "Layout and responsive UI",
+  "careers.syllabus.s3.mobile.m.navigation": "Navigation and forms",
+  "careers.syllabus.s3.mobile.m.state": "State management basics",
+  "careers.syllabus.s3.mobile.m.api": "API integration",
+  "careers.syllabus.s3.mobile.m.storage": "Local storage and CRUD",
+  "careers.syllabus.s3.mobile.m.provider": "Provider state management",
+  "careers.syllabus.s3.mobile.m.firebase": "Firebase basics",
+  "careers.syllabus.s3.mobile.m.architecture":
+    "Project structure and architecture",
+
+  "careers.syllabus.s3.web.title": "Web development (React)",
+  "careers.syllabus.s3.web.body":
+    "From how the internet works to building responsive React interfaces.",
+  "careers.syllabus.s3.web.m.internet": "Internet and web fundamentals",
+  "careers.syllabus.s3.web.m.html": "HTML fundamentals",
+  "careers.syllabus.s3.web.m.css": "CSS fundamentals",
+  "careers.syllabus.s3.web.m.flexbox": "Flexbox and responsive design",
+  "careers.syllabus.s3.web.m.advancedCss":
+    "Advanced CSS (grid, animations, transitions)",
+  "careers.syllabus.s3.web.m.jsBasics": "JavaScript basics",
+  "careers.syllabus.s3.web.m.dom": "JavaScript DOM manipulation",
+  "careers.syllabus.s3.web.m.modernJs": "Modern JavaScript (ES6)",
+  "careers.syllabus.s3.web.m.async": "Async JavaScript and APIs",
+  "careers.syllabus.s3.web.m.react": "React fundamentals",
+  "careers.syllabus.s3.web.m.reactAdvanced":
+    "React advanced (hooks, routing, project structure)",
+
+  "careers.syllabus.s3.vibeCoding.title": "Vibe coding",
+  "careers.syllabus.s3.vibeCoding.body":
+    "AI-assisted development—prompting, tooling, and building with LLMs.",
+  "careers.syllabus.s3.vibeCoding.m.prompting":
+    "Prompt engineering and AI dev tools",
+  "careers.syllabus.s3.vibeCoding.m.animation":
+    "AI-assisted animation and UI",
+  "careers.syllabus.s3.vibeCoding.m.rag": "RAG and chatbot building",
+
+  "careers.syllabus.s3.backend.title": "Backend development (Laravel)",
+  "careers.syllabus.s3.backend.body":
+    "Server-side development from MVC basics to deployment.",
+  "careers.syllabus.s3.backend.m.intro": "Laravel and MVC introduction",
+  "careers.syllabus.s3.backend.m.routes": "Routes and controllers",
+  "careers.syllabus.s3.backend.m.connections": "Frontend-backend connections",
+  "careers.syllabus.s3.backend.m.sql": "SQL fundamentals",
+  "careers.syllabus.s3.backend.m.database":
+    "Database, migrations, and Eloquent ORM",
+  "careers.syllabus.s3.backend.m.crud": "CRUD APIs",
+  "careers.syllabus.s3.backend.m.relationships": "Model relationships",
+  "careers.syllabus.s3.backend.m.auth": "Authentication (Sanctum)",
+  "careers.syllabus.s3.backend.m.storage": "Storage and file handling",
+  "careers.syllabus.s3.backend.m.security":
+    "Security (rate limiting, hashing, encryption)",
+  "careers.syllabus.s3.backend.m.linux": "Linux and Ubuntu environment",
+  "careers.syllabus.s3.backend.m.deployment": "Deployment and DevOps",
+
+  "careers.syllabus.s4.note":
+    "This is the build stage. Teams take on a full device project and put everything from the earlier stages to work at once—hardware and circuits, mechanical design and 3D printed parts, embedded control, and the software on top—until they have a working prototype in their hands. The detailed syllabus is coming soon.",
+
+  "careers.syllabus.s6.note":
+    "After the general path, each team picks one domain and follows a dedicated roadmap inside it—going deeper instead of wider. Current tracks are embedded AI, IoT, communication and signals, and security, with more opening as teams and industry needs grow. The detailed roadmap for each specialization is coming soon.",
+
+  "careers.syllabus.s5.altium.title": "Altium and electronics",
+  "careers.syllabus.s5.altium.body":
+    "Circuit theory through schematic design to a finished, manufacturable PCB.",
+  "careers.syllabus.s5.altium.m.circuitTheory":
+    "Circuit theory review (KVL, KCL, diodes)",
+  "careers.syllabus.s5.altium.m.acdc":
+    "AC/DC and passive components (capacitors, inductors)",
+  "careers.syllabus.s5.altium.m.altiumBasics":
+    "Altium workshop basics (schematic, BOM, Gerber)",
+  "careers.syllabus.s5.altium.m.transistors":
+    "Transistors, amplifiers, and op-amps",
+  "careers.syllabus.s5.altium.m.components":
+    "Component selection and datasheets",
+  "careers.syllabus.s5.altium.m.digitalLogic": "Digital logic and truth tables",
+  "careers.syllabus.s5.altium.m.combinational":
+    "Combinational logic and flip-flops",
+  "careers.syllabus.s5.altium.m.logicDesign":
+    "Logic gate design (Mealy and Moore)",
+  "careers.syllabus.s5.altium.m.mcu": "Microcontroller architecture",
+  "careers.syllabus.s5.altium.m.layout": "PCB layout and design practice",
   "careers.workshop.badge.workshop": "Workshop",
   "careers.workshop.badge.level1": "Level 1",
   "careers.workshop.badge.level2": "Level 2",
