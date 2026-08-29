@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppLogo } from "@/components/brand/app-logo";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants/routes";
 
@@ -19,6 +20,7 @@ export function ErrorPage({
 }: ErrorPageProps) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-16 text-center">
+      <AppLogo tone="auto" height={34} className="mb-8" />
       <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
         Error
       </p>

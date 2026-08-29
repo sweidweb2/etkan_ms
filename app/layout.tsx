@@ -7,7 +7,7 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { AppToasts } from "@/components/toast/app-toasts";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SITE } from "@/lib/config/site";
+import { SITE, getSiteUrl } from "@/lib/config/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -22,9 +22,34 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+/** Absolute URLs for social cards; previews degrade rather than fail the build. */
+function resolveMetadataBase(): URL | undefined {
+  try {
+    return new URL(getSiteUrl());
+  } catch {
+    return undefined;
+  }
+}
+
 export const metadata: Metadata = {
-  title: SITE.name,
+  metadataBase: resolveMetadataBase(),
+  title: {
+    default: SITE.name,
+    template: `%s | ${SITE.name}`,
+  },
   description: SITE.description,
+  applicationName: SITE.name,
+  openGraph: {
+    type: "website",
+    siteName: SITE.name,
+    title: SITE.name,
+    description: SITE.description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE.name,
+    description: SITE.description,
+  },
 };
 
 export default function RootLayout({

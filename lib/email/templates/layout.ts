@@ -1,4 +1,4 @@
-import { SITE } from "@/lib/config/site";
+import { SITE, getSiteUrl } from "@/lib/config/site";
 import {
   EMAIL_BRAND,
   emailBrandBarBackground,
@@ -37,6 +37,34 @@ type LayoutContent = {
   locale: EmailLocale;
 };
 
+/**
+ * Absolute URL of the light lockup, which sits on the dark brand bars.
+ * Returns null when no public origin is configured (local scripts, tests) so
+ * the bars fall back to the text wordmark instead of a broken image.
+ */
+function brandLockupUrl(): string | null {
+  try {
+    return `${getSiteUrl()}/brand/wordmark-light.png`;
+  } catch {
+    return null;
+  }
+}
+
+/** Lockup image for the brand bars, degrading to the text wordmark. */
+function brandBarMark(
+  lockupUrl: string | null,
+  schoolName: string,
+  width: number,
+  fallbackStyle: string
+): string {
+  if (!lockupUrl) {
+    return `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;${fallbackStyle}color:${EMAIL_BRAND.onBrand};">${schoolName}</p>`;
+  }
+
+  const height = Math.round(width / (1800 / 688));
+  return `<img src="${lockupUrl}" width="${width}" height="${height}" alt="${schoolName}" style="display:inline-block;border:0;outline:none;text-decoration:none;width:${width}px;height:${height}px;" />`;
+}
+
 function brandBarCellStyle(align: string, dir: string, textAlign: string) {
   return `padding:22px 28px;background-color:${EMAIL_BRAND.brand};background-image:${emailBrandBarBackground()};background-size:auto,auto,18px 18px,22px 22px;direction:${dir};text-align:${textAlign};`;
 }
@@ -59,6 +87,7 @@ export function wrapEmailLayout(content: LayoutContent): {
   const referenceCode = escapeHtml(content.referenceCode);
   const contactEmail = escapeHtml(chrome.contactEmail);
   const barStyle = brandBarCellStyle(align, dir, textAlign);
+  const lockupUrl = brandLockupUrl();
 
   const ctaHtml = content.cta
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;margin:0;">
@@ -92,7 +121,7 @@ export function wrapEmailLayout(content: LayoutContent): {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${EMAIL_BRAND.cardBg};border:1px solid ${EMAIL_BRAND.border};">
           <tr>
             <td align="${align}" style="${barStyle}">
-              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:700;letter-spacing:0.02em;color:${EMAIL_BRAND.onBrand};">${schoolName}</p>
+              ${brandBarMark(lockupUrl, schoolName, 150, "font-size:20px;font-weight:700;letter-spacing:0.02em;")}
               <p style="margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.4;color:rgba(255,255,255,0.82);">
                 ${escapeHtml(chrome.circularHeading)}
               </p>
@@ -140,7 +169,7 @@ export function wrapEmailLayout(content: LayoutContent): {
           </tr>
           <tr>
             <td align="${align}" style="${barStyle}border-top:1px solid rgba(255,255,255,0.12);">
-              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:${EMAIL_BRAND.onBrand};">${schoolName}</p>
+              ${brandBarMark(lockupUrl, schoolName, 104, "font-size:13px;font-weight:600;")}
               <p style="margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;color:rgba(255,255,255,0.78);">
                 ${escapeHtml(chrome.signerTitle)} · ${contactEmail}
               </p>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { MenuIcon } from "lucide-react";
+import { AppLogo } from "@/components/brand/app-logo";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
@@ -140,17 +141,26 @@ function NavbarShell({
           <Link
             href={ROUTES.HOME}
             suppressHydrationWarning
-            className="min-w-0 justify-self-start truncate text-sm font-semibold"
+            aria-label={t("brand.name")}
+            className="min-w-0 justify-self-start rounded-md transition-opacity hover:opacity-80"
           >
-            {t("brand.name")}
+            <AppLogo height={26} priority />
           </Link>
           <PrimaryNavLinks className="min-w-0 justify-self-center" />
           <div className="justify-self-end">{desktopActions}</div>
         </div>
       </div>
 
-      {/* Mobile: menu icon only */}
-      <div className="pointer-events-auto flex justify-end px-3 pt-3 sm:hidden">
+      {/* Mobile: brand mark + menu icon */}
+      <div className="pointer-events-auto flex items-center justify-between px-3 pt-3 sm:hidden">
+        <Link
+          href={ROUTES.HOME}
+          suppressHydrationWarning
+          aria-label={t("brand.name")}
+          className="flex size-10 items-center justify-center rounded-xl border border-border bg-white shadow-sm"
+        >
+          <AppLogo shape="mark" height={22} priority />
+        </Link>
         {mobileMenu}
       </div>
     </header>
@@ -198,7 +208,9 @@ export function SiteNavbarClient() {
         )}
       >
         <SheetHeader className="border-b border-border px-4 py-4 text-start">
-          <SheetTitle>{t("brand.name")}</SheetTitle>
+          <SheetTitle>
+            <AppLogo height={24} />
+          </SheetTitle>
           <SheetDescription>{t("nav.navigate")}</SheetDescription>
         </SheetHeader>
         <div className="border-b border-border px-4 py-3">

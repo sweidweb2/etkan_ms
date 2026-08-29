@@ -138,7 +138,7 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "calculator",
         },
         {
-          title: "Income statement",
+          title: "Our finance",
           href: ROUTES.MANAGER_INCOME_STATEMENT,
           icon: "reports",
         },

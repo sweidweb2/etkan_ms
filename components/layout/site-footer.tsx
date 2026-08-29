@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AppLogo } from "@/components/brand/app-logo";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { ROUTES } from "@/lib/constants/routes";
 
@@ -28,8 +29,10 @@ export function SiteFooter() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-sm">
-            <p className="text-sm font-semibold">{t("brand.name")}</p>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-pretty">
+            <Link href={ROUTES.HOME} aria-label={t("brand.name")}>
+              <AppLogo height={30} />
+            </Link>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground text-pretty">
               {t("footer.tagline")}
             </p>
           </div>

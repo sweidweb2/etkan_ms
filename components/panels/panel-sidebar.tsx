@@ -12,7 +12,7 @@ import {
   PanelCollapsibleNavGroup,
   PanelNavMenu,
 } from "@/components/panels/panel-collapsible-nav-group";
-import { SITE } from "@/lib/config/site";
+import { AppLogo } from "@/components/brand/app-logo";
 import type { PanelNavigation, PanelVariant } from "@/types/panel";
 
 type PanelSidebarProps = {
@@ -27,14 +27,20 @@ export function PanelSidebar({ variant, label, navigation }: PanelSidebarProps) 
 
   return (
     <Sidebar collapsible="icon" variant="inset">
-      <SidebarHeader className="group-data-[collapsible=icon]:hidden">
-        <div className="flex flex-col gap-0.5 px-2 py-1">
-          <span className="text-xs font-medium uppercase tracking-wide text-sidebar-foreground/70">
-            {SITE.name}
-          </span>
-          <span className="text-sm font-semibold text-sidebar-foreground">
-            {label}
-          </span>
+      <SidebarHeader>
+        <div className="flex items-center px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <AppLogo
+            shape="mark"
+            tone="auto"
+            height={24}
+            className="hidden group-data-[collapsible=icon]:inline-flex"
+          />
+          <div className="flex min-w-0 flex-col gap-1 group-data-[collapsible=icon]:hidden">
+            <AppLogo tone="auto" height={20} />
+            <span className="truncate text-sm font-semibold text-sidebar-foreground">
+              {label}
+            </span>
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
