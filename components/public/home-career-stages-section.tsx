@@ -17,237 +17,34 @@ import {
 } from "@/components/ui/card";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { getCareersSyllabusCourseImage } from "@/lib/constants/careers-syllabus-images";
+import { getCareersStageSyllabus } from "@/lib/constants/careers-roadmap-syllabus";
+import {
+  CAREERS_ROADMAP_STAGES,
+  isCareersRoadmapStageId,
+  type CareersRoadmapStageId,
+} from "@/lib/constants/careers-roadmaps";
+import { getCareersRoadmapDetailRoute } from "@/lib/constants/routes";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
-import type { MessageKey } from "@/lib/i18n/messages";
-import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const SECTION_VIEWPORT = { once: true, amount: 0.2, margin: "0px 0px -10% 0px" } as const;
 
-type StageCourse = {
-  titleKey: MessageKey;
-  bodyKey: MessageKey;
-  imageSrc: string;
-};
-
-type CareerStage = {
-  id: string;
-  titleKey: MessageKey;
-  descKey: MessageKey;
-  courses: StageCourse[];
-};
-
-const IMG = {
-  python:
-    "https://images.unsplash.com/photo-1690683789978-3cf73960d650?q=80&w=1509&auto=format&fit=crop",
-  arduino:
-    "https://media.istockphoto.com/id/2276854525/photo/electronic-components-and-hardware-engineering-tools-organized-on-a-dark-work-desk-close-up.jpg?s=2048x2048&w=is&k=20&c=vL9Xly7erRY2XdCOi8Wss3hhe5ZsY7i9jFRZe9JbZdQ=",
-  computer:
-    "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1170&auto=format&fit=crop",
-  print3d:
-    "https://images.unsplash.com/photo-1704283860614-803aa8be7993?q=80&w=1170&auto=format&fit=crop",
-  circuit:
-    "https://images.unsplash.com/photo-1553406830-ef2513450d76?q=80&w=1171&auto=format&fit=crop",
-  machining:
-    "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=1170&auto=format&fit=crop",
-  web: "https://media.istockphoto.com/id/1355140477/photo/top-view-of-laptop-with-text-html5.jpg?s=2048x2048&w=is&k=20&c=uSkopBhFAAajALqs8xZCXZODKXaOklYH_OikPcytYEI=",
-  mobile:
-    "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=1170&auto=format&fit=crop",
-  backend:
-    "https://images.unsplash.com/photo-1621839673705-6617adf9e890?q=80&w=1332&auto=format&fit=crop",
-  planning:
-    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=1170&auto=format&fit=crop",
-  business:
-    "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1115&auto=format&fit=crop",
-  assembly:
-    "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=1170&auto=format&fit=crop",
-  machines:
-    "https://images.unsplash.com/photo-1565043666747-69f6646db940?q=80&w=1074&auto=format&fit=crop",
-  electronics:
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1170&auto=format&fit=crop",
-  logic:
-    "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=1169&auto=format&fit=crop",
-  mcu: "https://images.unsplash.com/photo-1553406830-ef2513450d76?q=80&w=1171&auto=format&fit=crop",
-  transducer:
-    "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1170&auto=format&fit=crop",
-  schematic:
-    "https://images.unsplash.com/photo-1581092162384-8987c1d64718?q=80&w=1170&auto=format&fit=crop",
-  pcb: "https://images.unsplash.com/photo-1592659762303-90081d34b277?q=80&w=1073&auto=format&fit=crop",
-  process:
-    "https://images.unsplash.com/photo-1565043589252-4e0a2a8a0b0e?q=80&w=1170&auto=format&fit=crop",
-  mold: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=1170&auto=format&fit=crop",
-  sheetMetal:
-    "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=1170&auto=format&fit=crop",
-} as const;
-
-const STAGES: CareerStage[] = [
-  {
-    id: "1",
-    titleKey: "careerStages.stage1.title",
-    descKey: "careerStages.stage1.desc",
-    courses: [
-      {
-        titleKey: "careerStages.stage1.course1.title",
-        bodyKey: "careerStages.stage1.course1.body",
-        imageSrc: IMG.python,
-      },
-      {
-        titleKey: "careerStages.stage1.course2.title",
-        bodyKey: "careerStages.stage1.course2.body",
-        imageSrc: IMG.arduino,
-      },
-      {
-        titleKey: "careerStages.stage1.course3.title",
-        bodyKey: "careerStages.stage1.course3.body",
-        imageSrc: IMG.computer,
-      },
-    ],
-  },
-  {
-    id: "2",
-    titleKey: "careerStages.stage2.title",
-    descKey: "careerStages.stage2.desc",
-    courses: [
-      {
-        titleKey: "careerStages.stage2.course1.title",
-        bodyKey: "careerStages.stage2.course1.body",
-        imageSrc: IMG.print3d,
-      },
-      {
-        titleKey: "careerStages.stage2.course2.title",
-        bodyKey: "careerStages.stage2.course2.body",
-        imageSrc: IMG.circuit,
-      },
-      {
-        titleKey: "careerStages.stage2.course3.title",
-        bodyKey: "careerStages.stage2.course3.body",
-        imageSrc: IMG.machining,
-      },
-    ],
-  },
-  {
-    id: "3",
-    titleKey: "careerStages.stage3.title",
-    descKey: "careerStages.stage3.desc",
-    courses: [
-      {
-        titleKey: "careerStages.stage3.course1.title",
-        bodyKey: "careerStages.stage3.course1.body",
-        imageSrc: IMG.web,
-      },
-      {
-        titleKey: "careerStages.stage3.course2.title",
-        bodyKey: "careerStages.stage3.course2.body",
-        imageSrc: IMG.mobile,
-      },
-      {
-        titleKey: "careerStages.stage3.course3.title",
-        bodyKey: "careerStages.stage3.course3.body",
-        imageSrc: IMG.backend,
-      },
-    ],
-  },
-  {
-    id: "4",
-    titleKey: "careerStages.stage4.title",
-    descKey: "careerStages.stage4.desc",
-    courses: [
-      {
-        titleKey: "careerStages.stage4.course1.title",
-        bodyKey: "careerStages.stage4.course1.body",
-        imageSrc: IMG.planning,
-      },
-      {
-        titleKey: "careerStages.stage4.course2.title",
-        bodyKey: "careerStages.stage4.course2.body",
-        imageSrc: IMG.business,
-      },
-      {
-        titleKey: "careerStages.stage4.course3.title",
-        bodyKey: "careerStages.stage4.course3.body",
-        imageSrc: IMG.assembly,
-      },
-      {
-        titleKey: "careerStages.stage4.course4.title",
-        bodyKey: "careerStages.stage4.course4.body",
-        imageSrc: IMG.machines,
-      },
-    ],
-  },
-  {
-    id: "5",
-    titleKey: "careerStages.stage5.title",
-    descKey: "careerStages.stage5.desc",
-    courses: [
-      {
-        titleKey: "careerStages.stage5.course1.title",
-        bodyKey: "careerStages.stage5.course1.body",
-        imageSrc: IMG.electronics,
-      },
-      {
-        titleKey: "careerStages.stage5.course2.title",
-        bodyKey: "careerStages.stage5.course2.body",
-        imageSrc: IMG.logic,
-      },
-      {
-        titleKey: "careerStages.stage5.course3.title",
-        bodyKey: "careerStages.stage5.course3.body",
-        imageSrc: IMG.mcu,
-      },
-      {
-        titleKey: "careerStages.stage5.course4.title",
-        bodyKey: "careerStages.stage5.course4.body",
-        imageSrc: IMG.transducer,
-      },
-      {
-        titleKey: "careerStages.stage5.course5.title",
-        bodyKey: "careerStages.stage5.course5.body",
-        imageSrc: IMG.schematic,
-      },
-      {
-        titleKey: "careerStages.stage5.course6.title",
-        bodyKey: "careerStages.stage5.course6.body",
-        imageSrc: IMG.pcb,
-      },
-    ],
-  },
-  {
-    id: "6",
-    titleKey: "careerStages.stage6.title",
-    descKey: "careerStages.stage6.desc",
-    courses: [
-      {
-        titleKey: "careerStages.stage6.course1.title",
-        bodyKey: "careerStages.stage6.course1.body",
-        imageSrc: IMG.machining,
-      },
-      {
-        titleKey: "careerStages.stage6.course2.title",
-        bodyKey: "careerStages.stage6.course2.body",
-        imageSrc: IMG.mold,
-      },
-      {
-        titleKey: "careerStages.stage6.course3.title",
-        bodyKey: "careerStages.stage6.course3.body",
-        imageSrc: IMG.sheetMetal,
-      },
-    ],
-  },
-];
-
 function StageCourseCard({
-  course,
+  stageHref,
   title,
   body,
+  imageSrc,
 }: {
-  course: StageCourse;
+  stageHref: string;
   title: string;
   body: string;
+  imageSrc: string;
 }) {
   return (
     <Link
-      href={ROUTES.CAREERS}
+      href={stageHref}
       suppressHydrationWarning
       className="group block h-full rounded-xl outline-none transition-transform duration-500 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl focus-visible:ring-2 focus-visible:ring-white/40"
     >
@@ -256,7 +53,7 @@ function StageCourseCard({
         className="h-full gap-2 overflow-hidden border-0 bg-[#4A4A86] p-3 text-white shadow-sm ring-1 ring-white/15 transition-colors duration-500 group-hover:bg-[#52528F]"
       >
         <CourseCardImage
-          src={course.imageSrc}
+          src={imageSrc}
           alt={title}
           className="bg-[#2F2F5A]"
         />
@@ -282,14 +79,25 @@ export function HomeCareerStagesSection() {
   const { t } = usePublicI18n();
   const hydrated = useHydrated();
   const reduceMotion = useReducedMotion();
-  const [activeId, setActiveId] = useState(STAGES[0]?.id ?? "1");
+  const [activeId, setActiveId] = useState<CareersRoadmapStageId>(
+    CAREERS_ROADMAP_STAGES[0]?.id ?? "stage-1"
+  );
 
-  const activeStage = STAGES.find((s) => s.id === activeId) ?? STAGES[0];
+  const activeStage =
+    CAREERS_ROADMAP_STAGES.find((stage) => stage.id === activeId) ??
+    CAREERS_ROADMAP_STAGES[0];
+  const activeSyllabus = activeStage
+    ? getCareersStageSyllabus(activeStage.id)
+    : null;
+  const activeCourses = activeSyllabus?.courses ?? [];
+  const stageHref = activeStage
+    ? getCareersRoadmapDetailRoute(activeStage.id)
+    : "#";
 
-  const wheelStages: CareerStageOption[] = STAGES.map((stage, i) => ({
+  const wheelStages: CareerStageOption[] = CAREERS_ROADMAP_STAGES.map((stage) => ({
     id: stage.id,
     label: t(stage.titleKey),
-    indexLabel: String(i + 1).padStart(2, "0"),
+    indexLabel: String(stage.index).padStart(2, "0"),
   }));
 
   const canAnimate = hydrated && !reduceMotion;
@@ -328,7 +136,11 @@ export function HomeCareerStagesSection() {
             <CareerStagesWheel
               stages={wheelStages}
               activeId={activeId}
-              onSelect={setActiveId}
+              onSelect={(id) => {
+                if (isCareersRoadmapStageId(id)) {
+                  setActiveId(id);
+                }
+              }}
               hubLabel={t("careerStages.hubLabel")}
               ariaLabel={t("careerStages.wheelLabel")}
               className="lg:max-w-none"
@@ -352,42 +164,64 @@ export function HomeCareerStagesSection() {
                   transition={{ duration: 0.45, ease: EASE }}
                 >
                   <p className="text-xs font-semibold tracking-[0.16em] text-[#C4C4E8] uppercase">
-                    {t("careerStages.coursesLabel")}
+                    {t(activeStage.shortLabelKey)}
                   </p>
                   <h3 className="mt-2 text-xl font-semibold tracking-tight text-white">
                     {t(activeStage.titleKey)}
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-white/70 text-pretty">
-                    {t(activeStage.descKey)}
-                  </p>
 
-                  <HorizontalScrollCarousel
-                    className="mt-5"
-                    resetScrollKey={activeStage.id}
-                    ariaLabel={t("careerStages.coursesLabel")}
-                    navButtonClassName="text-white/80 hover:bg-white/10 hover:text-white disabled:text-white/25"
-                    contentClassName="px-1 py-1"
-                  >
-                    <div
-                      className={cn(
-                        "flex w-max gap-3",
-                        activeStage.courses.length === 1 && "min-w-full justify-center"
-                      )}
-                    >
-                      {activeStage.courses.map((course) => (
+                  {activeSyllabus?.noteKey ? (
+                    <p className="mt-2 text-sm leading-relaxed text-white/70 text-pretty">
+                      {t(activeSyllabus.noteKey)}
+                    </p>
+                  ) : null}
+
+                  {activeCourses.length > 0 ? (
+                    <>
+                      <p className="mt-4 text-xs font-semibold tracking-[0.16em] text-[#C4C4E8] uppercase">
+                        {t("careerStages.coursesLabel")}
+                      </p>
+
+                      <HorizontalScrollCarousel
+                        className="mt-3"
+                        resetScrollKey={activeStage.id}
+                        ariaLabel={t("careerStages.coursesLabel")}
+                        navButtonClassName="text-white/80 hover:bg-white/10 hover:text-white disabled:text-white/25"
+                        contentClassName="px-1 py-1"
+                      >
                         <div
-                          key={course.titleKey}
-                          className="w-[min(13rem,78vw)] shrink-0 snap-start sm:w-[14.5rem]"
+                          className={cn(
+                            "flex w-max gap-3",
+                            activeCourses.length === 1 && "min-w-full justify-center"
+                          )}
                         >
-                          <StageCourseCard
-                            course={course}
-                            title={t(course.titleKey)}
-                            body={t(course.bodyKey)}
-                          />
+                          {activeCourses.map((course) => (
+                            <div
+                              key={course.id}
+                              className="w-[min(13rem,78vw)] shrink-0 snap-start sm:w-[14.5rem]"
+                            >
+                              <StageCourseCard
+                                stageHref={stageHref}
+                                title={t(course.titleKey)}
+                                body={t(course.bodyKey)}
+                                imageSrc={getCareersSyllabusCourseImage(course.id)}
+                              />
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </HorizontalScrollCarousel>
+                      </HorizontalScrollCarousel>
+                    </>
+                  ) : null}
+
+                  <div className="mt-5">
+                    <Link
+                      href={stageHref}
+                      suppressHydrationWarning
+                      className="inline-flex text-sm font-medium text-[#C4C4E8] underline-offset-4 transition-colors hover:text-white hover:underline"
+                    >
+                      {t("careers.roadmap.book.openPath")}
+                    </Link>
+                  </div>
                 </motion.div>
               ) : null}
             </AnimatePresence>
