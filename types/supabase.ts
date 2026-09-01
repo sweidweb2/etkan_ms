@@ -1617,6 +1617,60 @@ export type Database = {
           },
         ]
       }
+      student_payment_schedules: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          due_date: string
+          id: string
+          label: string
+          notes: string | null
+          status: string
+          student_payment_phase_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          due_date: string
+          id?: string
+          label: string
+          notes?: string | null
+          status?: string
+          student_payment_phase_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          due_date?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          status?: string
+          student_payment_phase_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_payment_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_payment_schedules_student_payment_phase_id_fkey"
+            columns: ["student_payment_phase_id"]
+            isOneToOne: false
+            referencedRelation: "student_payment_phases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_payments: {
         Row: {
           amount: number
@@ -2778,6 +2832,37 @@ export type Database = {
         Returns: Json
       }
       delete_student_payment: {
+        Args: {
+          p_id: string
+          p_student_payment_phase_id?: string | null
+        }
+        Returns: Json
+      }
+      create_student_payment_schedule: {
+        Args: {
+          p_amount: number
+          p_created_by?: string | null
+          p_due_date: string
+          p_label: string
+          p_notes?: string | null
+          p_status?: string
+          p_student_payment_phase_id: string
+        }
+        Returns: Json
+      }
+      update_student_payment_schedule: {
+        Args: {
+          p_amount: number
+          p_due_date: string
+          p_id: string
+          p_label: string
+          p_notes?: string | null
+          p_status: string
+          p_student_payment_phase_id: string
+        }
+        Returns: Json
+      }
+      delete_student_payment_schedule: {
         Args: {
           p_id: string
           p_student_payment_phase_id?: string | null

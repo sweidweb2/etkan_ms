@@ -224,8 +224,11 @@ function GuestTeamDragMonitor({
   const manager = useDragDropManager();
   const onDragOverRef = useRef(onDragOver);
   const onDragEndRef = useRef(onDragEnd);
-  onDragOverRef.current = onDragOver;
-  onDragEndRef.current = onDragEnd;
+
+  useEffect(() => {
+    onDragOverRef.current = onDragOver;
+    onDragEndRef.current = onDragEnd;
+  }, [onDragOver, onDragEnd]);
 
   useEffect(() => {
     if (!manager || !enabled) {
@@ -285,7 +288,13 @@ export function ManageGuestsPanel({
   initialTeams,
 }: ManageGuestsPanelProps) {
   const [guests, setGuests] = useState(() => uniqueGuestsById(initialGuests));
+  const [prevInitialGuests, setPrevInitialGuests] = useState(initialGuests);
   const [teams, setTeams] = useState(initialTeams);
+
+  if (initialGuests !== prevInitialGuests) {
+    setPrevInitialGuests(initialGuests);
+    setGuests(uniqueGuestsById(initialGuests));
+  }
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(FILTER_ALL);
   const [serviceFilter, setServiceFilter] = useState(FILTER_ALL);
@@ -312,17 +321,6 @@ export function ManageGuestsPanel({
     initialAssignState
   );
   const isAssignPending = isAssignActionPending || isAssignTransitionPending;
-
-  useEffect(() => {
-    setGuests(uniqueGuestsById(initialGuests));
-  }, [initialGuests]);
-
-  useEffect(() => {
-    if (isAssignActionPending || assignState.success !== false) {
-      return;
-    }
-    setTeams(initialTeams);
-  }, [assignState.success, initialTeams, isAssignActionPending]);
 
   const permissions = usePermissions();
   const canAssignGuests = hasPermissionInSet(
@@ -367,6 +365,15 @@ export function ManageGuestsPanel({
       })
     );
   });
+
+  useActionStateSuccess(
+    assignState,
+    isAssignActionPending,
+    () => {
+      setTeams(initialTeams);
+    },
+    (nextState) => nextState.success === false
+  );
 
   useActionStateSuccess(deleteTeamState, isDeleteTeamPending, (nextState) => {
     if (!nextState.teamId) {
