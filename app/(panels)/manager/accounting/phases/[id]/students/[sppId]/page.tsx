@@ -11,6 +11,7 @@ import {
   getSppDetailForManager,
   listPaymentsForSppForManager,
 } from "@/services/accounting/student-payment.service";
+import { listStudentPaymentSchedulesForManager } from "@/services/accounting/student-payment-schedule.service";
 
 type ManagerSppDetailPageProps = {
   params: Promise<{ id: string; sppId: string }>;
@@ -35,8 +36,9 @@ export default async function ManagerSppDetailPage({
     notFound();
   }
 
-  const [payments, adjustment, forms, invites] = await Promise.all([
+  const [payments, schedules, adjustment, forms, invites] = await Promise.all([
     listPaymentsForSppForManager(adminClient, actorUserId, sppId),
+    listStudentPaymentSchedulesForManager(adminClient, actorUserId, sppId),
     getAdjustmentForSppForManager(adminClient, actorUserId, sppId),
     listFormsForSppForManager(adminClient, actorUserId, sppId),
     listInvitesForSppForManager(adminClient, actorUserId, sppId),
@@ -46,6 +48,7 @@ export default async function ManagerSppDetailPage({
     <SppDetailsPanel
       spp={spp}
       initialPayments={payments}
+      initialSchedules={schedules}
       initialAdjustment={adjustment}
       initialForms={forms}
       initialInvites={invites}

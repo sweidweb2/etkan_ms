@@ -11,6 +11,7 @@ import {
 import { Can } from "@/components/auth/can";
 import { CreateFinancialAdjustmentDialog } from "@/components/manager/accounting/create-financial-adjustment-dialog";
 import { CreateStudentPaymentDialog } from "@/components/manager/accounting/create-student-payment-dialog";
+import { PaymentScheduleSection } from "@/components/manager/accounting/payment-schedule-section";
 import { EditFinancialAdjustmentDialog } from "@/components/manager/accounting/edit-financial-adjustment-dialog";
 import { EditStudentPaymentDialog } from "@/components/manager/accounting/edit-student-payment-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
@@ -67,6 +68,7 @@ import {
   type PaymentMethod,
 } from "@/lib/manager/accounting/constants";
 import { resolveSppDisplayStatus } from "@/lib/manager/accounting/spp-display-status";
+import { isPaymentScheduleEditable } from "@/lib/manager/accounting/schedule-editable";
 import { computeSppFinancials } from "@/lib/manager/accounting/spp-financials";
 import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
@@ -90,6 +92,7 @@ import type {
   ManagerSppDetail,
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
+import type { ManagerStudentPaymentScheduleRow } from "@/types/manager-student-payment-schedule";
 import { CopyIcon, LinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
@@ -107,6 +110,7 @@ const SPP_HAS_PAYMENTS_DELETE_ERROR =
 type SppDetailsPanelProps = {
   spp: ManagerSppDetail;
   initialPayments: ManagerStudentPaymentRow[];
+  initialSchedules: ManagerStudentPaymentScheduleRow[];
   initialAdjustment: ManagerFinancialAdjustmentRow | null;
   initialForms: ManagerFinancialFormRow[];
   initialInvites: ManagerFinancialFormInviteRow[];
@@ -191,6 +195,7 @@ function applySppFinancials(
 export function SppDetailsPanel({
   spp: initialSpp,
   initialPayments,
+  initialSchedules,
   initialAdjustment,
   initialForms,
   initialInvites,
@@ -988,6 +993,17 @@ export function SppDetailsPanel({
             </div>
           </CardContent>
         </Card>
+
+        <PaymentScheduleSection
+          sppId={spp.id}
+          paymentPhaseId={spp.payment_phase_id}
+          finalAmountDue={spp.final_amount_due}
+          isScheduleEditable={isPaymentScheduleEditable({
+            spp_status: spp.status,
+            payment_phase_status: spp.payment_phase_status,
+          })}
+          initialSchedules={initialSchedules}
+        />
 
         <Card>
           <CardHeader>

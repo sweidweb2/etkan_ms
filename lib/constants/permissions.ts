@@ -36,6 +36,7 @@ export const PERMISSION_FEATURES = [
   "notifications",
   "emailing",
   "accounting",
+  "payment_schedules",
   "backup",
   "logs",
   "cloudflare_ai_usage",
@@ -71,6 +72,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   notifications: "Notifications",
   emailing: "Emailing",
   accounting: "Accounting",
+  payment_schedules: "Payment schedules",
   backup: "Backup",
   logs: "Logs",
   cloudflare_ai_usage: "Cloudflare AI usage",
@@ -231,6 +233,11 @@ export const PERMISSIONS = {
   ACCOUNTING_ADJUSTMENTS_CREATE: "accounting.adjustments.create",
   ACCOUNTING_ADJUSTMENTS_UPDATE: "accounting.adjustments.update",
   ACCOUNTING_ADJUSTMENTS_DELETE: "accounting.adjustments.delete",
+
+  PAYMENT_SCHEDULES_VIEW: "payment_schedules.view",
+  PAYMENT_SCHEDULES_CREATE: "payment_schedules.create",
+  PAYMENT_SCHEDULES_UPDATE: "payment_schedules.update",
+  PAYMENT_SCHEDULES_DELETE: "payment_schedules.delete",
 
   BACKUP_VIEW: "backup.view",
   BACKUP_EXPORT_TABLE: "backup.export_table",
@@ -1062,6 +1069,31 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE,
     feature: "accounting",
     label: "Delete financial adjustment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.PAYMENT_SCHEDULES_VIEW,
+    feature: "payment_schedules",
+    label: "View payment schedules",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.PAYMENT_SCHEDULES_CREATE,
+    feature: "payment_schedules",
+    label: "Create payment schedule",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.PAYMENT_SCHEDULES_UPDATE,
+    feature: "payment_schedules",
+    label: "Edit payment schedule",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.PAYMENT_SCHEDULES_DELETE,
+    feature: "payment_schedules",
+    label: "Delete payment schedule",
     access: PERMISSION_ACCESS.WRITE,
   },
 

@@ -17,15 +17,18 @@ import {
   parseUpdateFinancialAdjustmentFormData,
 } from "@/lib/validators/manager/create-financial-adjustment";
 import { parseCreateStudentPaymentFormData } from "@/lib/validators/manager/create-student-payment";
+import { parseCreateStudentPaymentScheduleFormData } from "@/lib/validators/manager/create-student-payment-schedule";
 import { parseDeleteFinancialAdjustmentFormData } from "@/lib/validators/manager/delete-financial-adjustment";
 import { parseDeleteFinancialFormFormData } from "@/lib/validators/manager/delete-financial-form";
 import { parseDeleteFinancialFormInviteFormData } from "@/lib/validators/manager/delete-financial-form-invite";
 import { parseDeleteStudentPaymentFormData } from "@/lib/validators/manager/delete-student-payment";
+import { parseDeleteStudentPaymentScheduleFormData } from "@/lib/validators/manager/delete-student-payment-schedule";
 import { parseDeleteStudentPaymentPhaseFormData } from "@/lib/validators/manager/delete-student-payment-phase";
 import { parseRepairMissingSppFormData } from "@/lib/validators/manager/repair-missing-spp";
 import { parseTransferSppFormData } from "@/lib/validators/manager/transfer-spp";
 import { parseUpdatePaymentPhaseFormData } from "@/lib/validators/manager/update-payment-phase";
 import { parseUpdateStudentPaymentFormData } from "@/lib/validators/manager/update-student-payment";
+import { parseUpdateStudentPaymentScheduleFormData } from "@/lib/validators/manager/update-student-payment-schedule";
 import {
   parseCreateFinancialFormFormData,
   parseCreateFinancialFormInviteFormData,
@@ -55,6 +58,11 @@ import {
   deleteStudentPaymentForManager,
   updateStudentPaymentForManager,
 } from "@/services/accounting/student-payment.service";
+import {
+  createStudentPaymentScheduleForManager,
+  deleteStudentPaymentScheduleForManager,
+  updateStudentPaymentScheduleForManager,
+} from "@/services/accounting/student-payment-schedule.service";
 import type {
   CreateFinancialAdjustmentActionState,
   CreateFinancialFormInviteActionState,
@@ -78,6 +86,11 @@ import type {
   DeleteStudentPaymentPhaseActionState,
   UpdateStudentPaymentActionState,
 } from "@/types/manager-student-payment";
+import type {
+  CreateStudentPaymentScheduleActionState,
+  DeleteStudentPaymentScheduleActionState,
+  UpdateStudentPaymentScheduleActionState,
+} from "@/types/manager-student-payment-schedule";
 
 function revalidateAccountingList() {
   revalidatePath(ROUTES.MANAGER_ACCOUNTING);
@@ -439,6 +452,144 @@ export async function deleteStudentPaymentAction(
     message: result.message,
     student_payment_phase_id: result.student_payment_phase_id,
     payment_phase_id: result.payment_phase_id,
+  };
+}
+
+export async function createStudentPaymentScheduleAction(
+  _prevState: CreateStudentPaymentScheduleActionState,
+  formData: FormData
+): Promise<CreateStudentPaymentScheduleActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateStudentPaymentScheduleFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createStudentPaymentScheduleForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  const paymentPhaseId = String(formData.get("payment_phase_id") ?? "");
+  if (paymentPhaseId) {
+    revalidateAccountingSppDetail(
+      paymentPhaseId,
+      result.student_payment_phase_id
+    );
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    schedule: result.schedule,
+  };
+}
+
+export async function updateStudentPaymentScheduleAction(
+  _prevState: UpdateStudentPaymentScheduleActionState,
+  formData: FormData
+): Promise<UpdateStudentPaymentScheduleActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseUpdateStudentPaymentScheduleFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await updateStudentPaymentScheduleForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  const paymentPhaseId = String(formData.get("payment_phase_id") ?? "");
+  if (paymentPhaseId) {
+    revalidateAccountingSppDetail(
+      paymentPhaseId,
+      result.student_payment_phase_id
+    );
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    schedule: result.schedule,
+  };
+}
+
+export async function deleteStudentPaymentScheduleAction(
+  _prevState: DeleteStudentPaymentScheduleActionState,
+  formData: FormData
+): Promise<DeleteStudentPaymentScheduleActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseDeleteStudentPaymentScheduleFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteStudentPaymentScheduleForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  const paymentPhaseId = String(formData.get("payment_phase_id") ?? "");
+  if (paymentPhaseId) {
+    revalidateAccountingSppDetail(
+      paymentPhaseId,
+      result.student_payment_phase_id
+    );
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    student_payment_phase_id: result.student_payment_phase_id,
   };
 }
 

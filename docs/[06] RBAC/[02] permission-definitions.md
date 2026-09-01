@@ -32,7 +32,7 @@ Search, filter, and list↔detail are part of the matching `*.view` key (not sep
 
 Kept as separate groups (match manager domains):
 
-Dashboard · Users · Students · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Workshops · Notifications · Emailing · Accounting · Reports · Backup · Logs · Cloudflare AI usage · Registrations · Guests · Teams · Cron Jobs · Settings · RBAC
+Dashboard · Users · Students · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Workshops · Notifications · Emailing · Accounting · Payment schedules · Reports · Backup · Logs · Cloudflare AI usage · Registrations · Guests · Teams · Cron Jobs · Settings · RBAC
 
 Collapsed into `*.view` (not separate permissions): search, filter, schedule/alerts widgets on dashboard, student detail sub-tabs (classes/grades/borrows summaries).
 
@@ -273,6 +273,15 @@ Format: `key` — label — access
 | `accounting.adjustments.update` | Edit financial adjustment | write |
 | `accounting.adjustments.delete` | Delete financial adjustment | write |
 
+### Payment schedules
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `payment_schedules.view` | View payment schedules | read |
+| `payment_schedules.create` | Create payment schedule | write |
+| `payment_schedules.update` | Edit payment schedule | write |
+| `payment_schedules.delete` | Delete payment schedule | write |
+
 ### Backup
 
 | Key | Label | Access |
@@ -490,6 +499,10 @@ accounting.payments.delete
 accounting.adjustments.create
 accounting.adjustments.update
 accounting.adjustments.delete
+payment_schedules.view
+payment_schedules.create
+payment_schedules.update
+payment_schedules.delete
 
 backup.view
 backup.export_table
@@ -519,7 +532,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 151 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete.
+**Count:** 157 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete.
 
 ### is_instructor — shared seed package
 

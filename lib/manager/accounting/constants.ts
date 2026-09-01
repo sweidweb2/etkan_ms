@@ -212,3 +212,30 @@ export function formatTransactionCategory(category: string): string {
   }
   return category;
 }
+
+export const PAYMENT_SCHEDULE_STATUSES = {
+  PLANNED: "planned",
+  PAID: "paid",
+  WAIVED: "waived",
+  CANCELLED: "cancelled",
+} as const;
+
+export type PaymentScheduleStatus =
+  (typeof PAYMENT_SCHEDULE_STATUSES)[keyof typeof PAYMENT_SCHEDULE_STATUSES];
+
+export const PAYMENT_SCHEDULE_STATUS_VALUES = [
+  PAYMENT_SCHEDULE_STATUSES.PLANNED,
+  PAYMENT_SCHEDULE_STATUSES.PAID,
+  PAYMENT_SCHEDULE_STATUSES.WAIVED,
+  PAYMENT_SCHEDULE_STATUSES.CANCELLED,
+] as const;
+
+export const PAYMENT_SCHEDULE_STATUS_LABELS: Record<
+  PaymentScheduleStatus,
+  string
+> = {
+  [PAYMENT_SCHEDULE_STATUSES.PLANNED]: "Planned",
+  [PAYMENT_SCHEDULE_STATUSES.PAID]: "Paid",
+  [PAYMENT_SCHEDULE_STATUSES.WAIVED]: "Waived",
+  [PAYMENT_SCHEDULE_STATUSES.CANCELLED]: "Cancelled",
+};
