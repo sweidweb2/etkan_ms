@@ -31,12 +31,12 @@ export function PanelSidebar({ variant, label, navigation }: PanelSidebarProps) 
         <div className="flex items-center px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <AppLogo
             shape="mark"
-            tone="auto"
+            tone="on-dark"
             height={24}
             className="hidden group-data-[collapsible=icon]:inline-flex"
           />
           <div className="flex min-w-0 flex-col gap-1 group-data-[collapsible=icon]:hidden">
-            <AppLogo tone="auto" height={20} />
+            <AppLogo tone="on-dark" height={20} />
             <span className="truncate text-sm font-semibold text-sidebar-foreground">
               {label}
             </span>

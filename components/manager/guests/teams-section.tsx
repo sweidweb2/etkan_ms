@@ -1,6 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/react";
+import { CollisionPriority } from "@dnd-kit/abstract";
 import { format } from "date-fns";
 import {
   CalendarIcon,
@@ -32,6 +33,7 @@ import type { ManagerTeamRow } from "@/types/manager-team";
 function TeamCard({
   team,
   canDrag,
+  dragDisabled,
   disabled,
   onEdit,
   onDelete,
@@ -40,6 +42,7 @@ function TeamCard({
 }: {
   team: ManagerTeamRow;
   canDrag: boolean;
+  dragDisabled: boolean;
   /** Only gates the team's own edit/delete buttons — dragging stays live. */
   disabled: boolean;
   onEdit: () => void;
@@ -49,8 +52,8 @@ function TeamCard({
 }) {
   const { ref, isDropTarget } = useDroppable({
     id: team.id,
-    type: "team",
     accept: "guest",
+    collisionPriority: CollisionPriority.High,
   });
 
   return (
@@ -112,16 +115,15 @@ function TeamCard({
       <CardContent
         ref={ref}
         className={cn(
-          "overflow-x-auto rounded-b-xl p-0 transition-colors",
+          "min-h-24 overflow-x-auto rounded-b-xl p-0 transition-colors",
           isDropTarget && "bg-primary/5 ring-2 ring-inset ring-primary/40"
         )}
       >
         <GuestRecordsTable
           guests={team.guests}
-          group={team.id}
           showDragColumn={canDrag}
           canDrag={canDrag}
-          disabled={false}
+          disabled={dragDisabled}
           emptyState="Drag a guest here to add them to this team."
           onViewNotes={onViewNotes}
           onEditGuest={onEditGuest}
@@ -136,6 +138,8 @@ type TeamsSectionProps = {
   canDrag: boolean;
   /** A move is being persisted; the UI already shows its result. */
   isSaving: boolean;
+  /** Block drag sources while a move is saving to avoid lost writes. */
+  dragDisabled?: boolean;
   disabled: boolean;
   onCreate: () => void;
   onEdit: (team: ManagerTeamRow) => void;
@@ -148,6 +152,7 @@ export function TeamsSection({
   teams,
   canDrag,
   isSaving,
+  dragDisabled = false,
   disabled,
   onCreate,
   onEdit,
@@ -197,6 +202,7 @@ export function TeamsSection({
               key={team.id}
               team={team}
               canDrag={canDrag}
+              dragDisabled={dragDisabled}
               disabled={disabled}
               onEdit={() => onEdit(team)}
               onDelete={() => onDelete(team)}

@@ -2,12 +2,22 @@
 
 import {
   useActionState,
+  useCallback,
+  useEffect,
   useMemo,
   useOptimistic,
+  useRef,
   useState,
   useTransition,
 } from "react";
-import { DragDropProvider, useDroppable } from "@dnd-kit/react";
+import {
+  DragDropProvider,
+  useDragDropManager,
+  useDroppable,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/react";
+import { CollisionPriority } from "@dnd-kit/abstract";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon } from "lucide-react";
 import {
   assignGuestToTeamAction,
@@ -60,6 +70,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerGuestRow } from "@/types/manager-guest";
 import type {
@@ -155,12 +166,100 @@ function applyGuestMove(
   });
 }
 
+type DropTargetContext = {
+  teamIds: Set<string>;
+  guestTeamById: Map<string, string>;
+  unassignedGuestIds: Set<string>;
+};
+
+function resolveGuestDropTarget(
+  operation: DragEndEvent["operation"],
+  context: DropTargetContext
+): string | null {
+  const { source, target } = operation;
+  if (!source) {
+    return null;
+  }
+
+  const resolveEntityId = (entityId: string): string | null => {
+    if (entityId === UNASSIGNED_GROUP) {
+      return UNASSIGNED_GROUP;
+    }
+    if (context.teamIds.has(entityId)) {
+      return entityId;
+    }
+    const guestTeamId = context.guestTeamById.get(entityId);
+    if (guestTeamId) {
+      return guestTeamId;
+    }
+    if (context.unassignedGuestIds.has(entityId)) {
+      return UNASSIGNED_GROUP;
+    }
+    return null;
+  };
+
+  if (target) {
+    const fromTarget = resolveEntityId(String(target.id));
+    if (fromTarget) {
+      return fromTarget;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Listens for drag events without DragDropProvider's trackRendering wrapper,
+ * which schedules React updates during dnd-kit teardown and can swallow moves.
+ */
+function GuestTeamDragMonitor({
+  enabled,
+  onDragOver,
+  onDragEnd,
+}: {
+  enabled: boolean;
+  onDragOver: (event: DragOverEvent) => void;
+  onDragEnd: (event: DragEndEvent) => void;
+}) {
+  const manager = useDragDropManager();
+  const onDragOverRef = useRef(onDragOver);
+  const onDragEndRef = useRef(onDragEnd);
+  onDragOverRef.current = onDragOver;
+  onDragEndRef.current = onDragEnd;
+
+  useEffect(() => {
+    if (!manager || !enabled) {
+      return;
+    }
+
+    const unsubscribeOver = manager.monitor.addEventListener(
+      "dragover",
+      (event: DragOverEvent) => {
+        onDragOverRef.current(event);
+      }
+    );
+    const unsubscribeEnd = manager.monitor.addEventListener(
+      "dragend",
+      (event: DragEndEvent) => {
+        onDragEndRef.current(event);
+      }
+    );
+
+    return () => {
+      unsubscribeOver();
+      unsubscribeEnd();
+    };
+  }, [manager, enabled]);
+
+  return null;
+}
+
 /** Drop target that returns a guest from a team back to the main list. */
 function UnassignedDropZone({ children }: { children: React.ReactNode }) {
   const { ref, isDropTarget } = useDroppable({
     id: UNASSIGNED_GROUP,
-    type: "team",
     accept: "guest",
+    collisionPriority: CollisionPriority.High,
   });
 
   return (
@@ -186,9 +285,7 @@ export function ManageGuestsPanel({
   initialTeams,
 }: ManageGuestsPanelProps) {
   const [guests, setGuests] = useState(() => uniqueGuestsById(initialGuests));
-  const [prevGuests, setPrevGuests] = useState(initialGuests);
   const [teams, setTeams] = useState(initialTeams);
-  const [prevTeams, setPrevTeams] = useState(initialTeams);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(FILTER_ALL);
   const [serviceFilter, setServiceFilter] = useState(FILTER_ALL);
@@ -209,28 +306,29 @@ export function ManageGuestsPanel({
   const [deleteTeamTarget, setDeleteTeamTarget] =
     useState<ManagerTeamRow | null>(null);
 
-  if (initialGuests !== prevGuests) {
-    setPrevGuests(initialGuests);
-    setGuests(uniqueGuestsById(initialGuests));
-  }
-
-  if (initialTeams !== prevTeams) {
-    setPrevTeams(initialTeams);
-    setTeams(initialTeams);
-  }
-
-  const permissions = usePermissions();
-  const canAssignGuests = hasPermissionInSet(
-    permissions,
-    PERMISSIONS.TEAMS_ASSIGN_GUEST
-  );
-
   const [isAssignTransitionPending, startAssignTransition] = useTransition();
   const [assignState, assignFormAction, isAssignActionPending] = useActionState(
     assignGuestToTeamAction,
     initialAssignState
   );
   const isAssignPending = isAssignActionPending || isAssignTransitionPending;
+
+  useEffect(() => {
+    setGuests(uniqueGuestsById(initialGuests));
+  }, [initialGuests]);
+
+  useEffect(() => {
+    if (isAssignActionPending || assignState.success !== false) {
+      return;
+    }
+    setTeams(initialTeams);
+  }, [assignState.success, initialTeams, isAssignActionPending]);
+
+  const permissions = usePermissions();
+  const canAssignGuests = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.TEAMS_ASSIGN_GUEST
+  );
 
   const [isDeleteTeamTransitionPending, startDeleteTeamTransition] =
     useTransition();
@@ -250,10 +348,10 @@ export function ManageGuestsPanel({
       applyGuestMove(current, move)
   );
 
-  useActionStateToast(assignState, isAssignPending);
-  useActionStateToast(deleteTeamState, isDeleteTeamPending);
+  useActionStateToast(assignState, isAssignActionPending);
+  useActionStateToast(deleteTeamState, isDeleteTeamActionPending);
 
-  useActionStateSuccess(assignState, isAssignPending, (nextState) => {
+  useActionStateSuccess(assignState, isAssignActionPending, (nextState) => {
     const { guestId, teamId } = nextState;
     if (!guestId) {
       return;
@@ -347,70 +445,92 @@ export function ManageGuestsPanel({
   const pageRows = filteredGuests.slice(pageStart, pageStart + pageSize);
   const pageNumbers = getPageNumbers(safePage, totalPages);
 
-  /**
-   * Resolve the group a drop landed on. The target is either a team container,
-   * the guests table container, or another guest row inside one of them.
-   */
-  function resolveTargetGroup(targetId: string): string | null {
-    if (targetId === UNASSIGNED_GROUP) {
-      return UNASSIGNED_GROUP;
+  const dropTargetContext = useMemo<DropTargetContext>(() => {
+    const teamIds = new Set(optimisticTeams.map((team) => team.id));
+    const guestTeamById = new Map<string, string>();
+    for (const team of optimisticTeams) {
+      for (const guest of team.guests) {
+        guestTeamById.set(guest.id, team.id);
+      }
     }
-    if (optimisticTeams.some((team) => team.id === targetId)) {
-      return targetId;
-    }
-    const guestGroup = teamIdByGuestId.get(targetId);
-    if (guestGroup) {
-      return guestGroup;
-    }
-    return allGuests.some((row) => row.id === targetId)
-      ? UNASSIGNED_GROUP
-      : null;
-  }
+    const unassignedGuestIds = new Set(
+      allGuests.filter((row) => !guestTeamById.has(row.id)).map((row) => row.id)
+    );
+    return { teamIds, guestTeamById, unassignedGuestIds };
+  }, [optimisticTeams, allGuests]);
 
-  function moveGuest(guestId: string, targetGroup: string) {
-    const guest = allGuests.find((row) => row.id === guestId);
-    if (!guest) {
-      return;
-    }
+  const pendingDropTargetRef = useRef<string | null>(null);
 
-    const formData = new FormData();
-    formData.set("guest_id", guestId);
-    formData.set("team_id", targetGroup === UNASSIGNED_GROUP ? "" : targetGroup);
+  const moveGuest = useCallback(
+    (guestId: string, targetGroup: string) => {
+      const guest = allGuests.find((row) => row.id === guestId);
+      if (!guest) {
+        showErrorToast("Guest not found.");
+        return;
+      }
 
-    startAssignTransition(() => {
-      applyOptimisticMove({ guest, targetGroup });
-      assignFormAction(formData);
-    });
-  }
+      const formData = new FormData();
+      formData.set("guest_id", guestId);
+      formData.set(
+        "team_id",
+        targetGroup === UNASSIGNED_GROUP ? "" : targetGroup
+      );
 
-  function handleDragEnd(event: {
-    canceled: boolean;
-    operation: { source: { id: string | number } | null; target: { id: string | number } | null };
-  }) {
-    if (event.canceled || !canAssignGuests) {
-      return;
-    }
+      startAssignTransition(() => {
+        const move = { guest, targetGroup };
+        applyOptimisticMove(move);
+        setTeams((current) => applyGuestMove(current, move));
+        assignFormAction(formData);
+      });
+    },
+    [allGuests, applyOptimisticMove, assignFormAction, startAssignTransition]
+  );
 
-    const { source, target } = event.operation;
-    if (!source || !target) {
-      return;
-    }
+  const handleGuestDragOver = useCallback(
+    (event: DragOverEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      const targetGroup = resolveGuestDropTarget(
+        event.operation,
+        dropTargetContext
+      );
+      if (targetGroup) {
+        pendingDropTargetRef.current = targetGroup;
+      }
+    },
+    [dropTargetContext]
+  );
 
-    const guestId = String(source.id);
-    const targetGroup = resolveTargetGroup(String(target.id));
-    if (!targetGroup) {
-      return;
-    }
+  const handleGuestDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { source } = event.operation;
+      if (!source) {
+        pendingDropTargetRef.current = null;
+        return;
+      }
 
-    const sourceGroup = teamIdByGuestId.get(guestId) ?? UNASSIGNED_GROUP;
-    if (sourceGroup === targetGroup) {
-      return;
-    }
+      const guestId = String(source.id);
+      const targetGroup =
+        pendingDropTargetRef.current ??
+        resolveGuestDropTarget(event.operation, dropTargetContext);
+      pendingDropTargetRef.current = null;
 
-    // dnd-kit dispatches this from an insertion effect, which must not schedule
-    // React updates. Let it finish tearing the drag down first.
-    queueMicrotask(() => moveGuest(guestId, targetGroup));
-  }
+      if (!targetGroup) {
+        showErrorToast("Drop the guest on a team or the guest list.");
+        return;
+      }
+
+      const sourceGroup =
+        dropTargetContext.guestTeamById.get(guestId) ?? UNASSIGNED_GROUP;
+      if (sourceGroup === targetGroup) {
+        return;
+      }
+
+      moveGuest(guestId, targetGroup);
+    },
+    [dropTargetContext, moveGuest]
+  );
 
   function handleConfirmDeleteTeam() {
     if (!deleteTeamTarget) {
@@ -425,7 +545,12 @@ export function ManageGuestsPanel({
 
   return (
     <TooltipProvider>
-      <DragDropProvider onDragEnd={handleDragEnd}>
+      <DragDropProvider>
+        <GuestTeamDragMonitor
+          enabled={canAssignGuests}
+          onDragOver={handleGuestDragOver}
+          onDragEnd={handleGuestDragEnd}
+        />
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -568,10 +693,9 @@ export function ManageGuestsPanel({
             <UnassignedDropZone>
               <GuestRecordsTable
                 guests={pageRows}
-                group={UNASSIGNED_GROUP}
                 showDragColumn={canAssignGuests}
                 canDrag={canAssignGuests}
-                disabled={false}
+                disabled={isAssignPending}
                 onViewNotes={(guest) => {
                   setNotesGuest(guest);
                   setIsNotesOpen(true);
@@ -681,6 +805,7 @@ export function ManageGuestsPanel({
             teams={optimisticTeams}
             canDrag={canAssignGuests}
             isSaving={isAssignPending}
+            dragDisabled={isAssignPending}
             disabled={isDeleteTeamPending}
             onCreate={() => {
               setTeamFormTarget(null);

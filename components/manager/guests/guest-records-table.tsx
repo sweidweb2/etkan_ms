@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Feedback } from "@dnd-kit/dom";
-import { useSortable } from "@dnd-kit/react/sortable";
+import { useDraggable } from "@dnd-kit/react";
 import { format } from "date-fns";
 import {
   BanIcon,
@@ -121,8 +121,6 @@ function StatusBadge({ status }: { status: GuestCurrentStatus }) {
 
 function GuestRecordRow({
   guest,
-  index,
-  group,
   showDragColumn,
   draggable,
   disabled,
@@ -130,22 +128,17 @@ function GuestRecordRow({
   onEditGuest,
 }: {
   guest: ManagerGuestRow;
-  index: number;
-  group: string;
   showDragColumn: boolean;
   draggable: boolean;
   disabled: boolean;
   onViewNotes: (guest: ManagerGuestRow) => void;
   onEditGuest: (guest: ManagerGuestRow) => void;
 }) {
-  const { ref, handleRef, isDragging } = useSortable({
+  const { ref, handleRef, isDragging } = useDraggable({
     id: guest.id,
-    index,
-    group,
     type: "guest",
-    accept: "guest",
     disabled: disabled || !draggable,
-    plugins: (defaults) => [...defaults, ...CLONE_FEEDBACK],
+    plugins: CLONE_FEEDBACK,
   });
 
   return (
@@ -250,8 +243,6 @@ function GuestRecordRow({
 
 type GuestRecordsTableProps = {
   guests: ManagerGuestRow[];
-  /** Sortable group: `UNASSIGNED_GROUP` for the main list, otherwise a team id. */
-  group: string;
   showDragColumn: boolean;
   canDrag: boolean;
   disabled: boolean;
@@ -266,7 +257,6 @@ type GuestRecordsTableProps = {
  */
 export function GuestRecordsTable({
   guests,
-  group,
   showDragColumn,
   canDrag,
   disabled,
@@ -309,12 +299,10 @@ export function GuestRecordsTable({
             </td>
           </tr>
         ) : (
-          guests.map((guest, index) => (
+          guests.map((guest) => (
             <GuestRecordRow
               key={guest.id}
               guest={guest}
-              index={index}
-              group={group}
               showDragColumn={showDragColumn}
               draggable={canDrag && !isClosedStatus(guest.status)}
               disabled={disabled}
