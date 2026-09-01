@@ -997,7 +997,8 @@ export function SppDetailsPanel({
         <PaymentScheduleSection
           sppId={spp.id}
           paymentPhaseId={spp.payment_phase_id}
-          finalAmountDue={spp.final_amount_due}
+          remainingAmount={spp.remaining_amount}
+          totalPaid={spp.total_paid}
           isScheduleEditable={isPaymentScheduleEditable({
             spp_status: spp.status,
             payment_phase_status: spp.payment_phase_status,

@@ -47,7 +47,8 @@ const initialDeleteState: DeleteStudentPaymentScheduleActionState = {};
 type PaymentScheduleSectionProps = {
   sppId: string;
   paymentPhaseId: string;
-  finalAmountDue: number;
+  remainingAmount: number;
+  totalPaid: number;
   isScheduleEditable: boolean;
   initialSchedules: ManagerStudentPaymentScheduleRow[];
 };
@@ -111,7 +112,8 @@ function TruncatedCell({
 export function PaymentScheduleSection({
   sppId,
   paymentPhaseId,
-  finalAmountDue,
+  remainingAmount,
+  totalPaid,
   isScheduleEditable,
   initialSchedules,
 }: PaymentScheduleSectionProps) {
@@ -144,11 +146,15 @@ export function PaymentScheduleSection({
     setSchedules(initialSchedules);
   }
 
+  const scheduleTarget = useMemo(
+    () => Math.max(0, remainingAmount),
+    [remainingAmount]
+  );
   const scheduledTotal = useMemo(
     () => schedules.reduce((sum, row) => sum + row.amount, 0),
     [schedules]
   );
-  const scheduleDiff = scheduledTotal - finalAmountDue;
+  const scheduleDiff = scheduledTotal - scheduleTarget;
   const hasScheduleMismatch = Math.abs(scheduleDiff) >= 0.01;
 
   useActionStateSuccess(deleteState, isDeletePending, () => {
@@ -263,7 +269,13 @@ export function PaymentScheduleSection({
                   )}
                 >
                   Scheduled {formatPaymentPhaseMoney(scheduledTotal)} of{" "}
-                  {formatPaymentPhaseMoney(finalAmountDue)}
+                  {formatPaymentPhaseMoney(scheduleTarget)} remaining
+                  {totalPaid > 0 ? (
+                    <>
+                      {" "}
+                      ({formatPaymentPhaseMoney(totalPaid)} already paid)
+                    </>
+                  ) : null}
                   {hasScheduleMismatch ? (
                     <>
                       {" "}
