@@ -4,6 +4,10 @@ import {
   AccountingExceptionsSection,
 } from "@/components/manager/accounting/accounting-exceptions-section";
 import { ManageAccountingPanel } from "@/components/manager/accounting/manage-accounting-panel";
+import {
+  MissingPriorAdjustmentFallback,
+  MissingPriorAdjustmentSection,
+} from "@/components/manager/accounting/missing-prior-adjustment-section";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listPaymentPhasesForManager } from "@/services/accounting/payment-phase.service";
@@ -25,6 +29,12 @@ export default async function ManagerAccountingPage() {
         initialPhases={phases}
         paidThisMonthTotal={paidThisMonthTotal}
       />
+      <Suspense fallback={<MissingPriorAdjustmentFallback />}>
+        <MissingPriorAdjustmentSection
+          actorUserId={actorUserId}
+          phases={phases}
+        />
+      </Suspense>
       <Suspense fallback={<AccountingExceptionsFallback />}>
         <AccountingExceptionsSection
           actorUserId={actorUserId}

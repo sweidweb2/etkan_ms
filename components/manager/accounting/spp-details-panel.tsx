@@ -96,6 +96,7 @@ import type {
   DeleteStudentPaymentActionState,
   DeleteStudentPaymentPhaseActionState,
   ManagerSppDetail,
+  ManagerSppFinancialSnapshot,
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
 import type { ManagerStudentPaymentScheduleRow } from "@/types/manager-student-payment-schedule";
@@ -399,10 +400,23 @@ export function SppDetailsPanel({
     setInvites(initialInvites);
   }
 
-  const handlePaymentCreated = (payment: ManagerStudentPaymentRow) => {
-    const nextPayments = sortPayments(appendUniqueById(payments, payment));
-    setPayments(nextPayments);
-    setSpp((current) => applySppFinancials(current, adjustment, nextPayments));
+  const handlePaymentCreated = (
+    payment: ManagerStudentPaymentRow,
+    snapshot: ManagerSppFinancialSnapshot
+  ) => {
+    setPayments((current) =>
+      sortPayments(appendUniqueById(current, payment))
+    );
+    setSpp((current) => ({
+      ...current,
+      status: snapshot.status,
+      original_amount: snapshot.original_amount,
+      adjustment_amount: snapshot.adjustment_amount,
+      final_amount_due: snapshot.final_amount_due,
+      total_paid: snapshot.total_paid,
+      remaining_amount: snapshot.remaining_amount,
+      has_credit: snapshot.remaining_amount < 0,
+    }));
   };
 
   const handlePaymentUpdated = (payment: ManagerStudentPaymentRow) => {

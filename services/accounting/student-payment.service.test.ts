@@ -166,6 +166,15 @@ describe("createStudentPaymentForManager", () => {
       data: { payment: paymentRecord, paymentPhaseId: phaseId },
       error: null,
     } as never);
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: {
+        ...sppRecord,
+        status: "paid",
+        total_paid: 1000,
+        remaining_amount: 0,
+      },
+      error: null,
+    } as never);
 
     const result = await createStudentPaymentForManager(
       adminClient,
@@ -182,6 +191,17 @@ describe("createStudentPaymentForManager", () => {
     );
 
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.spp).toEqual({
+        id: sppId,
+        status: "paid",
+        original_amount: 1000,
+        adjustment_amount: 0,
+        final_amount_due: 1000,
+        total_paid: 1000,
+        remaining_amount: 0,
+      });
+    }
     expect(
       studentPaymentRepository.createStudentPaymentWithRecalc
     ).toHaveBeenCalled();

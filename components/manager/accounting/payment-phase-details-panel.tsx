@@ -72,7 +72,6 @@ import {
   SPP_STATUS_LABELS,
 } from "@/lib/constants/manager-payment-phase-display";
 import { resolveSppDisplayStatus } from "@/lib/manager/accounting/spp-display-status";
-import { deriveSppStatus } from "@/lib/manager/accounting/spp-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingSppDetailRoute,
@@ -97,26 +96,23 @@ import type {
   ManagerPaymentPhaseRow,
   ManagerSppRow,
 } from "@/types/manager-payment-phase";
-import type { ManagerStudentPaymentRow } from "@/types/manager-student-payment";
+import type {
+  ManagerSppFinancialSnapshot,
+  ManagerStudentPaymentRow,
+} from "@/types/manager-student-payment";
 
-function applySppRowAfterPayment(
+function applySppRowFinancials(
   spp: ManagerSppRow,
-  paymentAmount: number
+  snapshot: ManagerSppFinancialSnapshot
 ): ManagerSppRow {
-  const total_paid = spp.total_paid + paymentAmount;
-  const financials = {
-    original: spp.original_amount,
-    adjustmentAmount: spp.adjustment_amount,
-    finalDue: spp.final_amount_due,
-    totalPaid: total_paid,
-    remaining: spp.final_amount_due - total_paid,
-  };
-
   return {
     ...spp,
-    total_paid,
-    remaining_amount: financials.remaining,
-    status: deriveSppStatus(financials, spp.status),
+    status: snapshot.status,
+    original_amount: snapshot.original_amount,
+    adjustment_amount: snapshot.adjustment_amount,
+    final_amount_due: snapshot.final_amount_due,
+    total_paid: snapshot.total_paid,
+    remaining_amount: snapshot.remaining_amount,
   };
 }
 
@@ -289,13 +285,14 @@ export function PaymentPhaseDetailsPanel({
     setRecordPaymentSppId(sppId);
   };
 
-  const handlePaymentCreated = (payment: ManagerStudentPaymentRow) => {
+  const handlePaymentCreated = (
+    _payment: ManagerStudentPaymentRow,
+    snapshot: ManagerSppFinancialSnapshot
+  ) => {
     setRecordPaymentSppId(null);
     setSpps((current) =>
       current.map((spp) =>
-        spp.id === payment.student_payment_phase_id
-          ? applySppRowAfterPayment(spp, payment.amount)
-          : spp
+        spp.id === snapshot.id ? applySppRowFinancials(spp, snapshot) : spp
       )
     );
   };

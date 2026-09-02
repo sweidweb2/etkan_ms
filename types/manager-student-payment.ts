@@ -47,12 +47,24 @@ export type ManagerStudentPaymentRow = {
   created_at: string;
 };
 
+/** Post-recalc SPP money fields from the server — safe to apply absolutely (idempotent). */
+export type ManagerSppFinancialSnapshot = {
+  id: string;
+  status: StudentPaymentPhaseStatus;
+  original_amount: number;
+  adjustment_amount: number;
+  final_amount_due: number;
+  total_paid: number;
+  remaining_amount: number;
+};
+
 export type CreateStudentPaymentActionState = {
   success?: boolean;
   error?: string;
   message?: string;
   fieldErrors?: FieldErrors;
   payment?: ManagerStudentPaymentRow;
+  spp?: ManagerSppFinancialSnapshot;
 };
 
 export type UpdateStudentPaymentActionState = {

@@ -70,6 +70,19 @@ export type ManagerImportableAdjustmentRow = {
   payment_phase_status: string;
 };
 
+/** Open-phase SPP with no adjustment, but student had one on another SPP. */
+export type ManagerMissingPriorAdjustmentRow = {
+  spp_id: string;
+  student_id: string;
+  student_profile_id: string | null;
+  student_label: string;
+  payment_phase_id: string;
+  payment_phase_name: string;
+  semester_id: string;
+  semester_name: string;
+  spp_status: string;
+};
+
 export type CreateFinancialAdjustmentActionState = {
   success?: boolean;
   error?: string;

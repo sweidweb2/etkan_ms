@@ -201,6 +201,59 @@ export async function listAdjustmentsForStudentExcludingSpp(
     .order("created_at", { ascending: false });
 }
 
+/**
+ * Distinct student ids that have at least one adjustment on an SPP outside
+ * `excludeSppIds` (used for the missing-prior-adjustment queue).
+ */
+export async function listStudentIdsWithAdjustmentsExcludingSppIds(
+  client: Supabase,
+  studentIds: string[],
+  excludeSppIds: string[]
+) {
+  if (studentIds.length === 0) {
+    return { data: [] as string[], error: null };
+  }
+
+  let query = client
+    .from("student_financial_adjustments")
+    .select("student_payment_phases!inner ( student_id )")
+    .in("student_payment_phases.student_id", studentIds);
+
+  if (excludeSppIds.length > 0) {
+    query = query.not(
+      "student_payment_phase_id",
+      "in",
+      `(${excludeSppIds.join(",")})`
+    );
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  const ids = new Set<string>();
+  for (const row of data ?? []) {
+    const spp = (
+      row as {
+        student_payment_phases?:
+          | { student_id?: string }
+          | { student_id?: string }[]
+          | null;
+      }
+    ).student_payment_phases;
+    if (!spp || Array.isArray(spp)) {
+      continue;
+    }
+    if (typeof spp.student_id === "string") {
+      ids.add(spp.student_id);
+    }
+  }
+
+  return { data: [...ids], error: null };
+}
+
 export async function createAdjustment(
   client: Supabase,
   input: CreateFinancialAdjustmentRecordInput

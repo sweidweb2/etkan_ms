@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { importFinancialAdjustmentAction } from "@/app/manager/accounting/actions";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
@@ -42,6 +42,7 @@ type ImportFinancialAdjustmentDialogProps = {
   onOpenChange: (open: boolean) => void;
   sppId: string;
   candidates: ManagerImportableAdjustmentRow[];
+  isLoadingCandidates?: boolean;
   onImported: (adjustment: ManagerFinancialAdjustmentRow) => void;
 };
 
@@ -60,6 +61,7 @@ export function ImportFinancialAdjustmentDialog({
   onOpenChange,
   sppId,
   candidates,
+  isLoadingCandidates = false,
   onImported,
 }: ImportFinancialAdjustmentDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -68,16 +70,18 @@ export function ImportFinancialAdjustmentDialog({
     initialState
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
   const isPending = isActionPending || isTransitionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
-  useActionStateToast(state, isPending);
-
-  useEffect(() => {
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setSelectedId(null);
     }
-  }, [open]);
+  }
+
+  useActionStateToast(state, isPending);
 
   useActionStateSuccess(state, isPending, (nextState) => {
     onOpenChange(false);
@@ -113,7 +117,12 @@ export function ImportFinancialAdjustmentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {candidates.length === 0 ? (
+        {isLoadingCandidates ? (
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-10 text-sm text-muted-foreground">
+            <InlineSpinner />
+            Loading prior adjustments…
+          </div>
+        ) : candidates.length === 0 ? (
           <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
             No prior adjustments for this student.
           </p>
@@ -205,7 +214,12 @@ export function ImportFinancialAdjustmentDialog({
           <Button
             type="button"
             onClick={handleApply}
-            disabled={isPending || !selectedId || candidates.length === 0}
+            disabled={
+              isPending ||
+              isLoadingCandidates ||
+              !selectedId ||
+              candidates.length === 0
+            }
           >
             {isPending ? <InlineSpinner /> : null}
             Apply

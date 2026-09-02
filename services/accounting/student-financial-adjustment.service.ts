@@ -54,8 +54,10 @@ import type {
   ManagerFinancialFormInviteRow,
   ManagerFinancialFormRow,
   ManagerImportableAdjustmentRow,
+  ManagerMissingPriorAdjustmentRow,
   PublicFinancialFormInviteContext,
 } from "@/types/manager-financial-adjustment";
+import type { ManagerPaymentPhaseRow } from "@/types/manager-payment-phase";
 import { randomBytes } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -78,6 +80,8 @@ type MutationFailure = {
 export type GetAdjustmentResult = ManagerFinancialAdjustmentRow | null;
 
 export type GetImportableAdjustmentsResult = ManagerImportableAdjustmentRow[];
+
+export type GetMissingPriorAdjustmentResult = ManagerMissingPriorAdjustmentRow[];
 
 export type GetFormsResult = ManagerFinancialFormRow[];
 
@@ -352,6 +356,138 @@ export async function listImportableAdjustmentsForManager(
   return rows
     .map(mapImportableAdjustmentRecord)
     .filter((row): row is ManagerImportableAdjustmentRow => row !== null);
+}
+
+/**
+ * Opened-phase SPPs with no adjustment where the student has at least one
+ * adjustment on another SPP (import follow-up queue).
+ */
+export async function listOpenSppsMissingPriorAdjustmentForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  phases: Pick<
+    ManagerPaymentPhaseRow,
+    "id" | "name" | "semester_id" | "semester_name" | "status"
+  >[]
+): Promise<GetMissingPriorAdjustmentResult> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+
+  const openedPhases = phases.filter(
+    (phase) => phase.status === PAYMENT_PHASE_STATUSES.OPENED
+  );
+  if (openedPhases.length === 0) {
+    return [];
+  }
+
+  const phaseById = new Map(openedPhases.map((phase) => [phase.id, phase]));
+  const openedPhaseIds = openedPhases.map((phase) => phase.id);
+
+  const { data: sppRows, error: sppError } =
+    await studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
+      adminClient,
+      openedPhaseIds
+    );
+  if (sppError) {
+    throw new Error(sppError.message);
+  }
+
+  const openSpps = (sppRows ?? []).filter(
+    (row) => row.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
+  );
+  if (openSpps.length === 0) {
+    return [];
+  }
+
+  const openSppIds = openSpps.map((row) => row.id);
+  const { data: adjustmentRows, error: adjustmentError } =
+    await adjustmentRepository.listAdjustmentsBySppIds(adminClient, openSppIds);
+  if (adjustmentError) {
+    throw new Error(adjustmentError.message);
+  }
+
+  const sppIdsWithAdjustment = new Set(
+    (adjustmentRows ?? []).map((row) => row.student_payment_phase_id)
+  );
+
+  const withoutAdj = openSpps.filter(
+    (row) => !sppIdsWithAdjustment.has(row.id)
+  );
+  if (withoutAdj.length === 0) {
+    return [];
+  }
+
+  const candidateStudentIds = [
+    ...new Set(withoutAdj.map((row) => row.student_id)),
+  ];
+  const excludeSppIds = withoutAdj.map((row) => row.id);
+
+  const { data: studentsWithPrior, error: priorError } =
+    await adjustmentRepository.listStudentIdsWithAdjustmentsExcludingSppIds(
+      adminClient,
+      candidateStudentIds,
+      excludeSppIds
+    );
+  if (priorError) {
+    throw new Error(priorError.message);
+  }
+
+  const studentsWithPriorSet = new Set(studentsWithPrior ?? []);
+  const qualifying = withoutAdj.filter((row) =>
+    studentsWithPriorSet.has(row.student_id)
+  );
+  if (qualifying.length === 0) {
+    return [];
+  }
+
+  const labelStudentIds = [
+    ...new Set(qualifying.map((row) => row.student_id)),
+  ];
+  const [{ data: profiles }, { data: studentProfiles }] = await Promise.all([
+    profileRepository.listProfilesByIds(adminClient, labelStudentIds),
+    studentProfileRepository.listStudentProfilesByUserIds(
+      adminClient,
+      labelStudentIds
+    ),
+  ]);
+
+  const usernameById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.username])
+  );
+  const studentProfileByUserId = new Map(
+    (studentProfiles ?? []).map((profile) => [profile.user_id, profile])
+  );
+
+  const rows: ManagerMissingPriorAdjustmentRow[] = [];
+  for (const spp of qualifying) {
+    const phase = phaseById.get(spp.payment_phase_id);
+    if (!phase) {
+      continue;
+    }
+    const studentProfile = studentProfileByUserId.get(spp.student_id);
+    const fullName = studentProfile?.full_name?.trim();
+    const username = usernameById.get(spp.student_id)?.trim();
+    rows.push({
+      spp_id: spp.id,
+      student_id: spp.student_id,
+      student_profile_id: studentProfile?.id ?? null,
+      student_label: fullName || username || spp.student_id,
+      payment_phase_id: phase.id,
+      payment_phase_name: phase.name,
+      semester_id: phase.semester_id,
+      semester_name: phase.semester_name,
+      spp_status: spp.status,
+    });
+  }
+
+  return rows.sort(
+    (a, b) =>
+      a.student_label.localeCompare(b.student_label) ||
+      a.payment_phase_name.localeCompare(b.payment_phase_name)
+  );
 }
 
 export async function listFormsForSppForManager(

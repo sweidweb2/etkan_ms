@@ -234,6 +234,7 @@ A phase is in **upfront mode** when it is `opened`, has `upfront_amount > 0`, an
 - ≤1 adjustment per SPP (service + DB) (**E13**)
 - Fixed / percentage validation; 100% scholarship → due 0, SPP `paid`, may close phase (**E12**)
 - **Import adjustment** on SPP details: copy type/value/reason from the same student’s prior SPPs (other phases); new effective date = today; button disabled when none exist
+- **Missing prior adjustments** queue on Manage Accounting: opened-phase SPPs with no adjustment here when the student has ≥1 adjustment on another SPP; Import opens the same picker in place
 - Form create/update tied to adjustment
 - Recalc after adjustment CUD
 - Blocked on cancelled phase/SPP
@@ -244,8 +245,9 @@ A phase is in **upfront mode** when it is `opened`, has `upfront_amount > 0`, an
 - Import does not copy financial forms/invites — adjustment fields only.
 
 ### Proof
-- `student-financial-adjustment.service.ts` + tests (`listImportableAdjustmentsForManager`, `importAdjustmentForManager`)
+- `student-financial-adjustment.service.ts` + tests (`listImportableAdjustmentsForManager`, `importAdjustmentForManager`, `listOpenSppsMissingPriorAdjustmentForManager`)
 - Adjustment / form / import dialogs on `spp-details-panel.tsx`
+- `missing-prior-adjustment-section.tsx` on the accounting page
 
 ---
 

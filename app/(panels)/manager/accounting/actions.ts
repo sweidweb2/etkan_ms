@@ -51,6 +51,7 @@ import {
   deleteFinancialFormForManager,
   deleteFinancialFormInviteForManager,
   importAdjustmentForManager,
+  listImportableAdjustmentsForManager,
   updateAdjustmentForManager,
   updateFinancialFormForManager,
 } from "@/services/accounting/student-financial-adjustment.service";
@@ -72,6 +73,7 @@ import type {
   DeleteFinancialFormActionState,
   DeleteFinancialFormInviteActionState,
   ImportFinancialAdjustmentActionState,
+  ManagerImportableAdjustmentRow,
   UpdateFinancialAdjustmentActionState,
   UpsertFinancialFormActionState,
 } from "@/types/manager-financial-adjustment";
@@ -368,6 +370,7 @@ export async function createStudentPaymentAction(
     success: true,
     message: result.message,
     payment: result.payment,
+    spp: result.spp,
   };
 }
 
@@ -716,12 +719,31 @@ export async function importFinancialAdjustmentAction(
     result.payment_phase_id,
     result.student_payment_phase_id
   );
+  revalidateAccountingList();
 
   return {
     success: true,
     message: result.message,
     adjustment: result.adjustment,
   };
+}
+
+export async function loadImportableAdjustmentsAction(
+  studentId: string,
+  excludeSppId: string
+): Promise<ManagerImportableAdjustmentRow[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  return listImportableAdjustmentsForManager(
+    adminClient,
+    actor.userId,
+    studentId,
+    excludeSppId
+  );
 }
 
 export async function updateFinancialAdjustmentAction(

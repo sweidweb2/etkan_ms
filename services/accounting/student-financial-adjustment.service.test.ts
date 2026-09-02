@@ -9,6 +9,8 @@ import * as studentFinancialAdjustmentRepository from "@/repositories/student-fi
 import * as studentFinancialFormInviteRepository from "@/repositories/student-financial-form-invite.repository";
 import * as studentFinancialFormRepository from "@/repositories/student-financial-form.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
+import * as profileRepository from "@/repositories/profile.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
@@ -19,6 +21,7 @@ import {
   deleteFinancialFormInviteForManager,
   importAdjustmentForManager,
   listImportableAdjustmentsForManager,
+  listOpenSppsMissingPriorAdjustmentForManager,
   submitFinancialFormByToken,
   updateAdjustmentForManager,
 } from "@/services/accounting/student-financial-adjustment.service";
@@ -30,10 +33,14 @@ vi.mock("@/repositories/student-financial-form.repository");
 vi.mock("@/repositories/student-financial-form-invite.repository");
 vi.mock("@/repositories/profile.repository", () => ({
   findProfileById: vi.fn().mockResolvedValue({ data: { username: "jane" }, error: null }),
+  listProfilesByIds: vi.fn().mockResolvedValue({
+    data: [{ id: "student-1", username: "jane" }],
+    error: null,
+  }),
 }));
 vi.mock("@/repositories/student-profile.repository", () => ({
   listStudentProfilesByUserIds: vi.fn().mockResolvedValue({
-    data: [{ id: "sp1", full_name: "Jane Student" }],
+    data: [{ id: "sp1", user_id: "student-1", full_name: "Jane Student" }],
     error: null,
   }),
 }));
@@ -1022,5 +1029,188 @@ describe("importAdjustmentForManager", () => {
     expect(
       studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe("listOpenSppsMissingPriorAdjustmentForManager", () => {
+  const openedPhase = {
+    id: phaseId,
+    name: "Fall tuition",
+    semester_id: "66666666-6666-4666-8666-666666666666",
+    semester_name: "Fall",
+    status: "opened" as const,
+  };
+  const otherOpenPhaseId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const otherOpenSppId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
+      data: [{ id: "student-1", username: "jane" }],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesByUserIds
+    ).mockResolvedValue({
+      data: [{ id: "sp1", user_id: "student-1", full_name: "Jane Student" }],
+      error: null,
+    } as never);
+  });
+
+  it("includes open SPPs without adjustment when the student has a prior one", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsByPaymentPhaseIds
+    ).mockResolvedValue({
+      data: [{ id: sppId, payment_phase_id: phaseId, status: "pending", student_id: "student-1" }],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listAdjustmentsBySppIds
+    ).mockResolvedValue({ data: [], error: null } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listStudentIdsWithAdjustmentsExcludingSppIds
+    ).mockResolvedValue({ data: ["student-1"], error: null });
+
+    const rows = await listOpenSppsMissingPriorAdjustmentForManager(
+      adminClient,
+      actor.userId,
+      [openedPhase]
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      spp_id: sppId,
+      student_label: "Jane Student",
+      payment_phase_name: "Fall tuition",
+      student_profile_id: "sp1",
+    });
+  });
+
+  it("excludes SPPs that already have an adjustment", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsByPaymentPhaseIds
+    ).mockResolvedValue({
+      data: [{ id: sppId, payment_phase_id: phaseId, status: "pending", student_id: "student-1" }],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listAdjustmentsBySppIds
+    ).mockResolvedValue({
+      data: [{ student_payment_phase_id: sppId, value_type: "fixed", value: 100 }],
+      error: null,
+    } as never);
+
+    const rows = await listOpenSppsMissingPriorAdjustmentForManager(
+      adminClient,
+      actor.userId,
+      [openedPhase]
+    );
+
+    expect(rows).toEqual([]);
+    expect(
+      studentFinancialAdjustmentRepository.listStudentIdsWithAdjustmentsExcludingSppIds
+    ).not.toHaveBeenCalled();
+  });
+
+  it("excludes when the student has no prior adjustment on another SPP", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsByPaymentPhaseIds
+    ).mockResolvedValue({
+      data: [{ id: sppId, payment_phase_id: phaseId, status: "pending", student_id: "student-1" }],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listAdjustmentsBySppIds
+    ).mockResolvedValue({ data: [], error: null } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listStudentIdsWithAdjustmentsExcludingSppIds
+    ).mockResolvedValue({ data: [], error: null });
+
+    const rows = await listOpenSppsMissingPriorAdjustmentForManager(
+      adminClient,
+      actor.userId,
+      [openedPhase]
+    );
+
+    expect(rows).toEqual([]);
+  });
+
+  it("excludes cancelled SPPs on opened phases", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsByPaymentPhaseIds
+    ).mockResolvedValue({
+      data: [
+        {
+          id: sppId,
+          payment_phase_id: phaseId,
+          status: "cancelled",
+          student_id: "student-1",
+        },
+      ],
+      error: null,
+    } as never);
+
+    const rows = await listOpenSppsMissingPriorAdjustmentForManager(
+      adminClient,
+      actor.userId,
+      [openedPhase]
+    );
+
+    expect(rows).toEqual([]);
+  });
+
+  it("returns one row per qualifying open SPP for the same student", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsByPaymentPhaseIds
+    ).mockResolvedValue({
+      data: [
+        {
+          id: sppId,
+          payment_phase_id: phaseId,
+          status: "pending",
+          student_id: "student-1",
+        },
+        {
+          id: otherOpenSppId,
+          payment_phase_id: otherOpenPhaseId,
+          status: "partially_paid",
+          student_id: "student-1",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listAdjustmentsBySppIds
+    ).mockResolvedValue({ data: [], error: null } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listStudentIdsWithAdjustmentsExcludingSppIds
+    ).mockResolvedValue({ data: ["student-1"], error: null });
+
+    const rows = await listOpenSppsMissingPriorAdjustmentForManager(
+      adminClient,
+      actor.userId,
+      [
+        openedPhase,
+        {
+          id: otherOpenPhaseId,
+          name: "Workshop fees",
+          semester_id: openedPhase.semester_id,
+          semester_name: "Fall",
+          status: "opened",
+        },
+      ]
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.spp_id).sort()).toEqual(
+      [sppId, otherOpenSppId].sort()
+    );
+    expect(
+      studentFinancialAdjustmentRepository.listStudentIdsWithAdjustmentsExcludingSppIds
+    ).toHaveBeenCalledWith(
+      adminClient,
+      ["student-1"],
+      expect.arrayContaining([sppId, otherOpenSppId])
+    );
   });
 });

@@ -36,6 +36,7 @@ import {
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerSppDetail,
+  ManagerSppFinancialSnapshot,
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -46,6 +47,7 @@ type Supabase = SupabaseClient<Database>;
 export type CreateStudentPaymentSuccess = {
   success: true;
   payment: ManagerStudentPaymentRow;
+  spp: ManagerSppFinancialSnapshot;
   message: string;
   payment_phase_id: string;
 };
@@ -171,6 +173,22 @@ function mapPaymentRecordToRow(
     receipt_number: record.receipt_number,
     notes: record.notes,
     created_at: record.created_at,
+  };
+}
+
+function mapSppRecordToFinancialSnapshot(
+  record: StudentPaymentPhaseRecord
+): ManagerSppFinancialSnapshot {
+  return {
+    id: record.id,
+    status: isStudentPaymentPhaseStatus(record.status)
+      ? record.status
+      : STUDENT_PAYMENT_PHASE_STATUSES.PENDING,
+    original_amount: Number(record.original_amount),
+    adjustment_amount: Number(record.adjustment_amount),
+    final_amount_due: Number(record.final_amount_due),
+    total_paid: Number(record.total_paid),
+    remaining_amount: Number(record.remaining_amount),
   };
 }
 
@@ -400,6 +418,22 @@ export async function createStudentPaymentForManager(
 
     const created = data.payment;
 
+    const { data: sppRecord, error: sppError } = await timer.step(
+      "loadSpp",
+      () =>
+        studentPaymentPhaseRepository.findSppById(
+          adminClient,
+          created.student_payment_phase_id
+        )
+    );
+
+    if (sppError || !sppRecord) {
+      return {
+        success: false,
+        error: sppError?.message ?? "Unable to load updated student balance.",
+      };
+    }
+
     await timer.step("audit", () =>
       recordManagerAuditLog(adminClient, actor, {
         action: "insert",
@@ -420,6 +454,9 @@ export async function createStudentPaymentForManager(
     return {
       success: true,
       payment: mapPaymentRecordToRow(created),
+      spp: mapSppRecordToFinancialSnapshot(
+        sppRecord as StudentPaymentPhaseRecord
+      ),
       message: "Payment recorded.",
       payment_phase_id: data.paymentPhaseId,
     };
