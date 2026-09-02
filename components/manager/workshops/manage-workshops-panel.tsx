@@ -49,6 +49,7 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerWorkshopRow } from "@/types/manager-workshop";
 
 const PAGE_SIZE = 12;
@@ -353,7 +354,7 @@ export function ManageWorkshopsPanel({
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         onWorkshopCreated={(workshop) => {
-          setWorkshops((current) => [workshop, ...current]);
+          setWorkshops((current) => prependUniqueById(current, workshop));
           setTypeTab(workshop.type);
           setPage(1);
         }}

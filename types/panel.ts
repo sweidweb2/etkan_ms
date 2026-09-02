@@ -49,6 +49,7 @@ export type PanelVariant =
   | "manager"
   | "co-manager"
   | "ceo"
+  | "supervisor"
   | "teacher"
   | "trainer"
   | "student";

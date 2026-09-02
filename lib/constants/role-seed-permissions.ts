@@ -1,12 +1,15 @@
 import {
+  PERMISSION_DEFINITIONS,
   PERMISSION_KEYS,
   PERMISSIONS,
+  type PermissionFeature,
   type PermissionKey,
 } from "@/lib/constants/permissions";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 
 /**
- * Shared workshop access package seeded to every non-manager role (except CEO).
+ * Shared workshop access package seeded to every non-manager role (except CEO
+ * and supervisor).
  * Sessions/documents CRUD + workshop/instructor/schedule reads.
  * Does not include workshops.payments.view.
  * Cross-role UI uses shared `/manager/workshops*` routes when `is_instructor` + view.
@@ -79,9 +82,41 @@ export const CEO_WORKSHOP_SEED_PERMISSIONS = [
 ] as const satisfies readonly PermissionKey[];
 
 /**
+ * Feature groups supervisors never receive (ops / finance / system / users).
+ * `payment_schedules` and `cron_jobs` are excluded with accounting/settings.
+ */
+export const SUPERVISOR_EXCLUDED_PERMISSION_FEATURES = [
+  "users",
+  "accounting",
+  "emailing",
+  "gallery",
+  "projects",
+  "notifications",
+  "backup",
+  "logs",
+  "settings",
+  "rbac",
+  "payment_schedules",
+  "cron_jobs",
+] as const satisfies readonly PermissionFeature[];
+
+const SUPERVISOR_EXCLUDED_FEATURE_SET = new Set<PermissionFeature>(
+  SUPERVISOR_EXCLUDED_PERMISSION_FEATURES
+);
+
+/**
+ * Manager catalog minus excluded ops/finance/system/users features.
+ * Applied by `npm run seed:rbac` for the supervisor role.
+ */
+export const SUPERVISOR_SEED_PERMISSIONS = PERMISSION_DEFINITIONS.filter(
+  (definition) => !SUPERVISOR_EXCLUDED_FEATURE_SET.has(definition.feature)
+).map((definition) => definition.key) as PermissionKey[];
+
+/**
  * Default permission grants applied by `npm run seed:rbac`.
- * Manager gets the full catalog; CEO gets the workshop/instructor module;
- * every other role gets the minimal workshop package.
+ * Manager gets the full catalog; supervisor gets manager-minus-excluded;
+ * CEO gets the workshop/instructor module; every other role gets the
+ * minimal workshop package.
  * `replaceRolePermissions` clears prior grants before applying these.
  */
 export const ROLE_SEED_PERMISSIONS: Record<
@@ -89,6 +124,7 @@ export const ROLE_SEED_PERMISSIONS: Record<
   readonly PermissionKey[]
 > = {
   [ROLES.MANAGER]: PERMISSION_KEYS,
+  [ROLES.SUPERVISOR]: SUPERVISOR_SEED_PERMISSIONS,
   [ROLES.CEO]: CEO_WORKSHOP_SEED_PERMISSIONS,
   [ROLES.ADMIN]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
   [ROLES.CO_MANAGER]: WORKSHOP_ACCESS_SEED_PERMISSIONS,

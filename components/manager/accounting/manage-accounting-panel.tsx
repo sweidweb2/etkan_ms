@@ -16,11 +16,14 @@ import { Can } from "@/components/auth/can";
 import { CreatePaymentPhaseDialog } from "@/components/manager/accounting/create-payment-phase-dialog";
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
+import { PaymentPhasesTimeline } from "@/components/manager/accounting/payment-phases-timeline";
 import { UpfrontWindowChip } from "@/components/manager/accounting/upfront-window-chip";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -47,6 +50,7 @@ import {
   type PaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
 import { cn } from "@/lib/utils";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   ManagerPaymentPhaseRow,
@@ -169,6 +173,7 @@ export function ManageAccountingPanel({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
+  const [showAllPhases, setShowAllPhases] = useState(false);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
     10
   );
@@ -193,11 +198,17 @@ export function ManageAccountingPanel({
 
   const filteredPhases = useMemo(() => {
     return phases.filter((phase) => {
+      if (
+        !showAllPhases &&
+        phase.status !== PAYMENT_PHASE_STATUSES.OPENED
+      ) {
+        return false;
+      }
       const matchesStatus =
         statusFilter === STATUS_FILTER_ALL || phase.status === statusFilter;
       return matchesStatus && matchesPhaseSearch(phase, searchQuery);
     });
-  }, [phases, searchQuery, statusFilter]);
+  }, [phases, searchQuery, showAllPhases, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPhases.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -225,6 +236,18 @@ export function ManageAccountingPanel({
     setCurrentPage(1);
   };
 
+  const handleShowAllPhasesChange = (checked: boolean) => {
+    setShowAllPhases(checked);
+    if (
+      !checked &&
+      statusFilter !== STATUS_FILTER_ALL &&
+      statusFilter !== PAYMENT_PHASE_STATUSES.OPENED
+    ) {
+      setStatusFilter(STATUS_FILTER_ALL);
+    }
+    setCurrentPage(1);
+  };
+
   const handlePageSizeChange = (value: string | null) => {
     if (!value) {
       return;
@@ -234,7 +257,7 @@ export function ManageAccountingPanel({
   };
 
   const handleCreated = (phase: ManagerPaymentPhaseRow) => {
-    setPhases((current) => [phase, ...current]);
+    setPhases((current) => prependUniqueById(current, phase));
     setCurrentPage(1);
   };
 
@@ -318,6 +341,17 @@ export function ManageAccountingPanel({
           </div>
         </ClassTabCollapsibleSection>
 
+        <ClassTabCollapsibleSection
+          title="Open phases timeline"
+          description="Opened payment phases on a shared date axis. Today is marked so you can see where you are."
+          storageKey={
+            COLLAPSIBLE_SECTION_STORAGE_KEYS.ACCOUNTING_OPEN_PHASES_TIMELINE
+          }
+          defaultOpen
+        >
+          <PaymentPhasesTimeline phases={phases} />
+        </ClassTabCollapsibleSection>
+
         <div className="flex justify-end">
           <Can permission={PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE}>
             <Button type="button" onClick={() => setIsCreateOpen(true)}>
@@ -356,7 +390,12 @@ export function ManageAccountingPanel({
               </div>
               <Select
                 value={statusFilter}
-                items={STATUS_FILTER_SELECT_ITEMS}
+                items={STATUS_FILTER_SELECT_ITEMS.filter(
+                  (item) =>
+                    showAllPhases ||
+                    item.value === STATUS_FILTER_ALL ||
+                    item.value === PAYMENT_PHASE_STATUSES.OPENED
+                )}
                 onValueChange={handleStatusFilterChange}
               >
                 <SelectTrigger className="w-full sm:w-44" aria-label="Status">
@@ -364,13 +403,30 @@ export function ManageAccountingPanel({
                 </SelectTrigger>
                 <SelectContent align="start">
                   <SelectItem value={STATUS_FILTER_ALL}>All statuses</SelectItem>
-                  {PAYMENT_PHASE_STATUS_VALUES.map((status) => (
+                  {PAYMENT_PHASE_STATUS_VALUES.filter(
+                    (status) =>
+                      showAllPhases ||
+                      status === PAYMENT_PHASE_STATUSES.OPENED
+                  ).map((status) => (
                     <SelectItem key={status} value={status}>
                       {PAYMENT_PHASE_STATUS_LABELS[status]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-2 sm:h-9">
+                <Checkbox
+                  id="accounting-filter-show-all"
+                  checked={showAllPhases}
+                  onCheckedChange={handleShowAllPhasesChange}
+                />
+                <Label
+                  htmlFor="accounting-filter-show-all"
+                  className="cursor-pointer font-normal"
+                >
+                  Show all
+                </Label>
+              </div>
             </div>
 
             <div className="overflow-x-auto">

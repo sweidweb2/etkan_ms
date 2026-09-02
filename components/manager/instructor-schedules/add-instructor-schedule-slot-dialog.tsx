@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { FieldLabel } from "@/components/auth/field-label";
-import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,10 +23,13 @@ import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change
 import { useZodForm } from "@/hooks/use-zod-form";
 import { SCHEDULE_SLOT_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
+  currentSundayWeekStartLocal,
+  projectInstructorSlotDate,
+} from "@/lib/manager/instructor-schedule-calendar";
+import {
   createInstructorScheduleSlotSchema,
   ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
   resolveInstructorScheduleSlotType,
-  todayIsoDateLocal,
   type CreateInstructorScheduleSlotInput,
 } from "@/lib/validators/manager/instructor-schedule-slot";
 import type {
@@ -35,10 +37,22 @@ import type {
   ScheduleEntityType,
 } from "@/types/manager-instructor-schedule";
 
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+] as const;
+
 export type AddInstructorScheduleSlotDefaults = {
   record_id?: string;
   start_time?: string;
   end_time?: string;
+  /** 0 = Sunday … 6 = Saturday. */
+  day_of_week?: number;
 };
 
 type AddInstructorScheduleSlotDialogProps = {
@@ -49,6 +63,17 @@ type AddInstructorScheduleSlotDialogProps = {
   instructors: ManagerInstructorScheduleTab[];
 };
 
+function defaultDayOfWeek(defaults: AddInstructorScheduleSlotDefaults | null) {
+  if (
+    defaults?.day_of_week != null &&
+    defaults.day_of_week >= 0 &&
+    defaults.day_of_week <= 6
+  ) {
+    return defaults.day_of_week;
+  }
+  return new Date().getDay();
+}
+
 export function AddInstructorScheduleSlotDialog({
   open,
   onOpenChange,
@@ -56,9 +81,10 @@ export function AddInstructorScheduleSlotDialog({
   defaults,
   instructors,
 }: AddInstructorScheduleSlotDialogProps) {
-  const [isTransitionPending, startTransition] = useTransition();
-  const isPending = isTransitionPending;
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+  const handleOpenChange = usePendingAwareOpenChange(false, onOpenChange);
+  const [dayOfWeek, setDayOfWeek] = useState(() => defaultDayOfWeek(defaults));
+  const [dayError, setDayError] = useState<string | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
 
   const {
     register,
@@ -78,6 +104,21 @@ export function AddInstructorScheduleSlotDialog({
       end_time: defaults?.end_time ?? "10:30",
     },
   });
+
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setDayOfWeek(defaultDayOfWeek(defaults));
+      setDayError(null);
+      reset({
+        entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+        record_id: defaults?.record_id ?? "",
+        name: "",
+        start_time: defaults?.start_time ?? "09:00",
+        end_time: defaults?.end_time ?? "10:30",
+      });
+    }
+  }
 
   const selectedRecordId = watch("record_id");
 
@@ -99,23 +140,21 @@ export function AddInstructorScheduleSlotDialog({
     [entityOptions]
   );
 
+  const weekdaySelectItems = useMemo(
+    () =>
+      WEEKDAY_OPTIONS.map((option) => ({
+        value: String(option.value),
+        label: option.label,
+      })),
+    []
+  );
+
   const selectedEntityLabel =
     entityOptions.find((option) => option.id === selectedRecordId)?.label ??
     null;
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    reset({
-      entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
-      record_id: defaults?.record_id ?? "",
-      name: "",
-      start_time: defaults?.start_time ?? "09:00",
-      end_time: defaults?.end_time ?? "10:30",
-    });
-  }, [open, defaults, reset]);
+  const selectedDayLabel =
+    WEEKDAY_OPTIONS.find((option) => option.value === dayOfWeek)?.label ?? null;
 
   function onSubmit(values: {
     entity_type: ScheduleEntityType;
@@ -125,18 +164,25 @@ export function AddInstructorScheduleSlotDialog({
     end_time: string;
     slot_date?: string;
   }) {
+    if (dayOfWeek < 0 || dayOfWeek > 6) {
+      setDayError("Please select a day.");
+      return;
+    }
+
     const payload: CreateInstructorScheduleSlotInput = {
       ...values,
       type: resolveInstructorScheduleSlotType({
         entityType: values.entity_type,
       }),
-      // Anchor date is always "now" for form creates (weekday from today).
-      slot_date: todayIsoDateLocal(),
+      slot_date: projectInstructorSlotDate(
+        currentSundayWeekStartLocal(),
+        dayOfWeek
+      ),
     };
+    // Close immediately and call onCreate synchronously so the parent's
+    // optimistic setSessions paints before the server action settles.
     onOpenChange(false);
-    startTransition(() => {
-      void onCreate(payload);
-    });
+    void onCreate(payload);
   }
 
   const recordIdError = errors.record_id?.message;
@@ -146,15 +192,18 @@ export function AddInstructorScheduleSlotDialog({
 
   const canSubmit =
     Boolean(selectedRecordId) &&
-    entityOptions.some((option) => option.id === selectedRecordId);
+    entityOptions.some((option) => option.id === selectedRecordId) &&
+    dayOfWeek >= 0 &&
+    dayOfWeek <= 6;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-md" showCloseButton>
         <DialogHeader>
           <DialogTitle>Add schedule slot</DialogTitle>
           <DialogDescription>
-            Instructor slots are free availability on the weekly calendar.
+            Instructor slots are free availability on the weekly calendar. Pick
+            the weekday the slot repeats on.
           </DialogDescription>
         </DialogHeader>
 
@@ -181,7 +230,7 @@ export function AddInstructorScheduleSlotDialog({
                   if (!value) return;
                   setValue("record_id", value, { shouldValidate: true });
                 }}
-                disabled={isPending || entityOptions.length === 0}
+                disabled={entityOptions.length === 0}
               >
                 <SelectTrigger
                   id="add-schedule-slot-record-id"
@@ -209,6 +258,47 @@ export function AddInstructorScheduleSlotDialog({
                 </p>
               ) : null}
             </div>
+
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="add-schedule-slot-day"
+                label="Day"
+                hint="Required"
+              />
+              <Select
+                value={String(dayOfWeek)}
+                items={weekdaySelectItems}
+                onValueChange={(value) => {
+                  if (value == null) return;
+                  const next = Number(value);
+                  if (Number.isNaN(next) || next < 0 || next > 6) {
+                    return;
+                  }
+                  setDayOfWeek(next);
+                  setDayError(null);
+                }}
+              >
+                <SelectTrigger
+                  id="add-schedule-slot-day"
+                  className="w-full"
+                  aria-invalid={Boolean(dayError)}
+                >
+                  <SelectValue placeholder="Select day">
+                    {selectedDayLabel}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEKDAY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={String(option.value)}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {dayError ? (
+                <p className="text-sm text-destructive">{dayError}</p>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -221,7 +311,6 @@ export function AddInstructorScheduleSlotDialog({
               id="add-instructor-schedule-slot-name"
               maxLength={SCHEDULE_SLOT_FIELD_LIMITS.name.max}
               aria-invalid={!!nameError}
-              disabled={isPending}
               placeholder="e.g. Office hours, Meeting block"
               {...register("name")}
             />
@@ -241,7 +330,6 @@ export function AddInstructorScheduleSlotDialog({
                 id="add-instructor-schedule-slot-start"
                 type="time"
                 aria-invalid={!!startTimeError}
-                disabled={isPending}
                 {...register("start_time")}
               />
               {startTimeError ? (
@@ -259,7 +347,6 @@ export function AddInstructorScheduleSlotDialog({
                 id="add-instructor-schedule-slot-end"
                 type="time"
                 aria-invalid={!!endTimeError}
-                disabled={isPending}
                 {...register("end_time")}
               />
               {endTimeError ? (
@@ -273,7 +360,6 @@ export function AddInstructorScheduleSlotDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending}
             onClick={() => handleOpenChange(false)}
           >
             Cancel
@@ -281,16 +367,9 @@ export function AddInstructorScheduleSlotDialog({
           <Button
             type="submit"
             form="add-instructor-schedule-slot-form"
-            disabled={isPending || !canSubmit}
+            disabled={!canSubmit}
           >
-            {isPending ? (
-              <>
-                <InlineSpinner />
-                Creating slot
-              </>
-            ) : (
-              "Add slot"
-            )}
+            Add slot
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -30,10 +30,12 @@ describe("createStaffUserSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("accepts an explicit valid password", () => {
+  it("accepts supervisor as a creatable staff role", () => {
     const parsed = createStaffUserSchema.safeParse({
       ...validInput,
-      password: "secret1",
+      username: "supervisor1",
+      email: "supervisor@school.com",
+      role: ROLES.SUPERVISOR,
     });
     expect(parsed.success).toBe(true);
   });

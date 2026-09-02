@@ -506,9 +506,13 @@ export function buildWorkshopPaymentSummary(
   return { credits, debits, net, price, remaining };
 }
 
-/** Manager and CEO see every workshop; other roles only assigned ones. */
+/** Manager, CEO, and supervisor see every workshop; other roles only assigned ones. */
 function roleCanViewAllWorkshops(role: RoleValue | null | undefined): boolean {
-  return role === ROLES.MANAGER || role === ROLES.CEO;
+  return (
+    role === ROLES.MANAGER ||
+    role === ROLES.CEO ||
+    role === ROLES.SUPERVISOR
+  );
 }
 
 async function resolveActorRole(

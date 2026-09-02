@@ -2,7 +2,8 @@
 
 **Status:** Phase 0–1 complete — frozen list lives in code at `lib/constants/permissions.ts`.  
 **Baseline:** manager panel capabilities.  
-**Roles co-manager / trainer:** empty panels — no keys yet.
+**Roles co-manager / trainer:** empty panels — workshop access seed only.  
+**Role supervisor:** empty `/supervisor` panel; seeded with manager catalog minus users / accounting / emailing / gallery / projects / notifications / backup / logs / settings / rbac / payment_schedules / cron_jobs (see `[08] role-seeded-permissions.md`). No new permission keys.
 
 ---
 

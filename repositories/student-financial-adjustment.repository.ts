@@ -173,6 +173,34 @@ export async function findAdjustmentById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export type AdjustmentWithSourceSppRecord = FinancialAdjustmentRecord & {
+  student_payment_phases: {
+    id: string;
+    student_id: string;
+    status: string;
+    payment_phases: { id: string; name: string; status: string } | null;
+  } | null;
+};
+
+/**
+ * Adjustments on other SPPs for the same student (import picker source list).
+ */
+export async function listAdjustmentsForStudentExcludingSpp(
+  client: Supabase,
+  studentId: string,
+  excludeSppId: string
+) {
+  return client
+    .from("student_financial_adjustments")
+    .select(
+      `${ADJUSTMENT_COLUMNS}, student_payment_phases!inner ( id, student_id, status, payment_phases ( id, name, status ) )`
+    )
+    .eq("student_payment_phases.student_id", studentId)
+    .neq("student_payment_phase_id", excludeSppId)
+    .order("effective_date", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
 export async function createAdjustment(
   client: Supabase,
   input: CreateFinancialAdjustmentRecordInput

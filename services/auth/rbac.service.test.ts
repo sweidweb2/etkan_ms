@@ -38,6 +38,7 @@ function mapWith(
     [ROLES.MANAGER]: [PERMISSIONS.RBAC_MANAGE],
     [ROLES.CO_MANAGER]: [],
     [ROLES.CEO]: [],
+    [ROLES.SUPERVISOR]: [],
     [ROLES.TEACHER]: [],
     [ROLES.TRAINER]: [],
     [ROLES.STUDENT]: [],

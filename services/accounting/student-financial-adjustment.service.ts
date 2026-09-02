@@ -9,10 +9,12 @@ import {
   type FinancialAdjustmentValueType,
 } from "@/lib/manager/accounting/constants";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { getLocalIsoDate } from "@/lib/utils/local-iso-date";
 import {
   createFinancialAdjustmentSchema,
   updateFinancialAdjustmentSchema,
 } from "@/lib/validators/manager/create-financial-adjustment";
+import { importFinancialAdjustmentSchema } from "@/lib/validators/manager/import-financial-adjustment";
 import { deleteFinancialAdjustmentSchema } from "@/lib/validators/manager/delete-financial-adjustment";
 import { deleteFinancialFormSchema } from "@/lib/validators/manager/delete-financial-form";
 import { deleteFinancialFormInviteSchema } from "@/lib/validators/manager/delete-financial-form-invite";
@@ -25,7 +27,10 @@ import {
 import { getFinancialFormInviteUrl } from "@/lib/manager/accounting/financial-form-invite-url";
 import { checkPublicFinancialFormSubmitRateLimit } from "@/lib/rate-limit/public-financial-form-rate-limit";
 import type { PaymentPhaseListRecord } from "@/repositories/payment-phase.repository";
-import type { FinancialAdjustmentRecord } from "@/repositories/student-financial-adjustment.repository";
+import type {
+  AdjustmentWithSourceSppRecord,
+  FinancialAdjustmentRecord,
+} from "@/repositories/student-financial-adjustment.repository";
 import * as adjustmentRepository from "@/repositories/student-financial-adjustment.repository";
 import type { FinancialFormInviteRecord } from "@/repositories/student-financial-form-invite.repository";
 import * as inviteRepository from "@/repositories/student-financial-form-invite.repository";
@@ -48,6 +53,7 @@ import type {
   ManagerFinancialAdjustmentRow,
   ManagerFinancialFormInviteRow,
   ManagerFinancialFormRow,
+  ManagerImportableAdjustmentRow,
   PublicFinancialFormInviteContext,
 } from "@/types/manager-financial-adjustment";
 import { randomBytes } from "crypto";
@@ -71,6 +77,8 @@ type MutationFailure = {
 
 export type GetAdjustmentResult = ManagerFinancialAdjustmentRow | null;
 
+export type GetImportableAdjustmentsResult = ManagerImportableAdjustmentRow[];
+
 export type GetFormsResult = ManagerFinancialFormRow[];
 
 export type GetInvitesResult = ManagerFinancialFormInviteRow[];
@@ -78,6 +86,8 @@ export type GetInvitesResult = ManagerFinancialFormInviteRow[];
 export type CreateAdjustmentResult =
   | (MutationSuccessBase & { adjustment: ManagerFinancialAdjustmentRow })
   | MutationFailure;
+
+export type ImportAdjustmentResult = CreateAdjustmentResult;
 
 export type UpdateAdjustmentResult =
   | (MutationSuccessBase & { adjustment: ManagerFinancialAdjustmentRow })
@@ -226,6 +236,39 @@ function mapAdjustmentRecord(
   };
 }
 
+function mapImportableAdjustmentRecord(
+  record: AdjustmentWithSourceSppRecord
+): ManagerImportableAdjustmentRow | null {
+  const spp = record.student_payment_phases;
+  if (!spp || Array.isArray(spp)) {
+    return null;
+  }
+
+  const phase = spp.payment_phases;
+  if (!phase || Array.isArray(phase)) {
+    return null;
+  }
+
+  return {
+    id: record.id,
+    type: isAdjustmentType(record.type)
+      ? record.type
+      : FINANCIAL_ADJUSTMENT_TYPES.DISCOUNT,
+    value_type: isValueType(record.value_type)
+      ? record.value_type
+      : FINANCIAL_ADJUSTMENT_VALUE_TYPES.FIXED,
+    value: Number(record.value),
+    reason: record.reason,
+    effective_date: record.effective_date,
+    created_at: record.created_at,
+    source_spp_id: spp.id,
+    source_spp_status: spp.status,
+    payment_phase_id: phase.id,
+    payment_phase_name: phase.name,
+    payment_phase_status: phase.status,
+  };
+}
+
 async function loadSppAndPhase(
   adminClient: Supabase,
   sppId: string
@@ -280,6 +323,35 @@ export async function getAdjustmentForSppForManager(
   }
 
   return mapAdjustmentRecord(adjustment as FinancialAdjustmentRecord);
+}
+
+export async function listImportableAdjustmentsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  studentId: string,
+  excludeSppId: string
+): Promise<GetImportableAdjustmentsResult> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+
+  const { data, error } =
+    await adjustmentRepository.listAdjustmentsForStudentExcludingSpp(
+      adminClient,
+      studentId,
+      excludeSppId
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = (data as AdjustmentWithSourceSppRecord[] | null) ?? [];
+  return rows
+    .map(mapImportableAdjustmentRecord)
+    .filter((row): row is ManagerImportableAdjustmentRow => row !== null);
 }
 
 export async function listFormsForSppForManager(
@@ -405,6 +477,162 @@ export async function createAdjustmentForManager(
   return {
     success: true,
     message: "Financial adjustment created.",
+    adjustment: mapAdjustmentRecord(created),
+    student_payment_phase_id: data.studentPaymentPhaseId,
+    payment_phase_id: data.paymentPhaseId,
+  };
+}
+
+export async function importAdjustmentForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    target_student_payment_phase_id: string;
+    source_adjustment_id: string;
+  }
+): Promise<ImportAdjustmentResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = importFinancialAdjustmentSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const targetLoaded = await loadSppAndPhase(
+    adminClient,
+    parsed.data.target_student_payment_phase_id
+  );
+  if ("error" in targetLoaded) {
+    return { success: false, error: targetLoaded.error };
+  }
+
+  const mutationBlocked = assertMutationsAllowed(
+    targetLoaded.phase.status,
+    targetLoaded.spp.status
+  );
+  if (mutationBlocked) {
+    return { success: false, error: mutationBlocked };
+  }
+
+  const { data: existingAdjustment, error: existingError } =
+    await adjustmentRepository.findAdjustmentBySppId(
+      adminClient,
+      parsed.data.target_student_payment_phase_id
+    );
+  if (existingError) {
+    return {
+      success: false,
+      error: "Unable to import adjustment. Please try again.",
+    };
+  }
+  if (existingAdjustment) {
+    return {
+      success: false,
+      error: "This student payment phase already has a financial adjustment.",
+    };
+  }
+
+  const { data: sourceAdjustment, error: sourceError } =
+    await adjustmentRepository.findAdjustmentById(
+      adminClient,
+      parsed.data.source_adjustment_id
+    );
+  if (sourceError) {
+    return {
+      success: false,
+      error: "Unable to import adjustment. Please try again.",
+    };
+  }
+  if (!sourceAdjustment) {
+    return { success: false, error: "Adjustment not found." };
+  }
+
+  const sourceLoaded = await loadSppAndPhase(
+    adminClient,
+    sourceAdjustment.student_payment_phase_id
+  );
+  if ("error" in sourceLoaded) {
+    return { success: false, error: "Adjustment not found." };
+  }
+
+  if (sourceLoaded.spp.student_id !== targetLoaded.spp.student_id) {
+    return {
+      success: false,
+      error: "Source adjustment does not belong to this student.",
+    };
+  }
+
+  if (
+    sourceAdjustment.student_payment_phase_id ===
+    parsed.data.target_student_payment_phase_id
+  ) {
+    return {
+      success: false,
+      error: "Cannot import an adjustment from the same student payment phase.",
+    };
+  }
+
+  const { data, error: createError } =
+    await adjustmentRepository.createAdjustmentWithRecalc(adminClient, {
+      student_payment_phase_id: parsed.data.target_student_payment_phase_id,
+      type: sourceAdjustment.type,
+      value_type: sourceAdjustment.value_type,
+      value: Number(sourceAdjustment.value),
+      reason: normalizeOptionalString(sourceAdjustment.reason),
+      effective_date: getLocalIsoDate(),
+    });
+
+  if (createError) {
+    return mapAdjustmentWriteError(
+      createError.message,
+      "Unable to import adjustment. Please try again."
+    );
+  }
+
+  if (!data?.adjustment || !data.studentPaymentPhaseId || !data.paymentPhaseId) {
+    return {
+      success: false,
+      error: "Unable to import adjustment. Please try again.",
+    };
+  }
+
+  const created = data.adjustment;
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "student_financial_adjustments",
+    record_id: created.id,
+    new_data: {
+      student_payment_phase_id: created.student_payment_phase_id,
+      type: created.type,
+      value_type: created.value_type,
+      value: created.value,
+      effective_date: created.effective_date,
+    },
+    metadata: {
+      note: "Financial adjustment imported from prior SPP.",
+      source_adjustment_id: sourceAdjustment.id,
+      source_student_payment_phase_id:
+        sourceAdjustment.student_payment_phase_id,
+    },
+  });
+
+  return {
+    success: true,
+    message: "Financial adjustment imported.",
     adjustment: mapAdjustmentRecord(created),
     student_payment_phase_id: data.studentPaymentPhaseId,
     payment_phase_id: data.paymentPhaseId,

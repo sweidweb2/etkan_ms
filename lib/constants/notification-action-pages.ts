@@ -4,6 +4,7 @@ import {
   CO_MANAGER_PANEL_NAVIGATION,
   MANAGER_PANEL_NAVIGATION,
   STUDENT_PANEL_NAVIGATION,
+  SUPERVISOR_PANEL_NAVIGATION,
   TEACHER_PANEL_NAVIGATION,
   TRAINER_PANEL_NAVIGATION,
 } from "@/lib/constants/panel-nav";
@@ -44,6 +45,7 @@ const NOTIFICATION_ACTION_PAGES_BY_AUDIENCE: Record<
   manager: flattenPanelNavigation(MANAGER_PANEL_NAVIGATION),
   "co-manager": flattenPanelNavigation(CO_MANAGER_PANEL_NAVIGATION),
   ceo: flattenPanelNavigation(CEO_PANEL_NAVIGATION),
+  supervisor: flattenPanelNavigation(SUPERVISOR_PANEL_NAVIGATION),
   teacher: flattenPanelNavigation(TEACHER_PANEL_NAVIGATION),
   trainer: flattenPanelNavigation(TRAINER_PANEL_NAVIGATION),
   student: flattenPanelNavigation(STUDENT_PANEL_NAVIGATION),

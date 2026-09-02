@@ -11,6 +11,7 @@ import {
 import { Can } from "@/components/auth/can";
 import { CreateFinancialAdjustmentDialog } from "@/components/manager/accounting/create-financial-adjustment-dialog";
 import { CreateStudentPaymentDialog } from "@/components/manager/accounting/create-student-payment-dialog";
+import { ImportFinancialAdjustmentDialog } from "@/components/manager/accounting/import-financial-adjustment-dialog";
 import { PaymentScheduleSection } from "@/components/manager/accounting/payment-schedule-section";
 import { EditFinancialAdjustmentDialog } from "@/components/manager/accounting/edit-financial-adjustment-dialog";
 import { EditStudentPaymentDialog } from "@/components/manager/accounting/edit-student-payment-dialog";
@@ -76,6 +77,10 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { showSuccessToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import {
+  appendUniqueById,
+  prependUniqueById,
+} from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   CreateFinancialFormInviteActionState,
@@ -85,6 +90,7 @@ import type {
   ManagerFinancialAdjustmentRow,
   ManagerFinancialFormInviteRow,
   ManagerFinancialFormRow,
+  ManagerImportableAdjustmentRow,
 } from "@/types/manager-financial-adjustment";
 import type {
   DeleteStudentPaymentActionState,
@@ -93,7 +99,7 @@ import type {
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
 import type { ManagerStudentPaymentScheduleRow } from "@/types/manager-student-payment-schedule";
-import { CopyIcon, LinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, ImportIcon, LinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
@@ -112,6 +118,7 @@ type SppDetailsPanelProps = {
   initialPayments: ManagerStudentPaymentRow[];
   initialSchedules: ManagerStudentPaymentScheduleRow[];
   initialAdjustment: ManagerFinancialAdjustmentRow | null;
+  initialImportableAdjustments: ManagerImportableAdjustmentRow[];
   initialForms: ManagerFinancialFormRow[];
   initialInvites: ManagerFinancialFormInviteRow[];
 };
@@ -197,6 +204,7 @@ export function SppDetailsPanel({
   initialPayments,
   initialSchedules,
   initialAdjustment,
+  initialImportableAdjustments,
   initialForms,
   initialInvites,
 }: SppDetailsPanelProps) {
@@ -206,6 +214,12 @@ export function SppDetailsPanel({
   const [prevPayments, setPrevPayments] = useState(initialPayments);
   const [adjustment, setAdjustment] = useState(initialAdjustment);
   const [prevAdjustment, setPrevAdjustment] = useState(initialAdjustment);
+  const [importableAdjustments, setImportableAdjustments] = useState(
+    initialImportableAdjustments
+  );
+  const [prevImportableAdjustments, setPrevImportableAdjustments] = useState(
+    initialImportableAdjustments
+  );
   const [forms, setForms] = useState(initialForms);
   const [prevForms, setPrevForms] = useState(initialForms);
   const [invites, setInvites] = useState(initialInvites);
@@ -216,6 +230,7 @@ export function SppDetailsPanel({
   const [deletingPayment, setDeletingPayment] =
     useState<ManagerStudentPaymentRow | null>(null);
   const [isCreateAdjustmentOpen, setIsCreateAdjustmentOpen] = useState(false);
+  const [isImportAdjustmentOpen, setIsImportAdjustmentOpen] = useState(false);
   const [isEditAdjustmentOpen, setIsEditAdjustmentOpen] = useState(false);
   const [isDeleteAdjustmentOpen, setIsDeleteAdjustmentOpen] = useState(false);
   const [isDeleteSppOpen, setIsDeleteSppOpen] = useState(false);
@@ -350,7 +365,7 @@ export function SppDetailsPanel({
       });
     }
     if (nextState.invite) {
-      setInvites((current) => [nextState.invite!, ...current]);
+      setInvites((current) => prependUniqueById(current, nextState.invite!));
     }
   });
 
@@ -369,6 +384,11 @@ export function SppDetailsPanel({
     setAdjustment(initialAdjustment);
   }
 
+  if (initialImportableAdjustments !== prevImportableAdjustments) {
+    setPrevImportableAdjustments(initialImportableAdjustments);
+    setImportableAdjustments(initialImportableAdjustments);
+  }
+
   if (initialForms !== prevForms) {
     setPrevForms(initialForms);
     setForms(initialForms);
@@ -380,7 +400,7 @@ export function SppDetailsPanel({
   }
 
   const handlePaymentCreated = (payment: ManagerStudentPaymentRow) => {
-    const nextPayments = sortPayments([...payments, payment]);
+    const nextPayments = sortPayments(appendUniqueById(payments, payment));
     setPayments(nextPayments);
     setSpp((current) => applySppFinancials(current, adjustment, nextPayments));
   };
@@ -566,6 +586,14 @@ export function SppDetailsPanel({
           onOpenChange={setIsCreateAdjustmentOpen}
           sppId={spp.id}
           onCreated={handleAdjustmentCreated}
+        />
+
+        <ImportFinancialAdjustmentDialog
+          open={isImportAdjustmentOpen}
+          onOpenChange={setIsImportAdjustmentOpen}
+          sppId={spp.id}
+          candidates={importableAdjustments}
+          onImported={handleAdjustmentCreated}
         />
 
         <EditFinancialAdjustmentDialog
@@ -1010,7 +1038,7 @@ export function SppDetailsPanel({
           <CardHeader>
             <CardTitle>Financial adjustment</CardTitle>
             {!spp.payments_blocked && !adjustment ? (
-              <CardAction>
+              <CardAction className="flex flex-wrap gap-2">
                 <Can permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}>
                   <Button
                     type="button"
@@ -1019,6 +1047,21 @@ export function SppDetailsPanel({
                   >
                     <PlusIcon data-icon="inline-start" />
                     Add adjustment
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={importableAdjustments.length === 0}
+                    title={
+                      importableAdjustments.length === 0
+                        ? "No prior adjustments for this student."
+                        : undefined
+                    }
+                    onClick={() => setIsImportAdjustmentOpen(true)}
+                  >
+                    <ImportIcon data-icon="inline-start" />
+                    Import adjustment
                   </Button>
                 </Can>
               </CardAction>

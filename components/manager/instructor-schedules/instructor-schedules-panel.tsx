@@ -88,6 +88,8 @@ const WEEKDAY_LABELS = [
   "Saturday",
 ] as const;
 
+const FILTER_ALL = "all";
+
 function entityMapKey(entityType: ScheduleEntityType, recordId: string) {
   return `${entityType}:${recordId}`;
 }
@@ -101,13 +103,26 @@ function calendarScopeKey(scope: InstructorScheduleCalendarScope): string {
 
 function filterSessionsForInstructor(
   sessions: ManagerInstructorScheduleSession[],
-  instructorId: string
+  instructorFilter: string
 ): ManagerInstructorScheduleSession[] {
-  return sessions.filter(
-    (session) =>
-      session.entityType === ENTITY_SCHEDULE_TYPE_INSTRUCTOR &&
-      session.recordId === instructorId
+  const instructorSessions = sessions.filter(
+    (session) => session.entityType === ENTITY_SCHEDULE_TYPE_INSTRUCTOR
   );
+  if (instructorFilter === FILTER_ALL) {
+    return instructorSessions;
+  }
+  return instructorSessions.filter(
+    (session) => session.recordId === instructorFilter
+  );
+}
+
+function scopeFromInstructorFilter(
+  instructorFilter: string
+): InstructorScheduleCalendarScope {
+  if (instructorFilter === FILTER_ALL) {
+    return { kind: "instructor" };
+  }
+  return { kind: "instructor", recordId: instructorFilter };
 }
 
 function makeTempId(): string {
@@ -203,8 +218,7 @@ export function InstructorSchedulesPanel({
     [data.initialBrowse.recordId]
   );
   const loadedScopeKeyRef = useRef(calendarScopeKey(initialCalendarScope));
-  /** Always exactly one instructor — the panel has no all-instructors mode. */
-  const [selectedInstructorId, setSelectedInstructorId] = React.useState(
+  const [instructorFilter, setInstructorFilter] = React.useState(
     () => data.initialBrowse.recordId ?? firstInstructorId
   );
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
@@ -231,15 +245,16 @@ export function InstructorSchedulesPanel({
     () => new Set(data.instructors.map((instructor) => instructor.id)),
     [data.instructors]
   );
-  if (selectedInstructorId && !instructorIds.has(selectedInstructorId)) {
-    setSelectedInstructorId(firstInstructorId);
+  if (
+    instructorFilter !== FILTER_ALL &&
+    instructorFilter &&
+    !instructorIds.has(instructorFilter)
+  ) {
+    setInstructorFilter(firstInstructorId);
   }
 
   useEffect(() => {
-    const scope: InstructorScheduleCalendarScope = {
-      kind: "instructor",
-      recordId: selectedInstructorId || undefined,
-    };
+    const scope = scopeFromInstructorFilter(instructorFilter);
     const key = calendarScopeKey(scope);
     if (key === loadedScopeKeyRef.current) {
       return;
@@ -260,19 +275,24 @@ export function InstructorSchedulesPanel({
     return () => {
       cancelled = true;
     };
-  }, [selectedInstructorId]);
+  }, [instructorFilter]);
+
+  const isAllInstructors = instructorFilter === FILTER_ALL;
 
   const entitySelectLabel = useMemo(() => {
+    if (isAllInstructors) {
+      return "All";
+    }
     return (
       data.instructors.find(
-        (instructor) => instructor.id === selectedInstructorId
+        (instructor) => instructor.id === instructorFilter
       )?.username ?? "Unknown"
     );
-  }, [selectedInstructorId, data.instructors]);
+  }, [instructorFilter, data.instructors, isAllInstructors]);
 
   function handleEntitySelectChange(value: string | null) {
     if (value) {
-      setSelectedInstructorId(value);
+      setInstructorFilter(value);
     }
   }
 
@@ -289,12 +309,15 @@ export function InstructorSchedulesPanel({
 
   const createPrefill =
     useMemo((): AddInstructorScheduleSlotDefaults | null => {
-      return selectedInstructorId ? { record_id: selectedInstructorId } : null;
-    }, [selectedInstructorId]);
+      if (!instructorFilter || instructorFilter === FILTER_ALL) {
+        return null;
+      }
+      return { record_id: instructorFilter };
+    }, [instructorFilter]);
 
   const filteredSessions = useMemo(
-    () => filterSessionsForInstructor(sessions, selectedInstructorId),
-    [sessions, selectedInstructorId]
+    () => filterSessionsForInstructor(sessions, instructorFilter),
+    [sessions, instructorFilter]
   );
 
   const sessionById = useMemo(() => {
@@ -319,9 +342,15 @@ export function InstructorSchedulesPanel({
         continue;
       }
 
+      const instructorLabel =
+        entityLabelByKey.get(
+          entityMapKey(session.entityType, session.recordId)
+        ) ?? null;
+
       day.segments.push({
         id: session.id,
         label: session.name,
+        sublabel: isAllInstructors ? instructorLabel : null,
         startMinutes: timeToMinutes(session.startTime),
         endMinutes: timeToMinutes(session.endTime),
         color: session.color,
@@ -332,7 +361,7 @@ export function InstructorSchedulesPanel({
     }
 
     return days;
-  }, [filteredSessions, canUpdate]);
+  }, [filteredSessions, canUpdate, entityLabelByKey, isAllInstructors]);
 
   function handleSegmentSelect(segment: ScheduleTankSegment) {
     const session = sessionById.get(segment.id);
@@ -475,6 +504,14 @@ export function InstructorSchedulesPanel({
     const optimistic = sessionFromCreateInput(values, tempId);
     trackPendingTemp(tempId);
     setSessions((prev) => [...prev, optimistic]);
+    // If the filter is a different instructor, switch so the new slot is visible.
+    // Pending temps are merged when the scoped reload finishes.
+    if (
+      instructorFilter !== FILTER_ALL &&
+      instructorFilter !== values.record_id
+    ) {
+      setInstructorFilter(values.record_id);
+    }
 
     const result = await createInstructorScheduleSlotAction(
       {},
@@ -660,7 +697,7 @@ export function InstructorSchedulesPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Select
-            value={selectedInstructorId}
+            value={instructorFilter}
             onValueChange={handleEntitySelectChange}
           >
             <SelectTrigger
@@ -673,6 +710,7 @@ export function InstructorSchedulesPanel({
               </SelectValue>
             </SelectTrigger>
             <SelectContent align="start" alignItemWithTrigger={false}>
+              <SelectItem value={FILTER_ALL}>All</SelectItem>
               {data.instructors.map((instructor) => (
                 <SelectItem key={instructor.id} value={instructor.id}>
                   {instructor.username ?? "Unknown"}

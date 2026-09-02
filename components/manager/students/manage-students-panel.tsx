@@ -46,6 +46,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { ROLES } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
+import { prependUniqueByKey } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerStudentRow } from "@/types/manager-student";
 import type { ManagerUserRow } from "@/types/manager-user";
@@ -335,7 +336,9 @@ export function ManageStudentsPanel({
   };
 
   const handleStudentCreated = (student: ManagerStudentRow) => {
-    setStudents((current) => [student, ...current]);
+    setStudents((current) =>
+      prependUniqueByKey(current, student, (row) => row.user_id)
+    );
     setCurrentPage(1);
   };
 

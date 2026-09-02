@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getAdjustmentForSppForManager,
   listFormsForSppForManager,
+  listImportableAdjustmentsForManager,
   listInvitesForSppForManager,
 } from "@/services/accounting/student-financial-adjustment.service";
 import {
@@ -36,13 +37,20 @@ export default async function ManagerSppDetailPage({
     notFound();
   }
 
-  const [payments, schedules, adjustment, forms, invites] = await Promise.all([
-    listPaymentsForSppForManager(adminClient, actorUserId, sppId),
-    listStudentPaymentSchedulesForManager(adminClient, actorUserId, sppId),
-    getAdjustmentForSppForManager(adminClient, actorUserId, sppId),
-    listFormsForSppForManager(adminClient, actorUserId, sppId),
-    listInvitesForSppForManager(adminClient, actorUserId, sppId),
-  ]);
+  const [payments, schedules, adjustment, importableAdjustments, forms, invites] =
+    await Promise.all([
+      listPaymentsForSppForManager(adminClient, actorUserId, sppId),
+      listStudentPaymentSchedulesForManager(adminClient, actorUserId, sppId),
+      getAdjustmentForSppForManager(adminClient, actorUserId, sppId),
+      listImportableAdjustmentsForManager(
+        adminClient,
+        actorUserId,
+        spp.student_id,
+        spp.id
+      ),
+      listFormsForSppForManager(adminClient, actorUserId, sppId),
+      listInvitesForSppForManager(adminClient, actorUserId, sppId),
+    ]);
 
   return (
     <SppDetailsPanel
@@ -50,6 +58,7 @@ export default async function ManagerSppDetailPage({
       initialPayments={payments}
       initialSchedules={schedules}
       initialAdjustment={adjustment}
+      initialImportableAdjustments={importableAdjustments}
       initialForms={forms}
       initialInvites={invites}
     />

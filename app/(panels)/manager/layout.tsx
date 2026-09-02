@@ -5,6 +5,7 @@ import {
   isSharedManagerPath,
   isSharedManagerWorkshopPath,
 } from "@/lib/auth/shared-manager-routes";
+import { isSupervisorForbiddenManagerPath } from "@/lib/auth/supervisor-manager-access";
 import {
   getNavRscTimingBag,
   getSessionIsInstructor,
@@ -39,7 +40,14 @@ export default async function ManagerLayout({
     redirect(ROUTES.LOGIN);
   }
 
-  if (role === ROLES.MANAGER) {
+  if (role === ROLES.MANAGER || role === ROLES.SUPERVISOR) {
+    if (
+      role === ROLES.SUPERVISOR &&
+      isSupervisorForbiddenManagerPath(pathname)
+    ) {
+      redirect(getDashboardRouteForRole(role));
+    }
+
     await requireManagerRoutePermission(pathname);
     if (debugOn) {
       const bag = getNavRscTimingBag();

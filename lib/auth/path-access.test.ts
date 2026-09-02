@@ -41,6 +41,9 @@ describe("canAccessPath", () => {
       true
     );
     expect(canAccessPath(ROUTES.TRAINER_DASHBOARD, ROLES.TRAINER)).toBe(true);
+    expect(
+      canAccessPath(ROUTES.SUPERVISOR_DASHBOARD, ROLES.SUPERVISOR)
+    ).toBe(true);
   });
 
   it("denies cross-role panel access", () => {
@@ -51,6 +54,9 @@ describe("canAccessPath", () => {
       false
     );
     expect(canAccessPath(ROUTES.TEACHER_DASHBOARD, ROLES.TRAINER)).toBe(false);
+    expect(
+      canAccessPath(ROUTES.SUPERVISOR_DASHBOARD, ROLES.MANAGER)
+    ).toBe(false);
   });
 
   it("allows shared workshop paths for any role", () => {
@@ -76,6 +82,19 @@ describe("canAccessPath", () => {
       canAccessPath(`${ROUTES.MANAGER_GUESTS}/abc-123`, ROLES.CEO)
     ).toBe(true);
     expect(canAccessPath(ROUTES.MANAGER_REGISTRATIONS, ROLES.CEO)).toBe(true);
+  });
+
+  it("allows supervisor to enter manager paths (layout hard-blocks excluded)", () => {
+    expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.SUPERVISOR)).toBe(
+      true
+    );
+    expect(canAccessPath(ROUTES.MANAGER_CLASSES, ROLES.SUPERVISOR)).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_WORKSHOPS, ROLES.SUPERVISOR)).toBe(
+      true
+    );
+    expect(canAccessPath(ROUTES.MANAGER_ACCOUNTING, ROLES.SUPERVISOR)).toBe(
+      true
+    );
   });
 
   it("still denies non-shared manager paths for other roles", () => {

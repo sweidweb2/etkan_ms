@@ -27,6 +27,7 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { MANAGER_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-phase-display";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import {
   SEMESTER_STATUS_VALUES,
   type SemesterStatusValue,
@@ -193,7 +194,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
   const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredPhases.length);
 
   const handleSemesterCreated = (semester: ManagerSemesterRow) => {
-    setPhases((current) => [semester, ...current]);
+    setPhases((current) => prependUniqueById(current, semester));
     setCurrentPage(1);
   };
 

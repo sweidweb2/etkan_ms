@@ -16,6 +16,8 @@ export const COLLAPSIBLE_SECTION_STORAGE_KEYS = {
   SESSION_DETAILS_TASKS_ATTENDEE:
     "etkan:collapsible:session-details:tasks-attendee",
   ACCOUNTING_OVERVIEW: "etkan:collapsible:accounting:overview",
+  ACCOUNTING_OPEN_PHASES_TIMELINE:
+    "etkan:collapsible:accounting:open-phases-timeline",
   ACCOUNTING_PAYMENT_PHASES: "etkan:collapsible:accounting:payment-phases",
   ACCOUNTING_MISSING_SPP: "etkan:collapsible:accounting:missing-spp",
   ACCOUNTING_SPP_SEMESTER_MISMATCH:

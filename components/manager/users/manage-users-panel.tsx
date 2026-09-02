@@ -47,6 +47,7 @@ import {
 } from "@/lib/constants/routes";
 import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerUserRow } from "@/types/manager-user";
 
@@ -205,7 +206,8 @@ export function ManageUsersPanel({
           user.role === ROLES.MANAGER ||
           user.role === ROLES.CO_MANAGER ||
           user.role === ROLES.ADMIN ||
-          user.role === ROLES.CEO
+          user.role === ROLES.CEO ||
+          user.role === ROLES.SUPERVISOR
       ).length,
     }),
     [users]
@@ -252,7 +254,7 @@ export function ManageUsersPanel({
   };
 
   const handleUserCreated = (user: ManagerUserRow) => {
-    setUsers((current) => [user, ...current]);
+    setUsers((current) => prependUniqueById(current, user));
     setCurrentPage(1);
   };
 

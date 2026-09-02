@@ -251,6 +251,29 @@ describe("listWorkshopsForManager", () => {
     expect(profileRepository.findRoleById).not.toHaveBeenCalled();
   });
 
+  it("returns all workshops for supervisor", async () => {
+    vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
+      data: [workshopRecord],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const workshops = await listWorkshopsForManager(
+      adminClient,
+      actor.userId,
+      ROLES.SUPERVISOR
+    );
+
+    expect(workshops).toHaveLength(1);
+    expect(workshopRepository.listWorkshops).toHaveBeenCalled();
+    expect(
+      workshopInstructorRepository.listWorkshopInstructorsByUserId
+    ).not.toHaveBeenCalled();
+    expect(profileRepository.findRoleById).not.toHaveBeenCalled();
+  });
+
   it("returns only assigned workshops for other roles", async () => {
     vi.mocked(
       workshopInstructorRepository.listWorkshopInstructorsByUserId

@@ -67,6 +67,7 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { cn } from "@/lib/utils";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerNotificationRow } from "@/types/manager-notification";
 import type {
   DeleteNotificationActionState,
@@ -196,16 +197,27 @@ export function ManageNotificationsPanel({
   const skipInitialPageFetch = useRef(true);
 
   const handleNotificationCreated = (notification: ManagerNotificationRow) => {
-    setNotifications((current) => [notification, ...current]);
-    setStats((current) => ({
-      total: current.total + 1,
-      unread: current.unread + 1,
-      highPriority:
-        notification.priority === "high"
-          ? current.highPriority + 1
-          : current.highPriority,
-    }));
-    setTotal((current) => current + 1);
+    let didInsert = false;
+    setNotifications((current) => {
+      if (current.some((row) => row.id === notification.id)) {
+        return current.map((row) =>
+          row.id === notification.id ? notification : row
+        );
+      }
+      didInsert = true;
+      return prependUniqueById(current, notification);
+    });
+    if (didInsert) {
+      setStats((current) => ({
+        total: current.total + 1,
+        unread: current.unread + 1,
+        highPriority:
+          notification.priority === "high"
+            ? current.highPriority + 1
+            : current.highPriority,
+      }));
+      setTotal((current) => current + 1);
+    }
     setCurrentPage(1);
   };
 

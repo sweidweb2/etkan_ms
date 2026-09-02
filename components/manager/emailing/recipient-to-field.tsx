@@ -41,6 +41,11 @@ const BULK_OPTIONS: Array<{ id: string; label: string; roles?: RoleValue[] }> =
     },
     { id: "all_admins", label: "All admins", roles: [ROLES.ADMIN] },
     { id: "all_ceos", label: "All CEOs", roles: [ROLES.CEO] },
+    {
+      id: "all_supervisors",
+      label: "All supervisors",
+      roles: [ROLES.SUPERVISOR],
+    },
   ];
 
 function getUserDisplayName(user: ManagerUserRow) {

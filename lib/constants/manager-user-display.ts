@@ -5,6 +5,7 @@ export const MANAGER_USER_ROLE_LABELS: Record<RoleValue, string> = {
   manager: "Manager",
   "co-manager": "Co-manager",
   ceo: "CEO",
+  supervisor: "Supervisor",
   teacher: "Teacher",
   trainer: "Trainer",
   student: "Student",
@@ -18,6 +19,7 @@ export const MANAGER_USER_ROLE_BADGE_CLASSES: Record<RoleValue, string> = {
   "co-manager": "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
   admin: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
   ceo: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  supervisor: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
 };
 
 export const MANAGER_USER_EDITABLE_ROLES = ROLE_VALUES;

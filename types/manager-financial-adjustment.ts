@@ -54,7 +54,31 @@ export type ManagerFinancialAdjustmentRow = {
   created_at: string;
 };
 
+/** Prior adjustment on another SPP for the same student (import picker). */
+export type ManagerImportableAdjustmentRow = {
+  id: string;
+  type: FinancialAdjustmentType;
+  value_type: FinancialAdjustmentValueType;
+  value: number;
+  reason: string | null;
+  effective_date: string;
+  created_at: string;
+  source_spp_id: string;
+  source_spp_status: string;
+  payment_phase_id: string;
+  payment_phase_name: string;
+  payment_phase_status: string;
+};
+
 export type CreateFinancialAdjustmentActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  adjustment?: ManagerFinancialAdjustmentRow;
+};
+
+export type ImportFinancialAdjustmentActionState = {
   success?: boolean;
   error?: string;
   message?: string;

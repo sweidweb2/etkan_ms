@@ -39,6 +39,7 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerEquipmentDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type { ManagerEquipmentRow } from "@/types/manager-equipment";
 
@@ -206,7 +207,7 @@ export function ManageEquipmentsPanel({
   };
 
   const handleEquipmentCreated = (equipment: ManagerEquipmentRow) => {
-    setEquipments((current) => [equipment, ...current]);
+    setEquipments((current) => prependUniqueById(current, equipment));
     setCurrentPage(1);
   };
 

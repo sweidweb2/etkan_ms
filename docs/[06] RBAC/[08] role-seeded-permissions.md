@@ -72,6 +72,32 @@ Re-run `npm run seed:rbac` after deploy so CEO receives the new `guests.*` / `re
 
 ---
 
+## Supervisor
+
+Manager catalog minus excluded ops / finance / system / users features (`SUPERVISOR_SEED_PERMISSIONS`):
+
+**Excluded feature groups (no grants):**
+```
+users
+accounting
+emailing
+gallery
+projects
+notifications
+backup
+logs
+settings
+rbac
+payment_schedules
+cron_jobs
+```
+
+**Granted:** every other catalog key (dashboard, students, registrations, guests, teams, subjects, classes, sessions, attendance, tasks, final_exams, grades, semesters, equipment, instructors, mentors, instructor_schedules, workshops including payments, cloudflare_ai_usage).
+
+Native panel: `/supervisor` (empty dashboard). Day-to-day UI uses `/manager/*` routes with the same view-permission gates as manager. Layout **hard-blocks** excluded URL prefixes even if those keys are later granted in the RBAC UI. Workshops do **not** require `is_instructor` for supervisors.
+
+---
+
 ## Other roles (admin, co-manager, teacher, trainer, student)
 
 Shared workshop access package only (`WORKSHOP_ACCESS_SEED_PERMISSIONS`):
@@ -90,4 +116,4 @@ instructor_schedules.view
 
 Shared **Manage workshops** UI is available at `/manager/workshops*` when `profiles.is_instructor` is true and the user holds the matching view permission(s). Sidebar requires `is_instructor` + `workshops.view`.
 
-**List / detail scoping:** Manager and CEO see **all** workshops. Other roles only see workshops where they are assigned in `workshop_instructors`.
+**List / detail scoping:** Manager, CEO, and supervisor see **all** workshops. Other roles only see workshops where they are assigned in `workshop_instructors`.

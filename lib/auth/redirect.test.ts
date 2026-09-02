@@ -27,6 +27,9 @@ describe("getPostLoginRedirect", () => {
       ROUTES.CO_MANAGER_DASHBOARD
     );
     expect(getPostLoginRedirect(ROLES.TRAINER)).toBe(ROUTES.TRAINER_DASHBOARD);
+    expect(getPostLoginRedirect(ROLES.SUPERVISOR)).toBe(
+      ROUTES.SUPERVISOR_DASHBOARD
+    );
   });
 
   it("honors next when path is allowed for the role", () => {

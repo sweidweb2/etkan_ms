@@ -233,6 +233,7 @@ A phase is in **upfront mode** when it is `opened`, has `upfront_amount > 0`, an
 ### What works
 - ≤1 adjustment per SPP (service + DB) (**E13**)
 - Fixed / percentage validation; 100% scholarship → due 0, SPP `paid`, may close phase (**E12**)
+- **Import adjustment** on SPP details: copy type/value/reason from the same student’s prior SPPs (other phases); new effective date = today; button disabled when none exist
 - Form create/update tied to adjustment
 - Recalc after adjustment CUD
 - Blocked on cancelled phase/SPP
@@ -240,10 +241,11 @@ A phase is in **upfront mode** when it is `opened`, has `upfront_amount > 0`, an
 ### Caveats / risks
 - Deleting an adjustment recalculates due upward — may reopen phase; expected.
 - Form is optional aid metadata; not a second money source.
+- Import does not copy financial forms/invites — adjustment fields only.
 
 ### Proof
-- `student-financial-adjustment.service.ts` + tests
-- Adjustment / form dialogs on `spp-details-panel.tsx`
+- `student-financial-adjustment.service.ts` + tests (`listImportableAdjustmentsForManager`, `importAdjustmentForManager`)
+- Adjustment / form / import dialogs on `spp-details-panel.tsx`
 
 ---
 

@@ -257,6 +257,114 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
 
 /** @deprecated Use `CEO_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const CEO_PANEL_NAV: PanelNavItem[] = CEO_PANEL_NAVIGATION.items!;
+
+/**
+ * Supervisor: empty native dashboard + manager feature links minus excluded
+ * ops/system surfaces (users, accounting/finance, email, gallery, projects,
+ * notifications, backup, logs, rbac, settings).
+ */
+export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation = {
+  items: [
+    {
+      title: "Dashboard",
+      href: ROUTES.SUPERVISOR_DASHBOARD,
+      icon: "layout-dashboard",
+    },
+  ],
+  groups: [
+    {
+      id: "people",
+      label: "People",
+      defaultOpen: true,
+      items: [
+        {
+          title: "Manage students",
+          href: ROUTES.MANAGER_STUDENTS,
+          icon: "book-open",
+        },
+        {
+          title: "Registrations",
+          href: ROUTES.MANAGER_REGISTRATIONS,
+          icon: "clipboard-list",
+        },
+        {
+          title: "Guests",
+          href: ROUTES.MANAGER_GUESTS,
+          icon: "user-plus",
+        },
+      ],
+    },
+    {
+      id: "academics",
+      label: "Academics",
+      defaultOpen: true,
+      items: [
+        {
+          title: "Manage subjects",
+          href: ROUTES.MANAGER_SUBJECTS,
+          icon: "library",
+        },
+        {
+          title: "Manage classes",
+          href: ROUTES.MANAGER_CLASSES,
+          icon: "school",
+        },
+        {
+          title: "Manage semesters",
+          href: ROUTES.MANAGER_SEMESTERS,
+          icon: "layers",
+        },
+      ],
+    },
+    {
+      id: "resources",
+      label: "Resources",
+      defaultOpen: true,
+      items: [
+        {
+          title: "Manage equipments",
+          href: ROUTES.MANAGER_EQUIPMENTS,
+          icon: "package",
+        },
+      ],
+    },
+    {
+      id: "instructors-workshops",
+      label: "Instructors & workshops",
+      defaultOpen: true,
+      items: [
+        {
+          title: "Manage instructors",
+          href: ROUTES.MANAGER_INSTRUCTORS,
+          icon: "school",
+        },
+        {
+          title: "Instructor schedules",
+          href: ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
+          icon: "calendar-days",
+        },
+        {
+          title: "Manage workshops",
+          href: ROUTES.MANAGER_WORKSHOPS,
+          icon: "presentation",
+        },
+        {
+          title: "AI usage",
+          href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
+          icon: "sparkles",
+        },
+      ],
+    },
+  ],
+};
+
+/** @deprecated Use `SUPERVISOR_PANEL_NAVIGATION` — kept for flatten/search helpers. */
+export const SUPERVISOR_PANEL_NAV: PanelNavItem[] = [
+  ...(SUPERVISOR_PANEL_NAVIGATION.items ?? []),
+  ...(SUPERVISOR_PANEL_NAVIGATION.groups?.flatMap((group) => group.items) ??
+    []),
+];
+
 export const TEACHER_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
   items: [
     {

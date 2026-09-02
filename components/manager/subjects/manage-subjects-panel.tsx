@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
 const PAGE_SIZE = 15;
@@ -246,7 +247,7 @@ export function ManageSubjectsPanel({
   };
 
   const handleSubjectCreated = (subject: ManagerSubjectRow) => {
-    setSubjects((current) => [subject, ...current]);
+    setSubjects((current) => prependUniqueById(current, subject));
     setCurrentPage(1);
   };
 

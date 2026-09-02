@@ -16,6 +16,7 @@ import {
   parseCreateFinancialAdjustmentFormData,
   parseUpdateFinancialAdjustmentFormData,
 } from "@/lib/validators/manager/create-financial-adjustment";
+import { parseImportFinancialAdjustmentFormData } from "@/lib/validators/manager/import-financial-adjustment";
 import { parseCreateStudentPaymentFormData } from "@/lib/validators/manager/create-student-payment";
 import { parseCreateStudentPaymentScheduleFormData } from "@/lib/validators/manager/create-student-payment-schedule";
 import { parseDeleteFinancialAdjustmentFormData } from "@/lib/validators/manager/delete-financial-adjustment";
@@ -49,6 +50,7 @@ import {
   deleteAdjustmentForManager,
   deleteFinancialFormForManager,
   deleteFinancialFormInviteForManager,
+  importAdjustmentForManager,
   updateAdjustmentForManager,
   updateFinancialFormForManager,
 } from "@/services/accounting/student-financial-adjustment.service";
@@ -69,6 +71,7 @@ import type {
   DeleteFinancialAdjustmentActionState,
   DeleteFinancialFormActionState,
   DeleteFinancialFormInviteActionState,
+  ImportFinancialAdjustmentActionState,
   UpdateFinancialAdjustmentActionState,
   UpsertFinancialFormActionState,
 } from "@/types/manager-financial-adjustment";
@@ -652,6 +655,49 @@ export async function createFinancialAdjustmentAction(
 
   const adminClient = createSupabaseAdminClient();
   const result = await createAdjustmentForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidateAccountingSppDetail(
+    result.payment_phase_id,
+    result.student_payment_phase_id
+  );
+
+  return {
+    success: true,
+    message: result.message,
+    adjustment: result.adjustment,
+  };
+}
+
+export async function importFinancialAdjustmentAction(
+  _prevState: ImportFinancialAdjustmentActionState,
+  formData: FormData
+): Promise<ImportFinancialAdjustmentActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseImportFinancialAdjustmentFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await importAdjustmentForManager(
     adminClient,
     actor.userId,
     actor,

@@ -63,7 +63,7 @@ export function wouldRetainRbacManage(
       }
       continue;
     }
-    if (currentByRole[candidate].includes(PERMISSIONS.RBAC_MANAGE)) {
+    if (currentByRole[candidate]?.includes(PERMISSIONS.RBAC_MANAGE)) {
       return true;
     }
   }

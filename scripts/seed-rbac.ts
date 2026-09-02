@@ -2,8 +2,9 @@ import {
   PERMISSION_DEFINITIONS,
   PERMISSION_KEYS,
 } from "@/lib/constants/permissions";
+import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import { ROLE_SEED_PERMISSIONS } from "@/lib/constants/role-seed-permissions";
-import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
+import { ROLE_VALUES } from "@/lib/constants/roles";
 import * as permissionRepository from "@/repositories/permission.repository";
 import { createSeedAdminClient } from "@/scripts/lib/create-seed-admin-client";
 import { loadEnvLocal } from "@/scripts/lib/load-env-local";
@@ -112,20 +113,7 @@ async function seedRbac(): Promise<void> {
       }
     }
 
-    const label =
-      role === ROLES.MANAGER
-        ? "Manager"
-        : role === ROLES.ADMIN
-          ? "Admin"
-          : role === ROLES.CEO
-            ? "CEO"
-            : role === ROLES.CO_MANAGER
-              ? "Co-manager"
-              : role === ROLES.TEACHER
-                ? "Teacher"
-                : role === ROLES.TRAINER
-                  ? "Trainer"
-                  : "Student";
+    const label = MANAGER_USER_ROLE_LABELS[role];
 
     console.log(`  ${label} grants: ${expectedKeys.length}`);
   }

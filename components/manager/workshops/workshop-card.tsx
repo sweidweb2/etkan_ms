@@ -6,7 +6,6 @@ import {
   BanknoteIcon,
   CalendarDaysIcon,
   PencilIcon,
-  PresentationIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddWorkshopPaymentDialog } from "@/components/manager/workshops/add-workshop-payment-dialog";
@@ -28,36 +27,23 @@ import {
 } from "@/lib/constants/manager-workshop-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerWorkshopDetailRoute } from "@/lib/constants/routes";
-import { cn } from "@/lib/utils";
 import type { ManagerWorkshopRow } from "@/types/manager-workshop";
 
 type WorkshopCardProps = {
   workshop: ManagerWorkshopRow;
 };
 
-const PAYMENT_BADGE_CLASSES = {
-  paid: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  partial: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  unpaid: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
-  unpriced: "bg-muted text-muted-foreground",
-} as const;
-
-type PaymentState = keyof typeof PAYMENT_BADGE_CLASSES;
-
-function resolvePaymentState(
-  price: number | null,
-  paidNet: number
-): { state: PaymentState; label: string } {
+function resolvePaymentLabel(price: number | null, paidNet: number): string {
   if (price == null || price <= 0) {
-    return { state: "unpriced", label: "No price" };
+    return "No price";
   }
   if (paidNet >= price) {
-    return { state: "paid", label: "Paid" };
+    return "Paid";
   }
   if (paidNet > 0) {
-    return { state: "partial", label: "Partially paid" };
+    return "Partially paid";
   }
-  return { state: "unpaid", label: "Unpaid" };
+  return "Unpaid";
 }
 
 export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
@@ -75,7 +61,7 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
   }
 
   const detailHref = getManagerWorkshopDetailRoute(workshop.id);
-  const payment = resolvePaymentState(workshop.price, paidNet);
+  const paymentLabel = resolvePaymentLabel(workshop.price, paidNet);
 
   return (
     <>
@@ -120,9 +106,6 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
         />
         <CardHeader className="relative z-10 gap-2 border-b bg-muted/20 px-3 py-2.5 pointer-events-none">
           <div className="flex min-w-0 items-start gap-2">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-300">
-              <PresentationIcon className="size-4" />
-            </div>
             <div className="min-w-0 flex-1">
               <CardTitle className="truncate text-sm leading-snug">
                 {workshop.name}
@@ -139,13 +122,8 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
         </CardHeader>
 
         <CardContent className="relative z-10 flex items-center justify-between gap-2 px-3 py-2 pointer-events-none">
-          <span
-            className={cn(
-              "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium",
-              PAYMENT_BADGE_CLASSES[payment.state]
-            )}
-          >
-            {payment.label}
+          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {paymentLabel}
           </span>
           <span className="truncate text-[11px] tabular-nums text-muted-foreground">
             {workshop.price == null
@@ -194,7 +172,7 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 flex-1 px-2.5 text-xs pointer-events-auto relative z-10 border-violet-500/40 bg-background text-violet-700 hover:bg-violet-500/10 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-200"
+              className="h-7 flex-1 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
               aria-label={`Record payment for ${workshop.name}`}
               onClick={(event) => {
                 event.preventDefault();

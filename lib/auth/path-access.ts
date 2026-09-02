@@ -1,4 +1,5 @@
 import { isSharedManagerPath } from "@/lib/auth/shared-manager-routes";
+import { isManagerPanelPath } from "@/lib/auth/supervisor-manager-access";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
   getPanelRootForRole,
@@ -23,6 +24,12 @@ export function canAccessPath(pathname: string, role: RoleValue): boolean {
   }
 
   if (isSharedManagerPath(pathname)) {
+    return true;
+  }
+
+  // Supervisors work on allowed /manager/* pages (layout enforces grants +
+  // hard-blocks excluded surfaces).
+  if (role === ROLES.SUPERVISOR && isManagerPanelPath(pathname)) {
     return true;
   }
 

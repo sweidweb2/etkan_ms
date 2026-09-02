@@ -47,6 +47,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
+import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   DeleteGalleryImageActionState,
@@ -126,18 +127,6 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   });
 
   return result;
-}
-
-/**
- * A refreshed server list can already contain rows a create action just
- * returned, so drop those ids before prepending.
- */
-function prependImages(
-  current: ManagerGalleryImageRow[],
-  created: ManagerGalleryImageRow[]
-) {
-  const createdIds = new Set(created.map((image) => image.id));
-  return [...created, ...current.filter((row) => !createdIds.has(row.id))];
 }
 
 function matchesSearch(image: ManagerGalleryImageRow, query: string) {
@@ -296,7 +285,7 @@ export function ManageGalleryPanel({
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
           onImageCreated={(image) => {
-            setImages((current) => prependImages(current, [image]));
+            setImages((current) => prependUniqueById(current, image));
             setCurrentPage(1);
           }}
         />
@@ -365,7 +354,7 @@ export function ManageGalleryPanel({
         {activeTab === "bulk" ? (
           <BulkGalleryJsonForm
             onImagesCreated={(created) => {
-              setImages((current) => prependImages(current, created));
+              setImages((current) => prependUniqueById(current, created));
               setCurrentPage(1);
               setActiveTab("records");
             }}

@@ -90,6 +90,11 @@ export function projectInstructorSlotDate(
   return `${y}-${m}-${d}`;
 }
 
+/** Sunday (local) of the week that contains today. */
+export function currentSundayWeekStartLocal(): string {
+  return getSundayWeekBounds(formatDateFromDate(new Date())).weekStart;
+}
+
 export type ScheduleWorkshopBounds = {
   start_date: string | null;
   end_date: string | null;

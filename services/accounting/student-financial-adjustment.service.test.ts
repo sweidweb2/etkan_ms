@@ -17,6 +17,8 @@ import {
   createFinancialFormInviteForManager,
   deleteAdjustmentForManager,
   deleteFinancialFormInviteForManager,
+  importAdjustmentForManager,
+  listImportableAdjustmentsForManager,
   submitFinancialFormByToken,
   updateAdjustmentForManager,
 } from "@/services/accounting/student-financial-adjustment.service";
@@ -40,6 +42,9 @@ vi.mock("@/lib/manager/accounting/financial-form-invite-url", () => ({
     `http://localhost:3000/f/${token}`,
 }));
 vi.mock("@/lib/rate-limit/public-financial-form-rate-limit");
+vi.mock("@/lib/utils/local-iso-date", () => ({
+  getLocalIsoDate: () => "2026-09-02",
+}));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -763,5 +768,259 @@ describe("updateAdjustmentForManager validation path", () => {
     if (!result.success) {
       expect(result.fieldErrors?.value?.[0]).toMatch(/at most 100/i);
     }
+  });
+});
+
+describe("listImportableAdjustmentsForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("maps prior adjustments and skips malformed joins", async () => {
+    const otherSppId = "44444444-4444-4444-8444-444444444444";
+    const otherAdjustmentId = "88888888-8888-4888-8888-888888888888";
+
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listAdjustmentsForStudentExcludingSpp
+    ).mockResolvedValue({
+      data: [
+        {
+          id: otherAdjustmentId,
+          student_payment_phase_id: otherSppId,
+          type: "discount",
+          value_type: "fixed",
+          value: 200,
+          reason: "Sibling discount",
+          effective_date: "2026-01-10",
+          created_at: "2026-01-10T00:00:00.000Z",
+          updated_at: "2026-01-10T00:00:00.000Z",
+          student_payment_phases: {
+            id: otherSppId,
+            student_id: "student-1",
+            status: "paid",
+            payment_phases: {
+              id: "phase-old",
+              name: "Spring tuition",
+              status: "closed",
+            },
+          },
+        },
+        {
+          id: "bad-row",
+          student_payment_phase_id: "bad-spp",
+          type: "discount",
+          value_type: "fixed",
+          value: 1,
+          reason: null,
+          effective_date: "2026-01-01",
+          created_at: "2026-01-01T00:00:00.000Z",
+          updated_at: "2026-01-01T00:00:00.000Z",
+          student_payment_phases: null,
+        },
+      ],
+      error: null,
+    } as never);
+
+    const rows = await listImportableAdjustmentsForManager(
+      adminClient,
+      actor.userId,
+      "student-1",
+      sppId
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: otherAdjustmentId,
+      source_spp_id: otherSppId,
+      payment_phase_name: "Spring tuition",
+      payment_phase_status: "closed",
+      value: 200,
+    });
+  });
+
+  it("returns empty when the student has no other adjustments", async () => {
+    vi.mocked(
+      studentFinancialAdjustmentRepository.listAdjustmentsForStudentExcludingSpp
+    ).mockResolvedValue({ data: [], error: null } as never);
+
+    const rows = await listImportableAdjustmentsForManager(
+      adminClient,
+      actor.userId,
+      "student-1",
+      sppId
+    );
+
+    expect(rows).toEqual([]);
+  });
+});
+
+describe("importAdjustmentForManager", () => {
+  const sourceSppId = "44444444-4444-4444-8444-444444444444";
+  const sourceAdjustmentId = "88888888-8888-4888-8888-888888888888";
+  const sourcePhaseId = "99999999-9999-4999-8999-999999999999";
+
+  const sourceAdjustment = {
+    id: sourceAdjustmentId,
+    student_payment_phase_id: sourceSppId,
+    type: "scholarship",
+    value_type: "percentage",
+    value: 50,
+    reason: "Need-based",
+    effective_date: "2026-01-15",
+    created_at: "2026-01-15T00:00:00.000Z",
+    updated_at: "2026-01-15T00:00:00.000Z",
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+  });
+
+  it("copies type/value/reason onto the target SPP with today's effective date", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppWithPhaseById)
+      .mockResolvedValueOnce({
+        data: { ...sppRecord, payment_phases: phaseRecord },
+        error: null,
+      } as never)
+      .mockResolvedValueOnce({
+        data: {
+          ...sppRecord,
+          id: sourceSppId,
+          payment_phase_id: sourcePhaseId,
+          payment_phases: {
+            ...phaseRecord,
+            id: sourcePhaseId,
+            name: "Spring tuition",
+            status: "closed",
+          },
+        },
+        error: null,
+      } as never);
+
+    vi.mocked(
+      studentFinancialAdjustmentRepository.findAdjustmentBySppId
+    ).mockResolvedValue({ data: null, error: null } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.findAdjustmentById
+    ).mockResolvedValue({ data: sourceAdjustment, error: null } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
+    ).mockResolvedValue({
+      data: {
+        adjustment: {
+          ...sourceAdjustment,
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          student_payment_phase_id: sppId,
+          effective_date: "2026-09-02",
+        },
+        previous: null,
+        studentPaymentPhaseId: sppId,
+        paymentPhaseId: phaseId,
+      },
+      error: null,
+    } as never);
+
+    const result = await importAdjustmentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        target_student_payment_phase_id: sppId,
+        source_adjustment_id: sourceAdjustmentId,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(
+      studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
+    ).toHaveBeenCalledWith(adminClient, {
+      student_payment_phase_id: sppId,
+      type: "scholarship",
+      value_type: "percentage",
+      value: 50,
+      reason: "Need-based",
+      effective_date: "2026-09-02",
+    });
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          source_adjustment_id: sourceAdjustmentId,
+        }),
+      })
+    );
+    if (result.success) {
+      expect(result.message).toMatch(/imported/i);
+      expect(result.adjustment.effective_date).toBe("2026-09-02");
+    }
+  });
+
+  it("rejects when the target already has an adjustment", async () => {
+    mockOkLoad();
+    vi.mocked(
+      studentFinancialAdjustmentRepository.findAdjustmentBySppId
+    ).mockResolvedValue({ data: adjustmentRecord, error: null } as never);
+
+    const result = await importAdjustmentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        target_student_payment_phase_id: sppId,
+        source_adjustment_id: sourceAdjustmentId,
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/already has a financial adjustment/i);
+    }
+  });
+
+  it("rejects a source adjustment from a different student", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppWithPhaseById)
+      .mockResolvedValueOnce({
+        data: { ...sppRecord, payment_phases: phaseRecord },
+        error: null,
+      } as never)
+      .mockResolvedValueOnce({
+        data: {
+          ...sppRecord,
+          id: sourceSppId,
+          student_id: "student-other",
+          payment_phase_id: sourcePhaseId,
+          payment_phases: {
+            ...phaseRecord,
+            id: sourcePhaseId,
+          },
+        },
+        error: null,
+      } as never);
+
+    vi.mocked(
+      studentFinancialAdjustmentRepository.findAdjustmentBySppId
+    ).mockResolvedValue({ data: null, error: null } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.findAdjustmentById
+    ).mockResolvedValue({ data: sourceAdjustment, error: null } as never);
+
+    const result = await importAdjustmentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        target_student_payment_phase_id: sppId,
+        source_adjustment_id: sourceAdjustmentId,
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/does not belong to this student/i);
+    }
+    expect(
+      studentFinancialAdjustmentRepository.createAdjustmentWithRecalc
+    ).not.toHaveBeenCalled();
   });
 });

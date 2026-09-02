@@ -6,6 +6,7 @@ export const MANAGER_CREATABLE_ROLES = [
   ROLES.TRAINER,
   ROLES.MANAGER,
   ROLES.CO_MANAGER,
+  ROLES.SUPERVISOR,
   ROLES.ADMIN,
   ROLES.CEO,
 ] as const;
@@ -20,6 +21,7 @@ export const MANAGER_CREATABLE_ROLE_LABELS: Record<
   [ROLES.TRAINER]: "Trainer",
   [ROLES.MANAGER]: "Manager",
   [ROLES.CO_MANAGER]: "Co-manager",
+  [ROLES.SUPERVISOR]: "Supervisor",
   [ROLES.ADMIN]: "Admin",
   [ROLES.CEO]: "CEO",
 };
