@@ -72,6 +72,20 @@ vi.mock("@/services/auth/authorization.service", () => ({
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
   }),
+  assertStudentSelfAccess: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+    const profileResult = await profileRepository.findProfileById(
+      {} as never,
+      userId
+    );
+    if (
+      !profileResult.data ||
+      profileResult.data.role !== ROLES.STUDENT
+    ) {
+      throw new Error("Unauthorized.");
+    }
+    return userId;
+  }),
 }));
 
 const adminClient = {} as SupabaseClient<Database>;

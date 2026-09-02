@@ -125,7 +125,7 @@ describe("getRequiredViewPermissionForManagerPath", () => {
   it("returns null for non-manager and unknown manager paths", () => {
     expect(getRequiredViewPermissionForManagerPath(ROUTES.HOME)).toBeNull();
     expect(
-      getRequiredViewPermissionForManagerPath(ROUTES.TEACHER_DASHBOARD)
+      getRequiredViewPermissionForManagerPath(ROUTES.TEACHER_SCHEDULE)
     ).toBeNull();
     expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_ROOT)).toBeNull();
     expect(

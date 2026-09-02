@@ -408,6 +408,7 @@ export function PaymentPhaseDetailsPanel({
           }}
           spp={transferringSpp}
           sourcePhaseId={phase.id}
+          sourceSemesterId={phase.semester_id}
           phases={transferPhaseOptions}
           onTransferred={(sppId) => {
             setTransferringSpp(null);

@@ -14,8 +14,8 @@ export default function AdminError({
       title="Admin panel error"
       description="Something went wrong in the admin panel."
       reset={reset}
-      homeHref={ROUTES.ADMIN_DASHBOARD}
-      homeLabel="Back to dashboard"
+      homeHref={ROUTES.ADMIN_ROOT}
+      homeLabel="Back to admin"
     />
   );
 }

@@ -83,6 +83,7 @@ export async function listPaymentPhaseAmountsByIds(
     .in("id", ids);
 }
 
+/** Latest opened phase for a semester (by created_at). Multiple opened allowed. */
 export async function findOpenedPaymentPhaseBySemesterId(
   client: Supabase,
   semesterId: string
@@ -92,7 +93,22 @@ export async function findOpenedPaymentPhaseBySemesterId(
     .select(PAYMENT_PHASE_COLUMNS)
     .eq("semester_id", semesterId)
     .eq("status", "opened")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
+}
+
+/** All opened phases for a semester, newest first. */
+export async function listOpenedPaymentPhasesBySemesterId(
+  client: Supabase,
+  semesterId: string
+) {
+  return client
+    .from("payment_phases")
+    .select(PAYMENT_PHASE_COLUMNS)
+    .eq("semester_id", semesterId)
+    .eq("status", "opened")
+    .order("created_at", { ascending: false });
 }
 
 export async function findLatestClosedPaymentPhaseBySemesterId(

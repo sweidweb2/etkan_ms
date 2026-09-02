@@ -98,7 +98,7 @@ Native panel: `/supervisor` (empty dashboard). Day-to-day UI uses `/manager/*` r
 
 ---
 
-## Other roles (admin, co-manager, teacher, trainer, student)
+## Other roles (admin, co-manager, teacher, trainer)
 
 Shared workshop access package only (`WORKSHOP_ACCESS_SEED_PERMISSIONS`):
 
@@ -117,3 +117,24 @@ instructor_schedules.view
 Shared **Manage workshops** UI is available at `/manager/workshops*` when `profiles.is_instructor` is true and the user holds the matching view permission(s). Sidebar requires `is_instructor` + `workshops.view`.
 
 **List / detail scoping:** Manager, CEO, and supervisor see **all** workshops. Other roles only see workshops where they are assigned in `workshop_instructors`.
+
+---
+
+## Student
+
+Workshop access package **plus** own profile read for the student panel:
+
+```
+workshops.view
+workshops.sessions.create
+workshops.sessions.update
+workshops.sessions.delete
+workshops.documents.create
+workshops.documents.update
+workshops.documents.delete
+instructors.view
+instructor_schedules.view
+students.view_own
+```
+
+Login lands on `/student`, which shows the same student-details layout as the manager panel (classes and borrowing) in **read-only** form — activity logs are manager-only. Re-run `npm run seed:rbac` after deploy so existing student roles receive `students.view_own`.

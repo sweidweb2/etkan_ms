@@ -1,6 +1,7 @@
 import { getAuthCallbackUrl } from "@/lib/config/site";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import { warmJwks } from "@/lib/auth/jwks-cache";
+import { clearCachedRolePermissionKeys } from "@/lib/auth/role-permissions-cache";
 import { setCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { ROUTES } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
@@ -136,8 +137,12 @@ export async function login(
     (profileRole.success ? profileRole.data : null) ??
     ROLES.STUDENT;
 
-  const permissions =
-    claimedPermissions ?? (await getPermissionsForRoleCached(role));
+  let permissions = claimedPermissions;
+  if (!permissions) {
+    // Bust process TTL so login picks up grants after seed:rbac without waiting 15m.
+    clearCachedRolePermissionKeys(role);
+    permissions = await getPermissionsForRoleCached(role);
+  }
 
   const maintenanceError = await rejectIfMaintenanceBlocksRole(client, role);
   if (maintenanceError) {

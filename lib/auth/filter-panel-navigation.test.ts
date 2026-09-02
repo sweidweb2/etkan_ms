@@ -103,11 +103,6 @@ describe("filterPanelNavigation", () => {
     const trainerNav: PanelNavigation = {
       items: [
         {
-          title: "Dashboard",
-          href: ROUTES.TRAINER_DASHBOARD,
-          icon: "layout-dashboard",
-        },
-        {
           title: "Manage workshops",
           href: ROUTES.MANAGER_WORKSHOPS,
           icon: "presentation",
@@ -120,7 +115,6 @@ describe("filterPanelNavigation", () => {
     });
     const paths = hrefs(filtered);
 
-    expect(paths).toContain(ROUTES.TRAINER_DASHBOARD);
     expect(paths).toContain(ROUTES.MANAGER_WORKSHOPS);
   });
 });

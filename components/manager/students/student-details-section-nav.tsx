@@ -81,10 +81,23 @@ function NavCardContent({ card }: { card: NavCardConfig }) {
 const navCardClassName =
   "flex min-w-0 items-center gap-3 rounded-xl p-4 text-left ring-1 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
-export function StudentDetailsSectionNav() {
+export function StudentDetailsSectionNav({
+  hideActivity = false,
+}: {
+  hideActivity?: boolean;
+}) {
+  const cards = hideActivity
+    ? NAV_CARDS.filter((card) => card.id !== STUDENT_DETAILS_SECTION_IDS.activity)
+    : NAV_CARDS;
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {NAV_CARDS.map((card) => (
+    <div
+      className={cn(
+        "grid gap-3 sm:grid-cols-2",
+        cards.length >= 3 ? "lg:grid-cols-3" : null
+      )}
+    >
+      {cards.map((card) => (
         <button
           key={card.id}
           type="button"

@@ -43,18 +43,21 @@ type TransferSppDialogProps = {
   onOpenChange: (open: boolean) => void;
   spp: ManagerSppRow | null;
   sourcePhaseId: string;
+  sourceSemesterId: string;
   phases: ManagerPaymentPhaseRow[];
   onTransferred?: (sppId: string) => void;
 };
 
 function buildDestinationPhaseOptions(
   phases: ManagerPaymentPhaseRow[],
-  sourcePhaseId: string
+  sourcePhaseId: string,
+  sourceSemesterId: string
 ): AssignablePhaseOption[] {
   return phases
     .filter(
       (phase) =>
         phase.id !== sourcePhaseId &&
+        phase.semester_id !== sourceSemesterId &&
         (phase.status === PAYMENT_PHASE_STATUSES.OPENED ||
           phase.status === PAYMENT_PHASE_STATUSES.CLOSED)
     )
@@ -69,6 +72,7 @@ export function TransferSppDialog({
   onOpenChange,
   spp,
   sourcePhaseId,
+  sourceSemesterId,
   phases,
   onTransferred,
 }: TransferSppDialogProps) {
@@ -81,8 +85,9 @@ export function TransferSppDialog({
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   const phaseOptions = useMemo(
-    () => buildDestinationPhaseOptions(phases, sourcePhaseId),
-    [phases, sourcePhaseId]
+    () =>
+      buildDestinationPhaseOptions(phases, sourcePhaseId, sourceSemesterId),
+    [phases, sourcePhaseId, sourceSemesterId]
   );
   const phaseSelectItems = useMemo(
     () =>
@@ -190,7 +195,7 @@ export function TransferSppDialog({
               </Select>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No other opened or closed payment phases available.
+                No opened or closed payment phases on a different semester.
               </p>
             )}
             {phaseError ? (

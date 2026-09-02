@@ -21,10 +21,8 @@ export const ROUTES = {
   SIGNUP: "/auth/signup",
   CALLBACK: "/auth/callback",
   ADMIN_ROOT: "/admin",
-  ADMIN_DASHBOARD: "/admin/dashboard",
   MANAGER_ROOT: "/manager",
   CO_MANAGER_ROOT: "/co-manager",
-  CO_MANAGER_DASHBOARD: "/co-manager/dashboard",
   MANAGER_USERS: "/manager/users",
   MANAGER_USER_DETAIL: "/manager/users/[id]",
   MANAGER_STUDENTS: "/manager/students",
@@ -76,9 +74,7 @@ export const ROUTES = {
   MANAGER_RBAC: "/manager/rbac",
   CEO_ROOT: "/ceo",
   SUPERVISOR_ROOT: "/supervisor",
-  SUPERVISOR_DASHBOARD: "/supervisor/dashboard",
   TEACHER_ROOT: "/teacher",
-  TEACHER_DASHBOARD: "/teacher/dashboard",
   TEACHER_SCHEDULE: "/teacher/schedule",
   TEACHER_CLASSES: "/teacher/classes",
   TEACHER_SUBJECTS: "/teacher/subjects",
@@ -86,27 +82,22 @@ export const ROUTES = {
   TEACHER_NOTIFICATIONS: "/teacher/notifications",
   TEACHER_ANALYTICS: "/teacher/analytics",
   TRAINER_ROOT: "/trainer",
-  TRAINER_DASHBOARD: "/trainer/dashboard",
   STUDENT_ROOT: "/student",
-  STUDENT_DASHBOARD: "/student/dashboard",
   STUDENT_CLASSES: "/student/classes",
-  STUDENT_FINANCE: "/student/finance",
-  STUDENT_ACTIVITY: "/student/activity",
-  STUDENT_ANALYTICS: "/student/analytics",
-  STUDENT_NOTIFICATIONS: "/student/notifications",
 } as const;
 
 export type Route = (typeof ROUTES)[keyof typeof ROUTES];
 
-const ROLE_DASHBOARD_ROUTES: Record<RoleValue, string> = {
-  [ROLES.ADMIN]: ROUTES.ADMIN_DASHBOARD,
+/** Post-login / fallback home for each role (no dedicated dashboard pages). */
+const ROLE_HOME_ROUTES: Record<RoleValue, string> = {
+  [ROLES.ADMIN]: ROUTES.ADMIN_ROOT,
   [ROLES.MANAGER]: ROUTES.MANAGER_STUDENTS,
-  [ROLES.CO_MANAGER]: ROUTES.CO_MANAGER_DASHBOARD,
+  [ROLES.CO_MANAGER]: ROUTES.MANAGER_WORKSHOPS,
   [ROLES.CEO]: ROUTES.MANAGER_WORKSHOPS,
-  [ROLES.SUPERVISOR]: ROUTES.SUPERVISOR_DASHBOARD,
-  [ROLES.TEACHER]: ROUTES.TEACHER_DASHBOARD,
-  [ROLES.TRAINER]: ROUTES.TRAINER_DASHBOARD,
-  [ROLES.STUDENT]: ROUTES.STUDENT_DASHBOARD,
+  [ROLES.SUPERVISOR]: ROUTES.MANAGER_STUDENTS,
+  [ROLES.TEACHER]: ROUTES.TEACHER_SCHEDULE,
+  [ROLES.TRAINER]: ROUTES.MANAGER_WORKSHOPS,
+  [ROLES.STUDENT]: ROUTES.STUDENT_ROOT,
 };
 
 const ROLE_PANEL_ROOTS: Record<RoleValue, string> = {
@@ -121,7 +112,7 @@ const ROLE_PANEL_ROOTS: Record<RoleValue, string> = {
 };
 
 export function getDashboardRouteForRole(role: RoleValue): string {
-  return ROLE_DASHBOARD_ROUTES[role];
+  return ROLE_HOME_ROUTES[role];
 }
 
 export function getPanelRootForRole(role: RoleValue): string {

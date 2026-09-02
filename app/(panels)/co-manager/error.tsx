@@ -14,8 +14,8 @@ export default function CoManagerError({
       title="Co-manager panel error"
       description="Something went wrong in the co-manager panel."
       reset={reset}
-      homeHref={ROUTES.CO_MANAGER_DASHBOARD}
-      homeLabel="Back to dashboard"
+      homeHref={ROUTES.MANAGER_WORKSHOPS}
+      homeLabel="Back to workshops"
     />
   );
 }

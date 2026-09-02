@@ -62,6 +62,7 @@ Format: `key` — label — access
 | Key | Label | Access |
 |-----|-------|--------|
 | `students.view` | View students | read |
+| `students.view_own` | View own student profile (student panel) | read |
 | `students.create` | Create student | write |
 | `students.update` | Edit student | write |
 | `students.change_status` | Activate / inactivate student (optional class leave + payment-free open SPP delete) | write |
@@ -364,6 +365,7 @@ users.view
 users.create
 users.update
 students.view
+students.view_own
 students.create
 students.update
 students.change_status
@@ -533,7 +535,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 157 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete.
+**Count:** 158 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete · students includes `students.view_own` for the student panel.
 
 ### is_instructor — shared seed package
 

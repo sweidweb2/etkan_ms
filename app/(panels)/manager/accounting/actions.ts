@@ -26,6 +26,7 @@ import { parseDeleteStudentPaymentFormData } from "@/lib/validators/manager/dele
 import { parseDeleteStudentPaymentScheduleFormData } from "@/lib/validators/manager/delete-student-payment-schedule";
 import { parseDeleteStudentPaymentPhaseFormData } from "@/lib/validators/manager/delete-student-payment-phase";
 import { parseRepairMissingSppFormData } from "@/lib/validators/manager/repair-missing-spp";
+import { parseAssignOptionalEnrollPaymentPhasesFormData } from "@/lib/validators/manager/assign-optional-enroll-payment-phases";
 import { parseTransferSppFormData } from "@/lib/validators/manager/transfer-spp";
 import { parseUpdatePaymentPhaseFormData } from "@/lib/validators/manager/update-payment-phase";
 import { parseUpdateStudentPaymentFormData } from "@/lib/validators/manager/update-student-payment";
@@ -36,6 +37,7 @@ import {
   parseUpdateFinancialFormFormData,
 } from "@/lib/validators/manager/upsert-financial-form";
 import {
+  assignOptionalEnrollPaymentPhasesForManager,
   cancelPaymentPhaseForManager,
   createPaymentPhaseForManager,
   listPaymentPhaseSemesterOptionsForManager,
@@ -78,6 +80,7 @@ import type {
   UpsertFinancialFormActionState,
 } from "@/types/manager-financial-adjustment";
 import type {
+  AssignOptionalEnrollPaymentPhasesActionState,
   CancelPaymentPhaseActionState,
   CreatePaymentPhaseActionState,
   ManagerPaymentPhaseSemesterOption,
@@ -203,6 +206,46 @@ export async function repairMissingSppAction(
   return {
     success: true,
     message: result.message,
+  };
+}
+
+export async function assignOptionalEnrollPaymentPhasesAction(
+  _prevState: AssignOptionalEnrollPaymentPhasesActionState,
+  formData: FormData
+): Promise<AssignOptionalEnrollPaymentPhasesActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseAssignOptionalEnrollPaymentPhasesFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await assignOptionalEnrollPaymentPhasesForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidateAccountingList();
+
+  return {
+    success: true,
+    message: result.message,
+    assignedCount: result.assignedCount,
   };
 }
 

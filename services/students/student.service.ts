@@ -7,6 +7,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   assertPermission,
+  assertStudentSelfAccess,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
@@ -412,6 +413,49 @@ export async function getStudentForManager(
   }
 }
 
+/**
+ * Logged-in student loading their own profile for the student panel (read-only).
+ */
+export async function getStudentForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerStudentRow | null> {
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+
+  const { data: studentProfile, error } =
+    await studentProfileRepository.findStudentProfileByUserId(
+      adminClient,
+      userId
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!studentProfile) {
+    return null;
+  }
+
+  const [profileResult, emailsResult] = await Promise.all([
+    profileRepository.findProfileById(adminClient, studentProfile.user_id),
+    authRepository.listAuthEmailsByIds(adminClient, [studentProfile.user_id]),
+  ]);
+
+  if (profileResult.error || !profileResult.data) {
+    return null;
+  }
+  if (emailsResult.error) {
+    return null;
+  }
+
+  return mapStudentProfileToManagerStudentRow(
+    adminClient,
+    studentProfile,
+    profileResult.data,
+    emailsResult.data.get(studentProfile.user_id) ?? ""
+  );
+}
+
 export async function getStudentDetailStatsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -471,6 +515,55 @@ export async function getStudentDetailStatsForManager(
   }
 }
 
+export async function getStudentDetailStatsForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerStudentDetailStats> {
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+
+  const [
+    classesRegisteredResult,
+    classesDoneResult,
+    tasksTotalResult,
+    tasksDoneResult,
+  ] = await Promise.all([
+    studentClassRepository.countStudentClassesByUserId(adminClient, userId),
+    studentClassRepository.countDoneStudentClassesByUserId(
+      adminClient,
+      userId
+    ),
+    studentTaskRepository.countStudentTasksByStudentId(adminClient, userId),
+    studentTaskRepository.countStudentTasksDoneByStudentId(
+      adminClient,
+      userId
+    ),
+  ]);
+
+  if (classesRegisteredResult.error) {
+    throw new Error(classesRegisteredResult.error.message);
+  }
+  if (classesDoneResult.error) {
+    throw new Error(classesDoneResult.error.message);
+  }
+  if (tasksTotalResult.error) {
+    throw new Error(tasksTotalResult.error.message);
+  }
+  if (tasksDoneResult.error) {
+    throw new Error(tasksDoneResult.error.message);
+  }
+
+  const classesRegistered = classesRegisteredResult.count ?? 0;
+  const classesDone = classesDoneResult.count ?? 0;
+
+  return {
+    classesRegistered,
+    classesDone,
+    classesPending: Math.max(classesRegistered - classesDone, 0),
+    tasksDone: tasksDoneResult.count ?? 0,
+    tasksTotal: tasksTotalResult.count ?? 0,
+  };
+}
+
 function mapClassStatus(status: string | null): ClassStatusValue {
   if (
     status === CLASS_STATUSES.SCHEDULED ||
@@ -491,6 +584,59 @@ export async function listJoinedClassesForStudentManager(
   userId: string
 ): Promise<ManagerStudentClassRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
+
+  const enrollmentsResult = await studentClassRepository.listStudentClassesByUserId(
+    adminClient,
+    userId
+  );
+
+  if (enrollmentsResult.error) {
+    throw new Error(enrollmentsResult.error.message);
+  }
+
+  const enrollments = enrollmentsResult.data ?? [];
+  if (enrollments.length === 0) {
+    return [];
+  }
+
+  const classIds = enrollments.map((row) => row.class_id);
+  const classesResult = await classRepository.listClassesWithSubjectByIds(
+    adminClient,
+    classIds
+  );
+
+  if (classesResult.error) {
+    throw new Error(classesResult.error.message);
+  }
+
+  const classById = new Map(
+    (classesResult.data ?? []).map((row) => [row.id, row])
+  );
+
+  return enrollments.flatMap((enrollment) => {
+    const classRow = classById.get(enrollment.class_id);
+    if (!classRow) {
+      return [];
+    }
+
+    return [
+      {
+        id: enrollment.id,
+        class_id: enrollment.class_id,
+        name: classRow.name,
+        subject_name: classRow.subjects?.name ?? "—",
+        class_status: mapClassStatus(classRow.status),
+        joined_at: enrollment.joined_at ?? "",
+      },
+    ];
+  });
+}
+
+export async function listJoinedClassesForStudentSelf(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerStudentClassRow[]> {
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
 
   const enrollmentsResult = await studentClassRepository.listStudentClassesByUserId(
     adminClient,

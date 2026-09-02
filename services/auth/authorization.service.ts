@@ -11,9 +11,10 @@ import {
 } from "@/lib/auth/role-permissions-cache";
 import {
   isPermissionKey,
+  PERMISSIONS,
   type PermissionKey,
 } from "@/lib/constants/permissions";
-import type { RoleValue } from "@/lib/constants/roles";
+import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { roleSchema } from "@/lib/validators/role";
 import * as permissionRepository from "@/repositories/permission.repository";
 import * as profileRepository from "@/repositories/profile.repository";
@@ -207,6 +208,41 @@ export async function assertPermission(
     throw new Error(UNAUTHORIZED_MESSAGE);
   }
   await requirePermission(client, userId, permission);
+}
+
+/**
+ * Student panel self-access: requires `students.view_own`, or falls back to
+ * authenticated `student` role (covers stale role-permission cache after seed).
+ */
+export async function assertStudentSelfAccess(
+  client: Supabase,
+  userId: string | null | undefined
+): Promise<string> {
+  if (!userId) {
+    throw new Error(UNAUTHORIZED_MESSAGE);
+  }
+
+  const allowed = await hasPermission(
+    client,
+    userId,
+    PERMISSIONS.STUDENTS_VIEW_OWN
+  );
+  if (allowed) {
+    return userId;
+  }
+
+  const { data: profile, error } = await profileRepository.findProfileById(
+    client,
+    userId
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (profile?.role === ROLES.STUDENT) {
+    return userId;
+  }
+
+  throw new Error(UNAUTHORIZED_MESSAGE);
 }
 
 /**

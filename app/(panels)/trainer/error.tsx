@@ -14,8 +14,8 @@ export default function TrainerError({
       title="Trainer panel error"
       description="Something went wrong in the trainer panel."
       reset={reset}
-      homeHref={ROUTES.TRAINER_DASHBOARD}
-      homeLabel="Back to dashboard"
+      homeHref={ROUTES.MANAGER_WORKSHOPS}
+      homeLabel="Back to workshops"
     />
   );
 }

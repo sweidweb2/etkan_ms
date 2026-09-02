@@ -14,8 +14,8 @@ export default function SupervisorError({
       title="Supervisor panel error"
       description="Something went wrong in the supervisor panel."
       reset={reset}
-      homeHref={ROUTES.SUPERVISOR_DASHBOARD}
-      homeLabel="Back to dashboard"
+      homeHref={ROUTES.MANAGER_STUDENTS}
+      homeLabel="Back to students"
     />
   );
 }

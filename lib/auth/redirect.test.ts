@@ -19,16 +19,16 @@ describe("getSafeRedirectPath", () => {
 });
 
 describe("getPostLoginRedirect", () => {
-  it("redirects each role to its dashboard by default", () => {
+  it("redirects each role to its panel home by default", () => {
     expect(getPostLoginRedirect(ROLES.MANAGER)).toBe(ROUTES.MANAGER_STUDENTS);
-    expect(getPostLoginRedirect(ROLES.STUDENT)).toBe(ROUTES.STUDENT_DASHBOARD);
-    expect(getPostLoginRedirect(ROLES.ADMIN)).toBe(ROUTES.ADMIN_DASHBOARD);
+    expect(getPostLoginRedirect(ROLES.STUDENT)).toBe(ROUTES.STUDENT_ROOT);
+    expect(getPostLoginRedirect(ROLES.ADMIN)).toBe(ROUTES.ADMIN_ROOT);
     expect(getPostLoginRedirect(ROLES.CO_MANAGER)).toBe(
-      ROUTES.CO_MANAGER_DASHBOARD
+      ROUTES.MANAGER_WORKSHOPS
     );
-    expect(getPostLoginRedirect(ROLES.TRAINER)).toBe(ROUTES.TRAINER_DASHBOARD);
+    expect(getPostLoginRedirect(ROLES.TRAINER)).toBe(ROUTES.MANAGER_WORKSHOPS);
     expect(getPostLoginRedirect(ROLES.SUPERVISOR)).toBe(
-      ROUTES.SUPERVISOR_DASHBOARD
+      ROUTES.MANAGER_STUDENTS
     );
   });
 
@@ -40,16 +40,16 @@ describe("getPostLoginRedirect", () => {
 
   it("ignores next for auth-only paths", () => {
     expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.LOGIN)).toBe(
-      ROUTES.STUDENT_DASHBOARD
+      ROUTES.STUDENT_ROOT
     );
     expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.SIGNUP)).toBe(
-      ROUTES.STUDENT_DASHBOARD
+      ROUTES.STUDENT_ROOT
     );
   });
 
   it("ignores next when path belongs to another role panel", () => {
     expect(getPostLoginRedirect(ROLES.STUDENT, ROUTES.MANAGER_USERS)).toBe(
-      ROUTES.STUDENT_DASHBOARD
+      ROUTES.STUDENT_ROOT
     );
   });
 

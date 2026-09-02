@@ -6,6 +6,10 @@ import {
   loadAvailableStudentsForClassAction,
 } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import {
+  OptionalEnrollPaymentPhasesDialog,
+  type OptionalEnrollPaymentPhaseOption,
+} from "@/components/manager/classes/optional-enroll-payment-phases-dialog";
 import { StudentMultiSelectField } from "@/components/manager/classes/student-multi-select-field";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -32,6 +36,13 @@ import type { ManagerStudentFinalExamGradeRow } from "@/types/manager-class-fina
 import type { ManagerStudentRow } from "@/types/manager-student";
 
 const initialState: AddStudentToClassActionState = {};
+
+type OptionalEnrollFollowUp = {
+  studentId: string;
+  studentLabel: string;
+  autoAssignedPhase: OptionalEnrollPaymentPhaseOption;
+  optionalPaymentPhases: OptionalEnrollPaymentPhaseOption[];
+};
 
 type AddStudentToClassDialogProps = {
   open: boolean;
@@ -66,6 +77,8 @@ export function AddStudentToClassDialog({
   const [fetchedStudents, setFetchedStudents] = useState<
     ManagerStudentRow[] | null
   >(null);
+  const [optionalFollowUp, setOptionalFollowUp] =
+    useState<OptionalEnrollFollowUp | null>(null);
 
   const needsFetch = availableStudentsProp.length === 0;
   const availableStudents = needsFetch
@@ -134,6 +147,20 @@ export function AddStudentToClassDialog({
           (nextState.studentGrade ? [nextState.studentGrade] : [])
       );
       onOpenChange(false);
+
+      if (
+        added.length === 1 &&
+        nextState.autoAssignedPhase &&
+        nextState.optionalPaymentPhases &&
+        nextState.optionalPaymentPhases.length > 0
+      ) {
+        setOptionalFollowUp({
+          studentId: added[0].user_id,
+          studentLabel: added[0].full_name,
+          autoAssignedPhase: nextState.autoAssignedPhase,
+          optionalPaymentPhases: nextState.optionalPaymentPhases,
+        });
+      }
     },
     (nextState) =>
       Boolean(
@@ -171,84 +198,101 @@ export function AddStudentToClassDialog({
     state.fieldErrors?.studentProfileId?.[0];
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
-        <DialogHeader>
-          <DialogTitle>Add students to class</DialogTitle>
-          <DialogDescription>
-            Enroll one or more students in {className}.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
+          <DialogHeader>
+            <DialogTitle>Add students to class</DialogTitle>
+            <DialogDescription>
+              Enroll one or more students in {className}.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form
-          id="add-student-to-class-form"
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-4"
-          noValidate
-        >
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="add-student-to-class-id"
-              label="Students"
-              hint="Required"
-            />
-            {isLoadingOptions ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <InlineSpinner />
-                Loading students…
-              </div>
-            ) : hasAvailableStudents ? (
-              <StudentMultiSelectField
-                inputId="add-student-to-class-id"
-                students={availableStudents}
-                selected={selectedStudents}
-                onChange={handleSelectionChange}
-                disabled={isPending}
-                invalid={!!studentError}
+          <form
+            id="add-student-to-class-form"
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-4"
+            noValidate
+          >
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="add-student-to-class-id"
+                label="Students"
+                hint="Required"
               />
-            ) : (
-              <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
-                Every available student is already enrolled in this class.
-              </p>
-            )}
-            {studentError ? (
-              <p className="text-sm text-destructive">{studentError}</p>
-            ) : null}
-          </div>
-        </form>
+              {isLoadingOptions ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <InlineSpinner />
+                  Loading students…
+                </div>
+              ) : hasAvailableStudents ? (
+                <StudentMultiSelectField
+                  inputId="add-student-to-class-id"
+                  students={availableStudents}
+                  selected={selectedStudents}
+                  onChange={handleSelectionChange}
+                  disabled={isPending}
+                  invalid={!!studentError}
+                />
+              ) : (
+                <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                  Every available student is already enrolled in this class.
+                </p>
+              )}
+              {studentError ? (
+                <p className="text-sm text-destructive">{studentError}</p>
+              ) : null}
+            </div>
+          </form>
 
-        <DialogFooter className="mt-2 sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isPending}
-            onClick={() => handleOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="add-student-to-class-form"
-            disabled={
-              isPending ||
-              isLoadingOptions ||
-              !hasAvailableStudents ||
-              selectedCount === 0
-            }
-          >
-            {isPending ? (
-              <>
-                <InlineSpinner className="mr-2" />
-                {selectedCount > 1 ? "Adding students" : "Adding student"}
-              </>
-            ) : selectedCount > 1 ? (
-              `Add ${selectedCount} students`
-            ) : (
-              "Add student"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="mt-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => handleOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="add-student-to-class-form"
+              disabled={
+                isPending ||
+                isLoadingOptions ||
+                !hasAvailableStudents ||
+                selectedCount === 0
+              }
+            >
+              {isPending ? (
+                <>
+                  <InlineSpinner className="mr-2" />
+                  {selectedCount > 1 ? "Adding students" : "Adding student"}
+                </>
+              ) : selectedCount > 1 ? (
+                `Add ${selectedCount} students`
+              ) : (
+                "Add student"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <OptionalEnrollPaymentPhasesDialog
+        open={optionalFollowUp !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setOptionalFollowUp(null);
+          }
+        }}
+        studentId={optionalFollowUp?.studentId ?? ""}
+        studentLabel={optionalFollowUp?.studentLabel ?? ""}
+        autoAssignedPhase={
+          optionalFollowUp?.autoAssignedPhase ?? { id: "", name: "" }
+        }
+        optionalPaymentPhases={optionalFollowUp?.optionalPaymentPhases ?? []}
+      />
+    </>
   );
 }

@@ -106,6 +106,14 @@ export type RepairMissingSppActionState = {
   fieldErrors?: FieldErrors;
 };
 
+export type AssignOptionalEnrollPaymentPhasesActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  assignedCount?: number;
+};
+
 export type TransferSppActionState = {
   success?: boolean;
   error?: string;

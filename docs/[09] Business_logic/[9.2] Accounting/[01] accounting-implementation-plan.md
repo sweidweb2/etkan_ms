@@ -10,7 +10,7 @@
 
 ## Executive summary
 
-Accounting bills **per semester**. A manager opens one **active** Payment Phase for a semester; every student enrolled in that semester’s **in-progress class** gets a **Student Payment Phase (SPP)**. Money math and statuses are **derived**, not hand-set (except cancelling a phase / adjusting / recording payments).
+Accounting bills **per semester**. A manager may open **one or more** Payment Phases for a semester; every student enrolled in that semester’s **in-progress class** gets a **Student Payment Phase (SPP)** on each phase when created (or on the sync-target phase when joining late). Money math and statuses are **derived**, not hand-set (except cancelling a phase / adjusting / recording payments).
 
 | Layer | Owner | Status model |
 |-------|--------|--------------|
@@ -28,7 +28,7 @@ Accounting bills **per semester**. A manager opens one **active** Payment Phase 
 
 ```text
 semesters
-  └── payment_phases (semester_id FK, semester_code copy, ≤1 opened per semester)
+  └── payment_phases (semester_id FK, semester_code copy; multiple opened allowed)
         └── student_payment_phases (student_id → profiles)
               ├── student_payments (*)
               └── student_financial_adjustments (0..1)
@@ -46,8 +46,9 @@ classes (status = in_progress, semester_id)
 |------|--------|
 | Scope | Belongs to one **semester** (`semester_id` NOT NULL FK → `semesters`) |
 | Soft code copy | Keep **`semester_code`** copied from the semester at create |
-| Cardinality | **At most one `opened` phase per semester** (partial unique index) |
-| Create side-effect | Create an SPP for every student with a `student_class` row on the semester’s **in-progress** class (oldest `created_at` if multiple; none if zero) |
+| Cardinality | **Multiple `opened` phases per semester allowed** (independent bills) |
+| Create side-effect | Create an SPP for every student with a `student_class` row on the semester’s **in-progress** class (oldest `created_at` if multiple; none if zero) — only on the **new** phase |
+| Sync target | Prefer **latest `created_at` among `opened`**, else latest `closed`. Never `cancelled` |
 | Status | Fully automatic among `opened` / `closed`; manager may only **cancel** |
 | `closed` meaning | Business “Completed”: every **active** (non-cancelled) SPP is `paid` |
 | Reopen | Any event that makes an active SPP unpaid again → phase `closed` → `opened` |
@@ -84,7 +85,7 @@ Financial summary (always recalculated):
 | Event | Behavior |
 |-------|----------|
 | Phase created for semester | Insert SPP for each **member** of the semester’s **in-progress** class (if any) |
-| Student joins the in-progress class (late join / rejoin) | If semester has `opened` **or** `closed` phase: **reuse** existing SPP for that student×phase if any; else **create**. If phase was `closed` and student is unpaid → **reopen** to `opened` + recalc. At most **one** SPP per student per phase |
+| Student joins the in-progress class (late join / rejoin) | If semester has `opened` **or** `closed` phase: attach only to the **sync target** (latest opened, else latest closed) — **reuse** existing SPP for that student×phase if any; else **create**. If phase was `closed` and student is unpaid → **reopen** to `opened` + recalc. At most **one** SPP per student per phase. Older opened phases may appear in Missing SPP; single-student enroll may offer optional assign UI when the actor has `accounting.payment_phases.create` |
 | Student joins a non–in-progress class | No payment sync |
 | Student leaves / is removed from a class | Delete `student_class` only. **Keep** SPP + payments + adjustments. Recalc phase status (student may still be billed while out of class) |
 | Student **inactivated** with “Delete open SPPs” | **Explicit override** via `students.change_status`: delete SPPs on **opened** phases only when they have **zero payments** (adjustments/forms cascade). Never delete SPPs that have payments from this flow. |
@@ -92,7 +93,7 @@ Financial summary (always recalculated):
 | Student changes class (transfer) | Membership move only; **keep** SPP as-is (no cancel, no auto-create on destination). Manager may **transfer SPP** manually between payment phases |
 | Class status becomes `in_progress` | At most **one** in-progress class per semester (reject second). Backfill/reuse SPPs for current members on the semester’s sync phase |
 | Semester has `cancelled` phase only | Late join does **not** auto-create; manager must create/open a new phase |
-| Multiple historical phases | Sync attaches only to the semester’s **current non-cancelled** phase: prefer `opened`, else `closed` (reopen path). Never attach to `cancelled` |
+| Multiple historical / concurrent phases | Sync attaches only to the semester’s **current sync target**: prefer latest `opened` by `created_at`, else latest `closed`. Never attach to `cancelled`. Concurrent opened phases are independent; Missing SPP + optional post-enroll assign cover older opened phases |
 | Payment sync throws on join/leave/transfer/backfill | Membership change **still succeeds**; audit warning + UI `warning` toast; Missing-SPP + Repair / SPP transfer remain safety nets |
 
 **Accounting UI (Phase E done):** “students without an active class” (no in-progress membership, may still be billed) is separate from “SPP semester mismatch” (SPP on semester A while member of a class on semester B). SPP **Transfer** is available on phase detail. Full task list: `docs/[12] Plans/[01] student-class-binary-membership-and-spp-transfer.md`.
@@ -101,7 +102,7 @@ Financial summary (always recalculated):
 
 - Manually set Payment Phase to `closed` / `opened` (except cancel → `cancelled`, and system reopen from `closed`)
 - Manually set SPP to `pending` / `partially_paid` / `paid` (cancel is manager/admin policy only — **not** via class leave)
-- Have two `opened` phases on the same semester
+- Transfer an SPP to another payment phase on the **same semester** (cross-semester only)
 - Have two financial adjustments on the same SPP
 
 ---
@@ -338,7 +339,7 @@ Hook points in existing class enrollment services:
 | # | Scenario | Expected |
 |---|----------|----------|
 | E1 | Create phase on semester with in-progress class (N enrolled) | N SPPs `pending`, phase `opened` |
-| E2 | Second `opened` phase same semester | Rejected |
+| E2 | Second `opened` phase same semester | Allowed (independent); sync uses latest created |
 | E3 | Late enroll on semester’s in-progress class while phase `opened` | New SPP `pending` |
 | E4 | Late enroll on semester’s in-progress class while phase `closed` | Phase → `opened`, new SPP `pending` |
 | E5 | Late enroll while only `cancelled` phase | No auto SPP |

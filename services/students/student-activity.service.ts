@@ -1,11 +1,9 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ROLES } from "@/lib/constants/roles";
 import { getAuditLogChangeSummary } from "@/lib/manager/get-audit-log-change-summary";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as auditLogRepository from "@/repositories/audit-log.repository";
 import type { AuditRelatedRecordGroup } from "@/repositories/audit-log.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
-import * as profileRepository from "@/repositories/profile.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
@@ -13,8 +11,8 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import {
-  UNAUTHORIZED_MESSAGE,
   assertPermission,
+  assertStudentSelfAccess,
 } from "@/services/auth/authorization.service";
 import {
   AUDIT_LOG_ACTION_VALUES,
@@ -235,22 +233,6 @@ export async function listStudentActivityForSelf(
   adminClient: Supabase,
   sessionUserId: string | null
 ): Promise<ManagerStudentActivityRow[]> {
-  if (!sessionUserId) {
-    throw new Error(UNAUTHORIZED_MESSAGE);
-  }
-
-  const profileResult = await profileRepository.findProfileById(
-    adminClient,
-    sessionUserId
-  );
-
-  if (profileResult.error) {
-    throw new Error(profileResult.error.message);
-  }
-
-  if (!profileResult.data || profileResult.data.role !== ROLES.STUDENT) {
-    throw new Error(UNAUTHORIZED_MESSAGE);
-  }
-
-  return listStudentActivityRows(adminClient, sessionUserId);
+  const userId = await assertStudentSelfAccess(adminClient, sessionUserId);
+  return listStudentActivityRows(adminClient, userId);
 }

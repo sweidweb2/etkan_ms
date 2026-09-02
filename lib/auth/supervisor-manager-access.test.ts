@@ -14,8 +14,8 @@ describe("isManagerPanelPath", () => {
   });
 
   it("rejects non-manager panels", () => {
-    expect(isManagerPanelPath(ROUTES.SUPERVISOR_DASHBOARD)).toBe(false);
-    expect(isManagerPanelPath(ROUTES.TEACHER_DASHBOARD)).toBe(false);
+    expect(isManagerPanelPath(ROUTES.SUPERVISOR_ROOT)).toBe(false);
+    expect(isManagerPanelPath(ROUTES.TEACHER_ROOT)).toBe(false);
   });
 });
 

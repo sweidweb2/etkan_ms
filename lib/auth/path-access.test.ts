@@ -12,7 +12,7 @@ describe("isPanelPath", () => {
   it("returns true for role panel roots and nested routes", () => {
     expect(isPanelPath(ROUTES.MANAGER_STUDENTS)).toBe(true);
     expect(isPanelPath(ROUTES.MANAGER_USERS)).toBe(true);
-    expect(isPanelPath(ROUTES.ADMIN_DASHBOARD)).toBe(true);
+    expect(isPanelPath(ROUTES.ADMIN_ROOT)).toBe(true);
   });
 
   it("returns false for public and auth routes", () => {
@@ -36,27 +36,21 @@ describe("canAccessPath", () => {
   it("allows a role to access its own panel routes", () => {
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.MANAGER)).toBe(true);
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.MANAGER)).toBe(true);
-    expect(canAccessPath(ROUTES.STUDENT_DASHBOARD, ROLES.STUDENT)).toBe(true);
-    expect(canAccessPath(ROUTES.CO_MANAGER_DASHBOARD, ROLES.CO_MANAGER)).toBe(
-      true
-    );
-    expect(canAccessPath(ROUTES.TRAINER_DASHBOARD, ROLES.TRAINER)).toBe(true);
-    expect(
-      canAccessPath(ROUTES.SUPERVISOR_DASHBOARD, ROLES.SUPERVISOR)
-    ).toBe(true);
+    expect(canAccessPath(ROUTES.STUDENT_CLASSES, ROLES.STUDENT)).toBe(true);
+    expect(canAccessPath(ROUTES.CO_MANAGER_ROOT, ROLES.CO_MANAGER)).toBe(true);
+    expect(canAccessPath(ROUTES.TRAINER_ROOT, ROLES.TRAINER)).toBe(true);
+    expect(canAccessPath(ROUTES.SUPERVISOR_ROOT, ROLES.SUPERVISOR)).toBe(true);
   });
 
   it("denies cross-role panel access", () => {
-    expect(canAccessPath(ROUTES.ADMIN_DASHBOARD, ROLES.MANAGER)).toBe(false);
+    expect(canAccessPath(ROUTES.ADMIN_ROOT, ROLES.MANAGER)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.STUDENT)).toBe(false);
     expect(canAccessPath(ROUTES.CEO_ROOT, ROLES.TEACHER)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.CO_MANAGER)).toBe(
       false
     );
-    expect(canAccessPath(ROUTES.TEACHER_DASHBOARD, ROLES.TRAINER)).toBe(false);
-    expect(
-      canAccessPath(ROUTES.SUPERVISOR_DASHBOARD, ROLES.MANAGER)
-    ).toBe(false);
+    expect(canAccessPath(ROUTES.TEACHER_ROOT, ROLES.TRAINER)).toBe(false);
+    expect(canAccessPath(ROUTES.SUPERVISOR_ROOT, ROLES.MANAGER)).toBe(false);
   });
 
   it("allows shared workshop paths for any role", () => {
@@ -119,7 +113,7 @@ describe("canAccessPath", () => {
 
 describe("isAdminPath", () => {
   it("identifies admin panel paths only", () => {
-    expect(isAdminPath(ROUTES.ADMIN_DASHBOARD)).toBe(true);
+    expect(isAdminPath(ROUTES.ADMIN_ROOT)).toBe(true);
     expect(isAdminPath(ROUTES.MANAGER_STUDENTS)).toBe(false);
   });
 });

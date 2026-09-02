@@ -3,6 +3,7 @@ import type { RoleValue } from "@/lib/constants/roles";
 import {
   assertPermission,
   getUnauthorizedError,
+  hasPermission,
 } from "@/services/auth/authorization.service";
 import {
   CLASS_STATUSES,
@@ -43,6 +44,7 @@ import type {
   FinalExamRecord,
   StudentFinalExamGradeRecord,
 } from "@/repositories/final-exam.repository";
+import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
@@ -61,6 +63,7 @@ import {
   onStudentJoinedClass,
   onStudentLeftClass,
   onStudentsJoinedClass,
+  type StudentJoinSyncItem,
 } from "@/services/accounting/accounting-sync.service";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import {
@@ -2551,6 +2554,8 @@ export type AddStudentsToClassResult =
       classRow: ManagerClassRow;
       message: string;
       warning?: string;
+      autoAssignedPhase?: { id: string; name: string };
+      optionalPaymentPhases?: Array<{ id: string; name: string }>;
     }
   | MutationFailure;
 
@@ -2841,9 +2846,10 @@ export async function addStudentsToClassForManager(
     );
 
     let warning: string | undefined;
+    let joinItems: StudentJoinSyncItem[] = [];
 
     try {
-      const joinItems = await timer.step("paymentSync", () =>
+      joinItems = await timer.step("paymentSync", () =>
         onStudentsJoinedClass(
           adminClient,
           { classId: input.class_id, studentIds: insertedUserIds },
@@ -2878,6 +2884,44 @@ export async function addStudentsToClassForManager(
       warning = PAYMENT_SYNC_FAILURE_WARNING;
     }
 
+    let autoAssignedPhase: { id: string; name: string } | undefined;
+    let optionalPaymentPhases: Array<{ id: string; name: string }> | undefined;
+
+    if (
+      !warning &&
+      students.length === 1 &&
+      joinItems.length > 0
+    ) {
+      const student = students[0];
+      const joinItem = joinItems.find(
+        (item) => item.ok && item.studentId === student.user_id && item.phase
+      );
+      const phase = joinItem?.phase;
+      if (phase && actorUserId) {
+        const canAssignOptional = await hasPermission(
+          adminClient,
+          actorUserId,
+          PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE
+        );
+        if (canAssignOptional) {
+          const { data: openedPhases, error: openedError } =
+            await paymentPhaseRepository.listOpenedPaymentPhasesBySemesterId(
+              adminClient,
+              phase.semester_id
+            );
+          if (!openedError) {
+            const others = (openedPhases ?? [])
+              .filter((row) => row.id !== phase.id)
+              .map((row) => ({ id: row.id, name: row.name }));
+            if (others.length > 0) {
+              autoAssignedPhase = { id: phase.id, name: phase.name };
+              optionalPaymentPhases = others;
+            }
+          }
+        }
+      }
+    }
+
     const message =
       failures.length === 0
         ? students.length === 1
@@ -2892,6 +2936,8 @@ export async function addStudentsToClassForManager(
       classRow,
       message,
       warning,
+      autoAssignedPhase,
+      optionalPaymentPhases,
     };
   } finally {
     timer.end();

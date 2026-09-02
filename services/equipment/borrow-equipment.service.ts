@@ -7,6 +7,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   assertPermission,
+  assertStudentSelfAccess,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { createBorrowsSchema } from "@/lib/validators/manager/create-borrows";
@@ -544,6 +545,21 @@ export async function listStudentBorrowsForManager(
     PERMISSIONS.EQUIPMENT_VIEW_BORROWS
   );
 
+  return listStudentBorrowsUnchecked(adminClient, userId);
+}
+
+export async function listStudentBorrowsForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerStudentBorrowEquipmentRow[]> {
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+  return listStudentBorrowsUnchecked(adminClient, userId);
+}
+
+async function listStudentBorrowsUnchecked(
+  adminClient: Supabase,
+  userId: string
+): Promise<ManagerStudentBorrowEquipmentRow[]> {
   const { data: borrows, error } =
     await borrowEquipmentRepository.listBorrowsByUserId(adminClient, userId);
 

@@ -520,6 +520,8 @@ export async function addStudentToClassAction(
     studentGrades: result.studentGrades,
     studentGrade: result.studentGrades[0],
     classRow: result.classRow,
+    autoAssignedPhase: result.autoAssignedPhase,
+    optionalPaymentPhases: result.optionalPaymentPhases,
   };
 }
 

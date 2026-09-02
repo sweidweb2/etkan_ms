@@ -48,6 +48,8 @@ type StudentDetailsPanelProps = {
   activityRows: ManagerStudentActivityRow[];
   registrationApplicationId: string | null;
   borrowRows: ManagerStudentBorrowEquipmentRow[];
+  /** Student panel: same layout, mutations hidden (read-only). */
+  variant?: "manager" | "self";
 };
 
 function DetailField({
@@ -85,11 +87,13 @@ export function StudentDetailsPanel({
   activityRows,
   registrationApplicationId,
   borrowRows,
+  variant = "manager",
 }: StudentDetailsPanelProps) {
   const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
   const [prevStudent, setPrevStudent] =
     useState<ManagerStudentRow>(initialStudent);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const isSelf = variant === "self";
 
   if (initialStudent !== prevStudent) {
     setPrevStudent(initialStudent);
@@ -111,62 +115,75 @@ export function StudentDetailsPanel({
 
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_STUDENTS}>
-              Manage students
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{student.full_name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      {isSelf ? (
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">My profile</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your student details, classes, and borrowing. View only.
+          </p>
+        </div>
+      ) : (
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href={ROUTES.MANAGER_STUDENTS}>
+                Manage students
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{student.full_name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      )}
 
-      <StudentDetailsSectionNav />
+      <StudentDetailsSectionNav hideActivity={isSelf} />
 
-      <EditStudentDialog
-        open={isEditOpen}
-        onOpenChange={setIsEditOpen}
-        student={student}
-        onStudentUpdated={(updatedStudent) => {
-          setStudent(updatedStudent);
-        }}
-      />
+      {!isSelf ? (
+        <EditStudentDialog
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          student={student}
+          onStudentUpdated={(updatedStudent) => {
+            setStudent(updatedStudent);
+          }}
+        />
+      ) : null}
 
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
           <CardTitle className="text-xl">{student.full_name}</CardTitle>
-          <CardAction className="flex flex-wrap items-center justify-end gap-2 self-center">
-            {registrationApplicationId ? (
-              <Can permission={PERMISSIONS.REGISTRATIONS_VIEW}>
-                <Button
-                  variant="outline"
-                  nativeButton={false}
-                  render={
-                    <Link
-                      href={getManagerRegistrationDetailRoute(
-                        registrationApplicationId,
-                        "student"
-                      )}
-                      prefetch={false}
-                    />
-                  }
-                >
-                  <FileTextIcon data-icon="inline-start" />
-                  View registration
+          {!isSelf ? (
+            <CardAction className="flex flex-wrap items-center justify-end gap-2 self-center">
+              {registrationApplicationId ? (
+                <Can permission={PERMISSIONS.REGISTRATIONS_VIEW}>
+                  <Button
+                    variant="outline"
+                    nativeButton={false}
+                    render={
+                      <Link
+                        href={getManagerRegistrationDetailRoute(
+                          registrationApplicationId,
+                          "student"
+                        )}
+                        prefetch={false}
+                      />
+                    }
+                  >
+                    <FileTextIcon data-icon="inline-start" />
+                    View registration
+                  </Button>
+                </Can>
+              ) : null}
+              <Can permission={PERMISSIONS.STUDENTS_UPDATE}>
+                <Button type="button" onClick={() => setIsEditOpen(true)}>
+                  <PencilIcon data-icon="inline-start" />
+                  Edit student
                 </Button>
               </Can>
-            ) : null}
-            <Can permission={PERMISSIONS.STUDENTS_UPDATE}>
-              <Button type="button" onClick={() => setIsEditOpen(true)}>
-                <PencilIcon data-icon="inline-start" />
-                Edit student
-              </Button>
-            </Can>
-          </CardAction>
+            </CardAction>
+          ) : null}
         </CardHeader>
         <CardContent className="pb-4 pt-2">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -185,11 +202,15 @@ export function StudentDetailsPanel({
               label="Joined"
               value={format(new Date(student.created_at), "MMM d, yyyy 'at' h:mm a")}
             />
-            <DetailField label="User ID" value={student.user_id} />
-            <DetailField
-              label="Student profile ID"
-              value={student.student_profile_id}
-            />
+            {!isSelf ? (
+              <>
+                <DetailField label="User ID" value={student.user_id} />
+                <DetailField
+                  label="Student profile ID"
+                  value={student.student_profile_id}
+                />
+              </>
+            ) : null}
           </dl>
         </CardContent>
       </Card>
@@ -224,7 +245,7 @@ export function StudentDetailsPanel({
         <StudentJoinedClassesSection
           studentProfileId={student.student_profile_id}
           initialClasses={classBundles.map((bundle) => bundle.classRow)}
-          availableClasses={availableClasses}
+          availableClasses={isSelf ? [] : availableClasses}
           classBundles={classBundles}
         />
       </div>
@@ -236,12 +257,14 @@ export function StudentDetailsPanel({
         <StudentBorrowedEquipmentSection initialBorrows={borrowRows} />
       </div>
 
-      <div
-        id={STUDENT_DETAILS_SECTION_IDS.activity}
-        className="scroll-mt-6"
-      >
-        <StudentActivitySection rows={activityRows} />
-      </div>
+      {!isSelf ? (
+        <div
+          id={STUDENT_DETAILS_SECTION_IDS.activity}
+          className="scroll-mt-6"
+        >
+          <StudentActivitySection rows={activityRows} />
+        </div>
+      ) : null}
     </div>
   );
 }

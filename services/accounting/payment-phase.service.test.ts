@@ -126,13 +126,24 @@ describe("createPaymentPhaseForManager", () => {
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
-  it("rejects when an opened phase already exists for the semester", async () => {
+  it("allows creating another opened phase for a semester that already has one", async () => {
     vi.mocked(paymentPhaseRepository.createPaymentPhaseWithSpps).mockResolvedValue(
       {
-        data: null,
-        error: {
-          message: "This semester already has an opened payment phase.",
+        data: {
+          phase: {
+            ...phaseRecord,
+            id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+            name: "Payment Phase 2",
+          },
+          semester: {
+            id: semesterId,
+            name: "Fall 2026",
+            semester_code: "F26",
+          },
+          sppCount: 2,
+          billingClass: { id: classId, name: "Math 101" },
         },
+        error: null,
       } as never
     );
 
@@ -140,14 +151,15 @@ describe("createPaymentPhaseForManager", () => {
       adminClient,
       actor.userId,
       actor,
-      validCreateInput
+      { ...validCreateInput, name: "Payment Phase 2" }
     );
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/already has an opened/i);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.phase.name).toBe("Payment Phase 2");
+      expect(result.phase.spp_active_count).toBe(2);
     }
-    expect(auditLogService.recordManagerAuditLog).not.toHaveBeenCalled();
+    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
   });
 
   it("creates a phase and seeds SPPs from the in-progress class", async () => {
@@ -777,6 +789,32 @@ describe("transferStudentPaymentPhaseForManager", () => {
     expect(
       studentPaymentPhaseRepository.updateStudentPaymentPhasePaymentPhaseId
     ).not.toHaveBeenCalled();
+  });
+
+  it("rejects transfer to a phase in the same semester", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.transferStudentPaymentPhase
+    ).mockResolvedValue({
+      data: null,
+      error: {
+        message: "Cannot transfer to a payment phase in the same semester.",
+      },
+    } as never);
+
+    const result = await transferStudentPaymentPhaseForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { spp_id: sppId, destination_payment_phase_id: destPhaseId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("Please fix the errors below.");
+      expect(result.fieldErrors?.destination_payment_phase_id?.[0]).toMatch(
+        /same semester/i
+      );
+    }
   });
 
   it("rejects cancelled destination phases", async () => {

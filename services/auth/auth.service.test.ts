@@ -157,7 +157,7 @@ describe("login", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.redirectTo).toBe(ROUTES.STUDENT_DASHBOARD);
+      expect(result.redirectTo).toBe(ROUTES.STUDENT_ROOT);
     }
     expect(authRepository.signOut).not.toHaveBeenCalled();
   });
@@ -286,7 +286,7 @@ describe("register", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.requiresEmailConfirmation).toBe(false);
-      expect(result.redirectTo).toContain(ROUTES.STUDENT_DASHBOARD);
+      expect(result.redirectTo).toContain(ROUTES.STUDENT_ROOT);
       expect(result.redirectTo).toContain("toast=signed_up");
     }
     expect(profileService.ensureStudentRegistration).toHaveBeenCalled();

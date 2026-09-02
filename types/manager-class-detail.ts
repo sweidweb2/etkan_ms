@@ -99,6 +99,10 @@ export type AddStudentToClassActionState = {
   studentGrade?: ManagerStudentFinalExamGradeRow;
   studentGrades?: ManagerStudentFinalExamGradeRow[];
   classRow?: ManagerClassRow;
+  /** Latest opened phase the student was auto-assigned to (single enroll only). */
+  autoAssignedPhase?: { id: string; name: string };
+  /** Other opened phases on the same semester the manager may also assign. */
+  optionalPaymentPhases?: Array<{ id: string; name: string }>;
 };
 
 export type AssignClassTeacherActionState = {

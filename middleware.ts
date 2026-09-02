@@ -224,13 +224,19 @@ export async function middleware(request: NextRequest) {
     const role = await resolveRole(supabase, auth);
     marks.role = performance.now() - roleStart;
     const panelRoot = getPanelRootForRole(role);
+    const home = getDashboardRouteForRole(role);
 
+    // Panel roots that are also the role home (e.g. /student, /admin) must
+    // render — redirecting home→home loops until the RSC fetch fails.
     if (pathname === panelRoot) {
-      return redirect(new URL(getDashboardRouteForRole(role), request.url));
+      if (home !== panelRoot) {
+        return redirect(new URL(home, request.url));
+      }
+      return finish(getResponse());
     }
 
     if (!canAccessPath(pathname, role)) {
-      return redirect(new URL(getDashboardRouteForRole(role), request.url));
+      return redirect(new URL(home, request.url));
     }
 
     return finish(getResponse());

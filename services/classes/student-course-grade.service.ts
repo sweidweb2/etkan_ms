@@ -2,6 +2,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import {
   assertPermission,
+  assertStudentSelfAccess,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
@@ -786,7 +787,32 @@ export async function listStudentClassAcademicBundlesForManager(
 ): Promise<ManagerStudentClassAcademicBundle[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
   await assertPermission(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_VIEW);
+  return listStudentClassAcademicBundlesUnchecked(
+    adminClient,
+    studentUserId,
+    joinedClasses
+  );
+}
 
+/** Student panel: own academic bundles (read-only), keyed by session user. */
+export async function listStudentClassAcademicBundlesForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  joinedClasses: ManagerStudentClassRow[]
+): Promise<ManagerStudentClassAcademicBundle[]> {
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+  return listStudentClassAcademicBundlesUnchecked(
+    adminClient,
+    userId,
+    joinedClasses
+  );
+}
+
+async function listStudentClassAcademicBundlesUnchecked(
+  adminClient: Supabase,
+  studentUserId: string,
+  joinedClasses: ManagerStudentClassRow[]
+): Promise<ManagerStudentClassAcademicBundle[]> {
   if (joinedClasses.length === 0) {
     return [];
   }

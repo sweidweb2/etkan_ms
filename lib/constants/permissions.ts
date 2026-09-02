@@ -93,6 +93,7 @@ export const PERMISSIONS = {
   USERS_UPDATE: "users.update",
 
   STUDENTS_VIEW: "students.view",
+  STUDENTS_VIEW_OWN: "students.view_own",
   STUDENTS_CREATE: "students.create",
   STUDENTS_UPDATE: "students.update",
   STUDENTS_CHANGE_STATUS: "students.change_status",
@@ -319,6 +320,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.STUDENTS_VIEW,
     feature: "students",
     label: "View students",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.STUDENTS_VIEW_OWN,
+    feature: "students",
+    label: "View own student profile",
     access: PERMISSION_ACCESS.READ,
   },
   {

@@ -18,6 +18,7 @@ import {
 } from "@/lib/constants/manager-student-status";
 import { cancelPaymentPhaseSchema } from "@/lib/validators/manager/cancel-payment-phase";
 import { createPaymentPhaseSchema } from "@/lib/validators/manager/create-payment-phase";
+import { assignOptionalEnrollPaymentPhasesSchema } from "@/lib/validators/manager/assign-optional-enroll-payment-phases";
 import { repairMissingSppSchema } from "@/lib/validators/manager/repair-missing-spp";
 import { transferSppSchema } from "@/lib/validators/manager/transfer-spp";
 import { updatePaymentPhaseSchema } from "@/lib/validators/manager/update-payment-phase";
@@ -163,16 +164,6 @@ function mapPhaseWriteError(
   message: string,
   fallback: string
 ): { success: false; error: string; fieldErrors?: FieldErrors } {
-  if (message.includes("This semester already has an opened payment phase.")) {
-    return {
-      success: false,
-      error: "This semester already has an opened payment phase.",
-      fieldErrors: {
-        semester_id: ["This semester already has an opened payment phase."],
-      },
-    };
-  }
-
   if (message.includes("This semester has no semester code.")) {
     return {
       success: false,
@@ -209,6 +200,22 @@ function mapPhaseWriteError(
     };
   }
 
+  if (
+    message.includes(
+      "Cannot transfer to a payment phase in the same semester."
+    )
+  ) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        destination_payment_phase_id: [
+          "Cannot transfer to a payment phase in the same semester.",
+        ],
+      },
+    };
+  }
+
   const known = [
     "Semester not found.",
     "Payment phase not found.",
@@ -221,6 +228,7 @@ function mapPhaseWriteError(
     "Student already has a payment record on that phase.",
     "This payment phase is already cancelled.",
     "Unable to assign student payment phase. Please try again.",
+    "Cannot transfer to a payment phase in the same semester.",
   ];
 
   for (const item of known) {
@@ -931,31 +939,15 @@ export async function listPaymentPhaseSemesterOptionsForManager(
     PERMISSIONS.ACCOUNTING_VIEW
   );
 
-  const [
-    { data: semesters, error: semesterError },
-    { data: opened, error: openedError },
-  ] = await Promise.all([
-    semesterRepository.listSemestersForPaymentPhasePicker(adminClient),
-    paymentPhaseRepository.listOpenedPaymentPhaseSemesterIds(adminClient),
-  ]);
+  const { data: semesters, error: semesterError } =
+    await semesterRepository.listSemestersForPaymentPhasePicker(adminClient);
 
   if (semesterError) {
     throw new Error(semesterError.message);
   }
 
-  if (openedError) {
-    throw new Error(openedError.message);
-  }
-
-  const openedSemesterIds = new Set(
-    (opened ?? []).map((row) => row.semester_id)
-  );
-
   return (semesters ?? [])
-    .filter((row) => {
-      const semesterCode = row.semester_code?.trim();
-      return Boolean(semesterCode) && !openedSemesterIds.has(row.id);
-    })
+    .filter((row) => Boolean(row.semester_code?.trim()))
     .map((row) => {
       const semester_code = row.semester_code.trim();
       return {
@@ -1190,6 +1182,89 @@ export async function repairMissingSppForManager(
     message: data.phaseReopened
       ? "Student payment phase assigned and phase reopened."
       : "Student payment phase assigned.",
+  };
+}
+
+export type AssignOptionalEnrollPaymentPhasesSuccess = {
+  success: true;
+  message: string;
+  assignedCount: number;
+};
+
+export type AssignOptionalEnrollPaymentPhasesFailure = {
+  success: false;
+  error: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type AssignOptionalEnrollPaymentPhasesResult =
+  | AssignOptionalEnrollPaymentPhasesSuccess
+  | AssignOptionalEnrollPaymentPhasesFailure;
+
+/**
+ * After enroll auto-assign to the latest opened phase, optionally ensure SPPs
+ * on other opened phases the manager selected.
+ */
+export async function assignOptionalEnrollPaymentPhasesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: {
+    student_id: string;
+    payment_phase_ids: string[];
+  }
+): Promise<AssignOptionalEnrollPaymentPhasesResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_PAYMENT_PHASES_CREATE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = assignOptionalEnrollPaymentPhasesSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const uniquePhaseIds = [...new Set(parsed.data.payment_phase_ids)];
+  let assignedCount = 0;
+
+  for (const payment_phase_id of uniquePhaseIds) {
+    const result = await repairMissingSppForManager(
+      adminClient,
+      actorUserId,
+      actor,
+      {
+        payment_phase_id,
+        student_id: parsed.data.student_id,
+      }
+    );
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+        fieldErrors: result.fieldErrors,
+      };
+    }
+
+    assignedCount += 1;
+  }
+
+  return {
+    success: true,
+    assignedCount,
+    message:
+      assignedCount === 1
+        ? "Student payment phase assigned."
+        : `${assignedCount} student payment phases assigned.`,
   };
 }
 

@@ -50,11 +50,14 @@ Acceptance scenarios **E1–E15** are referenced where they apply (see plan §8)
 ### What works
 - Tables: `payment_phases`, `student_payment_phases`, `student_payments`, `student_financial_adjustments`, `student_financial_forms`
 - `payment_phases.semester_id` FK → `semesters`; denormalized `semester_code` at create
-- At most one **`opened`** phase per semester (partial unique index)
+- Multiple **`opened`** phases per semester allowed (independent)
 - Unique SPP `(student_id, payment_phase_id)`
 - At most one financial adjustment per SPP
 - Status enums aligned: phase `opened|closed|cancelled`; SPP `pending|partially_paid|paid|cancelled`
 - Cached money columns on SPP maintained by service recalc
+- Sync target = latest `opened` by `created_at`, else latest `closed`
+- SPP transfer cannot target another phase on the **same semester**
+- Single-student enroll may offer optional assign to other opened phases (`accounting.payment_phases.create`)
 
 ### Caveats / risks
 - After the semester override migration, orphan phases that could not resolve a semester were **deleted** (dev-safe). Production DBs with real data need a careful apply path if any rows predated the override.
@@ -100,10 +103,10 @@ Services assert permissions; UI uses `<Can>`.
 **Status:** Working
 
 ### What works
-- Manager picks a **semester** (picker excludes semesters that already have an opened phase / missing code)
+- Manager picks a **semester** (picker requires semester code; semesters may already have opened phases)
 - Copies `semester_code`; creates phase as `opened`
 - Seeds one SPP per **`student_class` membership row** on the resolved **in-progress** class (**E1**; binary membership — no enrollment status)
-- Rejects second opened phase for the same semester (**E2**)
+- Allows a second (or more) opened phase for the same semester (**E2**); each phase is independent
 - If **no** in-progress class: phase still creates with **zero** SPPs (intentional)
 
 ### Caveats / risks
@@ -205,24 +208,28 @@ A phase is in **upfront mode** when it is `opened`, has `upfront_amount > 0`, an
 ### What works
 | Event | Behavior |
 |-------|----------|
-| Join **in-progress** class, phase `opened` | Reuse existing SPP or create `pending` (**E3**) |
-| Join in-progress, phase `closed` | Reopen phase + reuse/create SPP (**E4**) |
+| Join **in-progress** class | Sync target = **latest opened** by `created_at`, else latest closed; reuse/create SPP on that phase only (**E3**) |
+| Join in-progress, sync target `closed` | Reopen phase + reuse/create SPP (**E4**) |
 | Join when only `cancelled` phase exists | No auto SPP (**E5**) |
 | Join **non**–in-progress class | No payment sync |
+| Multiple opened phases | Late join auto-assigns **latest** only; older opened may show in Missing SPP; single-student enroll offers optional assign (needs `accounting.payment_phases.create`) |
 | Leave / removed from billing class | Membership deleted; **SPP kept**; phase recalc (**E6**) |
 | Rejoin after leave (same phase) | Reuse existing SPP (reactivate only if legacy cancelled) |
-| Transfer | Leave retains SPP; destination enroll with **`skipPaymentSync: true`** (**E7**) |
+| Transfer class | Leave retains SPP; destination enroll with **`skipPaymentSync: true`** (**E7**) |
+| Transfer SPP | Destination must be a **different semester** (same-semester blocked) |
 | Class → `in_progress` | Reject second in-progress per semester; backfill/reuse SPPs for sync phase |
 | Sync throws | Membership change still succeeds; audit + toast `warning` |
 
 ### Remaining caveat
-- Transfer intentionally does **not** bill the destination class even if it is in-progress (product lock). Manual SPP transfer + semester-mismatch section are **done** (Phase E): Transfer dialog on phase detail; mismatch list separate from “students without an active class”.
+- Transfer intentionally does **not** bill the destination class even if it is in-progress (product lock). Manual SPP transfer + semester-mismatch section are **done** (Phase E): Transfer dialog on phase detail; mismatch list separate from “students without an active class”. Batch multi-student enroll does **not** show the optional-phases dialog (Missing SPP / Repair remain the safety net).
 
 ### Proof
 - `services/accounting/accounting-sync.service.ts` + tests
-- `services/classes/class.service.ts` (hooks + transfer)
+- `services/classes/class.service.ts` (hooks + transfer + optional phase payload)
+- `components/manager/classes/optional-enroll-payment-phases-dialog.tsx`
 - `services/classes/transfer-student-accounting.test.ts`
 - `services/classes/class-status-accounting.test.ts`
+- Migration `20260903120000_multi_opened_payment_phases.sql`
 
 ---
 
@@ -325,7 +332,7 @@ Expected total = expected student payments + expected external credits.
 | # | Working? | Notes |
 |---|----------|--------|
 | E1 | Yes | Unit: create seeds from in-progress members |
-| E2 | Yes | Per **semester** uniqueness |
+| E2 | Yes | Multiple **opened** per semester allowed |
 | E3 | Yes | Join sync |
 | E4 | Yes | Join + reopen closed |
 | E5 | Yes | No sync target when only cancelled |

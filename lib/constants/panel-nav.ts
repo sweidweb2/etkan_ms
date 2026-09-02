@@ -1,18 +1,6 @@
 import { ROUTES } from "@/lib/constants/routes";
 import type { PanelNavItem, PanelNavigation } from "@/types/panel";
 
-function dashboardNavigation(href: string): PanelNavigation {
-  return {
-    items: [
-      {
-        title: "Dashboard",
-        href,
-        icon: "layout-dashboard",
-      },
-    ],
-  };
-}
-
 /** Shared across roles; filtered by `workshops.view` + `is_instructor`. */
 const MANAGE_WORKSHOPS_NAV_ITEM: PanelNavItem = {
   title: "Manage workshops",
@@ -27,14 +15,12 @@ function withManageWorkshops(navigation: PanelNavigation): PanelNavigation {
   };
 }
 
-export const ADMIN_PANEL_NAV = dashboardNavigation(ROUTES.ADMIN_DASHBOARD).items!;
-export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops(
-  dashboardNavigation(ROUTES.CO_MANAGER_DASHBOARD)
-);
+export const ADMIN_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
+/** @deprecated Use `ADMIN_PANEL_NAVIGATION` — kept for flatten/search helpers. */
+export const ADMIN_PANEL_NAV = ADMIN_PANEL_NAVIGATION.items!;
+export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 export const CO_MANAGER_PANEL_NAV = CO_MANAGER_PANEL_NAVIGATION.items!;
-export const TRAINER_PANEL_NAVIGATION = withManageWorkshops(
-  dashboardNavigation(ROUTES.TRAINER_DASHBOARD)
-);
+export const TRAINER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 export const TRAINER_PANEL_NAV = TRAINER_PANEL_NAVIGATION.items!;
 
 export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
@@ -259,18 +245,11 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
 export const CEO_PANEL_NAV: PanelNavItem[] = CEO_PANEL_NAVIGATION.items!;
 
 /**
- * Supervisor: empty native dashboard + manager feature links minus excluded
- * ops/system surfaces (users, accounting/finance, email, gallery, projects,
- * notifications, backup, logs, rbac, settings).
+ * Supervisor: manager feature links minus excluded ops/system surfaces
+ * (users, accounting/finance, email, gallery, projects, notifications,
+ * backup, logs, rbac, settings).
  */
 export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation = {
-  items: [
-    {
-      title: "Dashboard",
-      href: ROUTES.SUPERVISOR_DASHBOARD,
-      icon: "layout-dashboard",
-    },
-  ],
   groups: [
     {
       id: "people",
@@ -368,11 +347,6 @@ export const SUPERVISOR_PANEL_NAV: PanelNavItem[] = [
 export const TEACHER_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
   items: [
     {
-      title: "Dashboard",
-      href: ROUTES.TEACHER_DASHBOARD,
-      icon: "layout-dashboard",
-    },
-    {
       title: "Schedule",
       href: ROUTES.TEACHER_SCHEDULE,
       icon: "calendar-days",
@@ -407,43 +381,17 @@ export const TEACHER_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
 
 /** @deprecated Use `TEACHER_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const TEACHER_PANEL_NAV: PanelNavItem[] = TEACHER_PANEL_NAVIGATION.items!;
-export const STUDENT_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
+
+/** Student panel: profile only for now. */
+export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
   items: [
     {
-      title: "Dashboard",
-      href: ROUTES.STUDENT_DASHBOARD,
-      icon: "layout-dashboard",
-    },
-    {
-      title: "Classes",
-      href: ROUTES.STUDENT_CLASSES,
-      icon: "school",
-    },
-    {
-      title: "Finance",
-      href: ROUTES.STUDENT_FINANCE,
-      icon: "calculator",
-    },
-    {
-      title: "Activity",
-      href: ROUTES.STUDENT_ACTIVITY,
-      icon: "logs",
-    },
-    {
-      title: "Analytics",
-      href: ROUTES.STUDENT_ANALYTICS,
-      icon: "analytics",
-    },
-    {
-      title: "Notifications",
-      href: ROUTES.STUDENT_NOTIFICATIONS,
-      icon: "bell",
+      title: "My profile",
+      href: ROUTES.STUDENT_ROOT,
+      icon: "book-open",
     },
   ],
-});
+};
 
 /** @deprecated Use `STUDENT_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const STUDENT_PANEL_NAV: PanelNavItem[] = STUDENT_PANEL_NAVIGATION.items!;
-export const ADMIN_PANEL_NAVIGATION = withManageWorkshops(
-  dashboardNavigation(ROUTES.ADMIN_DASHBOARD)
-);
