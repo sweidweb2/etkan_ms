@@ -3,35 +3,22 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-const SEMESTER_COLUMNS =
-  "id, name, nb_courses, amount, status, start_date, semester_code, created_at";
+const SEMESTER_COLUMNS = "id, name, semester_code, created_at";
 
 export type SemesterRecord = {
   id: string;
   name: string;
-  nb_courses: number;
-  amount: number;
-  status: string;
-  start_date: string | null;
   semester_code: string;
   created_at: string | null;
 };
 
 export type CreateSemesterRecordInput = {
   name: string;
-  nb_courses?: number;
-  amount?: number;
-  status?: string;
-  start_date?: string | null;
   semester_code: string;
 };
 
 export type UpdateSemesterRecordInput = {
   name: string;
-  nb_courses: number;
-  amount: number;
-  status: string;
-  start_date: string | null;
 };
 
 export async function listSemesters(client: Supabase) {
@@ -87,10 +74,6 @@ export async function createSemester(
     .from("semesters")
     .insert({
       name: input.name,
-      nb_courses: input.nb_courses ?? 0,
-      amount: input.amount ?? 0,
-      status: input.status ?? "scheduled",
-      start_date: input.start_date ?? null,
       semester_code: input.semester_code,
     })
     .select(SEMESTER_COLUMNS)
@@ -106,24 +89,7 @@ export async function updateSemester(
     .from("semesters")
     .update({
       name: input.name,
-      nb_courses: input.nb_courses,
-      amount: input.amount,
-      status: input.status,
-      start_date: input.start_date,
     })
-    .eq("id", id)
-    .select(SEMESTER_COLUMNS)
-    .single();
-}
-
-export async function updateSemesterNbCourses(
-  client: Supabase,
-  id: string,
-  nbCourses: number
-) {
-  return client
-    .from("semesters")
-    .update({ nb_courses: nbCourses })
     .eq("id", id)
     .select(SEMESTER_COLUMNS)
     .single();

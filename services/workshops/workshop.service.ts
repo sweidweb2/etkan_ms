@@ -49,7 +49,11 @@ import {
 import {
   createWorkshopPaymentSchema,
   deleteWorkshopPaymentSchema,
+  getWorkshopPaymentRemainingCap,
+  isWorkshopFullyPaid,
   updateWorkshopPaymentSchema,
+  WORKSHOP_PAYMENT_FULLY_PAID_MESSAGE,
+  WORKSHOP_PAYMENT_REMAINING_AMOUNT_MESSAGE,
 } from "@/lib/validators/manager/workshop-payment";
 import {
   createWorkshopSessionSchema,
@@ -504,6 +508,54 @@ export function buildWorkshopPaymentSummary(
   const remaining = price == null ? null : price - net;
 
   return { credits, debits, net, price, remaining };
+}
+
+function paidNetFromAmountRows(
+  rows: Array<{ workshop_id: string; amount: number | null; type: string }>,
+  workshopId: string
+): number {
+  let net = 0;
+  for (const row of rows) {
+    if (row.workshop_id !== workshopId) {
+      continue;
+    }
+    const amount = Number(row.amount ?? 0);
+    net += row.type === WORKSHOP_PAYMENT_TYPES.CREDIT ? amount : -amount;
+  }
+  return net;
+}
+
+async function resolveWorkshopPaidNet(
+  adminClient: Supabase,
+  workshopId: string
+): Promise<{ paidNet: number; error: string | null }> {
+  const { data, error } =
+    await workshopPaymentRepository.listWorkshopPaymentAmounts(adminClient, [
+      workshopId,
+    ]);
+
+  if (error) {
+    return { paidNet: 0, error: error.message };
+  }
+
+  return {
+    paidNet: paidNetFromAmountRows(data ?? [], workshopId),
+    error: null,
+  };
+}
+
+function creditExceedsRemainingError(
+  amount: number,
+  remainingCap: number | null
+): WorkshopPaymentMutationFailure | null {
+  if (remainingCap == null || amount <= remainingCap) {
+    return null;
+  }
+  return {
+    success: false,
+    error: "Please fix the errors below.",
+    fieldErrors: { amount: [WORKSHOP_PAYMENT_REMAINING_AMOUNT_MESSAGE] },
+  };
 }
 
 /** Manager, CEO, and supervisor see every workshop; other roles only assigned ones. */
@@ -2329,6 +2381,35 @@ export async function createWorkshopPaymentForManager(
     return { success: false, error: locked };
   }
 
+  const paid = await resolveWorkshopPaidNet(
+    adminClient,
+    dataInput.workshop_id
+  );
+  if (paid.error) {
+    return {
+      success: false,
+      error: paid.error || "Unable to create payment.",
+    };
+  }
+
+  if (isWorkshopFullyPaid(workshopResult.data.price, paid.paidNet)) {
+    return { success: false, error: WORKSHOP_PAYMENT_FULLY_PAID_MESSAGE };
+  }
+
+  if (dataInput.type === WORKSHOP_PAYMENT_TYPES.CREDIT) {
+    const remainingCap = getWorkshopPaymentRemainingCap(
+      workshopResult.data.price,
+      paid.paidNet
+    );
+    const overRemaining = creditExceedsRemainingError(
+      dataInput.amount,
+      remainingCap
+    );
+    if (overRemaining) {
+      return overRemaining;
+    }
+  }
+
   const { data, error } = await workshopPaymentRepository.createWorkshopPayment(
     adminClient,
     {
@@ -2441,6 +2522,35 @@ export async function updateWorkshopPaymentForManager(
   );
   if (updateLocked) {
     return { success: false, error: updateLocked };
+  }
+
+  if (dataInput.type === WORKSHOP_PAYMENT_TYPES.CREDIT) {
+    const paid = await resolveWorkshopPaidNet(
+      adminClient,
+      existing.data.workshop_id
+    );
+    if (paid.error) {
+      return {
+        success: false,
+        error: paid.error || "Unable to update payment.",
+      };
+    }
+    const netWithoutCurrent =
+      paid.paidNet -
+      (existing.data.type === WORKSHOP_PAYMENT_TYPES.CREDIT
+        ? Number(existing.data.amount)
+        : -Number(existing.data.amount));
+    const remainingCap = getWorkshopPaymentRemainingCap(
+      workshopForUpdate.data.price,
+      netWithoutCurrent
+    );
+    const overRemaining = creditExceedsRemainingError(
+      dataInput.amount,
+      remainingCap
+    );
+    if (overRemaining) {
+      return overRemaining;
+    }
   }
 
   const previous = mapWorkshopPaymentRecord(existing.data);

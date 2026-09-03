@@ -51,7 +51,7 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Project detail | `/manager/projects/[id]` | detail |
 | [~] | Relationships | `/manager/relationships` | list |
 | [~] | Semesters | `/manager/semesters` | list |
-| [~] | Semesters progress | `/manager/semesters/progress` | list / dashboard |
+| [~] | Semester detail | `/manager/semesters/[id]` | detail |
 | [~] | Notifications | `/manager/notifications` | list |
 | [~] | Emailing | `/manager/emailing` | list |
 | [~] | Compose email | `/manager/emailing/compose` | form |

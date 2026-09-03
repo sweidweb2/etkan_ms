@@ -1,23 +1,11 @@
 import type { FieldErrors } from "@/types/auth";
-import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
-import type { ManagerStudentSemesterRow } from "@/types/manager-student-semester";
-import type { SemesterStatusValue } from "@/lib/constants/manager-semester-status";
 
 export interface ManagerSemesterRow {
   id: string;
   name: string;
-  nb_courses: number;
-  amount: number;
-  status: SemesterStatusValue;
-  start_date: string | null;
   /** Unique 4-digit public semester code. */
   semester_code: string;
   created_at: string;
-}
-
-export interface ManagerSemesterProgressRow {
-  semester: ManagerSemesterRow;
-  classes: ManagerSemesterClassRow[];
 }
 
 export type CreateSemesterActionState = {
@@ -33,22 +21,5 @@ export type UpdateSemesterActionState = {
   error?: string;
   message?: string;
   fieldErrors?: FieldErrors;
-  semester?: ManagerSemesterRow;
-};
-
-export type AddStudentToSemesterActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  fieldErrors?: FieldErrors;
-  enrollment?: ManagerStudentSemesterRow;
-};
-
-export type ConnectSemesterClassActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  fieldErrors?: FieldErrors;
-  classRow?: ManagerSemesterClassRow;
   semester?: ManagerSemesterRow;
 };

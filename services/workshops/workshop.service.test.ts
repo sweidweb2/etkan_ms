@@ -1745,6 +1745,15 @@ describe("createWorkshopPaymentForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
     vi.mocked(workshopPaymentRepository.createWorkshopPayment).mockResolvedValue({
       data: paymentRecord,
       error: null,
@@ -1773,6 +1782,100 @@ describe("createWorkshopPaymentForManager", () => {
       expect(result.payment.amount).toBe(100);
     }
   });
+
+  it("rejects credit that exceeds remaining workshop balance", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [
+        {
+          workshop_id: workshopId,
+          amount: 100,
+          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await createWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        amount: 60,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-01",
+        payment_method: WORKSHOP_PAYMENT_METHODS.CASH,
+        notes: null,
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.fieldErrors?.amount?.[0]).toMatch(/remaining balance/i);
+    }
+    expect(
+      workshopPaymentRepository.createWorkshopPayment
+    ).not.toHaveBeenCalled();
+  });
+
+  it("rejects any new payment when the workshop is already fully paid", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [
+        {
+          workshop_id: workshopId,
+          amount: 150,
+          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await createWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        amount: 10,
+        type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        payment_date: "2026-08-01",
+        payment_method: null,
+        notes: null,
+      }
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "This workshop is already paid. No more payments can be recorded.",
+    });
+    expect(
+      workshopPaymentRepository.createWorkshopPayment
+    ).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateWorkshopPaymentForManager", () => {
@@ -1791,6 +1894,21 @@ describe("updateWorkshopPaymentForManager", () => {
     });
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
       data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [
+        {
+          workshop_id: workshopId,
+          amount: 100,
+          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        },
+      ],
       error: null,
       count: null,
       status: 200,

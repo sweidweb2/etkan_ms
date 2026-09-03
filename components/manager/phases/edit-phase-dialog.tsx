@@ -14,19 +14,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
-import { MANAGER_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-phase-display";
-import type { SemesterStatusValue } from "@/lib/constants/manager-semester-status";
 import {
   updatePhaseSchema,
   type UpdatePhaseInput,
@@ -66,8 +57,6 @@ export function EditPhaseDialog({
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
     formState: { errors },
   } = useZodForm({
     schema: updatePhaseSchema,
@@ -75,24 +64,14 @@ export function EditPhaseDialog({
     defaultValues: {
       id: semester.id,
       name: semester.name,
-      nb_courses: semester.nb_courses,
-      amount: semester.amount,
-      status: semester.status,
-      start_date: semester.start_date ?? "",
     },
   });
-
-  const selectedStatus = watch("status");
 
   useEffect(() => {
     if (open) {
       reset({
         id: semester.id,
         name: semester.name,
-        nb_courses: semester.nb_courses,
-        amount: semester.amount,
-        status: semester.status,
-        start_date: semester.start_date ?? "",
       });
     }
   }, [open, reset, semester]);
@@ -115,10 +94,6 @@ export function EditPhaseDialog({
     const formData = new FormData();
     formData.set("id", values.id);
     formData.set("name", values.name.trim());
-    formData.set("nb_courses", String(values.nb_courses));
-    formData.set("amount", String(values.amount));
-    formData.set("status", values.status);
-    formData.set("start_date", values.start_date ?? "");
 
     startTransition(() => {
       formAction(formData);
@@ -126,21 +101,14 @@ export function EditPhaseDialog({
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];
-  const coursesError =
-    errors.nb_courses?.message ?? state.fieldErrors?.nb_courses?.[0];
-  const amountError = errors.amount?.message ?? state.fieldErrors?.amount?.[0];
-  const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
-  const startDateError =
-    errors.start_date?.message ?? state.fieldErrors?.start_date?.[0];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Edit semester</DialogTitle>
+          <DialogTitle>Edit team</DialogTitle>
           <DialogDescription>
-            Update name, courses, amount, start date, and lifecycle status.
-            Semester code cannot be changed.
+            Update the team name. Code cannot be changed.
           </DialogDescription>
         </DialogHeader>
 
@@ -152,136 +120,36 @@ export function EditPhaseDialog({
         >
           <input type="hidden" {...register("id")} />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2 sm:col-span-2">
-              <FieldLabel
-                htmlFor="edit-semester-name"
-                label="Name"
-                hint="Required"
-              />
-              <Input
-                id="edit-semester-name"
-                aria-invalid={!!nameError}
-                disabled={isPending}
-                {...register("name")}
-              />
-              {nameError ? (
-                <p className="text-sm text-destructive">{nameError}</p>
-              ) : null}
-            </div>
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-semester-name"
+              label="Name"
+              hint="Required"
+            />
+            <Input
+              id="edit-semester-name"
+              aria-invalid={!!nameError}
+              disabled={isPending}
+              {...register("name")}
+            />
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
+            ) : null}
+          </div>
 
-            <div className="flex flex-col gap-2 sm:col-span-2">
-              <FieldLabel
-                htmlFor="edit-semester-code"
-                label="Semester code"
-                hint="Read-only"
-              />
-              <Input
-                id="edit-semester-code"
-                value={semester.semester_code}
-                readOnly
-                disabled
-                className="font-mono tracking-wider"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="edit-semester-courses"
-                label="Number of courses"
-                hint="Required"
-              />
-              <Input
-                id="edit-semester-courses"
-                type="number"
-                min="0"
-                aria-invalid={!!coursesError}
-                disabled={isPending}
-                {...register("nb_courses")}
-              />
-              {coursesError ? (
-                <p className="text-sm text-destructive">{coursesError}</p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="edit-semester-amount"
-                label="Amount"
-                hint="Required"
-              />
-              <Input
-                id="edit-semester-amount"
-                type="number"
-                min="0"
-                step="0.01"
-                aria-invalid={!!amountError}
-                disabled={isPending}
-                {...register("amount")}
-              />
-              {amountError ? (
-                <p className="text-sm text-destructive">{amountError}</p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="edit-semester-start-date"
-                label="Start date"
-                hint="Optional"
-              />
-              <Input
-                id="edit-semester-start-date"
-                type="date"
-                aria-invalid={!!startDateError}
-                disabled={isPending}
-                {...register("start_date")}
-              />
-              {startDateError ? (
-                <p className="text-sm text-destructive">{startDateError}</p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <FieldLabel
-                htmlFor="edit-semester-status"
-                label="Status"
-                hint="Required"
-              />
-              <Select
-                value={selectedStatus}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-                  setValue("status", value as SemesterStatusValue, {
-                    shouldValidate: true,
-                    shouldDirty: true,
-                  });
-                }}
-                disabled={isPending}
-              >
-                <SelectTrigger
-                  id="edit-semester-status"
-                  aria-invalid={!!statusError}
-                  className="w-full"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(MANAGER_SEMESTER_STATUS_LABELS).map(
-                    ([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
-              {statusError ? (
-                <p className="text-sm text-destructive">{statusError}</p>
-              ) : null}
-            </div>
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-semester-code"
+              label="Team code"
+              hint="Read-only"
+            />
+            <Input
+              id="edit-semester-code"
+              value={semester.semester_code}
+              readOnly
+              disabled
+              className="font-mono tracking-wider"
+            />
           </div>
         </form>
 

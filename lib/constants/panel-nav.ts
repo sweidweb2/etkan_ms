@@ -68,7 +68,7 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           icon: "school",
         },
         {
-          title: "Manage semesters",
+          title: "Manage teams",
           href: ROUTES.MANAGER_SEMESTERS,
           icon: "layers",
         },
@@ -289,7 +289,7 @@ export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation = {
           icon: "school",
         },
         {
-          title: "Manage semesters",
+          title: "Manage teams",
           href: ROUTES.MANAGER_SEMESTERS,
           icon: "layers",
         },
@@ -382,13 +382,18 @@ export const TEACHER_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
 /** @deprecated Use `TEACHER_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const TEACHER_PANEL_NAV: PanelNavItem[] = TEACHER_PANEL_NAVIGATION.items!;
 
-/** Student panel: profile only for now. */
+/** Student panel: profile + own open payment phases. */
 export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
   items: [
     {
       title: "My profile",
       href: ROUTES.STUDENT_ROOT,
       icon: "book-open",
+    },
+    {
+      title: "My payments",
+      href: ROUTES.STUDENT_PAYMENTS,
+      icon: "calculator",
     },
   ],
 };

@@ -1,14 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import {
-  ChartNoAxesColumnIncreasingIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  PlusIcon,
-  SearchIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddPhaseDialog } from "@/components/manager/phases/add-phase-dialog";
 import { EditPhaseDialog } from "@/components/manager/phases/edit-phase-dialog";
@@ -25,18 +18,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ROUTES } from "@/lib/constants/routes";
-import { MANAGER_SEMESTER_STATUS_LABELS } from "@/lib/constants/manager-phase-display";
 import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
-import {
-  SEMESTER_STATUS_VALUES,
-  type SemesterStatusValue,
-} from "@/lib/constants/manager-semester-status";
 import type { ManagerSemesterRow } from "@/types/manager-phase";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 12;
 
-const STATUS_FILTER_ALL = "all";
 const SORT_BY_NAME = "name";
 const SORT_BY_CREATED = "created_at";
 const SORT_ORDER_ASC = "asc";
@@ -89,14 +75,7 @@ function matchesSearch(phase: ManagerSemesterRow, query: string) {
     return true;
   }
 
-  const haystack = [
-    phase.name,
-    phase.semester_code,
-    String(phase.amount),
-    String(phase.nb_courses),
-  ]
-    .join(" ")
-    .toLowerCase();
+  const haystack = [phase.name, phase.semester_code].join(" ").toLowerCase();
 
   return haystack.includes(normalizedQuery);
 }
@@ -140,7 +119,6 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
   const [editingSemester, setEditingSemester] =
     useState<ManagerSemesterRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
   const [sortBy, setSortBy] = useState<SortByValue>(SORT_BY_NAME);
   const [sortOrder, setSortOrder] = useState<SortOrderValue>(SORT_ORDER_ASC);
   const [currentPage, setCurrentPage] = useState(1);
@@ -150,35 +128,12 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
     setPhases(initialSemesters);
   }
 
-  const stats = useMemo(
-    () => ({
-      total: phases.length,
-      totalCourses: phases.reduce((sum, phase) => sum + phase.nb_courses, 0),
-      highestAmount:
-        phases.length === 0
-          ? 0
-          : Math.max(...phases.map((phase) => phase.amount)),
-      averageAmount:
-        phases.length === 0
-          ? 0
-          : Math.round(
-              (phases.reduce((sum, phase) => sum + phase.amount, 0) / phases.length) *
-                100
-            ) / 100,
-    }),
-    [phases]
-  );
-
   const filteredPhases = useMemo(() => {
-    const matched = phases.filter((phase) => {
-      const matchesStatus =
-        statusFilter === STATUS_FILTER_ALL || phase.status === statusFilter;
-      return matchesStatus && matchesSearch(phase, searchQuery);
-    });
+    const matched = phases.filter((phase) => matchesSearch(phase, searchQuery));
     return [...matched].sort((left, right) =>
       compareSemesters(left, right, sortBy, sortOrder)
     );
-  }, [phases, searchQuery, statusFilter, sortBy, sortOrder]);
+  }, [phases, searchQuery, sortBy, sortOrder]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPhases.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -209,27 +164,17 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Manage semesters</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Manage teams</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Semesters with course counts and billing amounts.
+            Teams with names and codes for linking classes and payment phases.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            render={<Link href={ROUTES.MANAGER_SEMESTERS_PROGRESS} />}
-            nativeButton={false}
-            variant="outline"
-          >
-            <ChartNoAxesColumnIncreasingIcon data-icon="inline-start" />
-            Progress track
+        <Can permission={PERMISSIONS.SEMESTERS_CREATE}>
+          <Button type="button" onClick={() => setIsAddOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Add team
           </Button>
-          <Can permission={PERMISSIONS.SEMESTERS_CREATE}>
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add semester
-            </Button>
-          </Can>
-        </div>
+        </Can>
       </div>
 
       <AddPhaseDialog
@@ -251,32 +196,22 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
         />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <UserStatCard
-          label="Total semesters"
-          value={stats.total}
+          label="Total teams"
+          value={phases.length}
           accentClassName="border-l-sky-500"
         />
         <UserStatCard
-          label="Total courses"
-          value={stats.totalCourses}
+          label="Showing"
+          value={filteredPhases.length}
           accentClassName="border-l-emerald-500"
-        />
-        <UserStatCard
-          label="Highest amount"
-          value={stats.highestAmount}
-          accentClassName="border-l-violet-500"
-        />
-        <UserStatCard
-          label="Average amount"
-          value={stats.averageAmount}
-          accentClassName="border-l-amber-500"
         />
       </div>
 
       <Card className="py-0">
         <CardHeader className="border-b bg-muted/50 py-3">
-          <CardTitle>Semesters</CardTitle>
+          <CardTitle>Teams</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6 px-4 pt-2 pb-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -288,45 +223,12 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
                   setSearchQuery(event.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search semester name, amount, or number of courses..."
+                placeholder="Search team name or code..."
                 className="pl-8"
-                aria-label="Search semesters"
+                aria-label="Search teams"
               />
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-                  setStatusFilter(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger
-                  className="w-full sm:w-40"
-                  aria-label="Filter by status"
-                >
-                  <SelectValue placeholder="Status">
-                    {(value) =>
-                      !value || value === STATUS_FILTER_ALL
-                        ? "Status"
-                        : (MANAGER_SEMESTER_STATUS_LABELS[
-                            value as SemesterStatusValue
-                          ] ?? String(value))
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={STATUS_FILTER_ALL}>Status</SelectItem>
-                  {SEMESTER_STATUS_VALUES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {MANAGER_SEMESTER_STATUS_LABELS[status]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select
                 value={sortBy}
                 onValueChange={(value) => {
@@ -339,7 +241,7 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
               >
                 <SelectTrigger
                   className="w-full sm:w-44"
-                  aria-label="Sort semesters by"
+                  aria-label="Sort teams by"
                 >
                   <SelectValue placeholder="Sort by">
                     {(value) =>
@@ -382,10 +284,10 @@ export function ManagePhasesPanel({ initialSemesters }: ManagePhasesPanelProps) 
 
           {paginatedPhases.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              No semesters match your search.
+              No teams match your search.
             </p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {paginatedPhases.map((phase) => (
                 <PhaseCard
                   key={phase.id}

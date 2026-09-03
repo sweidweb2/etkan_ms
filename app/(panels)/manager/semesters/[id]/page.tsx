@@ -5,12 +5,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getSemesterForManager,
   listSemesterClassesForManager,
-  listUnlinkedClassesForManager,
+  listSemesterPaymentPhasesForManager,
 } from "@/services/classes/semester.service";
-import {
-  listAvailableStudentsForSemester,
-  listSemesterStudentsForManager,
-} from "@/services/students/student-semester.service";
 
 type ManagerSemesterDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -28,21 +24,16 @@ export default async function ManagerSemesterDetailPage({
     notFound();
   }
 
-  const [students, availableStudents, classes, availableClasses] =
-    await Promise.all([
-      listSemesterStudentsForManager(adminClient, user?.id ?? null, id, semester.name),
-      listAvailableStudentsForSemester(adminClient, user?.id ?? null, id),
-      listSemesterClassesForManager(adminClient, user?.id ?? null, id),
-      listUnlinkedClassesForManager(adminClient, user?.id ?? null),
-    ]);
+  const [classes, paymentPhases] = await Promise.all([
+    listSemesterClassesForManager(adminClient, user?.id ?? null, id),
+    listSemesterPaymentPhasesForManager(adminClient, user?.id ?? null, id),
+  ]);
 
   return (
     <SemesterDetailsPanel
       semester={semester}
-      initialStudents={students}
-      initialAvailableStudents={availableStudents}
       initialClasses={classes}
-      initialAvailableClasses={availableClasses}
+      initialPaymentPhases={paymentPhases}
     />
   );
 }

@@ -46,6 +46,7 @@ import {
 } from "@/services/ops/audit-log.service";
 import {
   assertPermission,
+  assertStudentSelfAccess,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
@@ -314,6 +315,43 @@ export async function getAdjustmentForSppForManager(
     actorUserId,
     PERMISSIONS.ACCOUNTING_VIEW
   );
+
+  const { data: adjustment, error } =
+    await adjustmentRepository.findAdjustmentBySppId(adminClient, sppId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!adjustment) {
+    return null;
+  }
+
+  return mapAdjustmentRecord(adjustment as FinancialAdjustmentRecord);
+}
+
+export async function getAdjustmentForSppForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  sppId: string
+): Promise<GetAdjustmentResult> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+
+  const { data: spp, error: sppError } =
+    await studentPaymentPhaseRepository.findSppById(adminClient, sppId);
+
+  if (sppError) {
+    throw new Error(sppError.message);
+  }
+
+  if (!spp || (spp as StudentPaymentPhaseRecord).student_id !== userId) {
+    return null;
+  }
 
   const { data: adjustment, error } =
     await adjustmentRepository.findAdjustmentBySppId(adminClient, sppId);

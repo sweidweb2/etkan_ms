@@ -37,6 +37,7 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
+import { releaseGuestFromTeamIfBecameClosed } from "@/services/teams/team.service";
 import { getGuestRegistrationInviteBundleForManager } from "@/services/guests/guest-registration.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
@@ -370,6 +371,13 @@ async function finishGuestProfileFromPipeline(
     metadata: { note: "Guest profile set to finished from pipeline." },
   });
 
+  await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+    guestId: guest.id,
+    previousStatus: guest.status,
+    nextStatus: data.status,
+    guestName: data.full_name,
+  });
+
   return { guest: mapGuestRecordToRow(data) };
 }
 
@@ -620,6 +628,13 @@ export async function applyGuestProfileStatusForGuestRecord(
     old_data: { status: guestRecord.status },
     new_data: { status: data.status, note },
     metadata: { note: "Guest profile status changed." },
+  });
+
+  await releaseGuestFromTeamIfBecameClosed(adminClient, actor, {
+    guestId: id,
+    previousStatus: guestRecord.status,
+    nextStatus: data.status,
+    guestName: data.full_name,
   });
 
   return {

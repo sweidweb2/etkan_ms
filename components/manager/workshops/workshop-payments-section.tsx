@@ -31,6 +31,7 @@ import {
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
+import { isWorkshopFullyPaid } from "@/lib/validators/manager/workshop-payment";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -173,13 +174,23 @@ export function WorkshopPaymentsSection({
     });
   }
 
+  const fullyPaid = isWorkshopFullyPaid(workshopPrice, summary.net);
+  const canAddPayment = !mutationsLocked && !fullyPaid;
+
   return (
     <>
       <AddWorkshopPaymentDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         workshopId={workshopId}
-        defaultAmount={workshopPrice}
+        defaultAmount={
+          summary.remaining != null
+            ? Math.max(0, summary.remaining)
+            : workshopPrice
+        }
+        maxAmount={
+          summary.remaining != null ? Math.max(0, summary.remaining) : null
+        }
         onCreated={handlePaymentCreated}
       />
 
@@ -191,6 +202,17 @@ export function WorkshopPaymentsSection({
           }
         }}
         payment={editingPayment}
+        maxAmount={
+          summary.remaining == null
+            ? null
+            : Math.max(
+                0,
+                summary.remaining +
+                  (editingPayment?.type === WORKSHOP_PAYMENT_TYPES.CREDIT
+                    ? editingPayment.amount
+                    : 0)
+              )
+        }
         onUpdated={handlePaymentUpdated}
       />
 
@@ -250,14 +272,14 @@ export function WorkshopPaymentsSection({
         storageKey={`workshop-details-payments-v2:${workshopId}`}
         defaultOpen
         action={
-          mutationsLocked ? undefined : (
+          canAddPayment ? (
             <Can permission={PERMISSIONS.WORKSHOPS_PAYMENTS_CREATE}>
               <Button type="button" size="sm" onClick={() => setIsAddOpen(true)}>
                 <PlusIcon data-icon="inline-start" />
                 Add payment
               </Button>
             </Can>
-          )
+          ) : undefined
         }
       >
         <div className="flex flex-col gap-4 px-3 py-4 sm:px-4">

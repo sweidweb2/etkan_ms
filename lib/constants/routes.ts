@@ -62,7 +62,6 @@ export const ROUTES = {
   MANAGER_PROJECTS: "/manager/projects",
   MANAGER_PROJECT_DETAIL: "/manager/projects/[id]",
   MANAGER_SEMESTERS: "/manager/semesters",
-  MANAGER_SEMESTERS_PROGRESS: "/manager/semesters/progress",
   MANAGER_SETTINGS: "/manager/settings",
   MANAGER_BACKUP: "/manager/backup",
   MANAGER_LOGS: "/manager/logs",
@@ -84,6 +83,8 @@ export const ROUTES = {
   TRAINER_ROOT: "/trainer",
   STUDENT_ROOT: "/student",
   STUDENT_CLASSES: "/student/classes",
+  STUDENT_PAYMENTS: "/student/payments",
+  STUDENT_PAYMENT_DETAIL: "/student/payments/[sppId]",
 } as const;
 
 export type Route = (typeof ROUTES)[keyof typeof ROUTES];
@@ -199,6 +200,10 @@ export function getManagerAccountingSppDetailRoute(
   sppId: string
 ): string {
   return `/manager/accounting/phases/${phaseId}/students/${sppId}`;
+}
+
+export function getStudentPaymentDetailRoute(sppId: string): string {
+  return `/student/payments/${sppId}`;
 }
 
 export function getManagerSemesterDetailRoute(semesterId: string): string {

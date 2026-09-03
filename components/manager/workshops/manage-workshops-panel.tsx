@@ -56,9 +56,9 @@ const PAGE_SIZE = 12;
 const STATUS_ALL = "all";
 
 const TYPE_TAB_ORDER = [
+  WORKSHOP_OFFERING_TYPES.COURSE,
   WORKSHOP_OFFERING_TYPES.WORKSHOP,
   WORKSHOP_OFFERING_TYPES.PRIVATE,
-  WORKSHOP_OFFERING_TYPES.COURSE,
 ] as const satisfies readonly WorkshopOfferingType[];
 
 type StatusFilter = typeof STATUS_ALL | WorkshopStatusValue;
@@ -107,7 +107,7 @@ export function ManageWorkshopsPanel({
   const [prevWorkshops, setPrevWorkshops] = useState(initialWorkshops);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [typeTab, setTypeTab] = useState<WorkshopOfferingType>(
-    WORKSHOP_OFFERING_TYPES.WORKSHOP
+    WORKSHOP_OFFERING_TYPES.COURSE
   );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(STATUS_ALL);

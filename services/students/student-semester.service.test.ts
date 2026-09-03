@@ -216,8 +216,7 @@ describe("addStudentToSemesterForManager", () => {
       data: {
         id: semesterId,
         name: "Fall 2026",
-        nb_courses: 0,
-        amount: 100,
+        semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
       },
       error: null,
@@ -290,8 +289,7 @@ describe("addStudentToSemesterForManager", () => {
       data: {
         id: semesterId,
         name: "Fall 2026",
-        nb_courses: 0,
-        amount: 100,
+        semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
       },
       error: null,

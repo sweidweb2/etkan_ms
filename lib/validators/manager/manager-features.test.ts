@@ -76,9 +76,6 @@ describe("parseCreatePhaseFormData", () => {
   it("parses valid semester form data", () => {
     const formData = new FormData();
     formData.set("name", "Fall 2026 Core Semester");
-    formData.set("nb_courses", "6");
-    formData.set("amount", "450.5");
-    formData.set("status", "scheduled");
 
     const result = parseCreatePhaseFormData(formData);
 
@@ -86,63 +83,19 @@ describe("parseCreatePhaseFormData", () => {
       success: true,
       data: {
         name: "Fall 2026 Core Semester",
-        nb_courses: 6,
-        amount: 450.5,
-        status: "scheduled",
-        start_date: null,
       },
     });
   });
 
-  it("parses optional start date", () => {
+  it("rejects missing semester name", () => {
     const formData = new FormData();
-    formData.set("name", "Fall 2026 Core Semester");
-    formData.set("nb_courses", "6");
-    formData.set("amount", "450.5");
-    formData.set("status", "scheduled");
-    formData.set("start_date", "2026-09-01");
-
-    const result = parseCreatePhaseFormData(formData);
-
-    expect(result).toEqual({
-      success: true,
-      data: {
-        name: "Fall 2026 Core Semester",
-        nb_courses: 6,
-        amount: 450.5,
-        status: "scheduled",
-        start_date: "2026-09-01",
-      },
-    });
-  });
-
-  it("rejects negative amount", () => {
-    const formData = new FormData();
-    formData.set("name", "Fall 2026");
-    formData.set("nb_courses", "6");
-    formData.set("amount", "-1");
-    formData.set("status", "scheduled");
+    formData.set("name", "");
 
     const result = parseCreatePhaseFormData(formData);
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.fieldErrors?.amount).toBeDefined();
-    }
-  });
-
-  it("rejects non-integer course count", () => {
-    const formData = new FormData();
-    formData.set("name", "Fall 2026");
-    formData.set("nb_courses", "6.5");
-    formData.set("amount", "100");
-    formData.set("status", "scheduled");
-
-    const result = parseCreatePhaseFormData(formData);
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.fieldErrors?.nb_courses).toBeDefined();
+      expect(result.fieldErrors?.name).toBeDefined();
     }
   });
 });

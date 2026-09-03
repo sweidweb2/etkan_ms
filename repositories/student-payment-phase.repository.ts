@@ -118,6 +118,22 @@ export async function findSppWithPhaseById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+const SPP_WITH_OPEN_PHASE_SELECT = `${SPP_COLUMNS}, payment_phases!inner(id, name, semester_id, semester_code, amount, upfront_amount, duration_months, start_date, end_date, status, created_at, updated_at, semesters ( id, name, semester_code ))`;
+
+/** Non-cancelled SPPs for a student on phases that are currently opened. */
+export async function listOpenPhaseSppsByStudentId(
+  client: Supabase,
+  studentId: string
+) {
+  return client
+    .from("student_payment_phases")
+    .select(SPP_WITH_OPEN_PHASE_SELECT)
+    .eq("student_id", studentId)
+    .neq("status", "cancelled")
+    .eq("payment_phases.status", "opened")
+    .order("created_at", { foreignTable: "payment_phases", ascending: false });
+}
+
 export async function listSppsByIds(client: Supabase, ids: string[]) {
   if (ids.length === 0) {
     return { data: [], error: null };

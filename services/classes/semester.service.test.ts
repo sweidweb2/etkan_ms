@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { SEMESTER_STATUSES } from "@/lib/constants/manager-semester-status";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
@@ -14,7 +13,6 @@ vi.mock("@/repositories/semester.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
-
 
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -37,20 +35,12 @@ const semesterId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
 const semesterRecord = {
   id: semesterId,
   name: "Fall 2026 Core Semester",
-  nb_courses: 6,
-  amount: 450,
-  status: SEMESTER_STATUSES.SCHEDULED,
-  start_date: "2026-09-01",
   semester_code: "4821",
   created_at: "2026-01-01T00:00:00.000Z",
 };
 
 const validCreateInput = {
   name: "Fall 2026 Core Semester",
-  nb_courses: 6,
-  amount: 450,
-  status: SEMESTER_STATUSES.SCHEDULED,
-  start_date: "2026-09-01",
 };
 
 describe("listSemestersForManager", () => {
@@ -79,10 +69,6 @@ describe("listSemestersForManager", () => {
       {
         id: semesterId,
         name: "Fall 2026 Core Semester",
-        nb_courses: 6,
-        amount: 450,
-        status: SEMESTER_STATUSES.SCHEDULED,
-        start_date: "2026-09-01",
         semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
       },
@@ -151,10 +137,6 @@ describe("getSemesterForManager", () => {
     expect(semester).toEqual({
       id: semesterId,
       name: "Fall 2026 Core Semester",
-      nb_courses: 6,
-      amount: 450,
-      status: SEMESTER_STATUSES.SCHEDULED,
-      start_date: "2026-09-01",
       semester_code: "4821",
       created_at: "2026-01-01T00:00:00.000Z",
     });
@@ -256,10 +238,6 @@ describe("createSemesterForManager", () => {
       semester: {
         id: semesterId,
         name: "Fall 2026 Core Semester",
-        nb_courses: 6,
-        amount: 450,
-        status: SEMESTER_STATUSES.SCHEDULED,
-        start_date: "2026-09-01",
         semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
       },
@@ -282,7 +260,7 @@ describe("updateSemesterForManager", () => {
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
-  it("updates semester status and fields", async () => {
+  it("updates semester name", async () => {
     vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
       data: semesterRecord,
       error: null,
@@ -294,9 +272,7 @@ describe("updateSemesterForManager", () => {
     vi.mocked(semesterRepository.updateSemester).mockResolvedValue({
       data: {
         ...semesterRecord,
-        amount: 500,
-        status: SEMESTER_STATUSES.IN_PROGRESS,
-        start_date: "2026-09-15",
+        name: "Fall 2026 Renamed",
       },
       error: null,
     });
@@ -307,11 +283,7 @@ describe("updateSemesterForManager", () => {
       actor,
       {
         id: semesterId,
-        name: "Fall 2026 Core Semester",
-        nb_courses: 6,
-        amount: 500,
-        status: SEMESTER_STATUSES.IN_PROGRESS,
-        start_date: "2026-09-15",
+        name: "Fall 2026 Renamed",
       }
     );
 
@@ -319,11 +291,7 @@ describe("updateSemesterForManager", () => {
       success: true,
       semester: {
         id: semesterId,
-        name: "Fall 2026 Core Semester",
-        nb_courses: 6,
-        amount: 500,
-        status: SEMESTER_STATUSES.IN_PROGRESS,
-        start_date: "2026-09-15",
+        name: "Fall 2026 Renamed",
         semester_code: "4821",
         created_at: "2026-01-01T00:00:00.000Z",
       },

@@ -50,6 +50,17 @@ export async function listPaymentPhases(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+export async function listPaymentPhasesBySemesterId(
+  client: Supabase,
+  semesterId: string
+) {
+  return client
+    .from("payment_phases")
+    .select(PAYMENT_PHASE_LIST_SELECT)
+    .eq("semester_id", semesterId)
+    .order("created_at", { ascending: false });
+}
+
 export async function findPaymentPhaseById(client: Supabase, id: string) {
   return client
     .from("payment_phases")

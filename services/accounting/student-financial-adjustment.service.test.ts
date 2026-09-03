@@ -19,12 +19,17 @@ import {
   createFinancialFormInviteForManager,
   deleteAdjustmentForManager,
   deleteFinancialFormInviteForManager,
+  getAdjustmentForSppForSelf,
   importAdjustmentForManager,
   listImportableAdjustmentsForManager,
   listOpenSppsMissingPriorAdjustmentForManager,
   submitFinancialFormByToken,
   updateAdjustmentForManager,
 } from "@/services/accounting/student-financial-adjustment.service";
+import {
+  assertPermission,
+  assertStudentSelfAccess,
+} from "@/services/auth/authorization.service";
 
 vi.mock("@/repositories/payment-phase.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
@@ -60,6 +65,10 @@ vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
+  }),
+  assertStudentSelfAccess: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+    return userId;
   }),
   getUnauthorizedError: vi.fn(async (_c, userId) =>
     userId ? null : "Unauthorized."
@@ -1212,5 +1221,65 @@ describe("listOpenSppsMissingPriorAdjustmentForManager", () => {
       ["student-1"],
       expect.arrayContaining([sppId, otherOpenSppId])
     );
+  });
+});
+
+describe("getAdjustmentForSppForSelf", () => {
+  const studentUserId = "student-1";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(assertPermission).mockImplementation(async (_c, userId) => {
+      if (!userId) throw new Error("Unauthorized.");
+    });
+    vi.mocked(assertStudentSelfAccess).mockImplementation(async (_c, userId) => {
+      if (!userId) throw new Error("Unauthorized.");
+      return userId as string;
+    });
+  });
+
+  it("returns adjustment for owned SPP", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentFinancialAdjustmentRepository.findAdjustmentBySppId
+    ).mockResolvedValue({
+      data: adjustmentRecord,
+      error: null,
+    } as never);
+
+    const row = await getAdjustmentForSppForSelf(
+      adminClient,
+      studentUserId,
+      sppId
+    );
+
+    expect(row?.id).toBe(adjustmentId);
+  });
+
+  it("returns null for another student's SPP", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: { ...sppRecord, student_id: "other-student" },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const row = await getAdjustmentForSppForSelf(
+      adminClient,
+      studentUserId,
+      sppId
+    );
+
+    expect(row).toBeNull();
+    expect(
+      studentFinancialAdjustmentRepository.findAdjustmentBySppId
+    ).not.toHaveBeenCalled();
   });
 });

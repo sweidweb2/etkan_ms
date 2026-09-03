@@ -27,6 +27,10 @@ import {
 } from "@/lib/constants/manager-workshop-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerWorkshopDetailRoute } from "@/lib/constants/routes";
+import {
+  getWorkshopPaymentRemainingCap,
+  isWorkshopFullyPaid,
+} from "@/lib/validators/manager/workshop-payment";
 import type { ManagerWorkshopRow } from "@/types/manager-workshop";
 
 type WorkshopCardProps = {
@@ -62,6 +66,8 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
 
   const detailHref = getManagerWorkshopDetailRoute(workshop.id);
   const paymentLabel = resolvePaymentLabel(workshop.price, paidNet);
+  const remainingCap = getWorkshopPaymentRemainingCap(workshop.price, paidNet);
+  const fullyPaid = isWorkshopFullyPaid(workshop.price, paidNet);
 
   return (
     <>
@@ -75,12 +81,13 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
           }}
         />
       ) : null}
-      {isPayOpen ? (
+      {isPayOpen && !fullyPaid ? (
         <AddWorkshopPaymentDialog
           open={isPayOpen}
           onOpenChange={setIsPayOpen}
           workshopId={workshop.id}
-          defaultAmount={workshop.price}
+          defaultAmount={remainingCap ?? workshop.price}
+          maxAmount={remainingCap}
           onCreated={(created) => {
             setPaidNet((current) =>
               created.type === WORKSHOP_PAYMENT_TYPES.CREDIT
@@ -173,15 +180,24 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
               variant="outline"
               size="sm"
               className="h-7 flex-1 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
-              aria-label={`Record payment for ${workshop.name}`}
+              aria-label={
+                fullyPaid
+                  ? `${workshop.name} is already paid`
+                  : `Record payment for ${workshop.name}`
+              }
+              disabled={fullyPaid}
+              title={fullyPaid ? "Already paid" : undefined}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (fullyPaid) {
+                  return;
+                }
                 setIsPayOpen(true);
               }}
             >
               <BanknoteIcon data-icon="inline-start" />
-              Pay
+              {fullyPaid ? "Paid" : "Pay"}
             </Button>
           </Can>
         </CardFooter>

@@ -128,6 +128,7 @@ Format: `key` — label — access
 | `workshops.sessions.create` | Create workshop session | write |
 | `workshops.sessions.update` | Edit workshop session | write |
 | `workshops.sessions.delete` | Delete workshop session | write |
+| `workshops.payments.view` | View workshop payments | read |
 | `workshops.payments.create` | Create workshop payment | write |
 | `workshops.payments.update` | Edit workshop payment | write |
 | `workshops.payments.delete` | Delete workshop payment | write |
@@ -202,8 +203,6 @@ Format: `key` — label — access
 | `semesters.view` | View semesters | read |
 | `semesters.create` | Create semester | write |
 | `semesters.update` | Edit semester | write |
-| `semesters.add_student` | Add student to semester | write |
-| `semesters.connect_class` | Connect class to semester | write |
 
 ### Equipment
 
@@ -458,8 +457,6 @@ grades.preview_certificate
 semesters.view
 semesters.create
 semesters.update
-semesters.add_student
-semesters.connect_class
 equipment.view
 equipment.create
 equipment.update
@@ -535,7 +532,7 @@ settings.update_credentials
 rbac.manage
 ```
 
-**Count:** 158 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete · students includes `students.view_own` for the student panel.
+**Count:** 156 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete · students includes `students.view_own` for the student panel.
 
 ### is_instructor — shared seed package
 

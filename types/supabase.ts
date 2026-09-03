@@ -1133,34 +1133,22 @@ export type Database = {
       }
       semesters: {
         Row: {
-          amount: number
           created_at: string | null
           id: string
           name: string
-          nb_courses: number
           semester_code: string
-          start_date: string | null
-          status: string
         }
         Insert: {
-          amount?: number
           created_at?: string | null
           id?: string
           name: string
-          nb_courses?: number
           semester_code: string
-          start_date?: string | null
-          status?: string
         }
         Update: {
-          amount?: number
           created_at?: string | null
           id?: string
           name?: string
-          nb_courses?: number
           semester_code?: string
-          start_date?: string | null
-          status?: string
         }
         Relationships: []
       }
@@ -2719,7 +2707,6 @@ export type Database = {
         }
         Returns: Json
       }
-      start_scheduled_semesters: { Args: never; Returns: undefined }
       sync_student_joined_class: {
         Args: { p_class_id: string; p_student_id: string }
         Returns: Json

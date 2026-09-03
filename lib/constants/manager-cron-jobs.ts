@@ -28,25 +28,6 @@ export const MANAGER_CRON_JOBS: ManagerCronJobRow[] = [
       "Dashboard → Integrations → Cron, or: select * from cron.job_run_details order by start_time desc limit 20;",
     manual_run: "select public.mark_overdue_pending_work_missing();",
   },
-  {
-    id: "start-scheduled-semesters",
-    job_name: "start-scheduled-semesters",
-    schedule: "0 0 * * *",
-    schedule_label: "Daily at 00:00 UTC",
-    frequency: CRON_JOB_FREQUENCIES.DAILY,
-    status: CRON_JOB_STATUSES.ACTIVE,
-    summary:
-      "Set scheduled semesters to in progress when their start date is reached, and notify managers.",
-    description:
-      "Finds semesters that are still scheduled with a start_date on or before today (UTC), sets their status to in_progress, and creates an academic manager notification listing each started semester. Leaves paused, stopped, done, already in-progress, and null start_date rows unchanged.",
-    function_name: "public.start_scheduled_semesters()",
-    tables: ["semesters", "notifications"],
-    migration:
-      "supabase/migrations/20260723000000_cron_start_scheduled_semesters.sql",
-    verify_hint:
-      "Dashboard → Integrations → Cron, or: select * from cron.job_run_details order by start_time desc limit 20;",
-    manual_run: "select public.start_scheduled_semesters();",
-  },
 ];
 
 export function getManagerCronJobsCatalog(): ManagerCronJobRow[] {

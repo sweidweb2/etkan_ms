@@ -15,12 +15,15 @@ import {
 } from "@/services/ops/audit-log.service";
 import {
   assertPermission,
+  assertStudentSelfAccess,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerStudentPaymentScheduleRow } from "@/types/manager-student-payment-schedule";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
+import type { StudentPaymentPhaseRecord } from "@/repositories/student-payment-phase.repository";
+import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -144,6 +147,44 @@ export async function listStudentPaymentSchedulesForManager(
     actorUserId,
     PERMISSIONS.PAYMENT_SCHEDULES_VIEW
   );
+
+  const { data, error } =
+    await studentPaymentScheduleRepository.listSchedulesBySppId(
+      adminClient,
+      sppId
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as StudentPaymentScheduleRecord[]).map(
+    mapScheduleRecordToRow
+  );
+}
+
+export async function listStudentPaymentSchedulesForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  sppId: string
+): Promise<ManagerStudentPaymentScheduleRow[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.PAYMENT_SCHEDULES_VIEW
+  );
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+
+  const { data: spp, error: sppError } =
+    await studentPaymentPhaseRepository.findSppById(adminClient, sppId);
+
+  if (sppError) {
+    throw new Error(sppError.message);
+  }
+
+  if (!spp || (spp as StudentPaymentPhaseRecord).student_id !== userId) {
+    return [];
+  }
 
   const { data, error } =
     await studentPaymentScheduleRepository.listSchedulesBySppId(

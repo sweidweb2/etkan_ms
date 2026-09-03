@@ -304,7 +304,7 @@ export function GuestRecordsTable({
               key={guest.id}
               guest={guest}
               showDragColumn={showDragColumn}
-              draggable={canDrag && !isClosedStatus(guest.status)}
+              draggable={canDrag}
               disabled={disabled}
               onViewNotes={onViewNotes}
               onEditGuest={onEditGuest}

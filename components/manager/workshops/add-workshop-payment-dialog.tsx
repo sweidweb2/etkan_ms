@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useTransition } from "react";
 import { createWorkshopPaymentAction } from "@/app/manager/workshops/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -36,7 +36,7 @@ import {
 import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import { cn } from "@/lib/utils";
 import {
-  createWorkshopPaymentSchema,
+  createWorkshopPaymentFormSchema,
   type CreateWorkshopPaymentInput,
 } from "@/lib/validators/manager/workshop-payment";
 import type {
@@ -55,8 +55,15 @@ type AddWorkshopPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workshopId: string;
-  /** Prefills the amount, typically the workshop price. */
+  /**
+   * Prefills the amount. Prefer remaining balance when the workshop has a price.
+   */
   defaultAmount?: number | null;
+  /**
+   * Max credit amount: workshop price − paid net. `null` when the workshop has no
+   * price (no remaining cap). Debits are uncapped by this value.
+   */
+  maxAmount?: number | null;
   onCreated: (payment: ManagerWorkshopPaymentRow) => void;
 };
 
@@ -72,6 +79,7 @@ export function AddWorkshopPaymentDialog({
   onOpenChange,
   workshopId,
   defaultAmount,
+  maxAmount = null,
   onCreated,
 }: AddWorkshopPaymentDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -83,6 +91,11 @@ export function AddWorkshopPaymentDialog({
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
+
+  const schema = useMemo(
+    () => createWorkshopPaymentFormSchema(maxAmount),
+    [maxAmount]
+  );
 
   const defaultValues = {
     workshop_id: workshopId,
@@ -101,13 +114,17 @@ export function AddWorkshopPaymentDialog({
     watch,
     formState: { errors },
   } = useZodForm({
-    schema: createWorkshopPaymentSchema,
+    schema,
     mode: "onBlur",
     defaultValues,
   });
 
   const type = watch("type");
   const paymentMethod = watch("payment_method");
+  const creditAmountMax =
+    type === WORKSHOP_PAYMENT_TYPES.CREDIT && maxAmount != null
+      ? maxAmount
+      : WORKSHOP_FIELD_LIMITS.payment_amount.max;
 
   useEffect(() => {
     reset({
@@ -215,7 +232,7 @@ export function AddWorkshopPaymentDialog({
                 type="number"
                 step="0.01"
                 min={WORKSHOP_FIELD_LIMITS.payment_amount.min}
-                max={WORKSHOP_FIELD_LIMITS.payment_amount.max}
+                max={creditAmountMax}
                 disabled={isPending}
                 aria-invalid={Boolean(amountError)}
                 {...register("amount")}

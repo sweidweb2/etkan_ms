@@ -31,6 +31,7 @@ import {
 } from "@/services/ops/audit-log.service";
 import {
   assertPermission,
+  assertStudentSelfAccess,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import type { FieldErrors } from "@/types/auth";
@@ -38,6 +39,7 @@ import type {
   ManagerSppDetail,
   ManagerSppFinancialSnapshot,
   ManagerStudentPaymentRow,
+  StudentOpenSppRow,
 } from "@/types/manager-student-payment";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
@@ -714,4 +716,226 @@ export async function deleteSppForManager(
     payment_phase_id: paymentPhaseId,
     message: "Student payment phase deleted.",
   };
+}
+
+type SppWithPhaseJoin = StudentPaymentPhaseRecord & {
+  payment_phases: PaymentPhaseListRecord | PaymentPhaseListRecord[] | null;
+};
+
+function unwrapPhaseJoin(
+  phase: PaymentPhaseListRecord | PaymentPhaseListRecord[] | null | undefined
+): PaymentPhaseListRecord | null {
+  if (!phase) {
+    return null;
+  }
+  return Array.isArray(phase) ? (phase[0] ?? null) : phase;
+}
+
+function mapOpenSppWithPhaseToRow(
+  record: SppWithPhaseJoin
+): StudentOpenSppRow | null {
+  const phase = unwrapPhaseJoin(record.payment_phases);
+  if (!phase) {
+    return null;
+  }
+
+  const phaseStatus = isPaymentPhaseStatus(phase.status)
+    ? phase.status
+    : PAYMENT_PHASE_STATUSES.OPENED;
+  const sppStatus = isStudentPaymentPhaseStatus(record.status)
+    ? record.status
+    : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
+  const remaining = Number(record.remaining_amount);
+
+  return {
+    id: record.id,
+    payment_phase_id: phase.id,
+    payment_phase_name: phase.name,
+    payment_phase_status: phaseStatus,
+    semester_id: phase.semester_id,
+    semester_name: phase.semesters?.name ?? "Unknown semester",
+    semester_code: phase.semester_code,
+    status: sppStatus,
+    original_amount: Number(record.original_amount),
+    adjustment_amount: Number(record.adjustment_amount),
+    final_amount_due: Number(record.final_amount_due),
+    total_paid: Number(record.total_paid),
+    remaining_amount: remaining,
+    has_credit: remaining < 0,
+    assigned_at: record.assigned_at,
+    created_at: record.created_at,
+    phase_created_at: phase.created_at,
+  };
+}
+
+async function assertOwnedSppForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  sppId: string
+): Promise<StudentPaymentPhaseRecord | null> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+
+  const { data: spp, error } = await studentPaymentPhaseRepository.findSppById(
+    adminClient,
+    sppId
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!spp || spp.student_id !== userId) {
+    return null;
+  }
+
+  return spp as StudentPaymentPhaseRecord;
+}
+
+export async function listOpenSppsForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<StudentOpenSppRow[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+
+  const { data, error } =
+    await studentPaymentPhaseRepository.listOpenPhaseSppsByStudentId(
+      adminClient,
+      userId
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows: StudentOpenSppRow[] = [];
+  for (const record of (data ?? []) as SppWithPhaseJoin[]) {
+    const mapped = mapOpenSppWithPhaseToRow(record);
+    if (mapped) {
+      rows.push(mapped);
+    }
+  }
+
+  return rows;
+}
+
+export async function getSppDetailForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  sppId: string
+): Promise<ManagerSppDetail | null> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_VIEW
+  );
+  const userId = await assertStudentSelfAccess(adminClient, actorUserId);
+
+  const { data: sppWithPhase, error: sppError } =
+    await studentPaymentPhaseRepository.findSppWithPhaseById(
+      adminClient,
+      sppId
+    );
+
+  if (sppError) {
+    throw new Error(sppError.message);
+  }
+
+  if (!sppWithPhase) {
+    return null;
+  }
+
+  const sppRecord = sppWithPhase as SppWithPhaseJoin;
+  if (sppRecord.student_id !== userId) {
+    return null;
+  }
+
+  if (sppRecord.status === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
+    return null;
+  }
+
+  const phaseRecord = unwrapPhaseJoin(sppRecord.payment_phases);
+  if (!phaseRecord) {
+    return null;
+  }
+
+  const phaseStatus = isPaymentPhaseStatus(phaseRecord.status)
+    ? phaseRecord.status
+    : PAYMENT_PHASE_STATUSES.OPENED;
+
+  if (phaseStatus !== PAYMENT_PHASE_STATUSES.OPENED) {
+    return null;
+  }
+
+  const [studentMeta, billingClass] = await Promise.all([
+    resolveStudentMeta(adminClient, sppRecord.student_id),
+    resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
+  ]);
+  const sppStatus = isStudentPaymentPhaseStatus(sppRecord.status)
+    ? sppRecord.status
+    : STUDENT_PAYMENT_PHASE_STATUSES.PENDING;
+  const remaining = Number(sppRecord.remaining_amount);
+
+  return {
+    id: sppRecord.id,
+    student_id: sppRecord.student_id,
+    student_profile_id: studentMeta.student_profile_id,
+    student_label: studentMeta.label,
+    payment_phase_id: phaseRecord.id,
+    payment_phase_name: phaseRecord.name,
+    payment_phase_status: phaseStatus,
+    semester_id: phaseRecord.semester_id,
+    semester_name: phaseRecord.semesters?.name ?? "Unknown semester",
+    semester_code: phaseRecord.semester_code,
+    billing_class_id: billingClass?.id ?? null,
+    billing_class_name: billingClass?.name ?? null,
+    phase_amount: Number(phaseRecord.amount),
+    phase_upfront_amount: Number(phaseRecord.upfront_amount),
+    upfront_window_active: isPhaseUpfrontWindowActive({
+      status: phaseStatus,
+      start_date: phaseRecord.start_date,
+      upfront_amount: Number(phaseRecord.upfront_amount),
+    }),
+    status: sppStatus,
+    original_amount: Number(sppRecord.original_amount),
+    adjustment_amount: Number(sppRecord.adjustment_amount),
+    final_amount_due: Number(sppRecord.final_amount_due),
+    total_paid: Number(sppRecord.total_paid),
+    remaining_amount: remaining,
+    has_credit: remaining < 0,
+    payments_blocked: false,
+    assigned_at: sppRecord.assigned_at,
+    created_at: sppRecord.created_at,
+  };
+}
+
+export async function listPaymentsForSppForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  sppId: string
+): Promise<ManagerStudentPaymentRow[]> {
+  const spp = await assertOwnedSppForSelf(adminClient, actorUserId, sppId);
+  if (!spp) {
+    return [];
+  }
+
+  const { data, error } = await studentPaymentRepository.listPaymentsBySppId(
+    adminClient,
+    sppId
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as StudentPaymentRecord[]).map(mapPaymentRecordToRow);
 }

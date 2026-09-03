@@ -160,8 +160,6 @@ export const PERMISSIONS = {
   SEMESTERS_VIEW: "semesters.view",
   SEMESTERS_CREATE: "semesters.create",
   SEMESTERS_UPDATE: "semesters.update",
-  SEMESTERS_ADD_STUDENT: "semesters.add_student",
-  SEMESTERS_CONNECT_CLASS: "semesters.connect_class",
 
   EQUIPMENT_VIEW: "equipment.view",
   EQUIPMENT_CREATE: "equipment.create",
@@ -678,18 +676,6 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SEMESTERS_UPDATE,
     feature: "semesters",
     label: "Edit semester",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.SEMESTERS_ADD_STUDENT,
-    feature: "semesters",
-    label: "Add student to semester",
-    access: PERMISSION_ACCESS.WRITE,
-  },
-  {
-    key: PERMISSIONS.SEMESTERS_CONNECT_CLASS,
-    feature: "semesters",
-    label: "Connect class to semester",
     access: PERMISSION_ACCESS.WRITE,
   },
 

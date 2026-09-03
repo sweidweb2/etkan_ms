@@ -12,8 +12,15 @@ import {
   deleteStudentPaymentForManager,
   deleteSppForManager,
   getSppDetailForManager,
+  getSppDetailForSelf,
+  listOpenSppsForSelf,
+  listPaymentsForSppForSelf,
   sumStudentPaymentsForMonthForManager,
 } from "@/services/accounting/student-payment.service";
+import {
+  assertPermission,
+  assertStudentSelfAccess,
+} from "@/services/auth/authorization.service";
 
 vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/payment-phase.repository");
@@ -29,6 +36,10 @@ vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
+  }),
+  assertStudentSelfAccess: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+    return userId;
   }),
   getUnauthorizedError: vi.fn(async (_c, userId) =>
     userId ? null : "Unauthorized."
@@ -469,5 +480,258 @@ describe("sumStudentPaymentsForMonthForManager", () => {
     expect(
       studentPaymentRepository.listPaymentAmountsBetween
     ).toHaveBeenCalledWith(adminClient, "2026-08-01", "2026-09-01");
+  });
+});
+
+const studentUserId = "student-1";
+
+describe("listOpenSppsForSelf", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(assertPermission).mockImplementation(async (_c, userId) => {
+      if (!userId) throw new Error("Unauthorized.");
+    });
+    vi.mocked(assertStudentSelfAccess).mockImplementation(async (_c, userId) => {
+      if (!userId) throw new Error("Unauthorized.");
+      return userId as string;
+    });
+  });
+
+  it("returns mapped open-phase SPPs for the signed-in student", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.listOpenPhaseSppsByStudentId
+    ).mockResolvedValue({
+      data: [
+        {
+          ...sppRecord,
+          payment_phases: phaseRecord,
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const rows = await listOpenSppsForSelf(adminClient, studentUserId);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: sppId,
+      payment_phase_id: phaseId,
+      payment_phase_name: "Fall tuition",
+      semester_name: "Fall",
+      status: "pending",
+      remaining_amount: 1000,
+    });
+    expect(
+      studentPaymentPhaseRepository.listOpenPhaseSppsByStudentId
+    ).toHaveBeenCalledWith(adminClient, studentUserId);
+  });
+
+  it("rejects unauthenticated callers", async () => {
+    await expect(listOpenSppsForSelf(adminClient, null)).rejects.toThrow(
+      "Unauthorized."
+    );
+  });
+});
+
+describe("getSppDetailForSelf", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(assertPermission).mockImplementation(async (_c, userId) => {
+      if (!userId) throw new Error("Unauthorized.");
+    });
+    vi.mocked(assertStudentSelfAccess).mockImplementation(async (_c, userId) => {
+      if (!userId) throw new Error("Unauthorized.");
+      return userId as string;
+    });
+  });
+
+  it("returns own open-phase SPP detail", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.findSppWithPhaseById
+    ).mockResolvedValue({
+      data: {
+        ...sppRecord,
+        payment_phases: phaseRecord,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
+      data: {
+        id: studentUserId,
+        username: "student",
+        role: "student",
+        created_at: "",
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(
+      studentProfileRepository.listStudentProfilesByUserIds
+    ).mockResolvedValue({
+      data: [
+        {
+          id: "sp-1",
+          user_id: studentUserId,
+          full_name: "Student One",
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(classRepository.findInProgressClassBySemesterId).mockResolvedValue(
+      {
+        data: null,
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK",
+      } as never
+    );
+
+    const detail = await getSppDetailForSelf(
+      adminClient,
+      studentUserId,
+      sppId
+    );
+
+    expect(detail).not.toBeNull();
+    expect(detail?.payment_phase_name).toBe("Fall tuition");
+    expect(detail?.student_label).toBe("Student One");
+  });
+
+  it("returns null for another student's SPP", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.findSppWithPhaseById
+    ).mockResolvedValue({
+      data: {
+        ...sppRecord,
+        student_id: "other-student",
+        payment_phases: phaseRecord,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const detail = await getSppDetailForSelf(
+      adminClient,
+      studentUserId,
+      sppId
+    );
+
+    expect(detail).toBeNull();
+  });
+
+  it("returns null when the phase is closed", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.findSppWithPhaseById
+    ).mockResolvedValue({
+      data: {
+        ...sppRecord,
+        payment_phases: { ...phaseRecord, status: "closed" },
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const detail = await getSppDetailForSelf(
+      adminClient,
+      studentUserId,
+      sppId
+    );
+
+    expect(detail).toBeNull();
+  });
+
+  it("returns null when the SPP is cancelled", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.findSppWithPhaseById
+    ).mockResolvedValue({
+      data: {
+        ...sppRecord,
+        status: "cancelled",
+        payment_phases: phaseRecord,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const detail = await getSppDetailForSelf(
+      adminClient,
+      studentUserId,
+      sppId
+    );
+
+    expect(detail).toBeNull();
+  });
+});
+
+describe("listPaymentsForSppForSelf", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(assertPermission).mockImplementation(async (_c, userId) => {
+      if (!userId) throw new Error("Unauthorized.");
+    });
+    vi.mocked(assertStudentSelfAccess).mockImplementation(async (_c, userId) => {
+      if (!userId) throw new Error("Unauthorized.");
+      return userId as string;
+    });
+  });
+
+  it("lists payments for owned SPP", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: sppRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+    vi.mocked(studentPaymentRepository.listPaymentsBySppId).mockResolvedValue({
+      data: [paymentRecord],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const rows = await listPaymentsForSppForSelf(
+      adminClient,
+      studentUserId,
+      sppId
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.amount).toBe(1000);
+  });
+
+  it("returns empty list for another student's SPP", async () => {
+    vi.mocked(studentPaymentPhaseRepository.findSppById).mockResolvedValue({
+      data: { ...sppRecord, student_id: "other-student" },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    } as never);
+
+    const rows = await listPaymentsForSppForSelf(
+      adminClient,
+      studentUserId,
+      sppId
+    );
+
+    expect(rows).toEqual([]);
+    expect(studentPaymentRepository.listPaymentsBySppId).not.toHaveBeenCalled();
   });
 });

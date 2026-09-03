@@ -250,7 +250,7 @@ export async function listAvailableStudentsForSemester(
   actorUserId: string | null,
   semesterId: string
 ): Promise<ManagerStudentRow[]> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_ADD_STUDENT);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_UPDATE);
 
   const [enrolledResult, students] = await Promise.all([
     studentSemesterRepository.listEnrolledStudentProfileIds(
@@ -283,7 +283,7 @@ export async function addStudentToSemesterForManager(
     status: string;
   }
 ): Promise<AddStudentToSemesterResult> {
-  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_ADD_STUDENT);
+  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_UPDATE);
   if (unauthorized) {
     return { success: false, error: unauthorized };
   }

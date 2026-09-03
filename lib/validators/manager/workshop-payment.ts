@@ -2,6 +2,7 @@ import { z } from "zod";
 import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   WORKSHOP_PAYMENT_METHOD_VALUES,
+  WORKSHOP_PAYMENT_TYPES,
   WORKSHOP_PAYMENT_TYPE_VALUES,
 } from "@/lib/constants/manager-workshop-display";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
@@ -85,6 +86,77 @@ export const deleteWorkshopPaymentSchema = z.object({
 export type DeleteWorkshopPaymentInput = z.infer<
   typeof deleteWorkshopPaymentSchema
 >;
+
+export const WORKSHOP_PAYMENT_REMAINING_AMOUNT_MESSAGE =
+  "Amount cannot exceed the remaining balance for this workshop.";
+
+export const WORKSHOP_PAYMENT_FULLY_PAID_MESSAGE =
+  "This workshop is already paid. No more payments can be recorded.";
+
+/**
+ * Remaining workshop balance: price − paid net. `null` when the workshop has no price
+ * (no remaining cap). Clamped at 0 so overpaid workshops reject further credits.
+ */
+export function getWorkshopPaymentRemainingCap(
+  price: number | null | undefined,
+  paidNet: number
+): number | null {
+  if (price == null) {
+    return null;
+  }
+  return Math.max(0, Number(price) - Number(paidNet));
+}
+
+/** True when the workshop has a price and paid net covers it. */
+export function isWorkshopFullyPaid(
+  price: number | null | undefined,
+  paidNet: number
+): boolean {
+  if (price == null || Number(price) <= 0) {
+    return false;
+  }
+  return Number(paidNet) >= Number(price);
+}
+
+function refineCreditWithinRemaining(
+  data: { amount: number; type: string },
+  maxAmount: number | null,
+  ctx: z.RefinementCtx
+) {
+  if (maxAmount == null) {
+    return;
+  }
+  if (data.type !== WORKSHOP_PAYMENT_TYPES.CREDIT) {
+    return;
+  }
+  if (data.amount > maxAmount) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["amount"],
+      message: WORKSHOP_PAYMENT_REMAINING_AMOUNT_MESSAGE,
+    });
+  }
+}
+
+/**
+ * Client-side create schema that caps credit amounts at the remaining workshop balance.
+ * Pass `null` when the workshop has no price (no remaining cap).
+ */
+export function createWorkshopPaymentFormSchema(maxAmount: number | null) {
+  return createWorkshopPaymentSchema.superRefine((data, ctx) => {
+    refineCreditWithinRemaining(data, maxAmount, ctx);
+  });
+}
+
+/**
+ * Client-side update schema that caps credit amounts at remaining + this payment's
+ * current credit contribution (so editing the same credit can keep its amount).
+ */
+export function updateWorkshopPaymentFormSchema(maxAmount: number | null) {
+  return updateWorkshopPaymentSchema.superRefine((data, ctx) => {
+    refineCreditWithinRemaining(data, maxAmount, ctx);
+  });
+}
 
 export function parseCreateWorkshopPaymentFormData(formData: FormData):
   | { success: true; data: CreateWorkshopPaymentInput }

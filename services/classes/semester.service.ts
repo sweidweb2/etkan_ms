@@ -7,17 +7,13 @@ import {
   CLASS_STATUSES,
   type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
-import {
-  SEMESTER_STATUSES,
-  SEMESTER_STATUS_VALUES,
-  type SemesterStatusValue,
-} from "@/lib/constants/manager-semester-status";
 import { createPhaseSchema } from "@/lib/validators/manager/create-phase";
 import { updatePhaseSchema } from "@/lib/validators/manager/update-phase";
-import { connectSemesterClassSchema } from "@/lib/validators/manager/connect-semester-class";
 import { generateSemesterCode } from "@/lib/manager/generate-semester-code";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassWithSubjectRecord } from "@/repositories/class.repository";
+import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
+import type { PaymentPhaseListRecord } from "@/repositories/payment-phase.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import type { SemesterRecord } from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
@@ -27,11 +23,9 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
-import type {
-  ManagerSemesterProgressRow,
-  ManagerSemesterRow,
-} from "@/types/manager-phase";
+import type { ManagerSemesterRow } from "@/types/manager-phase";
 import type { ManagerSemesterClassRow } from "@/types/manager-semester-class";
+import type { ManagerSemesterPaymentPhaseRow } from "@/types/manager-semester-payment-phase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -86,42 +80,10 @@ export type CreateSemesterResult = CreateSemesterSuccess | CreateSemesterFailure
 
 export type UpdateSemesterResult = CreateSemesterResult;
 
-export type ConnectSemesterClassSuccess = {
-  success: true;
-  classRow: ManagerSemesterClassRow;
-  semester: ManagerSemesterRow;
-  message: string;
-};
-
-export type ConnectSemesterClassFailure = {
-  success: false;
-  error: string;
-  fieldErrors?: FieldErrors;
-};
-
-export type ConnectSemesterClassResult =
-  | ConnectSemesterClassSuccess
-  | ConnectSemesterClassFailure;
-
-function mapSemesterStatus(status: string | null | undefined): SemesterStatusValue {
-  if (
-    status &&
-    SEMESTER_STATUS_VALUES.includes(status as SemesterStatusValue)
-  ) {
-    return status as SemesterStatusValue;
-  }
-
-  return SEMESTER_STATUSES.SCHEDULED;
-}
-
 function mapSemesterRecordToRow(record: SemesterRecord): ManagerSemesterRow {
   return {
     id: record.id,
     name: record.name,
-    nb_courses: record.nb_courses,
-    amount: Number(record.amount),
-    status: mapSemesterStatus(record.status),
-    start_date: record.start_date ?? null,
     semester_code: record.semester_code,
     created_at: record.created_at ?? "",
   };
@@ -208,14 +170,18 @@ async function mapClassRecordsToSemesterClassRows(
   }));
 }
 
-function mapConnectSemesterClassError(message: string): string {
-  const normalized = message.toLowerCase();
-
-  if (normalized.includes("foreign key")) {
-    return "Class or semester not found.";
-  }
-
-  return "Unable to connect class. Please try again.";
+function mapPaymentPhaseRecordToSemesterRow(
+  record: PaymentPhaseListRecord
+): ManagerSemesterPaymentPhaseRow {
+  return {
+    id: record.id,
+    name: record.name,
+    status: record.status,
+    amount: Number(record.amount),
+    semester_code: record.semester_code,
+    start_date: record.start_date,
+    end_date: record.end_date,
+  };
 }
 
 export async function listSemestersForManager(
@@ -231,52 +197,6 @@ export async function listSemestersForManager(
   }
 
   return (data ?? []).map(mapSemesterRecordToRow);
-}
-
-export async function listSemesterProgressForManager(
-  adminClient: Supabase,
-  actorUserId: string | null
-): Promise<ManagerSemesterProgressRow[]> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_VIEW);
-
-  const [semestersResult, classesResult] = await Promise.all([
-    semesterRepository.listSemesters(adminClient),
-    classRepository.listLinkedClassesWithSubject(adminClient),
-  ]);
-
-  if (semestersResult.error) {
-    throw new Error(semestersResult.error.message);
-  }
-
-  if (classesResult.error) {
-    throw new Error(classesResult.error.message);
-  }
-
-  const classRows = await mapClassRecordsToSemesterClassRows(
-    adminClient,
-    classesResult.data ?? []
-  );
-
-  const classesBySemesterId = new Map<string, ManagerSemesterClassRow[]>();
-
-  for (const classRow of classRows) {
-    if (!classRow.semester_id) {
-      continue;
-    }
-
-    const existing = classesBySemesterId.get(classRow.semester_id) ?? [];
-    existing.push(classRow);
-    classesBySemesterId.set(classRow.semester_id, existing);
-  }
-
-  return (semestersResult.data ?? []).map((record) => {
-    const semester = mapSemesterRecordToRow(record);
-
-    return {
-      semester,
-      classes: classesBySemesterId.get(semester.id) ?? [],
-    };
-  });
 }
 
 export async function getSemesterForManager(
@@ -308,13 +228,13 @@ export async function createSemesterForManager(
   actor: AuditActor,
   input: {
     name: string;
-    nb_courses: number;
-    amount: number;
-    status: string;
-    start_date?: string | null;
   }
 ): Promise<CreateSemesterResult> {
-  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_CREATE);
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.SEMESTERS_CREATE
+  );
   if (unauthorized) {
     return { success: false, error: unauthorized };
   }
@@ -329,8 +249,7 @@ export async function createSemesterForManager(
     };
   }
 
-  const { name, nb_courses, amount, status, start_date } = parsed.data;
-  const normalizedName = name.trim();
+  const normalizedName = parsed.data.name.trim();
 
   const existing = await semesterRepository.findSemesterByName(
     adminClient,
@@ -360,10 +279,6 @@ export async function createSemesterForManager(
 
   const { data, error } = await semesterRepository.createSemester(adminClient, {
     name: normalizedName,
-    nb_courses,
-    amount,
-    status,
-    start_date,
     semester_code: codeAllocation.semesterCode,
   });
 
@@ -381,10 +296,6 @@ export async function createSemesterForManager(
     record_id: data.id,
     new_data: {
       name: data.name,
-      nb_courses: data.nb_courses,
-      amount: data.amount,
-      status: data.status,
-      start_date: data.start_date,
       semester_code: data.semester_code,
     },
     metadata: { note: "Semester created." },
@@ -404,13 +315,13 @@ export async function updateSemesterForManager(
   input: {
     id: string;
     name: string;
-    nb_courses: number;
-    amount: number;
-    status: string;
-    start_date?: string | null;
   }
 ): Promise<UpdateSemesterResult> {
-  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_UPDATE);
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.SEMESTERS_UPDATE
+  );
   if (unauthorized) {
     return { success: false, error: unauthorized };
   }
@@ -470,10 +381,6 @@ export async function updateSemesterForManager(
     parsed.data.id,
     {
       name: normalizedName,
-      nb_courses: parsed.data.nb_courses,
-      amount: parsed.data.amount,
-      status: parsed.data.status,
-      start_date: parsed.data.start_date,
     }
   );
 
@@ -491,23 +398,15 @@ export async function updateSemesterForManager(
     record_id: data.id,
     old_data: {
       name: existing.data.name,
-      nb_courses: existing.data.nb_courses,
-      amount: existing.data.amount,
-      status: existing.data.status,
-      start_date: existing.data.start_date,
       semester_code: existing.data.semester_code,
     },
     new_data: {
       name: data.name,
-      nb_courses: data.nb_courses,
-      amount: data.amount,
-      status: data.status,
-      start_date: data.start_date,
       semester_code: data.semester_code,
     },
     metadata: {
       note: "Semester updated.",
-      changed_fields: ["name", "nb_courses", "amount", "status", "start_date"],
+      changed_fields: ["name"],
     },
   });
 
@@ -538,155 +437,24 @@ export async function listSemesterClassesForManager(
   return mapClassRecordsToSemesterClassRows(adminClient, data ?? []);
 }
 
-export async function listUnlinkedClassesForManager(
+export async function listSemesterPaymentPhasesForManager(
   adminClient: Supabase,
-  actorUserId: string | null
-): Promise<ManagerSemesterClassRow[]> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_CONNECT_CLASS);
+  actorUserId: string | null,
+  semesterId: string
+): Promise<ManagerSemesterPaymentPhaseRow[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SEMESTERS_VIEW);
 
   const { data, error } =
-    await classRepository.listUnlinkedClassesWithSubject(adminClient);
+    await paymentPhaseRepository.listPaymentPhasesBySemesterId(
+      adminClient,
+      semesterId
+    );
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return mapClassRecordsToSemesterClassRows(adminClient, data ?? []);
-}
-
-export async function connectClassToSemesterForManager(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  actor: AuditActor,
-  input: {
-    semester_id: string;
-    classId: string;
-  }
-): Promise<ConnectSemesterClassResult> {
-  const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SEMESTERS_CONNECT_CLASS);
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const parsed = connectSemesterClassSchema.safeParse({
-    classId: input.classId,
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const [semesterResult, existingClass] = await Promise.all([
-    semesterRepository.findSemesterById(adminClient, input.semester_id),
-    classRepository.findClassById(adminClient, parsed.data.classId),
-  ]);
-
-  if (semesterResult.error) {
-    return {
-      success: false,
-      error: mapConnectSemesterClassError(semesterResult.error.message),
-    };
-  }
-
-  if (!semesterResult.data) {
-    return { success: false, error: "Semester not found." };
-  }
-
-  if (existingClass.error) {
-    return {
-      success: false,
-      error: mapConnectSemesterClassError(existingClass.error.message),
-    };
-  }
-
-  if (!existingClass.data) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { classId: ["Class not found."] },
-    };
-  }
-
-  if (existingClass.data.semester_id) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: {
-        classId: ["This class is already linked to a semester."],
-      },
-    };
-  }
-
-  const { data, error } = await classRepository.updateClassSemesterId(
-    adminClient,
-    parsed.data.classId,
-    input.semester_id
+  return ((data ?? []) as PaymentPhaseListRecord[]).map(
+    mapPaymentPhaseRecordToSemesterRow
   );
-
-  if (error || !data) {
-    return {
-      success: false,
-      error: mapConnectSemesterClassError(error?.message ?? "Unknown error"),
-    };
-  }
-
-  const [classRows, classCountResult] = await Promise.all([
-    mapClassRecordsToSemesterClassRows(adminClient, [data]),
-    classRepository.countClassesBySemesterId(adminClient, input.semester_id),
-  ]);
-
-  if (classCountResult.error) {
-    return {
-      success: false,
-      error: mapConnectSemesterClassError(classCountResult.error.message),
-    };
-  }
-
-  const nbCourses = classCountResult.count ?? 0;
-  const updatedSemester = await semesterRepository.updateSemesterNbCourses(
-    adminClient,
-    input.semester_id,
-    nbCourses
-  );
-
-  if (updatedSemester.error || !updatedSemester.data) {
-    return {
-      success: false,
-      error: mapConnectSemesterClassError(
-        updatedSemester.error?.message ?? "Unknown error"
-      ),
-    };
-  }
-
-  const classRow = classRows[0];
-
-  if (!classRow) {
-    return { success: false, error: "Unable to load connected class." };
-  }
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "update",
-    severity: "info",
-    table_name: "classes",
-    record_id: data.id,
-    old_data: { semester_id: existingClass.data.semester_id },
-    new_data: { semester_id: data.semester_id },
-    metadata: {
-      note: "Class connected to semester.",
-      semester_id: input.semester_id,
-      semester_name: semesterResult.data.name,
-      changed_fields: ["semester_id"],
-    },
-  });
-
-  return {
-    success: true,
-    classRow,
-    semester: mapSemesterRecordToRow(updatedSemester.data),
-    message: `${classRow.name} connected to ${semesterResult.data.name}.`,
-  };
 }

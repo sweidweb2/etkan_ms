@@ -374,34 +374,6 @@ async function mapClassDetailRecordsToRows(
   }));
 }
 
-async function syncSemesterNbCourses(
-  adminClient: Supabase,
-  semesterId: string | null
-): Promise<void> {
-  if (!semesterId) {
-    return;
-  }
-
-  const countResult = await classRepository.countClassesBySemesterId(
-    adminClient,
-    semesterId
-  );
-
-  if (countResult.error) {
-    throw new Error(countResult.error.message);
-  }
-
-  const updateResult = await semesterRepository.updateSemesterNbCourses(
-    adminClient,
-    semesterId,
-    countResult.count ?? 0
-  );
-
-  if (updateResult.error) {
-    throw new Error(updateResult.error.message);
-  }
-}
-
 async function buildFullNameByUserId(
   adminClient: Supabase,
   userIds: string[]
@@ -622,10 +594,6 @@ export async function createClassForManager(
       success: false,
       error: error?.message ?? "Unable to create class. Please try again.",
     };
-  }
-
-  if (nextSemesterId) {
-    await syncSemesterNbCourses(adminClient, nextSemesterId);
   }
 
   if (nextTeacherId) {
@@ -1497,8 +1465,6 @@ export async function updateClassForManager(
     }
   }
 
-  const previousSemesterId = existing.data.semester_id;
-
   const { data, error } = await classRepository.updateClass(
     adminClient,
     input.class_id,
@@ -1515,13 +1481,6 @@ export async function updateClassForManager(
       success: false,
       error: error?.message ?? "Unable to update class. Please try again.",
     };
-  }
-
-  if (previousSemesterId !== nextSemesterId) {
-    await Promise.all([
-      syncSemesterNbCourses(adminClient, previousSemesterId),
-      syncSemesterNbCourses(adminClient, nextSemesterId),
-    ]);
   }
 
   const classRow = mapClassDetailToRowWithCounts(

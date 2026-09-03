@@ -34,6 +34,27 @@ export type ManagerSppDetail = {
   created_at: string;
 };
 
+/** Student panel list row: own SPP on an opened payment phase. */
+export type StudentOpenSppRow = {
+  id: string;
+  payment_phase_id: string;
+  payment_phase_name: string;
+  payment_phase_status: PaymentPhaseStatus;
+  semester_id: string;
+  semester_name: string;
+  semester_code: string;
+  status: StudentPaymentPhaseStatus;
+  original_amount: number;
+  adjustment_amount: number;
+  final_amount_due: number;
+  total_paid: number;
+  remaining_amount: number;
+  has_credit: boolean;
+  assigned_at: string;
+  created_at: string;
+  phase_created_at: string;
+};
+
 export type ManagerStudentPaymentRow = {
   id: string;
   student_payment_phase_id: string;

@@ -38,7 +38,7 @@ type SeedStudent = {
 
 async function findOrCreateSemester(
   client: Supabase,
-  input: { name: string; amount: number; nbCourses: number; startDate?: string }
+  input: { name: string }
 ) {
   const existing = await semesterRepository.findSemesterByName(client, input.name);
   if (existing.error) throw new Error(existing.error.message);
@@ -57,9 +57,6 @@ async function findOrCreateSemester(
 
   const { data, error } = await semesterRepository.createSemester(client, {
     name: input.name,
-    amount: input.amount,
-    nb_courses: input.nbCourses,
-    start_date: input.startDate ?? null,
     semester_code: semesterCode,
   });
 
@@ -122,26 +119,7 @@ async function findOrCreateClass(
     throw new Error(created.error?.message ?? `Unable to create class "${input.name}".`);
   }
 
-  await syncSemesterCourseCount(client, input.semesterId);
-
   return created.data.id;
-}
-
-async function syncSemesterCourseCount(client: Supabase, semesterId: string) {
-  const countResult = await classRepository.countClassesBySemesterId(
-    client,
-    semesterId
-  );
-
-  if (countResult.error) throw new Error(countResult.error.message);
-
-  const { error } = await semesterRepository.updateSemesterNbCourses(
-    client,
-    semesterId,
-    countResult.count ?? 0
-  );
-
-  if (error) throw new Error(error.message);
 }
 
 async function findOrCreateTeacher(
@@ -384,16 +362,10 @@ async function seedDemoData(): Promise<void> {
     ? marker.data.id
     : await findOrCreateSemester(client, {
         name: DEMO_MARKER,
-        amount: 500,
-        nbCourses: 1,
-        startDate: "2026-09-01",
       });
 
   const springSemesterId = await findOrCreateSemester(client, {
     name: "Demo Spring 2027",
-    amount: 550,
-    nbCourses: 1,
-    startDate: "2027-02-01",
   });
 
   const mathSubjectId = await findOrCreateSubject(client, {

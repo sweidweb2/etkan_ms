@@ -122,7 +122,7 @@ Shared **Manage workshops** UI is available at `/manager/workshops*` when `profi
 
 ## Student
 
-Workshop access package **plus** own profile read for the student panel:
+Workshop access package **plus** own profile read and own open-phase payment reads for the student panel:
 
 ```
 workshops.view
@@ -135,6 +135,8 @@ workshops.documents.delete
 instructors.view
 instructor_schedules.view
 students.view_own
+accounting.view
+payment_schedules.view
 ```
 
-Login lands on `/student`, which shows the same student-details layout as the manager panel (classes and borrowing) in **read-only** form — activity logs are manager-only. Re-run `npm run seed:rbac` after deploy so existing student roles receive `students.view_own`.
+Login lands on `/student`, which shows the same student-details layout as the manager panel (classes and borrowing) in **read-only** form — activity logs are manager-only. `accounting.view` / `payment_schedules.view` power **My payments** (`/student/payments*`) for the student’s own open-phase SPPs only (self-scoped services; no manager accounting UI). Re-run `npm run seed:rbac` after deploy so existing student roles receive `students.view_own`, `accounting.view`, and `payment_schedules.view`.

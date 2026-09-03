@@ -19,6 +19,7 @@ import {
   updateGuestForManager,
 } from "@/services/guests/guest.service";
 import { getGuestRegistrationInviteBundleForManager } from "@/services/guests/guest-registration.service";
+import { releaseGuestFromTeamIfBecameClosed } from "@/services/teams/team.service";
 
 vi.mock("@/repositories/guest.repository");
 vi.mock("@/repositories/guest-status-event.repository");
@@ -31,6 +32,9 @@ vi.mock("@/services/ops/audit-log.service", () => ({
 }));
 vi.mock("@/services/guests/guest-registration.service", () => ({
   getGuestRegistrationInviteBundleForManager: vi.fn(),
+}));
+vi.mock("@/services/teams/team.service", () => ({
+  releaseGuestFromTeamIfBecameClosed: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/services/auth/authorization.service", () => ({
@@ -463,6 +467,16 @@ describe("setGuestStatusForManager", () => {
       guestId,
       "finished"
     );
+    expect(releaseGuestFromTeamIfBecameClosed).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      {
+        guestId,
+        previousStatus: "pending",
+        nextStatus: "finished",
+        guestName: "Ada Lovelace",
+      }
+    );
   });
 
   it("rejects profile outcomes as pipeline events", async () => {
@@ -703,6 +717,16 @@ describe("setGuestStatusesForManager", () => {
       guestId,
       "finished"
     );
+    expect(releaseGuestFromTeamIfBecameClosed).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      {
+        guestId,
+        previousStatus: "pending",
+        nextStatus: "finished",
+        guestName: "Ada Lovelace",
+      }
+    );
   });
 
   it("records pipeline finished without flipping profile when asked", async () => {
@@ -752,6 +776,7 @@ describe("setGuestStatusesForManager", () => {
       expect(result.guest.status).toBe("pending");
     }
     expect(guestRepository.updateGuestStatus).not.toHaveBeenCalled();
+    expect(releaseGuestFromTeamIfBecameClosed).not.toHaveBeenCalled();
   });
 });
 
@@ -799,6 +824,79 @@ describe("setGuestProfileStatusForManager", () => {
     expect(
       guestStatusEventRepository.createGuestStatusEvent
     ).not.toHaveBeenCalled();
+    expect(releaseGuestFromTeamIfBecameClosed).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      {
+        guestId,
+        previousStatus: "scheduled",
+        nextStatus: "pending",
+        guestName: "Ada Lovelace",
+      }
+    );
+  });
+
+  it.each(["cancelled", "rejected", "finished"] as const)(
+    "asks teams to release the guest when profile becomes %s",
+    async (status) => {
+      vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+        data: { ...guestRecord, status: "pending" },
+        ...okResult,
+      });
+      vi.mocked(guestRepository.updateGuestStatus).mockResolvedValue({
+        data: { ...guestRecord, status },
+        ...okResult,
+      });
+
+      const result = await setGuestProfileStatusForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        { id: guestId, status, note: null }
+      );
+
+      expect(result.success).toBe(true);
+      expect(releaseGuestFromTeamIfBecameClosed).toHaveBeenCalledWith(
+        adminClient,
+        actor,
+        {
+          guestId,
+          previousStatus: "pending",
+          nextStatus: status,
+          guestName: "Ada Lovelace",
+        }
+      );
+    }
+  );
+
+  it("still notifies the team helper on closed → closed so it can no-op", async () => {
+    vi.mocked(guestRepository.findGuestById).mockResolvedValue({
+      data: { ...guestRecord, status: "finished" },
+      ...okResult,
+    });
+    vi.mocked(guestRepository.updateGuestStatus).mockResolvedValue({
+      data: { ...guestRecord, status: "cancelled" },
+      ...okResult,
+    });
+
+    const result = await setGuestProfileStatusForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: guestId, status: "cancelled", note: null }
+    );
+
+    expect(result.success).toBe(true);
+    expect(releaseGuestFromTeamIfBecameClosed).toHaveBeenCalledWith(
+      adminClient,
+      actor,
+      {
+        guestId,
+        previousStatus: "finished",
+        nextStatus: "cancelled",
+        guestName: "Ada Lovelace",
+      }
+    );
   });
 });
 
