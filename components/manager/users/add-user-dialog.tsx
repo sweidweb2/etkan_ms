@@ -205,6 +205,12 @@ export function AddUserDialog({
               maxLength={AUTH_LIMITS.password.max}
               aria-invalid={!!passwordError}
               disabled={isPending}
+              onGeneratePassword={(password) => {
+                setValue("password", password, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }}
               {...register("password")}
             />
             {passwordError ? (

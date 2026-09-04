@@ -347,6 +347,7 @@ Format: `key` — label — access
 | `settings.view` | View settings | read |
 | `settings.maintenance` | Toggle maintenance mode | write |
 | `settings.update_credentials` | Update own email or password | write |
+| `settings.reset_passwords` | Reset user passwords | write |
 
 ### RBAC
 
@@ -529,10 +530,11 @@ cron_jobs.view
 settings.view
 settings.maintenance
 settings.update_credentials
+settings.reset_passwords
 rbac.manage
 ```
 
-**Count:** 156 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete · students includes `students.view_own` for the student panel.
+**Count:** 157 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete · students includes `students.view_own` for the student panel.
 
 ### is_instructor — shared seed package
 

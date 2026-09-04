@@ -91,6 +91,15 @@ export async function updateAuthUserByAdmin(
   });
 }
 
+/** Sets another user's Auth password via service role. */
+export async function updateAuthUserPasswordByAdmin(
+  client: Supabase,
+  authUserId: string,
+  password: string
+) {
+  return client.auth.admin.updateUserById(authUserId, { password });
+}
+
 /** Creates an Auth user via service role — does not start a session. */
 export async function createAuthUser(
   client: Supabase,

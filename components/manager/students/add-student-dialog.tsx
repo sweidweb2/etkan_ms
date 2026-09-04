@@ -59,6 +59,7 @@ export function AddStudentDialog({
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useZodForm({
     schema: createStudentSchema,
@@ -73,6 +74,17 @@ export function AddStudentDialog({
       phone: "",
     },
   });
+
+  function applyGeneratedPassword(password: string) {
+    setValue("password", password, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("confirmPassword", password, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
 
   useEffect(() => {
     if (!open) {
@@ -218,6 +230,7 @@ export function AddStudentDialog({
               maxLength={AUTH_LIMITS.password.max}
               aria-invalid={!!passwordError}
               disabled={isPending}
+              onGeneratePassword={applyGeneratedPassword}
               {...register("password")}
             />
             {passwordError ? (

@@ -64,7 +64,22 @@ function SplashCursor({
 
     let pointers = [new pointerPrototype()];
 
-    const { gl, ext } = getWebGLContext(canvas);
+    let webgl = null;
+    try {
+      webgl = getWebGLContext(canvas);
+    } catch {
+      webgl = null;
+    }
+    if (!webgl) {
+      return;
+    }
+
+    const { gl, ext } = webgl;
+
+    if (!ext.formatRGBA || !ext.formatRG || !ext.formatR) {
+      return;
+    }
+
     if (!ext.supportLinearFiltering) {
       config.DYE_RESOLUTION = 256;
       config.SHADING = false;
@@ -78,9 +93,28 @@ function SplashCursor({
         antialias: false,
         preserveDrawingBuffer: false
       };
-      let gl = canvas.getContext('webgl2', params);
+
+      let gl = null;
+      try {
+        gl = canvas.getContext('webgl2', params);
+      } catch {
+        gl = null;
+      }
+
       const isWebGL2 = !!gl;
-      if (!isWebGL2) gl = canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params);
+      if (!isWebGL2) {
+        try {
+          gl =
+            canvas.getContext('webgl', params) ||
+            canvas.getContext('experimental-webgl', params);
+        } catch {
+          gl = null;
+        }
+      }
+
+      if (!gl || gl.isContextLost()) {
+        return null;
+      }
 
       let halfFloat;
       let supportLinearFiltering;
@@ -679,7 +713,7 @@ function SplashCursor({
     let colorUpdateTimer = 0.0;
 
     function updateFrame() {
-      if (!isActive) return;
+      if (!isActive || gl.isContextLost()) return;
       const dt = calcDeltaTime();
       if (resizeCanvas()) initFramebuffers();
       updateColors(dt);

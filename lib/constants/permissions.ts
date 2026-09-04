@@ -270,6 +270,7 @@ export const PERMISSIONS = {
   SETTINGS_VIEW: "settings.view",
   SETTINGS_MAINTENANCE: "settings.maintenance",
   SETTINGS_UPDATE_CREDENTIALS: "settings.update_credentials",
+  SETTINGS_RESET_PASSWORDS: "settings.reset_passwords",
 
   RBAC_MANAGE: "rbac.manage",
 } as const;
@@ -1246,6 +1247,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SETTINGS_UPDATE_CREDENTIALS,
     feature: "settings",
     label: "Update own email or password",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SETTINGS_RESET_PASSWORDS,
+    feature: "settings",
+    label: "Reset user passwords",
     access: PERMISSION_ACCESS.WRITE,
   },
 

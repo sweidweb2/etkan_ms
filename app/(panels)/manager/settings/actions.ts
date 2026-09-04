@@ -10,7 +10,12 @@ import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import * as appSettingsRepository from "@/repositories/app-settings.repository";
 import * as authRepository from "@/repositories/auth.repository";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
+import {
+  resetPasswordsByRoleForManager,
+  resetUserPasswordForManager,
+} from "@/services/auth/password-reset.service";
 import type { FieldErrors } from "@/types/auth";
+import type { PasswordResetExportRow } from "@/types/password-reset";
 
 export type UpdateMaintenanceModeActionState = {
   success?: boolean;
@@ -19,6 +24,22 @@ export type UpdateMaintenanceModeActionState = {
 };
 
 export type ChangeSelfCredentialsActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type ResetPasswordsByRoleActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  rows?: PasswordResetExportRow[];
+  role?: string;
+};
+
+export type ResetUserPasswordActionState = {
   success?: boolean;
   error?: string;
   message?: string;
@@ -161,4 +182,69 @@ export async function updateSelfCredentialsAction(
         : "Password updated.";
 
   return { success: true, message };
+}
+
+export async function resetPasswordsByRoleAction(
+  _prevState: ResetPasswordsByRoleActionState,
+  formData: FormData
+): Promise<ResetPasswordsByRoleActionState> {
+  const user = await getSessionUser();
+  const adminClient = createSupabaseAdminClient();
+
+  const rawRole = formData.get("role");
+  const role = typeof rawRole === "string" ? rawRole.trim() : "";
+
+  const result = await resetPasswordsByRoleForManager(
+    adminClient,
+    user?.id ?? null,
+    { role }
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    rows: result.rows,
+    role,
+  };
+}
+
+export async function resetUserPasswordAction(
+  _prevState: ResetUserPasswordActionState,
+  formData: FormData
+): Promise<ResetUserPasswordActionState> {
+  const user = await getSessionUser();
+  const adminClient = createSupabaseAdminClient();
+
+  const rawUserId = formData.get("userId");
+  const userId = typeof rawUserId === "string" ? rawUserId.trim() : "";
+
+  const rawPassword = formData.get("password");
+  const password = typeof rawPassword === "string" ? rawPassword : "";
+
+  const result = await resetUserPasswordForManager(
+    adminClient,
+    user?.id ?? null,
+    { userId, password }
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    message: result.message,
+  };
 }

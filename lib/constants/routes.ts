@@ -83,6 +83,8 @@ export const ROUTES = {
   TRAINER_ROOT: "/trainer",
   STUDENT_ROOT: "/student",
   STUDENT_CLASSES: "/student/classes",
+  STUDENT_CLASS_DETAIL: "/student/classes/[id]",
+  STUDENT_CLASS_TASK_DETAIL: "/student/classes/[id]/tasks/[taskId]",
   STUDENT_PAYMENTS: "/student/payments",
   STUDENT_PAYMENT_DETAIL: "/student/payments/[sppId]",
 } as const;
@@ -204,6 +206,17 @@ export function getManagerAccountingSppDetailRoute(
 
 export function getStudentPaymentDetailRoute(sppId: string): string {
   return `/student/payments/${sppId}`;
+}
+
+export function getStudentClassDetailRoute(classId: string): string {
+  return `/student/classes/${classId}`;
+}
+
+export function getStudentClassTaskDetailRoute(
+  classId: string,
+  taskId: string
+): string {
+  return `/student/classes/${classId}/tasks/${taskId}`;
 }
 
 export function getManagerSemesterDetailRoute(semesterId: string): string {

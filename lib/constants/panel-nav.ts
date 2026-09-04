@@ -382,13 +382,18 @@ export const TEACHER_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
 /** @deprecated Use `TEACHER_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const TEACHER_PANEL_NAV: PanelNavItem[] = TEACHER_PANEL_NAVIGATION.items!;
 
-/** Student panel: profile + own open payment phases. */
+/** Student panel: profile, classes, payments. */
 export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
   items: [
     {
       title: "My profile",
       href: ROUTES.STUDENT_ROOT,
       icon: "book-open",
+    },
+    {
+      title: "My classes",
+      href: ROUTES.STUDENT_CLASSES,
+      icon: "school",
     },
     {
       title: "My payments",
