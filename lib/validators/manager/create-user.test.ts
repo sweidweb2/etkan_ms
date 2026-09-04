@@ -39,6 +39,16 @@ describe("createStaffUserSchema", () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it("accepts CRM as a creatable staff role", () => {
+    const parsed = createStaffUserSchema.safeParse({
+      ...validInput,
+      username: "crm1",
+      email: "crm@school.com",
+      role: ROLES.CRM,
+    });
+    expect(parsed.success).toBe(true);
+  });
 });
 
 describe("resolveCreateStaffUserInput", () => {

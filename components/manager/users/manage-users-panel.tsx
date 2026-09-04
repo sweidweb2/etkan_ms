@@ -207,7 +207,8 @@ export function ManageUsersPanel({
           user.role === ROLES.CO_MANAGER ||
           user.role === ROLES.ADMIN ||
           user.role === ROLES.CEO ||
-          user.role === ROLES.SUPERVISOR
+          user.role === ROLES.SUPERVISOR ||
+          user.role === ROLES.CRM
       ).length,
     }),
     [users]

@@ -113,10 +113,30 @@ export const SUPERVISOR_SEED_PERMISSIONS = PERMISSION_DEFINITIONS.filter(
 ).map((definition) => definition.key) as PermissionKey[];
 
 /**
+ * CRM: full manage-guests flow (guests + teams on that page) plus
+ * registrations.view to open a registration dossier from guest details.
+ */
+export const CRM_SEED_PERMISSIONS = [
+  PERMISSIONS.GUESTS_VIEW,
+  PERMISSIONS.GUESTS_CREATE,
+  PERMISSIONS.GUESTS_UPDATE,
+  PERMISSIONS.GUESTS_DELETE,
+  PERMISSIONS.GUESTS_CHANGE_STATUS,
+  PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
+  PERMISSIONS.GUESTS_CREATE_STUDENT,
+  PERMISSIONS.TEAMS_VIEW,
+  PERMISSIONS.TEAMS_CREATE,
+  PERMISSIONS.TEAMS_UPDATE,
+  PERMISSIONS.TEAMS_DELETE,
+  PERMISSIONS.TEAMS_ASSIGN_GUEST,
+  PERMISSIONS.REGISTRATIONS_VIEW,
+] as const satisfies readonly PermissionKey[];
+
+/**
  * Default permission grants applied by `npm run seed:rbac`.
  * Manager gets the full catalog; supervisor gets manager-minus-excluded;
- * CEO gets the workshop/instructor module; every other role gets the
- * minimal workshop package.
+ * CEO gets the workshop/instructor module; CRM gets guests/teams;
+ * every other role gets the minimal workshop package.
  * `replaceRolePermissions` clears prior grants before applying these.
  */
 export const ROLE_SEED_PERMISSIONS: Record<
@@ -126,6 +146,7 @@ export const ROLE_SEED_PERMISSIONS: Record<
   [ROLES.MANAGER]: PERMISSION_KEYS,
   [ROLES.SUPERVISOR]: SUPERVISOR_SEED_PERMISSIONS,
   [ROLES.CEO]: CEO_WORKSHOP_SEED_PERMISSIONS,
+  [ROLES.CRM]: CRM_SEED_PERMISSIONS,
   [ROLES.ADMIN]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
   [ROLES.CO_MANAGER]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
   [ROLES.TEACHER]: WORKSHOP_ACCESS_SEED_PERMISSIONS,

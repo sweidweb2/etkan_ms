@@ -30,6 +30,7 @@ describe("getPostLoginRedirect", () => {
     expect(getPostLoginRedirect(ROLES.SUPERVISOR)).toBe(
       ROUTES.MANAGER_STUDENTS
     );
+    expect(getPostLoginRedirect(ROLES.CRM)).toBe(ROUTES.MANAGER_GUESTS);
   });
 
   it("honors next when path is allowed for the role", () => {

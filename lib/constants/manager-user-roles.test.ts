@@ -15,9 +15,20 @@ describe("manager user role options", () => {
     expect(MANAGER_CREATABLE_ROLE_LABELS[ROLES.SUPERVISOR]).toBe("Supervisor");
   });
 
+  it("includes CRM in create-user role options with a label", () => {
+    expect(MANAGER_CREATABLE_ROLES).toContain(ROLES.CRM);
+    expect(MANAGER_CREATABLE_ROLE_LABELS[ROLES.CRM]).toBe("CRM");
+  });
+
   it("includes supervisor in edit/filter role options with a label", () => {
     expect(MANAGER_USER_EDITABLE_ROLES).toContain(ROLES.SUPERVISOR);
     expect(MANAGER_USER_ROLE_LABELS[ROLES.SUPERVISOR]).toBe("Supervisor");
     expect(ROLE_VALUES).toContain(ROLES.SUPERVISOR);
+  });
+
+  it("includes CRM in edit/filter role options with a label", () => {
+    expect(MANAGER_USER_EDITABLE_ROLES).toContain(ROLES.CRM);
+    expect(MANAGER_USER_ROLE_LABELS[ROLES.CRM]).toBe("CRM");
+    expect(ROLE_VALUES).toContain(ROLES.CRM);
   });
 });

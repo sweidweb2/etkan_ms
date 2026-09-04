@@ -244,6 +244,20 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
 /** @deprecated Use `CEO_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const CEO_PANEL_NAV: PanelNavItem[] = CEO_PANEL_NAVIGATION.items!;
 
+/** CRM: guests only (shared `/manager/guests*` routes). */
+export const CRM_PANEL_NAVIGATION: PanelNavigation = {
+  items: [
+    {
+      title: "Guests",
+      href: ROUTES.MANAGER_GUESTS,
+      icon: "user-plus",
+    },
+  ],
+};
+
+/** @deprecated Use `CRM_PANEL_NAVIGATION` — kept for flatten/search helpers. */
+export const CRM_PANEL_NAV: PanelNavItem[] = CRM_PANEL_NAVIGATION.items!;
+
 /**
  * Supervisor: manager feature links minus excluded ops/system surfaces
  * (users, accounting/finance, email, gallery, projects, notifications,

@@ -6,6 +6,7 @@ import {
 } from "@/lib/constants/permissions";
 import {
   CEO_WORKSHOP_SEED_PERMISSIONS,
+  CRM_SEED_PERMISSIONS,
   ROLE_SEED_PERMISSIONS,
   SUPERVISOR_EXCLUDED_PERMISSION_FEATURES,
   SUPERVISOR_SEED_PERMISSIONS,
@@ -20,6 +21,16 @@ const CEO_GUEST_PERMISSIONS = [
   PERMISSIONS.GUESTS_CHANGE_STATUS,
   PERMISSIONS.GUESTS_REGISTRATION_MANAGE,
   PERMISSIONS.GUESTS_CREATE_STUDENT,
+] as const;
+
+const CRM_EXPECTED_PERMISSIONS = [
+  ...CEO_GUEST_PERMISSIONS,
+  PERMISSIONS.TEAMS_VIEW,
+  PERMISSIONS.TEAMS_CREATE,
+  PERMISSIONS.TEAMS_UPDATE,
+  PERMISSIONS.TEAMS_DELETE,
+  PERMISSIONS.TEAMS_ASSIGN_GUEST,
+  PERMISSIONS.REGISTRATIONS_VIEW,
 ] as const;
 
 const SUPERVISOR_EXCLUDED_FEATURE_SET = new Set(
@@ -37,6 +48,19 @@ describe("role-seed-permissions guests", () => {
       expect(ceoSeed).toContain(key);
     }
     expect(ceoSeed).toContain(PERMISSIONS.REGISTRATIONS_VIEW);
+  });
+});
+
+describe("role-seed-permissions crm", () => {
+  it("seeds guests, teams, and registrations.view only", () => {
+    expect(CRM_SEED_PERMISSIONS).toHaveLength(13);
+    expect([...CRM_SEED_PERMISSIONS].sort()).toEqual(
+      [...CRM_EXPECTED_PERMISSIONS].sort()
+    );
+    expect(ROLE_SEED_PERMISSIONS[ROLES.CRM]).toEqual(CRM_SEED_PERMISSIONS);
+    expect(CRM_SEED_PERMISSIONS).not.toContain(PERMISSIONS.WORKSHOPS_VIEW);
+    expect(CRM_SEED_PERMISSIONS).not.toContain(PERMISSIONS.STUDENTS_VIEW);
+    expect(CRM_SEED_PERMISSIONS).not.toContain(PERMISSIONS.USERS_VIEW);
   });
 });
 

@@ -3,6 +3,7 @@ import {
   ADMIN_PANEL_NAVIGATION,
   CEO_PANEL_NAVIGATION,
   CO_MANAGER_PANEL_NAVIGATION,
+  CRM_PANEL_NAVIGATION,
   MANAGER_PANEL_NAVIGATION,
   STUDENT_PANEL_NAVIGATION,
   SUPERVISOR_PANEL_NAVIGATION,
@@ -37,6 +38,11 @@ const PANEL_CONFIG_BY_ROLE: Record<RoleValue, PanelConfig> = {
     label: "Supervisor",
     navigation: SUPERVISOR_PANEL_NAVIGATION,
   },
+  [ROLES.CRM]: {
+    variant: "crm",
+    label: "CRM",
+    navigation: CRM_PANEL_NAVIGATION,
+  },
   [ROLES.TEACHER]: {
     variant: "teacher",
     label: "Teacher",
@@ -65,6 +71,7 @@ export function isPanelVariant(value: string): value is PanelVariant {
     value === "co-manager" ||
     value === "ceo" ||
     value === "supervisor" ||
+    value === "crm" ||
     value === "teacher" ||
     value === "trainer" ||
     value === "student"

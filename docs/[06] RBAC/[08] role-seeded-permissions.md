@@ -98,6 +98,32 @@ Native panel: `/supervisor` (empty dashboard). Day-to-day UI uses `/manager/*` r
 
 ---
 
+## CRM
+
+Full manage-guests flow including teams on that page, plus registration dossier view (`CRM_SEED_PERMISSIONS`):
+
+```
+guests.view
+guests.create
+guests.update
+guests.delete
+guests.change_status
+guests.registration.manage
+guests.create_student
+teams.view
+teams.create
+teams.update
+teams.delete
+teams.assign_guest
+registrations.view
+```
+
+Native panel: `/crm` (redirects to guests). Day-to-day UI uses shared `/manager/guests*` and `/manager/registrations*` only — **not** other `/manager/*` paths.  
+`registrations.view` lets CRM open a dossier from guest details. Teams keys power the teams section on Manage guests (no separate Manage teams page share).  
+Re-run `npm run seed:rbac` after deploy so CRM receives these grants.
+
+---
+
 ## Other roles (admin, co-manager, teacher, trainer)
 
 Shared workshop access package only (`WORKSHOP_ACCESS_SEED_PERMISSIONS`):

@@ -40,6 +40,7 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.CO_MANAGER_ROOT, ROLES.CO_MANAGER)).toBe(true);
     expect(canAccessPath(ROUTES.TRAINER_ROOT, ROLES.TRAINER)).toBe(true);
     expect(canAccessPath(ROUTES.SUPERVISOR_ROOT, ROLES.SUPERVISOR)).toBe(true);
+    expect(canAccessPath(ROUTES.CRM_ROOT, ROLES.CRM)).toBe(true);
   });
 
   it("denies cross-role panel access", () => {
@@ -51,6 +52,7 @@ describe("canAccessPath", () => {
     );
     expect(canAccessPath(ROUTES.TEACHER_ROOT, ROLES.TRAINER)).toBe(false);
     expect(canAccessPath(ROUTES.SUPERVISOR_ROOT, ROLES.MANAGER)).toBe(false);
+    expect(canAccessPath(ROUTES.CRM_ROOT, ROLES.MANAGER)).toBe(false);
   });
 
   it("allows shared workshop paths for any role", () => {
@@ -76,6 +78,11 @@ describe("canAccessPath", () => {
       canAccessPath(`${ROUTES.MANAGER_GUESTS}/abc-123`, ROLES.CEO)
     ).toBe(true);
     expect(canAccessPath(ROUTES.MANAGER_REGISTRATIONS, ROLES.CEO)).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_GUESTS, ROLES.CRM)).toBe(true);
+    expect(
+      canAccessPath(`${ROUTES.MANAGER_GUESTS}/abc-123`, ROLES.CRM)
+    ).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_REGISTRATIONS, ROLES.CRM)).toBe(true);
   });
 
   it("allows supervisor to enter manager paths (layout hard-blocks excluded)", () => {
@@ -96,6 +103,9 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT, ROLES.CEO)).toBe(
       false
     );
+    expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.CRM)).toBe(false);
+    expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.CRM)).toBe(false);
+    expect(canAccessPath(ROUTES.MANAGER_ACCOUNTING, ROLES.CRM)).toBe(false);
   });
 
   it("allows non-panel routes for any role", () => {

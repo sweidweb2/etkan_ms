@@ -39,6 +39,7 @@ function mapWith(
     [ROLES.CO_MANAGER]: [],
     [ROLES.CEO]: [],
     [ROLES.SUPERVISOR]: [],
+    [ROLES.CRM]: [],
     [ROLES.TEACHER]: [],
     [ROLES.TRAINER]: [],
     [ROLES.STUDENT]: [],
