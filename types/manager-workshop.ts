@@ -73,6 +73,7 @@ export type ManagerWorkshopPaymentRow = {
   notes: string | null;
   created_by: string | null;
   created_at: string;
+  transaction_id: string | null;
 };
 
 export type ManagerWorkshopSessionRow = {

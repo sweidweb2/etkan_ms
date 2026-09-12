@@ -4,7 +4,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const WORKSHOP_PAYMENT_COLUMNS =
-  "id, workshop_id, amount, type, payment_date, payment_method, notes, created_by, created_at";
+  "id, workshop_id, amount, type, payment_date, payment_method, notes, created_by, created_at, transaction_id";
 
 export type WorkshopPaymentRecord = {
   id: string;
@@ -16,6 +16,7 @@ export type WorkshopPaymentRecord = {
   notes: string | null;
   created_by: string | null;
   created_at: string;
+  transaction_id: string | null;
 };
 
 export type CreateWorkshopPaymentRecordInput = {
@@ -26,6 +27,7 @@ export type CreateWorkshopPaymentRecordInput = {
   payment_method?: string | null;
   notes?: string | null;
   created_by?: string | null;
+  transaction_id?: string | null;
 };
 
 export type UpdateWorkshopPaymentRecordInput = {
@@ -155,6 +157,32 @@ export async function findWorkshopPaymentById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function findWorkshopPaymentByTransactionId(
+  client: Supabase,
+  transactionId: string
+) {
+  return client
+    .from("workshop_payments")
+    .select(WORKSHOP_PAYMENT_COLUMNS)
+    .eq("transaction_id", transactionId)
+    .maybeSingle();
+}
+
+/** Map transaction_id → workshop_payment id for income-statement linking. */
+export async function listWorkshopPaymentLinksByTransactionIds(
+  client: Supabase,
+  transactionIds: string[]
+) {
+  if (transactionIds.length === 0) {
+    return { data: [] as { id: string; transaction_id: string }[], error: null };
+  }
+
+  return client
+    .from("workshop_payments")
+    .select("id, transaction_id")
+    .in("transaction_id", transactionIds);
+}
+
 export async function createWorkshopPayment(
   client: Supabase,
   input: CreateWorkshopPaymentRecordInput
@@ -169,6 +197,7 @@ export async function createWorkshopPayment(
       payment_method: input.payment_method ?? null,
       notes: input.notes ?? null,
       created_by: input.created_by ?? null,
+      transaction_id: input.transaction_id ?? null,
     })
     .select(WORKSHOP_PAYMENT_COLUMNS)
     .single();
@@ -188,6 +217,19 @@ export async function updateWorkshopPaymentById(
       payment_method: input.payment_method,
       notes: input.notes,
     })
+    .eq("id", id)
+    .select(WORKSHOP_PAYMENT_COLUMNS)
+    .single();
+}
+
+export async function updateWorkshopPaymentTransactionId(
+  client: Supabase,
+  id: string,
+  transactionId: string | null
+) {
+  return client
+    .from("workshop_payments")
+    .update({ transaction_id: transactionId })
     .eq("id", id)
     .select(WORKSHOP_PAYMENT_COLUMNS)
     .single();

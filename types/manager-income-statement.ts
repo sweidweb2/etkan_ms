@@ -29,6 +29,8 @@ export type ManagerIncomeTransactionRow = {
   payment_method: PaymentMethod | null;
   recorded_by: string;
   notes: string | null;
+  /** Set when mirrored from a workshop payment — edit from Workshops only. */
+  linked_workshop_payment_id: string | null;
 };
 
 export type ManagerIncomeStatementStats = {

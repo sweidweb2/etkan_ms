@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>About Hero — Embedded</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --about-hero-bg: #3e3e75;
+        --about-hero-bg-deep: #2f2f5a;
+        --about-hero-bg-mid: #343463;
+        --about-hero-accent: #9a9ad0;
+        --about-hero-accent-soft: #c4c4e8;
+        --about-hero-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        background: #0b0b14;
+      }
+
+      /* —— Section —— */
+      .about-hero {
+        position: relative;
+        isolation: isolate;
+        display: flex;
+        align-items: center;
+        min-height: min(64dvh, 34rem);
+        overflow: hidden;
+        background: var(--about-hero-bg);
+        color: #fff;
+      }
+
+      @media (min-width: 640px) {
+        .about-hero {
+          padding-top: 5rem;
+        }
+      }
+
+      .about-hero__wash {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(
+            ellipse at top,
+            rgba(154, 154, 208, 0.22),
+            transparent 55%
+          ),
+          linear-gradient(180deg, #343463, #3e3e75 45%, #2f2f5a);
+      }
+
+      .about-hero__grid {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        opacity: 0.35;
+        background-image:
+          linear-gradient(rgba(196, 196, 232, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(196, 196, 232, 0.08) 1px, transparent 1px);
+        background-size: 48px 48px;
+        -webkit-mask-image: radial-gradient(
+          ellipse at center,
+          black 20%,
+          transparent 75%
+        );
+        mask-image: radial-gradient(
+          ellipse at center,
+          black 20%,
+          transparent 75%
+        );
+      }
+
+      .about-hero__dots {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        opacity: 0.4;
+        background-image: radial-gradient(
+          rgba(154, 154, 208, 0.28) 1px,
+          transparent 1px
+        );
+        background-size: 22px 22px;
+        -webkit-mask-image:
+          radial-gradient(ellipse at 30% 20%, black 10%, transparent 55%),
+          radial-gradient(ellipse at 70% 80%, black 8%, transparent 50%);
+        mask-image:
+          radial-gradient(ellipse at 30% 20%, black 10%, transparent 55%),
+          radial-gradient(ellipse at 70% 80%, black 8%, transparent 50%);
+      }
+
+      .about-hero__shapes,
+      .about-hero__chips {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      /* —— Floating shapes —— */
+      .shape {
+        position: absolute;
+        opacity: 0;
+        transform: scale(0.85);
+        animation:
+          shape-in 0.9s var(--about-hero-ease) forwards,
+          shape-float var(--dur, 7s) ease-in-out var(--delay, 0s) infinite;
+      }
+
+      .shape--circle,
+      .shape--ring,
+      .shape--dot,
+      .shape--pill {
+        border-radius: 9999px;
+      }
+
+      .shape--square,
+      .shape--diamond {
+        border-radius: 0.125rem;
+      }
+
+      .shape--c1 {
+        left: 6%;
+        top: 10%;
+        width: 0.75rem;
+        height: 0.75rem;
+        background: rgb(154 154 208 / 0.35);
+        --dur: 7s;
+        --delay: 0s;
+        --drift: 14px;
+        animation-delay: 0s, 0s;
+      }
+      .shape--c2 {
+        right: 12%;
+        top: 14%;
+        width: 0.5rem;
+        height: 0.5rem;
+        background: rgb(196 196 232 / 0.3);
+        --dur: 5.5s;
+        --delay: 0.4s;
+        --drift: 10px;
+      }
+      .shape--c4 {
+        right: 22%;
+        top: 32%;
+        width: 0.625rem;
+        height: 0.625rem;
+        background: rgb(123 123 184 / 0.25);
+        --dur: 7.4s;
+        --delay: 0.2s;
+        --drift: 12px;
+      }
+      .shape--c7 {
+        left: 8%;
+        bottom: 18%;
+        width: 0.5rem;
+        height: 0.5rem;
+        background: rgb(154 154 208 / 0.25);
+        --dur: 6.6s;
+        --delay: 0.3s;
+        --drift: 11px;
+      }
+      .shape--c8 {
+        right: 8%;
+        bottom: 22%;
+        width: 0.75rem;
+        height: 0.75rem;
+        background: rgb(196 196 232 / 0.15);
+        --dur: 7.2s;
+        --delay: 0.9s;
+        --drift: 13px;
+      }
+      .shape--r1 {
+        left: 14%;
+        top: 55%;
+        width: 4rem;
+        height: 4rem;
+        border: 1px solid rgb(154 154 208 / 0.25);
+        --dur: 9s;
+        --delay: 0.2s;
+        --drift: 16px;
+      }
+      .shape--r3 {
+        left: 52%;
+        top: 16%;
+        width: 5rem;
+        height: 5rem;
+        border: 1px solid rgb(196 196 232 / 0.2);
+        --dur: 10s;
+        --delay: 0.1s;
+        --drift: 18px;
+      }
+      .shape--s1 {
+        left: 26%;
+        top: 20%;
+        width: 1rem;
+        height: 1rem;
+        border: 1px solid rgb(154 154 208 / 0.3);
+        transform: rotate(12deg) scale(0.85);
+        --dur: 6.8s;
+        --delay: 0.4s;
+        --drift: 11px;
+      }
+      .shape--s3 {
+        left: 62%;
+        bottom: 28%;
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 1px solid rgb(196 196 232 / 0.2);
+        transform: rotate(18deg) scale(0.85);
+        --dur: 7.8s;
+        --delay: 0.3s;
+        --drift: 13px;
+      }
+      .shape--d1 {
+        left: 34%;
+        bottom: 34%;
+        width: 0.75rem;
+        height: 0.75rem;
+        border: 1px solid rgb(154 154 208 / 0.35);
+        transform: rotate(45deg) scale(0.85);
+        --dur: 6.5s;
+        --delay: 0.6s;
+        --drift: 10px;
+      }
+      .shape--d3 {
+        left: 72%;
+        top: 36%;
+        width: 1rem;
+        height: 1rem;
+        border: 1px solid rgb(255 255 255 / 0.12);
+        transform: rotate(45deg) scale(0.85);
+        --dur: 7.1s;
+        --delay: 0.2s;
+        --drift: 12px;
+      }
+      .shape--p1 {
+        left: 44%;
+        top: 68%;
+        height: 0.5rem;
+        width: 2rem;
+        background: rgb(154 154 208 / 0.25);
+        --dur: 6.7s;
+        --delay: 0.5s;
+        --drift: 9px;
+      }
+      .shape--dot1 {
+        left: 30%;
+        top: 38%;
+        width: 0.25rem;
+        height: 0.25rem;
+        background: rgb(196 196 232 / 0.4);
+        --dur: 4.5s;
+        --delay: 0.2s;
+        --drift: 6px;
+      }
+      .shape--dot2 {
+        right: 30%;
+        top: 44%;
+        width: 0.25rem;
+        height: 0.25rem;
+        background: rgb(154 154 208 / 0.4);
+        --dur: 5s;
+        --delay: 0.7s;
+        --drift: 7px;
+      }
+      .shape--l1 {
+        left: 10%;
+        top: 36%;
+        height: 1px;
+        width: 4rem;
+        background: linear-gradient(
+          to right,
+          transparent,
+          rgb(154 154 208 / 0.35),
+          transparent
+        );
+        --dur: 8s;
+        --delay: 0.4s;
+        --drift: 10px;
+      }
+      .shape--l2 {
+        right: 10%;
+        top: 50%;
+        height: 1px;
+        width: 5rem;
+        background: linear-gradient(
+          to left,
+          transparent,
+          rgb(255 255 255 / 0.2),
+          transparent
+        );
+        --dur: 7.5s;
+        --delay: 0.8s;
+        --drift: 9px;
+      }
+
+      @keyframes shape-in {
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes shape-float {
+        0%,
+        100% {
+          translate: 0 0;
+        }
+        25% {
+          translate: calc(var(--drift) * 0.35) calc(var(--drift) * -1);
+        }
+        50% {
+          translate: 0 0;
+        }
+        75% {
+          translate: calc(var(--drift) * -0.25) calc(var(--drift) * 0.6);
+        }
+      }
+
+      /* rotate variants keep rotation after scale-in */
+      .shape--s1 {
+        animation:
+          shape-in-rot12 0.9s var(--about-hero-ease) forwards,
+          shape-float var(--dur) ease-in-out var(--delay) infinite;
+      }
+      .shape--s3 {
+        animation:
+          shape-in-rot18 0.9s var(--about-hero-ease) forwards,
+          shape-float var(--dur) ease-in-out var(--delay) infinite;
+      }
+      .shape--d1,
+      .shape--d3 {
+        animation:
+          shape-in-rot45 0.9s var(--about-hero-ease) forwards,
+          shape-float var(--dur) ease-in-out var(--delay) infinite;
+      }
+
+      @keyframes shape-in-rot12 {
+        to {
+          opacity: 1;
+          transform: rotate(12deg) scale(1);
+        }
+      }
+      @keyframes shape-in-rot18 {
+        to {
+          opacity: 1;
+          transform: rotate(18deg) scale(1);
+        }
+      }
+      @keyframes shape-in-rot45 {
+        to {
+          opacity: 1;
+          transform: rotate(45deg) scale(1);
+        }
+      }
+
+      /* —— Chips —— */
+      .chip {
+        position: absolute;
+        z-index: 1;
+        opacity: 0;
+        translate: 0 16px;
+        animation:
+          chip-in 0.8s var(--about-hero-ease) forwards,
+          chip-float var(--dur, 6s) ease-in-out calc(var(--delay, 0s) + 0.4s)
+            infinite;
+      }
+
+      .chip__inner {
+        border: 1px solid rgb(255 255 255 / 0.2);
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+        line-height: 1.25;
+        box-shadow: 0 12px 40px -20px rgb(0 0 0 / 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+
+      @media (min-width: 640px) {
+        .chip__inner {
+          padding: 0.5rem 0.875rem;
+          font-size: 0.875rem;
+        }
+      }
+
+      .chip--course .chip__inner {
+        border-color: rgb(255 255 255 / 0.2);
+        background: rgb(47 47 90 / 0.75);
+        color: var(--about-hero-accent-soft);
+      }
+
+      .chip--skill .chip__inner {
+        border-color: rgb(255 255 255 / 0.15);
+        background: rgb(52 52 99 / 0.7);
+        color: rgb(255 255 255 / 0.85);
+      }
+
+      .chip__kind {
+        margin-inline-end: 0.5rem;
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .chip--course .chip__kind {
+        color: var(--about-hero-accent);
+      }
+
+      .chip--skill .chip__kind {
+        color: rgb(255 255 255 / 0.5);
+      }
+
+      .chip__label {
+        font-weight: 500;
+      }
+
+      .chip--1 {
+        left: 18%;
+        top: 16%;
+        --delay: 0.08s;
+        --dur: 5.4s;
+        --dy: 9px;
+        --dx: 5px;
+      }
+      .chip--2 {
+        left: 42%;
+        top: 20%;
+        --delay: 0.16s;
+        --dur: 6s;
+        --dy: 8px;
+        --dx: 3px;
+      }
+      .chip--3 {
+        left: 68%;
+        top: 14%;
+        --delay: 0.22s;
+        --dur: 6.2s;
+        --dy: 11px;
+        --dx: -4px;
+      }
+      .chip--4 {
+        left: 4%;
+        top: 72%;
+        --delay: 0.14s;
+        --dur: 5.8s;
+        --dy: 8px;
+        --dx: 6px;
+      }
+      .chip--5 {
+        left: 82%;
+        top: 68%;
+        --delay: 0.32s;
+        --dur: 7.1s;
+        --dy: 10px;
+        --dx: -6px;
+      }
+      .chip--6 {
+        left: 88%;
+        top: 38%;
+        --delay: 0.3s;
+        --dur: 6.3s;
+        --dy: 8px;
+        --dx: -5px;
+      }
+      .chip--7 {
+        left: 10%;
+        top: 42%;
+        --delay: 0.2s;
+        --dur: 6.8s;
+        --dy: 9px;
+        --dx: -3px;
+      }
+      .chip--8 {
+        left: 72%;
+        top: 82%;
+        --delay: 0.42s;
+        --dur: 5.4s;
+        --dy: 11px;
+        --dx: -3px;
+      }
+      .chip--9 {
+        left: 28%;
+        top: 86%;
+        --delay: 0.1s;
+        --dur: 6.7s;
+        --dy: 7px;
+        --dx: 6px;
+      }
+
+      .chip--hide-sm {
+        display: none;
+      }
+      .chip--hide-md {
+        display: none;
+      }
+
+      @media (min-width: 640px) {
+        .chip--hide-sm {
+          display: block;
+        }
+      }
+      @media (min-width: 768px) {
+        .chip--hide-md {
+          display: block;
+        }
+      }
+
+      @keyframes chip-in {
+        to {
+          opacity: 1;
+          translate: 0 0;
+        }
+      }
+
+      @keyframes chip-float {
+        0%,
+        100% {
+          translate: 0 0;
+        }
+        25% {
+          translate: var(--dx) calc(var(--dy) * -1);
+        }
+        50% {
+          translate: 0 0;
+        }
+        75% {
+          translate: calc(var(--dx) * -0.6) calc(var(--dy) * 0.45);
+        }
+      }
+
+      /* —— Copy —— */
+      .about-hero__content {
+        position: relative;
+        z-index: 10;
+        margin-inline: auto;
+        width: 100%;
+        max-width: 48rem;
+        padding: 5rem 1rem;
+        text-align: center;
+      }
+
+      @media (min-width: 640px) {
+        .about-hero__content {
+          padding: 6rem 1.5rem;
+        }
+      }
+
+      .about-hero__eyebrow {
+        margin: 0;
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: rgb(255 255 255 / 0.55);
+        opacity: 0;
+        translate: 0 18px;
+        animation: copy-in 0.8s var(--about-hero-ease) forwards;
+      }
+
+      .about-hero__title {
+        margin: 1.5rem 0 0;
+        font-size: 2.25rem;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+        text-wrap: balance;
+        color: #fff;
+        opacity: 0;
+        translate: 0 22px;
+        animation: copy-in 0.9s var(--about-hero-ease) 0.08s forwards;
+      }
+
+      @media (min-width: 640px) {
+        .about-hero__title {
+          font-size: 3rem;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .about-hero__title {
+          font-size: 3.4rem;
+          line-height: 1.08;
+        }
+      }
+
+      .about-hero__lead {
+        margin: 1.5rem auto 0;
+        max-width: 36rem;
+        font-size: 1rem;
+        line-height: 1.625;
+        text-wrap: pretty;
+        color: rgb(255 255 255 / 0.75);
+        opacity: 0;
+        translate: 0 22px;
+        animation: copy-in 0.9s var(--about-hero-ease) 0.16s forwards;
+      }
+
+      @media (min-width: 640px) {
+        .about-hero__lead {
+          font-size: 1.125rem;
+        }
+      }
+
+      @keyframes copy-in {
+        to {
+          opacity: 1;
+          translate: 0 0;
+        }
+      }
+
+      /* —— Reduced motion —— */
+      @media (prefers-reduced-motion: reduce) {
+        .shape,
+        .chip,
+        .about-hero__eyebrow,
+        .about-hero__title,
+        .about-hero__lead {
+          animation: none !important;
+          opacity: 1 !important;
+          translate: none !important;
+          transform: none !important;
+        }
+        .shape--s1 {
+          transform: rotate(12deg);
+        }
+        .shape--s3 {
+          transform: rotate(18deg);
+        }
+        .shape--d1,
+        .shape--d3 {
+          transform: rotate(45deg);
+        }
+      }
+
+      /* —— Optional demo chrome (safe to delete when embedding) —— */
+      .embed-demo-bar {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0.75rem 1rem;
+        background: #12121c;
+        border-bottom: 1px solid rgb(255 255 255 / 0.08);
+      }
+
+      .embed-demo-bar button {
+        appearance: none;
+        border: 1px solid rgb(255 255 255 / 0.15);
+        background: rgb(255 255 255 / 0.06);
+        color: #fff;
+        font: inherit;
+        font-size: 0.8rem;
+        padding: 0.35rem 0.75rem;
+        cursor: pointer;
+      }
+
+      .embed-demo-bar button[aria-pressed="true"] {
+        background: var(--about-hero-accent);
+        border-color: transparent;
+        color: #1a1a2e;
+        font-weight: 600;
+      }
+
+      [dir="rtl"] .about-hero {
+        font-family: Inter, "Segoe UI", Tahoma, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Demo language toggle — remove this bar when dropping into another project -->
+    <div class="embed-demo-bar" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="ar" aria-pressed="false">AR</button>
+    </div>
+
+    <section
+      class="about-hero"
+      id="about-hero"
+      aria-labelledby="about-hero-title"
+      data-lang="en"
+    >
+      <div class="about-hero__wash" aria-hidden="true"></div>
+      <div class="about-hero__grid" aria-hidden="true"></div>
+      <div class="about-hero__dots" aria-hidden="true"></div>
+
+      <div class="about-hero__shapes" aria-hidden="true">
+        <span class="shape shape--circle shape--c1"></span>
+        <span class="shape shape--circle shape--c2"></span>
+        <span class="shape shape--circle shape--c4"></span>
+        <span class="shape shape--circle shape--c7"></span>
+        <span class="shape shape--circle shape--c8"></span>
+        <span class="shape shape--ring shape--r1"></span>
+        <span class="shape shape--ring shape--r3"></span>
+        <span class="shape shape--square shape--s1"></span>
+        <span class="shape shape--square shape--s3"></span>
+        <span class="shape shape--diamond shape--d1"></span>
+        <span class="shape shape--diamond shape--d3"></span>
+        <span class="shape shape--pill shape--p1"></span>
+        <span class="shape shape--dot shape--dot1"></span>
+        <span class="shape shape--dot shape--dot2"></span>
+        <span class="shape shape--l1"></span>
+        <span class="shape shape--l2"></span>
+      </div>
+
+      <div class="about-hero__chips" aria-hidden="true">
+        <div class="chip chip--course chip--1">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipCourse"></span>
+            <span class="chip__label" data-i18n="course1"></span>
+          </div>
+        </div>
+        <div class="chip chip--course chip--2">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipCourse"></span>
+            <span class="chip__label" data-i18n="course2"></span>
+          </div>
+        </div>
+        <div class="chip chip--course chip--3 chip--hide-sm">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipCourse"></span>
+            <span class="chip__label" data-i18n="course3"></span>
+          </div>
+        </div>
+        <div class="chip chip--course chip--4 chip--hide-sm">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipCourse"></span>
+            <span class="chip__label" data-i18n="course4"></span>
+          </div>
+        </div>
+        <div class="chip chip--course chip--5 chip--hide-md">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipCourse"></span>
+            <span class="chip__label" data-i18n="course5"></span>
+          </div>
+        </div>
+        <div class="chip chip--skill chip--6 chip--hide-md">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipSkill"></span>
+            <span class="chip__label" data-i18n="skill1"></span>
+          </div>
+        </div>
+        <div class="chip chip--skill chip--7 chip--hide-sm">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipSkill"></span>
+            <span class="chip__label" data-i18n="skill2"></span>
+          </div>
+        </div>
+        <div class="chip chip--skill chip--8 chip--hide-md">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipSkill"></span>
+            <span class="chip__label" data-i18n="skill3"></span>
+          </div>
+        </div>
+        <div class="chip chip--skill chip--9 chip--hide-sm">
+          <div class="chip__inner">
+            <span class="chip__kind" data-i18n="chipSkill"></span>
+            <span class="chip__label" data-i18n="skill4"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="about-hero__content">
+        <p class="about-hero__eyebrow" data-i18n="eyebrow"></p>
+        <h1 class="about-hero__title" id="about-hero-title" data-i18n="title"></h1>
+        <p class="about-hero__lead" data-i18n="lead"></p>
+      </div>
+    </section>
+
+    <script>
+      (function () {
+        var COPY = {
+          en: {
+            eyebrow: "About Etkan",
+            title: "Etkan builds people and real technology",
+            lead: "A productive learning path shaped by workshops, projects, and industrial practice.",
+            chipCourse: "Course",
+            chipSkill: "Skill",
+            course1: "Python",
+            course2: "Microcontroller",
+            course3: "Arduino",
+            course4: "SolidWorks / 3D printing",
+            course5: "PCB design & connectors",
+            skill1: "Embedded coding",
+            skill2: "CAD modeling",
+            skill3: "Project planning",
+            skill4: "Electronics",
+          },
+          ar: {
+            eyebrow: "عن إتقان",
+            title: "إتقان تبني الإنسان وتقنية حقيقية",
+            lead: "مسار تعلّم منتج يتشكّل عبر الورش والمشاريع والممارسة الصناعية.",
+            chipCourse: "دورة",
+            chipSkill: "مهارة",
+            course1: "بايثون",
+            course2: "المتحكم الدقيق",
+            course3: "أردوينو",
+            course4: "سوليدوركس / الطباعة ثلاثية الأبعاد",
+            course5: "تصميم PCB والموصّلات",
+            skill1: "برمجة مدمجة",
+            skill2: "نمذجة CAD",
+            skill3: "تخطيط المشاريع",
+            skill4: "الإلكترونيات",
+          },
+        };
+
+        var section = document.getElementById("about-hero");
+        var buttons = document.querySelectorAll("[data-lang]");
+
+        function applyLang(lang) {
+          var dict = COPY[lang] || COPY.en;
+          var isRtl = lang === "ar";
+          document.documentElement.lang = lang;
+          document.documentElement.dir = isRtl ? "rtl" : "ltr";
+          section.setAttribute("data-lang", lang);
+          section.querySelectorAll("[data-i18n]").forEach(function (el) {
+            var key = el.getAttribute("data-i18n");
+            if (dict[key] != null) el.textContent = dict[key];
+          });
+          buttons.forEach(function (btn) {
+            btn.setAttribute(
+              "aria-pressed",
+              btn.getAttribute("data-lang") === lang ? "true" : "false"
+            );
+          });
+        }
+
+        buttons.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            applyLang(btn.getAttribute("data-lang"));
+          });
+        });
+
+        var params = new URLSearchParams(window.location.search);
+        applyLang(params.get("lang") === "ar" ? "ar" : "en");
+      })();
+    </script>
+  </body>
+</html>

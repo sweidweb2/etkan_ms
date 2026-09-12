@@ -2380,6 +2380,7 @@ export type Database = {
           notes: string | null
           payment_date: string
           payment_method: string | null
+          transaction_id: string | null
           type: string
           workshop_id: string
         }
@@ -2391,6 +2392,7 @@ export type Database = {
           notes?: string | null
           payment_date: string
           payment_method?: string | null
+          transaction_id?: string | null
           type: string
           workshop_id: string
         }
@@ -2402,6 +2404,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string
           payment_method?: string | null
+          transaction_id?: string | null
           type?: string
           workshop_id?: string
         }
@@ -2411,6 +2414,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workshop_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
           {

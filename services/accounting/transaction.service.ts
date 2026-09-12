@@ -9,6 +9,7 @@ import {
   type TransactionType,
 } from "@/lib/manager/accounting/constants";
 import * as transactionRepository from "@/repositories/transaction.repository";
+import * as workshopPaymentRepository from "@/repositories/workshop-payment.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -30,7 +31,8 @@ function isPaymentMethod(value: string): value is PaymentMethod {
 }
 
 function mapTransactionRow(
-  row: transactionRepository.TransactionRecord
+  row: transactionRepository.TransactionRecord,
+  linkedWorkshopPaymentId: string | null = null
 ): ManagerIncomeTransactionRow {
   return {
     id: row.id,
@@ -45,8 +47,12 @@ function mapTransactionRow(
         : null,
     recorded_by: row.recorded_by,
     notes: row.notes,
+    linked_workshop_payment_id: linkedWorkshopPaymentId,
   };
 }
+
+export const WORKSHOP_LINKED_TRANSACTION_EDIT_ERROR =
+  "This transaction is linked to a workshop payment. Edit it from Workshops.";
 
 export type CreateTransactionResult =
   | {
@@ -251,6 +257,18 @@ export async function updateTransactionForManager(
   const existing = mapTransactionRow(
     existingResult.data as transactionRepository.TransactionRecord
   );
+
+  const linkedPayment =
+    await workshopPaymentRepository.findWorkshopPaymentByTransactionId(
+      adminClient,
+      input.id
+    );
+  if (linkedPayment.error) {
+    return { success: false, error: linkedPayment.error.message };
+  }
+  if (linkedPayment.data) {
+    return { success: false, error: WORKSHOP_LINKED_TRANSACTION_EDIT_ERROR };
+  }
 
   if (!isTransactionType(input.type)) {
     return {

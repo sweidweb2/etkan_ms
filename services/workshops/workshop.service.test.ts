@@ -16,8 +16,10 @@ import * as workshopPaymentRepository from "@/repositories/workshop-payment.repo
 import * as workshopRepository from "@/repositories/workshop.repository";
 import * as workshopSessionRepository from "@/repositories/workshop-session.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
+import * as transactionRepository from "@/repositories/transaction.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
+import { TRANSACTION_CATEGORIES } from "@/lib/manager/accounting/constants";
 import {
   WORKSHOP_HAS_PAYMENTS_DELETE_ERROR,
   addWorkshopInstructorForManager,
@@ -47,6 +49,7 @@ vi.mock("@/repositories/workshop-session.repository");
 vi.mock("@/repositories/workshop-storage.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/instructor-schedule-slot.repository");
+vi.mock("@/repositories/transaction.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -79,6 +82,7 @@ const instructorUserId = "b2b3c4d5-e6f7-8901-bcde-f12345678901";
 const assignmentId = "33333333-3333-4333-8333-333333333333";
 const documentId = "44444444-4444-4444-8444-444444444444";
 const paymentId = "55555555-5555-4555-8555-555555555555";
+const transactionId = "66666666-6666-4666-8666-666666666666";
 
 const workshopRecord = {
   id: workshopId,
@@ -133,6 +137,21 @@ const paymentRecord = {
   notes: "Deposit",
   created_by: actor.userId,
   created_at: "2026-08-01T00:00:00.000Z",
+  transaction_id: null as string | null,
+};
+
+const transactionRecord = {
+  id: transactionId,
+  transaction_date: "2026-08-01",
+  type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+  amount: 100,
+  description: "Workshop: Intro to UX",
+  category: TRANSACTION_CATEGORIES.WORKSHOP,
+  payment_method: WORKSHOP_PAYMENT_METHODS.CASH,
+  recorded_by: "Manager",
+  notes: "Deposit",
+  created_at: "2026-08-01T00:00:00.000Z",
+  updated_at: "2026-08-01T00:00:00.000Z",
 };
 
 function makePdfFile(name = "syllabus.pdf", sizeBytes = 1024) {
@@ -1761,6 +1780,22 @@ describe("createWorkshopPaymentForManager", () => {
       status: 200,
       statusText: "OK",
     });
+    vi.mocked(transactionRepository.createTransaction).mockResolvedValue({
+      data: transactionRecord,
+      error: null,
+      count: null,
+      status: 201,
+      statusText: "Created",
+    });
+    vi.mocked(
+      workshopPaymentRepository.updateWorkshopPaymentTransactionId
+    ).mockResolvedValue({
+      data: { ...paymentRecord, transaction_id: transactionId },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
 
     const result = await createWorkshopPaymentForManager(
       adminClient,
@@ -1780,7 +1815,163 @@ describe("createWorkshopPaymentForManager", () => {
     if (result.success) {
       expect(result.message).toBe("Credit recorded.");
       expect(result.payment.amount).toBe(100);
+      expect(result.payment.transaction_id).toBe(transactionId);
     }
+    expect(transactionRepository.createTransaction).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        amount: 100,
+        category: TRANSACTION_CATEGORIES.WORKSHOP,
+        description: "Workshop: Intro to UX",
+      })
+    );
+  });
+
+  it("creates a debit payment with a debit transaction", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopPaymentRepository.createWorkshopPayment).mockResolvedValue({
+      data: {
+        ...paymentRecord,
+        type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        amount: 40,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(transactionRepository.createTransaction).mockResolvedValue({
+      data: {
+        ...transactionRecord,
+        type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        amount: 40,
+      },
+      error: null,
+      count: null,
+      status: 201,
+      statusText: "Created",
+    });
+    vi.mocked(
+      workshopPaymentRepository.updateWorkshopPaymentTransactionId
+    ).mockResolvedValue({
+      data: {
+        ...paymentRecord,
+        type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        amount: 40,
+        transaction_id: transactionId,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await createWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        amount: 40,
+        type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        payment_date: "2026-08-01",
+        payment_method: null,
+        notes: null,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.message).toBe("Debit recorded.");
+      expect(result.payment.type).toBe(WORKSHOP_PAYMENT_TYPES.DEBIT);
+    }
+    expect(transactionRepository.createTransaction).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        type: WORKSHOP_PAYMENT_TYPES.DEBIT,
+        amount: 40,
+      })
+    );
+  });
+
+  it("rolls back the payment when transaction insert fails", async () => {
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopPaymentRepository.createWorkshopPayment).mockResolvedValue({
+      data: paymentRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(transactionRepository.createTransaction).mockResolvedValue({
+      data: null,
+      error: { message: "tx failed" } as never,
+      count: null,
+      status: 500,
+      statusText: "Error",
+    });
+    vi.mocked(
+      workshopPaymentRepository.deleteWorkshopPaymentById
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await createWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        workshop_id: workshopId,
+        amount: 100,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-01",
+        payment_method: WORKSHOP_PAYMENT_METHODS.CASH,
+        notes: "Deposit",
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/tx failed/i);
+    }
+    expect(
+      workshopPaymentRepository.deleteWorkshopPaymentById
+    ).toHaveBeenCalledWith(adminClient, paymentId);
   });
 
   it("rejects credit that exceeds remaining workshop balance", async () => {
@@ -1886,7 +2077,7 @@ describe("updateWorkshopPaymentForManager", () => {
 
   it("updates payment fields", async () => {
     vi.mocked(workshopPaymentRepository.findWorkshopPaymentById).mockResolvedValue({
-      data: paymentRecord,
+      data: { ...paymentRecord, transaction_id: transactionId },
       error: null,
       count: null,
       status: 200,
@@ -1921,7 +2112,22 @@ describe("updateWorkshopPaymentForManager", () => {
         ...paymentRecord,
         amount: 120,
         payment_method: WORKSHOP_PAYMENT_METHODS.CARD,
+        transaction_id: transactionId,
       },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(transactionRepository.findTransactionById).mockResolvedValue({
+      data: transactionRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(transactionRepository.updateTransaction).mockResolvedValue({
+      data: { ...transactionRecord, amount: 120 },
       error: null,
       count: null,
       status: 200,
@@ -1948,6 +2154,97 @@ describe("updateWorkshopPaymentForManager", () => {
       expect(result.payment.amount).toBe(120);
       expect(result.payment.payment_method).toBe(WORKSHOP_PAYMENT_METHODS.CARD);
     }
+    expect(transactionRepository.updateTransaction).toHaveBeenCalledWith(
+      adminClient,
+      transactionId,
+      expect.objectContaining({ amount: 120 })
+    );
+  });
+
+  it("heals a legacy payment missing transaction_id on update", async () => {
+    vi.mocked(workshopPaymentRepository.findWorkshopPaymentById).mockResolvedValue({
+      data: { ...paymentRecord, transaction_id: null },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.listWorkshopPaymentAmounts
+    ).mockResolvedValue({
+      data: [
+        {
+          workshop_id: workshopId,
+          amount: 100,
+          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(
+      workshopPaymentRepository.updateWorkshopPaymentById
+    ).mockResolvedValue({
+      data: {
+        ...paymentRecord,
+        amount: 110,
+        transaction_id: null,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(transactionRepository.createTransaction).mockResolvedValue({
+      data: { ...transactionRecord, amount: 110 },
+      error: null,
+      count: null,
+      status: 201,
+      statusText: "Created",
+    });
+    vi.mocked(
+      workshopPaymentRepository.updateWorkshopPaymentTransactionId
+    ).mockResolvedValue({
+      data: {
+        ...paymentRecord,
+        amount: 110,
+        transaction_id: transactionId,
+      },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const result = await updateWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        id: paymentId,
+        workshop_id: workshopId,
+        amount: 110,
+        type: WORKSHOP_PAYMENT_TYPES.CREDIT,
+        payment_date: "2026-08-01",
+        payment_method: WORKSHOP_PAYMENT_METHODS.CASH,
+        notes: "Deposit",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.payment.transaction_id).toBe(transactionId);
+    }
+    expect(transactionRepository.createTransaction).toHaveBeenCalled();
   });
 });
 
@@ -1959,7 +2256,7 @@ describe("deleteWorkshopPaymentForManager", () => {
 
   it("deletes a payment", async () => {
     vi.mocked(workshopPaymentRepository.findWorkshopPaymentById).mockResolvedValue({
-      data: paymentRecord,
+      data: { ...paymentRecord, transaction_id: transactionId },
       error: null,
       count: null,
       status: 200,
@@ -1967,6 +2264,13 @@ describe("deleteWorkshopPaymentForManager", () => {
     });
     vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
       data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(transactionRepository.deleteTransaction).mockResolvedValue({
+      data: null,
       error: null,
       count: null,
       status: 200,
@@ -1993,5 +2297,48 @@ describe("deleteWorkshopPaymentForManager", () => {
       success: true,
       message: "Payment deleted.",
     });
+    expect(transactionRepository.deleteTransaction).toHaveBeenCalledWith(
+      adminClient,
+      transactionId
+    );
+  });
+
+  it("keeps the payment when linked transaction delete fails", async () => {
+    vi.mocked(workshopPaymentRepository.findWorkshopPaymentById).mockResolvedValue({
+      data: { ...paymentRecord, transaction_id: transactionId },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.findWorkshopById).mockResolvedValue({
+      data: workshopRecord,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(transactionRepository.deleteTransaction).mockResolvedValue({
+      data: null,
+      error: { message: "cannot delete tx" } as never,
+      count: null,
+      status: 500,
+      statusText: "Error",
+    });
+
+    const result = await deleteWorkshopPaymentForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { id: paymentId, workshop_id: workshopId }
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/cannot delete tx/i);
+    }
+    expect(
+      workshopPaymentRepository.deleteWorkshopPaymentById
+    ).not.toHaveBeenCalled();
   });
 });

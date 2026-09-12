@@ -630,6 +630,9 @@ export async function createWorkshopPaymentAction(
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
   revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
   revalidatePath(getManagerWorkshopDetailRoute(result.payment.workshop_id));
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT);
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS);
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_HISTORY);
 
   return {
     success: true,
@@ -673,6 +676,9 @@ export async function updateWorkshopPaymentAction(
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
   revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
   revalidatePath(getManagerWorkshopDetailRoute(result.payment.workshop_id));
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT);
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS);
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_HISTORY);
 
   return {
     success: true,
@@ -714,6 +720,9 @@ export async function deleteWorkshopPaymentAction(
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
   revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
   revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT);
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS);
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_HISTORY);
 
   return {
     success: true,

@@ -20,6 +20,7 @@ import {
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { TRANSACTION_CATEGORIES } from "@/lib/manager/accounting/constants";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import {
@@ -84,6 +85,7 @@ import type { WorkshopRecord } from "@/repositories/workshop.repository";
 import * as workshopSessionRepository from "@/repositories/workshop-session.repository";
 import type { WorkshopSessionRecord } from "@/repositories/workshop-session.repository";
 import * as workshopStorageRepository from "@/repositories/workshop-storage.repository";
+import * as transactionRepository from "@/repositories/transaction.repository";
 import {
   assertPermission,
   getUnauthorizedError,
@@ -421,6 +423,42 @@ function mapWorkshopPaymentRecord(
     notes: record.notes,
     created_by: record.created_by,
     created_at: record.created_at,
+    transaction_id: record.transaction_id ?? null,
+  };
+}
+
+const WORKSHOP_PAYMENT_TRANSACTION_DESCRIPTION_MAX = 200;
+
+function workshopPaymentTransactionDescription(workshopName: string): string {
+  const prefix = "Workshop: ";
+  const name = workshopName.trim() || "Untitled";
+  const full = `${prefix}${name}`;
+  if (full.length <= WORKSHOP_PAYMENT_TRANSACTION_DESCRIPTION_MAX) {
+    return full;
+  }
+  return `${full.slice(0, WORKSHOP_PAYMENT_TRANSACTION_DESCRIPTION_MAX - 1)}…`;
+}
+
+function buildWorkshopPaymentTransactionInput(
+  payment: {
+    amount: number;
+    type: string;
+    payment_date: string;
+    payment_method: string | null;
+    notes: string | null;
+  },
+  workshopName: string,
+  actor: AuditActor
+) {
+  return {
+    transaction_date: payment.payment_date,
+    type: payment.type,
+    amount: Number(payment.amount),
+    description: workshopPaymentTransactionDescription(workshopName),
+    category: TRANSACTION_CATEGORIES.WORKSHOP,
+    payment_method: payment.payment_method,
+    recorded_by: actor.userLabel.trim() || "Manager",
+    notes: payment.notes?.trim() ? payment.notes.trim() : null,
   };
 }
 
@@ -2430,7 +2468,56 @@ export async function createWorkshopPaymentForManager(
     };
   }
 
-  const payment = mapWorkshopPaymentRecord(data);
+  const txInput = buildWorkshopPaymentTransactionInput(
+    {
+      amount: dataInput.amount,
+      type: dataInput.type,
+      payment_date: dataInput.payment_date,
+      payment_method: dataInput.payment_method ?? null,
+      notes: dataInput.notes ?? null,
+    },
+    workshopResult.data.name,
+    actor
+  );
+
+  const { data: createdTx, error: txError } =
+    await transactionRepository.createTransaction(adminClient, txInput);
+
+  if (txError || !createdTx) {
+    await workshopPaymentRepository.deleteWorkshopPaymentById(
+      adminClient,
+      data.id
+    );
+    return {
+      success: false,
+      error:
+        txError?.message ||
+        "Unable to record the linked financial transaction.",
+    };
+  }
+
+  const { data: linkedPayment, error: linkError } =
+    await workshopPaymentRepository.updateWorkshopPaymentTransactionId(
+      adminClient,
+      data.id,
+      createdTx.id
+    );
+
+  if (linkError || !linkedPayment) {
+    await transactionRepository.deleteTransaction(adminClient, createdTx.id);
+    await workshopPaymentRepository.deleteWorkshopPaymentById(
+      adminClient,
+      data.id
+    );
+    return {
+      success: false,
+      error:
+        linkError?.message ||
+        "Unable to link the financial transaction to this payment.",
+    };
+  }
+
+  const payment = mapWorkshopPaymentRecord(linkedPayment);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
@@ -2443,8 +2530,28 @@ export async function createWorkshopPaymentForManager(
       type: payment.type,
       payment_date: payment.payment_date,
       payment_method: payment.payment_method,
+      transaction_id: payment.transaction_id,
     },
     metadata: { note: "Workshop payment created." },
+  });
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "insert",
+    severity: "info",
+    table_name: "transactions",
+    record_id: createdTx.id,
+    new_data: {
+      transaction_date: createdTx.transaction_date,
+      type: createdTx.type,
+      amount: Number(createdTx.amount),
+      description: createdTx.description,
+      category: createdTx.category,
+      payment_method: createdTx.payment_method,
+    },
+    metadata: {
+      note: "Synced from workshop payment.",
+      workshop_payment_id: payment.id,
+    },
   });
 
   return {
@@ -2575,7 +2682,139 @@ export async function updateWorkshopPaymentForManager(
     };
   }
 
-  const payment = mapWorkshopPaymentRecord(data);
+  let payment = mapWorkshopPaymentRecord(data);
+  const txInput = buildWorkshopPaymentTransactionInput(
+    {
+      amount: dataInput.amount,
+      type: dataInput.type,
+      payment_date: dataInput.payment_date,
+      payment_method: dataInput.payment_method ?? null,
+      notes: dataInput.notes ?? null,
+    },
+    workshopForUpdate.data.name,
+    actor
+  );
+
+  const revertPayment = async () => {
+    await workshopPaymentRepository.updateWorkshopPaymentById(
+      adminClient,
+      previous.id,
+      {
+        amount: previous.amount,
+        type: previous.type,
+        payment_date: previous.payment_date,
+        payment_method: previous.payment_method,
+        notes: previous.notes,
+      }
+    );
+  };
+
+  let linkedTransactionId = previous.transaction_id;
+  let syncedExistingTx = false;
+
+  if (linkedTransactionId) {
+    const existingTx = await transactionRepository.findTransactionById(
+      adminClient,
+      linkedTransactionId
+    );
+    if (existingTx.error) {
+      await revertPayment();
+      return {
+        success: false,
+        error: existingTx.error.message || "Unable to update payment.",
+      };
+    }
+    if (existingTx.data) {
+      const { error: txUpdateError } =
+        await transactionRepository.updateTransaction(
+          adminClient,
+          linkedTransactionId,
+          txInput
+        );
+      if (txUpdateError) {
+        await revertPayment();
+        return {
+          success: false,
+          error:
+            txUpdateError.message ||
+            "Unable to update the linked financial transaction.",
+        };
+      }
+      syncedExistingTx = true;
+    } else {
+      linkedTransactionId = null;
+    }
+  }
+
+  if (!syncedExistingTx) {
+    const { data: createdTx, error: txCreateError } =
+      await transactionRepository.createTransaction(adminClient, txInput);
+    if (txCreateError || !createdTx) {
+      await revertPayment();
+      return {
+        success: false,
+        error:
+          txCreateError?.message ||
+          "Unable to record the linked financial transaction.",
+      };
+    }
+    const { data: relinked, error: linkError } =
+      await workshopPaymentRepository.updateWorkshopPaymentTransactionId(
+        adminClient,
+        payment.id,
+        createdTx.id
+      );
+    if (linkError || !relinked) {
+      await transactionRepository.deleteTransaction(adminClient, createdTx.id);
+      await revertPayment();
+      return {
+        success: false,
+        error:
+          linkError?.message ||
+          "Unable to link the financial transaction to this payment.",
+      };
+    }
+    payment = mapWorkshopPaymentRecord(relinked);
+    linkedTransactionId = createdTx.id;
+
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "insert",
+      severity: "info",
+      table_name: "transactions",
+      record_id: createdTx.id,
+      new_data: {
+        transaction_date: createdTx.transaction_date,
+        type: createdTx.type,
+        amount: Number(createdTx.amount),
+        description: createdTx.description,
+        category: createdTx.category,
+        payment_method: createdTx.payment_method,
+      },
+      metadata: {
+        note: "Synced from workshop payment.",
+        workshop_payment_id: payment.id,
+      },
+    });
+  } else if (linkedTransactionId) {
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "update",
+      severity: "info",
+      table_name: "transactions",
+      record_id: linkedTransactionId,
+      new_data: {
+        transaction_date: txInput.transaction_date,
+        type: txInput.type,
+        amount: txInput.amount,
+        description: txInput.description,
+        category: txInput.category,
+        payment_method: txInput.payment_method,
+      },
+      metadata: {
+        note: "Synced from workshop payment update.",
+        workshop_payment_id: payment.id,
+      },
+    });
+  }
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
@@ -2588,6 +2827,7 @@ export async function updateWorkshopPaymentForManager(
       payment_date: previous.payment_date,
       payment_method: previous.payment_method,
       notes: previous.notes,
+      transaction_id: previous.transaction_id,
     },
     new_data: {
       amount: payment.amount,
@@ -2595,6 +2835,7 @@ export async function updateWorkshopPaymentForManager(
       payment_date: payment.payment_date,
       payment_method: payment.payment_method,
       notes: payment.notes,
+      transaction_id: payment.transaction_id,
     },
     metadata: { note: "Workshop payment updated." },
   });
@@ -2672,6 +2913,36 @@ export async function deleteWorkshopPaymentForManager(
 
   const previous = mapWorkshopPaymentRecord(existing.data);
 
+  if (previous.transaction_id) {
+    const { error: txDeleteError } =
+      await transactionRepository.deleteTransaction(
+        adminClient,
+        previous.transaction_id
+      );
+    if (txDeleteError) {
+      return {
+        success: false,
+        error:
+          txDeleteError.message ||
+          "Unable to delete the linked financial transaction.",
+      };
+    }
+
+    await recordManagerAuditLog(adminClient, actor, {
+      action: "delete",
+      severity: "warning",
+      table_name: "transactions",
+      record_id: previous.transaction_id,
+      old_data: {
+        id: previous.transaction_id,
+      },
+      metadata: {
+        note: "Deleted with workshop payment.",
+        workshop_payment_id: previous.id,
+      },
+    });
+  }
+
   const { error } = await workshopPaymentRepository.deleteWorkshopPaymentById(
     adminClient,
     dataInput.id
@@ -2695,6 +2966,7 @@ export async function deleteWorkshopPaymentForManager(
       type: previous.type,
       payment_date: previous.payment_date,
       payment_method: previous.payment_method,
+      transaction_id: previous.transaction_id,
     },
     metadata: { note: "Workshop payment deleted." },
   });

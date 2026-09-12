@@ -36,6 +36,7 @@ import * as studentPaymentRepository from "@/repositories/student-payment.reposi
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as transactionRepository from "@/repositories/transaction.repository";
+import * as workshopPaymentRepository from "@/repositories/workshop-payment.repository";
 import { assertPermission } from "@/services/auth/authorization.service";
 import type {
   ManagerIncomeStatementAnalyticsData,
@@ -559,6 +560,22 @@ export async function getIncomeStatementAnalyticsTablesForManager(
     };
   });
 
+  const transactionIds = scopedTransactions.map((row) => row.id);
+  const linksResult =
+    await workshopPaymentRepository.listWorkshopPaymentLinksByTransactionIds(
+      adminClient,
+      transactionIds
+    );
+  if (linksResult.error) {
+    throw new Error(linksResult.error.message);
+  }
+  const linkedPaymentByTransactionId = new Map<string, string>();
+  for (const link of linksResult.data ?? []) {
+    if (link.transaction_id) {
+      linkedPaymentByTransactionId.set(link.transaction_id, link.id);
+    }
+  }
+
   const transactions = scopedTransactions.map((row) => ({
     id: row.id,
     transaction_date: row.transaction_date,
@@ -572,6 +589,8 @@ export async function getIncomeStatementAnalyticsTablesForManager(
         : null,
     recorded_by: row.recorded_by,
     notes: row.notes,
+    linked_workshop_payment_id:
+      linkedPaymentByTransactionId.get(row.id) ?? null,
   }));
 
   const paidSppIdsInPeriod = new Set(

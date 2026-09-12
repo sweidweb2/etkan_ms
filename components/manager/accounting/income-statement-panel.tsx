@@ -283,25 +283,34 @@ export function IncomeStatementPanel({
                       </td>
                       {readOnly ? null : (
                         <td className="px-4 py-3 text-right">
-                          <Can
-                            permission={
-                              PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
-                            }
-                          >
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              className="size-7"
-                              aria-label={`Edit transaction ${row.description}`}
-                              onClick={() => {
-                                setEditingTransaction(row);
-                                setEditOpen(true);
-                              }}
+                          {row.linked_workshop_payment_id ? (
+                            <span
+                              className="text-xs text-muted-foreground"
+                              title="Edit this from Workshops payments"
                             >
-                              <PencilIcon className="size-3.5" />
-                            </Button>
-                          </Can>
+                              Workshop
+                            </span>
+                          ) : (
+                            <Can
+                              permission={
+                                PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
+                              }
+                            >
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="size-7"
+                                aria-label={`Edit transaction ${row.description}`}
+                                onClick={() => {
+                                  setEditingTransaction(row);
+                                  setEditOpen(true);
+                                }}
+                              >
+                                <PencilIcon className="size-3.5" />
+                              </Button>
+                            </Can>
+                          )}
                         </td>
                       )}
                     </tr>

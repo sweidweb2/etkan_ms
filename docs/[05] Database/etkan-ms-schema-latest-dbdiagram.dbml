@@ -213,11 +213,13 @@ Table workshop_payments {
   notes text
   created_by uuid [ref: > profiles.id]
   created_at timestamptz [not null, default: `now()`]
+  transaction_id uuid [ref: - transactions.id, note: 'mirrored income-statement transaction']
 
   indexes {
     (workshop_id)
     (payment_date)
     (type)
+    (transaction_id) [unique]
   }
 }
 

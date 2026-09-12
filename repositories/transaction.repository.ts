@@ -172,3 +172,7 @@ export async function updateTransaction(
     .select(TRANSACTION_COLUMNS)
     .single();
 }
+
+export async function deleteTransaction(client: Supabase, id: string) {
+  return client.from("transactions").delete().eq("id", id);
+}

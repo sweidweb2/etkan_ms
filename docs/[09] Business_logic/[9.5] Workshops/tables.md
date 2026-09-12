@@ -58,11 +58,13 @@ payment_method
 notes
 created_by
 created_at
+transaction_id (nullable FK → transactions, unique when set)
 
 Notes
 -----
 - `subject` is free-text for now (not an FK to `subjects`).
 - `workshop_payments` is a ledger (debit/credit), not invoice status workflow.
+- Creating/updating/deleting a payment mirrors a linked `transactions` row (same type); edit linked txs from Workshops, not income statement.
 - **v1 delete:** hard delete workshop; children cascade in DB; Storage objects removed in service.
 - `deleted_at` exists on `workshops` but is unused in v1 (hard delete only).
 
