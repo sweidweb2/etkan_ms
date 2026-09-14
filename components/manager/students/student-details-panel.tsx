@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -52,24 +53,6 @@ type StudentDetailsPanelProps = {
   variant?: "manager" | "self";
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground">{children ?? value ?? "—"}</dd>
-    </div>
-  );
-}
 
 function formatBirthDate(value: string | null) {
   if (!value) {

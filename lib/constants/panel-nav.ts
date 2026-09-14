@@ -16,10 +16,7 @@ function withManageWorkshops(navigation: PanelNavigation): PanelNavigation {
 }
 
 export const ADMIN_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
-/** @deprecated Use `ADMIN_PANEL_NAVIGATION` — kept for flatten/search helpers. */
-export const ADMIN_PANEL_NAV = ADMIN_PANEL_NAVIGATION.items!;
 export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
-export const CO_MANAGER_PANEL_NAV = CO_MANAGER_PANEL_NAVIGATION.items!;
 
 export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
   groups: [
@@ -212,12 +209,6 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
   ],
 };
 
-/** @deprecated Use `MANAGER_PANEL_NAVIGATION` — kept for flatten/search helpers. */
-export const MANAGER_PANEL_NAV: PanelNavItem[] = [
-  ...(MANAGER_PANEL_NAVIGATION.items ?? []),
-  ...(MANAGER_PANEL_NAVIGATION.groups?.flatMap((group) => group.items) ?? []),
-];
-
 export const CEO_PANEL_NAVIGATION: PanelNavigation = {
   items: [
     {
@@ -254,9 +245,6 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
   ],
 };
 
-/** @deprecated Use `CEO_PANEL_NAVIGATION` — kept for flatten/search helpers. */
-export const CEO_PANEL_NAV: PanelNavItem[] = CEO_PANEL_NAVIGATION.items!;
-
 /** CRM: guests (+ Manage workshops when instructor/mentor + workshops.view). */
 export const CRM_PANEL_NAVIGATION = withManageWorkshops({
   items: [
@@ -267,9 +255,6 @@ export const CRM_PANEL_NAVIGATION = withManageWorkshops({
     },
   ],
 });
-
-/** @deprecated Use `CRM_PANEL_NAVIGATION` — kept for flatten/search helpers. */
-export const CRM_PANEL_NAV: PanelNavItem[] = CRM_PANEL_NAVIGATION.items!;
 
 /**
  * Supervisor: manager feature links minus excluded ops/system surfaces
@@ -364,50 +349,7 @@ export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation = {
   ],
 };
 
-/** @deprecated Use `SUPERVISOR_PANEL_NAVIGATION` — kept for flatten/search helpers. */
-export const SUPERVISOR_PANEL_NAV: PanelNavItem[] = [
-  ...(SUPERVISOR_PANEL_NAVIGATION.items ?? []),
-  ...(SUPERVISOR_PANEL_NAVIGATION.groups?.flatMap((group) => group.items) ??
-    []),
-];
-
-export const TEACHER_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
-  items: [
-    {
-      title: "Schedule",
-      href: ROUTES.TEACHER_SCHEDULE,
-      icon: "calendar-days",
-    },
-    {
-      title: "Manage classes",
-      href: ROUTES.TEACHER_CLASSES,
-      icon: "school",
-    },
-    {
-      title: "Subjects",
-      href: ROUTES.TEACHER_SUBJECTS,
-      icon: "library",
-    },
-    {
-      title: "My students",
-      href: ROUTES.TEACHER_STUDENTS,
-      icon: "book-open",
-    },
-    {
-      title: "Notifications",
-      href: ROUTES.TEACHER_NOTIFICATIONS,
-      icon: "bell",
-    },
-    {
-      title: "Analytics",
-      href: ROUTES.TEACHER_ANALYTICS,
-      icon: "analytics",
-    },
-  ],
-});
-
-/** @deprecated Use `TEACHER_PANEL_NAVIGATION` — kept for flatten/search helpers. */
-export const TEACHER_PANEL_NAV: PanelNavItem[] = TEACHER_PANEL_NAVIGATION.items!;
+export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 
 /** Student panel: profile, classes, payments (+ workshops when instructor/mentor). */
 export const STUDENT_PANEL_NAVIGATION = withManageWorkshops({
@@ -429,6 +371,3 @@ export const STUDENT_PANEL_NAVIGATION = withManageWorkshops({
     },
   ],
 });
-
-/** @deprecated Use `STUDENT_PANEL_NAVIGATION` — kept for flatten/search helpers. */
-export const STUDENT_PANEL_NAV: PanelNavItem[] = STUDENT_PANEL_NAVIGATION.items!;

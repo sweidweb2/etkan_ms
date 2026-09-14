@@ -4,13 +4,11 @@ import {
   runManagerAction,
   runManagerMutation,
 } from "@/lib/actions/run-manager-action";
-import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   getManagerSubjectDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { revalidatePath } from "next/cache";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateCategoryFormData } from "@/lib/validators/manager/create-category";
 import { parseUpdateCategoryFormData } from "@/lib/validators/manager/update-category";
 import { parseCreateExerciseFormData } from "@/lib/validators/manager/create-exercise";
@@ -177,7 +175,3 @@ export async function syncSubjectCatalogLinksAction(
     }),
   });
 }
-
-// Keep getSessionAuditActor import unused check happy if tree-shaken — not needed.
-void getSessionAuditActor;
-void createSupabaseAdminClient;

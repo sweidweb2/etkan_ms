@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { format } from "date-fns";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
@@ -13,24 +14,6 @@ type ClassFinalExamStudentSectionProps = {
   studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground">{children ?? value ?? "—"}</dd>
-    </div>
-  );
-}
 
 function formatGrade(value: number | null | undefined) {
   return value === null || value === undefined ? "—" : value.toFixed(1);

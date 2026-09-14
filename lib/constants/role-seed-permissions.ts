@@ -128,35 +128,6 @@ export const SUPERVISOR_SEED_FEATURES = [
 ] as const satisfies readonly PermissionFeature[];
 
 /**
- * @deprecated Prefer `SUPERVISOR_SEED_FEATURES` allow-list. Kept for docs /
- * hard-block commentary that still list ops/finance exclusions.
- */
-export const SUPERVISOR_EXCLUDED_PERMISSION_FEATURES = [
-  "users",
-  "accounting",
-  "emailing",
-  "gallery",
-  "projects",
-  "blogs",
-  "notifications",
-  "backup",
-  "logs",
-  "settings",
-  "rbac",
-  "payment_schedules",
-  "cron_jobs",
-  "dashboard",
-  "equipment",
-  "semesters",
-  "instructors",
-  "mentors",
-  "guests",
-  "teams",
-  "registrations",
-  "cloudflare_ai_usage",
-] as const satisfies readonly PermissionFeature[];
-
-/**
  * Supervisor: workshops, subjects (categories/exercises), students, classes
  * tree, instructor schedules, academic analysis.
  */

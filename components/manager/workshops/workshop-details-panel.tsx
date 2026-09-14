@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import {
   useActionState,
   useEffect,
@@ -117,22 +118,6 @@ const initialDeleteState: DeleteWorkshopActionState = {};
 const WORKSHOP_HAS_PAYMENTS_DELETE_ERROR =
   "Remove workshop payments before deleting this workshop.";
 
-function DetailField({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | null;
-}) {
-  return (
-    <div className="flex min-w-0 items-baseline justify-between gap-2 border-b border-border/60 py-1 last:border-b-0">
-      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 truncate text-right text-sm font-medium text-foreground">
-        {value?.trim() ? value : "—"}
-      </dd>
-    </div>
-  );
-}
 
 function formatMoney(value: number | null) {
   if (value == null) {

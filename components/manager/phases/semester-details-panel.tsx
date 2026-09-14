@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { useMemo, useState, type ReactNode } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
@@ -29,22 +30,6 @@ type SemesterDetailsPanelProps = {
   initialPaymentPhases: ManagerSemesterPaymentPhaseRow[];
 };
 
-function DetailField({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number | null | ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground">{value ?? "—"}</dd>
-    </div>
-  );
-}
 
 export function SemesterDetailsPanel({
   semester: initialSemester,

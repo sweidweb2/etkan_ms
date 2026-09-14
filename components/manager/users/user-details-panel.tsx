@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
@@ -24,24 +25,6 @@ type UserDetailsPanelProps = {
   user: ManagerUserRow;
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground">{children ?? value ?? "—"}</dd>
-    </div>
-  );
-}
 
 export function UserDetailsPanel({
   user: initialUser,

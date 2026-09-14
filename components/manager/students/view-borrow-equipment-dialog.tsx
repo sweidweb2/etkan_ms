@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { format } from "date-fns";
 import { MessageSquareTextIcon } from "lucide-react";
 import { BorrowEquipmentStatusBadge } from "@/components/manager/students/borrow-equipment-status-badge";
@@ -20,22 +21,6 @@ type ViewBorrowEquipmentDialogProps = {
   borrowRow: ManagerStudentBorrowEquipmentRow | null;
 };
 
-function DetailField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground break-all">{value}</dd>
-    </div>
-  );
-}
 
 function formatTimestamp(value: string | null) {
   if (!value) {

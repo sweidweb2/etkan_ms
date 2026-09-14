@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -137,24 +138,6 @@ type PaymentPhaseDetailsPanelProps = {
   transferPhaseOptions: ManagerPaymentPhaseRow[];
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground">{children ?? value ?? "—"}</dd>
-    </div>
-  );
-}
 
 function TruncatedCell({
   value,

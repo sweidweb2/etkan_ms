@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
@@ -39,7 +40,6 @@ import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change
 import { PUBLIC_PROJECT_CLASSIFICATION_LABELS } from "@/lib/constants/manager-public-project";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
-import { cn } from "@/lib/utils";
 import type {
   DeletePublicProjectActionState,
   ManagerPublicProjectRow,
@@ -51,28 +51,6 @@ type ProjectDetailsPanelProps = {
   project: ManagerPublicProjectRow;
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm leading-relaxed text-foreground">
-        {children ?? value ?? "—"}
-      </dd>
-    </div>
-  );
-}
 
 function isExternalHref(href: string) {
   return href.startsWith("http://") || href.startsWith("https://");

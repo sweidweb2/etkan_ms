@@ -342,6 +342,39 @@ export function dayOfWeekFromIsoDate(isoDate: string): number {
 }
 
 export function parseCreateInstructorScheduleSlotFormData(formData: FormData) {
+  const rawSlotDate = formData.get("slot_date");
+  const parsed = safeParseFormData(createInstructorScheduleSlotSchema, {
+    entity_type: formData.get("entity_type"),
+    record_id: formData.get("record_id"),
+    name: formData.get("name"),
+    slot_date:
+      typeof rawSlotDate === "string" && rawSlotDate.trim() !== ""
+        ? rawSlotDate
+        : undefined,
+    start_time: formData.get("start_time"),
+    end_time: formData.get("end_time"),
+  });
+
+  if (!parsed.success) {
+    return parsed;
+  }
+
+  const slot_date = parsed.data.slot_date ?? todayIsoDateLocal();
+  const type = resolveInstructorScheduleSlotType({
+    entityType: parsed.data.entity_type,
+  });
+
+  return {
+    success: true as const,
+    data: {
+      ...parsed.data,
+      type,
+      slot_date,
+    },
+  };
+}
+
+export function parseUpdateInstructorScheduleSlotFormData(formData: FormData) {
   return safeParseFormData(updateInstructorScheduleSlotSchema, {
     id: formData.get("id"),
     entity_type: formData.get("entity_type"),

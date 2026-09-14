@@ -102,30 +102,3 @@ export function getClassProgressTone(classRow: ClassSessionProgressSource): {
       };
   }
 }
-
-/** @deprecated Use getClassProgressTone for status-aware styling. */
-export function getSessionProgressTone(rate: number): {
-  fillClassName: string;
-  ringClassName: string;
-  dotClassName: string;
-} {
-  if (rate > 0) {
-    return {
-      fillClassName: "bg-emerald-500",
-      ringClassName: "border-emerald-500",
-      dotClassName: "border-emerald-500 bg-card",
-    };
-  }
-
-  return {
-    fillClassName: "bg-muted-foreground/30",
-    ringClassName: "border-muted-foreground/45",
-    dotClassName: "border-muted-foreground/45 bg-card",
-  };
-}
-
-export function getSegmentProgressTone(
-  classRow: ClassSessionProgressSource
-): ReturnType<typeof getClassProgressTone> {
-  return getClassProgressTone(classRow);
-}

@@ -1,14 +1,16 @@
 "use server";
 
+import {
+  runManagerAction,
+  runManagerMutation,
+} from "@/lib/actions/run-manager-action";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSessionAuditActor } from "@/lib/auth/session";
 import {
   getManagerSubjectDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
 import { parseUpdateSubjectFormData } from "@/lib/validators/manager/update-subject";
 import {
@@ -26,94 +28,50 @@ export async function createSubjectAction(
   _prevState: CreateSubjectActionState,
   formData: FormData
 ): Promise<CreateSubjectActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateSubjectFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createSubjectForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_SUBJECTS);
-
-  return {
-    success: true,
-    message: result.message,
-    subject: result.subject,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateSubjectFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createSubjectForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_SUBJECTS);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      subject: result.subject,
+    }),
+  });
 }
 
 export async function updateSubjectAction(
   _prevState: UpdateSubjectActionState,
   formData: FormData
 ): Promise<UpdateSubjectActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateSubjectFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateSubjectForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_SUBJECTS);
-  revalidatePath(getManagerSubjectDetailRoute(result.subject.id));
-  if (result.nbSessionsChanged) {
-    revalidatePath(ROUTES.MANAGER_CLASSES);
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    subject: result.subject,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateSubjectFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateSubjectForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_SUBJECTS);
+      revalidatePath(getManagerSubjectDetailRoute(result.subject.id));
+      if (result.nbSessionsChanged) {
+        revalidatePath(ROUTES.MANAGER_CLASSES);
+      }
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      subject: result.subject,
+    }),
+  });
 }
 
 export async function deleteSubjectAction(
   _prevState: DeleteSubjectActionState,
   formData: FormData
 ): Promise<DeleteSubjectActionState> {
-  const actor = await getSessionAuditActor();
-
   const subjectId = String(formData.get("subject_id") ?? "").trim();
 
   if (!subjectId) {
@@ -123,23 +81,17 @@ export async function deleteSubjectAction(
     };
   }
 
-  const adminClient = createSupabaseAdminClient();
-  const result = await deleteSubjectForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    subjectId
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_SUBJECTS);
-  redirect(
-    appendQueryParam(ROUTES.MANAGER_SUBJECTS, "toast", "subject_deleted")
-  );
+  return runManagerMutation({
+    data: subjectId,
+    mutate: ({ adminClient, actor, data }) =>
+      deleteSubjectForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_SUBJECTS);
+    },
+    mapSuccess: () => {
+      redirect(
+        appendQueryParam(ROUTES.MANAGER_SUBJECTS, "toast", "subject_deleted")
+      );
+    },
+  });
 }

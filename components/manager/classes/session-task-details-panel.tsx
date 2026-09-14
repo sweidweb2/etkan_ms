@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
@@ -43,7 +44,6 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
-import { cn } from "@/lib/utils";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
   DeleteSessionTaskActionState,
@@ -67,28 +67,6 @@ type SessionTaskDetailsPanelProps = {
   hasComputedGrades?: boolean;
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className={cn("text-sm text-foreground", className)}>
-        {children ?? value ?? "—"}
-      </dd>
-    </div>
-  );
-}
 
 function formatDateTime(value: string | null) {
   if (!value) {

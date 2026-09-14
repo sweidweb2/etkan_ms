@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import Link from "next/link";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -42,28 +43,6 @@ const DELIVERY_STATUS_CLASS: Record<string, string> = {
   skipped: "bg-muted text-muted-foreground",
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {label}
-      </dt>
-      <dd className={cn("text-sm text-foreground", className)}>
-        {children ?? value ?? "—"}
-      </dd>
-    </div>
-  );
-}
 
 function DeliveryStatusBadge({ status }: { status: string }) {
   return (

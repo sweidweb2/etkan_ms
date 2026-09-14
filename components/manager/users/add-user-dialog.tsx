@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useEffect } from "react";
 import { createStaffUserAction } from "@/app/manager/users/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { PasswordInput } from "@/components/auth/password-input";
@@ -22,9 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
@@ -56,16 +54,19 @@ export function AddUserDialog({
   onOpenChange,
   onUserCreated,
 }: AddUserDialogProps) {
-  const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
-    createStaffUserAction,
-    initialState
-  );
-  const isPending = isActionPending || isTransitionPending;
-
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-
-  useActionStateToast(state, isPending);
+  const { state, formAction, isPending, handleOpenChange } =
+    useMutationDialogForm({
+      action: createStaffUserAction,
+      initialState,
+      open,
+      onOpenChange,
+      onSuccess: (nextState) => {
+        onOpenChange(false);
+        if (nextState.user) {
+          onUserCreated(nextState.user);
+        }
+      },
+    });
 
   const {
     register,
@@ -104,13 +105,6 @@ export function AddUserDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, (nextState) => {
-    onOpenChange(false);
-    if (nextState.user) {
-      onUserCreated(nextState.user);
-    }
-  });
-
   function onSubmit(values: CreateStaffUserFormInput) {
     const formData = new FormData();
     formData.set("username", values.username.trim());
@@ -119,10 +113,7 @@ export function AddUserDialog({
     formData.set("role", values.role);
     formData.set("is_instructor", String(values.is_instructor));
     formData.set("is_mentor", String(values.is_mentor));
-
-    startTransition(() => {
-      formAction(formData);
-    });
+    formAction(formData);
   }
 
   const usernameError =

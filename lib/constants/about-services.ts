@@ -38,9 +38,6 @@ export type AboutFoundation = {
   };
 };
 
-/** @deprecated Prefer AboutFoundation — kept alias for older imports. */
-export type AboutService = AboutFoundation;
-
 export const ABOUT_FOUNDATIONS: AboutFoundation[] = [
   {
     id: "breeding",
@@ -104,7 +101,3 @@ export const ABOUT_FOUNDATIONS: AboutFoundation[] = [
 export const FEATURED_ABOUT_FOUNDATIONS = ABOUT_FOUNDATIONS.filter(
   (item) => item.featured
 );
-
-/** @deprecated Use FEATURED_ABOUT_FOUNDATIONS */
-export const FEATURED_ABOUT_SERVICES = FEATURED_ABOUT_FOUNDATIONS;
-export const ABOUT_SERVICES = ABOUT_FOUNDATIONS;

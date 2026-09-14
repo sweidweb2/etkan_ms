@@ -1,7 +1,5 @@
 import { z } from "zod";
-import { safeParseFormData, formValidationFailure } from "@/lib/validators/safe-parse-form-data";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 function parseBool(value: FormDataEntryValue | null, fallback = false): boolean {
   if (value === null || value === undefined || value === "") {
@@ -163,6 +161,10 @@ function parseFormFields(formData: FormData) {
 }
 
 export function parseCreateFinancialFormFormData(formData: FormData) {
+  return safeParseFormData(createFinancialFormSchema, parseFormFields(formData));
+}
+
+export function parseUpdateFinancialFormFormData(formData: FormData) {
   return safeParseFormData(updateFinancialFormSchema, {
     id: formData.get("id"),
     ...parseFormFields(formData),
@@ -178,17 +180,9 @@ export function parseCreateFinancialFormInviteFormData(formData: FormData) {
 export function parseSubmitPublicFinancialFormFormData(
   formData: FormData,
   token: string
-):
-  | { success: true; data: SubmitPublicFinancialFormInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = submitPublicFinancialFormSchema.safeParse({
+) {
+  return safeParseFormData(submitPublicFinancialFormSchema, {
     token,
     ...parseFinancialFormContentFields(formData),
   });
-
-  if (!parsed.success) {
-    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
-  }
-
-  return { success: true, data: parsed.data };
 }

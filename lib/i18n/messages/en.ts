@@ -772,21 +772,6 @@ export const en = {
   "careers.online.machining.title": "Machining & assembly line",
   "careers.online.machining.body": "Process thinking, machining practice, and assembly flow.",
 
-  "careers.cart.addAria": "Add course to cart",
-  "careers.cart.removeAria": "Remove course from cart",
-  "careers.cart.openAria": "Open course cart",
-  "careers.cart.closeAria": "Close course cart",
-  "careers.cart.title": "Your courses",
-  "careers.cart.description":
-    "Review what you picked, then message us on WhatsApp to talk it through.",
-  "careers.cart.clear": "Clear all",
-  "careers.cart.whatsappCta": "Let's talk on WhatsApp",
-  "careers.cart.kind.workshop": "Workshop",
-  "careers.cart.kind.online": "Online course",
-  "careers.cart.whatsappIntro":
-    "Hi Etkan! I'm interested in these courses:",
-  "careers.cart.whatsappOutro": "Let's talk about next steps.",
-
   "contactCta.eyebrow": "Talk with us",
   "contactCta.title": "Ready to start your Etkan path?",
   "contactCta.body":

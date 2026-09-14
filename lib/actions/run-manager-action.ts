@@ -14,17 +14,21 @@ type ActionFailure = {
   fieldErrors?: FieldErrors;
 };
 
-type ServiceFailure = {
-  success: false;
-  error: string;
-  fieldErrors?: FieldErrors;
-};
-
 type ManagerActionContext<TData> = {
   adminClient: AdminClient;
   actor: AuditActor;
   data: TData;
 };
+
+type MutateSuccess<TMutateResult extends { success: boolean }> = Extract<
+  TMutateResult,
+  { success: true }
+>;
+
+type MutateFailure<TMutateResult extends { success: boolean }> = Extract<
+  TMutateResult,
+  { success: false }
+>;
 
 /**
  * Shared manager server-action flow:
@@ -32,16 +36,20 @@ type ManagerActionContext<TData> = {
  */
 export async function runManagerAction<
   TData,
-  TResult extends { success: true },
+  TMutateResult extends { success: boolean },
   TState,
 >(options: {
   formData: FormData;
   parse: (formData: FormData) => ParseFormResult<TData>;
-  mutate: (
-    ctx: ManagerActionContext<TData>
-  ) => Promise<TResult | ServiceFailure>;
-  revalidate?: (result: TResult, data: TData) => void | Promise<void>;
-  mapSuccess: (result: TResult, data: TData) => TState;
+  mutate: (ctx: ManagerActionContext<TData>) => Promise<TMutateResult>;
+  revalidate?: (
+    result: MutateSuccess<TMutateResult>,
+    data: TData
+  ) => void | Promise<void>;
+  mapSuccess: (
+    result: MutateSuccess<TMutateResult>,
+    data: TData
+  ) => TState;
 }): Promise<TState | ActionFailure> {
   const actor = await getSessionAuditActor();
   const parsed = options.parse(options.formData);
@@ -61,15 +69,20 @@ export async function runManagerAction<
   });
 
   if (!result.success) {
+    const failure = result as MutateFailure<TMutateResult> & {
+      error: string;
+      fieldErrors?: FieldErrors;
+    };
     return {
       success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
+      error: failure.error,
+      fieldErrors: failure.fieldErrors,
     };
   }
 
-  await options.revalidate?.(result, parsed.data);
-  return options.mapSuccess(result, parsed.data);
+  const success = result as MutateSuccess<TMutateResult>;
+  await options.revalidate?.(success, parsed.data);
+  return options.mapSuccess(success, parsed.data);
 }
 
 /**
@@ -77,15 +90,19 @@ export async function runManagerAction<
  */
 export async function runManagerMutation<
   TData,
-  TResult extends { success: true },
+  TMutateResult extends { success: boolean },
   TState,
 >(options: {
   data: TData;
-  mutate: (
-    ctx: ManagerActionContext<TData>
-  ) => Promise<TResult | ServiceFailure>;
-  revalidate?: (result: TResult, data: TData) => void | Promise<void>;
-  mapSuccess: (result: TResult, data: TData) => TState;
+  mutate: (ctx: ManagerActionContext<TData>) => Promise<TMutateResult>;
+  revalidate?: (
+    result: MutateSuccess<TMutateResult>,
+    data: TData
+  ) => void | Promise<void>;
+  mapSuccess: (
+    result: MutateSuccess<TMutateResult>,
+    data: TData
+  ) => TState;
 }): Promise<TState | ActionFailure> {
   const actor = await getSessionAuditActor();
   const adminClient = createSupabaseAdminClient();
@@ -96,13 +113,18 @@ export async function runManagerMutation<
   });
 
   if (!result.success) {
+    const failure = result as MutateFailure<TMutateResult> & {
+      error: string;
+      fieldErrors?: FieldErrors;
+    };
     return {
       success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
+      error: failure.error,
+      fieldErrors: failure.fieldErrors,
     };
   }
 
-  await options.revalidate?.(result, options.data);
-  return options.mapSuccess(result, options.data);
+  const success = result as MutateSuccess<TMutateResult>;
+  await options.revalidate?.(success, options.data);
+  return options.mapSuccess(success, options.data);
 }

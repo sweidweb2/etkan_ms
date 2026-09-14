@@ -1,9 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { PERMISSIONS } from "@/lib/constants/permissions";
 import { redirect } from "next/navigation";
+import {
+  runManagerAction,
+  runManagerMutation,
+} from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerClassDetailRoute,
   getManagerClassSessionDetailRoute,
@@ -219,573 +223,280 @@ export async function createClassAction(
   _prevState: CreateClassActionState,
   formData: FormData
 ): Promise<CreateClassActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateClassFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createClassForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    classRow: result.classRow,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateClassFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createClassForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      classRow: result.classRow,
+    }),
+  });
 }
 
 export async function updateClassAction(
   _prevState: UpdateClassActionState,
   formData: FormData
 ): Promise<UpdateClassActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateClassFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateClassForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    classRow: result.classRow,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateClassFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateClassForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      classRow: result.classRow,
+    }),
+  });
 }
 
 export async function updateClassStatusAction(
   _prevState: UpdateClassStatusActionState,
   formData: FormData
 ): Promise<UpdateClassStatusActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseChangeClassStatusFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateClassStatusForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    warning: result.warning,
-    classRow: result.classRow,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseChangeClassStatusFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateClassStatusForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      warning: result.warning,
+      classRow: result.classRow,
+    }),
+  });
 }
 
 export async function createClassSessionAction(
   _prevState: CreateClassSessionActionState,
   formData: FormData
 ): Promise<CreateClassSessionActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateClassSessionFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createClassSessionForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    session: result.session,
-    classRow: result.classRow,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateClassSessionFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createClassSessionForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      session: result.session,
+      classRow: result.classRow,
+    }),
+  });
 }
 
 export async function createFinalExamAction(
   _prevState: CreateFinalExamActionState,
   formData: FormData
 ): Promise<CreateFinalExamActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateFinalExamFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createFinalExamForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    finalExam: result.finalExam,
-    studentGrades: result.studentGrades,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateFinalExamFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createFinalExamForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      finalExam: result.finalExam,
+      studentGrades: result.studentGrades,
+    }),
+  });
 }
 
 export async function updateFinalExamAction(
   _prevState: UpdateFinalExamActionState,
   formData: FormData
 ): Promise<UpdateFinalExamActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateFinalExamFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateFinalExamForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    finalExam: result.finalExam,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateFinalExamFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateFinalExamForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      finalExam: result.finalExam,
+    }),
+  });
 }
 
 export async function updateStudentFinalExamGradeAction(
   _prevState: UpdateStudentFinalExamGradeActionState,
   formData: FormData
 ): Promise<UpdateStudentFinalExamGradeActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseEditStudentFinalExamGradeFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateStudentFinalExamGradeForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    studentGrade: result.studentGrade,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseEditStudentFinalExamGradeFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateStudentFinalExamGradeForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      studentGrade: result.studentGrade,
+    }),
+  });
 }
 
 export async function addStudentToClassAction(
   _prevState: AddStudentToClassActionState,
   formData: FormData
 ): Promise<AddStudentToClassActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseAddStudentsToClassFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await addStudentsToClassForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    warning: result.warning,
-    students: result.students,
-    student: result.students[0],
-    studentGrades: result.studentGrades,
-    studentGrade: result.studentGrades[0],
-    classRow: result.classRow,
-    autoAssignedPhase: result.autoAssignedPhase,
-    optionalPaymentPhases: result.optionalPaymentPhases,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseAddStudentsToClassFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      addStudentsToClassForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      warning: result.warning,
+      students: result.students,
+      student: result.students[0],
+      studentGrades: result.studentGrades,
+      studentGrade: result.studentGrades[0],
+      classRow: result.classRow,
+      autoAssignedPhase: result.autoAssignedPhase,
+      optionalPaymentPhases: result.optionalPaymentPhases,
+    }),
+  });
 }
 
 export async function removeStudentFromClassAction(
   _prevState: RemoveStudentFromClassActionState,
   formData: FormData
 ): Promise<RemoveStudentFromClassActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseRemoveStudentFromClassFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await removeStudentFromClassForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    warning: result.warning,
-    removedStudentId: result.removedStudentId,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseRemoveStudentFromClassFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      removeStudentFromClassForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      warning: result.warning,
+      removedStudentId: result.removedStudentId,
+    }),
+  });
 }
 
 export async function transferStudentBetweenClassesAction(
   _prevState: TransferStudentBetweenClassesActionState,
   formData: FormData
 ): Promise<TransferStudentBetweenClassesActionState> {
-  const actor = await getSessionAuditActor();
-  const parsed = parseTransferStudentBetweenClassesFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await transferStudentBetweenClassesForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(getManagerClassDetailRoute(result.from_class_id));
-  revalidatePath(getManagerClassDetailRoute(result.to_class_id));
-
-  return {
-    success: true,
-    message: result.message,
-    warning: result.warning,
-    student: result.student,
-    from_class_id: result.from_class_id,
-    to_class_id: result.to_class_id,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseTransferStudentBetweenClassesFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      transferStudentBetweenClassesForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
+    revalidate: (result) => {
+      revalidatePath(getManagerClassDetailRoute(result.from_class_id));
+      revalidatePath(getManagerClassDetailRoute(result.to_class_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      warning: result.warning,
+      student: result.student,
+      from_class_id: result.from_class_id,
+      to_class_id: result.to_class_id,
+    }),
+  });
 }
 
 export async function assignClassTeacherAction(
   _prevState: AssignClassTeacherActionState,
   formData: FormData
 ): Promise<AssignClassTeacherActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseAssignClassTeacherFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await assignTeacherToClassForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    teacher: result.teacher,
-    classRow: result.classRow,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseAssignClassTeacherFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      assignTeacherToClassForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      teacher: result.teacher,
+      classRow: result.classRow,
+    }),
+  });
 }
 
 export async function unassignClassTeacherAction(
   _prevState: UnassignClassTeacherActionState,
   formData: FormData
 ): Promise<UnassignClassTeacherActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUnassignClassTeacherFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await unassignTeacherFromClassForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    teacherId: result.teacherId,
-    classRow: result.classRow,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUnassignClassTeacherFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      unassignTeacherFromClassForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      teacherId: result.teacherId,
+      classRow: result.classRow,
+    }),
+  });
 }
 
 export async function updateSessionSettingsAction(
   _prevState: UpdateSessionSettingsActionState,
   formData: FormData
 ): Promise<UpdateSessionSettingsActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateSessionSettingsFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateSessionSettingsForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    session: result.session,
-    linkedPhase: result.linkedPhase,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateSessionSettingsFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateSessionSettingsForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      session: result.session,
+      linkedPhase: result.linkedPhase,
+    }),
+  });
 }
 
 export async function updateClassSessionAction(
   _prevState: UpdateClassSessionActionState,
   formData: FormData
 ): Promise<UpdateClassSessionActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateClassSessionFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateClassSessionForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    session: result.session,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateClassSessionFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateClassSessionForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      session: result.session,
+    }),
+  });
 }
 
 export async function deleteClassSessionAction(
   _prevState: DeleteClassSessionActionState,
   formData: FormData
 ): Promise<DeleteClassSessionActionState> {
-  const actor = await getSessionAuditActor();
-
   const sessionId = String(formData.get("session_id") ?? "").trim();
 
   if (!sessionId) {
@@ -795,133 +506,83 @@ export async function deleteClassSessionAction(
     };
   }
 
-  const adminClient = createSupabaseAdminClient();
-  const result = await deleteClassSessionForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    sessionId
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  revalidatePath(getManagerClassDetailRoute(result.classId));
-  redirect(
-    appendQueryParam(
-      getManagerClassDetailRoute(result.classId),
-      "toast",
-      "session_deleted"
-    )
-  );
+  return runManagerMutation({
+    data: sessionId,
+    mutate: ({ adminClient, actor, data }) =>
+      deleteClassSessionForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(getManagerClassDetailRoute(result.classId));
+    },
+    mapSuccess: (result) => {
+      redirect(
+        appendQueryParam(
+          getManagerClassDetailRoute(result.classId),
+          "toast",
+          "session_deleted"
+        )
+      );
+    },
+  });
 }
 
 export async function createSessionTaskAction(
   _prevState: CreateSessionTaskActionState,
   formData: FormData
 ): Promise<CreateSessionTaskActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateSessionTaskFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createSessionTaskForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(getManagerClassDetailRoute(parsed.data.class_id));
-  revalidatePath(
-    getManagerClassSessionDetailRoute(parsed.data.class_id, parsed.data.session_id)
-  );
-
-  return {
-    success: true,
-    message: result.message,
-    task: result.task,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateSessionTaskFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createSessionTaskForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerClassDetailRoute(data.class_id));
+      revalidatePath(
+        getManagerClassSessionDetailRoute(data.class_id, data.session_id)
+      );
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      task: result.task,
+    }),
+  });
 }
 
 export async function updateSessionTaskAction(
   _prevState: UpdateSessionTaskActionState,
   formData: FormData
 ): Promise<UpdateSessionTaskActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateSessionTaskFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateSessionTaskForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(getManagerClassDetailRoute(parsed.data.class_id));
-  revalidatePath(
-    getManagerClassSessionDetailRoute(parsed.data.class_id, parsed.data.session_id)
-  );
-  revalidatePath(
-    getManagerClassSessionTaskDetailRoute(
-      parsed.data.class_id,
-      parsed.data.session_id,
-      parsed.data.id
-    )
-  );
-
-  return {
-    success: true,
-    message: result.message,
-    task: result.task,
-    gradesClamped: result.gradesClamped,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateSessionTaskFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateSessionTaskForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerClassDetailRoute(data.class_id));
+      revalidatePath(
+        getManagerClassSessionDetailRoute(data.class_id, data.session_id)
+      );
+      revalidatePath(
+        getManagerClassSessionTaskDetailRoute(
+          data.class_id,
+          data.session_id,
+          data.id
+        )
+      );
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      task: result.task,
+      gradesClamped: result.gradesClamped,
+    }),
+  });
 }
 
 export async function deleteSessionTaskAction(
   _prevState: DeleteSessionTaskActionState,
   formData: FormData
 ): Promise<DeleteSessionTaskActionState> {
-  const actor = await getSessionAuditActor();
-
   const id = String(formData.get("id") ?? "").trim();
   const class_id = String(formData.get("class_id") ?? "").trim();
   const session_id = String(formData.get("session_id") ?? "").trim();
@@ -933,269 +594,161 @@ export async function deleteSessionTaskAction(
     };
   }
 
-  const adminClient = createSupabaseAdminClient();
-  const result = await deleteSessionTaskForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    { id, class_id, session_id }
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  revalidatePath(getManagerClassDetailRoute(result.classId));
-  revalidatePath(
-    getManagerClassSessionDetailRoute(result.classId, result.sessionId)
-  );
-  redirect(
-    appendQueryParam(
-      getManagerClassSessionDetailRoute(result.classId, result.sessionId),
-      "toast",
-      "task_deleted"
-    )
-  );
+  return runManagerMutation({
+    data: { id, class_id, session_id },
+    mutate: ({ adminClient, actor, data }) =>
+      deleteSessionTaskForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(getManagerClassDetailRoute(result.classId));
+      revalidatePath(
+        getManagerClassSessionDetailRoute(result.classId, result.sessionId)
+      );
+    },
+    mapSuccess: (result) => {
+      redirect(
+        appendQueryParam(
+          getManagerClassSessionDetailRoute(result.classId, result.sessionId),
+          "toast",
+          "task_deleted"
+        )
+      );
+    },
+  });
 }
 
 export async function updateAttendeeAction(
   _prevState: UpdateAttendeeActionState,
   formData: FormData
 ): Promise<UpdateAttendeeActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateAttendeeFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateAttendeeForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    attendee: result.attendee,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateAttendeeFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateAttendeeForManager(adminClient, actor.userId, actor, data),
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      attendee: result.attendee,
+    }),
+  });
 }
 
 export async function updateStudentTaskAction(
   _prevState: UpdateStudentTaskActionState,
   formData: FormData
 ): Promise<UpdateStudentTaskActionState> {
-  const actor = await getSessionAuditActor();
+  return runManagerAction({
+    formData,
+    parse: parseEditStudentTaskFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateStudentTaskForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      if (result.classId) {
+        revalidatePath(getManagerClassDetailRoute(result.classId));
+      }
 
-  const parsed = parseEditStudentTaskFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateStudentTaskForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  if (result.classId) {
-    revalidatePath(getManagerClassDetailRoute(result.classId));
-  }
-
-  if (result.classId && result.sessionId) {
-    revalidatePath(
-      getManagerClassSessionDetailRoute(result.classId, result.sessionId)
-    );
-    revalidatePath(
-      getManagerClassSessionTaskDetailRoute(
-        result.classId,
-        result.sessionId,
-        result.studentTask.task_id
-      )
-    );
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    studentTask: result.studentTask,
-  };
+      if (result.classId && result.sessionId) {
+        revalidatePath(
+          getManagerClassSessionDetailRoute(result.classId, result.sessionId)
+        );
+        revalidatePath(
+          getManagerClassSessionTaskDetailRoute(
+            result.classId,
+            result.sessionId,
+            result.studentTask.task_id
+          )
+        );
+      }
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      studentTask: result.studentTask,
+    }),
+  });
 }
 
 export async function uploadStudentTaskFileAction(
   _prevState: UploadStudentTaskFileActionState,
   formData: FormData
 ): Promise<UploadStudentTaskFileActionState> {
-  const actor = await getSessionAuditActor();
+  return runManagerAction({
+    formData,
+    parse: parseUploadStudentTaskFileFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      uploadStudentTaskFileForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      if (result.classId) {
+        revalidatePath(getManagerClassDetailRoute(result.classId));
+      }
 
-  const parsed = parseUploadStudentTaskFileFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await uploadStudentTaskFileForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  if (result.classId) {
-    revalidatePath(getManagerClassDetailRoute(result.classId));
-  }
-
-  if (result.classId && result.sessionId) {
-    revalidatePath(
-      getManagerClassSessionDetailRoute(result.classId, result.sessionId)
-    );
-    revalidatePath(
-      getManagerClassSessionTaskDetailRoute(
-        result.classId,
-        result.sessionId,
-        result.taskId
-      )
-    );
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    upload: result.upload,
-  };
+      if (result.classId && result.sessionId) {
+        revalidatePath(
+          getManagerClassSessionDetailRoute(result.classId, result.sessionId)
+        );
+        revalidatePath(
+          getManagerClassSessionTaskDetailRoute(
+            result.classId,
+            result.sessionId,
+            result.taskId
+          )
+        );
+      }
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      upload: result.upload,
+    }),
+  });
 }
 
 export async function deleteStudentTaskUploadAction(
   _prevState: DeleteStudentTaskUploadActionState,
   formData: FormData
 ): Promise<DeleteStudentTaskUploadActionState> {
-  const actor = await getSessionAuditActor();
+  return runManagerAction({
+    formData,
+    parse: parseDeleteStudentTaskUploadFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      deleteStudentTaskUploadForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      if (result.classId) {
+        revalidatePath(getManagerClassDetailRoute(result.classId));
+      }
 
-  const parsed = parseDeleteStudentTaskUploadFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await deleteStudentTaskUploadForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  if (result.classId) {
-    revalidatePath(getManagerClassDetailRoute(result.classId));
-  }
-
-  if (result.classId && result.sessionId) {
-    revalidatePath(
-      getManagerClassSessionDetailRoute(result.classId, result.sessionId)
-    );
-    revalidatePath(
-      getManagerClassSessionTaskDetailRoute(
-        result.classId,
-        result.sessionId,
-        result.taskId
-      )
-    );
-  }
-
-  return {
-    success: true,
-    message: result.message,
-    uploadId: result.uploadId,
-  };
+      if (result.classId && result.sessionId) {
+        revalidatePath(
+          getManagerClassSessionDetailRoute(result.classId, result.sessionId)
+        );
+        revalidatePath(
+          getManagerClassSessionTaskDetailRoute(
+            result.classId,
+            result.sessionId,
+            result.taskId
+          )
+        );
+      }
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      uploadId: result.uploadId,
+    }),
+  });
 }
 
 export async function getStudentTaskUploadSignedUrlAction(
   formData: FormData
 ): Promise<{ success: boolean; signedUrl?: string; error?: string }> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseStudentTaskUploadSignedUrlFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await getStudentTaskUploadSignedUrlForManager(
-    adminClient,
-    actor.userId,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  return {
-    success: true,
-    signedUrl: result.signedUrl,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseStudentTaskUploadSignedUrlFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      getStudentTaskUploadSignedUrlForManager(adminClient, actor.userId, data),
+    mapSuccess: (result) => ({
+      success: true,
+      signedUrl: result.signedUrl,
+    }),
+  });
 }

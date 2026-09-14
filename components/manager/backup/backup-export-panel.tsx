@@ -201,42 +201,7 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
   const [pageSize, setPageSize] = useState<5 | 8 | 12>(8);
   const [page, setPage] = useState(1);
 
-  const dummyHistory: BackupHistoryEntry[] = [
-    {
-      id: "dummy-1",
-      scope: "table",
-      tableName: "student_profiles",
-      fileName: "backup-student_profiles-2026-07-08T12-00-00Z.json",
-      rowCount: 42,
-      tableCount: 1,
-      createdAt: "2026-07-08T12:00:00.000Z",
-      createdByLabel: "Manager",
-    },
-    {
-      id: "dummy-2",
-      scope: "table",
-      tableName: "subjects",
-      fileName: "backup-subjects-2026-07-08T13-15-00Z.json",
-      rowCount: 18,
-      tableCount: 1,
-      createdAt: "2026-07-08T13:15:00.000Z",
-      createdByLabel: "Admin",
-    },
-    {
-      id: "dummy-3",
-      scope: "all",
-      tableName: null,
-      fileName: "backup-all-tables-2026-07-08T14-30-00Z.json",
-      rowCount: 320,
-      tableCount: BACKUP_TABLES.length,
-      createdAt: "2026-07-08T14:30:00.000Z",
-      createdByLabel: "Manager",
-    },
-  ];
-
-  const displayHistory = initialHistory.length ? initialHistory : dummyHistory;
-
-  const filteredHistory = displayHistory.filter((entry) => {
+  const filteredHistory = initialHistory.filter((entry) => {
     const scopeMatches =
       scopeFilter === "all"
         ? true

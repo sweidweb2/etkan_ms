@@ -127,9 +127,6 @@ export function resolveCreateTransactionInput(
   };
 }
 
-/** @deprecated use createTransactionFormSchema */
-export const createTransactionSchema = createTransactionFormSchema;
-
 function formDataToTransactionFields(formData: FormData) {
   return {
     transaction_date: formData.get("transaction_date"),

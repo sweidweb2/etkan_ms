@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { MessageSquareTextIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,33 +24,6 @@ type CronJobDetailsDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-function DetailField({
-  label,
-  value,
-  className,
-  mono,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className={cn("flex flex-col gap-1", className)}>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd
-        className={cn(
-          "text-sm text-foreground",
-          mono && "break-all font-mono text-xs"
-        )}
-      >
-        {value}
-      </dd>
-    </div>
-  );
-}
 
 export function CronJobDetailsDialog({
   job,

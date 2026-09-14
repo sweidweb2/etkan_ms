@@ -1,13 +1,12 @@
 "use server";
 
-import { getSessionAuditActor } from "@/lib/auth/session";
+import { runManagerAction } from "@/lib/actions/run-manager-action";
 import { revalidateManagerScheduleInstructors } from "@/lib/cache/instructor-schedule-cache";
 import {
   revalidateManagerInstructorsList,
   revalidateManagerPeopleLists,
   revalidateManagerUsersList,
 } from "@/lib/cache/manager-list-cache";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStaffUserFormData } from "@/lib/validators/manager/create-user";
 import { parseUpdateManagerUserFormData } from "@/lib/validators/manager/update-user";
 import { createStaffUser, updateManagerUser } from "@/services/auth/user.service";
@@ -20,83 +19,41 @@ export async function createStaffUserAction(
   _prevState: CreateStaffUserActionState,
   formData: FormData
 ): Promise<CreateStaffUserActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateStaffUserFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createStaffUser(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidateManagerUsersList();
-  revalidateManagerInstructorsList();
-  revalidateManagerScheduleInstructors();
-
-  return {
-    success: true,
-    message: result.message,
-    user: result.user,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateStaffUserFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createStaffUser(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidateManagerUsersList();
+      revalidateManagerInstructorsList();
+      revalidateManagerScheduleInstructors();
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      user: result.user,
+    }),
+  });
 }
 
 export async function updateUserAction(
   _prevState: UpdateManagerUserActionState,
   formData: FormData
 ): Promise<UpdateManagerUserActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateManagerUserFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateManagerUser(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidateManagerPeopleLists();
-  revalidateManagerScheduleInstructors();
-
-  return {
-    success: true,
-    message: result.message,
-    user: result.user,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateManagerUserFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateManagerUser(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidateManagerPeopleLists();
+      revalidateManagerScheduleInstructors();
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      user: result.user,
+    }),
+  });
 }

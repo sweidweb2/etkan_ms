@@ -57,8 +57,13 @@ The UI is not enough by itself.
 
 **Job:** Show only what the user is allowed to use.
 
-Nav, buttons, and pages hide or disable controls the user cannot use.  
-This improves UX; the backend still enforces the real rules.
+Examples:
+
+- Hide menu items they cannot open  
+- Hide buttons they cannot click  
+- Disable or skip screens they cannot access  
+
+This improves clarity and UX. It does **not** replace backend protection.
 
 ---
 
@@ -104,6 +109,17 @@ Backend Protection      →  enforce on every real action
 Frontend Authorization  →  show / hide the right UI
 RBAC Manager            →  admins maintain role permissions
 ```
+
+---
+
+## Working order (suggested)
+
+1. Permission Definitions  
+2. Data Layer Storage  
+3. Authorization Engine  
+4. Backend Protection  
+5. Frontend Authorization  
+6. Administration Interface  
 
 ---
 

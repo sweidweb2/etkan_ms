@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useEffect } from "react";
 import { updateUserAction } from "@/app/manager/users/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -21,9 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
@@ -99,16 +97,19 @@ export function EditUserDialog({
   user,
   onUserUpdated,
 }: EditUserDialogProps) {
-  const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
-    updateUserAction,
-    initialState
-  );
-  const isPending = isActionPending || isTransitionPending;
-
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-
-  useActionStateToast(state, isPending);
+  const { state, formAction, isPending, handleOpenChange } =
+    useMutationDialogForm({
+      action: updateUserAction,
+      initialState,
+      open,
+      onOpenChange,
+      onSuccess: (nextState) => {
+        if (nextState.user) {
+          onUserUpdated(nextState.user);
+        }
+        onOpenChange(false);
+      },
+    });
 
   const {
     register,
@@ -135,18 +136,8 @@ export function EditUserDialog({
     }
   }, [open, reset, user]);
 
-  useActionStateSuccess(state, isPending, (nextState) => {
-    if (nextState.user) {
-      onUserUpdated(nextState.user);
-    }
-    onOpenChange(false);
-  });
-
   function onSubmit(values: UpdateManagerUserInput) {
-    const formData = buildUpdateFormData(user.id, values);
-    startTransition(() => {
-      formAction(formData);
-    });
+    formAction(buildUpdateFormData(user.id, values));
   }
 
   const usernameError =

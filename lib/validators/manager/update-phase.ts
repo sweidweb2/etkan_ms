@@ -1,13 +1,9 @@
 import { z } from "zod";
 import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
+import { phaseFieldsSchema } from "@/lib/validators/manager/create-phase";
 
-export const updatePhaseSchema = z.object({
+export const updatePhaseSchema = phaseFieldsSchema.extend({
   id: z.string().trim().uuid({ message: "Semester is required." }),
-  name: z
-    .string()
-    .trim()
-    .min(1, { message: "Semester name is required." })
-    .max(120, { message: "Semester name must be at most 120 characters." }),
 });
 
 export type UpdatePhaseInput = z.infer<typeof updatePhaseSchema>;

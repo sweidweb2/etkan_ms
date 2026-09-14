@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -62,24 +63,6 @@ const initialDeleteState: DeleteSubjectActionState = {};
 const SUBJECT_HAS_CLASSES_DELETE_ERROR =
   "Remove or reassign linked classes before deleting this subject.";
 
-function DetailField({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm text-foreground">{children ?? value ?? "—"}</dd>
-    </div>
-  );
-}
 
 function DetailLink({
   href,

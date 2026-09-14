@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useEffect } from "react";
 import { updateSubjectAction } from "@/app/manager/subjects/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -14,9 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   updateSubjectSchema,
@@ -42,16 +40,19 @@ export function EditSubjectDialog({
   subject,
   onSubjectUpdated,
 }: EditSubjectDialogProps) {
-  const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
-    updateSubjectAction,
-    initialState
-  );
-  const isPending = isActionPending || isTransitionPending;
-
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-
-  useActionStateToast(state, isPending);
+  const { state, formAction, isPending, handleOpenChange } =
+    useMutationDialogForm({
+      action: updateSubjectAction,
+      initialState,
+      open,
+      onOpenChange,
+      onSuccess: (nextState) => {
+        if (nextState.subject) {
+          onSubjectUpdated(nextState.subject);
+        }
+        onOpenChange(false);
+      },
+    });
 
   const {
     register,
@@ -82,13 +83,6 @@ export function EditSubjectDialog({
     }
   }, [open, reset, subject]);
 
-  useActionStateSuccess(state, isPending, (nextState) => {
-    if (nextState.subject) {
-      onSubjectUpdated(nextState.subject);
-    }
-    onOpenChange(false);
-  });
-
   function onSubmit(values: UpdateSubjectInput) {
     const formData = new FormData();
     formData.set("id", subject.id);
@@ -98,10 +92,7 @@ export function EditSubjectDialog({
     formData.set("reference_link", values.reference_link?.trim() ?? "");
     formData.set("handout_link", values.handout_link?.trim() ?? "");
     formData.set("class_count", String(subject.class_count));
-
-    startTransition(() => {
-      formAction(formData);
-    });
+    formAction(formData);
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];

@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { format } from "date-fns";
 import { ExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
@@ -95,28 +96,6 @@ type StudentClassGradeDetailsPanelProps = {
   bundle: StudentClassGradeDetailBundle | null;
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className={cn("text-sm text-foreground", className)}>
-        {children ?? value ?? "—"}
-      </dd>
-    </div>
-  );
-}
 
 function formatGrade(value: number | null | undefined) {
   return value === null || value === undefined ? "—" : value.toFixed(1);

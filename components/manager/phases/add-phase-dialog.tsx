@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useEffect } from "react";
 import { createSemesterAction } from "@/app/manager/semesters/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -14,9 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
   createPhaseSchema,
@@ -40,16 +38,19 @@ export function AddPhaseDialog({
   onOpenChange,
   onSemesterCreated,
 }: AddPhaseDialogProps) {
-  const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
-    createSemesterAction,
-    initialState
-  );
-  const isPending = isActionPending || isTransitionPending;
-
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-
-  useActionStateToast(state, isPending);
+  const { state, formAction, isPending, handleOpenChange } =
+    useMutationDialogForm({
+      action: createSemesterAction,
+      initialState,
+      open,
+      onOpenChange,
+      onSuccess: (nextState) => {
+        onOpenChange(false);
+        if (nextState.semester) {
+          onSemesterCreated(nextState.semester);
+        }
+      },
+    });
 
   const {
     register,
@@ -70,20 +71,10 @@ export function AddPhaseDialog({
     }
   }, [open, reset]);
 
-  useActionStateSuccess(state, isPending, (nextState) => {
-    onOpenChange(false);
-    if (nextState.semester) {
-      onSemesterCreated(nextState.semester);
-    }
-  });
-
   function onSubmit(values: CreatePhaseInput) {
     const formData = new FormData();
     formData.set("name", values.name.trim());
-
-    startTransition(() => {
-      formAction(formData);
-    });
+    formAction(formData);
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];

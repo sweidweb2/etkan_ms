@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   birthDateField,
   emailField,
@@ -12,8 +12,6 @@ import {
   optionalPasswordInput,
   resolveCreatedAccountPassword,
 } from "@/lib/validators/auth/optional-created-password";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 export const createStudentSchema = z
   .object({
@@ -58,10 +56,8 @@ export function resolveCreateStudentInput(
   };
 }
 
-export function parseCreateStudentFormData(formData: FormData):
-  | { success: true; data: CreateStudentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createStudentSchema.safeParse({
+export function parseCreateStudentFormData(formData: FormData) {
+  const parsed = safeParseFormData(createStudentSchema, {
     username: formData.get("username"),
     fullName: formData.get("fullName"),
     email: formData.get("email"),
@@ -72,8 +68,11 @@ export function parseCreateStudentFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
+    return parsed;
   }
 
-  return { success: true, data: resolveCreateStudentInput(parsed.data) };
+  return {
+    success: true as const,
+    data: resolveCreateStudentInput(parsed.data),
+  };
 }

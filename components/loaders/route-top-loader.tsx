@@ -57,6 +57,3 @@ export function RouteTopLoader() {
     </div>
   );
 }
-
-/** @deprecated Use `RouteTopLoader` — mounted globally in `app/layout.tsx`. */
-export const PanelTopLoader = RouteTopLoader;

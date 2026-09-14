@@ -126,13 +126,12 @@ Each sidebar click is broken into:
 | | |
 |--|--|
 | **Where** | `lib/auth/session.ts` → `getSessionPack` |
-| **MISS path** | `getClaims` → `profiles` by id → (optional student profile) → **effective** permissions via `getEffectivePermissionsForUserCached` = `role_permissions` (15m process cache) **∥** `user_permissions` overlay (request-scoped only) via **admin** client |
-| **HIT path** | `lib/auth/session-shell-cache.ts` — process Map, **5m TTL** (sliding), keyed by `userId`; still runs `getClaims` every request; shell stores **effective** keys |
+| **MISS path** | `getClaims` → `profiles` by id → (optional student profile) → **role** permissions via `getEffectivePermissionsForUserCached` = `role_permissions` (15m process cache) via **admin** client |
+| **HIT path** | `lib/auth/session-shell-cache.ts` — process Map, **5m TTL** (sliding), keyed by `userId`; still runs `getClaims` every request; shell stores role permission keys |
 | **Who triggers pack** | `(panels)/layout`, `RolePanelLayout`, `manager/layout` + page helpers — React `cache()` dedupes **within one request**, not across navigations |
-| **How handled today** | Shell cache skips profile+perms for 5m; role grants have **15m** cross-request cache; overlay loads on each shell MISS (no separate process-TTL overlay cache — C7). MISS with `claimsRole`: profile ∥ effective perms in parallel. |
-| **Risk if broken** | Wrong role/nav/permissions; stale grants after RBAC / UBAC edit |
+| **How handled today** | Shell cache skips profile+perms for 5m; role grants have **15m** cross-request cache. MISS with `claimsRole`: profile ∥ role perms in parallel. |
+| **Risk if broken** | Wrong role/nav/permissions; stale grants after RBAC edit |
 
-**UBAC note (2026-09):** Overlay fetch adds a second admin round-trip on MISS, parallel with role-perm load when role is known. HIT path unchanged (effective keys already in shell). Bust: role-matrix save → clear all shells + role cache; user overlay save → `clearCachedSessionShell(userId)` only.
 **Safe fix direction**
 
 1. **Keep `getClaims` every request** (do not skip identity verify).  
@@ -300,7 +299,7 @@ Accounting list + income analytics residual (~2s) also addressed in **Wave E** (
 
 1. **Still verify JWT** (`getClaims` / equivalent) on each request.  
 2. **Still assert permissions** in services for the feature being loaded.  
-3. **Bust** shell / role-permission caches on logout, RBAC changes, role / instructor identity writes; bust **that user’s** shell on UBAC overlay save.  
+3. **Bust** shell / role-permission caches on logout, RBAC changes, role / instructor identity writes.  
 4. **Do not** “fix” cold compile by deleting features from empty pages.  
 5. Prefer **streaming / Suspense** and **slimmer queries** over skipping auth.  
 6. After each wave: smoke sidebar nav + one mutation on that feature + one RBAC-denied check if applicable.

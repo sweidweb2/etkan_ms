@@ -776,21 +776,6 @@ export const ar = {
   "careers.online.machining.title": "التشغيل وخط التجميع",
   "careers.online.machining.body": "تفكير العمليات وممارسة التشغيل وتدفّق التجميع.",
 
-  "careers.cart.addAria": "إضافة الدورة إلى السلة",
-  "careers.cart.removeAria": "إزالة الدورة من السلة",
-  "careers.cart.openAria": "فتح سلة الدورات",
-  "careers.cart.closeAria": "إغلاق سلة الدورات",
-  "careers.cart.title": "دوراتك",
-  "careers.cart.description":
-    "راجع ما اخترته، ثم راسلنا على واتساب لنناقش التفاصيل.",
-  "careers.cart.clear": "مسح الكل",
-  "careers.cart.whatsappCta": "لنتحدث على واتساب",
-  "careers.cart.kind.workshop": "ورشة",
-  "careers.cart.kind.online": "دورة أونلاين",
-  "careers.cart.whatsappIntro":
-    "مرحبًا إتقان! أنا مهتم بهذه الدورات:",
-  "careers.cart.whatsappOutro": "لنناقش الخطوات التالية.",
-
   "contactCta.eyebrow": "تواصل معنا",
   "contactCta.title": "جاهز لبدء مسارك في إتقان؟",
   "contactCta.body":

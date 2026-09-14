@@ -1,5 +1,6 @@
 "use server";
 
+import { runManagerAction } from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { revalidateManagerPeopleLists } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -22,123 +23,61 @@ export async function createStudentAction(
   _prevState: CreateStudentActionState,
   formData: FormData
 ): Promise<CreateStudentActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateStudentFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createStudent(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidateManagerPeopleLists();
-
-  return {
-    success: true,
-    message: result.message,
-    student: result.student,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateStudentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createStudent(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidateManagerPeopleLists();
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      student: result.student,
+    }),
+  });
 }
 
 export async function updateStudentAction(
   _prevState: UpdateStudentActionState,
   formData: FormData
 ): Promise<UpdateStudentActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateStudentFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateStudent(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidateManagerPeopleLists();
-
-  return {
-    success: true,
-    message: result.message,
-    student: result.student,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateStudentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateStudent(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidateManagerPeopleLists();
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      student: result.student,
+    }),
+  });
 }
 
 export async function changeStudentStatusAction(
   _prevState: ChangeStudentStatusActionState,
   formData: FormData
 ): Promise<ChangeStudentStatusActionState> {
-  const actor = await getSessionAuditActor();
-  const parsed = parseChangeStudentStatusFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await changeStudentStatusForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidateManagerPeopleLists();
-
-  return {
-    success: true,
-    message: result.message,
-    warning: result.warning,
-    status: result.status,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseChangeStudentStatusFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      changeStudentStatusForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidateManagerPeopleLists();
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      warning: result.warning,
+      status: result.status,
+    }),
+  });
 }
 
 export async function loadStudentStatusSideEffectsPreviewAction(

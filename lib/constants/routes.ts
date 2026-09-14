@@ -81,13 +81,8 @@ export const ROUTES = {
   SUPERVISOR_ROOT: "/supervisor",
   CRM_ROOT: "/crm",
   TEACHER_ROOT: "/teacher",
-  TEACHER_SCHEDULE: "/teacher/schedule",
-  TEACHER_CLASSES: "/teacher/classes",
-  TEACHER_SUBJECTS: "/teacher/subjects",
-  TEACHER_STUDENTS: "/teacher/students",
-  TEACHER_NOTIFICATIONS: "/teacher/notifications",
-  TEACHER_ANALYTICS: "/teacher/analytics",
   STUDENT_ROOT: "/student",
+
   STUDENT_CLASSES: "/student/classes",
   STUDENT_CLASS_DETAIL: "/student/classes/[id]",
   STUDENT_CLASS_TASK_DETAIL: "/student/classes/[id]/tasks/[taskId]",
@@ -105,7 +100,7 @@ const ROLE_HOME_ROUTES: Record<RoleValue, string> = {
   [ROLES.CEO]: ROUTES.MANAGER_WORKSHOPS,
   [ROLES.SUPERVISOR]: ROUTES.MANAGER_STUDENTS,
   [ROLES.CRM]: ROUTES.MANAGER_GUESTS,
-  [ROLES.TEACHER]: ROUTES.TEACHER_SCHEDULE,
+  [ROLES.TEACHER]: ROUTES.TEACHER_ROOT,
   [ROLES.STUDENT]: ROUTES.STUDENT_ROOT,
 };
 

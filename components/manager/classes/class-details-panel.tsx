@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { LibraryIcon, LineChartIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { AssignClassTeachersDropdown } from "@/components/manager/classes/assign-class-teachers-dropdown";
 import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
 import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog";
@@ -85,29 +86,6 @@ type ClassDetailsPanelProps = {
   hasComputedGrades?: boolean;
   lockedUserIds?: string[];
 };
-
-function DetailField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className={cn("text-sm text-foreground", className)}>
-        {children ?? value ?? "—"}
-      </dd>
-    </div>
-  );
-}
 
 export function ClassDetailsPanel({
   classRow: initialClassRow,

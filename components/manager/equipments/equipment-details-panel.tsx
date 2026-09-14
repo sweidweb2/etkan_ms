@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
@@ -38,28 +39,6 @@ type EquipmentDetailsPanelProps = {
   initialBorrows: ManagerEquipmentBorrowRow[];
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className={cn("text-sm text-foreground", className)}>
-        {children ?? value ?? "—"}
-      </dd>
-    </div>
-  );
-}
 
 export function EquipmentDetailsPanel({
   equipment: initialEquipment,

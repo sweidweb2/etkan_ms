@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  runManagerAction,
+  runManagerMutation,
+} from "@/lib/actions/run-manager-action";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { revalidateManagerScheduleCalendar } from "@/lib/cache/instructor-schedule-cache";
 import {
@@ -146,135 +150,75 @@ export async function createWorkshopAction(
   _prevState: CreateWorkshopActionState,
   formData: FormData
 ): Promise<CreateWorkshopActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateWorkshopFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createWorkshopForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidateManagerScheduleCalendar();
-
-  return {
-    success: true,
-    message: result.message,
-    workshop: result.workshop,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateWorkshopFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createWorkshopForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidateManagerScheduleCalendar();
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      workshop: result.workshop,
+    }),
+  });
 }
 
 export async function updateWorkshopAction(
   _prevState: UpdateWorkshopActionState,
   formData: FormData
 ): Promise<UpdateWorkshopActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateWorkshopFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateWorkshopForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
-  revalidateManagerScheduleCalendar();
-
-  return {
-    success: true,
-    message: result.message,
-    workshop: result.workshop,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateWorkshopFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateWorkshopForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
+      revalidateManagerScheduleCalendar();
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      workshop: result.workshop,
+    }),
+  });
 }
 
 export async function updateWorkshopProposalNotesAction(
   _prevState: UpdateWorkshopActionState,
   formData: FormData
 ): Promise<UpdateWorkshopActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateWorkshopProposalNotesFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateWorkshopProposalNotesForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
-
-  return {
-    success: true,
-    message: result.message,
-    workshop: result.workshop,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateWorkshopProposalNotesFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateWorkshopProposalNotesForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      workshop: result.workshop,
+    }),
+  });
 }
 
 export async function deleteWorkshopAction(
   _prevState: DeleteWorkshopActionState,
   formData: FormData
 ): Promise<DeleteWorkshopActionState> {
-  const actor = await getSessionAuditActor();
-
   const workshopId = String(formData.get("workshop_id") ?? "").trim();
 
   if (!workshopId) {
@@ -284,571 +228,312 @@ export async function deleteWorkshopAction(
     };
   }
 
-  const adminClient = createSupabaseAdminClient();
-  const result = await deleteWorkshopForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    workshopId
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidateManagerScheduleCalendar();
-  redirect(
-    appendQueryParam(ROUTES.MANAGER_WORKSHOPS, "toast", "workshop_deleted")
-  );
+  return runManagerMutation({
+    data: workshopId,
+    mutate: ({ adminClient, actor, data }) =>
+      deleteWorkshopForManager(adminClient, actor.userId, actor, data),
+    revalidate: () => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidateManagerScheduleCalendar();
+    },
+    mapSuccess: () => {
+      redirect(
+        appendQueryParam(ROUTES.MANAGER_WORKSHOPS, "toast", "workshop_deleted")
+      );
+    },
+  });
 }
 
 export async function changeWorkshopStatusAction(
   _prevState: ChangeWorkshopStatusActionState,
   formData: FormData
 ): Promise<ChangeWorkshopStatusActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseChangeWorkshopStatusFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await changeWorkshopStatusForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
-  revalidateManagerScheduleCalendar();
-
-  return {
-    success: true,
-    message: result.message,
-    workshop: result.workshop,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseChangeWorkshopStatusFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      changeWorkshopStatusForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(getManagerWorkshopDetailRoute(result.workshop.id));
+      revalidateManagerScheduleCalendar();
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      workshop: result.workshop,
+    }),
+  });
 }
 
 export async function addWorkshopInstructorAction(
   _prevState: AddWorkshopInstructorActionState,
   formData: FormData
 ): Promise<AddWorkshopInstructorActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateWorkshopInstructorFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await addWorkshopInstructorForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.instructor.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-    instructor: result.instructor,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateWorkshopInstructorFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      addWorkshopInstructorForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(
+        getManagerWorkshopDetailRoute(result.instructor.workshop_id)
+      );
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      instructor: result.instructor,
+    }),
+  });
 }
 
 export async function updateWorkshopInstructorAction(
   _prevState: UpdateWorkshopInstructorActionState,
   formData: FormData
 ): Promise<UpdateWorkshopInstructorActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateWorkshopInstructorFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateWorkshopInstructorForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.instructor.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-    instructor: result.instructor,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateWorkshopInstructorFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateWorkshopInstructorForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(
+        getManagerWorkshopDetailRoute(result.instructor.workshop_id)
+      );
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      instructor: result.instructor,
+    }),
+  });
 }
 
 export async function removeWorkshopInstructorAction(
   _prevState: RemoveWorkshopInstructorActionState,
   formData: FormData
 ): Promise<RemoveWorkshopInstructorActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseRemoveWorkshopInstructorFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await removeWorkshopInstructorForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseRemoveWorkshopInstructorFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      removeWorkshopInstructorForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
+    revalidate: (_result, data) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(getManagerWorkshopDetailRoute(data.workshop_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+    }),
+  });
 }
 
 export async function uploadWorkshopDocumentAction(
   _prevState: UploadWorkshopDocumentActionState,
   formData: FormData
 ): Promise<UploadWorkshopDocumentActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUploadWorkshopDocumentFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await uploadWorkshopDocumentForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.document.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-    document: result.document,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUploadWorkshopDocumentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      uploadWorkshopDocumentForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(
+        getManagerWorkshopDetailRoute(result.document.workshop_id)
+      );
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      document: result.document,
+    }),
+  });
 }
 
 export async function renameWorkshopDocumentAction(
   _prevState: RenameWorkshopDocumentActionState,
   formData: FormData
 ): Promise<RenameWorkshopDocumentActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseRenameWorkshopDocumentFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await renameWorkshopDocumentForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.document.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-    document: result.document,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseRenameWorkshopDocumentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      renameWorkshopDocumentForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(
+        getManagerWorkshopDetailRoute(result.document.workshop_id)
+      );
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      document: result.document,
+    }),
+  });
 }
 
 export async function deleteWorkshopDocumentAction(
   _prevState: DeleteWorkshopDocumentActionState,
   formData: FormData
 ): Promise<DeleteWorkshopDocumentActionState> {
-  const actor = await getSessionAuditActor();
+  return runManagerAction({
+    formData,
+    parse: parseDeleteWorkshopDocumentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      deleteWorkshopDocumentForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(getManagerWorkshopDetailRoute(data.workshop_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+    }),
+  });
+}
 
-  const parsed = parseDeleteWorkshopDocumentFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await deleteWorkshopDocumentForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
+function revalidateWorkshopPaymentPaths(workshopId: string) {
   revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-  };
+  revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
+  revalidatePath(getManagerWorkshopDetailRoute(workshopId));
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT);
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS);
+  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_HISTORY);
 }
 
 export async function createWorkshopPaymentAction(
   _prevState: CreateWorkshopPaymentActionState,
   formData: FormData
 ): Promise<CreateWorkshopPaymentActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateWorkshopPaymentFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createWorkshopPaymentForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.payment.workshop_id));
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT);
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS);
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_HISTORY);
-
-  return {
-    success: true,
-    message: result.message,
-    payment: result.payment,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateWorkshopPaymentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createWorkshopPaymentForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidateWorkshopPaymentPaths(result.payment.workshop_id);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      payment: result.payment,
+    }),
+  });
 }
 
 export async function updateWorkshopPaymentAction(
   _prevState: UpdateWorkshopPaymentActionState,
   formData: FormData
 ): Promise<UpdateWorkshopPaymentActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateWorkshopPaymentFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateWorkshopPaymentForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.payment.workshop_id));
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT);
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS);
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_HISTORY);
-
-  return {
-    success: true,
-    message: result.message,
-    payment: result.payment,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateWorkshopPaymentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateWorkshopPaymentForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidateWorkshopPaymentPaths(result.payment.workshop_id);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      payment: result.payment,
+    }),
+  });
 }
 
 export async function deleteWorkshopPaymentAction(
   _prevState: DeleteWorkshopPaymentActionState,
   formData: FormData
 ): Promise<DeleteWorkshopPaymentActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseDeleteWorkshopPaymentFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await deleteWorkshopPaymentForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS);
-  revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT);
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS);
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_HISTORY);
-
-  return {
-    success: true,
-    message: result.message,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseDeleteWorkshopPaymentFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      deleteWorkshopPaymentForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidateWorkshopPaymentPaths(data.workshop_id);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+    }),
+  });
 }
 
 export async function createWorkshopSessionAction(
   _prevState: CreateWorkshopSessionActionState,
   formData: FormData
 ): Promise<CreateWorkshopSessionActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseCreateWorkshopSessionFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createWorkshopSessionForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.session.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-    session: result.session,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseCreateWorkshopSessionFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createWorkshopSessionForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(getManagerWorkshopDetailRoute(result.session.workshop_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      session: result.session,
+    }),
+  });
 }
 
 export async function updateWorkshopSessionAction(
   _prevState: UpdateWorkshopSessionActionState,
   formData: FormData
 ): Promise<UpdateWorkshopSessionActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseUpdateWorkshopSessionFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-      fieldErrors: parsed.fieldErrors,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await updateWorkshopSessionForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-      fieldErrors: result.fieldErrors,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(result.session.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-    session: result.session,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseUpdateWorkshopSessionFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateWorkshopSessionForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(getManagerWorkshopDetailRoute(result.session.workshop_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      session: result.session,
+    }),
+  });
 }
 
 export async function deleteWorkshopSessionAction(
   _prevState: DeleteWorkshopSessionActionState,
   formData: FormData
 ): Promise<DeleteWorkshopSessionActionState> {
-  const actor = await getSessionAuditActor();
-
-  const parsed = parseDeleteWorkshopSessionFormData(formData);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error,
-    };
-  }
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await deleteWorkshopSessionForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    parsed.data
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  revalidatePath(ROUTES.MANAGER_WORKSHOPS);
-  revalidatePath(getManagerWorkshopDetailRoute(parsed.data.workshop_id));
-
-  return {
-    success: true,
-    message: result.message,
-  };
+  return runManagerAction({
+    formData,
+    parse: parseDeleteWorkshopSessionFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      deleteWorkshopSessionForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(ROUTES.MANAGER_WORKSHOPS);
+      revalidatePath(getManagerWorkshopDetailRoute(data.workshop_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+    }),
+  });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { PencilIcon, Trash2Icon } from "lucide-react";
@@ -40,7 +41,6 @@ import {
 } from "@/lib/constants/guest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
-import { cn } from "@/lib/utils";
 import type {
   DeleteGuestActionState,
   GuestRegistrationLinkUserOption,
@@ -79,28 +79,6 @@ type GuestDetailsPanelProps = {
   linkedUser: GuestRegistrationLinkUserOption | null;
 };
 
-function DetailField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm leading-relaxed text-foreground">
-        {children ?? value ?? "—"}
-      </dd>
-    </div>
-  );
-}
 
 export function GuestDetailsPanel({
   guest: initialGuest,

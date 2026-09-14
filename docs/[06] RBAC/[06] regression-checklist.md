@@ -41,7 +41,7 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 
 - [ ] **Backup** — `/manager/backup`: export table / full, download / re-export
 - [ ] **Logs** — `/manager/logs`: list opens
-- [ ] **Permissions** — `/manager/rbac`: change a non-critical grant and save (then restore); open a user → Permissions to edit private allows
+- [ ] **Permissions** — `/manager/rbac`: change a non-critical grant and save (then restore)
 - [ ] **Settings** — `/manager/settings`: maintenance toggle, own credentials update
 
 ---

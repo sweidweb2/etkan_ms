@@ -1,5 +1,6 @@
 "use client";
 
+import { DetailField } from "@/components/manager/shared/detail-field";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { format, formatDistanceStrict } from "date-fns";
@@ -94,28 +95,6 @@ const DELETE_SESSION_FLOW_STEPS = [
   },
 ] as const;
 
-function DetailField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className={cn("text-sm text-foreground", className)}>
-        {children ?? value ?? "—"}
-      </dd>
-    </div>
-  );
-}
 
 function getDeleteBlockedReason({
   hasComputedGrades,
