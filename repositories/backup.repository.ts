@@ -8,5 +8,6 @@ export async function exportTableRows(
   client: Supabase,
   tableName: BackupTableName
 ) {
-  return client.from(tableName).select("*");
+  // Dynamic table name: avoid TS2589 union explosion on Database["public"]["Tables"].
+  return (client as SupabaseClient).from(tableName).select("*");
 }

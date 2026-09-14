@@ -67,7 +67,7 @@ describe("permission-checks", () => {
       expect(effective.size).toBe(2);
     });
 
-    it("deny removes a role-granted key", () => {
+    it("optional denies still remove keys when provided", () => {
       const effective = mergePermissionSets({
         roleKeys: [PERMISSIONS.SUBJECTS_VIEW, PERMISSIONS.SUBJECTS_CREATE],
         denies: [PERMISSIONS.SUBJECTS_CREATE],
@@ -77,22 +77,10 @@ describe("permission-checks", () => {
       expect(effective.has(PERMISSIONS.SUBJECTS_CREATE)).toBe(false);
     });
 
-    it("deny beats allow for the same key", () => {
-      const effective = mergePermissionSets({
-        roleKeys: [],
-        allows: [PERMISSIONS.SUBJECTS_VIEW],
-        denies: [PERMISSIONS.SUBJECTS_VIEW],
-      });
-
-      expect(effective.has(PERMISSIONS.SUBJECTS_VIEW)).toBe(false);
-      expect(effective.size).toBe(0);
-    });
-
     it("skips invalid keys", () => {
       const effective = mergePermissionSets({
         roleKeys: [PERMISSIONS.SUBJECTS_VIEW, "not.a.key"],
         allows: ["also.fake"],
-        denies: ["nope"],
       });
 
       expect([...effective]).toEqual([PERMISSIONS.SUBJECTS_VIEW]);

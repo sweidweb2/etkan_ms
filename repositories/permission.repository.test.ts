@@ -224,7 +224,7 @@ describe("permission.repository", () => {
         {
           user_id: userId,
           permission_key: PERMISSIONS.SUBJECTS_CREATE,
-          effect: "deny",
+          effect: "allow",
           granted_by: grantedBy,
           created_at: "2026-09-14T00:00:00.000Z",
         },
@@ -247,7 +247,7 @@ describe("permission.repository", () => {
       },
       {
         permission_key: PERMISSIONS.SUBJECTS_CREATE,
-        effect: "deny",
+        effect: "allow",
         granted_by: grantedBy,
       },
     ]);
@@ -263,7 +263,7 @@ describe("permission.repository", () => {
       {
         user_id: userId,
         permission_key: PERMISSIONS.SUBJECTS_CREATE,
-        effect: "deny",
+        effect: "allow",
         granted_by: grantedBy,
       },
     ]);
@@ -301,7 +301,7 @@ describe("permission.repository", () => {
     expect(result).toEqual({ data: [], error: null });
   });
 
-  it("dedupes duplicate keys on replace (last effect wins)", async () => {
+  it("dedupes duplicate keys on replace (last wins)", async () => {
     const userId = "user-1";
     const permissionsChain = createChain({
       data: [{ key: PERMISSIONS.SUBJECTS_VIEW }],
@@ -313,8 +313,8 @@ describe("permission.repository", () => {
         {
           user_id: userId,
           permission_key: PERMISSIONS.SUBJECTS_VIEW,
-          effect: "deny",
-          granted_by: null,
+          effect: "allow",
+          granted_by: "manager-2",
           created_at: "2026-09-14T00:00:00.000Z",
         },
       ],
@@ -329,16 +329,24 @@ describe("permission.repository", () => {
     const client = { from } as never;
 
     await replaceUserPermissions(client, userId, [
-      { permission_key: PERMISSIONS.SUBJECTS_VIEW, effect: "allow" },
-      { permission_key: PERMISSIONS.SUBJECTS_VIEW, effect: "deny" },
+      {
+        permission_key: PERMISSIONS.SUBJECTS_VIEW,
+        effect: "allow",
+        granted_by: "manager-1",
+      },
+      {
+        permission_key: PERMISSIONS.SUBJECTS_VIEW,
+        effect: "allow",
+        granted_by: "manager-2",
+      },
     ]);
 
     expect(insertChain.insert).toHaveBeenCalledWith([
       {
         user_id: userId,
         permission_key: PERMISSIONS.SUBJECTS_VIEW,
-        effect: "deny",
-        granted_by: null,
+        effect: "allow",
+        granted_by: "manager-2",
       },
     ]);
   });

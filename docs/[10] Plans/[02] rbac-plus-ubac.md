@@ -1,8 +1,8 @@
-# [02] RBAC + UBAC (role baseline + per-user allow/deny)
+# [02] RBAC + UBAC (role baseline + per-user allow)
 
 **Project:** Etkan MS (`etkan_ms`)  
 **Date:** 2026-09-14  
-**Status:** Implemented (Phases A–G, 2026-09-14)  
+**Status:** Implemented (Phases A–G); **revised 2026-09-14** — allow-only, clear-on-role-change, Manage private removed  
 **Related docs:**  
 - `docs/[06] RBAC/[01] rbac-layers.md`  
 - `docs/[06] RBAC/[02] permission-definitions.md`  
@@ -10,7 +10,22 @@
 - `docs/[06] RBAC/[04] service-authorization.md`  
 - `docs/[06] RBAC/[05] enforcement.md`  
 - Schema / DBML: `docs/[05] Database/…`, `permissions`, `role_permissions`, `profiles`, `audit_logs`  
-- Code today: `services/auth/authorization.service.ts`, `services/auth/rbac.service.ts`, `lib/auth/session.ts`, Manager RBAC + Users UI  
+- Code today: `services/auth/authorization.service.ts`, `services/auth/user-permissions.service.ts`, `lib/auth/session.ts`, Manager RBAC + Users UI  
+
+---
+
+## Product revision (2026-09-14)
+
+| Previous | Current |
+|----------|---------|
+| Allow **and** deny overlays | **Allow-only** (`effect = 'allow'`) |
+| Effective `(role ∪ allow) − deny` | Effective `role ∪ allow` |
+| Role change → keep/discard dialog | Role change → **always clear** private overlay |
+| `/manager/rbac/private` Manage private page | Removed; edit under **Manage users** only |
+| Snapshot may store role-redundant allows | **Strip** redundant allows on save |
+
+Migration: `20260919120000_user_permissions_allow_only.sql`  
+Modules: `lib/auth/user-permission-overlay.ts`, `services/auth/permission-load.ts`, `services/auth/user-permissions-lockout.ts`, `services/auth/user-permissions.service.ts`
 
 ---
 
@@ -18,33 +33,34 @@
 
 | Change | Target behavior |
 |--------|-----------------|
-| Effective permissions | `(role_permissions ∪ user_allows) − user_denies` |
+| Effective permissions | `role_permissions ∪ user_allows` |
 | Role grants | Unchanged baseline via `role_permissions` |
-| User overlay | New `user_permissions` rows: allow **and** deny; may include keys the role does **not** have |
+| User overlay | `user_permissions` rows: **allow only**; may include keys the role does **not** have |
 | Who manages overlays | **`profiles.role === manager` only**; managers already have full catalog access |
 | Panel routing | Still by **role** (middleware / panel path). UBAC does **not** open another panel by itself |
 | Enforcement | Same app-layer stance: services + route gates + `Can`. **No** permission-mirrored RLS |
-| Role change | User gets new role’s grants; dialog asks whether to **keep private overlays** that are **not** already covered by the new role |
-| Audit | Every user-overlay replace and role-change keep/clear decision → `audit_logs` |
+| Role change | User gets new role’s grants; private overlay is **hard-deleted** |
+| Audit | Overlay replace and role-change clear → `audit_logs` |
 | Cache | Role cache stays; shell stores **effective** keys; bust **that user** on overlay edit |
 
 ---
 
-## Locked decisions (do not re-open without product change)
+## Locked decisions (revised)
 
-1. **Grant + deny.** User overlay supports `allow` and `deny` effects.
+1. **Allow-only.** User overlay supports `allow` only (no deny).
 2. **Beyond-role allows.** A user may be allowed a permission their role does not include.
 3. **No non-delegable keys.** Any catalog permission may appear on a user overlay (including `rbac.manage`). Governance is “manager role only,” not a blocked-key list.
-4. **Role change + keep-private dialog.** On role change, effective role set becomes the new role’s grants. A dialog asks whether to keep **private** overlay rows. Skip asking about any private allow that is already present on the **new** role (user gets it via role anyway). Private **denies** that still matter against the new role **are** asked about (or included in the keep set). If manager chooses not to keep, hard-delete those overlay rows.
+4. **Role change clears overlays.** On role change, hard-delete that user’s overlay rows (no keep dialog).
 5. **Only manager role** may create/update/delete user overlays. Manager is full-access for the catalog.
-6. **Audit log** required for overlay replaces and for role-change keep/clear outcomes (`recordManagerAuditLog`).
-7. **Schema:** `user_permissions` with hard delete; save is a **full snapshot replace** of that user’s overlay rows; unique `(user_id, permission_key)` — no duplicates.
+6. **Audit log** required for overlay replaces and for role-change clear outcomes (`recordManagerAuditLog`).
+7. **Schema:** `user_permissions` with hard delete; save is a **full snapshot replace** of that user’s allow rows; unique `(user_id, permission_key)`; `effect` constrained to `'allow'`.
 8. **Single resolution rule** used by session pack, route permission gates, and `assertPermission` / `getUserPermissions*`.
-9. **Caches:** keep 15m role-permission cache; on overlay change clear **that user’s** session shell; on role-matrix change keep today’s global shell + role-cache clear (or equivalent “all users of that role”).
-10. **Admin UX:** primary overlay UI at **Permissions → Manage private** (`/manager/rbac/private`); also user details + list key action; show **from role / private overlay / effective**; lockout rules for `rbac.manage` apply to effective access (role ∪ allow − deny).
+9. **Caches:** keep 15m role-permission cache; on overlay change clear **that user’s** session shell; on role-matrix change keep today’s global shell + role-cache clear.
+10. **Admin UX:** manage overlays from **user details + Manage users**; show **from role / private allow / effective**; lockout rules for `rbac.manage` apply to effective access.
 11. **UBAC does not bypass panel role.** Teacher/student with extra manager-only keys still cannot enter `/manager` unless their **role** allows that panel.
-12. **No dynamic / permission-mirrored RLS** for this work (same as current RBAC enforcement doc).
+12. **No dynamic / permission-mirrored RLS** for this work.
 13. **Prefer new roles** when the same extras become common; UBAC is for exceptions.
+14. **Strip redundant allows** on every overlay save.
 
 ---
 
@@ -55,27 +71,15 @@
 ```text
 role_keys     = role_permissions[profiles.role]
 user_allows   = user_permissions where effect = 'allow'
-user_denies   = user_permissions where effect = 'deny'
 
-effective     = (role_keys ∪ user_allows) − user_denies
+effective     = role_keys ∪ user_allows
 ```
 
-- Deny wins over both role and user allow for the same key.
-- At most one overlay row per `(user_id, permission_key)` (effect is either allow or deny, not both).
-
-### What “private” means on role change
+### Role change
 
 ```text
-private_allows_to_ask = user_allows − new_role_keys
-private_denies_to_ask = user_denies ∩ new_role_keys
-  // deny only matters if the new role would grant that key
+on role change → hard-delete all user_permissions for that user
 ```
-
-- Dialog offers keep vs clear for the rows in those sets (and any other overlay rows the product chooses to treat as private leftovers, e.g. allows already in new role can be auto-dropped as redundant without asking).
-- If **keep**: retain asked rows (and optionally prune redundant allows that equal new role).
-- If **clear**: hard-delete the private overlay rows in scope; user then has effectively just the new role (plus any kept rows if partial keep is implemented — default is keep-all-private vs clear-all-private).
-
-**Default UX recommendation (implement unless product changes):** one confirm with “Keep private permissions” / “Discard private permissions.” No per-key multi-select in v1.
 
 ### Panel vs permission
 
@@ -103,17 +107,17 @@ TODAY
   Manager RBAC UI → role_permissions only
 
 TARGET
-  getUserPermissions(userId) → merge role ∪ allow − deny
+  getUserPermissions(userId) → merge role ∪ allow
   session shell.permissionKeys = effective set
-  Manager Users UI → edit user_permissions snapshot
-  Manager RBAC UI → unchanged role matrix (+ note that users may have overlays)
+  Manager Users UI → edit user_permissions snapshot (allow-only)
+  Manager RBAC UI → role matrix (+ note that users may have private allows)
 ```
 
 ---
 
-## Implementation phases
+## Implementation phases (historical build log)
 
-Implement **in order**. Each phase should leave the app buildable and testable.
+Phases A–G below record the original ship. Product revision at the top supersedes deny / keep-private / Manage private.
 
 ---
 

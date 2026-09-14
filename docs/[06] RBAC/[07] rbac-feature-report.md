@@ -18,7 +18,7 @@
 | Backend | Manager services gate by permission + user id (no leftover manager-role bypasses) |
 | Routes | `/manager/*` → required view/`rbac.manage`; deep links blocked without grant |
 | Frontend | Server-filtered nav; `PermissionsProvider` + `Can` hide write controls |
-| RBAC UI | System → **Permissions** (`/manager/rbac`); overlays → **Manage private** (`/manager/rbac/private`) |
+| RBAC UI | System → **Permissions** (`/manager/rbac`); private allows → Manage users |
 | Hardening | Admin client + mandatory service checks; no dynamic RLS; layout revalidate on save |
 
 ---

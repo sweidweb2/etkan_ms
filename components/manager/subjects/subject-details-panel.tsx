@@ -19,7 +19,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
+import { cn } from "@/lib/utils";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import type {
@@ -172,20 +173,14 @@ export function SubjectDetailsPanel({
           </BreadcrumbList>
         </Breadcrumb>
 
-        <Can
-          anyOf={[
-            PERMISSIONS.SUBJECTS_CATEGORIES_VIEW,
-            PERMISSIONS.SUBJECTS_EXERCISES_VIEW,
-          ]}
-        >
-          <Button
-            type="button"
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={ROUTES.MANAGER_SUBJECTS_CATALOG} />}
+        <Can permission={PERMISSIONS.SUBJECTS_VIEW}>
+          <Link
+            href={ROUTES.MANAGER_SUBJECTS_CATALOG}
+            prefetch={false}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             Categories & exercises
-          </Button>
+          </Link>
         </Can>
       </div>
 

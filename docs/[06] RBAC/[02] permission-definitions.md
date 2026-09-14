@@ -382,7 +382,8 @@ Format: `key` — label — access
 **Notes**
 
 - No separate `rbac.user_permissions.manage` key — overlays reuse `rbac.manage`.
-- Editing **user** allow/deny overlays additionally requires `profiles.role === manager` (service hard-check). Co-managers with only the permission key cannot manage overlays.
+- Editing **user** allow overlays additionally requires `profiles.role === manager` (service hard-check). Co-managers with only the permission key cannot manage overlays.
+- Overlays are **allow-only** (no deny). Redundant allows already on the role are stripped on save. Changing a user’s role clears their overlay.
 - `npm run seed:rbac` seeds the catalog + `role_permissions` only; `user_permissions` stays empty unless set in Manage users.
 
 ---

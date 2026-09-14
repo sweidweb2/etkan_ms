@@ -16,7 +16,7 @@ What we store:
 - **Permissions** — named actions (e.g. view grades, edit students)  
 - **Role ↔ Permission** — which actions each role may perform (baseline RBAC)  
 - **User ↔ Role** — which role each person has (one role per user today)  
-- **User ↔ Permission overlay (UBAC)** — optional per-user **allow** and **deny** rows on top of the role  
+- **User ↔ Permission overlay (UBAC)** — optional per-user **allow** rows on top of the role  
 
 This is the source of truth. Everything else reads from here.
 
@@ -31,11 +31,11 @@ Flow:
 1. Who is the current user?  
 2. What **role** do they have?  
 3. What permissions does that role include?  
-4. Apply their **private overlay**: union **allows**, then subtract **denies**  
+4. Apply their **private overlay**: union **allows**  
 5. Allow or deny from the **effective** set  
 
 ```text
-effective = (role_permissions ∪ user_allows) − user_denies
+effective = role_permissions ∪ user_allows
 ```
 
 One clear answer. No guessing in other parts of the app.
@@ -77,7 +77,7 @@ Admins can:
 
 - Assign permissions to roles (Manager RBAC UI)  
 - Assign roles to users  
-- Assign **private allow/deny overlays** to a specific user (Manager Users UI; **manager role only**)  
+- Assign **private allow overlays** to a specific user (Manager Users UI; **manager role only**)  
 - Review who has access to what (role grants vs private overlay vs effective)  
 
 Changes take effect through the engine and storage layers above.
@@ -106,7 +106,7 @@ Permissions are defined once, reused by roles, and never invented ad hoc in scre
 ```text
 Permission Definitions  →  what actions exist
          ↓
-Data Layer Storage      →  role grants + optional user allow/deny overlay
+Data Layer Storage      →  role grants + optional user allow overlay
          ↓
 Authorization Engine    →  effective set → allow or deny
          ↓

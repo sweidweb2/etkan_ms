@@ -162,20 +162,22 @@ export function EditUserDialog({
     errors.status?.message ?? state.fieldErrors?.status?.[0];
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
-          <DialogHeader>
-            <DialogTitle>Edit user</DialogTitle>
-            <DialogDescription>
-              Update account details
-              {isStudentRole ? " and student profile fields" : ""}.
-            </DialogDescription>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+        <DialogHeader>
+          <DialogTitle>Edit user</DialogTitle>
+          <DialogDescription>
+            Update account details
+            {isStudentRole ? " and student profile fields" : ""}. Changing role
+            clears this user’s private permission overlays.
+          </DialogDescription>
+        </DialogHeader>
 
           <form
             id="edit-user-form"
-            onSubmit={handleSubmit(onSubmit)}
+            onSubmit={(event) => {
+              void handleSubmit(onSubmit)(event);
+            }}
             className="flex flex-col gap-4"
             noValidate
           >
@@ -420,45 +422,5 @@ export function EditUserDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Dialog
-        open={keepPrivateOpen}
-        onOpenChange={(next) => {
-          if (isPending) {
-            return;
-          }
-          setKeepPrivateOpen(next);
-        }}
-      >
-        <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
-          <DialogHeader>
-            <DialogTitle>Keep private permissions?</DialogTitle>
-            <DialogDescription>
-              This user has private allow/deny overlays that still matter under
-              the new role. Keep them, or discard them and use only the new
-              role’s grants.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => confirmKeepPrivate(false)}
-            >
-              Discard private
-            </Button>
-            <Button
-              type="button"
-              disabled={isPending}
-              onClick={() => confirmKeepPrivate(true)}
-            >
-              {isPending ? <InlineSpinner data-icon="inline-start" /> : null}
-              Keep private
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }

@@ -2,7 +2,6 @@
 
 import {
   useActionState,
-  useEffect,
   useMemo,
   useState,
   useTransition,
@@ -83,15 +82,22 @@ export function EditUserPermissionsSheet({
 
   const [effects, setEffects] = useState(() => effectFromBreakdown(breakdown));
   const [searchQuery, setSearchQuery] = useState("");
+  const [syncedKey, setSyncedKey] = useState<string | null>(null);
 
-  useActionStateToast(state, isPending);
-
-  useEffect(() => {
+  const nextKey = open
+    ? `open:${userId}:${breakdown?.overlayRows
+        .map((row) => row.permission_key)
+        .join("|") ?? "none"}`
+    : null;
+  if (nextKey !== syncedKey) {
+    setSyncedKey(nextKey);
     if (open) {
       setEffects(effectFromBreakdown(breakdown));
       setSearchQuery("");
     }
-  }, [open, breakdown]);
+  }
+
+  useActionStateToast(state, isPending);
 
   useActionStateSuccess(state, isPending, () => {
     if (!breakdown) {

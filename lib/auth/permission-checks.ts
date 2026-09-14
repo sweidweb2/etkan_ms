@@ -55,7 +55,8 @@ export type MergePermissionSetsInput = {
 
 /**
  * Effective permissions: `(role ∪ allows) − denies`.
- * Deny wins over both role grants and user allows. Invalid keys are skipped.
+ * Denies are optional (UBAC overlays are allow-only; denies unused by overlay path).
+ * Invalid keys are skipped.
  */
 export function mergePermissionSets(
   input: MergePermissionSetsInput

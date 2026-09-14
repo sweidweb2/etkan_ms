@@ -12,7 +12,6 @@ import {
   updateRolePermissionsAction,
   type UpdateRolePermissionsActionState,
 } from "@/app/manager/rbac/actions";
-import { RbacSectionNav } from "@/components/manager/rbac/rbac-section-nav";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -35,9 +34,7 @@ import {
 } from "@/lib/constants/permissions";
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
 import { ROLE_VALUES, ROLES, type RoleValue } from "@/lib/constants/roles";
-import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 type ManagerRbacPanelProps = {
   initialGrantsByRole: Record<RoleValue, PermissionKey[]>;
@@ -277,19 +274,11 @@ export function ManagerRbacPanel({
           request.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Per-user allow/deny overlays live under{" "}
-          <Link
-            href={ROUTES.MANAGER_RBAC_PRIVATE}
-            prefetch={false}
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            Manage private
-          </Link>
-          . Effective access = role ∪ allow − deny.
+          Per-user private allows are edited under Manage users (user details).
+          Effective access = role ∪ private allows. Changing a user’s role
+          clears their private overlay.
         </p>
       </div>
-
-      <RbacSectionNav />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Select value={selectedRole} onValueChange={handleRoleChange}>

@@ -41,7 +41,7 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 
 - [ ] **Backup** — `/manager/backup`: export table / full, download / re-export
 - [ ] **Logs** — `/manager/logs`: list opens
-- [ ] **Permissions** — `/manager/rbac`: change a non-critical grant and save (then restore); open **Manage private** (`/manager/rbac/private`)
+- [ ] **Permissions** — `/manager/rbac`: change a non-critical grant and save (then restore); open a user → Permissions to edit private allows
 - [ ] **Settings** — `/manager/settings`: maintenance toggle, own credentials update
 
 ---
@@ -95,32 +95,24 @@ Without the matching write/export permission:
 
 ---
 
-## F — UBAC overlays (RBAC + private allow/deny)
+## F — UBAC overlays (RBAC + private allows)
 
-Prerequisites: migration `user_permissions` applied; actor is **manager** with `rbac.manage`.
+Prerequisites: migration `user_permissions` (+ allow-only revision) applied; actor is **manager** with `rbac.manage`.
 
 ### Allow beyond role
 
 1. Pick a co-manager (or other manager-panel user) whose **role** lacks `guests.create`.
-2. Permissions → **Manage private** (or Manage users → Permissions) → set `guests.create` to **Allow** → save.
+2. Manage users → Permissions → set `guests.create` to **Allow** → save.
 3. Log in as that user (or soft-nav after shell bust).
 
 - [ ] Guests nav / create control visible (`Can` / nav filter use effective keys)
 - [ ] Creating a guest succeeds on the server (`assertPermission`)
 - [ ] Teacher/student with the same private allow still **cannot** open `/manager` (middleware role-only)
+- [ ] Saving an allow already on the role stores no overlay row for that key
 
-### Deny against role
+### Role change clears overlays
 
-1. Ensure the user’s role **includes** a write key (e.g. `guests.update`).
-2. Overlay → set that key to **Deny** → save.
-
-- [ ] Matching button hidden in UI
-- [ ] Forcing the action returns Unauthorized
-- [ ] Removing the deny restores access after shell refresh
-
-### Role change keep/discard
-
-- [ ] Changing role with leftover private allows prompts **Keep private permissions?**
-- [ ] Discard clears those overlays; Keep retains them (redundants already on the new role are pruned)
+- [ ] Changing role with leftover private allows clears those overlays (no keep/discard dialog)
+- [ ] Effective access follows the new role only after change
 
 Restore test overlays when done.

@@ -254,7 +254,7 @@ describe("authorization.service", () => {
     ).toBe(true);
   });
 
-  it("user deny removes a role-granted key from effective permissions", async () => {
+  it("ignores non-allow overlay rows when loading effective permissions", async () => {
     const userId = "44444444-4444-4444-8444-444444444402";
     mockManagerGrants();
     vi.mocked(permissionRepository.listUserPermissionRows).mockResolvedValue({
@@ -262,7 +262,7 @@ describe("authorization.service", () => {
         {
           user_id: userId,
           permission_key: PERMISSIONS.SUBJECTS_CREATE,
-          effect: "deny",
+          effect: "deny" as "allow",
           granted_by: null,
           created_at: "2026-09-14T00:00:00.000Z",
         },
@@ -276,9 +276,6 @@ describe("authorization.service", () => {
     const permissions = await getUserPermissions(client, userId);
 
     expect(permissions.has(PERMISSIONS.SUBJECTS_VIEW)).toBe(true);
-    expect(permissions.has(PERMISSIONS.SUBJECTS_CREATE)).toBe(false);
-    expect(
-      await hasPermission(client, userId, PERMISSIONS.SUBJECTS_CREATE)
-    ).toBe(false);
+    expect(permissions.has(PERMISSIONS.SUBJECTS_CREATE)).toBe(true);
   });
 });

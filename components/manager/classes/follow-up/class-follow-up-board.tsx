@@ -68,7 +68,10 @@ function FollowUpDragMonitor({
 }) {
   const manager = useDragDropManager();
   const onDragEndRef = useRef(onDragEnd);
-  onDragEndRef.current = onDragEnd;
+
+  useEffect(() => {
+    onDragEndRef.current = onDragEnd;
+  }, [onDragEnd]);
 
   useEffect(() => {
     if (!manager || !enabled) {
@@ -117,7 +120,9 @@ export function ClassFollowUpBoard({
     setDraftBoard(initialBoard);
   }
 
-  draftBoardRef.current = draftBoard;
+  useEffect(() => {
+    draftBoardRef.current = draftBoard;
+  }, [draftBoard]);
 
   useActionStateSuccess(saveState, isPending, () => {
     setSavedBoard(draftBoardRef.current);

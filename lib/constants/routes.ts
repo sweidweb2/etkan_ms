@@ -77,7 +77,6 @@ export const ROUTES = {
   MANAGER_GUEST_DETAIL: "/manager/guests/[id]",
   MANAGER_CRON_JOBS: "/manager/cron-jobs",
   MANAGER_RBAC: "/manager/rbac",
-  MANAGER_RBAC_PRIVATE: "/manager/rbac/private",
   CEO_ROOT: "/ceo",
   SUPERVISOR_ROOT: "/supervisor",
   CRM_ROOT: "/crm",

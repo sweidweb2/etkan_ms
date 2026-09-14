@@ -135,9 +135,7 @@ export async function login(
     ROLES.STUDENT;
 
   // Bust process TTL so login picks up grants after seed:rbac without waiting 15m.
-  if (!claimsRole) {
-    clearCachedRolePermissionKeys(role);
-  }
+  clearCachedRolePermissionKeys(role);
 
   const [permissions] = await Promise.all([
     getEffectivePermissionsForUserCached(user.id, role),

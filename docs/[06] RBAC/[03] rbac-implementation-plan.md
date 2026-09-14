@@ -356,7 +356,7 @@ Add these as a later plan after Phase 7 is stable.
 
 ## Follow-on — RBAC + UBAC
 
-Per-user **allow/deny** overlays on top of role grants (effective = `(role ∪ allow) − deny`), Manager Users UI, audit, and session-pack merge are planned in:
+Per-user **allow** overlays on top of role grants (effective = `role ∪ allow`), Manager Users UI, audit, and session-pack merge are planned in:
 
 **[`docs/[10] Plans/[02] rbac-plus-ubac.md`](../[10]%20Plans/[02]%20rbac-plus-ubac.md)**
 

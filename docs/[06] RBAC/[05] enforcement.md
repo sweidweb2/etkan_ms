@@ -7,11 +7,11 @@ How Etkan MS enforces permissions after app RBAC is live. **No permission-mirror
 Checks use the user’s **effective** set, not role grants alone:
 
 ```text
-effective = (role_permissions ∪ user_allows) − user_denies
+effective = role_permissions ∪ user_allows
 ```
 
 - **Role grants** come from `role_permissions` (Manager RBAC UI).
-- **User overlay** (`user_permissions`, Manage users → private permissions): optional per-user allow and deny rows. Plan: [`[10] Plans/[02] rbac-plus-ubac.md`](../[10]%20Plans/[02]%20rbac-plus-ubac.md).
+- **User overlay** (`user_permissions`, Manage users → private permissions): optional per-user **allow** rows only. Plan: [`[10] Plans/[02] rbac-plus-ubac.md`](../[10]%20Plans/[02]%20rbac-plus-ubac.md).
 - Session shell / `getUserPermissionsCached` / `requireManagerRoutePermission` / nav filter / `PermissionsProvider` + `Can` / `assertPermission` all use the **same** effective set from `getSessionPack().permissions`.
 - `getPermissionsForRoleCached(role)` is **role-matrix only** (Manager RBAC UI / seed comparisons) — never use it to authorize a user.
 
@@ -38,7 +38,7 @@ Identity always comes from the session user id. Data access for manager features
 
 ## Why not dynamic RLS for RBAC
 
-Role permissions are edited in RBAC Manager (`rbac.manage`); user overlays are edited under **Permissions → Manage private** (`/manager/rbac/private`, manager role only; also reachable from Manage users). Policies that hard-code “students can never X” would fight later grants **or** per-user allows. Manager domain therefore stays **admin-client + mandatory service checks**. Coarse identity RLS elsewhere (if present) is unchanged and is not the manager permission engine.
+Role permissions are edited in RBAC Manager (`rbac.manage`); user overlays are edited under **Manage users** (user details / list; manager role only). Policies that hard-code “students can never X” would fight later grants **or** per-user allows. Manager domain therefore stays **admin-client + mandatory service checks**. Coarse identity RLS elsewhere (if present) is unchanged and is not the manager permission engine.
 
 ## Mandatory check path (new manager feature)
 
