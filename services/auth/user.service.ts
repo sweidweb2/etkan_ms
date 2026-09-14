@@ -27,10 +27,8 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import { syncAuthUserRole } from "@/services/auth/role.service";
-import {
-  commitOverlayAfterRoleChange,
-  planOverlayAfterRoleChange,
-} from "@/services/auth/user-permissions.service";
+import { clearUserOverlayAfterRoleChange } from "@/services/auth/user-permissions.service";
+import { wouldRetainManagerEffectiveRbacManage } from "@/services/auth/user-permissions-lockout";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerUserRow } from "@/types/manager-user";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -69,7 +67,6 @@ export type UpdateManagerUserFailure = {
   success: false;
   error: string;
   fieldErrors?: FieldErrors;
-  requiresKeepPrivateDecision?: boolean;
 };
 
 export type UpdateManagerUserResult =
@@ -422,7 +419,6 @@ export async function updateManagerUser(
     birthDate?: string | null;
     phone?: string | null;
     status?: string;
-    keepPrivatePermissions?: boolean;
   }
 ): Promise<UpdateManagerUserResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.USERS_UPDATE);
@@ -524,24 +520,17 @@ export async function updateManagerUser(
   const previousIsMentor = existingProfile.data.is_mentor;
   const previousEmail = authUserResult.data.user.email ?? null;
 
-  let roleChangeOverlayPlan: Awaited<
-    ReturnType<typeof planOverlayAfterRoleChange>
-  > | null = null;
-
-  if (previousRole !== role) {
-    roleChangeOverlayPlan = await planOverlayAfterRoleChange(adminClient, {
-      userId,
-      previousRole,
-      newRole: role,
-      keepPrivatePermissions: input.keepPrivatePermissions,
-    });
-
-    if (!roleChangeOverlayPlan.success) {
+  if (previousRole === ROLES.MANAGER && role !== ROLES.MANAGER) {
+    const retains = await wouldRetainManagerEffectiveRbacManage(
+      adminClient,
+      new Map([[userId, []]]),
+      new Map([[userId, role]])
+    );
+    if (!retains) {
       return {
         success: false,
-        error: roleChangeOverlayPlan.error,
-        requiresKeepPrivateDecision:
-          roleChangeOverlayPlan.requiresKeepPrivateDecision,
+        error:
+          "Cannot save: at least one manager must keep effective rbac.manage access.",
       };
     }
   }
@@ -593,37 +582,31 @@ export async function updateManagerUser(
     };
   }
 
-  if (previousRole !== role) {
-    try {
-      await syncAuthUserRole(adminClient, userId, role);
-    } catch (err) {
-      return {
-        success: false,
-        error: mapUpdateManagerUserError(
-          err instanceof Error ? err.message : "Failed to sync role."
-        ),
-      };
-    }
+    if (previousRole !== role) {
+      try {
+        await syncAuthUserRole(adminClient, userId, role);
+      } catch (err) {
+        return {
+          success: false,
+          error: mapUpdateManagerUserError(
+            err instanceof Error ? err.message : "Failed to sync role."
+          ),
+        };
+      }
 
-    if (roleChangeOverlayPlan?.success) {
-      const overlayCommit = await commitOverlayAfterRoleChange(
+      const overlayClear = await clearUserOverlayAfterRoleChange(
         adminClient,
         actor,
         {
           userId,
           previousRole,
           newRole: role,
-          previousRows: roleChangeOverlayPlan.previousRows,
-          nextRows: roleChangeOverlayPlan.nextRows,
-          prunedKeys: roleChangeOverlayPlan.prunedKeys,
-          keep: roleChangeOverlayPlan.keep,
         }
       );
-      if (!overlayCommit.success) {
-        return { success: false, error: overlayCommit.error };
+      if (!overlayClear.success) {
+        return { success: false, error: overlayClear.error };
       }
     }
-  }
 
   let studentProfileId: string | null = null;
   let studentFullName: string | null = null;

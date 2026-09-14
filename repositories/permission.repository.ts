@@ -18,7 +18,7 @@ export type RolePermissionRow = {
   permission_key: string;
 };
 
-export type UserPermissionEffect = "allow" | "deny";
+export type UserPermissionEffect = "allow";
 
 export type UserPermissionRow = {
   user_id: string;
@@ -85,6 +85,24 @@ export async function listUserPermissionRows(
     .from("user_permissions")
     .select("user_id, permission_key, effect, granted_by, created_at")
     .eq("user_id", userId)
+    .order("permission_key", { ascending: true });
+}
+
+/** Overlay rows for many users (lockout / batch reads). */
+export async function listUserPermissionRowsForUsers(
+  client: Supabase,
+  userIds: readonly string[]
+) {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  if (uniqueIds.length === 0) {
+    return { data: [] as UserPermissionRow[], error: null };
+  }
+
+  return client
+    .from("user_permissions")
+    .select("user_id, permission_key, effect, granted_by, created_at")
+    .in("user_id", uniqueIds)
+    .order("user_id", { ascending: true })
     .order("permission_key", { ascending: true });
 }
 

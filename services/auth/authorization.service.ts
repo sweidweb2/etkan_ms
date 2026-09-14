@@ -17,8 +17,12 @@ import {
 } from "@/lib/constants/permissions";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { roleSchema } from "@/lib/validators/role";
-import * as permissionRepository from "@/repositories/permission.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import {
+  loadEffectivePermissionKeys,
+  loadRolePermissionKeys,
+  loadUserAllowKeys,
+} from "@/services/auth/permission-load";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -43,90 +47,6 @@ export function rememberUserRole(userId: string, role: RoleValue): void {
     return;
   }
   getKnownRoleHints().set(userId, role);
-}
-
-async function loadPermissionsForRoleWithClient(
-  client: Supabase,
-  role: RoleValue
-): Promise<ReadonlySet<PermissionKey>> {
-  const { data: grants, error: grantsError } =
-    await permissionRepository.listPermissionKeysByRole(client, role);
-
-  if (grantsError || !grants) {
-    return EMPTY_PERMISSIONS;
-  }
-
-  const keys = new Set<PermissionKey>();
-  for (const row of grants) {
-    if (isPermissionKey(row.permission_key)) {
-      keys.add(row.permission_key);
-    }
-  }
-
-  return keys;
-}
-
-type OverlayParts = {
-  allows: ReadonlySet<PermissionKey>;
-  denies: ReadonlySet<PermissionKey>;
-};
-
-const EMPTY_OVERLAY: OverlayParts = {
-  allows: EMPTY_PERMISSIONS,
-  denies: EMPTY_PERMISSIONS,
-};
-
-/**
- * Load UBAC overlay rows. No process-TTL cache (C7): overlay is small and
- * session shell already caches the merged effective set for ~5m per user.
- */
-async function loadUserOverlayPartsWithClient(
-  client: Supabase,
-  userId: string
-): Promise<OverlayParts> {
-  if (!userId) {
-    return EMPTY_OVERLAY;
-  }
-
-  const { data: rows, error } =
-    await permissionRepository.listUserPermissionRows(client, userId);
-
-  if (error || !rows || rows.length === 0) {
-    return EMPTY_OVERLAY;
-  }
-
-  const allows = new Set<PermissionKey>();
-  const denies = new Set<PermissionKey>();
-
-  for (const row of rows) {
-    if (!isPermissionKey(row.permission_key)) {
-      continue;
-    }
-    if (row.effect === "allow") {
-      allows.add(row.permission_key);
-    } else if (row.effect === "deny") {
-      denies.add(row.permission_key);
-    }
-  }
-
-  return { allows, denies };
-}
-
-async function loadEffectivePermissionsWithClient(
-  client: Supabase,
-  userId: string,
-  role: RoleValue
-): Promise<ReadonlySet<PermissionKey>> {
-  const [roleKeys, overlay] = await Promise.all([
-    loadPermissionsForRoleWithClient(client, role),
-    loadUserOverlayPartsWithClient(client, userId),
-  ]);
-
-  return mergePermissionSets({
-    roleKeys,
-    allows: overlay.allows,
-    denies: overlay.denies,
-  });
 }
 
 async function resolveRoleForUser(
@@ -167,13 +87,13 @@ async function loadUserPermissionsWithClient(
     return EMPTY_PERMISSIONS;
   }
 
-  return loadEffectivePermissionsWithClient(client, userId, role);
+  return loadEffectivePermissionKeys(client, userId, role);
 }
 
 /**
  * Load **effective** permissions for a user using the provided client (uncached).
  * Prefer this in unit tests and scripts.
- * Formula: `(role ∪ allows) − denies`.
+ * Formula: `role ∪ allows`.
  */
 export async function getUserPermissions(
   client: Supabase,
@@ -190,15 +110,16 @@ const loadPermissionsForRoleCached = cache(async (role: RoleValue) => {
 
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const client = createSupabaseAdminClient();
-  const permissions = await loadPermissionsForRoleWithClient(client, role);
-  setCachedRolePermissionKeys(role, [...permissions]);
+  const keys = await loadRolePermissionKeys(client, role);
+  const permissions = new Set<PermissionKey>(keys);
+  setCachedRolePermissionKeys(role, keys);
   return permissions;
 });
 
-const loadUserOverlayPartsCached = cache(async (userId: string) => {
+const loadUserAllowKeysCached = cache(async (userId: string) => {
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const client = createSupabaseAdminClient();
-  return loadUserOverlayPartsWithClient(client, userId);
+  return loadUserAllowKeys(client, userId);
 });
 
 /**
@@ -214,7 +135,7 @@ export async function getPermissionsForRoleCached(
 
 /**
  * Request-scoped effective permissions for a known user + role.
- * Loads role grants (15m process cache) ∥ user overlay (request cache only), then merges.
+ * Loads role grants (15m process cache) ∥ user allows (request cache only), then merges.
  * Prefer when JWT / session already resolved the role (session pack MISS, login warm).
  *
  * After overlay edits: call `clearCachedSessionShell(userId)` so the next pack rebuilds.
@@ -230,21 +151,20 @@ export async function getEffectivePermissionsForUserCached(
 
   rememberUserRole(userId, role);
 
-  const [roleKeys, overlay] = await Promise.all([
+  const [roleKeys, allows] = await Promise.all([
     loadPermissionsForRoleCached(role),
-    loadUserOverlayPartsCached(userId),
+    loadUserAllowKeysCached(userId),
   ]);
 
   return mergePermissionSets({
     roleKeys,
-    allows: overlay.allows,
-    denies: overlay.denies,
+    allows,
   });
 }
 
 /**
  * Request-scoped cached load (React `cache`). Uses the admin client.
- * Returns **effective** keys (role ∪ allow − deny).
+ * Returns **effective** keys (role ∪ allow).
  * If `rememberUserRole` ran earlier in the request, skips profiles.role.
  */
 export async function getUserPermissionsCached(

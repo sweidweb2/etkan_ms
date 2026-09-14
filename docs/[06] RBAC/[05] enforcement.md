@@ -38,7 +38,7 @@ Identity always comes from the session user id. Data access for manager features
 
 ## Why not dynamic RLS for RBAC
 
-Role permissions are edited in RBAC Manager (`rbac.manage`); user overlays are edited in Manager Users (manager role only). Policies that hard-code “students can never X” would fight later grants **or** per-user allows. Manager domain therefore stays **admin-client + mandatory service checks**. Coarse identity RLS elsewhere (if present) is unchanged and is not the manager permission engine.
+Role permissions are edited in RBAC Manager (`rbac.manage`); user overlays are edited under **Permissions → Manage private** (`/manager/rbac/private`, manager role only; also reachable from Manage users). Policies that hard-code “students can never X” would fight later grants **or** per-user allows. Manager domain therefore stays **admin-client + mandatory service checks**. Coarse identity RLS elsewhere (if present) is unchanged and is not the manager permission engine.
 
 ## Mandatory check path (new manager feature)
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import type { JSONContent } from "@tiptap/react";
 import {
   createExerciseAction,
@@ -96,20 +96,20 @@ export function ExerciseFormDialog({
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [body, setBody] = useState<JSONContent>(EMPTY_DOC);
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+  const [syncedKey, setSyncedKey] = useState<string | null>(null);
 
-  useActionStateToast(state, isPending);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
+  const nextKey = open ? `open:${exercise?.id ?? "new"}` : null;
+  if (nextKey !== syncedKey) {
+    setSyncedKey(nextKey);
     setTitle(exercise?.title ?? "");
     setLevel(exercise?.level ?? "easy");
     setStatus(exercise?.status ?? "active");
     setCategoryIds(exercise?.category_ids ?? []);
     setBody(exercise ? toJsonContent(exercise.body) : EMPTY_DOC);
     setClientErrors({});
-  }, [open, exercise]);
+  }
+
+  useActionStateToast(state, isPending);
 
   useActionStateSuccess(state, isPending, (next) => {
     onOpenChange(false);

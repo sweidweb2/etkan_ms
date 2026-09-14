@@ -156,6 +156,8 @@ function mapGuestRecordToRow(
       record.education_level as ManagerGuestRow["education_level"],
     interested_service:
       record.interested_service as ManagerGuestRow["interested_service"],
+    referred_from: record.referred_from as ManagerGuestRow["referred_from"],
+    referred_from_other: record.referred_from_other,
     status: record.status,
     notes: record.notes,
     created_by: record.created_by,

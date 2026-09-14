@@ -53,6 +53,7 @@ export const ROUTES = {
   MANAGER_SENT_DETAIL: "/manager/sent/[id]",
   MANAGER_CLASSES: "/manager/classes",
   MANAGER_CLASS_DETAIL: "/manager/classes/[id]",
+  MANAGER_CLASS_CATEGORIES: "/manager/classes/[id]/categories",
   MANAGER_CLASS_GRADES: "/manager/classes/[id]/grades",
   MANAGER_CLASS_STUDENT_GRADES_DETAIL:
     "/manager/classes/[id]/grades/students/[studentId]",
@@ -76,6 +77,7 @@ export const ROUTES = {
   MANAGER_GUEST_DETAIL: "/manager/guests/[id]",
   MANAGER_CRON_JOBS: "/manager/cron-jobs",
   MANAGER_RBAC: "/manager/rbac",
+  MANAGER_RBAC_PRIVATE: "/manager/rbac/private",
   CEO_ROOT: "/ceo",
   SUPERVISOR_ROOT: "/supervisor",
   CRM_ROOT: "/crm",
@@ -234,6 +236,10 @@ export function getManagerSemesterDetailRoute(semesterId: string): string {
 
 export function getManagerClassDetailRoute(classId: string): string {
   return `/manager/classes/${classId}`;
+}
+
+export function getManagerClassCategoriesRoute(classId: string): string {
+  return `/manager/classes/${classId}/categories`;
 }
 
 export function getManagerEmailSentDetailRoute(emailSentId: string): string {

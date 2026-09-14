@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { LineChartIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
+import { LibraryIcon, LineChartIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AssignClassTeachersDropdown } from "@/components/manager/classes/assign-class-teachers-dropdown";
 import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
@@ -41,6 +41,7 @@ import {
   CLASS_STATUS_LABELS,
 } from "@/lib/constants/manager-subject-display";
 import {
+  getManagerClassCategoriesRoute,
   getManagerClassGradesRoute,
   getManagerSemesterDetailRoute,
   ROUTES,
@@ -195,6 +196,22 @@ export function ClassDetailsPanel({
         defaultOpen
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <Can permission={PERMISSIONS.CLASSES_VIEW}>
+              <Button
+                type="button"
+                variant="outline"
+                nativeButton={false}
+                render={
+                  <Link
+                    href={getManagerClassCategoriesRoute(classRow.id)}
+                    prefetch={false}
+                  />
+                }
+              >
+                <LibraryIcon data-icon="inline-start" />
+                Category follow-up
+              </Button>
+            </Can>
             {gradesUnlocked ? (
               <Link
                 href={getManagerClassGradesRoute(classRow.id)}

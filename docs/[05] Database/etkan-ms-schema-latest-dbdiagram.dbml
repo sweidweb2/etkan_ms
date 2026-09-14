@@ -119,6 +119,24 @@ Table classes {
   created_at timestamp [default: `now()`]
 }
 
+Table class_categories {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  class_id uuid [not null]
+  category_id uuid [not null]
+  status class_category_status [not null, default: 'in_progress']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    class_id [name: 'class_categories_class_id_idx']
+    category_id [name: 'class_categories_category_id_idx']
+    (class_id, status) [name: 'class_categories_class_id_status_idx']
+    (class_id, category_id) [unique, name: 'class_categories_class_category_unique']
+  }
+
+  Note: 'Follow-up status of a category for a class. No row = not taken (pool).'
+}
+
 Table class_teacher {
   id uuid [pk, default: `gen_random_uuid()`]
   teacher_id uuid [not null]
@@ -497,7 +515,7 @@ Table role_permissions {
 Table user_permissions {
   user_id uuid [not null]
   permission_key text [not null]
-  effect text [not null, note: 'allow | deny']
+  effect text [not null, note: 'allow only']
   granted_by uuid
   created_at timestamptz [not null, default: `now()`]
 
@@ -580,6 +598,9 @@ Ref: student_profiles.user_id > profiles.id
 
 Ref: classes.subject_id > subjects.id
 Ref: classes.semester_id > semesters.id
+
+Ref: class_categories.class_id > classes.id
+Ref: class_categories.category_id > categories.id
 
 Ref: categories.parent_id > categories.id
 Ref: category_exercises.category_id > categories.id

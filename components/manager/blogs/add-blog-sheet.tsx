@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { createBlogAction } from "@/app/manager/blogs/actions";
 import {
   BlogFormFields,
@@ -66,25 +66,30 @@ export function AddBlogSheet({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   const [values, setValues] = useState(emptyValues);
   const [thumbnail, setThumbnail] = useState<File | undefined>();
   const [authorAvatar, setAuthorAvatar] = useState<File | undefined>();
   const [slugTouched, setSlugTouched] = useState(false);
 
+  function resetForm() {
+    setValues(emptyValues);
+    setThumbnail(undefined);
+    setAuthorAvatar(undefined);
+    setSlugTouched(false);
+  }
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (next) => {
+    if (!next) {
+      resetForm();
+    }
+    onOpenChange(next);
+  });
+
   useActionStateToast(state, isPending);
 
-  useEffect(() => {
-    if (!open) {
-      setValues(emptyValues);
-      setThumbnail(undefined);
-      setAuthorAvatar(undefined);
-      setSlugTouched(false);
-    }
-  }, [open]);
-
   useActionStateSuccess(state, isPending, () => {
+    resetForm();
     onOpenChange(false);
     if (state.blog) {
       onBlogCreated(state.blog);

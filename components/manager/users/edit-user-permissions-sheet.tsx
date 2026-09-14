@@ -36,7 +36,7 @@ import type { UserAccessBreakdown } from "@/services/auth/user-permissions.servi
 
 const initialState: ReplaceUserPermissionsActionState = {};
 
-type OverlayEffect = "default" | "allow" | "deny";
+type OverlayEffect = "default" | "allow";
 
 type EditUserPermissionsSheetProps = {
   open: boolean;
@@ -58,7 +58,9 @@ function effectFromBreakdown(
     return next;
   }
   for (const row of breakdown.overlayRows) {
-    next[row.permission_key] = row.effect;
+    if (row.effect === "allow") {
+      next[row.permission_key] = "allow";
+    }
   }
   return next;
 }
@@ -98,30 +100,21 @@ export function EditUserPermissionsSheet({
     }
 
     const roleSet = new Set(breakdown.roleKeys);
-    const overlayRows = (
+    const allowKeys = (
       Object.entries(effects) as [PermissionKey, OverlayEffect][]
     )
-      .filter(([, effect]) => effect !== "default")
-      .map(([permission_key, effect]) => ({
-        permission_key,
-        effect: effect as "allow" | "deny",
-        granted_by: null,
-        created_at: new Date().toISOString(),
-      }));
+      .filter(([, effect]) => effect === "allow")
+      .map(([permission_key]) => permission_key)
+      .filter((key) => !roleSet.has(key));
 
-    const allows = overlayRows
-      .filter((row) => row.effect === "allow")
-      .map((row) => row.permission_key);
-    const denies = new Set(
-      overlayRows
-        .filter((row) => row.effect === "deny")
-        .map((row) => row.permission_key)
-    );
+    const overlayRows = allowKeys.map((permission_key) => ({
+      permission_key,
+      effect: "allow" as const,
+      granted_by: null,
+      created_at: new Date().toISOString(),
+    }));
 
-    const effective = new Set<PermissionKey>([...roleSet, ...allows]);
-    for (const key of denies) {
-      effective.delete(key);
-    }
+    const effective = new Set<PermissionKey>([...roleSet, ...allowKeys]);
 
     onSaved({
       ...breakdown,
@@ -169,11 +162,11 @@ export function EditUserPermissionsSheet({
       PermissionKey,
       OverlayEffect,
     ][]) {
-      if (effect === "default") {
+      if (effect !== "allow") {
         continue;
       }
       formData.append("permissionKey", key);
-      formData.append("effect", effect);
+      formData.append("effect", "allow");
     }
 
     startTransition(() => {
@@ -192,7 +185,8 @@ export function EditUserPermissionsSheet({
           <SheetTitle>Private permissions</SheetTitle>
           <SheetDescription>
             Overlay for {userLabel}. Default follows the role; Allow adds a
-            grant; Deny blocks even if the role has it.
+            grant beyond the role. Redundant allows already on the role are
+            dropped on save.
           </SheetDescription>
         </SheetHeader>
 
@@ -243,7 +237,6 @@ export function EditUserPermissionsSheet({
                             [
                               ["default", "Default"],
                               ["allow", "Allow"],
-                              ["deny", "Deny"],
                             ] as const
                           ).map(([value, label]) => (
                             <button
@@ -254,11 +247,9 @@ export function EditUserPermissionsSheet({
                               className={cn(
                                 "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                                 effect === value
-                                  ? value === "deny"
-                                    ? "bg-destructive text-destructive-foreground"
-                                    : value === "allow"
-                                      ? "bg-emerald-600 text-white"
-                                      : "bg-primary text-primary-foreground"
+                                  ? value === "allow"
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-primary text-primary-foreground"
                                   : "text-muted-foreground hover:bg-muted"
                               )}
                             >

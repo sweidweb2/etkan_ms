@@ -40,6 +40,7 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Weekly schedule | `/manager/schedule` | calendar |
 | [~] | Classes | `/manager/classes` | list |
 | [~] | Class detail | `/manager/classes/[id]` | detail |
+| [~] | Class categories / follow-up | `/manager/classes/[id]/categories` | board |
 | [~] | Class grades | `/manager/classes/[id]/grades` | list |
 | [~] | Student grades detail | `/manager/classes/[id]/grades/students/[studentId]` | detail |
 | [~] | Session detail | `/manager/classes/[id]/sessions/[sessionId]` | detail |
@@ -64,6 +65,7 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Cloudflare AI usage | `/manager/cloudflare-ai-usage` | list |
 | [~] | Cron jobs | `/manager/cron-jobs` | list |
 | [~] | RBAC | `/manager/rbac` | list / form |
+| [~] | RBAC private | `/manager/rbac/private` | list / form |
 
 CEO / co-manager often reuse the same manager routes via the shared panel — tick the manager row when that URL is migrated.
 

@@ -43,14 +43,10 @@ vi.mock("@/services/auth/authorization.service", () => ({
   ),
 }));
 vi.mock("@/services/auth/user-permissions.service", () => ({
-  planOverlayAfterRoleChange: vi.fn(async () => ({
-    success: true,
-    previousRows: [],
-    nextRows: [],
-    prunedKeys: [],
-    keep: true,
-  })),
-  commitOverlayAfterRoleChange: vi.fn(async () => ({ success: true })),
+  clearUserOverlayAfterRoleChange: vi.fn(async () => ({ success: true })),
+}));
+vi.mock("@/services/auth/user-permissions-lockout", () => ({
+  wouldRetainManagerEffectiveRbacManage: vi.fn(async () => true),
 }));
 vi.mock("@/lib/auth/session-shell-cache", () => ({
   clearCachedSessionShell: vi.fn(),

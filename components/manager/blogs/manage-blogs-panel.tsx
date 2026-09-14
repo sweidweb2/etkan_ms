@@ -215,6 +215,7 @@ export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
           <Button
             variant="outline"
+            nativeButton={false}
             render={<Link href={ROUTES.BLOGS} target="_blank" rel="noreferrer" />}
           >
             <ExternalLinkIcon className="size-4" />

@@ -41,7 +41,7 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 
 - [ ] **Backup** — `/manager/backup`: export table / full, download / re-export
 - [ ] **Logs** — `/manager/logs`: list opens
-- [ ] **Permissions** — `/manager/rbac`: change a non-critical grant and save (then restore)
+- [ ] **Permissions** — `/manager/rbac`: change a non-critical grant and save (then restore); open **Manage private** (`/manager/rbac/private`)
 - [ ] **Settings** — `/manager/settings`: maintenance toggle, own credentials update
 
 ---
@@ -102,7 +102,7 @@ Prerequisites: migration `user_permissions` applied; actor is **manager** with `
 ### Allow beyond role
 
 1. Pick a co-manager (or other manager-panel user) whose **role** lacks `guests.create`.
-2. Manage users → Permissions → set `guests.create` to **Allow** → save.
+2. Permissions → **Manage private** (or Manage users → Permissions) → set `guests.create` to **Allow** → save.
 3. Log in as that user (or soft-nav after shell bust).
 
 - [ ] Guests nav / create control visible (`Can` / nav filter use effective keys)

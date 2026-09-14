@@ -41,6 +41,9 @@ describe("getRequiredViewPermissionForManagerPath", () => {
     expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_RBAC)).toBe(
       PERMISSIONS.RBAC_MANAGE
     );
+    expect(
+      getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_RBAC_PRIVATE)
+    ).toBe(PERMISSIONS.RBAC_MANAGE);
   });
 
   it("maps detail routes under the same feature prefix", () => {

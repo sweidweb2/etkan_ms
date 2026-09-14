@@ -37,15 +37,14 @@ export function UserPermissionsSection({
     () => new Set(breakdown.effectiveKeys),
     [breakdown.effectiveKeys]
   );
-  const overlayByKey = useMemo(() => {
-    const map = new Map<
-      PermissionKey,
-      "allow" | "deny"
-    >();
+  const privateAllows = useMemo(() => {
+    const set = new Set<PermissionKey>();
     for (const row of breakdown.overlayRows) {
-      map.set(row.permission_key, row.effect);
+      if (row.effect === "allow") {
+        set.add(row.permission_key);
+      }
     }
-    return map;
+    return set;
   }, [breakdown.overlayRows]);
 
   const displayKeys = useMemo(() => {
@@ -90,7 +89,7 @@ export function UserPermissionsSection({
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-4">
         <p className="text-sm text-muted-foreground">
-          Effective access = role grants ∪ private allows − private denies.
+          Effective access = role grants ∪ private allows.
         </p>
 
         <div className="grid gap-3 text-sm sm:grid-cols-3">
@@ -104,7 +103,7 @@ export function UserPermissionsSection({
           </div>
           <div className="rounded-lg border px-3 py-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Private overlay
+              Private allows
             </p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
               {breakdown.overlayRows.length}
@@ -132,7 +131,7 @@ export function UserPermissionsSection({
                 <ul className="divide-y rounded-lg border">
                   {group.keys.map((key) => {
                     const fromRole = roleSet.has(key);
-                    const effect = overlayByKey.get(key);
+                    const isPrivate = privateAllows.has(key);
                     const effective = effectiveSet.has(key);
 
                     return (
@@ -162,18 +161,12 @@ export function UserPermissionsSection({
                           <span
                             className={cn(
                               "rounded-md px-1.5 py-0.5",
-                              effect === "allow" &&
-                                "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-                              effect === "deny" &&
-                                "bg-destructive/15 text-destructive",
-                              !effect && "bg-muted/50 text-muted-foreground"
+                              isPrivate
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                                : "bg-muted/50 text-muted-foreground"
                             )}
                           >
-                            {effect === "allow"
-                              ? "Private allow"
-                              : effect === "deny"
-                                ? "Private deny"
-                                : "No private"}
+                            {isPrivate ? "Private allow" : "No private"}
                           </span>
                           <span
                             className={cn(

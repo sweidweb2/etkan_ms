@@ -93,7 +93,6 @@ export async function updateUserAction(
       success: false,
       error: result.error,
       fieldErrors: result.fieldErrors,
-      requiresKeepPrivateDecision: result.requiresKeepPrivateDecision,
     };
   }
 

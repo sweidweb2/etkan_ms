@@ -281,10 +281,13 @@ export function ManageSubjectsPanel({
               PERMISSIONS.SUBJECTS_EXERCISES_VIEW,
             ]}
           >
-            <Button type="button" variant="outline" asChild>
-              <Link href={ROUTES.MANAGER_SUBJECTS_CATALOG}>
-                Categories & exercises
-              </Link>
+            <Button
+              type="button"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={ROUTES.MANAGER_SUBJECTS_CATALOG} />}
+            >
+              Categories & exercises
             </Button>
           </Can>
           <Can permission={PERMISSIONS.SUBJECTS_CREATE}>

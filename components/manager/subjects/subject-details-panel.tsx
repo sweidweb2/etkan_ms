@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { deleteSubjectAction } from "@/app/manager/subjects/actions";
@@ -156,19 +157,37 @@ export function SubjectDetailsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_SUBJECTS}>
-              Manage subjects
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{subject.name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href={ROUTES.MANAGER_SUBJECTS}>
+                Manage subjects
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{subject.name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        <Can
+          anyOf={[
+            PERMISSIONS.SUBJECTS_CATEGORIES_VIEW,
+            PERMISSIONS.SUBJECTS_EXERCISES_VIEW,
+          ]}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={ROUTES.MANAGER_SUBJECTS_CATALOG} />}
+          >
+            Categories & exercises
+          </Button>
+        </Can>
+      </div>
 
       <EditSubjectDialog
         open={isEditOpen}

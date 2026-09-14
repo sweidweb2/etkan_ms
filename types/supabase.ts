@@ -408,6 +408,48 @@ export type Database = {
           },
         ]
       }
+      class_categories: {
+        Row: {
+          category_id: string
+          class_id: string
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["class_category_status"]
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          class_id: string
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["class_category_status"]
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          class_id?: string
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["class_category_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_categories_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classes: {
         Row: {
           created_at: string | null
@@ -3262,6 +3304,7 @@ export type Database = {
       }
     }
     Enums: {
+      class_category_status: "in_progress" | "done"
       exercise_level: "easy" | "medium" | "hard"
       exercise_status: "draft" | "active" | "archived"
     }
@@ -3394,6 +3437,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      class_category_status: ["in_progress", "done"],
       exercise_level: ["easy", "medium", "hard"],
       exercise_status: ["draft", "active", "archived"],
     },

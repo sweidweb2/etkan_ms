@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { updateBlogAction } from "@/app/manager/blogs/actions";
 import {
   BlogFormFields,
@@ -26,6 +26,36 @@ import type {
 
 const initialState: UpdateBlogActionState = {};
 
+const emptyValues = {
+  slug: "",
+  title: "",
+  summary: "",
+  body_html: "",
+  categoriesText: "",
+  sourcesText: "",
+  author_name: "",
+  status: "draft",
+  is_featured: false,
+  meta_title: "",
+  meta_description: "",
+};
+
+function valuesFromBlog(blog: ManagerBlogRow) {
+  return {
+    slug: blog.slug,
+    title: blog.title,
+    summary: blog.summary,
+    body_html: blog.body_html,
+    categoriesText: blog.categories.join(", "),
+    sourcesText: blog.sources.join("\n"),
+    author_name: blog.author_name,
+    status: blog.status,
+    is_featured: blog.is_featured,
+    meta_title: blog.meta_title ?? "",
+    meta_description: blog.meta_description ?? "",
+  };
+}
+
 type EditBlogSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,44 +77,26 @@ export function EditBlogSheet({
   const isPending = isActionPending || isTransitionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
-  const [values, setValues] = useState({
-    slug: "",
-    title: "",
-    summary: "",
-    body_html: "",
-    categoriesText: "",
-    sourcesText: "",
-    author_name: "",
-    status: "draft",
-    is_featured: false,
-    meta_title: "",
-    meta_description: "",
-  });
+  const [values, setValues] = useState(emptyValues);
   const [thumbnail, setThumbnail] = useState<File | undefined>();
   const [authorAvatar, setAuthorAvatar] = useState<File | undefined>();
+  const [syncedBlogId, setSyncedBlogId] = useState<string | null>(null);
+
+  const nextBlogId = open && blog ? blog.id : null;
+  if (nextBlogId !== syncedBlogId) {
+    setSyncedBlogId(nextBlogId);
+    if (blog && nextBlogId) {
+      setValues(valuesFromBlog(blog));
+      setThumbnail(undefined);
+      setAuthorAvatar(undefined);
+    } else {
+      setValues(emptyValues);
+      setThumbnail(undefined);
+      setAuthorAvatar(undefined);
+    }
+  }
 
   useActionStateToast(state, isPending);
-
-  useEffect(() => {
-    if (!open || !blog) {
-      return;
-    }
-    setValues({
-      slug: blog.slug,
-      title: blog.title,
-      summary: blog.summary,
-      body_html: blog.body_html,
-      categoriesText: blog.categories.join(", "),
-      sourcesText: blog.sources.join("\n"),
-      author_name: blog.author_name,
-      status: blog.status,
-      is_featured: blog.is_featured,
-      meta_title: blog.meta_title ?? "",
-      meta_description: blog.meta_description ?? "",
-    });
-    setThumbnail(undefined);
-    setAuthorAvatar(undefined);
-  }, [open, blog]);
 
   useActionStateSuccess(state, isPending, () => {
     if (state.blog) {

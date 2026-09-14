@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useTransition } from "react";
 import { updateUserAction } from "@/app/manager/users/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -73,8 +73,7 @@ function getDefaultValues(user: ManagerUserRow): UpdateManagerUserInput {
 
 function buildUpdateFormData(
   userId: string,
-  values: UpdateManagerUserInput,
-  keepPrivatePermissions?: boolean
+  values: UpdateManagerUserInput
 ) {
   const formData = new FormData();
   formData.set("userId", userId);
@@ -89,10 +88,6 @@ function buildUpdateFormData(
     formData.set("birthDate", values.birthDate?.trim() ?? "");
     formData.set("phone", values.phone?.trim() ?? "");
     formData.set("status", values.status ?? STUDENT_STATUSES.ACTIVE);
-  }
-
-  if (keepPrivatePermissions !== undefined) {
-    formData.set("keepPrivatePermissions", String(keepPrivatePermissions));
   }
 
   return formData;
@@ -112,14 +107,8 @@ export function EditUserDialog({
   const isPending = isActionPending || isTransitionPending;
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-  const [keepPrivateOpen, setKeepPrivateOpen] = useState(false);
-  const pendingValuesRef = useRef<UpdateManagerUserInput | null>(null);
 
-  const toastState: UpdateManagerUserActionState =
-    state.requiresKeepPrivateDecision
-      ? { ...state, error: undefined, success: undefined }
-      : state;
-  useActionStateToast(toastState, isPending);
+  useActionStateToast(state, isPending);
 
   const {
     register,
@@ -143,54 +132,21 @@ export function EditUserDialog({
   useEffect(() => {
     if (open) {
       reset(getDefaultValues(user));
-      setKeepPrivateOpen(false);
-      pendingValuesRef.current = null;
     }
   }, [open, reset, user]);
-
-  useEffect(() => {
-    if (isPending || !state.requiresKeepPrivateDecision) {
-      return;
-    }
-    setKeepPrivateOpen(true);
-  }, [state, isPending]);
 
   useActionStateSuccess(state, isPending, (nextState) => {
     if (nextState.user) {
       onUserUpdated(nextState.user);
     }
-    setKeepPrivateOpen(false);
-    pendingValuesRef.current = null;
     onOpenChange(false);
   });
 
-  function submitValues(
-    values: UpdateManagerUserInput,
-    keepPrivatePermissions?: boolean
-  ) {
-    pendingValuesRef.current = values;
-    const formData = buildUpdateFormData(
-      user.id,
-      values,
-      keepPrivatePermissions
-    );
+  function onSubmit(values: UpdateManagerUserInput) {
+    const formData = buildUpdateFormData(user.id, values);
     startTransition(() => {
       formAction(formData);
     });
-  }
-
-  function onSubmit(values: UpdateManagerUserInput) {
-    submitValues(values);
-  }
-
-  function confirmKeepPrivate(keep: boolean) {
-    const values = pendingValuesRef.current;
-    if (!values) {
-      setKeepPrivateOpen(false);
-      return;
-    }
-    setKeepPrivateOpen(false);
-    submitValues(values, keep);
   }
 
   const usernameError =

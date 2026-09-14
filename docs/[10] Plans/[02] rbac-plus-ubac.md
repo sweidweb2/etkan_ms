@@ -41,7 +41,7 @@
 7. **Schema:** `user_permissions` with hard delete; save is a **full snapshot replace** of that user’s overlay rows; unique `(user_id, permission_key)` — no duplicates.
 8. **Single resolution rule** used by session pack, route permission gates, and `assertPermission` / `getUserPermissions*`.
 9. **Caches:** keep 15m role-permission cache; on overlay change clear **that user’s** session shell; on role-matrix change keep today’s global shell + role-cache clear (or equivalent “all users of that role”).
-10. **Admin UX:** manage overlays from **user details + edit-user flow**; show **from role / private overlay / effective**; lockout rules for `rbac.manage` apply to effective access (role ∪ allow − deny).
+10. **Admin UX:** primary overlay UI at **Permissions → Manage private** (`/manager/rbac/private`); also user details + list key action; show **from role / private overlay / effective**; lockout rules for `rbac.manage` apply to effective access (role ∪ allow − deny).
 11. **UBAC does not bypass panel role.** Teacher/student with extra manager-only keys still cannot enter `/manager` unless their **role** allows that panel.
 12. **No dynamic / permission-mirrored RLS** for this work (same as current RBAC enforcement doc).
 13. **Prefer new roles** when the same extras become common; UBAC is for exceptions.
