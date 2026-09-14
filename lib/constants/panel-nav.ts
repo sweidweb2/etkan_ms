@@ -20,8 +20,6 @@ export const ADMIN_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 export const ADMIN_PANEL_NAV = ADMIN_PANEL_NAVIGATION.items!;
 export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 export const CO_MANAGER_PANEL_NAV = CO_MANAGER_PANEL_NAVIGATION.items!;
-export const TRAINER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
-export const TRAINER_PANEL_NAV = TRAINER_PANEL_NAVIGATION.items!;
 
 export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
   groups: [
@@ -133,6 +131,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           href: ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS,
           icon: "analytics",
         },
+        {
+          title: "Academic analysis",
+          href: ROUTES.MANAGER_ACADEMIC_ANALYSIS,
+          icon: "book-open",
+        },
       ],
     },
     {
@@ -166,6 +169,11 @@ export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
           title: "Manage projects",
           href: ROUTES.MANAGER_PROJECTS,
           icon: "folder-kanban",
+        },
+        {
+          title: "Manage blogs",
+          href: ROUTES.MANAGER_BLOGS,
+          icon: "book-open",
         },
       ],
     },
@@ -238,6 +246,11 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
       href: ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS,
       icon: "analytics",
     },
+    {
+      title: "Academic analysis",
+      href: ROUTES.MANAGER_ACADEMIC_ANALYSIS,
+      icon: "book-open",
+    },
   ],
 };
 
@@ -260,7 +273,7 @@ export const CRM_PANEL_NAV: PanelNavItem[] = CRM_PANEL_NAVIGATION.items!;
 
 /**
  * Supervisor: manager feature links minus excluded ops/system surfaces
- * (users, accounting/finance, email, gallery, projects, notifications,
+ * (users, accounting/finance, email, gallery, projects, blogs, notifications,
  * backup, logs, rbac, settings).
  */
 export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation = {

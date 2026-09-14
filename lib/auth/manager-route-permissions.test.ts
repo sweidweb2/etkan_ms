@@ -30,6 +30,9 @@ describe("getRequiredViewPermissionForManagerPath", () => {
       getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_PROJECTS)
     ).toBe(PERMISSIONS.PROJECTS_VIEW);
     expect(
+      getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_BLOGS)
+    ).toBe(PERMISSIONS.BLOGS_VIEW);
+    expect(
       getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_REGISTRATIONS)
     ).toBe(PERMISSIONS.REGISTRATIONS_VIEW);
     expect(getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_GUESTS)).toBe(
@@ -120,6 +123,12 @@ describe("getRequiredViewPermissionForManagerPath", () => {
     expect(
       getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_INCOME_STATEMENT)
     ).toBe(PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW);
+  });
+
+  it("maps academic analysis", () => {
+    expect(
+      getRequiredViewPermissionForManagerPath(ROUTES.MANAGER_ACADEMIC_ANALYSIS)
+    ).toBe(PERMISSIONS.ACADEMIC_ANALYSIS_VIEW);
   });
 
   it("returns null for non-manager and unknown manager paths", () => {

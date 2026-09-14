@@ -31,11 +31,13 @@ export const PERMISSION_FEATURES = [
   "equipment",
   "gallery",
   "projects",
+  "blogs",
   "instructor_schedules",
   "workshops",
   "notifications",
   "emailing",
   "accounting",
+  "academic_analysis",
   "payment_schedules",
   "backup",
   "logs",
@@ -67,11 +69,13 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   equipment: "Equipment",
   gallery: "Gallery",
   projects: "Projects",
+  blogs: "Blogs",
   instructor_schedules: "Instructor Schedules",
   workshops: "Workshops",
   notifications: "Notifications",
   emailing: "Emailing",
   accounting: "Accounting",
+  academic_analysis: "Academic analysis",
   payment_schedules: "Payment schedules",
   backup: "Backup",
   logs: "Logs",
@@ -179,6 +183,11 @@ export const PERMISSIONS = {
   PROJECTS_UPDATE: "projects.update",
   PROJECTS_DELETE: "projects.delete",
 
+  BLOGS_VIEW: "blogs.view",
+  BLOGS_CREATE: "blogs.create",
+  BLOGS_UPDATE: "blogs.update",
+  BLOGS_DELETE: "blogs.delete",
+
   INSTRUCTOR_SCHEDULES_VIEW: "instructor_schedules.view",
   INSTRUCTOR_SCHEDULES_DETAILS_VIEW: "instructor_schedules.details.view",
   INSTRUCTOR_SCHEDULES_CREATE: "instructor_schedules.create",
@@ -218,6 +227,7 @@ export const PERMISSIONS = {
   ACCOUNTING_INCOME_STATEMENT_VIEW: "accounting.income_statement.view",
   ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW:
     "accounting.income_statement.analytics.view",
+  ACADEMIC_ANALYSIS_VIEW: "academic_analysis.view",
   ACCOUNTING_TRANSACTIONS_CREATE: "accounting.transactions.create",
   ACCOUNTING_TRANSACTIONS_UPDATE: "accounting.transactions.update",
   ACCOUNTING_TRANSACTIONS_DELETE: "accounting.transactions.delete",
@@ -577,7 +587,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.TASKS_UPDATE_STUDENT,
     feature: "tasks",
-    label: "Edit student task",
+    label: "Edit student task and uploads",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
@@ -770,6 +780,31 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.PROJECTS_DELETE,
     feature: "projects",
     label: "Delete public project",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+
+  {
+    key: PERMISSIONS.BLOGS_VIEW,
+    feature: "blogs",
+    label: "View blogs",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.BLOGS_CREATE,
+    feature: "blogs",
+    label: "Create blog",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.BLOGS_UPDATE,
+    feature: "blogs",
+    label: "Edit blog",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.BLOGS_DELETE,
+    feature: "blogs",
+    label: "Delete blog",
     access: PERMISSION_ACCESS.WRITE,
   },
 
@@ -979,6 +1014,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW,
     feature: "accounting",
     label: "View income statement analytics",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.ACADEMIC_ANALYSIS_VIEW,
+    feature: "academic_analysis",
+    label: "View academic analysis",
     access: PERMISSION_ACCESS.READ,
   },
   {

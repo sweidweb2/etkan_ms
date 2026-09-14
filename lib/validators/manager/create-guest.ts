@@ -5,6 +5,9 @@ import {
   GUEST_DEFAULT_STATUS,
   GUEST_EDUCATION_LEVEL_VALUES,
   GUEST_INTERESTED_SERVICE_VALUES,
+  GUEST_REFERRED_FROM,
+  GUEST_REFERRED_FROM_OTHER_MAX,
+  GUEST_REFERRED_FROM_VALUES,
 } from "@/lib/constants/guest";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
@@ -55,7 +58,42 @@ const optionalAge = z.preprocess((value) => {
   .max(120, { message: "Age must be at most 120." })
   .nullable());
 
-export const createGuestSchema = z.object({
+function refineReferredFromOther(
+  data: {
+    referred_from: string | null;
+    referred_from_other: string | null;
+  },
+  ctx: z.RefinementCtx
+) {
+  if (
+    data.referred_from === GUEST_REFERRED_FROM.OTHER &&
+    !data.referred_from_other
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["referred_from_other"],
+      message: "Enter how they were referred.",
+    });
+  }
+}
+
+function clearReferredFromOtherWhenNotOther<
+  T extends {
+    referred_from: string | null;
+    referred_from_other: string | null;
+  },
+>(data: T): T {
+  return {
+    ...data,
+    referred_from_other:
+      data.referred_from === GUEST_REFERRED_FROM.OTHER
+        ? data.referred_from_other
+        : null,
+  };
+}
+
+/** Shared intake fields for create and update (no profile status). */
+export const guestIntakeFieldsSchema = z.object({
   full_name: z
     .string()
     .trim()
@@ -74,14 +112,33 @@ export const createGuestSchema = z.object({
     GUEST_INTERESTED_SERVICE_VALUES,
     "Select an interested service."
   ),
-  status: z
-    .enum(
-      [GUEST_CURRENT_STATUSES.SCHEDULED, GUEST_CURRENT_STATUSES.PENDING],
-      { message: "Select Scheduled or Pending." }
-    )
-    .default(GUEST_DEFAULT_STATUS),
+  referred_from: optionalEnum(
+    GUEST_REFERRED_FROM_VALUES,
+    "Select where they were referred from."
+  ),
+  referred_from_other: optionalTrimmedText(
+    GUEST_REFERRED_FROM_OTHER_MAX,
+    "Other referral source"
+  ),
   notes: optionalTrimmedText(NOTES_MAX, "Notes"),
 });
+
+export {
+  refineReferredFromOther,
+  clearReferredFromOtherWhenNotOther,
+};
+
+export const createGuestSchema = guestIntakeFieldsSchema
+  .extend({
+    status: z
+      .enum(
+        [GUEST_CURRENT_STATUSES.SCHEDULED, GUEST_CURRENT_STATUSES.PENDING],
+        { message: "Select Scheduled or Pending." }
+      )
+      .default(GUEST_DEFAULT_STATUS),
+  })
+  .superRefine(refineReferredFromOther)
+  .transform(clearReferredFromOtherWhenNotOther);
 
 export type CreateGuestInput = z.infer<typeof createGuestSchema>;
 
@@ -95,6 +152,8 @@ export function parseCreateGuestFormData(formData: FormData):
     school_or_university: formData.get("school_or_university"),
     education_level: formData.get("education_level"),
     interested_service: formData.get("interested_service"),
+    referred_from: formData.get("referred_from"),
+    referred_from_other: formData.get("referred_from_other"),
     status: formData.get("status") || GUEST_DEFAULT_STATUS,
     notes: formData.get("notes"),
   });

@@ -74,6 +74,8 @@ const guestRecord = {
   school_or_university: "AUB",
   education_level: "uni_year_3",
   interested_service: "etkan_roadmap",
+  referred_from: null,
+  referred_from_other: null,
   status: "scheduled",
   notes: null,
   created_by: actor.userId,

@@ -6,7 +6,6 @@ export const ROLES = {
   SUPERVISOR: "supervisor",
   CRM: "crm",
   TEACHER: "teacher",
-  TRAINER: "trainer",
   STUDENT: "student",
 } as const;
 
@@ -18,7 +17,6 @@ export const ROLE_VALUES = [
   ROLES.SUPERVISOR,
   ROLES.CRM,
   ROLES.TEACHER,
-  ROLES.TRAINER,
   ROLES.STUDENT,
 ] as const;
 

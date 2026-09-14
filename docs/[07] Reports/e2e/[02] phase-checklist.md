@@ -21,7 +21,7 @@ Tick only when the phase **exit criteria** are met (specs green + Vitest/typeche
 | 7 | Schedule / equipment / notifications / email | [ ] Not started | Gate real email send |
 | 8 | RBAC & cross-panel gates | [ ] Not started | Align with RBAC checklist B/E |
 | 9 | Public site & registration | [ ] Not started | Turnstile test keys / skip submit |
-| 10 | Teacher / student / admin / trainer | [ ] Not started | Skip unfinished shells |
+| 10 | Teacher / student / admin | [ ] Not started | Skip unfinished shells |
 | 11 | CI hardening | [ ] Not started | PR smoke + nightly full |
 
 **Legend:** `[ ]` not started · `[~]` in progress · `[x]` done

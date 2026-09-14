@@ -29,6 +29,8 @@ import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";
+import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
+import type { StudentTaskUploadRecord } from "@/repositories/student-task-upload.repository";
 import * as taskRepository from "@/repositories/task.repository";
 import type { TaskRecord } from "@/repositories/task.repository";
 import {
@@ -39,6 +41,7 @@ import {
   assertClassStructureUnlockedForComputedGrades,
   assertStudentGradeInputsUnlockedForComputedGrade,
 } from "@/services/classes/class-computed-grade-lock.service";
+import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
@@ -46,6 +49,7 @@ import type {
   ManagerSessionAttendeeRow,
   ManagerSessionTaskRow,
   ManagerStudentTaskRow,
+  ManagerStudentTaskUploadRow,
 } from "@/types/manager-class-session-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
@@ -236,6 +240,7 @@ function mapStudentTaskRow(
     submitted_at: row.submitted_at,
     grade: row.grade,
     notes: row.notes,
+    student_report: row.student_report,
     graded_at: row.graded_at,
   };
 }
@@ -556,6 +561,7 @@ export type ManagerSessionTaskDetailBundle = {
   session: ManagerClassSessionRow;
   classRow: Pick<ManagerClassRow, "id" | "name">;
   studentTasks: ManagerStudentTaskRow[];
+  uploads: ManagerStudentTaskUploadRow[];
 };
 
 export async function getSessionTaskDetailForManager(
@@ -610,10 +616,35 @@ export async function getSessionTaskDetailForManager(
 
   const studentTaskRecords = (studentTasksResult.data ??
     []) as StudentTaskRecord[];
-  const displayByUserId = await buildStudentDisplayByUserId(
-    adminClient,
-    studentTaskRecords.map((row) => row.student_id)
-  );
+  const studentTaskIds = studentTaskRecords.map((row) => row.id);
+
+  const [displayByUserId, uploadsResult] = await Promise.all([
+    buildStudentDisplayByUserId(
+      adminClient,
+      studentTaskRecords.map((row) => row.student_id)
+    ),
+    studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds(
+      adminClient,
+      studentTaskIds
+    ),
+  ]);
+
+  if (uploadsResult.error) {
+    throw new Error(uploadsResult.error.message);
+  }
+
+  const uploads: ManagerStudentTaskUploadRow[] = (
+    (uploadsResult.data ?? []) as StudentTaskUploadRecord[]
+  ).map((row) => ({
+    id: row.id,
+    student_task_id: row.student_task_id,
+    storage_path: row.storage_path,
+    file_name: row.file_name,
+    mime_type: row.mime_type,
+    file_size: row.file_size,
+    uploaded_by: row.uploaded_by,
+    created_at: row.created_at,
+  }));
 
   return {
     task: mapTaskRecord(taskResult.data as TaskRecord),
@@ -625,6 +656,7 @@ export async function getSessionTaskDetailForManager(
     studentTasks: studentTaskRecords.map((row) =>
       mapStudentTaskRow(row, displayByUserId)
     ),
+    uploads,
   };
 }
 
@@ -1401,6 +1433,31 @@ export async function deleteSessionTaskForManager(
     return { success: false, error: structureGuard.error };
   }
 
+  const existingStudentTasksResult =
+    await studentTaskRepository.listStudentTasksByTaskId(adminClient, input.id);
+
+  if (existingStudentTasksResult.error) {
+    return { success: false, error: existingStudentTasksResult.error.message };
+  }
+
+  const studentTaskIds = (existingStudentTasksResult.data ?? []).map(
+    (row) => row.id
+  );
+
+  const storageCleanup = await removeStorageForStudentTaskUploads(
+    adminClient,
+    studentTaskIds
+  );
+
+  if (storageCleanup.error) {
+    return {
+      success: false,
+      error:
+        storageCleanup.error.message ||
+        "Unable to delete student task upload files.",
+    };
+  }
+
   const studentTasksResult =
     await studentTaskRepository.deleteStudentTasksByTaskId(
       adminClient,
@@ -1598,6 +1655,7 @@ export async function updateStudentTaskForManager(
     status: string;
     grade?: string | number;
     notes?: string;
+    student_report?: string;
     submitted_at?: string;
   }
 ): Promise<UpdateStudentTaskResult> {
@@ -1670,6 +1728,7 @@ export async function updateStudentTaskForManager(
       status: input.status,
       grade: input.grade,
       notes: input.notes,
+      student_report: input.student_report,
       submitted_at: input.submitted_at,
     }
   );
@@ -1700,6 +1759,7 @@ export async function updateStudentTaskForManager(
       status: parsed.data.status,
       grade,
       notes: normalizeOptionalString(parsed.data.notes),
+      student_report: normalizeOptionalString(parsed.data.student_report),
       submitted_at: toIsoOrNull(parsed.data.submitted_at),
       graded_at: shouldSetGradedAt ? gradedAt : null,
     }
@@ -1729,10 +1789,12 @@ export async function updateStudentTaskForManager(
     old_data: {
       status: existing.data.status,
       grade: existing.data.grade,
+      student_report: existing.data.student_report,
     },
     new_data: {
       status: studentTask.status,
       grade: studentTask.grade,
+      student_report: studentTask.student_report,
     },
   });
 

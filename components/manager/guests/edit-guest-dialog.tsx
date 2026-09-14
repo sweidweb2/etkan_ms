@@ -60,6 +60,8 @@ export function EditGuestDialog({
     school_or_university: guest.school_or_university,
     education_level: guest.education_level,
     interested_service: guest.interested_service,
+    referred_from: guest.referred_from,
+    referred_from_other: guest.referred_from_other,
     notes: guest.notes,
   };
 
@@ -78,6 +80,7 @@ export function EditGuestDialog({
 
   const educationLevel = watch("education_level");
   const interestedService = watch("interested_service");
+  const referredFrom = watch("referred_from");
 
   useEffect(() => {
     if (open) {
@@ -89,6 +92,8 @@ export function EditGuestDialog({
         school_or_university: guest.school_or_university,
         education_level: guest.education_level,
         interested_service: guest.interested_service,
+        referred_from: guest.referred_from,
+        referred_from_other: guest.referred_from_other,
         notes: guest.notes,
       });
     }
@@ -110,6 +115,8 @@ export function EditGuestDialog({
     formData.set("school_or_university", values.school_or_university ?? "");
     formData.set("education_level", values.education_level ?? "");
     formData.set("interested_service", values.interested_service ?? "");
+    formData.set("referred_from", values.referred_from ?? "");
+    formData.set("referred_from_other", values.referred_from_other ?? "");
     formData.set("notes", values.notes ?? "");
 
     startTransition(() => {
@@ -144,6 +151,9 @@ export function EditGuestDialog({
             interestedService={
               typeof interestedService === "string" ? interestedService : null
             }
+            referredFrom={
+              typeof referredFrom === "string" ? referredFrom : null
+            }
             isPending={isPending}
             errors={{
               full_name:
@@ -159,6 +169,12 @@ export function EditGuestDialog({
               interested_service:
                 errors.interested_service?.message ??
                 state.fieldErrors?.interested_service?.[0],
+              referred_from:
+                errors.referred_from?.message ??
+                state.fieldErrors?.referred_from?.[0],
+              referred_from_other:
+                errors.referred_from_other?.message ??
+                state.fieldErrors?.referred_from_other?.[0],
               notes: errors.notes?.message ?? state.fieldErrors?.notes?.[0],
             }}
           />

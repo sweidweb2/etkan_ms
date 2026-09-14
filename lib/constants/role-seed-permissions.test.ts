@@ -49,6 +49,15 @@ describe("role-seed-permissions guests", () => {
     }
     expect(ceoSeed).toContain(PERMISSIONS.REGISTRATIONS_VIEW);
   });
+
+  it("seeds academic analysis view to CEO", () => {
+    expect(CEO_WORKSHOP_SEED_PERMISSIONS).toContain(
+      PERMISSIONS.ACADEMIC_ANALYSIS_VIEW
+    );
+    expect(ROLE_SEED_PERMISSIONS[ROLES.CEO]).toContain(
+      PERMISSIONS.ACADEMIC_ANALYSIS_VIEW
+    );
+  });
 });
 
 describe("role-seed-permissions crm", () => {

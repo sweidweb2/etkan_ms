@@ -12,6 +12,8 @@ export const ROUTES = {
   CAREERS_ROADMAP_DETAIL: "/careers/roadmap/[id]",
   PROJECTS: "/projects",
   GALLERY: "/gallery",
+  BLOGS: "/blogs",
+  BLOG_DETAIL: "/blogs/[slug]",
   LIFE: "/life",
   LIFE_BLOG_DETAIL: "/life/[id]",
   REGISTER: "/register",
@@ -38,6 +40,7 @@ export const ROUTES = {
   MANAGER_ACCOUNTING: "/manager/accounting",
   MANAGER_INCOME_STATEMENT: "/manager/income-statement",
   MANAGER_INCOME_STATEMENT_ANALYTICS: "/manager/income-statement/analytics",
+  MANAGER_ACADEMIC_ANALYSIS: "/manager/academic-analysis",
   MANAGER_INCOME_STATEMENT_HISTORY: "/manager/income-statement/history",
   MANAGER_ACCOUNTING_PHASE_DETAIL: "/manager/accounting/phases/[id]",
   MANAGER_ACCOUNTING_SPP_DETAIL:
@@ -61,6 +64,7 @@ export const ROUTES = {
   MANAGER_GALLERY: "/manager/gallery",
   MANAGER_PROJECTS: "/manager/projects",
   MANAGER_PROJECT_DETAIL: "/manager/projects/[id]",
+  MANAGER_BLOGS: "/manager/blogs",
   MANAGER_SEMESTERS: "/manager/semesters",
   MANAGER_SETTINGS: "/manager/settings",
   MANAGER_BACKUP: "/manager/backup",
@@ -81,7 +85,6 @@ export const ROUTES = {
   TEACHER_STUDENTS: "/teacher/students",
   TEACHER_NOTIFICATIONS: "/teacher/notifications",
   TEACHER_ANALYTICS: "/teacher/analytics",
-  TRAINER_ROOT: "/trainer",
   STUDENT_ROOT: "/student",
   STUDENT_CLASSES: "/student/classes",
   STUDENT_CLASS_DETAIL: "/student/classes/[id]",
@@ -101,7 +104,6 @@ const ROLE_HOME_ROUTES: Record<RoleValue, string> = {
   [ROLES.SUPERVISOR]: ROUTES.MANAGER_STUDENTS,
   [ROLES.CRM]: ROUTES.MANAGER_GUESTS,
   [ROLES.TEACHER]: ROUTES.TEACHER_SCHEDULE,
-  [ROLES.TRAINER]: ROUTES.MANAGER_WORKSHOPS,
   [ROLES.STUDENT]: ROUTES.STUDENT_ROOT,
 };
 
@@ -113,7 +115,6 @@ const ROLE_PANEL_ROOTS: Record<RoleValue, string> = {
   [ROLES.SUPERVISOR]: ROUTES.SUPERVISOR_ROOT,
   [ROLES.CRM]: ROUTES.CRM_ROOT,
   [ROLES.TEACHER]: ROUTES.TEACHER_ROOT,
-  [ROLES.TRAINER]: ROUTES.TRAINER_ROOT,
   [ROLES.STUDENT]: ROUTES.STUDENT_ROOT,
 };
 
@@ -131,6 +132,10 @@ export function getCareersRoadmapDetailRoute(stageId: string): string {
 
 export function getLifeBlogDetailRoute(blogId: string): string {
   return `/life/${blogId}`;
+}
+
+export function getBlogDetailRoute(slug: string): string {
+  return `/blogs/${slug}`;
 }
 
 export function getFinancialFormInviteRoute(token: string): string {

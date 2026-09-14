@@ -11,6 +11,8 @@ const validInput = {
   school_or_university: "AUB",
   education_level: "uni_year_3" as const,
   interested_service: "etkan_roadmap" as const,
+  referred_from: "friend" as const,
+  referred_from_other: null,
   notes: "Walk-in",
 };
 
@@ -28,6 +30,8 @@ describe("createGuestSchema", () => {
       expect(parsed.data.age).toBeNull();
       expect(parsed.data.education_level).toBeNull();
       expect(parsed.data.interested_service).toBeNull();
+      expect(parsed.data.referred_from).toBeNull();
+      expect(parsed.data.referred_from_other).toBeNull();
       expect(parsed.data.status).toBe("scheduled");
     }
   });
@@ -53,6 +57,39 @@ describe("createGuestSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it("requires referred_from_other when referred_from is other", () => {
+    const parsed = createGuestSchema.safeParse({
+      ...validInput,
+      referred_from: "other",
+      referred_from_other: "",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts custom referred_from_other when referred_from is other", () => {
+    const parsed = createGuestSchema.safeParse({
+      ...validInput,
+      referred_from: "other",
+      referred_from_other: "Campus booth",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.referred_from_other).toBe("Campus booth");
+    }
+  });
+
+  it("clears referred_from_other when referred_from is not other", () => {
+    const parsed = createGuestSchema.safeParse({
+      ...validInput,
+      referred_from: "friend",
+      referred_from_other: "should clear",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.referred_from_other).toBeNull();
+    }
+  });
+
   it("allows empty optional fields as null", () => {
     const parsed = createGuestSchema.safeParse({
       full_name: "Ada Lovelace",
@@ -61,6 +98,8 @@ describe("createGuestSchema", () => {
       school_or_university: "",
       education_level: "",
       interested_service: "",
+      referred_from: "",
+      referred_from_other: "",
       notes: "   ",
     });
     expect(parsed.success).toBe(true);
@@ -70,6 +109,8 @@ describe("createGuestSchema", () => {
       expect(parsed.data.school_or_university).toBeNull();
       expect(parsed.data.education_level).toBeNull();
       expect(parsed.data.interested_service).toBeNull();
+      expect(parsed.data.referred_from).toBeNull();
+      expect(parsed.data.referred_from_other).toBeNull();
       expect(parsed.data.notes).toBeNull();
     }
   });
@@ -100,12 +141,14 @@ describe("parseCreateGuestFormData", () => {
     formData.set("school_or_university", validInput.school_or_university);
     formData.set("education_level", validInput.education_level);
     formData.set("interested_service", validInput.interested_service);
+    formData.set("referred_from", validInput.referred_from);
     formData.set("notes", validInput.notes);
 
     const parsed = parseCreateGuestFormData(formData);
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.status).toBe("scheduled");
+      expect(parsed.data.referred_from).toBe("friend");
     }
   });
 
@@ -142,6 +185,19 @@ describe("parseCreateGuestFormData", () => {
     expect(parsed.success).toBe(false);
     if (!parsed.success) {
       expect(parsed.fieldErrors?.full_name?.[0]).toBeTruthy();
+    }
+  });
+
+  it("returns fieldErrors when other referral is blank", () => {
+    const formData = new FormData();
+    formData.set("full_name", validInput.full_name);
+    formData.set("referred_from", "other");
+    formData.set("referred_from_other", "");
+
+    const parsed = parseCreateGuestFormData(formData);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.fieldErrors?.referred_from_other?.[0]).toBeTruthy();
     }
   });
 });

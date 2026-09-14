@@ -41,7 +41,6 @@ function mapWith(
     [ROLES.SUPERVISOR]: [],
     [ROLES.CRM]: [],
     [ROLES.TEACHER]: [],
-    [ROLES.TRAINER]: [],
     [ROLES.STUDENT]: [],
     ...overrides,
   };

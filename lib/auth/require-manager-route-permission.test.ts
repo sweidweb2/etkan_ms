@@ -68,15 +68,15 @@ describe("requireManagerRoutePermission", () => {
     vi.mocked(getSessionPack).mockResolvedValue(
       pack({
         userId: "user-1",
-        role: ROLES.TRAINER,
+        role: ROLES.TEACHER,
         permissions: new Set([PERMISSIONS.WORKSHOPS_VIEW]),
       }) as never
     );
 
     await expect(
       requireManagerRoutePermission(ROUTES.MANAGER_WORKSHOPS_PAYMENTS)
-    ).rejects.toThrow(`NEXT_REDIRECT:${ROUTES.MANAGER_WORKSHOPS}`);
-    expect(redirectMock).toHaveBeenCalledWith(ROUTES.MANAGER_WORKSHOPS);
+    ).rejects.toThrow(`NEXT_REDIRECT:${ROUTES.TEACHER_SCHEDULE}`);
+    expect(redirectMock).toHaveBeenCalledWith(ROUTES.TEACHER_SCHEDULE);
   });
 
   it("allows the manager root so it can bounce to manage students", async () => {

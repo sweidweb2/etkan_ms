@@ -7,7 +7,6 @@ import {
   STUDENT_PANEL_NAVIGATION,
   SUPERVISOR_PANEL_NAVIGATION,
   TEACHER_PANEL_NAVIGATION,
-  TRAINER_PANEL_NAVIGATION,
 } from "@/lib/constants/panel-nav";
 import {
   NOTIFICATION_AUDIENCE_LABELS,
@@ -49,7 +48,6 @@ const NOTIFICATION_ACTION_PAGES_BY_AUDIENCE: Record<
   supervisor: flattenPanelNavigation(SUPERVISOR_PANEL_NAVIGATION),
   crm: flattenPanelNavigation(CRM_PANEL_NAVIGATION),
   teacher: flattenPanelNavigation(TEACHER_PANEL_NAVIGATION),
-  trainer: flattenPanelNavigation(TRAINER_PANEL_NAVIGATION),
   student: flattenPanelNavigation(STUDENT_PANEL_NAVIGATION),
 };
 

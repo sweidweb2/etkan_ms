@@ -371,15 +371,6 @@ INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('teacher', 'wo
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('teacher', 'workshops.documents.delete');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('teacher', 'instructors.view');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('teacher', 'instructor_schedules.view');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'workshops.view');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'workshops.sessions.create');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'workshops.sessions.update');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'workshops.sessions.delete');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'workshops.documents.create');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'workshops.documents.update');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'workshops.documents.delete');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'instructors.view');
-INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('trainer', 'instructor_schedules.view');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('student', 'workshops.view');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('student', 'workshops.sessions.create');
 INSERT INTO "role_permissions" ("role", "permission_key") VALUES ('student', 'workshops.sessions.update');

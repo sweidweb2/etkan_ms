@@ -33,6 +33,7 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useStagedPendingProgress } from "@/hooks/use-staged-pending-progress";
 import {
+  formatGuestReferredFrom,
   GUEST_EDUCATION_LEVEL_LABELS,
   GUEST_INTERESTED_SERVICE_LABELS,
   GUEST_CURRENT_STATUS_LABELS,
@@ -324,6 +325,15 @@ export function GuestDetailsPanel({
                 guest.interested_service
                   ? GUEST_INTERESTED_SERVICE_LABELS[guest.interested_service]
                   : undefined
+              }
+            />
+            <DetailField
+              label="Referred from"
+              value={
+                formatGuestReferredFrom(
+                  guest.referred_from,
+                  guest.referred_from_other
+                ) ?? undefined
               }
             />
             <DetailField

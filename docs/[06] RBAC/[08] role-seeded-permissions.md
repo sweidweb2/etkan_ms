@@ -53,6 +53,7 @@ workshops.payments.update
 workshops.payments.delete
 cloudflare_ai_usage.view
 accounting.income_statement.analytics.view
+academic_analysis.view
 guests.view
 guests.create
 guests.update
@@ -63,12 +64,12 @@ guests.create_student
 registrations.view
 ```
 
-Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`, `/manager/income-statement/analytics`, `/manager/guests*`, `/manager/registrations*`.  
-Manage instructors, AI usage, guests, and registration dossiers do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
+Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`, `/manager/income-statement/analytics`, `/manager/academic-analysis`, `/manager/guests*`, `/manager/registrations*`.  
+Manage instructors, AI usage, guests, academic analysis, and registration dossiers do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
 Schedule assistant UI/API and AI usage page require `cloudflare_ai_usage.view`.  
 Slot details table (`/manager/instructor-schedules/details`) requires `instructor_schedules.details.view` (manager + CEO seed only for now).  
 CEO guest follow-up includes `guests.create_student` (create a student from a registration without `students.create`). `registrations.view` lets CEO open the dossier from guest details.  
-Re-run `npm run seed:rbac` after deploy so CEO receives the new `guests.*` / `registrations.view` keys.
+Re-run `npm run seed:rbac` after deploy so CEO receives the new `guests.*` / `registrations.view` / `academic_analysis.view` keys.
 
 ---
 
@@ -80,9 +81,11 @@ Manager catalog minus excluded ops / finance / system / users features (`SUPERVI
 ```
 users
 accounting
+academic_analysis
 emailing
 gallery
 projects
+blogs
 notifications
 backup
 logs
@@ -124,7 +127,7 @@ Re-run `npm run seed:rbac` after deploy so CRM receives these grants.
 
 ---
 
-## Other roles (admin, co-manager, teacher, trainer)
+## Other roles (admin, co-manager, teacher)
 
 Shared workshop access package only (`WORKSHOP_ACCESS_SEED_PERMISSIONS`):
 

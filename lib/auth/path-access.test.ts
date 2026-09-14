@@ -38,7 +38,6 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.MANAGER)).toBe(true);
     expect(canAccessPath(ROUTES.STUDENT_CLASSES, ROLES.STUDENT)).toBe(true);
     expect(canAccessPath(ROUTES.CO_MANAGER_ROOT, ROLES.CO_MANAGER)).toBe(true);
-    expect(canAccessPath(ROUTES.TRAINER_ROOT, ROLES.TRAINER)).toBe(true);
     expect(canAccessPath(ROUTES.SUPERVISOR_ROOT, ROLES.SUPERVISOR)).toBe(true);
     expect(canAccessPath(ROUTES.CRM_ROOT, ROLES.CRM)).toBe(true);
   });
@@ -50,13 +49,13 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.CO_MANAGER)).toBe(
       false
     );
-    expect(canAccessPath(ROUTES.TEACHER_ROOT, ROLES.TRAINER)).toBe(false);
+    expect(canAccessPath(ROUTES.TEACHER_ROOT, ROLES.STUDENT)).toBe(false);
     expect(canAccessPath(ROUTES.SUPERVISOR_ROOT, ROLES.MANAGER)).toBe(false);
     expect(canAccessPath(ROUTES.CRM_ROOT, ROLES.MANAGER)).toBe(false);
   });
 
   it("allows shared workshop paths for any role", () => {
-    expect(canAccessPath(ROUTES.MANAGER_WORKSHOPS, ROLES.TRAINER)).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_WORKSHOPS, ROLES.TEACHER)).toBe(true);
     expect(
       canAccessPath(`${ROUTES.MANAGER_WORKSHOPS}/abc`, ROLES.TEACHER)
     ).toBe(true);
@@ -64,7 +63,7 @@ describe("canAccessPath", () => {
       canAccessPath(ROUTES.MANAGER_WORKSHOPS_PAYMENTS, ROLES.STUDENT)
     ).toBe(true);
     expect(
-      canAccessPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES, ROLES.TRAINER)
+      canAccessPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES, ROLES.CO_MANAGER)
     ).toBe(true);
     expect(canAccessPath(ROUTES.MANAGER_INSTRUCTORS, ROLES.CEO)).toBe(true);
     expect(
@@ -73,6 +72,9 @@ describe("canAccessPath", () => {
     expect(
       canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS, ROLES.CEO)
     ).toBe(true);
+    expect(canAccessPath(ROUTES.MANAGER_ACADEMIC_ANALYSIS, ROLES.CEO)).toBe(
+      true
+    );
     expect(canAccessPath(ROUTES.MANAGER_GUESTS, ROLES.CEO)).toBe(true);
     expect(
       canAccessPath(`${ROUTES.MANAGER_GUESTS}/abc-123`, ROLES.CEO)
@@ -99,7 +101,7 @@ describe("canAccessPath", () => {
   });
 
   it("still denies non-shared manager paths for other roles", () => {
-    expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.TRAINER)).toBe(false);
+    expect(canAccessPath(ROUTES.MANAGER_USERS, ROLES.TEACHER)).toBe(false);
     expect(canAccessPath(ROUTES.MANAGER_INCOME_STATEMENT, ROLES.CEO)).toBe(
       false
     );

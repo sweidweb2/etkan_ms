@@ -60,6 +60,13 @@ export function createEditStudentTaskSchema(
         .trim()
         .max(500, { message: "Notes must be at most 500 characters." })
         .optional(),
+      student_report: z
+        .string()
+        .trim()
+        .max(5000, {
+          message: "Student report must be at most 5000 characters.",
+        })
+        .optional(),
       submitted_at: z.string().trim().optional(),
     })
     .transform((data) => ({
@@ -92,6 +99,7 @@ export function parseEditStudentTaskFormData(formData: FormData):
     status: formData.get("status"),
     grade: formData.get("grade") ?? undefined,
     notes: formData.get("notes") ?? undefined,
+    student_report: formData.get("student_report") ?? undefined,
     submitted_at: formData.get("submitted_at") ?? undefined,
   });
 

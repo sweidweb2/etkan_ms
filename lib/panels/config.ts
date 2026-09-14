@@ -8,7 +8,6 @@ import {
   STUDENT_PANEL_NAVIGATION,
   SUPERVISOR_PANEL_NAVIGATION,
   TEACHER_PANEL_NAVIGATION,
-  TRAINER_PANEL_NAVIGATION,
 } from "@/lib/constants/panel-nav";
 import type { PanelConfig, PanelVariant } from "@/types/panel";
 
@@ -48,11 +47,6 @@ const PANEL_CONFIG_BY_ROLE: Record<RoleValue, PanelConfig> = {
     label: "Teacher",
     navigation: TEACHER_PANEL_NAVIGATION,
   },
-  [ROLES.TRAINER]: {
-    variant: "trainer",
-    label: "Trainer",
-    navigation: TRAINER_PANEL_NAVIGATION,
-  },
   [ROLES.STUDENT]: {
     variant: "student",
     label: "Student",
@@ -73,7 +67,6 @@ export function isPanelVariant(value: string): value is PanelVariant {
     value === "supervisor" ||
     value === "crm" ||
     value === "teacher" ||
-    value === "trainer" ||
     value === "student"
   );
 }

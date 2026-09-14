@@ -17,6 +17,7 @@ export const TOAST_MESSAGES = {
     subject_deleted: "Subject deleted.",
     workshop_deleted: "Workshop deleted.",
     project_deleted: "Project deleted.",
+    blog_deleted: "Blog deleted.",
     guest_deleted: "Guest deleted.",
     spp_deleted: "Student payment phase deleted.",
   },

@@ -46,7 +46,7 @@ Do **not** try to E2E every validator edge case — Vitest already covers most o
 | Seed scripts | `seed:admin`, `seed:manager`, `seed:demo`, `seed:rbac`, etc. |
 | Auth | Supabase email/password + cookies |
 | Mature UI | Manager (+ shared CEO/co-manager routes) |
-| Thin / shell panels | Parts of teacher, student, admin, trainer (per status scans) — test only what is real |
+| Thin / shell panels | Parts of teacher, student, admin (per status scans) — test only what is real |
 
 ---
 
@@ -440,7 +440,7 @@ A phase is **done** when:
 
 ---
 
-### Phase 10 — Other roles (teacher / student / admin / trainer)
+### Phase 10 — Other roles (teacher / student / admin)
 
 **Goal:** Only test **real** panel features; mark shells `@wip` or skip.
 
@@ -449,7 +449,6 @@ A phase is **done** when:
 1. Teacher: dashboard + schedule/classes if wired  
 2. Student: dashboard + classes + payments if wired  
 3. Admin: dashboard smoke  
-4. Trainer: dashboard smoke  
 
 **Rule:** If a page is still a heading-only shell (per project status docs), either skip or assert “page loads” only — do not invent fake coverage.
 

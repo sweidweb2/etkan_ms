@@ -43,6 +43,8 @@ const emptyDefaults: CreateGuestInput = {
   school_or_university: null,
   education_level: null,
   interested_service: null,
+  referred_from: null,
+  referred_from_other: null,
   status: GUEST_DEFAULT_STATUS,
   notes: null,
 };
@@ -83,6 +85,7 @@ export function AddGuestDialog({
 
   const educationLevel = watch("education_level");
   const interestedService = watch("interested_service");
+  const referredFrom = watch("referred_from");
   const status = watch("status");
 
   useEffect(() => {
@@ -106,6 +109,8 @@ export function AddGuestDialog({
     formData.set("school_or_university", values.school_or_university ?? "");
     formData.set("education_level", values.education_level ?? "");
     formData.set("interested_service", values.interested_service ?? "");
+    formData.set("referred_from", values.referred_from ?? "");
+    formData.set("referred_from_other", values.referred_from_other ?? "");
     formData.set("status", values.status);
     formData.set("notes", values.notes ?? "");
 
@@ -142,6 +147,9 @@ export function AddGuestDialog({
             interestedService={
               typeof interestedService === "string" ? interestedService : null
             }
+            referredFrom={
+              typeof referredFrom === "string" ? referredFrom : null
+            }
             isPending={isPending}
             errors={{
               full_name:
@@ -157,6 +165,12 @@ export function AddGuestDialog({
               interested_service:
                 errors.interested_service?.message ??
                 state.fieldErrors?.interested_service?.[0],
+              referred_from:
+                errors.referred_from?.message ??
+                state.fieldErrors?.referred_from?.[0],
+              referred_from_other:
+                errors.referred_from_other?.message ??
+                state.fieldErrors?.referred_from_other?.[0],
               notes: errors.notes?.message ?? state.fieldErrors?.notes?.[0],
             }}
           />

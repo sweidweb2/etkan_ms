@@ -2,7 +2,12 @@ import {
   REGISTRATION_EDUCATION_LEVEL_LABELS,
   REGISTRATION_EDUCATION_LEVEL_VALUES,
   REGISTRATION_EDUCATION_LEVELS,
+  REGISTRATION_LIMITS,
+  REGISTRATION_REFERRAL_SOURCE_LABELS,
+  REGISTRATION_REFERRAL_SOURCE_VALUES,
+  REGISTRATION_REFERRAL_SOURCES,
   type RegistrationEducationLevel,
+  type RegistrationReferralSource,
 } from "@/lib/constants/public-registration";
 
 /** Reuse registration education levels for guest intake. */
@@ -12,6 +17,32 @@ export {
   REGISTRATION_EDUCATION_LEVEL_LABELS as GUEST_EDUCATION_LEVEL_LABELS,
 };
 export type GuestEducationLevel = RegistrationEducationLevel;
+
+/** Reuse registration referral sources for guest intake ("referred from"). */
+export {
+  REGISTRATION_REFERRAL_SOURCES as GUEST_REFERRED_FROM,
+  REGISTRATION_REFERRAL_SOURCE_VALUES as GUEST_REFERRED_FROM_VALUES,
+  REGISTRATION_REFERRAL_SOURCE_LABELS as GUEST_REFERRED_FROM_LABELS,
+};
+export type GuestReferredFrom = RegistrationReferralSource;
+
+export const GUEST_REFERRED_FROM_OTHER_MAX =
+  REGISTRATION_LIMITS.referralOther.max;
+
+/** Display label for referred_from (+ custom text when other). */
+export function formatGuestReferredFrom(
+  referredFrom: GuestReferredFrom | null | undefined,
+  referredFromOther: string | null | undefined
+): string | null {
+  if (!referredFrom) {
+    return null;
+  }
+  if (referredFrom === REGISTRATION_REFERRAL_SOURCES.OTHER) {
+    const custom = referredFromOther?.trim();
+    return custom || REGISTRATION_REFERRAL_SOURCE_LABELS.other;
+  }
+  return REGISTRATION_REFERRAL_SOURCE_LABELS[referredFrom];
+}
 
 /** Pipeline nodes shown on the status schema (recorded in guest_status_events). */
 export const GUEST_PIPELINE_STATUSES = {

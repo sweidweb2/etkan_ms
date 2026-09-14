@@ -23,6 +23,11 @@ import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-
 import { parseUpdateSessionTaskFormData } from "@/lib/validators/manager/update-session-task";
 import { parseEditStudentFinalExamGradeFormData } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { parseEditStudentTaskFormData } from "@/lib/validators/manager/edit-student-task";
+import {
+  parseDeleteStudentTaskUploadFormData,
+  parseStudentTaskUploadSignedUrlFormData,
+  parseUploadStudentTaskFileFormData,
+} from "@/lib/validators/manager/student-task-upload";
 import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-attendee";
 import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update-class-session";
 import { parseUpdateFinalExamFormData } from "@/lib/validators/manager/update-final-exam";
@@ -60,6 +65,11 @@ import {
   updateSessionTaskForManager,
   updateStudentTaskForManager,
 } from "@/services/classes/session.service";
+import {
+  deleteStudentTaskUploadForManager,
+  getStudentTaskUploadSignedUrlForManager,
+  uploadStudentTaskFileForManager,
+} from "@/services/classes/student-task-upload.service";
 import { listSemestersForManager } from "@/services/classes/semester.service";
 import { listSubjectsForManager } from "@/services/classes/subject.service";
 import { listStudentsWithoutInProgressClassForManager } from "@/services/students/student.service";
@@ -88,11 +98,13 @@ import type {
   CreateSessionTaskActionState,
   DeleteClassSessionActionState,
   DeleteSessionTaskActionState,
+  DeleteStudentTaskUploadActionState,
   UpdateAttendeeActionState,
   UpdateClassSessionActionState,
   UpdateSessionSettingsActionState,
   UpdateSessionTaskActionState,
   UpdateStudentTaskActionState,
+  UploadStudentTaskFileActionState,
 } from "@/types/manager-class-session-detail";
 
 export async function loadAvailableStudentsForClassAction(
@@ -1041,5 +1053,149 @@ export async function updateStudentTaskAction(
     success: true,
     message: result.message,
     studentTask: result.studentTask,
+  };
+}
+
+export async function uploadStudentTaskFileAction(
+  _prevState: UploadStudentTaskFileActionState,
+  formData: FormData
+): Promise<UploadStudentTaskFileActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseUploadStudentTaskFileFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await uploadStudentTaskFileForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  if (result.classId) {
+    revalidatePath(getManagerClassDetailRoute(result.classId));
+  }
+
+  if (result.classId && result.sessionId) {
+    revalidatePath(
+      getManagerClassSessionDetailRoute(result.classId, result.sessionId)
+    );
+    revalidatePath(
+      getManagerClassSessionTaskDetailRoute(
+        result.classId,
+        result.sessionId,
+        result.taskId
+      )
+    );
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    upload: result.upload,
+  };
+}
+
+export async function deleteStudentTaskUploadAction(
+  _prevState: DeleteStudentTaskUploadActionState,
+  formData: FormData
+): Promise<DeleteStudentTaskUploadActionState> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseDeleteStudentTaskUploadFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await deleteStudentTaskUploadForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  if (result.classId) {
+    revalidatePath(getManagerClassDetailRoute(result.classId));
+  }
+
+  if (result.classId && result.sessionId) {
+    revalidatePath(
+      getManagerClassSessionDetailRoute(result.classId, result.sessionId)
+    );
+    revalidatePath(
+      getManagerClassSessionTaskDetailRoute(
+        result.classId,
+        result.sessionId,
+        result.taskId
+      )
+    );
+  }
+
+  return {
+    success: true,
+    message: result.message,
+    uploadId: result.uploadId,
+  };
+}
+
+export async function getStudentTaskUploadSignedUrlAction(
+  formData: FormData
+): Promise<{ success: boolean; signedUrl?: string; error?: string }> {
+  const actor = await getSessionAuditActor();
+
+  const parsed = parseStudentTaskUploadSignedUrlFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await getStudentTaskUploadSignedUrlForManager(
+    adminClient,
+    actor.userId,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    signedUrl: result.signedUrl,
   };
 }

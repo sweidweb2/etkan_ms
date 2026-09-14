@@ -47,8 +47,36 @@ export interface ManagerStudentTaskRow {
   submitted_at: string | null;
   grade: number | null;
   notes: string | null;
+  student_report: string | null;
   graded_at: string | null;
 }
+
+/** student_task_uploads row for manager task detail. */
+export interface ManagerStudentTaskUploadRow {
+  id: string;
+  student_task_id: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export type UploadStudentTaskFileActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  upload?: ManagerStudentTaskUploadRow;
+};
+
+export type DeleteStudentTaskUploadActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  uploadId?: string;
+};
 
 export type UpdateClassSessionActionState = {
   success?: boolean;

@@ -24,7 +24,6 @@
       "@/app/co-manager/*": ["./app/(panels)/co-manager/*"],
       "@/app/ceo/*": ["./app/(panels)/ceo/*"],
       "@/app/teacher/*": ["./app/(panels)/teacher/*"],
-      "@/app/trainer/*": ["./app/(panels)/trainer/*"],
       "@/app/student/*": ["./app/(panels)/student/*"],
       "@/app/instructor/*": ["./app/(panels)/instructor/*"],
       "@/*": ["./*"]

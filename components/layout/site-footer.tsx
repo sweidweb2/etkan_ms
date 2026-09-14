@@ -11,6 +11,7 @@ const FOOTER_LINKS = [
   { href: ROUTES.CAREERS, labelKey: "nav.careers" as const },
   { href: ROUTES.PROJECTS, labelKey: "nav.projects" as const },
   { href: ROUTES.GALLERY, labelKey: "nav.gallery" as const },
+  { href: ROUTES.BLOGS, labelKey: "nav.blogs" as const },
   { href: ROUTES.LIFE, labelKey: "nav.life" as const },
   { href: ROUTES.REGISTER, labelKey: "nav.register" as const },
 ];

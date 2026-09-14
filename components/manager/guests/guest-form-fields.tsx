@@ -20,6 +20,10 @@ import {
   GUEST_EDUCATION_LEVEL_VALUES,
   GUEST_INTERESTED_SERVICE_LABELS,
   GUEST_INTERESTED_SERVICE_VALUES,
+  GUEST_REFERRED_FROM,
+  GUEST_REFERRED_FROM_LABELS,
+  GUEST_REFERRED_FROM_OTHER_MAX,
+  GUEST_REFERRED_FROM_VALUES,
 } from "@/lib/constants/guest";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +38,8 @@ export type GuestFormFieldErrors = {
   school_or_university?: string;
   education_level?: string;
   interested_service?: string;
+  referred_from?: string;
+  referred_from_other?: string;
   notes?: string;
 };
 
@@ -43,6 +49,7 @@ type GuestFormFieldsProps = {
   setValue: UseFormSetValue<FieldValues>;
   educationLevel: string | null | undefined;
   interestedService: string | null | undefined;
+  referredFrom: string | null | undefined;
   errors: GuestFormFieldErrors;
   isPending: boolean;
 };
@@ -53,9 +60,12 @@ export function GuestFormFields({
   setValue,
   educationLevel,
   interestedService,
+  referredFrom,
   errors,
   isPending,
 }: GuestFormFieldsProps) {
+  const isOtherReferral = referredFrom === GUEST_REFERRED_FROM.OTHER;
+
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -142,7 +152,7 @@ export function GuestFormFields({
             hint="Optional"
           />
           <Select
-            value={educationLevel || undefined}
+            value={educationLevel ?? null}
             onValueChange={(value) => {
               if (!value) return;
               setValue("education_level", value, { shouldValidate: true });
@@ -176,7 +186,7 @@ export function GuestFormFields({
             hint="Optional"
           />
           <Select
-            value={interestedService || undefined}
+            value={interestedService ?? null}
             onValueChange={(value) => {
               if (!value) return;
               setValue("interested_service", value, { shouldValidate: true });
@@ -204,6 +214,70 @@ export function GuestFormFields({
             </p>
           ) : null}
         </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <FieldLabel
+            htmlFor={`${idPrefix}-referred-from`}
+            label="Referred from"
+            hint="Optional"
+          />
+          <Select
+            value={referredFrom ?? null}
+            onValueChange={(value) => {
+              if (!value) return;
+              setValue("referred_from", value, { shouldValidate: true });
+              if (value !== GUEST_REFERRED_FROM.OTHER) {
+                setValue("referred_from_other", null, {
+                  shouldValidate: true,
+                });
+              }
+            }}
+            disabled={isPending}
+          >
+            <SelectTrigger
+              id={`${idPrefix}-referred-from`}
+              aria-invalid={!!errors.referred_from}
+              className="w-full"
+            >
+              <SelectValue placeholder="Select source" />
+            </SelectTrigger>
+            <SelectContent>
+              {GUEST_REFERRED_FROM_VALUES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {GUEST_REFERRED_FROM_LABELS[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.referred_from ? (
+            <p className="text-sm text-destructive">{errors.referred_from}</p>
+          ) : null}
+        </div>
+
+        {isOtherReferral ? (
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor={`${idPrefix}-referred-from-other`}
+              label="Other source"
+              hint="Required"
+            />
+            <Input
+              id={`${idPrefix}-referred-from-other`}
+              maxLength={GUEST_REFERRED_FROM_OTHER_MAX}
+              placeholder="How did they hear about Etkan?"
+              aria-invalid={!!errors.referred_from_other}
+              disabled={isPending}
+              {...register("referred_from_other")}
+            />
+            {errors.referred_from_other ? (
+              <p className="text-sm text-destructive">
+                {errors.referred_from_other}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">

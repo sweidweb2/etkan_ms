@@ -686,6 +686,8 @@ export type Database = {
           interested_service: string | null
           notes: string | null
           phone: string | null
+          referred_from: string | null
+          referred_from_other: string | null
           school_or_university: string | null
           status: string
           updated_at: string
@@ -700,6 +702,8 @@ export type Database = {
           interested_service?: string | null
           notes?: string | null
           phone?: string | null
+          referred_from?: string | null
+          referred_from_other?: string | null
           school_or_university?: string | null
           status?: string
           updated_at?: string
@@ -714,6 +718,8 @@ export type Database = {
           interested_service?: string | null
           notes?: string | null
           phone?: string | null
+          referred_from?: string | null
+          referred_from_other?: string | null
           school_or_university?: string | null
           status?: string
           updated_at?: string
@@ -1104,6 +1110,69 @@ export type Database = {
           id?: string
           image_url?: string
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      blogs: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          summary: string
+          body_html: string
+          categories: string[]
+          thumbnail_url: string | null
+          author_name: string
+          author_avatar_url: string | null
+          status: string
+          is_featured: boolean
+          reading_time_minutes: number
+          published_at: string | null
+          sources: string[]
+          meta_title: string | null
+          meta_description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          summary: string
+          body_html?: string
+          categories?: string[]
+          thumbnail_url?: string | null
+          author_name: string
+          author_avatar_url?: string | null
+          status?: string
+          is_featured?: boolean
+          reading_time_minutes?: number
+          published_at?: string | null
+          sources?: string[]
+          meta_title?: string | null
+          meta_description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          title?: string
+          summary?: string
+          body_html?: string
+          categories?: string[]
+          thumbnail_url?: string | null
+          author_name?: string
+          author_avatar_url?: string | null
+          status?: string
+          is_featured?: boolean
+          reading_time_minutes?: number
+          published_at?: string | null
+          sources?: string[]
+          meta_title?: string | null
+          meta_description?: string | null
+          created_at?: string
           updated_at?: string
         }
         Relationships: []
@@ -1997,6 +2066,54 @@ export type Database = {
           },
         ]
       }
+      student_task_uploads: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          id: string
+          mime_type: string
+          storage_path: string
+          student_task_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size: number
+          id?: string
+          mime_type: string
+          storage_path: string
+          student_task_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          storage_path?: string
+          student_task_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_task_uploads_student_task_id_fkey"
+            columns: ["student_task_id"]
+            isOneToOne: false
+            referencedRelation: "student_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_task_uploads_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_tasks: {
         Row: {
           grade: number | null
@@ -2005,6 +2122,7 @@ export type Database = {
           notes: string | null
           status: string
           student_id: string
+          student_report: string | null
           submitted_at: string | null
           task_id: string
         }
@@ -2015,6 +2133,7 @@ export type Database = {
           notes?: string | null
           status?: string
           student_id: string
+          student_report?: string | null
           submitted_at?: string | null
           task_id: string
         }
@@ -2025,6 +2144,7 @@ export type Database = {
           notes?: string | null
           status?: string
           student_id?: string
+          student_report?: string | null
           submitted_at?: string | null
           task_id?: string
         }
@@ -2238,6 +2358,52 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      user_permissions: {
+        Row: {
+          created_at: string
+          effect: string
+          granted_by: string | null
+          permission_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          effect: string
+          granted_by?: string | null
+          permission_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          effect?: string
+          granted_by?: string | null
+          permission_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "user_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_schedule_slots: {
         Row: {

@@ -68,6 +68,7 @@ function getStudentTaskFormDefaults(studentTask: ManagerStudentTaskRow) {
     status: studentTask.status,
     grade: studentTask.grade === null ? "" : studentTask.grade,
     notes: studentTask.notes ?? "",
+    student_report: studentTask.student_report ?? "",
     submitted_at: studentTask.submitted_at
       ? toDatetimeLocalValue(studentTask.submitted_at)
       : "",
@@ -117,6 +118,7 @@ export function EditStudentTaskSheet({
           status: "pending",
           grade: "",
           notes: "",
+          student_report: "",
           submitted_at: "",
         },
   });
@@ -184,6 +186,7 @@ export function EditStudentTaskSheet({
         : String(values.grade)
     );
     formData.set("notes", values.notes ?? "");
+    formData.set("student_report", values.student_report ?? "");
     formData.set("submitted_at", values.submitted_at ?? "");
 
     startTransition(() => {
@@ -194,6 +197,8 @@ export function EditStudentTaskSheet({
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
   const gradeError = errors.grade?.message ?? state.fieldErrors?.grade?.[0];
   const notesError = errors.notes?.message ?? state.fieldErrors?.notes?.[0];
+  const studentReportError =
+    errors.student_report?.message ?? state.fieldErrors?.student_report?.[0];
   const gradedAtDisplay = gradedAtPreview
     ? format(new Date(gradedAtPreview), "MMM d, yyyy 'at' h:mm a")
     : "—";
@@ -293,7 +298,7 @@ export function EditStudentTaskSheet({
             <FieldLabel
               htmlFor="edit-student-task-notes"
               label="Notes"
-              hint="Optional"
+              hint="Optional · staff"
             />
             <textarea
               id="edit-student-task-notes"
@@ -307,6 +312,27 @@ export function EditStudentTaskSheet({
             />
             {notesError ? (
               <p className="text-sm text-destructive">{notesError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-student-task-report"
+              label="Student report"
+              hint="Optional"
+            />
+            <textarea
+              id="edit-student-task-report"
+              rows={5}
+              aria-invalid={!!studentReportError}
+              disabled={isFormDisabled}
+              className={cn(
+                "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
+              )}
+              {...register("student_report")}
+            />
+            {studentReportError ? (
+              <p className="text-sm text-destructive">{studentReportError}</p>
             ) : null}
           </div>
 

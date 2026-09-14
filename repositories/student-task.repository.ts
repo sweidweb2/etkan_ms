@@ -5,7 +5,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const STUDENT_TASK_COLUMNS =
-  "id, task_id, student_id, status, submitted_at, grade, notes, graded_at";
+  "id, task_id, student_id, status, submitted_at, grade, notes, student_report, graded_at";
 
 const DONE_TASK_STATUSES = [
   STUDENT_TASK_STATUSES.SUBMITTED,
@@ -21,6 +21,7 @@ export type StudentTaskRecord = {
   submitted_at: string | null;
   grade: number | null;
   notes: string | null;
+  student_report: string | null;
   graded_at: string | null;
 };
 
@@ -30,6 +31,7 @@ export type CreateStudentTaskInput = {
   status?: string;
   grade?: number | null;
   notes?: string | null;
+  student_report?: string | null;
   graded_at?: string | null;
 };
 
@@ -37,6 +39,7 @@ export type UpdateStudentTaskInput = {
   status: string;
   grade?: number | null;
   notes?: string | null;
+  student_report?: string | null;
   submitted_at?: string | null;
   graded_at?: string | null;
 };
@@ -276,6 +279,7 @@ export async function createStudentTasks(
         submitted_at: null,
         grade: row.grade ?? null,
         notes: row.notes ?? null,
+        student_report: row.student_report ?? null,
         graded_at: row.graded_at ?? null,
       }))
     )
@@ -293,6 +297,7 @@ export async function updateStudentTask(
       status: input.status,
       grade: input.grade ?? null,
       notes: input.notes ?? null,
+      student_report: input.student_report ?? null,
       submitted_at: input.submitted_at ?? null,
       graded_at: input.graded_at ?? null,
     })

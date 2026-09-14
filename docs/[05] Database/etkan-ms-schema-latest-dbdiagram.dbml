@@ -279,10 +279,26 @@ Table student_tasks {
   submitted_at timestamp
   grade numeric(5,2)
   notes text
+  student_report text
   graded_at timestamp
 
   indexes {
     (task_id, student_id) [unique, name: 'student_tasks_task_student_unique']
+  }
+}
+
+Table student_task_uploads {
+  id uuid [pk, default: `gen_random_uuid()`]
+  student_task_id uuid [not null]
+  storage_path text [not null, unique]
+  file_name text [not null]
+  mime_type text [not null]
+  file_size integer [not null]
+  uploaded_by uuid
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (student_task_id)
   }
 }
 
@@ -409,6 +425,21 @@ Table role_permissions {
   }
 }
 
+Table user_permissions {
+  user_id uuid [not null]
+  permission_key text [not null]
+  effect text [not null, note: 'allow | deny']
+  granted_by uuid
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, permission_key) [pk]
+    user_id
+    permission_key
+    granted_by
+  }
+}
+
 Table notifications {
   id uuid [pk, default: `gen_random_uuid()`]
   recipient_id uuid
@@ -501,6 +532,8 @@ Ref: tasks.session_id > sessions.id
 
 Ref: student_tasks.task_id > tasks.id
 Ref: student_tasks.student_id > profiles.id
+Ref: student_task_uploads.student_task_id > student_tasks.id
+Ref: student_task_uploads.uploaded_by > profiles.id
 
 Ref: final_exam.class_id > classes.id
 
@@ -521,6 +554,10 @@ Ref: email_users.email_sent_id > email_sent.id
 Ref: email_users.student_id > profiles.id
 
 Ref: role_permissions.permission_key > permissions.key
+
+Ref: user_permissions.user_id > profiles.id
+Ref: user_permissions.permission_key > permissions.key
+Ref: user_permissions.granted_by > profiles.id
 
 Ref: notifications.recipient_id > profiles.id
 Ref: notifications.created_by > profiles.id
@@ -785,6 +822,45 @@ Table student_registration_documents {
   sort_order integer [not null]
   storage_path text [not null, unique]
   created_at timestamptz [not null, default: `now()`]
+}
+
+Table blogs {
+  id uuid [pk, not null, default: `gen_random_uuid()`]
+  slug text [not null, note: 'UNIQUE; URL-safe lowercase']
+  title text [not null]
+  summary text [not null]
+  body_html text [not null, default: '', note: 'CHECK char_length <= 200000']
+  categories text[] [not null, default: '{}', note: 'Free-text labels; CHECK via blog_categories_within_bounds()']
+  thumbnail_url text [note: 'Storage bucket blogs']
+  author_name text [not null]
+  author_avatar_url text [note: 'Storage bucket auther']
+  status text [not null, default: 'draft', note: "CHECK in ('draft','published')"]
+  is_featured boolean [not null, default: false, note: 'At most one true — partial unique index']
+  reading_time_minutes integer [not null, default: 1]
+  published_at timestamptz
+  sources text[] [not null, default: '{}', note: 'CHECK via blog_sources_within_bounds()']
+  meta_title text [note: 'CMS SEO; CHECK 2..120 when set']
+  meta_description text [note: 'CMS SEO; CHECK 2..300 when set']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (slug) [unique, name: 'blogs_slug_uidx']
+    (is_featured) [unique, name: 'blogs_one_featured_uidx', note: 'WHERE is_featured = true']
+    (status, published_at) [name: 'blogs_status_published_at_idx', note: 'published_at DESC']
+    (created_at) [name: 'blogs_created_at_idx', note: 'created_at DESC']
+    categories [type: gin, name: 'blogs_categories_gin_idx']
+    title [type: gin, name: 'blogs_title_trgm_idx', note: 'pg_trgm gin_trgm_ops']
+    author_name [type: gin, name: 'blogs_author_name_trgm_idx', note: 'pg_trgm gin_trgm_ops']
+  }
+
+  Note: '''
+    Storage buckets (public read, authenticated write):
+    - blogs — cover/thumbnail images
+    - auther — author avatars
+
+    English-only content; EN/AR public pages show the same posts.
+  '''
 }
 
 Ref: guests.created_by > profiles.id

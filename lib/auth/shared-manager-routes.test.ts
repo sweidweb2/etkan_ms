@@ -57,6 +57,10 @@ describe("shared manager routes", () => {
     expect(isSharedManagerPath(ROUTES.MANAGER_INCOME_STATEMENT)).toBe(false);
   });
 
+  it("matches academic analysis without instructor flag", () => {
+    expect(isSharedManagerPath(ROUTES.MANAGER_ACADEMIC_ANALYSIS)).toBe(true);
+  });
+
   it("matches guests and registration dossiers without instructor flag", () => {
     expect(isSharedManagerPath(ROUTES.MANAGER_GUESTS)).toBe(true);
     expect(isSharedManagerPath(`${ROUTES.MANAGER_GUESTS}/abc-123`)).toBe(true);

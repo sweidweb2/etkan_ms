@@ -8,6 +8,7 @@ import {
   GUEST_STATUS_VALUES,
   canMutateGuestPipeline,
   canRemoveGuestPipelineStatus,
+  formatGuestReferredFrom,
 } from "@/lib/constants/guest";
 
 describe("guest status constants", () => {
@@ -57,5 +58,21 @@ describe("guest status constants", () => {
       "finishing_routing_doc",
       "finished",
     ]);
+  });
+});
+
+describe("formatGuestReferredFrom", () => {
+  it("returns null when unset", () => {
+    expect(formatGuestReferredFrom(null, null)).toBeNull();
+  });
+
+  it("returns the standard label", () => {
+    expect(formatGuestReferredFrom("social", null)).toBe("Social media");
+  });
+
+  it("returns the custom text for other", () => {
+    expect(formatGuestReferredFrom("other", "Campus booth")).toBe(
+      "Campus booth"
+    );
   });
 });

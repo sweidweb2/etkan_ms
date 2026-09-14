@@ -52,7 +52,6 @@ export type PanelVariant =
   | "supervisor"
   | "crm"
   | "teacher"
-  | "trainer"
   | "student";
 
 export type PanelConfig = {

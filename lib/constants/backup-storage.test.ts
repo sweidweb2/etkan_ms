@@ -8,8 +8,11 @@ import {
 describe("backup storage helpers", () => {
   it("accepts known buckets", () => {
     expect(isBackupStorageBucket("projects")).toBe(true);
+    expect(isBackupStorageBucket("blogs")).toBe(true);
+    expect(isBackupStorageBucket("auther")).toBe(true);
     expect(isBackupStorageBucket("workshops")).toBe(true);
     expect(isBackupStorageBucket("registration")).toBe(true);
+    expect(isBackupStorageBucket("student-task-uploads")).toBe(true);
     expect(isBackupStorageBucket("avatars")).toBe(false);
   });
 

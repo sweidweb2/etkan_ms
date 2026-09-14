@@ -2,8 +2,8 @@
 
 **Status:** Phase 0–1 complete — frozen list lives in code at `lib/constants/permissions.ts`.  
 **Baseline:** manager panel capabilities.  
-**Roles co-manager / trainer:** empty panels — workshop access seed only.  
-**Role supervisor:** empty `/supervisor` panel; seeded with manager catalog minus users / accounting / emailing / gallery / projects / notifications / backup / logs / settings / rbac / payment_schedules / cron_jobs (see `[08] role-seeded-permissions.md`). No new permission keys.  
+**Roles co-manager:** empty panels — workshop access seed only.  
+**Role supervisor:** empty `/supervisor` panel; seeded with manager catalog minus users / accounting / emailing / gallery / projects / blogs / notifications / backup / logs / settings / rbac / payment_schedules / cron_jobs (see `[08] role-seeded-permissions.md`). No new permission keys.  
 **Role CRM:** empty `/crm` panel; seeded with all `guests.*` + all `teams.*` + `registrations.view` for shared `/manager/guests*` and dossier links (see `[08]`). No new permission keys.
 
 ---
@@ -34,7 +34,7 @@ Search, filter, and list↔detail are part of the matching `*.view` key (not sep
 
 Kept as separate groups (match manager domains):
 
-Dashboard · Users · Students · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Workshops · Notifications · Emailing · Accounting · Payment schedules · Reports · Backup · Logs · Cloudflare AI usage · Registrations · Guests · Teams · Cron Jobs · Settings · RBAC
+Dashboard · Users · Students · Subjects · Classes · Sessions · Attendance · Tasks · Final Exams · Grades · Semesters · Equipment · Gallery · Projects · Blogs · Workshops · Notifications · Emailing · Accounting · Payment schedules · Reports · Backup · Logs · Cloudflare AI usage · Registrations · Guests · Teams · Cron Jobs · Settings · RBAC
 
 Collapsed into `*.view` (not separate permissions): search, filter, schedule/alerts widgets on dashboard, student detail sub-tabs (classes/grades/borrows summaries).
 
@@ -169,10 +169,10 @@ Format: `key` — label — access
 
 | Key | Label | Access |
 |-----|-------|--------|
-| `tasks.view` | View tasks | read |
+| `tasks.view` | View tasks and open student task upload signed URLs | read |
 | `tasks.create` | Create task | write |
 | `tasks.update` | Edit task | write |
-| `tasks.update_student` | Edit student task | write |
+| `tasks.update_student` | Edit student task (status, grade, notes, student report) and manage student task file uploads | write |
 | `tasks.delete` | Delete task | write |
 
 ### Final Exams
@@ -235,6 +235,15 @@ Format: `key` — label — access
 | `projects.update` | Edit public project | write |
 | `projects.delete` | Delete public project | write |
 
+### Blogs
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `blogs.view` | View blogs | read |
+| `blogs.create` | Create blog | write |
+| `blogs.update` | Edit blog | write |
+| `blogs.delete` | Delete blog | write |
+
 ### Notifications
 
 | Key | Label | Access |
@@ -274,6 +283,12 @@ Format: `key` — label — access
 | `accounting.adjustments.create` | Create financial adjustment | write |
 | `accounting.adjustments.update` | Edit financial adjustment | write |
 | `accounting.adjustments.delete` | Delete financial adjustment | write |
+
+### Academic analysis
+
+| Key | Label | Access |
+|-----|-------|--------|
+| `academic_analysis.view` | View academic analysis | read |
 
 ### Payment schedules
 
@@ -474,6 +489,10 @@ projects.view
 projects.create
 projects.update
 projects.delete
+blogs.view
+blogs.create
+blogs.update
+blogs.delete
 notifications.view
 notifications.create
 notifications.update
@@ -487,6 +506,7 @@ emailing.resend
 accounting.view
 accounting.income_statement.view
 accounting.income_statement.analytics.view
+academic_analysis.view
 accounting.transactions.create
 accounting.transactions.update
 accounting.transactions.delete
@@ -535,7 +555,7 @@ settings.reset_passwords
 rbac.manage
 ```
 
-**Count:** 157 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete · students includes `students.view_own` for the student panel.
+**Count:** 162 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · academic analysis includes view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete · blogs includes view / create / update / delete · students includes `students.view_own` for the student panel.
 
 ### is_instructor — shared seed package
 
@@ -555,7 +575,7 @@ instructor_schedules.view
 
 ### CEO — workshop / instructor module seed
 
-CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant) + `accounting.income_statement.analytics.view` + all `guests.*` + `registrations.view` (open a registration dossier from guest details).
+CEO seed (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors + schedules CRUD + workshops module (incl. payments) + `cloudflare_ai_usage.view` (Schedule assistant) + `accounting.income_statement.analytics.view` + `academic_analysis.view` + all `guests.*` + `registrations.view` (open a registration dossier from guest details).
 
 ```
 instructors.view
@@ -597,6 +617,7 @@ workshops.payments.update
 workshops.payments.delete
 cloudflare_ai_usage.view
 accounting.income_statement.analytics.view
+academic_analysis.view
 guests.view
 guests.create
 guests.update

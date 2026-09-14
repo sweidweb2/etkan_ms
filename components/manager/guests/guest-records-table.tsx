@@ -23,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  formatGuestReferredFrom,
   GUEST_CURRENT_STATUS_BADGE_CLASSES,
   GUEST_CURRENT_STATUS_LABELS,
   GUEST_EDUCATION_LEVEL_LABELS,
@@ -41,6 +42,7 @@ export const UNASSIGNED_GROUP = "unassigned-guests";
 const COLUMN_LIMITS = {
   name: 28,
   school: 20,
+  referred: 18,
 } as const;
 
 const CLOSED_STATUSES: readonly GuestCurrentStatus[] = [
@@ -200,6 +202,17 @@ function GuestRecordRow({
           : "—"}
       </td>
       <td className="px-4 py-3">
+        <TruncatedCell
+          value={
+            formatGuestReferredFrom(
+              guest.referred_from,
+              guest.referred_from_other
+            ) ?? "—"
+          }
+          maxLength={COLUMN_LIMITS.referred}
+        />
+      </td>
+      <td className="px-4 py-3">
         <StatusBadge status={guest.status} />
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
@@ -264,7 +277,7 @@ export function GuestRecordsTable({
   onViewNotes,
   onEditGuest,
 }: GuestRecordsTableProps) {
-  const columnCount = showDragColumn ? 10 : 9;
+  const columnCount = showDragColumn ? 11 : 10;
 
   return (
     <table className="w-full min-w-[64rem] text-left text-sm">
@@ -281,6 +294,7 @@ export function GuestRecordsTable({
           <th className="px-4 py-3 font-medium">School / uni</th>
           <th className="px-4 py-3 font-medium">Education</th>
           <th className="px-4 py-3 font-medium">Service</th>
+          <th className="px-4 py-3 font-medium">Referred from</th>
           <th className="px-4 py-3 font-medium">Status</th>
           <th className="px-4 py-3 font-medium">Created</th>
           <th className="px-4 py-3 font-medium">

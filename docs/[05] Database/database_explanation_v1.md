@@ -20,7 +20,7 @@ The initial migration defines the Etkan MS data model:
 | Area | Tables |
 | --- | --- |
 | Identity | `profiles`, `student_profiles` |
-| RBAC | `permissions`, `role_permissions` |
+| RBAC / UBAC | `permissions`, `role_permissions`, `user_permissions` |
 | Academics | `subjects`, `classes`, `class_teacher`, `student_class`, `tasks`, `student_tasks`, `student_course_grade` |
 | Equipment | `equipments`, `borrow_equipment` |
 | Other | `student_takeouts`, `audit_logs`, `email_sent`, `email_users` |
@@ -28,6 +28,8 @@ The initial migration defines the Etkan MS data model:
 Canonical SQL is in `supabase/migrations/`. Regenerate `types/supabase.ts` after schema changes.
 
 RBAC tables store the permission catalog and which `profiles.role` values may use each key. Seed with `npm run seed:rbac` after migrations (manager gets all permissions; other roles start empty).
+
+`user_permissions` is the UBAC overlay: optional per-user `allow` / `deny` rows (unique on `user_id` + `permission_key`). App effective access is `(role ∪ allows) − denies`. No permission-mirrored RLS — services authorize via the admin client (see `docs/[06] RBAC/[05] enforcement.md` and `docs/[10] Plans/[02] rbac-plus-ubac.md`).
 
 ## Next steps
 

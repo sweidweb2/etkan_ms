@@ -27,7 +27,7 @@ The original [`implementation-plan.md`](./implementation-plan.md) is **historica
 
 ### Intake and CRUD
 
-- [x] Create guest with minimal fields (`full_name`, `phone`, `age`, `school_or_university`, `education_level`, `interested_service`, `notes`)
+- [x] Create guest with minimal fields (`full_name`, `phone`, `age`, `school_or_university`, `education_level`, `interested_service`, `referred_from` / `referred_from_other`, `notes`)
 - [x] Default profile status is `scheduled`; **no** pipeline event on create
 - [x] Update intake fields from the detail page
 - [x] Hard-delete guest with confirm dialog + staged checklist

@@ -4,6 +4,7 @@ import {
   GUEST_INTERESTED_SERVICE_VALUES,
   GUEST_PIPELINE_STATUS_VALUES,
   GUEST_PIPELINE_STATUSES,
+  GUEST_REFERRED_FROM_VALUES,
   canMutateGuestPipeline,
   canRemoveGuestPipelineStatus,
   isGuestCurrentStatus,
@@ -11,6 +12,7 @@ import {
   type GuestCurrentStatus,
   type GuestEducationLevel,
   type GuestInterestedService,
+  type GuestReferredFrom,
   type GuestStatus,
 } from "@/lib/constants/guest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
@@ -156,12 +158,18 @@ function isGuestInterestedService(
   return (GUEST_INTERESTED_SERVICE_VALUES as readonly string[]).includes(value);
 }
 
+function isGuestReferredFrom(value: string): value is GuestReferredFrom {
+  return (GUEST_REFERRED_FROM_VALUES as readonly string[]).includes(value);
+}
+
 function mapGuestRecordToRow(record: GuestRecord): ManagerGuestRow {
   if (
     (record.education_level != null &&
       !isGuestEducationLevel(record.education_level)) ||
     (record.interested_service != null &&
       !isGuestInterestedService(record.interested_service)) ||
+    (record.referred_from != null &&
+      !isGuestReferredFrom(record.referred_from)) ||
     !isGuestCurrentStatus(record.status)
   ) {
     throw new Error("Invalid guest record.");
@@ -175,6 +183,8 @@ function mapGuestRecordToRow(record: GuestRecord): ManagerGuestRow {
     school_or_university: record.school_or_university,
     education_level: record.education_level,
     interested_service: record.interested_service,
+    referred_from: record.referred_from,
+    referred_from_other: record.referred_from_other,
     status: record.status,
     notes: record.notes,
     created_by: record.created_by,
@@ -208,6 +218,8 @@ function auditPayload(record: GuestRecord) {
     school_or_university: record.school_or_university,
     education_level: record.education_level,
     interested_service: record.interested_service,
+    referred_from: record.referred_from,
+    referred_from_other: record.referred_from_other,
     status: record.status,
     notes: record.notes,
   };
@@ -918,6 +930,8 @@ export async function createGuestForManager(
     school_or_university?: string | null;
     education_level?: GuestEducationLevel | null;
     interested_service?: GuestInterestedService | null;
+    referred_from?: GuestReferredFrom | null;
+    referred_from_other?: string | null;
     status?: GuestCurrentStatus;
     notes?: string | null;
   }
@@ -947,6 +961,8 @@ export async function createGuestForManager(
     school_or_university,
     education_level,
     interested_service,
+    referred_from,
+    referred_from_other,
     status,
     notes,
   } = parsed.data;
@@ -958,6 +974,8 @@ export async function createGuestForManager(
     school_or_university,
     education_level,
     interested_service,
+    referred_from,
+    referred_from_other,
     status,
     notes,
     created_by: actor.userId,
@@ -998,6 +1016,8 @@ export async function updateGuestForManager(
     school_or_university?: string | null;
     education_level?: GuestEducationLevel | null;
     interested_service?: GuestInterestedService | null;
+    referred_from?: GuestReferredFrom | null;
+    referred_from_other?: string | null;
     notes?: string | null;
   }
 ): Promise<UpdateGuestResult> {
@@ -1027,6 +1047,8 @@ export async function updateGuestForManager(
     school_or_university,
     education_level,
     interested_service,
+    referred_from,
+    referred_from_other,
     notes,
   } = parsed.data;
 
@@ -1048,6 +1070,8 @@ export async function updateGuestForManager(
     school_or_university,
     education_level,
     interested_service,
+    referred_from,
+    referred_from_other,
     notes,
   });
 

@@ -75,6 +75,7 @@ function buildStudentTaskRow(
     submitted_at: null,
     grade: item.grade,
     notes: null,
+    student_report: null,
     graded_at: null,
   };
 }

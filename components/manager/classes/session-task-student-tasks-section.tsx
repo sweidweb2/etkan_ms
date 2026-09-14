@@ -142,7 +142,7 @@ export function SessionTaskStudentTasksSection({
         </CardHeader>
         <CardContent className="px-0 pb-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[960px] text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-left">
                   <th className="px-4 py-3 font-medium">Student</th>
@@ -151,6 +151,7 @@ export function SessionTaskStudentTasksSection({
                   <th className="px-4 py-3 font-medium">Submitted</th>
                   <th className="px-4 py-3 font-medium">Graded</th>
                   <th className="px-4 py-3 font-medium">Notes</th>
+                  <th className="px-4 py-3 font-medium">Report</th>
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
@@ -158,7 +159,7 @@ export function SessionTaskStudentTasksSection({
                 {sortedStudentTasks.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="px-4 py-10 text-center text-muted-foreground"
                     >
                       No student task records for this assignment yet.
@@ -193,6 +194,14 @@ export function SessionTaskStudentTasksSection({
                         <TruncatedCell
                           value={studentTask.notes ?? "—"}
                           maxLength={SESSION_STUDENT_TASK_TABLE_LIMITS.notes}
+                        />
+                      </td>
+                      <td className="max-w-[14rem] px-4 py-3 text-muted-foreground">
+                        <TruncatedCell
+                          value={studentTask.student_report ?? "—"}
+                          maxLength={
+                            SESSION_STUDENT_TASK_TABLE_LIMITS.studentReport
+                          }
                         />
                       </td>
                       <td className="px-4 py-3">

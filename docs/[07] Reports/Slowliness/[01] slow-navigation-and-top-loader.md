@@ -1,6 +1,6 @@
 # [01] Slow page switching & top loading bar feeling “off”
 
-**Where it shows up:** All role panels (CEO, manager, co-manager, admin, teacher, trainer, student) — not only CEO.  
+**Where it shows up:** All role panels (CEO, manager, co-manager, admin, teacher, student) — not only CEO.  
 **What people notice:** Moving between pages feels slow, and the thin bar at the top of the screen does not always match when the new page is actually ready.  
 **Date noted:** 2026-08-07  
 
@@ -94,7 +94,7 @@ Do these in order. Each phase should leave the app usable. Don’t skip testing 
 2. Keep the bar up until the new route’s main content is ready (or until the page-level “Loading page…” is gone), not only until the first network reply.
 3. Make sure **all** ways of changing pages start the same feedback: sidebar links, in-page buttons, cards, panel search, browser back/forward.
 4. Keep the rule: no top bar for opening a modal, dropdown, or accordion that doesn’t load a new page.
-5. Smoke-test every role panel once (CEO, manager, co-manager, admin, teacher, trainer, student).
+5. Smoke-test every role panel once (CEO, manager, co-manager, admin, teacher, student).
 
 **Done when:** On the Phase 0 journeys, bar start/end roughly matches when the section feels ready; no role left untested.
 

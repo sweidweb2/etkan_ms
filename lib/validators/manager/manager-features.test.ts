@@ -462,6 +462,30 @@ describe("parseEditStudentTaskFormData", () => {
     }
   });
 
+  it("parses student report on student task update", () => {
+    const formData = new FormData();
+    formData.set("id", sampleId);
+    formData.set("status", "submitted");
+    formData.set("student_report", "My report text");
+
+    const result = parseEditStudentTaskFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.student_report).toBe("My report text");
+    }
+  });
+
+  it("rejects student report over 5000 characters", () => {
+    const schema = createEditStudentTaskSchema(20);
+    const parsed = schema.safeParse({
+      status: "pending",
+      student_report: "x".repeat(5001),
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it("rejects grade above task max when schema is scoped", () => {
     const schema = createEditStudentTaskSchema(20);
     const parsed = schema.safeParse({

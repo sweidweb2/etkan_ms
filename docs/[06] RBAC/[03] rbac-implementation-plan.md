@@ -13,7 +13,7 @@ Each phase has clear tasks and a **testing** checklist before moving on.
 
 ## Guiding decisions
 
-1. Keep **panel routing** on `profiles.role` (admin / manager / co-manager / ceo / teacher / trainer / student). Do not redesign panels first.
+1. Keep **panel routing** on `profiles.role` (admin / manager / co-manager / ceo / supervisor / crm / teacher / student). Do not redesign panels first.
 2. Add **permissions** and **role ↔ permission** links in the database.
 3. Put **allow/deny** in one authorization engine. Services call it — not repositories, not UI.
 4. Replace `actorRole !== manager` checks **feature by feature**, not all at once.
@@ -348,12 +348,24 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 - Custom roles created from scratch in UI
 - Teacher / student domain permissions (until those panels have real features)
 - Redesigning panel shells per role
+- Per-user allow/deny overlays (**UBAC**) — tracked separately below
 
 Add these as a later plan after Phase 7 is stable.
 
 ---
 
+## Follow-on — RBAC + UBAC
+
+Per-user **allow/deny** overlays on top of role grants (effective = `(role ∪ allow) − deny`), Manager Users UI, audit, and session-pack merge are planned in:
+
+**[`docs/[10] Plans/[02] rbac-plus-ubac.md`](../[10]%20Plans/[02]%20rbac-plus-ubac.md)**
+
+Does not reopen Phase 8’s “no permission-mirrored RLS” stance. Panel routing stays on `profiles.role`.
+
+---
+
 ## Related docs
 
-- `[01] rbac-layers.md` — six layers (business view)
+- `[01] rbac-layers.md` — six layers (business view; includes UBAC overlay in storage/engine)
 - `[02] permission-definitions.md` — feature permission list (manager baseline)
+- `[10] Plans/[02] rbac-plus-ubac.md` — RBAC + UBAC implementation plan

@@ -3,6 +3,7 @@ import type {
   GuestCurrentStatus,
   GuestEducationLevel,
   GuestInterestedService,
+  GuestReferredFrom,
   GuestStatus,
 } from "@/lib/constants/guest";
 
@@ -14,6 +15,8 @@ export interface ManagerGuestRow {
   school_or_university: string | null;
   education_level: GuestEducationLevel | null;
   interested_service: GuestInterestedService | null;
+  referred_from: GuestReferredFrom | null;
+  referred_from_other: string | null;
   status: GuestCurrentStatus;
   notes: string | null;
   created_by: string | null;

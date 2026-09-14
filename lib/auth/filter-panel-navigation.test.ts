@@ -64,6 +64,7 @@ describe("filterPanelNavigation", () => {
       PERMISSIONS.ACCOUNTING_VIEW,
       PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
       PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW,
+      PERMISSIONS.ACADEMIC_ANALYSIS_VIEW,
       PERMISSIONS.NOTIFICATIONS_VIEW,
       PERMISSIONS.EMAILING_VIEW,
       PERMISSIONS.BACKUP_VIEW,
@@ -100,7 +101,7 @@ describe("filterPanelNavigation", () => {
 
   it("keeps role-native links and workshops when instructor + workshops.view", () => {
     const permissions = new Set<PermissionKey>([PERMISSIONS.WORKSHOPS_VIEW]);
-    const trainerNav: PanelNavigation = {
+    const workshopNav: PanelNavigation = {
       items: [
         {
           title: "Manage workshops",
@@ -110,7 +111,7 @@ describe("filterPanelNavigation", () => {
       ],
     };
 
-    const filtered = filterPanelNavigation(trainerNav, permissions, {
+    const filtered = filterPanelNavigation(workshopNav, permissions, {
       isInstructor: true,
     });
     const paths = hrefs(filtered);

@@ -3,13 +3,14 @@ import type {
   GuestCurrentStatus,
   GuestEducationLevel,
   GuestInterestedService,
+  GuestReferredFrom,
 } from "@/lib/constants/guest";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
 const GUEST_COLUMNS =
-  "id, full_name, phone, age, school_or_university, education_level, interested_service, status, notes, created_by, created_at, updated_at";
+  "id, full_name, phone, age, school_or_university, education_level, interested_service, referred_from, referred_from_other, status, notes, created_by, created_at, updated_at";
 
 export type GuestRecord = {
   id: string;
@@ -19,6 +20,8 @@ export type GuestRecord = {
   school_or_university: string | null;
   education_level: string | null;
   interested_service: string | null;
+  referred_from: string | null;
+  referred_from_other: string | null;
   status: string;
   notes: string | null;
   created_by: string | null;
@@ -33,6 +36,8 @@ export type CreateGuestRecordInput = {
   school_or_university: string | null;
   education_level: GuestEducationLevel | null;
   interested_service: GuestInterestedService | null;
+  referred_from: GuestReferredFrom | null;
+  referred_from_other: string | null;
   status: GuestCurrentStatus;
   notes: string | null;
   created_by: string | null;
@@ -45,6 +50,8 @@ export type UpdateGuestRecordInput = {
   school_or_university: string | null;
   education_level: GuestEducationLevel | null;
   interested_service: GuestInterestedService | null;
+  referred_from: GuestReferredFrom | null;
+  referred_from_other: string | null;
   notes: string | null;
 };
 
@@ -76,6 +83,8 @@ export async function createGuest(
       school_or_university: input.school_or_university,
       education_level: input.education_level,
       interested_service: input.interested_service,
+      referred_from: input.referred_from,
+      referred_from_other: input.referred_from_other,
       status: input.status,
       notes: input.notes,
       created_by: input.created_by,
@@ -98,6 +107,8 @@ export async function updateGuest(
       school_or_university: input.school_or_university,
       education_level: input.education_level,
       interested_service: input.interested_service,
+      referred_from: input.referred_from,
+      referred_from_other: input.referred_from_other,
       notes: input.notes,
       updated_at: new Date().toISOString(),
     })

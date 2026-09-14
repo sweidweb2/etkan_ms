@@ -1,11 +1,18 @@
 import { z } from "zod";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import { createGuestSchema } from "@/lib/validators/manager/create-guest";
+import {
+  clearReferredFromOtherWhenNotOther,
+  guestIntakeFieldsSchema,
+  refineReferredFromOther,
+} from "@/lib/validators/manager/create-guest";
 import type { FieldErrors } from "@/types/auth";
 
-export const updateGuestSchema = createGuestSchema.omit({ status: true }).extend({
-  id: z.string().uuid({ message: "Invalid guest id." }),
-});
+export const updateGuestSchema = guestIntakeFieldsSchema
+  .extend({
+    id: z.string().uuid({ message: "Invalid guest id." }),
+  })
+  .superRefine(refineReferredFromOther)
+  .transform(clearReferredFromOtherWhenNotOther);
 
 export type UpdateGuestInput = z.infer<typeof updateGuestSchema>;
 
@@ -20,6 +27,8 @@ export function parseUpdateGuestFormData(formData: FormData):
     school_or_university: formData.get("school_or_university"),
     education_level: formData.get("education_level"),
     interested_service: formData.get("interested_service"),
+    referred_from: formData.get("referred_from"),
+    referred_from_other: formData.get("referred_from_other"),
     notes: formData.get("notes"),
   });
 

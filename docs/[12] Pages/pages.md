@@ -90,14 +90,6 @@ CEO / co-manager often reuse the same manager routes via the shared panel — ti
 
 ---
 
-## Trainer
-
-| Done | Page | Path | Template |
-|------|------|------|----------|
-| [ ] | Dashboard | `/trainer/dashboard` | dashboard |
-
----
-
 ## Student
 
 | Done | Page | Path | Template |

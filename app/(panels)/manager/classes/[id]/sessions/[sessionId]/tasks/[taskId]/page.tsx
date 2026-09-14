@@ -35,6 +35,7 @@ export default async function ManagerClassSessionTaskDetailPage({
       session={detail.session}
       classRow={detail.classRow}
       initialStudentTasks={detail.studentTasks}
+      initialUploads={detail.uploads}
       lockedUserIds={computedGradeLock.lockedUserIds}
       hasComputedGrades={computedGradeLock.hasComputedGrades}
     />

@@ -17,6 +17,7 @@ import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as taskRepository from "@/repositories/task.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
+import * as studentTaskUploadService from "@/services/classes/student-task-upload.service";
 import {
   createSessionTaskForManager,
   deleteClassSessionForManager,
@@ -46,6 +47,9 @@ vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/task.repository");
+vi.mock("@/services/classes/student-task-upload.service", () => ({
+  removeStorageForStudentTaskUploads: vi.fn().mockResolvedValue({ error: null }),
+}));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -812,6 +816,13 @@ describe("deleteSessionTaskForManager", () => {
   });
 
   it("deletes student task rows then the task", async () => {
+    vi.mocked(studentTaskRepository.listStudentTasksByTaskId).mockResolvedValue({
+      data: [{ id: studentTaskId }, { id: "st-b" }],
+      error: null,
+    } as never);
+    vi.mocked(
+      studentTaskUploadService.removeStorageForStudentTaskUploads
+    ).mockResolvedValue({ error: null });
     vi.mocked(studentTaskRepository.deleteStudentTasksByTaskId).mockResolvedValue({
       data: [{ id: studentTaskId }, { id: "st-b" }],
       error: null,
@@ -831,6 +842,9 @@ describe("deleteSessionTaskForManager", () => {
       }
     );
 
+    expect(
+      studentTaskUploadService.removeStorageForStudentTaskUploads
+    ).toHaveBeenCalledWith(adminClient, [studentTaskId, "st-b"]);
     expect(studentTaskRepository.deleteStudentTasksByTaskId).toHaveBeenCalledWith(
       adminClient,
       taskId
@@ -1043,6 +1057,7 @@ describe("updateStudentTaskForManager", () => {
         submitted_at: "2026-07-11T10:00:00.000Z",
         grade: 18,
         notes: "Good work",
+        student_report: "I completed the homework.",
         graded_at: "2026-07-11T12:00:00.000Z",
       },
       error: null,
@@ -1068,6 +1083,7 @@ describe("updateStudentTaskForManager", () => {
         status: STUDENT_TASK_STATUSES.GRADED,
         grade: 18,
         notes: "Good work",
+        student_report: "I completed the homework.",
         submitted_at: "2026-07-11T10:00",
       }
     );
@@ -1085,6 +1101,7 @@ describe("updateStudentTaskForManager", () => {
       studentTaskId,
       expect.objectContaining({
         grade: 18,
+        student_report: "I completed the homework.",
         graded_at: expect.any(String),
       })
     );

@@ -8,6 +8,7 @@ import { deleteSessionTaskAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { EditSessionTaskDialog } from "@/components/manager/classes/edit-session-task-dialog";
 import { SessionTaskStudentTasksSection } from "@/components/manager/classes/session-task-student-tasks-section";
+import { SessionTaskUploadsSection } from "@/components/manager/classes/session-task-uploads-section";
 import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ import type {
   DeleteSessionTaskActionState,
   ManagerSessionTaskRow,
   ManagerStudentTaskRow,
+  ManagerStudentTaskUploadRow,
 } from "@/types/manager-class-session-detail";
 
 const initialDeleteState: DeleteSessionTaskActionState = {};
@@ -60,6 +62,7 @@ type SessionTaskDetailsPanelProps = {
     name: string;
   };
   initialStudentTasks: ManagerStudentTaskRow[];
+  initialUploads?: ManagerStudentTaskUploadRow[];
   lockedUserIds?: string[];
   hasComputedGrades?: boolean;
 };
@@ -100,6 +103,7 @@ export function SessionTaskDetailsPanel({
   session,
   classRow,
   initialStudentTasks,
+  initialUploads = [],
   lockedUserIds = [],
   hasComputedGrades = false,
 }: SessionTaskDetailsPanelProps) {
@@ -250,6 +254,12 @@ export function SessionTaskDetailsPanel({
           </dl>
         </CardContent>
       </Card>
+
+      <SessionTaskUploadsSection
+        studentTasks={studentTasks}
+        initialUploads={initialUploads}
+        lockedUserIds={lockedUserIds}
+      />
 
       <SessionTaskStudentTasksSection
         task={task}

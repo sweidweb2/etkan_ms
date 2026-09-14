@@ -26,7 +26,6 @@ describe("getPostLoginRedirect", () => {
     expect(getPostLoginRedirect(ROLES.CO_MANAGER)).toBe(
       ROUTES.MANAGER_WORKSHOPS
     );
-    expect(getPostLoginRedirect(ROLES.TRAINER)).toBe(ROUTES.MANAGER_WORKSHOPS);
     expect(getPostLoginRedirect(ROLES.SUPERVISOR)).toBe(
       ROUTES.MANAGER_STUDENTS
     );

@@ -15,4 +15,5 @@ export const SESSION_ATTENDEE_TABLE_LIMITS = {
 export const SESSION_STUDENT_TASK_TABLE_LIMITS = {
   fullName: 32,
   notes: 48,
+  studentReport: 48,
 } as const;
