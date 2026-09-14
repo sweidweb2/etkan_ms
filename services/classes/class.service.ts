@@ -196,6 +196,7 @@ function mapSessionRecord(record: SessionRecord): ManagerClassSessionRow {
     class_id: record.class_id,
     nb_order: record.nb_order,
     topic: record.topic,
+    session_report: record.session_report,
     starts_at: record.starts_at,
     ends_at: record.ends_at,
     semester_id: record.semester_id,
@@ -1664,6 +1665,7 @@ export async function createClassSessionForManager(
   input: {
     class_id: string;
     topic: string;
+    session_report?: string;
     starts_at: string;
     ends_at: string;
   }
@@ -1675,6 +1677,7 @@ export async function createClassSessionForManager(
 
   const parsed = createClassSessionSchema.safeParse({
     topic: input.topic,
+    session_report: input.session_report,
     starts_at: input.starts_at,
     ends_at: input.ends_at,
   });
@@ -1728,6 +1731,7 @@ export async function createClassSessionForManager(
     class_id: input.class_id,
     nb_order: nextNbOrder,
     topic: parsed.data.topic.trim(),
+    session_report: normalizeOptionalString(parsed.data.session_report),
     starts_at: startsAt,
     ends_at: endsAt,
     semester_id: existing.data.semester_id,
@@ -1782,6 +1786,7 @@ export async function createClassSessionForManager(
       class_id: session.class_id,
       nb_order: session.nb_order,
       topic: session.topic,
+      session_report: session.session_report,
     },
   });
 

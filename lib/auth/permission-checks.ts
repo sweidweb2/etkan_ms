@@ -46,3 +46,43 @@ export function requirePermissionInSet(
     throw new Error(UNAUTHORIZED_MESSAGE);
   }
 }
+
+export type MergePermissionSetsInput = {
+  roleKeys: Iterable<string>;
+  allows?: Iterable<string>;
+  denies?: Iterable<string>;
+};
+
+/**
+ * Effective permissions: `(role ∪ allows) − denies`.
+ * Deny wins over both role grants and user allows. Invalid keys are skipped.
+ */
+export function mergePermissionSets(
+  input: MergePermissionSetsInput
+): ReadonlySet<PermissionKey> {
+  const effective = new Set<PermissionKey>();
+
+  for (const key of input.roleKeys) {
+    if (isPermissionKey(key)) {
+      effective.add(key);
+    }
+  }
+
+  if (input.allows) {
+    for (const key of input.allows) {
+      if (isPermissionKey(key)) {
+        effective.add(key);
+      }
+    }
+  }
+
+  if (input.denies) {
+    for (const key of input.denies) {
+      if (isPermissionKey(key)) {
+        effective.delete(key);
+      }
+    }
+  }
+
+  return effective;
+}

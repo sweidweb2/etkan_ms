@@ -15,6 +15,7 @@ import Link from "next/link";
 import { deleteBlogAction } from "@/app/manager/blogs/actions";
 import { Can } from "@/components/auth/can";
 import { AddBlogSheet } from "@/components/manager/blogs/add-blog-sheet";
+import { AdvancedBlogJsonForm } from "@/components/manager/blogs/advanced-blog-json-form";
 import { EditBlogSheet } from "@/components/manager/blogs/edit-blog-sheet";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -61,6 +62,13 @@ const COLUMN_LIMITS = {
   author: 24,
 } as const;
 
+const TABS = [
+  { value: "records", label: "Records" },
+  { value: "advanced", label: "Advanced create" },
+] as const;
+
+type BlogsTab = (typeof TABS)[number]["value"];
+
 const initialDeleteState: DeleteBlogActionState = {};
 
 const ROW_CLASS =
@@ -101,6 +109,7 @@ type ManageBlogsPanelProps = {
 
 export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
   const [blogs, setBlogs] = useState(initialBlogs);
+  const [activeTab, setActiveTab] = useState<BlogsTab>("records");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [pageSize, setPageSize] =
@@ -211,14 +220,49 @@ export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
             <ExternalLinkIcon className="size-4" />
             Public pages
           </Button>
-          <Can permission={PERMISSIONS.BLOGS_CREATE}>
-            <Button type="button" onClick={() => setAddOpen(true)}>
-              <PlusIcon className="size-4" />
-              New blog
-            </Button>
-          </Can>
+          {activeTab === "records" ? (
+            <Can permission={PERMISSIONS.BLOGS_CREATE}>
+              <Button type="button" onClick={() => setAddOpen(true)}>
+                <PlusIcon className="size-4" />
+                New blog
+              </Button>
+            </Can>
+          ) : null}
         </div>
 
+        <Can permission={PERMISSIONS.BLOGS_CREATE}>
+          <div
+            role="tablist"
+            aria-label="Blogs views"
+            className="inline-flex w-fit gap-1 rounded-md border bg-muted/40 p-1 sm:mx-auto"
+          >
+            {TABS.map((tab) => (
+              <Button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.value}
+                size="sm"
+                variant={activeTab === tab.value ? "default" : "ghost"}
+                onClick={() => setActiveTab(tab.value)}
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+        </Can>
+
+        {activeTab === "advanced" ? (
+          <Can permission={PERMISSIONS.BLOGS_CREATE}>
+            <AdvancedBlogJsonForm
+              onBlogCreated={(created) => {
+                onBlogCreated(created);
+                setActiveTab("records");
+              }}
+            />
+          </Can>
+        ) : (
+          <>
         <div className="flex w-full flex-row flex-nowrap gap-2 sm:gap-3">
           <UserStatCard
             label="Total"
@@ -438,6 +482,8 @@ export function ManageBlogsPanel({ initialBlogs }: ManageBlogsPanelProps) {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
 
       <AddBlogSheet

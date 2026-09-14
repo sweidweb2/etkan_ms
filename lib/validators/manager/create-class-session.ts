@@ -9,6 +9,13 @@ export const createClassSessionSchema = z
       .trim()
       .min(1, { message: "Session topic is required." })
       .max(120, { message: "Topic must be at most 120 characters." }),
+    session_report: z
+      .string()
+      .trim()
+      .max(5000, {
+        message: "Session report must be at most 5000 characters.",
+      })
+      .optional(),
     starts_at: z
       .string()
       .trim()
@@ -51,6 +58,7 @@ export function parseCreateClassSessionFormData(formData: FormData):
 
   const parsed = createClassSessionSchema.safeParse({
     topic: formData.get("topic"),
+    session_report: formData.get("session_report") ?? undefined,
     starts_at: formData.get("starts_at"),
     ends_at: formData.get("ends_at"),
   });

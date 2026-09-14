@@ -23,6 +23,7 @@ import {
   type UpdateClassSessionInput,
 } from "@/lib/validators/manager/update-class-session";
 import { toSchoolDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
+import { cn } from "@/lib/utils";
 import type { UpdateClassSessionActionState } from "@/types/manager-class-session-detail";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 
@@ -66,6 +67,7 @@ export function EditClassSessionDialog({
     mode: "onBlur",
     defaultValues: {
       topic: session.topic,
+      session_report: session.session_report ?? "",
       starts_at: toSchoolDateTimeLocalValue(session.starts_at),
       ends_at: toSchoolDateTimeLocalValue(session.ends_at),
     },
@@ -78,6 +80,7 @@ export function EditClassSessionDialog({
 
     reset({
       topic: session.topic,
+      session_report: session.session_report ?? "",
       starts_at: toSchoolDateTimeLocalValue(session.starts_at),
       ends_at: toSchoolDateTimeLocalValue(session.ends_at),
     });
@@ -102,6 +105,7 @@ export function EditClassSessionDialog({
     formData.set("class_id", classId);
     formData.set("session_id", session.id);
     formData.set("topic", values.topic);
+    formData.set("session_report", values.session_report ?? "");
     formData.set("starts_at", values.starts_at);
     formData.set("ends_at", values.ends_at);
 
@@ -111,13 +115,15 @@ export function EditClassSessionDialog({
   }
 
   const topicError = errors.topic?.message ?? state.fieldErrors?.topic?.[0];
+  const sessionReportError =
+    errors.session_report?.message ?? state.fieldErrors?.session_report?.[0];
   const startsError =
     errors.starts_at?.message ?? state.fieldErrors?.starts_at?.[0];
   const endsError = errors.ends_at?.message ?? state.fieldErrors?.ends_at?.[0];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Edit session</DialogTitle>
           <DialogDescription>
@@ -145,6 +151,27 @@ export function EditClassSessionDialog({
             />
             {topicError ? (
               <p className="text-sm text-destructive">{topicError}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="edit-class-session-report"
+              label="Session report"
+              hint="Optional"
+            />
+            <textarea
+              id="edit-class-session-report"
+              rows={5}
+              aria-invalid={!!sessionReportError}
+              disabled={isPending}
+              className={cn(
+                "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
+              )}
+              {...register("session_report")}
+            />
+            {sessionReportError ? (
+              <p className="text-sm text-destructive">{sessionReportError}</p>
             ) : null}
           </div>
 

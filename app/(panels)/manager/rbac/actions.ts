@@ -51,6 +51,7 @@ export async function updateRolePermissionsAction(
   }
 
   // Role grants affect many users — drop all shell + role-permission caches.
+  // (UBAC overlay saves should instead call clearCachedSessionShell(userId) only.)
   clearCachedSessionShell();
   clearCachedRolePermissionKeys();
   revalidatePath(ROUTES.MANAGER_ROOT, "layout");

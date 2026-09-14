@@ -29,6 +29,7 @@ export function parseUpdateClassSessionFormData(formData: FormData):
 
   const parsed = updateClassSessionSchema.safeParse({
     topic: formData.get("topic"),
+    session_report: formData.get("session_report") ?? undefined,
     starts_at: formData.get("starts_at"),
     ends_at: formData.get("ends_at"),
   });

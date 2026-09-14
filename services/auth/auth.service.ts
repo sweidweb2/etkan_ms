@@ -13,7 +13,7 @@ import * as profileRepository from "@/repositories/profile.repository";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { isNavTimingEnabled, navTimingServerLog } from "@/lib/debug/nav-timing";
 import { ensureStudentRegistration } from "@/services/auth/profile.service";
-import { getPermissionsForRoleCached } from "@/services/auth/authorization.service";
+import { getEffectivePermissionsForUserCached } from "@/services/auth/authorization.service";
 import {
   roleFromAuthMetadata,
   roleFromJwtClaims,
@@ -123,13 +123,10 @@ export async function login(
   const user = data.user;
   const claimsRole = roleFromAuthMetadata(user);
   const shellStart = debugOn ? performance.now() : 0;
-  const [profileResult, claimedPermissions] = await Promise.all([
-    profileRepository.findProfileById(client, user.id),
-    claimsRole
-      ? getPermissionsForRoleCached(claimsRole)
-      : Promise.resolve(null),
-    warmJwks(),
-  ]);
+  const profileResult = await profileRepository.findProfileById(client, user.id);
+
+  // Warm JWKS in parallel with role resolution below when needed.
+  const jwksWarm = warmJwks();
 
   const profileRole = roleSchema.safeParse(profileResult.data?.role);
   const role: RoleValue =
@@ -137,12 +134,15 @@ export async function login(
     (profileRole.success ? profileRole.data : null) ??
     ROLES.STUDENT;
 
-  let permissions = claimedPermissions;
-  if (!permissions) {
-    // Bust process TTL so login picks up grants after seed:rbac without waiting 15m.
+  // Bust process TTL so login picks up grants after seed:rbac without waiting 15m.
+  if (!claimsRole) {
     clearCachedRolePermissionKeys(role);
-    permissions = await getPermissionsForRoleCached(role);
   }
+
+  const [permissions] = await Promise.all([
+    getEffectivePermissionsForUserCached(user.id, role),
+    jwksWarm,
+  ]);
 
   const maintenanceError = await rejectIfMaintenanceBlocksRole(client, role);
   if (maintenanceError) {

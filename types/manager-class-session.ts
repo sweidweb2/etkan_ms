@@ -6,6 +6,7 @@ export interface ManagerClassSessionRow {
   class_id: string;
   nb_order: number;
   topic: string;
+  session_report: string | null;
   starts_at: string;
   ends_at: string;
   semester_id: string | null;

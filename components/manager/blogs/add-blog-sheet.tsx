@@ -19,7 +19,10 @@ import {
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
-import type { CreateBlogActionState } from "@/types/manager-blog";
+import type {
+  CreateBlogActionState,
+  ManagerBlogRow,
+} from "@/types/manager-blog";
 
 const initialState: CreateBlogActionState = {};
 
@@ -49,7 +52,7 @@ function slugifyTitle(title: string): string {
 type AddBlogSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onBlogCreated: (blog: import("@/types/manager-blog").ManagerBlogRow) => void;
+  onBlogCreated: (blog: ManagerBlogRow) => void;
 };
 
 export function AddBlogSheet({

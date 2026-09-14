@@ -2,9 +2,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROLES } from "@/lib/constants/roles";
 import {
+  deleteUserPermissionKeys,
+  deleteUserPermissions,
   listPermissionKeysByRole,
   listPermissions,
+  listUserPermissionRows,
   replaceRolePermissions,
+  replaceUserPermissions,
   upsertPermissions,
 } from "@/repositories/permission.repository";
 
@@ -173,5 +177,201 @@ describe("permission.repository", () => {
     expect(from).toHaveBeenCalledWith("role_permissions");
     expect(deleteChain.eq).toHaveBeenCalledWith("role", ROLES.TEACHER);
     expect(result).toEqual({ data: [], error: null });
+  });
+
+  it("lists user permission overlay rows", async () => {
+    const userId = "user-1";
+    const rows = [
+      {
+        user_id: userId,
+        permission_key: PERMISSIONS.SUBJECTS_VIEW,
+        effect: "allow",
+        granted_by: "manager-1",
+        created_at: "2026-09-14T00:00:00.000Z",
+      },
+    ];
+    const chain = createChain({ data: rows, error: null });
+    const from = vi.fn().mockReturnValue(chain);
+    const client = { from } as never;
+
+    const result = await listUserPermissionRows(client, userId);
+
+    expect(from).toHaveBeenCalledWith("user_permissions");
+    expect(chain.eq).toHaveBeenCalledWith("user_id", userId);
+    expect(result.data).toEqual(rows);
+  });
+
+  it("replaces user permissions after validating catalog keys", async () => {
+    const userId = "user-1";
+    const grantedBy = "manager-1";
+    const permissionsChain = createChain({
+      data: [
+        { key: PERMISSIONS.SUBJECTS_VIEW },
+        { key: PERMISSIONS.SUBJECTS_CREATE },
+      ],
+      error: null,
+    });
+    const deleteChain = createChain({ data: null, error: null });
+    const insertChain = createChain({
+      data: [
+        {
+          user_id: userId,
+          permission_key: PERMISSIONS.SUBJECTS_VIEW,
+          effect: "allow",
+          granted_by: grantedBy,
+          created_at: "2026-09-14T00:00:00.000Z",
+        },
+        {
+          user_id: userId,
+          permission_key: PERMISSIONS.SUBJECTS_CREATE,
+          effect: "deny",
+          granted_by: grantedBy,
+          created_at: "2026-09-14T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(permissionsChain)
+      .mockReturnValueOnce(deleteChain)
+      .mockReturnValueOnce(insertChain);
+    const client = { from } as never;
+
+    const result = await replaceUserPermissions(client, userId, [
+      {
+        permission_key: PERMISSIONS.SUBJECTS_VIEW,
+        effect: "allow",
+        granted_by: grantedBy,
+      },
+      {
+        permission_key: PERMISSIONS.SUBJECTS_CREATE,
+        effect: "deny",
+        granted_by: grantedBy,
+      },
+    ]);
+
+    expect(deleteChain.eq).toHaveBeenCalledWith("user_id", userId);
+    expect(insertChain.insert).toHaveBeenCalledWith([
+      {
+        user_id: userId,
+        permission_key: PERMISSIONS.SUBJECTS_VIEW,
+        effect: "allow",
+        granted_by: grantedBy,
+      },
+      {
+        user_id: userId,
+        permission_key: PERMISSIONS.SUBJECTS_CREATE,
+        effect: "deny",
+        granted_by: grantedBy,
+      },
+    ]);
+    expect(result.data).toHaveLength(2);
+  });
+
+  it("throws when replaceUserPermissions gets unknown keys", async () => {
+    const permissionsChain = createChain({
+      data: [],
+      error: null,
+    });
+    const from = vi.fn().mockReturnValue(permissionsChain);
+    const client = { from } as never;
+
+    await expect(
+      replaceUserPermissions(client, "user-1", [
+        {
+          permission_key: PERMISSIONS.SUBJECTS_VIEW,
+          effect: "allow",
+        },
+      ])
+    ).rejects.toThrow("Unknown permission keys: subjects.view");
+  });
+
+  it("clears user overlay when replace gets an empty list", async () => {
+    const userId = "user-1";
+    const deleteChain = createChain({ data: null, error: null });
+    const from = vi.fn().mockReturnValue(deleteChain);
+    const client = { from } as never;
+
+    const result = await replaceUserPermissions(client, userId, []);
+
+    expect(from).toHaveBeenCalledWith("user_permissions");
+    expect(deleteChain.eq).toHaveBeenCalledWith("user_id", userId);
+    expect(result).toEqual({ data: [], error: null });
+  });
+
+  it("dedupes duplicate keys on replace (last effect wins)", async () => {
+    const userId = "user-1";
+    const permissionsChain = createChain({
+      data: [{ key: PERMISSIONS.SUBJECTS_VIEW }],
+      error: null,
+    });
+    const deleteChain = createChain({ data: null, error: null });
+    const insertChain = createChain({
+      data: [
+        {
+          user_id: userId,
+          permission_key: PERMISSIONS.SUBJECTS_VIEW,
+          effect: "deny",
+          granted_by: null,
+          created_at: "2026-09-14T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(permissionsChain)
+      .mockReturnValueOnce(deleteChain)
+      .mockReturnValueOnce(insertChain);
+    const client = { from } as never;
+
+    await replaceUserPermissions(client, userId, [
+      { permission_key: PERMISSIONS.SUBJECTS_VIEW, effect: "allow" },
+      { permission_key: PERMISSIONS.SUBJECTS_VIEW, effect: "deny" },
+    ]);
+
+    expect(insertChain.insert).toHaveBeenCalledWith([
+      {
+        user_id: userId,
+        permission_key: PERMISSIONS.SUBJECTS_VIEW,
+        effect: "deny",
+        granted_by: null,
+      },
+    ]);
+  });
+
+  it("deletes all user permissions for a user", async () => {
+    const userId = "user-1";
+    const chain = createChain({ data: null, error: null });
+    const from = vi.fn().mockReturnValue(chain);
+    const client = { from } as never;
+
+    await deleteUserPermissions(client, userId);
+
+    expect(from).toHaveBeenCalledWith("user_permissions");
+    expect(chain.delete).toHaveBeenCalled();
+    expect(chain.eq).toHaveBeenCalledWith("user_id", userId);
+  });
+
+  it("deletes specific user permission keys", async () => {
+    const userId = "user-1";
+    const chain = createChain({ data: null, error: null });
+    const from = vi.fn().mockReturnValue(chain);
+    const client = { from } as never;
+
+    await deleteUserPermissionKeys(client, userId, [
+      PERMISSIONS.SUBJECTS_VIEW,
+      PERMISSIONS.SUBJECTS_CREATE,
+    ]);
+
+    expect(from).toHaveBeenCalledWith("user_permissions");
+    expect(chain.eq).toHaveBeenCalledWith("user_id", userId);
+    expect(chain.in).toHaveBeenCalledWith("permission_key", [
+      PERMISSIONS.SUBJECTS_VIEW,
+      PERMISSIONS.SUBJECTS_CREATE,
+    ]);
   });
 });

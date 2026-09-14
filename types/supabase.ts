@@ -346,6 +346,68 @@ export type Database = {
           },
         ]
       }
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      category_exercises: {
+        Row: {
+          category_id: string
+          exercise_id: string
+        }
+        Insert: {
+          category_id: string
+          exercise_id: string
+        }
+        Update: {
+          category_id?: string
+          exercise_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_exercises_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classes: {
         Row: {
           created_at: string | null
@@ -488,6 +550,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      exercises: {
+        Row: {
+          body: Json
+          categories: string[]
+          created_at: string
+          id: string
+          level: Database["public"]["Enums"]["exercise_level"]
+          status: Database["public"]["Enums"]["exercise_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: Json
+          categories: string[]
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["exercise_level"]
+          status?: Database["public"]["Enums"]["exercise_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: Json
+          categories?: string[]
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["exercise_level"]
+          status?: Database["public"]["Enums"]["exercise_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       equipments: {
         Row: {
@@ -1230,6 +1325,7 @@ export type Database = {
           id: string
           nb_order: number
           semester_id: string | null
+          session_report: string | null
           starts_at: string
           topic: string
         }
@@ -1241,6 +1337,7 @@ export type Database = {
           id?: string
           nb_order: number
           semester_id?: string | null
+          session_report?: string | null
           starts_at: string
           topic: string
         }
@@ -1252,6 +1349,7 @@ export type Database = {
           id?: string
           nb_order?: number
           semester_id?: string | null
+          session_report?: string | null
           starts_at?: string
           topic?: string
         }
@@ -3104,15 +3202,9 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      exercise_level: "easy" | "medium" | "hard"
+      exercise_status: "draft" | "active" | "archived"
     }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
-
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 

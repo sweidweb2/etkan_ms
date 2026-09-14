@@ -28,7 +28,9 @@ function BrandNavLink({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isActive = pathname === href;
+  const isActive =
+    pathname === href ||
+    (href !== ROUTES.HOME && pathname.startsWith(`${href}/`));
 
   return (
     <Link

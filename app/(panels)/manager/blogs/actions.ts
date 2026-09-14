@@ -7,7 +7,7 @@ import { revalidatePublicBlogs } from "@/lib/cache/public-content-cache";
 import { ROUTES } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { parseCreateBlogFormData } from "@/lib/validators/manager/create-blog";
+import { parseCreateBlogFormData, parseCreateBlogFromJsonFormData } from "@/lib/validators/manager/create-blog";
 import { parseUpdateBlogFormData } from "@/lib/validators/manager/update-blog";
 import {
   createBlogForManager,
@@ -26,6 +26,46 @@ export async function createBlogAction(
 ): Promise<CreateBlogActionState> {
   const actor = await getSessionAuditActor();
   const parsed = parseCreateBlogFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error,
+      fieldErrors: parsed.fieldErrors,
+    };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const result = await createBlogForManager(
+    adminClient,
+    actor.userId,
+    actor,
+    parsed.data
+  );
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePublicBlogs(result.blog.slug);
+
+  return {
+    success: true,
+    message: result.message,
+    blog: result.blog,
+  };
+}
+
+export async function createBlogFromJsonAction(
+  _prevState: CreateBlogActionState,
+  formData: FormData
+): Promise<CreateBlogActionState> {
+  const actor = await getSessionAuditActor();
+  const parsed = parseCreateBlogFromJsonFormData(formData);
 
   if (!parsed.success) {
     return {

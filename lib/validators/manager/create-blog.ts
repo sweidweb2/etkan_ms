@@ -228,3 +228,72 @@ export function parseCreateBlogFormData(formData: FormData):
 
   return { success: true, data: parsed.data };
 }
+
+/**
+ * Advanced create: one JSON object for blog fields + optional image files.
+ * Files are never taken from the JSON — only from FormData uploads.
+ */
+export function parseCreateBlogFromJsonFormData(formData: FormData):
+  | { success: true; data: CreateBlogInput }
+  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  const rawJson = String(formData.get("blog_json") ?? "").trim();
+  if (!rawJson) {
+    return {
+      success: false,
+      error: "Paste a JSON object for the blog fields.",
+      fieldErrors: { blog_json: ["JSON is required."] },
+    };
+  }
+
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(rawJson);
+  } catch {
+    return {
+      success: false,
+      error: "JSON is invalid. Fix the syntax and try again.",
+      fieldErrors: { blog_json: ["Invalid JSON."] },
+    };
+  }
+
+  if (
+    parsedJson === null ||
+    typeof parsedJson !== "object" ||
+    Array.isArray(parsedJson)
+  ) {
+    return {
+      success: false,
+      error: "JSON must be a single object (not an array).",
+      fieldErrors: { blog_json: ["Provide one blog object."] },
+    };
+  }
+
+  const record = parsedJson as Record<string, unknown>;
+
+  const parsed = createBlogSchema.safeParse({
+    slug: record.slug,
+    title: record.title,
+    summary: record.summary,
+    body_html: record.body_html ?? "",
+    categories: record.categories ?? [],
+    sources: record.sources ?? [],
+    author_name: record.author_name,
+    status: record.status ?? "draft",
+    is_featured: record.is_featured ?? false,
+    meta_title: record.meta_title ?? null,
+    meta_description: record.meta_description ?? null,
+    thumbnail: formData.get("thumbnail"),
+    author_avatar: formData.get("author_avatar"),
+  });
+
+  if (!parsed.success) {
+    const flattened = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      error: "Please fix the errors in the JSON or image files.",
+      fieldErrors: zodFieldErrors(flattened),
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}

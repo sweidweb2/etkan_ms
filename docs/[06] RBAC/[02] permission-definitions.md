@@ -76,6 +76,14 @@ Format: `key` — label — access
 | `subjects.create` | Create subject | write |
 | `subjects.update` | Edit subject | write |
 | `subjects.delete` | Delete subject | write |
+| `subjects.categories.view` | View subject categories | read |
+| `subjects.categories.create` | Create subject category | write |
+| `subjects.categories.update` | Edit subject category | write |
+| `subjects.categories.delete` | Delete subject category | write |
+| `subjects.exercises.view` | View subject exercises | read |
+| `subjects.exercises.create` | Create subject exercise | write |
+| `subjects.exercises.update` | Edit subject exercise | write |
+| `subjects.exercises.delete` | Delete subject exercise | write |
 
 ### Instructors
 
@@ -389,6 +397,14 @@ subjects.view
 subjects.create
 subjects.update
 subjects.delete
+subjects.categories.view
+subjects.categories.create
+subjects.categories.update
+subjects.categories.delete
+subjects.exercises.view
+subjects.exercises.create
+subjects.exercises.update
+subjects.exercises.delete
 <!-- ======================================== -->
 instructors.view
 instructors.create

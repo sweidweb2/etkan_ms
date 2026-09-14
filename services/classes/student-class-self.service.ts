@@ -53,6 +53,7 @@ function mapSessionRecord(record: SessionRecord): ManagerClassSessionRow {
     class_id: record.class_id,
     nb_order: record.nb_order,
     topic: record.topic,
+    session_report: record.session_report,
     starts_at: record.starts_at,
     ends_at: record.ends_at,
     semester_id: record.semester_id,

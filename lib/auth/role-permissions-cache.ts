@@ -1,7 +1,12 @@
 /**
- * Short-lived process cache for role → permission keys.
+ * Short-lived process cache for role → permission keys (role matrix only).
  * Avoids repeating role_permissions round-trips on session_pack MISS
  * within the TTL window (same class as session-shell-cache).
+ *
+ * Does **not** include UBAC overlays — those load per user on shell MISS and
+ * merge via `getEffectivePermissionsForUserCached`. Clear with
+ * `clearCachedRolePermissionKeys` on Manager RBAC role-matrix saves (and
+ * clear session shells so users pick up the new effective set).
  */
 
 import type { PermissionKey } from "@/lib/constants/permissions";

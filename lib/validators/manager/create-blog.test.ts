@@ -16,6 +16,7 @@ import { sanitizeBlogHtml } from "@/lib/manager/blogs/sanitize-blog-html";
 import {
   createBlogSchema,
   parseCreateBlogFormData,
+  parseCreateBlogFromJsonFormData,
 } from "@/lib/validators/manager/create-blog";
 
 describe("blog storage paths", () => {
@@ -150,5 +151,41 @@ describe("createBlogSchema", () => {
       expect(parsed.data.categories).toEqual(["News", "Community"]);
       expect(parsed.data.is_featured).toBe(false);
     }
+  });
+
+  it("parses advanced JSON create with optional files", () => {
+    const formData = new FormData();
+    formData.set(
+      "blog_json",
+      JSON.stringify({
+        slug: "from-json",
+        title: "From JSON",
+        summary: "Imported via advanced create",
+        body_html: "<p>Body</p>",
+        categories: ["News"],
+        sources: [],
+        author_name: "Ada",
+        status: "published",
+        is_featured: true,
+        meta_title: null,
+        meta_description: null,
+      })
+    );
+
+    const parsed = parseCreateBlogFromJsonFormData(formData);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.slug).toBe("from-json");
+      expect(parsed.data.status).toBe("published");
+      expect(parsed.data.is_featured).toBe(true);
+      expect(parsed.data.categories).toEqual(["News"]);
+    }
+  });
+
+  it("rejects invalid advanced JSON", () => {
+    const formData = new FormData();
+    formData.set("blog_json", "{not-json");
+    const parsed = parseCreateBlogFromJsonFormData(formData);
+    expect(parsed.success).toBe(false);
   });
 });

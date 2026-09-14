@@ -268,6 +268,11 @@ export function ClassSessionDetailsPanel({
         <div className="px-4 pt-2 pb-4">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Topic" value={session.topic} />
+            <DetailField
+              label="Session report"
+              className="sm:col-span-2 lg:col-span-3 whitespace-pre-wrap"
+              value={session.session_report?.trim() ? session.session_report : "—"}
+            />
             <DetailField label="Order" value={`S${session.nb_order}`} />
             <DetailField label="Timing">
               <span

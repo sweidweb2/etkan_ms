@@ -22,7 +22,7 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import { getSessionAuthIdentity } from "@/services/auth/auth.service";
 import {
-  getPermissionsForRoleCached,
+  getEffectivePermissionsForUserCached,
   rememberUserRole,
 } from "@/services/auth/authorization.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
@@ -94,13 +94,14 @@ async function buildSessionShell(
   let permissions: ReadonlySet<PermissionKey>;
 
   if (claimsRole) {
-    // Profile and role grants are independent when JWT already carries role.
+    // Profile and effective grants are independent when JWT already carries role.
+    // Effective = role grants ∥ user overlay merge (see getEffectivePermissionsForUserCached).
     const [profileResult, claimedPermissions] = await Promise.all([
       timeBag(bag, "session_profile", () =>
         profileRepository.findProfileById(client, user.id)
       ),
       timeBag(bag, "session_permissions", () =>
-        getPermissionsForRoleCached(claimsRole)
+        getEffectivePermissionsForUserCached(user.id, claimsRole)
       ),
     ]);
     if (profileResult.error) {
@@ -129,7 +130,7 @@ async function buildSessionShell(
   // No JWT role: permissions waited on profile/metadata role resolution.
   if (!claimsRole) {
     permissions = await timeBag(bag, "session_permissions", () =>
-      getPermissionsForRoleCached(role)
+      getEffectivePermissionsForUserCached(user.id, role)
     );
   }
 

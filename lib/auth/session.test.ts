@@ -22,7 +22,7 @@ describe("getSessionPack", () => {
       findStudentProfileByUserId: vi.fn(),
     }));
     vi.doMock("@/services/auth/authorization.service", () => ({
-      getPermissionsForRoleCached: vi.fn(),
+      getEffectivePermissionsForUserCached: vi.fn(),
       rememberUserRole: vi.fn(),
     }));
     vi.doMock("@/lib/auth/session-shell-cache", async (importOriginal) => {
@@ -64,7 +64,7 @@ describe("getSessionPack", () => {
     const studentProfileRepository = await import(
       "@/repositories/student-profile.repository"
     );
-    const { getPermissionsForRoleCached, rememberUserRole } = await import(
+    const { getEffectivePermissionsForUserCached, rememberUserRole } = await import(
       "@/services/auth/authorization.service"
     );
     const shellCache = await import("@/lib/auth/session-shell-cache");
@@ -76,7 +76,9 @@ describe("getSessionPack", () => {
       findStudentProfileByUserId: vi.mocked(
         studentProfileRepository.findStudentProfileByUserId
       ),
-      getPermissionsForRoleCached: vi.mocked(getPermissionsForRoleCached),
+      getEffectivePermissionsForUserCached: vi.mocked(
+        getEffectivePermissionsForUserCached
+      ),
       rememberUserRole: vi.mocked(rememberUserRole),
       getCachedSessionShell: vi.mocked(shellCache.getCachedSessionShell),
       setCachedSessionShell: vi.mocked(shellCache.setCachedSessionShell),
@@ -100,7 +102,7 @@ describe("getSessionPack", () => {
       permissions: new Set(),
     });
     expect(mod.findProfileById).not.toHaveBeenCalled();
-    expect(mod.getPermissionsForRoleCached).not.toHaveBeenCalled();
+    expect(mod.getEffectivePermissionsForUserCached).not.toHaveBeenCalled();
   });
 
   it("builds a signed-in pack from one profile fetch + role permissions and stores shell", async () => {
@@ -131,7 +133,7 @@ describe("getSessionPack", () => {
       status: 200,
       statusText: "OK",
     });
-    mod.getPermissionsForRoleCached.mockResolvedValue(permissions);
+    mod.getEffectivePermissionsForUserCached.mockResolvedValue(permissions);
 
     const pack = await mod.session.getSessionPack();
 
@@ -148,7 +150,10 @@ describe("getSessionPack", () => {
       "user-pack-1",
       ROLES.MANAGER
     );
-    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledWith(ROLES.MANAGER);
+    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenCalledWith(
+      "user-pack-1",
+      ROLES.MANAGER
+    );
     expect(mod.setCachedSessionShell).toHaveBeenCalledWith(
       "user-pack-1",
       expect.objectContaining({
@@ -189,7 +194,7 @@ describe("getSessionPack", () => {
     expect(pack.displayName).toBe("Ceo User");
     expect(pack.permissions.has(PERMISSIONS.WORKSHOPS_VIEW)).toBe(true);
     expect(mod.findProfileById).not.toHaveBeenCalled();
-    expect(mod.getPermissionsForRoleCached).not.toHaveBeenCalled();
+    expect(mod.getEffectivePermissionsForUserCached).not.toHaveBeenCalled();
     expect(mod.rememberUserRole).toHaveBeenCalledWith("user-pack-2", ROLES.CEO);
     expect(mod.setCachedSessionShell).not.toHaveBeenCalled();
   });
@@ -229,13 +234,16 @@ describe("getSessionPack", () => {
       status: 200,
       statusText: "OK",
     });
-    mod.getPermissionsForRoleCached.mockResolvedValue(permissions);
+    mod.getEffectivePermissionsForUserCached.mockResolvedValue(permissions);
 
     const pack = await mod.session.getSessionPack();
 
     expect(pack.role).toBe(ROLES.MANAGER);
     expect(mod.findProfileById).toHaveBeenCalled();
-    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledWith(ROLES.MANAGER);
+    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenCalledWith(
+      "user-pack-3",
+      ROLES.MANAGER
+    );
   });
 
   it("on MISS with claimsRole, loads profile and permissions in parallel for claimsRole", async () => {
@@ -266,15 +274,18 @@ describe("getSessionPack", () => {
       status: 200,
       statusText: "OK",
     });
-    mod.getPermissionsForRoleCached.mockResolvedValue(permissions);
+    mod.getEffectivePermissionsForUserCached.mockResolvedValue(permissions);
 
     const pack = await mod.session.getSessionPack();
 
     expect(pack.role).toBe(ROLES.MANAGER);
     expect(pack.permissions).toEqual(permissions);
     expect(mod.findProfileById).toHaveBeenCalledTimes(1);
-    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledTimes(1);
-    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledWith(ROLES.MANAGER);
+    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenCalledTimes(1);
+    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenCalledWith(
+      "user-pack-4",
+      ROLES.MANAGER
+    );
     expect(mod.setCachedSessionShell).toHaveBeenCalledWith(
       "user-pack-4",
       expect.objectContaining({
@@ -324,7 +335,7 @@ describe("getSessionPack", () => {
         statusText: "OK",
       };
     });
-    mod.getPermissionsForRoleCached.mockResolvedValue(permissions);
+    mod.getEffectivePermissionsForUserCached.mockResolvedValue(permissions);
 
     const first = mod.session.loadSessionPack();
     const second = mod.session.loadSessionPack();
@@ -334,7 +345,7 @@ describe("getSessionPack", () => {
     expect(packA.role).toBe(ROLES.MANAGER);
     expect(packB.role).toBe(ROLES.MANAGER);
     expect(mod.findProfileById).toHaveBeenCalledTimes(1);
-    expect(mod.getPermissionsForRoleCached).toHaveBeenCalledTimes(1);
+    expect(mod.getEffectivePermissionsForUserCached).toHaveBeenCalledTimes(1);
 
     clearCachedSessionShell();
   });

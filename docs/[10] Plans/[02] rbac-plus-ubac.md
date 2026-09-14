@@ -2,7 +2,7 @@
 
 **Project:** Etkan MS (`etkan_ms`)  
 **Date:** 2026-09-14  
-**Status:** Phase A done — Phases B–G planned (not implemented)  
+**Status:** Phases A–B done — Phases C–G planned (not implemented)  
 **Related docs:**  
 - `docs/[06] RBAC/[01] rbac-layers.md`  
 - `docs/[06] RBAC/[02] permission-definitions.md`  
@@ -143,27 +143,29 @@ Implement **in order**. Each phase should leave the app buildable and testable.
 
 | ID | Task | Done when |
 |----|------|-----------|
-| B1 | Migration: create `user_permissions` (`user_id` → `profiles.id` ON DELETE CASCADE, `permission_key` → `permissions.key`, `effect` check in `('allow','deny')`, `created_at`, optional `granted_by` → `profiles.id`) | Table exists |
-| B2 | Unique `(user_id, permission_key)`; indexes for `user_id` | No duplicate keys per user |
-| B3 | Update DBML / database explanation docs | Docs match |
-| B4 | Regenerate / adjust `types/supabase.ts` | Types compile |
-| B5 | Repository: `listUserPermissionRows(userId)`, `replaceUserPermissions(userId, rows)` (hard-delete missing + upsert/insert snapshot), `deleteUserPermissions(userId)` / delete by keys | Unit tests for replace |
-| B6 | No RLS policy that mirrors keys (follow existing permissions tables pattern / service-role access as today) | Matches enforcement stance |
+| B1 | Migration: create `user_permissions` (`user_id` → `profiles.id` ON DELETE CASCADE, `permission_key` → `permissions.key`, `effect` check in `('allow','deny')`, `created_at`, optional `granted_by` → `profiles.id`) | Table exists ✅ `20260916120000_user_permissions.sql` |
+| B2 | Unique `(user_id, permission_key)`; indexes for `user_id` | No duplicate keys per user ✅ PK + indexes |
+| B3 | Update DBML / database explanation docs | Docs match ✅ |
+| B4 | Regenerate / adjust `types/supabase.ts` | Types compile ✅ (manual insert; re-run `npm run gen:types` after push if desired) |
+| B5 | Repository: `listUserPermissionRows(userId)`, `replaceUserPermissions(userId, rows)` (hard-delete missing + upsert/insert snapshot), `deleteUserPermissions(userId)` / delete by keys | Unit tests for replace ✅ |
+| B6 | No RLS policy that mirrors keys (follow existing permissions tables pattern / service-role access as today) | Matches enforcement stance ✅ (no RLS on table) |
 
 **Suggested row shape**
 
 ```text
 user_permissions (
   user_id uuid not null references profiles(id) on delete cascade,
-  permission_key text not null references permissions(key),
+  permission_key text not null references permissions(key) on delete cascade,
   effect text not null check (effect in ('allow', 'deny')),
-  granted_by uuid null references profiles(id),
+  granted_by uuid null references profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   primary key (user_id, permission_key)
 )
 ```
 
-**Status:** Planned.
+**Status:** Implemented in repo (2026-09-14). Apply with `npx supabase db push` (or your usual migrate path), then smoke that the table exists.
+
+**Repo API:** `listUserPermissionRows`, `replaceUserPermissions`, `deleteUserPermissions`, `deleteUserPermissionKeys`; `deletePermissionsNotInKeys` also clears orphan `user_permissions`.
 
 ---
 

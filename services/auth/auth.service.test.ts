@@ -19,7 +19,7 @@ vi.mock("@/lib/auth/session-shell-cache", () => ({
   setCachedSessionShell: vi.fn(),
 }));
 vi.mock("@/services/auth/authorization.service", () => ({
-  getPermissionsForRoleCached: vi.fn(async () => new Set()),
+  getEffectivePermissionsForUserCached: vi.fn(async () => new Set()),
 }));
 vi.mock("@/services/auth/role.service", async () => {
   const actual = await vi.importActual<typeof import("@/services/auth/role.service")>(
@@ -60,7 +60,7 @@ describe("login", () => {
     vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(
       false
     );
-    vi.mocked(authorizationService.getPermissionsForRoleCached).mockResolvedValue(
+    vi.mocked(authorizationService.getEffectivePermissionsForUserCached).mockResolvedValue(
       new Set()
     );
   });

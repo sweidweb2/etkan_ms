@@ -1,9 +1,15 @@
 /**
  * Short-lived per-user process cache for panel shell identity
- * (role, displayName, isInstructor, permission keys).
+ * (role, displayName, isInstructor, **effective** permission keys).
  *
  * Every navigation still verifies JWT via getClaims; this avoids repeating
- * profiles + role_permissions round-trips on sidebar hops within the TTL.
+ * profiles + role_permissions + user_permissions round-trips on sidebar hops
+ * within the TTL.
+ *
+ * Bust:
+ * - `clearCachedSessionShell(userId)` after that user’s UBAC overlay changes
+ * - `clearCachedSessionShell()` (all) after role-matrix RBAC saves
+ * - logout / identity writes as today
  *
  * Same class as maintenance-mode-cache: one Node process, not multi-region shared.
  */

@@ -4,13 +4,14 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const SESSION_COLUMNS =
-  "id, class_id, nb_order, topic, starts_at, ends_at, semester_id, group_grade_level, created_at";
+  "id, class_id, nb_order, topic, session_report, starts_at, ends_at, semester_id, group_grade_level, created_at";
 
 export type SessionRecord = {
   id: string;
   class_id: string;
   nb_order: number;
   topic: string;
+  session_report: string | null;
   starts_at: string;
   ends_at: string;
   semester_id: string | null;
@@ -22,6 +23,7 @@ export type CreateSessionRecordInput = {
   class_id: string;
   nb_order: number;
   topic: string;
+  session_report?: string | null;
   starts_at: string;
   ends_at: string;
   semester_id?: string | null;
@@ -35,6 +37,7 @@ export type UpdateSessionSettingsInput = {
 
 export type UpdateSessionDetailsInput = {
   topic: string;
+  session_report?: string | null;
   starts_at: string;
   ends_at: string;
 };
@@ -104,6 +107,7 @@ export async function createSession(
       class_id: input.class_id,
       nb_order: input.nb_order,
       topic: input.topic,
+      session_report: input.session_report ?? null,
       starts_at: input.starts_at,
       ends_at: input.ends_at,
       semester_id: input.semester_id ?? null,
@@ -122,6 +126,7 @@ export async function updateSessionDetails(
     .from("sessions")
     .update({
       topic: input.topic,
+      session_report: input.session_report ?? null,
       starts_at: input.starts_at,
       ends_at: input.ends_at,
     })

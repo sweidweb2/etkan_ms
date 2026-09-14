@@ -13,6 +13,10 @@ import { parseUpdateAttendeeFormData } from "@/lib/validators/manager/update-att
 import { parseUpdateEquipmentFormData } from "@/lib/validators/manager/update-equipment";
 import { parseUpdateSessionSettingsFormData } from "@/lib/validators/manager/update-session-settings";
 import { parseUpdateClassSessionFormData } from "@/lib/validators/manager/update-class-session";
+import {
+  createClassSessionSchema,
+  parseCreateClassSessionFormData,
+} from "@/lib/validators/manager/create-class-session";
 import { parseRemoveStudentFromClassFormData } from "@/lib/validators/manager/remove-student-from-class";
 import { parseTransferSppFormData } from "@/lib/validators/manager/transfer-spp";
 import { parseCreateNotificationFormData } from "@/lib/validators/manager/create-notification";
@@ -351,6 +355,7 @@ describe("parseUpdateClassSessionFormData", () => {
     formData.set("session_id", sampleId);
     formData.set("class_id", sampleId);
     formData.set("topic", "Updated topic");
+    formData.set("session_report", "Session went well");
     formData.set("starts_at", "2026-07-01T10:00");
     formData.set("ends_at", "2026-07-01T12:00");
 
@@ -361,8 +366,36 @@ describe("parseUpdateClassSessionFormData", () => {
       expect(result.data.session_id).toBe(sampleId);
       expect(result.data.class_id).toBe(sampleId);
       expect(result.data.topic).toBe("Updated topic");
+      expect(result.data.session_report).toBe("Session went well");
       expect(result.data.starts_at).toBe("2026-07-01T10:00");
       expect(result.data.ends_at).toBe("2026-07-01T12:00");
+    }
+  });
+
+  it("rejects session report over 5000 characters", () => {
+    const parsed = createClassSessionSchema.safeParse({
+      topic: "Topic",
+      session_report: "x".repeat(5001),
+      starts_at: "2026-07-01T10:00",
+      ends_at: "2026-07-01T12:00",
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("parses create payload with optional session report", () => {
+    const formData = new FormData();
+    formData.set("class_id", sampleId);
+    formData.set("topic", "New session");
+    formData.set("session_report", "First meeting notes");
+    formData.set("starts_at", "2026-07-01T10:00");
+    formData.set("ends_at", "2026-07-01T12:00");
+
+    const result = parseCreateClassSessionFormData(formData);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.session_report).toBe("First meeting notes");
     }
   });
 

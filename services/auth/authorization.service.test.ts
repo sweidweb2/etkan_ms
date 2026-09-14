@@ -44,6 +44,13 @@ function mockManagerGrants() {
     status: 200,
     statusText: "OK",
   });
+  vi.mocked(permissionRepository.listUserPermissionRows).mockResolvedValue({
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  });
 }
 
 describe("authorization.service", () => {
@@ -76,6 +83,13 @@ describe("authorization.service", () => {
       statusText: "OK",
     });
     vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(permissionRepository.listUserPermissionRows).mockResolvedValue({
       data: [],
       error: null,
       count: null,
@@ -130,6 +144,13 @@ describe("authorization.service", () => {
       statusText: "OK",
     });
     vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(permissionRepository.listUserPermissionRows).mockResolvedValue({
       data: [],
       error: null,
       count: null,
@@ -191,5 +212,73 @@ describe("authorization.service", () => {
     expect(() =>
       requirePermissionInSet(permissions, PERMISSIONS.SUBJECTS_DELETE)
     ).toThrow(UNAUTHORIZED_MESSAGE);
+  });
+
+  it("merges user allow beyond role into effective permissions", async () => {
+    const userId = "44444444-4444-4444-8444-444444444401";
+    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
+      data: { role: ROLES.TEACHER },
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
+      data: [],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(permissionRepository.listUserPermissionRows).mockResolvedValue({
+      data: [
+        {
+          user_id: userId,
+          permission_key: PERMISSIONS.SUBJECTS_VIEW,
+          effect: "allow",
+          granted_by: null,
+          created_at: "2026-09-14T00:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const permissions = await getUserPermissions(client, userId);
+
+    expect(permissions.has(PERMISSIONS.SUBJECTS_VIEW)).toBe(true);
+    expect(
+      await hasPermission(client, userId, PERMISSIONS.SUBJECTS_VIEW)
+    ).toBe(true);
+  });
+
+  it("user deny removes a role-granted key from effective permissions", async () => {
+    const userId = "44444444-4444-4444-8444-444444444402";
+    mockManagerGrants();
+    vi.mocked(permissionRepository.listUserPermissionRows).mockResolvedValue({
+      data: [
+        {
+          user_id: userId,
+          permission_key: PERMISSIONS.SUBJECTS_CREATE,
+          effect: "deny",
+          granted_by: null,
+          created_at: "2026-09-14T00:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+
+    const permissions = await getUserPermissions(client, userId);
+
+    expect(permissions.has(PERMISSIONS.SUBJECTS_VIEW)).toBe(true);
+    expect(permissions.has(PERMISSIONS.SUBJECTS_CREATE)).toBe(false);
+    expect(
+      await hasPermission(client, userId, PERMISSIONS.SUBJECTS_CREATE)
+    ).toBe(false);
   });
 });

@@ -103,6 +103,7 @@ const sessionRecord = {
   class_id: classId,
   nb_order: 1,
   topic: "Intro",
+  session_report: null as string | null,
   starts_at: "2026-07-10T10:00:00.000Z",
   ends_at: "2026-07-10T12:00:00.000Z",
   semester_id: null as string | null,
@@ -481,6 +482,51 @@ describe("updateClassSessionForManager", () => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
     mockUnlockedComputedGrades();
+  });
+
+  it("updates session details including session report", async () => {
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.updateSessionDetails).mockResolvedValue({
+      data: {
+        ...sessionRecord,
+        topic: "Updated topic",
+        session_report: "Covered intro and safety.",
+        starts_at: "2026-07-10T10:00:00.000Z",
+        ends_at: "2026-07-10T12:00:00.000Z",
+      },
+      error: null,
+    } as never);
+
+    const result = await updateClassSessionForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        session_id: sessionId,
+        class_id: classId,
+        topic: "Updated topic",
+        session_report: "Covered intro and safety.",
+        starts_at: "2026-07-10T10:00",
+        ends_at: "2026-07-10T12:00",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.session.topic).toBe("Updated topic");
+      expect(result.session.session_report).toBe("Covered intro and safety.");
+    }
+    expect(sessionRepository.updateSessionDetails).toHaveBeenCalledWith(
+      adminClient,
+      sessionId,
+      expect.objectContaining({
+        topic: "Updated topic",
+        session_report: "Covered intro and safety.",
+      })
+    );
   });
 
   it("blocks session detail edits when computed course grades exist", async () => {

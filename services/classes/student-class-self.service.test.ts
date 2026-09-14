@@ -200,6 +200,7 @@ describe("getStudentClassDetailForSelf", () => {
           class_id: classId,
           nb_order: 1,
           topic: "Intro",
+          session_report: null,
           starts_at: "2026-09-01T10:00:00.000Z",
           ends_at: "2026-09-01T12:00:00.000Z",
           semester_id: null,
