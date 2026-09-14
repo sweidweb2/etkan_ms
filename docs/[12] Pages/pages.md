@@ -23,6 +23,7 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Students | `/manager/students` | list |
 | [~] | Student detail | `/manager/students/[id]` | detail |
 | [~] | Subjects | `/manager/subjects` | list |
+| [~] | Subject catalog | `/manager/subjects/catalog` | list / form |
 | [~] | Subject detail | `/manager/subjects/[id]` | detail |
 | [~] | Instructors | `/manager/instructors` | list |
 | [~] | Instructor schedules | `/manager/instructor-schedules` | calendar |

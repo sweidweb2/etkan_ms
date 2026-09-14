@@ -169,7 +169,7 @@ export function CategoryFormDialog({
               value={parentId || NONE_PARENT}
               disabled={isPending}
               onValueChange={(value) =>
-                setValue("parent_id", value === NONE_PARENT ? "", {
+                setValue("parent_id", value === NONE_PARENT ? "" : value, {
                   shouldDirty: true,
                 })
               }

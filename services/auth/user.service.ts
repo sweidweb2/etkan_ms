@@ -223,6 +223,18 @@ export async function listUsersForManager(
   return listUsersForManagerCached();
 }
 
+/**
+ * Single user for manager detail. Uses the same cached list as the users table.
+ */
+export async function getUserForManagerById(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  userId: string
+): Promise<ManagerUserRow | null> {
+  const users = await listUsersForManager(adminClient, actorUserId);
+  return users.find((user) => user.id === userId) ?? null;
+}
+
 export async function createStaffUser(
   adminClient: Supabase,
   actorUserId: string | null,

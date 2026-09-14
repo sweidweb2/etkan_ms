@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { PencilIcon } from "lucide-react";
+import { KeyRoundIcon, PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
+import { EditUserPermissionsSheet } from "@/components/manager/users/edit-user-permissions-sheet";
+import { UserPermissionsSection } from "@/components/manager/users/user-permissions-section";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import {
   Breadcrumb,
@@ -16,14 +18,15 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MANAGER_USER_PREVIEW_ID } from "@/lib/constants/manager-users-mock";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { getManagerUserPreview } from "@/lib/manager/get-manager-user-preview";
 import { ROUTES } from "@/lib/constants/routes";
+import type { UserAccessBreakdown } from "@/services/auth/user-permissions.service";
 import type { ManagerUserRow } from "@/types/manager-user";
 
 type UserDetailsPanelProps = {
-  userId: string;
+  user: ManagerUserRow;
+  canManageOverlays: boolean;
+  initialBreakdown: UserAccessBreakdown | null;
 };
 
 function DetailField({
@@ -40,19 +43,20 @@ function DetailField({
       <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
-      <dd className="text-sm text-foreground">
-        {children ?? value ?? "—"}
-      </dd>
+      <dd className="text-sm text-foreground">{children ?? value ?? "—"}</dd>
     </div>
   );
 }
 
-export function UserDetailsPanel({ userId }: UserDetailsPanelProps) {
-  void userId;
-  const [user, setUser] = useState<ManagerUserRow>(() =>
-    getManagerUserPreview(MANAGER_USER_PREVIEW_ID)
-  );
+export function UserDetailsPanel({
+  user: initialUser,
+  canManageOverlays,
+  initialBreakdown,
+}: UserDetailsPanelProps) {
+  const [user, setUser] = useState(initialUser);
+  const [breakdown, setBreakdown] = useState(initialBreakdown);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
 
   const displayName = user.username ?? user.email;
 
@@ -61,7 +65,9 @@ export function UserDetailsPanel({ userId }: UserDetailsPanelProps) {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_USERS}>Manage users</BreadcrumbLink>
+            <BreadcrumbLink href={ROUTES.MANAGER_USERS}>
+              Manage users
+            </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
@@ -77,10 +83,32 @@ export function UserDetailsPanel({ userId }: UserDetailsPanelProps) {
         onUserUpdated={setUser}
       />
 
+      {canManageOverlays && breakdown ? (
+        <EditUserPermissionsSheet
+          open={isPermissionsOpen}
+          onOpenChange={setIsPermissionsOpen}
+          userId={user.id}
+          userLabel={displayName}
+          breakdown={breakdown}
+          onSaved={setBreakdown}
+        />
+      ) : null}
+
       <Card>
         <CardHeader className="border-b">
           <CardTitle className="text-xl">{displayName}</CardTitle>
-          <CardAction className="self-center">
+          <CardAction className="flex flex-wrap items-center gap-2 self-center">
+            {canManageOverlays ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsPermissionsOpen(true)}
+                disabled={!breakdown}
+              >
+                <KeyRoundIcon data-icon="inline-start" />
+                Permissions
+              </Button>
+            ) : null}
             <Can permission={PERMISSIONS.USERS_UPDATE}>
               <Button type="button" onClick={() => setIsEditOpen(true)}>
                 <PencilIcon data-icon="inline-start" />
@@ -98,12 +126,23 @@ export function UserDetailsPanel({ userId }: UserDetailsPanelProps) {
             </DetailField>
             <DetailField
               label="Created"
-              value={format(new Date(user.created_at), "MMM d, yyyy 'at' h:mm a")}
+              value={format(
+                new Date(user.created_at),
+                "MMM d, yyyy 'at' h:mm a"
+              )}
             />
             <DetailField label="User ID" value={user.id} />
           </dl>
         </CardContent>
       </Card>
+
+      {canManageOverlays && breakdown ? (
+        <UserPermissionsSection
+          breakdown={breakdown}
+          canEdit
+          onEdit={() => setIsPermissionsOpen(true)}
+        />
+      ) : null}
     </div>
   );
 }

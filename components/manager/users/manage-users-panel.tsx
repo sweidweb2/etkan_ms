@@ -8,6 +8,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
+  KeyRoundIcon,
   PencilIcon,
   PlusIcon,
   PowerIcon,
@@ -18,8 +19,10 @@ import { Can } from "@/components/auth/can";
 import { ActivateInactivateStudentDialog } from "@/components/manager/students/activate-inactivate-student-dialog";
 import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
+import { EditUserPermissionsSheet } from "@/components/manager/users/edit-user-permissions-sheet";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
+import { getUserAccessBreakdownAction } from "@/app/manager/users/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
@@ -46,9 +49,11 @@ import {
   getManagerUserDetailRoute,
 } from "@/lib/constants/routes";
 import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
+import type { UserAccessBreakdown } from "@/services/auth/user-permissions.service";
 import type { ManagerUserRow } from "@/types/manager-user";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
@@ -170,13 +175,20 @@ function UserDetailsLink({ user }: { user: ManagerUserRow }) {
 export function ManageUsersPanel({
   initialUsers,
   currentUserId,
+  canManageOverlays = false,
 }: {
   initialUsers: ManagerUserRow[];
   currentUserId: string | null;
+  canManageOverlays?: boolean;
 }) {
   const router = useRouter();
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ManagerUserRow | null>(null);
+  const [permissionsUser, setPermissionsUser] =
+    useState<ManagerUserRow | null>(null);
+  const [permissionsBreakdown, setPermissionsBreakdown] =
+    useState<UserAccessBreakdown | null>(null);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
   const [statusTarget, setStatusTarget] = useState<ManagerUserRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL);
@@ -263,6 +275,21 @@ export function ManageUsersPanel({
     setEditingUser(null);
   };
 
+  async function openUserPermissions(user: ManagerUserRow) {
+    setIsLoadingPermissions(true);
+    try {
+      const result = await getUserAccessBreakdownAction(user.id);
+      if (!result.success) {
+        showErrorToast(result.error);
+        return;
+      }
+      setPermissionsBreakdown(result.breakdown);
+      setPermissionsUser(user);
+    } finally {
+      setIsLoadingPermissions(false);
+    }
+  }
+
   const openUserDetails = (user: ManagerUserRow) => {
     router.push(getUserDetailsHref(user));
   };
@@ -326,6 +353,24 @@ export function ManageUsersPanel({
             }}
             user={editingUser}
             onUserUpdated={handleUserUpdated}
+          />
+        ) : null}
+
+        {permissionsUser && permissionsBreakdown ? (
+          <EditUserPermissionsSheet
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setPermissionsUser(null);
+                setPermissionsBreakdown(null);
+              }
+            }}
+            userId={permissionsUser.id}
+            userLabel={permissionsUser.username ?? permissionsUser.email}
+            breakdown={permissionsBreakdown}
+            onSaved={(next) => {
+              setPermissionsBreakdown(next);
+            }}
           />
         ) : null}
 
@@ -498,6 +543,19 @@ export function ManageUsersPanel({
                                 <PencilIcon className="size-4" />
                               </Button>
                             </Can>
+                            {canManageOverlays ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+                                aria-label={`Permissions for ${user.username ?? user.email}`}
+                                disabled={isLoadingPermissions}
+                                onClick={() => void openUserPermissions(user)}
+                              >
+                                <KeyRoundIcon className="size-4" />
+                              </Button>
+                            ) : null}
                             {user.role === ROLES.STUDENT &&
                             user.student_profile_id ? (
                               <Can

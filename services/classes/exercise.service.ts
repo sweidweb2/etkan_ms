@@ -214,12 +214,12 @@ export async function createExerciseForManager(
     return { success: false, error: linkError.message };
   }
 
-  await recordManagerAuditLog(adminClient, {
-    actor,
+  await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
-    tableName: "exercises",
-    recordId: data.id,
-    newData: {
+    severity: "info",
+    table_name: "exercises",
+    record_id: data.id,
+    new_data: {
       title: data.title,
       level: data.level,
       status: data.status,
@@ -307,18 +307,18 @@ export async function updateExerciseForManager(
     return { success: false, error: linkError.message };
   }
 
-  await recordManagerAuditLog(adminClient, {
-    actor,
+  await recordManagerAuditLog(adminClient, actor, {
     action: "update",
-    tableName: "exercises",
-    recordId: data.id,
-    oldData: {
+    severity: "info",
+    table_name: "exercises",
+    record_id: data.id,
+    old_data: {
       title: existing.title,
       level: existing.level,
       status: existing.status,
       categories: existing.categories,
     },
-    newData: {
+    new_data: {
       title: data.title,
       level: data.level,
       status: data.status,
@@ -339,7 +339,7 @@ export async function deleteExerciseForManager(
   actorUserId: string | null,
   actor: AuditActor,
   exerciseId: string
-): Promise<MutationSuccess<Record<string, never>> | MutationFailure> {
+): Promise<{ success: true; message: string } | MutationFailure> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
@@ -380,12 +380,12 @@ export async function deleteExerciseForManager(
     return { success: false, error: error.message };
   }
 
-  await recordManagerAuditLog(adminClient, {
-    actor,
+  await recordManagerAuditLog(adminClient, actor, {
     action: "delete",
-    tableName: "exercises",
-    recordId: exerciseId,
-    oldData: {
+    severity: "critical",
+    table_name: "exercises",
+    record_id: exerciseId,
+    old_data: {
       title: existing.title,
       level: existing.level,
       status: existing.status,
@@ -427,7 +427,7 @@ export async function syncSubjectCatalogLinksForManager(
   actorUserId: string | null,
   actor: AuditActor,
   rawInput: unknown
-): Promise<MutationSuccess<Record<string, never>> | MutationFailure> {
+): Promise<{ success: true; message: string } | MutationFailure> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
@@ -515,12 +515,12 @@ export async function syncSubjectCatalogLinksForManager(
     return { success: false, error: exReplaceError.message };
   }
 
-  await recordManagerAuditLog(adminClient, {
-    actor,
+  await recordManagerAuditLog(adminClient, actor, {
     action: "update",
-    tableName: "subjects",
-    recordId: parsed.data.subject_id,
-    newData: {
+    severity: "info",
+    table_name: "subjects",
+    record_id: parsed.data.subject_id,
+    new_data: {
       category_ids: uniqueCategoryIds,
       exercise_ids: uniqueExerciseIds,
     },

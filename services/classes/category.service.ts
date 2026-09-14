@@ -159,12 +159,12 @@ export async function createCategoryForManager(
     };
   }
 
-  await recordManagerAuditLog(adminClient, {
-    actor,
+  await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
-    tableName: "categories",
-    recordId: data.id,
-    newData: { name: data.name, parent_id: data.parent_id },
+    severity: "info",
+    table_name: "categories",
+    record_id: data.id,
+    new_data: { name: data.name, parent_id: data.parent_id },
     metadata: { note: "Category created." },
   });
 
@@ -277,13 +277,13 @@ export async function updateCategoryForManager(
     }
   }
 
-  await recordManagerAuditLog(adminClient, {
-    actor,
+  await recordManagerAuditLog(adminClient, actor, {
     action: "update",
-    tableName: "categories",
-    recordId: data.id,
-    oldData: { name: existing.name, parent_id: existing.parent_id },
-    newData: { name: data.name, parent_id: data.parent_id },
+    severity: "info",
+    table_name: "categories",
+    record_id: data.id,
+    old_data: { name: existing.name, parent_id: existing.parent_id },
+    new_data: { name: data.name, parent_id: data.parent_id },
     metadata: { note: "Category updated." },
   });
 
@@ -299,7 +299,7 @@ export async function deleteCategoryForManager(
   actorUserId: string | null,
   actor: AuditActor,
   categoryId: string
-): Promise<MutationSuccess<Record<string, never>> | MutationFailure> {
+): Promise<{ success: true; message: string } | MutationFailure> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
     actorUserId,
@@ -346,12 +346,12 @@ export async function deleteCategoryForManager(
     return { success: false, error: error.message };
   }
 
-  await recordManagerAuditLog(adminClient, {
-    actor,
+  await recordManagerAuditLog(adminClient, actor, {
     action: "delete",
-    tableName: "categories",
-    recordId: categoryId,
-    oldData: { name: existing.name, parent_id: existing.parent_id },
+    severity: "critical",
+    table_name: "categories",
+    record_id: categoryId,
+    old_data: { name: existing.name, parent_id: existing.parent_id },
     metadata: { note: "Category deleted." },
   });
 

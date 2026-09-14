@@ -6,6 +6,7 @@ import { ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { deleteSubjectAction } from "@/app/manager/subjects/actions";
 import { Can } from "@/components/auth/can";
 import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-dialog";
+import { SubjectCatalogLinksSection } from "@/components/manager/subjects/subject-catalog-links-section";
 import { SubjectClassesSection } from "@/components/manager/subjects/subject-classes-section";
 import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -42,10 +43,16 @@ import type {
   ManagerSubjectRow,
 } from "@/types/manager-subject";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
+import type { ManagerCategoryRow } from "@/types/manager-category";
+import type { ManagerExerciseRow } from "@/types/manager-exercise";
 
 type SubjectDetailsPanelProps = {
   subject: ManagerSubjectRow;
   classes: ManagerSubjectClassRow[];
+  categories: ManagerCategoryRow[];
+  exercises: ManagerExerciseRow[];
+  linkedCategoryIds: string[];
+  linkedExerciseIds: string[];
 };
 
 const initialDeleteState: DeleteSubjectActionState = {};
@@ -101,6 +108,10 @@ function DetailLink({
 export function SubjectDetailsPanel({
   subject: initialSubject,
   classes,
+  categories,
+  exercises,
+  linkedCategoryIds,
+  linkedExerciseIds,
 }: SubjectDetailsPanelProps) {
   const [subject, setSubject] = useState<ManagerSubjectRow>(initialSubject);
   const [prevSubject, setPrevSubject] =
@@ -248,6 +259,14 @@ export function SubjectDetailsPanel({
           </dl>
         </CardContent>
       </Card>
+
+      <SubjectCatalogLinksSection
+        subjectId={subject.id}
+        categories={categories}
+        exercises={exercises}
+        initialCategoryIds={linkedCategoryIds}
+        initialExerciseIds={linkedExerciseIds}
+      />
 
       <SubjectCollapsibleSection
         title="Classes"

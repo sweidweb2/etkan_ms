@@ -273,6 +273,10 @@ export function ManagerRbacPanel({
           Grant or revoke permissions for each role. Changes apply on the next
           request.
         </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Users may also have private allow/deny overlays (Manage users).
+          Effective access = role ∪ allow − deny.
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

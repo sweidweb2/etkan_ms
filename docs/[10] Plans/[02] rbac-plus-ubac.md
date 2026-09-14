@@ -2,7 +2,7 @@
 
 **Project:** Etkan MS (`etkan_ms`)  
 **Date:** 2026-09-14  
-**Status:** Phases A–D done — Phases E–G planned (not implemented)  
+**Status:** Phases A–E done — Phases F–G planned (not implemented)  
 **Related docs:**  
 - `docs/[06] RBAC/[01] rbac-layers.md`  
 - `docs/[06] RBAC/[02] permission-definitions.md`  
@@ -226,17 +226,21 @@ user_permissions (
 
 | ID | Task | Done when |
 |----|------|-----------|
-| E1 | User details panel: section **Permissions** — columns/groups: From role / Private (allow|deny) / Effective | Manager sees breakdown |
-| E2 | Edit overlay UI (sheet/dialog): catalog grouped like Manager RBAC; per key states: default (role only) / allow / deny; save = full snapshot of non-default rows | Pending-aware dialog patterns |
-| E3 | Open same editor from manage-users list actions **and** user details | Both entry points |
-| E4 | `EditUserDialog` role change: if privates to ask → confirm dialog “Keep private permissions?” before submit (or two-step submit with `keepPrivatePermissions`) | Matches Locked #4 |
-| E5 | Read-only hint on Manager RBAC page: “Users may have private allow/deny overlays; effective access = role ∪ allow − deny.” | Copy live |
-| E6 | Gate overlay editor with manager role (UI) + service assert (D2) | Co-manager without manager role cannot open |
-| E7 | Toasts via `useActionStateToast` / helpers; no inline success banners | Toast rules respected |
+| E1 | User details panel: section **Permissions** — From role / Private / Effective | Manager sees breakdown ✅ |
+| E2 | Edit overlay UI (sheet): catalog grouped; Default / Allow / Deny; save = non-default snapshot | Pending-aware sheet ✅ |
+| E3 | Open same editor from manage-users list **and** user details | Both entry points ✅ |
+| E4 | `EditUserDialog` role change → “Keep private permissions?” confirm | Matches Locked #4 ✅ |
+| E5 | Read-only hint on Manager RBAC page | Copy live ✅ |
+| E6 | Gate overlay editor with manager role (UI) + service assert (D2) | `canManageOverlays` ✅ |
+| E7 | Toasts via `useActionStateToast` / helpers | Toast rules respected ✅ |
 
-**Status:** Planned.
+**Status:** Implemented in repo (2026-09-14).
 
-**Out of scope:** redesign of role-matrix page beyond the hint (E5).
+**UI surface**
+
+- `user-permissions-section.tsx`, `edit-user-permissions-sheet.tsx`
+- Details + list wired with `canManageOverlays` (`role === manager` ∧ `rbac.manage`)
+- User detail page loads real user via `getUserForManagerById` (no longer mock preview)
 
 ---
 

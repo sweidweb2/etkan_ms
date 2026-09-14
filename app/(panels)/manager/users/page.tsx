@@ -1,17 +1,24 @@
 import { ManageUsersPanel } from "@/components/manager/users/manage-users-panel";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionPack } from "@/lib/auth/session";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROLES } from "@/lib/constants/roles";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { listUsersForManager } from "@/services/auth/user.service";
 
 export default async function ManagerUsersPage() {
   const adminClient = createSupabaseAdminClient();
-  const sessionUser = await getSessionUser();
-  const users = await listUsersForManager(adminClient, sessionUser?.id ?? null);
+  const pack = await getSessionPack();
+  const users = await listUsersForManager(adminClient, pack.user?.id ?? null);
+
+  const canManageOverlays =
+    pack.role === ROLES.MANAGER &&
+    pack.permissions.has(PERMISSIONS.RBAC_MANAGE);
 
   return (
     <ManageUsersPanel
       initialUsers={users}
-      currentUserId={sessionUser?.id ?? null}
+      currentUserId={pack.user?.id ?? null}
+      canManageOverlays={canManageOverlays}
     />
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ROUTES } from "@/lib/constants/routes";
 import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import type { ManagerSubjectRow } from "@/types/manager-subject";
 
@@ -272,12 +274,26 @@ export function ManageSubjectsPanel({
             Subjects and linked class counts from your school catalog.
           </p>
         </div>
-        <Can permission={PERMISSIONS.SUBJECTS_CREATE}>
-          <Button type="button" onClick={() => setIsAddOpen(true)}>
-            <PlusIcon data-icon="inline-start" />
-            Add subject
-          </Button>
-        </Can>
+        <div className="flex flex-wrap items-center gap-2">
+          <Can
+            anyOf={[
+              PERMISSIONS.SUBJECTS_CATEGORIES_VIEW,
+              PERMISSIONS.SUBJECTS_EXERCISES_VIEW,
+            ]}
+          >
+            <Button type="button" variant="outline" asChild>
+              <Link href={ROUTES.MANAGER_SUBJECTS_CATALOG}>
+                Categories & exercises
+              </Link>
+            </Button>
+          </Can>
+          <Can permission={PERMISSIONS.SUBJECTS_CREATE}>
+            <Button type="button" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add subject
+            </Button>
+          </Can>
+        </div>
       </div>
 
       <AddSubjectDialog
