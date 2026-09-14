@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const createGalleryImageSchema = z.object({
   name: z
@@ -18,22 +17,9 @@ export const createGalleryImageSchema = z.object({
 
 export type CreateGalleryImageInput = z.infer<typeof createGalleryImageSchema>;
 
-export function parseCreateGalleryImageFormData(formData: FormData):
-  | { success: true; data: CreateGalleryImageInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createGalleryImageSchema.safeParse({
+export function parseCreateGalleryImageFormData(formData: FormData) {
+  return safeParseFormData(createGalleryImageSchema, {
     name: formData.get("name"),
     direct_url: formData.get("direct_url"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

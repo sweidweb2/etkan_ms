@@ -348,24 +348,12 @@ See also: [`[05] enforcement.md`](./[05]%20enforcement.md).
 - Custom roles created from scratch in UI
 - Teacher / student domain permissions (until those panels have real features)
 - Redesigning panel shells per role
-- Per-user allow/deny overlays (**UBAC**) — tracked separately below
 
 Add these as a later plan after Phase 7 is stable.
 
 ---
 
-## Follow-on — RBAC + UBAC
-
-Per-user **allow** overlays on top of role grants (effective = `role ∪ allow`), Manager Users UI, audit, and session-pack merge are planned in:
-
-**[`docs/[10] Plans/[02] rbac-plus-ubac.md`](../[10]%20Plans/[02]%20rbac-plus-ubac.md)**
-
-Does not reopen Phase 8’s “no permission-mirrored RLS” stance. Panel routing stays on `profiles.role`.
-
----
-
 ## Related docs
 
-- `[01] rbac-layers.md` — six layers (business view; includes UBAC overlay in storage/engine)
+- `[01] rbac-layers.md` — six layers (business view)
 - `[02] permission-definitions.md` — feature permission list (manager baseline)
-- `[10] Plans/[02] rbac-plus-ubac.md` — RBAC + UBAC implementation plan

@@ -18,18 +18,6 @@ export type RolePermissionRow = {
   permission_key: string;
 };
 
-export type UserPermissionRow = {
-  user_id: string;
-  permission_key: string;
-  granted_by: string | null;
-  created_at: string;
-};
-
-export type UserPermissionUpsertInput = {
-  permission_key: PermissionKey;
-  granted_by?: string | null;
-};
-
 export type PermissionUpsertInput = {
   key: PermissionKey;
   label: string;
@@ -71,17 +59,6 @@ export async function listRolePermissions(
   }
 
   return query;
-}
-
-export async function listUserPermissionRows(
-  client: Supabase,
-  userId: string
-) {
-  return client
-    .from("user_permissions")
-    .select("user_id, permission_key, granted_by, created_at")
-    .eq("user_id", userId)
-    .order("permission_key", { ascending: true });
 }
 
 export async function upsertPermissions(
@@ -152,76 +129,8 @@ export async function replaceRolePermissions(
 }
 
 /**
- * Replace the full UBAC overlay for a user (hard-delete then insert snapshot).
- * At most one row per permission_key; last wins if duplicates are passed.
- */
-export async function replaceUserPermissions(
-  client: Supabase,
-  userId: string,
-  rows: UserPermissionUpsertInput[]
-) {
-  const byKey = new Map<PermissionKey, UserPermissionUpsertInput>();
-  for (const row of rows) {
-    byKey.set(row.permission_key, row);
-  }
-  const uniqueRows = [...byKey.values()];
-  const uniqueKeys = uniqueRows.map((row) => row.permission_key);
-
-  if (uniqueKeys.length > 0) {
-    const { data: existing, error: existingError } = await client
-      .from("permissions")
-      .select("key")
-      .in("key", uniqueKeys);
-
-    if (existingError) {
-      return { data: null, error: existingError };
-    }
-
-    const existingKeys = new Set((existing ?? []).map((row) => row.key));
-    const missing = uniqueKeys.filter((key) => !existingKeys.has(key));
-    if (missing.length > 0) {
-      throw new Error(`Unknown permission keys: ${missing.join(", ")}`);
-    }
-  }
-
-  const { error: deleteError } = await client
-    .from("user_permissions")
-    .delete()
-    .eq("user_id", userId);
-
-  if (deleteError) {
-    return { data: null, error: deleteError };
-  }
-
-  if (uniqueRows.length === 0) {
-    return { data: [], error: null };
-  }
-
-  return client
-    .from("user_permissions")
-    .insert(
-      uniqueRows.map((row) => ({
-        user_id: userId,
-        permission_key: row.permission_key,
-        granted_by: row.granted_by ?? null,
-      }))
-    )
-    .select("user_id, permission_key, granted_by, created_at");
-}
-
-/**
- * Hard-delete the entire UBAC overlay for a user.
- */
-export async function deleteUserPermissions(
-  client: Supabase,
-  userId: string
-) {
-  return client.from("user_permissions").delete().eq("user_id", userId);
-}
-
-/**
  * Delete catalog rows whose keys are not in `keepKeys`.
- * Clears role_permissions and user_permissions that reference those keys first.
+ * Clears role_permissions that reference those keys first.
  */
 export async function deletePermissionsNotInKeys(
   client: Supabase,
@@ -249,15 +158,6 @@ export async function deletePermissionsNotInKeys(
 
   if (roleGrantError) {
     return { data: null, error: roleGrantError };
-  }
-
-  const { error: userGrantError } = await client
-    .from("user_permissions")
-    .delete()
-    .in("permission_key", orphanKeys);
-
-  if (userGrantError) {
-    return { data: null, error: userGrantError };
   }
 
   return client.from("permissions").delete().in("key", orphanKeys);

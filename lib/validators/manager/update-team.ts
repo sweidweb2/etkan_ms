@@ -1,11 +1,10 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { TEAM_DEFAULT_STATUS, TEAM_STATUS_VALUES } from "@/lib/constants/team";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import {
   optionalTeamDate,
   teamNameSchema,
 } from "@/lib/validators/manager/create-team";
-import type { FieldErrors } from "@/types/auth";
 
 export const updateTeamSchema = z.object({
   id: z.string().uuid({ message: "Team not found." }),
@@ -18,23 +17,11 @@ export const updateTeamSchema = z.object({
 
 export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;
 
-export function parseUpdateTeamFormData(formData: FormData):
-  | { success: true; data: UpdateTeamInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateTeamSchema.safeParse({
+export function parseUpdateTeamFormData(formData: FormData) {
+  return safeParseFormData(updateTeamSchema, {
     id: formData.get("id"),
     name: formData.get("name"),
     expected_start_date: formData.get("expected_start_date"),
     status: formData.get("status") || TEAM_DEFAULT_STATUS,
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

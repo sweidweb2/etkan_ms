@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { BORROW_EQUIPMENT_STATUSES } from "@/lib/constants/manager-borrow-equipment-status";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
@@ -26,25 +27,13 @@ export const toggleBorrowReturnedSchema = z.object({
 
 export type ToggleBorrowReturnedInput = z.infer<typeof toggleBorrowReturnedSchema>;
 
-export function parseUpdateBorrowRecordFormData(formData: FormData):
-  | { success: true; data: UpdateBorrowRecordInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateBorrowRecordSchema.safeParse({
+export function parseUpdateBorrowRecordFormData(formData: FormData) {
+  return safeParseFormData(updateBorrowRecordSchema, {
     id: formData.get("id"),
     quantity: formData.get("quantity"),
     status: formData.get("status"),
     returnedAt: formData.get("returnedAt") || undefined,
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
 export function parseToggleBorrowReturnedFormData(formData: FormData):

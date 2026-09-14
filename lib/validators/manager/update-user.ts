@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { MANAGER_USER_EDITABLE_ROLES } from "@/lib/constants/manager-user-display";
 import { STUDENT_STATUS_VALUES } from "@/lib/constants/manager-student-status";
 import { ROLES } from "@/lib/constants/roles";
@@ -91,12 +92,7 @@ export function parseUpdateManagerUserFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return {

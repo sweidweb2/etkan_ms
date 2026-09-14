@@ -512,20 +512,6 @@ Table role_permissions {
   }
 }
 
-Table user_permissions {
-  user_id uuid [not null]
-  permission_key text [not null]
-  granted_by uuid
-  created_at timestamptz [not null, default: `now()`]
-
-  indexes {
-    (user_id, permission_key) [pk]
-    user_id
-    permission_key
-    granted_by
-  }
-}
-
 Table notifications {
   id uuid [pk, default: `gen_random_uuid()`]
   recipient_id uuid
@@ -651,10 +637,6 @@ Ref: email_users.email_sent_id > email_sent.id
 Ref: email_users.student_id > profiles.id
 
 Ref: role_permissions.permission_key > permissions.key
-
-Ref: user_permissions.user_id > profiles.id
-Ref: user_permissions.permission_key > permissions.key
-Ref: user_permissions.granted_by > profiles.id
 
 Ref: notifications.recipient_id > profiles.id
 Ref: notifications.created_by > profiles.id

@@ -1,11 +1,10 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   clearReferredFromOtherWhenNotOther,
   guestIntakeFieldsSchema,
   refineReferredFromOther,
 } from "@/lib/validators/manager/create-guest";
-import type { FieldErrors } from "@/types/auth";
 
 export const updateGuestSchema = guestIntakeFieldsSchema
   .extend({
@@ -16,10 +15,8 @@ export const updateGuestSchema = guestIntakeFieldsSchema
 
 export type UpdateGuestInput = z.infer<typeof updateGuestSchema>;
 
-export function parseUpdateGuestFormData(formData: FormData):
-  | { success: true; data: UpdateGuestInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateGuestSchema.safeParse({
+export function parseUpdateGuestFormData(formData: FormData) {
+  return safeParseFormData(updateGuestSchema, {
     id: formData.get("id"),
     full_name: formData.get("full_name"),
     phone: formData.get("phone"),
@@ -31,15 +28,4 @@ export function parseUpdateGuestFormData(formData: FormData):
     referred_from_other: formData.get("referred_from_other"),
     notes: formData.get("notes"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

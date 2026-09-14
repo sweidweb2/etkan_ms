@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import {
   GUEST_CURRENT_STATUSES,
@@ -9,8 +10,6 @@ import {
   GUEST_REFERRED_FROM_OTHER_MAX,
   GUEST_REFERRED_FROM_VALUES,
 } from "@/lib/constants/guest";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const FULL_NAME_MAX = AUTH_LIMITS.fullName.max;
 const NOTES_MAX = 2000;
@@ -142,10 +141,8 @@ export const createGuestSchema = guestIntakeFieldsSchema
 
 export type CreateGuestInput = z.infer<typeof createGuestSchema>;
 
-export function parseCreateGuestFormData(formData: FormData):
-  | { success: true; data: CreateGuestInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createGuestSchema.safeParse({
+export function parseCreateGuestFormData(formData: FormData) {
+  return safeParseFormData(createGuestSchema, {
     full_name: formData.get("full_name"),
     phone: formData.get("phone"),
     age: formData.get("age"),
@@ -157,15 +154,4 @@ export function parseCreateGuestFormData(formData: FormData):
     status: formData.get("status") || GUEST_DEFAULT_STATUS,
     notes: formData.get("notes"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

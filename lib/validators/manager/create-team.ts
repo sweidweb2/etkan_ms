@@ -1,11 +1,10 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   TEAM_DEFAULT_STATUS,
   TEAM_NAME_MAX,
   TEAM_STATUS_VALUES,
 } from "@/lib/constants/team";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 /** Empty string from an unfilled date input means "no expected start date". */
 export const optionalTeamDate = z.preprocess((value) => {
@@ -39,22 +38,10 @@ export const createTeamSchema = z.object({
 
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 
-export function parseCreateTeamFormData(formData: FormData):
-  | { success: true; data: CreateTeamInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createTeamSchema.safeParse({
+export function parseCreateTeamFormData(formData: FormData) {
+  return safeParseFormData(createTeamSchema, {
     name: formData.get("name"),
     expected_start_date: formData.get("expected_start_date"),
     status: formData.get("status") || TEAM_DEFAULT_STATUS,
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

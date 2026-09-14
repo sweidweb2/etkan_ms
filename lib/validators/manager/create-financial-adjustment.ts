@@ -1,11 +1,10 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   FINANCIAL_ADJUSTMENT_TYPE_VALUES,
   FINANCIAL_ADJUSTMENT_VALUE_TYPES,
   FINANCIAL_ADJUSTMENT_VALUE_TYPE_VALUES,
 } from "@/lib/manager/accounting/constants";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const adjustmentFields = {
   student_payment_phase_id: z
@@ -75,10 +74,8 @@ export type UpdateFinancialAdjustmentInput = z.infer<
   typeof updateFinancialAdjustmentSchema
 >;
 
-export function parseCreateFinancialAdjustmentFormData(formData: FormData):
-  | { success: true; data: CreateFinancialAdjustmentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createFinancialAdjustmentSchema.safeParse({
+export function parseCreateFinancialAdjustmentFormData(formData: FormData) {
+  return safeParseFormData(createFinancialAdjustmentSchema, {
     student_payment_phase_id: formData.get("student_payment_phase_id"),
     type: formData.get("type"),
     value_type: formData.get("value_type"),
@@ -86,22 +83,10 @@ export function parseCreateFinancialAdjustmentFormData(formData: FormData):
     reason: formData.get("reason") ?? "",
     effective_date: formData.get("effective_date"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseUpdateFinancialAdjustmentFormData(formData: FormData):
-  | { success: true; data: UpdateFinancialAdjustmentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateFinancialAdjustmentSchema.safeParse({
+export function parseUpdateFinancialAdjustmentFormData(formData: FormData) {
+  return safeParseFormData(updateFinancialAdjustmentSchema, {
     id: formData.get("id"),
     student_payment_phase_id: formData.get("student_payment_phase_id"),
     type: formData.get("type"),
@@ -110,14 +95,4 @@ export function parseUpdateFinancialAdjustmentFormData(formData: FormData):
     reason: formData.get("reason") ?? "",
     effective_date: formData.get("effective_date"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

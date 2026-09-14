@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 
@@ -36,11 +37,7 @@ export function parseAddStudentToClassFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return {
@@ -72,11 +69,7 @@ export function parseAddStudentsToClassFormData(formData: FormData):
   const parsed = addStudentsToClassSchema.safeParse({ studentProfileIds });
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return {

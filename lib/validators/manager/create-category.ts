@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
-export const createCategorySchema = z.object({
+/** Shared fields for create and update category. */
+export const categoryFieldsSchema = z.object({
   name: z
     .string()
     .trim()
@@ -15,23 +15,13 @@ export const createCategorySchema = z.object({
     .or(z.literal("")),
 });
 
+export const createCategorySchema = categoryFieldsSchema;
+
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 
-export function parseCreateCategoryFormData(formData: FormData):
-  | { success: true; data: CreateCategoryInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createCategorySchema.safeParse({
+export function parseCreateCategoryFormData(formData: FormData) {
+  return safeParseFormData(createCategorySchema, {
     name: formData.get("name"),
     parent_id: formData.get("parent_id") ?? "",
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const saveClassFollowUpSchema = z
   .object({
@@ -39,22 +38,10 @@ function parseIds(formData: FormData, key: string): string[] {
   ];
 }
 
-export function parseSaveClassFollowUpFormData(formData: FormData):
-  | { success: true; data: SaveClassFollowUpInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = saveClassFollowUpSchema.safeParse({
+export function parseSaveClassFollowUpFormData(formData: FormData) {
+  return safeParseFormData(saveClassFollowUpSchema, {
     class_id: formData.get("class_id"),
     in_progress_category_ids: parseIds(formData, "in_progress_category_ids"),
     done_category_ids: parseIds(formData, "done_category_ids"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

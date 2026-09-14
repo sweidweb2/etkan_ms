@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 const optionalUrlField = z
   .string()
@@ -10,7 +9,8 @@ const optionalUrlField = z
   .optional()
   .or(z.literal(""));
 
-export const createSubjectSchema = z.object({
+/** Shared fields for create and update subject. */
+export const subjectFieldsSchema = z.object({
   name: z
     .string()
     .trim()
@@ -26,27 +26,16 @@ export const createSubjectSchema = z.object({
   handout_link: optionalUrlField,
 });
 
+export const createSubjectSchema = subjectFieldsSchema;
+
 export type CreateSubjectInput = z.infer<typeof createSubjectSchema>;
 
-export function parseCreateSubjectFormData(formData: FormData):
-  | { success: true; data: CreateSubjectInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createSubjectSchema.safeParse({
+export function parseCreateSubjectFormData(formData: FormData) {
+  return safeParseFormData(createSubjectSchema, {
     name: formData.get("name"),
     nb_sessions: formData.get("nb_sessions"),
     syllabus_link: formData.get("syllabus_link"),
     reference_link: formData.get("reference_link"),
     handout_link: formData.get("handout_link"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

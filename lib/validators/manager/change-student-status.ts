@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const booleanFromForm = z.preprocess((value) => {
   if (value === true || value === "true" || value === "on" || value === "1") {
@@ -46,23 +45,11 @@ export const changeStudentStatusSchema = z
 
 export type ChangeStudentStatusInput = z.infer<typeof changeStudentStatusSchema>;
 
-export function parseChangeStudentStatusFormData(formData: FormData):
-  | { success: true; data: ChangeStudentStatusInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = changeStudentStatusSchema.safeParse({
+export function parseChangeStudentStatusFormData(formData: FormData) {
+  return safeParseFormData(changeStudentStatusSchema, {
     user_id: formData.get("user_id"),
     target_status: formData.get("target_status"),
     remove_from_classes: formData.get("remove_from_classes"),
     remove_open_spps: formData.get("remove_open_spps"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

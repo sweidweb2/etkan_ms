@@ -12,9 +12,6 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
   clearInstructorWorkshopRelatedData: vi.fn(),
 }));
-vi.mock("@/services/auth/workshop-attribute-access.service", () => ({
-  syncWorkshopAttributeAccessOverlay: vi.fn(async () => ({ success: true })),
-}));
 vi.mock("next/cache", () => ({
   unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
 }));

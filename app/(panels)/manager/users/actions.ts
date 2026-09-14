@@ -11,11 +11,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateStaffUserFormData } from "@/lib/validators/manager/create-user";
 import { parseUpdateManagerUserFormData } from "@/lib/validators/manager/update-user";
 import { createStaffUser, updateManagerUser } from "@/services/auth/user.service";
-import {
-  getUserAccessBreakdown,
-  replaceUserPermissionsForManager,
-  type UserAccessBreakdown,
-} from "@/services/auth/user-permissions.service";
 import type {
   CreateStaffUserActionState,
   UpdateManagerUserActionState,
@@ -104,69 +99,4 @@ export async function updateUserAction(
     message: result.message,
     user: result.user,
   };
-}
-
-export type ReplaceUserPermissionsActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-};
-
-export async function replaceUserPermissionsAction(
-  _prevState: ReplaceUserPermissionsActionState,
-  formData: FormData
-): Promise<ReplaceUserPermissionsActionState> {
-  const actor = await getSessionAuditActor();
-  const userId = String(formData.get("userId") ?? "").trim();
-
-  if (!userId) {
-    return {
-      success: false,
-      error: "Unable to update permissions. Please refresh and try again.",
-    };
-  }
-
-  const permissionKeys = formData.getAll("permissionKey").map(String);
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await replaceUserPermissionsForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    userId,
-    permissionKeys
-  );
-
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
-
-  revalidateManagerPeopleLists();
-
-  return {
-    success: true,
-    message: result.message,
-  };
-}
-
-export type UserAccessBreakdownActionResult =
-  | { success: true; breakdown: UserAccessBreakdown }
-  | { success: false; error: string };
-
-export async function getUserAccessBreakdownAction(
-  userId: string
-): Promise<UserAccessBreakdownActionResult> {
-  const actor = await getSessionAuditActor();
-  const adminClient = createSupabaseAdminClient();
-  const result = await getUserAccessBreakdown(
-    adminClient,
-    actor.userId,
-    userId
-  );
-
-  if ("error" in result) {
-    return { success: false, error: result.error };
-  }
-
-  return { success: true, breakdown: result };
 }

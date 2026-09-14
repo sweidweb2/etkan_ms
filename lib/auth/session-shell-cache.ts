@@ -3,13 +3,12 @@
  * (role, displayName, isInstructor, isMentor, **effective** permission keys).
  *
  * Every navigation still verifies JWT via getClaims; this avoids repeating
- * profiles + role_permissions + user_permissions round-trips on sidebar hops
- * within the TTL.
+ * profiles + role_permissions round-trips on sidebar hops within the TTL.
  *
  * Bust:
- * - `clearCachedSessionShell(userId)` after that user’s UBAC overlay changes
+ * - `clearCachedSessionShell(userId)` after that user’s identity writes
  * - `clearCachedSessionShell()` (all) after role-matrix RBAC saves
- * - logout / identity writes as today
+ * - logout as today
  *
  * Same class as maintenance-mode-cache: one Node process, not multi-region shared.
  */

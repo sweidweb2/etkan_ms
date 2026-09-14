@@ -64,9 +64,6 @@ async function seedRbac(): Promise<void> {
 
   console.log("RBAC seed complete.");
   console.log(`  Permissions catalog: ${catalogKeys.size}`);
-  console.log(
-    "  user_permissions: not seeded (empty overlays by default; manage in Manager Users)."
-  );
 
   for (const role of ROLE_VALUES) {
     const expectedKeys = [...ROLE_SEED_PERMISSIONS[role]];

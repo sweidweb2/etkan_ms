@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const createEquipmentSchema = z.object({
   name: z
@@ -27,24 +26,11 @@ export const createEquipmentSchema = z.object({
 
 export type CreateEquipmentInput = z.infer<typeof createEquipmentSchema>;
 
-export function parseCreateEquipmentFormData(formData: FormData):
-  | { success: true; data: CreateEquipmentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createEquipmentSchema.safeParse({
+export function parseCreateEquipmentFormData(formData: FormData) {
+  return safeParseFormData(createEquipmentSchema, {
     name: formData.get("name"),
     description: formData.get("description"),
     quantity: formData.get("quantity"),
     unit_price: formData.get("unit_price"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

@@ -1,12 +1,11 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   PUBLIC_PROJECT_CLASSIFICATION_VALUES,
   PUBLIC_PROJECT_FIELD_LIMITS,
   PUBLIC_PROJECT_IMAGE_ALLOWED_MIME_TYPES,
   PUBLIC_PROJECT_IMAGE_MAX_BYTES,
 } from "@/lib/constants/manager-public-project";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const TITLE_MAX = PUBLIC_PROJECT_FIELD_LIMITS.title.max;
 const BODY_MAX = PUBLIC_PROJECT_FIELD_LIMITS.body.max;
@@ -121,10 +120,8 @@ export const createPublicProjectSchema = publicProjectFieldsSchema.extend({
 
 export type CreatePublicProjectInput = z.infer<typeof createPublicProjectSchema>;
 
-export function parseCreatePublicProjectFormData(formData: FormData):
-  | { success: true; data: CreatePublicProjectInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createPublicProjectSchema.safeParse({
+export function parseCreatePublicProjectFormData(formData: FormData) {
+  return safeParseFormData(createPublicProjectSchema, {
     classification: formData.get("classification"),
     category: formData.get("category"),
     title: formData.get("title"),
@@ -133,15 +130,4 @@ export function parseCreatePublicProjectFormData(formData: FormData):
     image: formData.get("image"),
     href: formData.get("href"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

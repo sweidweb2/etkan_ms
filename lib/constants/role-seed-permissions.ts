@@ -7,14 +7,21 @@ import {
 } from "@/lib/constants/permissions";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 
+function permissionKeysForFeatures(
+  features: readonly PermissionFeature[]
+): PermissionKey[] {
+  const featureSet = new Set<PermissionFeature>(features);
+  return PERMISSION_DEFINITIONS.filter((definition) =>
+    featureSet.has(definition.feature)
+  ).map((definition) => definition.key);
+}
+
 /**
- * Shared workshop access package seeded to every non-manager role (except CEO
- * and supervisor).
- * Sessions/documents CRUD + workshop/instructor/schedule reads.
- * Does not include workshops.payments.view.
+ * Shared workshop access package seeded to admin (and historically other
+ * non-manager roles). Sessions/documents CRUD + workshop/instructor/schedule
+ * reads. Does not include workshops.payments.view.
  * Cross-role UI uses shared `/manager/workshops*` when
- * (`is_instructor` or `is_mentor`) + view. Attribute assign also syncs a
- * personal readonly overlay (`workshops.view` + `instructor_schedules.view`).
+ * (`is_instructor` or `is_mentor`) + view permission.
  */
 export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
   PERMISSIONS.WORKSHOPS_VIEW,
@@ -85,13 +92,48 @@ export const CEO_WORKSHOP_SEED_PERMISSIONS = [
 ] as const satisfies readonly PermissionKey[];
 
 /**
- * Feature groups supervisors never receive (ops / finance / system / users).
- * `payment_schedules` and `cron_jobs` are excluded with accounting/settings.
+ * Class tree nested under Manage classes (sessions → tasks, attendance,
+ * grades, final exams). Used by teacher (own classes via service scope)
+ * and supervisor (all classes).
+ */
+export const CLASS_TREE_SEED_FEATURES = [
+  "classes",
+  "sessions",
+  "attendance",
+  "tasks",
+  "final_exams",
+  "grades",
+] as const satisfies readonly PermissionFeature[];
+
+export const CLASS_TREE_SEED_PERMISSIONS = permissionKeysForFeatures(
+  CLASS_TREE_SEED_FEATURES
+);
+
+/**
+ * Teacher: full class-tree grants. List/detail scoping to assigned classes
+ * is enforced in services (class_teacher), not by fewer keys.
+ */
+export const TEACHER_SEED_PERMISSIONS = CLASS_TREE_SEED_PERMISSIONS;
+
+/**
+ * Supervisor allow-list feature groups (narrow operational catalog).
+ */
+export const SUPERVISOR_SEED_FEATURES = [
+  "workshops",
+  "subjects",
+  "students",
+  ...CLASS_TREE_SEED_FEATURES,
+  "instructor_schedules",
+  "academic_analysis",
+] as const satisfies readonly PermissionFeature[];
+
+/**
+ * @deprecated Prefer `SUPERVISOR_SEED_FEATURES` allow-list. Kept for docs /
+ * hard-block commentary that still list ops/finance exclusions.
  */
 export const SUPERVISOR_EXCLUDED_PERMISSION_FEATURES = [
   "users",
   "accounting",
-  "academic_analysis",
   "emailing",
   "gallery",
   "projects",
@@ -103,23 +145,28 @@ export const SUPERVISOR_EXCLUDED_PERMISSION_FEATURES = [
   "rbac",
   "payment_schedules",
   "cron_jobs",
+  "dashboard",
+  "equipment",
+  "semesters",
+  "instructors",
+  "mentors",
+  "guests",
+  "teams",
+  "registrations",
+  "cloudflare_ai_usage",
 ] as const satisfies readonly PermissionFeature[];
 
-const SUPERVISOR_EXCLUDED_FEATURE_SET = new Set<PermissionFeature>(
-  SUPERVISOR_EXCLUDED_PERMISSION_FEATURES
+/**
+ * Supervisor: workshops, subjects (categories/exercises), students, classes
+ * tree, instructor schedules, academic analysis.
+ */
+export const SUPERVISOR_SEED_PERMISSIONS = permissionKeysForFeatures(
+  SUPERVISOR_SEED_FEATURES
 );
 
 /**
- * Manager catalog minus excluded ops/finance/system/users features.
- * Applied by `npm run seed:rbac` for the supervisor role.
- */
-export const SUPERVISOR_SEED_PERMISSIONS = PERMISSION_DEFINITIONS.filter(
-  (definition) => !SUPERVISOR_EXCLUDED_FEATURE_SET.has(definition.feature)
-).map((definition) => definition.key) as PermissionKey[];
-
-/**
- * CRM: full manage-guests flow (guests + teams on that page) plus
- * registrations.view to open a registration dossier from guest details.
+ * CRM: full manage-guests flow (guests + teams on that page) plus full
+ * registrations (view + update_status) for dossiers / details.
  */
 export const CRM_SEED_PERMISSIONS = [
   PERMISSIONS.GUESTS_VIEW,
@@ -135,13 +182,27 @@ export const CRM_SEED_PERMISSIONS = [
   PERMISSIONS.TEAMS_DELETE,
   PERMISSIONS.TEAMS_ASSIGN_GUEST,
   PERMISSIONS.REGISTRATIONS_VIEW,
+  PERMISSIONS.REGISTRATIONS_UPDATE_STATUS,
+] as const satisfies readonly PermissionKey[];
+
+/**
+ * Student panel: own profile read-only, enrolled class tree reads
+ * (classes → sessions → tasks + related views), own SPP / payments.
+ */
+export const STUDENT_SEED_PERMISSIONS = [
+  PERMISSIONS.STUDENTS_VIEW_OWN,
+  PERMISSIONS.CLASSES_VIEW,
+  PERMISSIONS.SESSIONS_VIEW,
+  PERMISSIONS.ATTENDANCE_VIEW,
+  PERMISSIONS.TASKS_VIEW,
+  PERMISSIONS.GRADES_VIEW,
+  PERMISSIONS.FINAL_EXAMS_VIEW,
+  PERMISSIONS.ACCOUNTING_VIEW,
+  PERMISSIONS.PAYMENT_SCHEDULES_VIEW,
 ] as const satisfies readonly PermissionKey[];
 
 /**
  * Default permission grants applied by `npm run seed:rbac`.
- * Manager gets the full catalog; supervisor gets manager-minus-excluded;
- * CEO gets the workshop/instructor module; CRM gets guests/teams;
- * every other role gets the minimal workshop package.
  * `replaceRolePermissions` clears prior grants before applying these.
  */
 export const ROLE_SEED_PERMISSIONS: Record<
@@ -149,22 +210,11 @@ export const ROLE_SEED_PERMISSIONS: Record<
   readonly PermissionKey[]
 > = {
   [ROLES.MANAGER]: PERMISSION_KEYS,
-  [ROLES.SUPERVISOR]: SUPERVISOR_SEED_PERMISSIONS,
   [ROLES.CEO]: CEO_WORKSHOP_SEED_PERMISSIONS,
+  [ROLES.SUPERVISOR]: SUPERVISOR_SEED_PERMISSIONS,
   [ROLES.CRM]: CRM_SEED_PERMISSIONS,
+  [ROLES.TEACHER]: TEACHER_SEED_PERMISSIONS,
+  [ROLES.STUDENT]: STUDENT_SEED_PERMISSIONS,
+  [ROLES.CO_MANAGER]: [],
   [ROLES.ADMIN]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
-  [ROLES.CO_MANAGER]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
-  [ROLES.TEACHER]: WORKSHOP_ACCESS_SEED_PERMISSIONS,
-  [ROLES.STUDENT]: [
-    ...WORKSHOP_ACCESS_SEED_PERMISSIONS,
-    PERMISSIONS.STUDENTS_VIEW_OWN,
-    PERMISSIONS.ACCOUNTING_VIEW,
-    PERMISSIONS.PAYMENT_SCHEDULES_VIEW,
-    PERMISSIONS.CLASSES_VIEW,
-    PERMISSIONS.SESSIONS_VIEW,
-    PERMISSIONS.ATTENDANCE_VIEW,
-    PERMISSIONS.GRADES_VIEW,
-    PERMISSIONS.TASKS_VIEW,
-    PERMISSIONS.FINAL_EXAMS_VIEW,
-  ],
 };

@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const syncSubjectCatalogLinksSchema = z.object({
   subject_id: z.string().uuid({ message: "Subject not found." }),
@@ -19,22 +18,10 @@ function parseIds(formData: FormData, key: string): string[] {
     .filter(Boolean);
 }
 
-export function parseSyncSubjectCatalogLinksFormData(formData: FormData):
-  | { success: true; data: SyncSubjectCatalogLinksInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = syncSubjectCatalogLinksSchema.safeParse({
+export function parseSyncSubjectCatalogLinksFormData(formData: FormData) {
+  return safeParseFormData(syncSubjectCatalogLinksSchema, {
     subject_id: formData.get("subject_id"),
     category_ids: parseIds(formData, "category_ids"),
     exercise_ids: parseIds(formData, "exercise_ids"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

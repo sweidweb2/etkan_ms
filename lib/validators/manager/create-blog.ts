@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   BLOG_FIELD_LIMITS,
   BLOG_IMAGE_ALLOWED_MIME_TYPES,
@@ -198,10 +199,8 @@ export const createBlogSchema = blogFieldsSchema.extend({
 
 export type CreateBlogInput = z.infer<typeof createBlogSchema>;
 
-export function parseCreateBlogFormData(formData: FormData):
-  | { success: true; data: CreateBlogInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createBlogSchema.safeParse({
+export function parseCreateBlogFormData(formData: FormData) {
+  return safeParseFormData(createBlogSchema, {
     slug: formData.get("slug"),
     title: formData.get("title"),
     summary: formData.get("summary"),
@@ -216,17 +215,6 @@ export function parseCreateBlogFormData(formData: FormData):
     thumbnail: formData.get("thumbnail"),
     author_avatar: formData.get("author_avatar"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
 /**

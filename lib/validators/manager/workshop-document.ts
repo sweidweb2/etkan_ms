@@ -1,11 +1,10 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   WORKSHOP_DOCUMENT_ALLOWED_MIME_TYPES,
   WORKSHOP_DOCUMENT_MAX_BYTES,
   WORKSHOP_DOCUMENT_MAX_NAME_LENGTH,
 } from "@/lib/constants/manager-workshop-documents";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const allowedMimeSet = new Set<string>(WORKSHOP_DOCUMENT_ALLOWED_MIME_TYPES);
 
@@ -107,61 +106,25 @@ export type DeleteWorkshopDocumentInput = z.infer<
   typeof deleteWorkshopDocumentSchema
 >;
 
-export function parseUploadWorkshopDocumentFormData(formData: FormData):
-  | { success: true; data: UploadWorkshopDocumentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = uploadWorkshopDocumentSchema.safeParse({
+export function parseUploadWorkshopDocumentFormData(formData: FormData) {
+  return safeParseFormData(uploadWorkshopDocumentSchema, {
     workshop_id: formData.get("workshop_id"),
     file: formData.get("file"),
     name: formData.get("name"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseRenameWorkshopDocumentFormData(formData: FormData):
-  | { success: true; data: RenameWorkshopDocumentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = renameWorkshopDocumentSchema.safeParse({
+export function parseRenameWorkshopDocumentFormData(formData: FormData) {
+  return safeParseFormData(renameWorkshopDocumentSchema, {
     id: formData.get("id"),
     workshop_id: formData.get("workshop_id"),
     name: formData.get("name"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseDeleteWorkshopDocumentFormData(formData: FormData):
-  | { success: true; data: DeleteWorkshopDocumentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = deleteWorkshopDocumentSchema.safeParse({
+export function parseDeleteWorkshopDocumentFormData(formData: FormData) {
+  return safeParseFormData(deleteWorkshopDocumentSchema, {
     id: formData.get("id"),
     workshop_id: formData.get("workshop_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

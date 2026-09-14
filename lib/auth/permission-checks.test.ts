@@ -4,10 +4,7 @@ import {
   hasAllPermissionsInSet,
   hasAnyPermissionInSet,
   hasPermissionInSet,
-  mergePermissionSets,
-  normalizeAllowKeys,
   requirePermissionInSet,
-  stripRedundantAllows,
 } from "@/lib/auth/permission-checks";
 import { PERMISSIONS, type PermissionKey } from "@/lib/constants/permissions";
 
@@ -55,49 +52,5 @@ describe("permission-checks", () => {
     expect(() =>
       requirePermissionInSet(permissions, PERMISSIONS.SUBJECTS_DELETE)
     ).toThrow(UNAUTHORIZED_MESSAGE);
-  });
-
-  describe("mergePermissionSets", () => {
-    it("unions role keys with allows beyond the role", () => {
-      const effective = mergePermissionSets({
-        roleKeys: [PERMISSIONS.SUBJECTS_VIEW],
-        allows: [PERMISSIONS.SUBJECTS_CREATE],
-      });
-
-      expect(effective.has(PERMISSIONS.SUBJECTS_VIEW)).toBe(true);
-      expect(effective.has(PERMISSIONS.SUBJECTS_CREATE)).toBe(true);
-      expect(effective.size).toBe(2);
-    });
-
-    it("skips invalid keys", () => {
-      const effective = mergePermissionSets({
-        roleKeys: [PERMISSIONS.SUBJECTS_VIEW, "not.a.key"],
-        allows: ["also.fake"],
-      });
-
-      expect([...effective]).toEqual([PERMISSIONS.SUBJECTS_VIEW]);
-    });
-  });
-
-  describe("normalizeAllowKeys / stripRedundantAllows", () => {
-    it("normalizeAllowKeys uniques and sorts valid keys", () => {
-      expect(
-        normalizeAllowKeys([
-          PERMISSIONS.USERS_VIEW,
-          "not.real",
-          PERMISSIONS.USERS_CREATE,
-          PERMISSIONS.USERS_VIEW,
-        ])
-      ).toEqual([PERMISSIONS.USERS_CREATE, PERMISSIONS.USERS_VIEW].sort());
-    });
-
-    it("stripRedundantAllows removes role-covered keys", () => {
-      expect(
-        stripRedundantAllows(
-          [PERMISSIONS.USERS_VIEW, PERMISSIONS.USERS_CREATE],
-          new Set([PERMISSIONS.USERS_VIEW])
-        )
-      ).toEqual([PERMISSIONS.USERS_CREATE]);
-    });
   });
 });

@@ -1,10 +1,9 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   WORKSHOP_SESSION_STATUS_VALUES,
 } from "@/lib/constants/manager-workshop-display";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const TIME_HH_MM = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
 
@@ -199,10 +198,8 @@ export type DeleteWorkshopSessionInput = z.infer<
   typeof deleteWorkshopSessionSchema
 >;
 
-export function parseCreateWorkshopSessionFormData(formData: FormData):
-  | { success: true; data: CreateWorkshopSessionInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createWorkshopSessionSchema.safeParse({
+export function parseCreateWorkshopSessionFormData(formData: FormData) {
+  return safeParseFormData(createWorkshopSessionSchema, {
     workshop_id: formData.get("workshop_id"),
     nb_order: formData.get("nb_order"),
     session_date: formData.get("session_date"),
@@ -216,22 +213,10 @@ export function parseCreateWorkshopSessionFormData(formData: FormData):
     participants_eval: formData.get("participants_eval"),
     session_eval: formData.get("session_eval"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseUpdateWorkshopSessionFormData(formData: FormData):
-  | { success: true; data: UpdateWorkshopSessionInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateWorkshopSessionSchema.safeParse({
+export function parseUpdateWorkshopSessionFormData(formData: FormData) {
+  return safeParseFormData(updateWorkshopSessionSchema, {
     id: formData.get("id"),
     workshop_id: formData.get("workshop_id"),
     nb_order: formData.get("nb_order"),
@@ -246,33 +231,11 @@ export function parseUpdateWorkshopSessionFormData(formData: FormData):
     participants_eval: formData.get("participants_eval"),
     session_eval: formData.get("session_eval"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseDeleteWorkshopSessionFormData(formData: FormData):
-  | { success: true; data: DeleteWorkshopSessionInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = deleteWorkshopSessionSchema.safeParse({
+export function parseDeleteWorkshopSessionFormData(formData: FormData) {
+  return safeParseFormData(deleteWorkshopSessionSchema, {
     id: formData.get("id"),
     workshop_id: formData.get("workshop_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

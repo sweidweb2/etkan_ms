@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 /** A null team_id moves the guest back to the unassigned guests table. */
 export const assignGuestToTeamSchema = z.object({
@@ -16,21 +15,9 @@ export const assignGuestToTeamSchema = z.object({
 
 export type AssignGuestToTeamInput = z.infer<typeof assignGuestToTeamSchema>;
 
-export function parseAssignGuestToTeamFormData(formData: FormData):
-  | { success: true; data: AssignGuestToTeamInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = assignGuestToTeamSchema.safeParse({
+export function parseAssignGuestToTeamFormData(formData: FormData) {
+  return safeParseFormData(assignGuestToTeamSchema, {
     guest_id: formData.get("guest_id"),
     team_id: formData.get("team_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

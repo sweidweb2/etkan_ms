@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { PAYMENT_SCHEDULE_STATUS_VALUES } from "@/lib/manager/accounting/constants";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 export const updateStudentPaymentScheduleSchema = z.object({
   id: z.string().trim().uuid({ message: "Schedule row is required." }),
@@ -40,10 +39,8 @@ export type UpdateStudentPaymentScheduleInput = z.infer<
   typeof updateStudentPaymentScheduleSchema
 >;
 
-export function parseUpdateStudentPaymentScheduleFormData(formData: FormData):
-  | { success: true; data: UpdateStudentPaymentScheduleInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateStudentPaymentScheduleSchema.safeParse({
+export function parseUpdateStudentPaymentScheduleFormData(formData: FormData) {
+  return safeParseFormData(updateStudentPaymentScheduleSchema, {
     id: formData.get("id"),
     student_payment_phase_id: formData.get("student_payment_phase_id"),
     due_date: formData.get("due_date"),
@@ -52,14 +49,4 @@ export function parseUpdateStudentPaymentScheduleFormData(formData: FormData):
     status: formData.get("status"),
     notes: formData.get("notes") ?? "",
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

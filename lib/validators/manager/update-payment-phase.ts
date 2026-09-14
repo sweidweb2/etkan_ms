@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const updatePaymentPhaseSchema = z
   .object({
@@ -54,10 +53,8 @@ export const updatePaymentPhaseSchema = z
 
 export type UpdatePaymentPhaseInput = z.infer<typeof updatePaymentPhaseSchema>;
 
-export function parseUpdatePaymentPhaseFormData(formData: FormData):
-  | { success: true; data: UpdatePaymentPhaseInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updatePaymentPhaseSchema.safeParse({
+export function parseUpdatePaymentPhaseFormData(formData: FormData) {
+  return safeParseFormData(updatePaymentPhaseSchema, {
     id: formData.get("id"),
     name: formData.get("name"),
     amount: formData.get("amount"),
@@ -66,14 +63,4 @@ export function parseUpdatePaymentPhaseFormData(formData: FormData):
     start_date: formData.get("start_date"),
     end_date: formData.get("end_date"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

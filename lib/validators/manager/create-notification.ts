@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   isNotificationActionHrefValidForAudience,
   NOTIFICATION_ACTION_NONE_VALUE,
@@ -8,8 +9,6 @@ import {
   NOTIFICATION_CATEGORY_VALUES,
   NOTIFICATION_PRIORITY_VALUES,
 } from "@/lib/constants/manager-notification-display";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 export const createNotificationSchema = z
   .object({
@@ -51,10 +50,8 @@ export const createNotificationSchema = z
 
 export type CreateNotificationInput = z.infer<typeof createNotificationSchema>;
 
-export function parseCreateNotificationFormData(formData: FormData):
-  | { success: true; data: CreateNotificationInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createNotificationSchema.safeParse({
+export function parseCreateNotificationFormData(formData: FormData) {
+  return safeParseFormData(createNotificationSchema, {
     title: formData.get("title"),
     body: formData.get("body"),
     audience: formData.get("audience"),
@@ -62,16 +59,6 @@ export function parseCreateNotificationFormData(formData: FormData):
     priority: formData.get("priority"),
     action_href: formData.get("action_href") ?? undefined,
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
 export { NOTIFICATION_ACTION_NONE_VALUE };

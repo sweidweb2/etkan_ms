@@ -1,12 +1,15 @@
 import { z } from "zod";
 import {
+  formValidationFailure,
+  safeParseFormData,
+} from "@/lib/validators/safe-parse-form-data";
+import {
   PAYMENT_METHOD_VALUES,
   TRANSACTION_CATEGORIES,
   TRANSACTION_TYPE_VALUES,
   getTransactionCategoriesForType,
   type TransactionType,
 } from "@/lib/manager/accounting/constants";
-import type { FieldErrors } from "@/types/auth";
 
 export const createTransactionFormSchema = z
   .object({
@@ -141,33 +144,24 @@ function formDataToTransactionFields(formData: FormData) {
   };
 }
 
-export function parseCreateTransactionFormData(formData: FormData):
-  | { success: true; data: CreateTransactionInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createTransactionFormSchema.safeParse(
+export function parseCreateTransactionFormData(formData: FormData) {
+  const parsed = safeParseFormData(
+    createTransactionFormSchema,
     formDataToTransactionFields(formData)
   );
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
+    return parsed;
   }
 
   const data = resolveCreateTransactionInput(parsed.data);
   if (!data.category) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: {
-        category_custom: ["Enter a custom category."],
-      },
-    };
+    return formValidationFailure({
+      category_custom: ["Enter a custom category."],
+    });
   }
 
-  return { success: true, data };
+  return { success: true as const, data };
 }
 
 export const updateTransactionFormSchema = createTransactionFormSchema;
@@ -180,20 +174,14 @@ export type UpdateTransactionInput = CreateTransactionInput & {
   id: string;
 };
 
-export function parseUpdateTransactionFormData(formData: FormData):
-  | { success: true; data: UpdateTransactionInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
+export function parseUpdateTransactionFormData(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       id
     )
   ) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { id: ["Invalid transaction."] },
-    };
+    return formValidationFailure({ id: ["Invalid transaction."] });
   }
 
   const parsed = parseCreateTransactionFormData(formData);
@@ -202,7 +190,7 @@ export function parseUpdateTransactionFormData(formData: FormData):
   }
 
   return {
-    success: true,
+    success: true as const,
     data: {
       id,
       ...parsed.data,

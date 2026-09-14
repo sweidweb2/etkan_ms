@@ -14,96 +14,48 @@ Full catalog (`PERMISSION_KEYS`) — every permission.
 
 ## CEO
 
-Full instructors / instructor schedules / workshops module (incl. payments) plus AI usage for Schedule assistant, income statement analytics, and the full manage-guests flow (`CEO_WORKSHOP_SEED_PERMISSIONS`):
+Unchanged package (`CEO_WORKSHOP_SEED_PERMISSIONS`): full instructors / mentors / instructor schedules / workshops (incl. payments) plus AI usage, income statement analytics, academic analysis, and the full manage-guests flow:
 
 ```
-instructors.view
-instructors.create
-instructors.delete
-instructors.capabilities.update
-instructors.subjects.create
-instructors.subjects.update
-instructors.subjects.delete
-mentors.capabilities.update
-mentors.subjects.create
-mentors.subjects.update
-mentors.subjects.delete
-instructor_schedules.view
-instructor_schedules.details.view
-instructor_schedules.create
-instructor_schedules.update
-instructor_schedules.delete
-workshops.view
-workshops.create
-workshops.update
-workshops.delete
-workshops.change_status
-workshops.instructors.create
-workshops.instructors.update
-workshops.instructors.delete
-workshops.documents.create
-workshops.documents.update
-workshops.documents.delete
-workshops.sessions.create
-workshops.sessions.update
-workshops.sessions.delete
-workshops.payments.view
-workshops.payments.create
-workshops.payments.update
-workshops.payments.delete
+instructors.*
+mentors.*
+instructor_schedules.*
+workshops.* (incl. payments)
 cloudflare_ai_usage.view
 accounting.income_statement.analytics.view
 academic_analysis.view
-guests.view
-guests.create
-guests.update
-guests.delete
-guests.change_status
-guests.registration.manage
-guests.create_student
+guests.*
 registrations.view
 ```
 
 Shared pages: `/manager/workshops*`, `/manager/instructor-schedules*`, `/manager/instructors`, `/manager/cloudflare-ai-usage`, `/manager/income-statement/analytics`, `/manager/academic-analysis`, `/manager/guests*`, `/manager/registrations*`.  
 Manage instructors, AI usage, guests, academic analysis, and registration dossiers do **not** require `is_instructor`. Workshop/schedule shared UI still does.  
 Schedule assistant UI/API and AI usage page require `cloudflare_ai_usage.view`.  
-Slot details table (`/manager/instructor-schedules/details`) requires `instructor_schedules.details.view` (manager + CEO seed only for now).  
-CEO guest follow-up includes `guests.create_student` (create a student from a registration without `students.create`). `registrations.view` lets CEO open the dossier from guest details.  
-Re-run `npm run seed:rbac` after deploy so CEO receives the new `guests.*` / `registrations.view` / `academic_analysis.view` keys.
+Slot details table (`/manager/instructor-schedules/details`) requires `instructor_schedules.details.view` (manager + CEO seed).  
+CEO guest follow-up includes `guests.create_student`. `registrations.view` lets CEO open the dossier from guest details.
 
 ---
 
 ## Supervisor
 
-Manager catalog minus excluded ops / finance / system / users features (`SUPERVISOR_SEED_PERMISSIONS`):
+Allow-list only (`SUPERVISOR_SEED_PERMISSIONS` / `SUPERVISOR_SEED_FEATURES`):
 
-**Excluded feature groups (no grants):**
-```
-users
-accounting
-academic_analysis
-emailing
-gallery
-projects
-blogs
-notifications
-backup
-logs
-settings
-rbac
-payment_schedules
-cron_jobs
-```
+| Area | Feature groups |
+|------|----------------|
+| Workshops | all `workshops.*` |
+| Subjects | all `subjects.*` (incl. categories + exercises) |
+| Students | all `students.*` |
+| Classes tree | `classes.*`, `sessions.*`, `attendance.*`, `tasks.*`, `final_exams.*`, `grades.*` |
+| Instructor schedules | all `instructor_schedules.*` |
+| Academic analysis | `academic_analysis.view` |
 
-**Granted:** every other catalog key (dashboard, students, registrations, guests, teams, subjects, classes, sessions, attendance, tasks, final_exams, grades, semesters, equipment, instructors, mentors, instructor_schedules, workshops including payments, cloudflare_ai_usage).
-
-Native panel: `/supervisor` (empty dashboard). Day-to-day UI uses `/manager/*` routes with the same view-permission gates as manager. Layout **hard-blocks** excluded URL prefixes even if those keys are later granted in the RBAC UI. Workshops do **not** require `is_instructor` for supervisors.
+Native panel: `/supervisor` (empty dashboard). Day-to-day UI uses allowed `/manager/*` routes. Layout **hard-blocks** non-seed surfaces (users, accounting, guests, registrations, equipment, instructors list, semesters, cloudflare AI usage, gallery, projects, blogs, notifications, backup, logs, settings, rbac, cron jobs, …) even if those keys are later granted in the RBAC UI. Workshops do **not** require `is_instructor` for supervisors.
 
 ---
 
 ## CRM
 
-Full manage-guests flow including teams on that page, plus registration dossier view (`CRM_SEED_PERMISSIONS`):
+Full manage-guests flow (including teams on that page) plus **full registrations** (`CRM_SEED_PERMISSIONS`):
 
 ```
 guests.view
@@ -119,15 +71,39 @@ teams.update
 teams.delete
 teams.assign_guest
 registrations.view
+registrations.update_status
 ```
 
 Native panel: `/crm` (redirects to guests). Day-to-day UI uses shared `/manager/guests*` and `/manager/registrations*` only — **not** other `/manager/*` paths.  
-`registrations.view` lets CRM open a dossier from guest details. Teams keys power the teams section on Manage guests (no separate Manage teams page share).  
-Re-run `npm run seed:rbac` after deploy so CRM receives these grants.
+`registrations.view` / `registrations.update_status` cover dossier + detail actions. Teams keys power the teams section on Manage guests.
 
 ---
 
-## Other roles (admin, co-manager, teacher)
+## Teacher
+
+Full **class tree** writes/reads (`TEACHER_SEED_PERMISSIONS` = `CLASS_TREE_SEED_PERMISSIONS`):
+
+```
+classes.*
+sessions.*
+attendance.*
+tasks.*
+final_exams.*
+grades.*
+```
+
+Same action surface as manager **inside** a class (sessions → tasks, attendance, grades, final exams, …). **Row scope** is assigned classes only (`class_teacher`) — enforced in services, not by fewer keys.  
+No workshop seed package (grant workshop keys on the role matrix when an instructor needs Manage workshops).
+
+---
+
+## Co-manager
+
+**Zero** seeded permissions (`[]`). Grants come only from the RBAC UI.
+
+---
+
+## Admin
 
 Shared workshop access package only (`WORKSHOP_ACCESS_SEED_PERMISSIONS`):
 
@@ -143,7 +119,7 @@ instructors.view
 instructor_schedules.view
 ```
 
-Shared **Manage workshops** UI is available at `/manager/workshops*` when `profiles.is_instructor` is true and the user holds the matching view permission(s). Sidebar requires `is_instructor` + `workshops.view`.
+Shared **Manage workshops** UI is available at `/manager/workshops*` when `profiles.is_instructor` is true and the user holds the matching view permission(s).
 
 **List / detail scoping:** Manager, CEO, and supervisor see **all** workshops. Other roles only see workshops where they are assigned in `workshop_instructors`.
 
@@ -151,27 +127,28 @@ Shared **Manage workshops** UI is available at `/manager/workshops*` when `profi
 
 ## Student
 
-Workshop access package **plus** own profile, payments, and enrolled-class reads for the student panel:
+Own profile, enrolled class reads, and own SPP / payments (`STUDENT_SEED_PERMISSIONS`):
 
 ```
-workshops.view
-workshops.sessions.create
-workshops.sessions.update
-workshops.sessions.delete
-workshops.documents.create
-workshops.documents.update
-workshops.documents.delete
-instructors.view
-instructor_schedules.view
 students.view_own
-accounting.view
-payment_schedules.view
 classes.view
 sessions.view
 attendance.view
-grades.view
 tasks.view
+grades.view
 final_exams.view
+accounting.view
+payment_schedules.view
 ```
 
-Login lands on `/student`, which shows the same student-details layout as the manager panel (classes and borrowing) in **read-only** form — activity logs are manager-only. `accounting.view` / `payment_schedules.view` power **My payments** (`/student/payments*`) for the student’s own open-phase SPPs only. `classes.view` / `sessions.view` / `attendance.view` / `grades.view` / `tasks.view` / `final_exams.view` power **My classes** (`/student/classes*`) for enrolled classes only (self-scoped services; no manager class UI). Re-run `npm run seed:rbac` after deploy so existing student roles receive these keys.
+Login lands on `/student` (details layout read-only vs manager). `accounting.view` / `payment_schedules.view` power **My payments** for the student’s own open-phase SPPs only. Class keys power **My classes** (`/student/classes*` → sessions → tasks) for enrolled classes only (self-scoped services). No workshop seed package.
+
+---
+
+## Ops
+
+Re-run after catalog or seed matrix changes:
+
+```bash
+npm run seed:rbac
+```

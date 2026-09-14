@@ -1,10 +1,9 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   STUDENT_TASK_UPLOAD_ALLOWED_MIME_TYPES,
   STUDENT_TASK_UPLOAD_MAX_BYTES,
 } from "@/lib/constants/manager-student-task-uploads";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const allowedMimeSet = new Set<string>(STUDENT_TASK_UPLOAD_ALLOWED_MIME_TYPES);
 
@@ -65,57 +64,21 @@ export type StudentTaskUploadSignedUrlInput = z.infer<
   typeof studentTaskUploadSignedUrlSchema
 >;
 
-export function parseUploadStudentTaskFileFormData(formData: FormData):
-  | { success: true; data: UploadStudentTaskFileInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = uploadStudentTaskFileSchema.safeParse({
+export function parseUploadStudentTaskFileFormData(formData: FormData) {
+  return safeParseFormData(uploadStudentTaskFileSchema, {
     student_task_id: formData.get("student_task_id"),
     file: formData.get("file"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseDeleteStudentTaskUploadFormData(formData: FormData):
-  | { success: true; data: DeleteStudentTaskUploadInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = deleteStudentTaskUploadSchema.safeParse({
+export function parseDeleteStudentTaskUploadFormData(formData: FormData) {
+  return safeParseFormData(deleteStudentTaskUploadSchema, {
     id: formData.get("id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseStudentTaskUploadSignedUrlFormData(formData: FormData):
-  | { success: true; data: StudentTaskUploadSignedUrlInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = studentTaskUploadSignedUrlSchema.safeParse({
+export function parseStudentTaskUploadSignedUrlFormData(formData: FormData) {
+  return safeParseFormData(studentTaskUploadSignedUrlSchema, {
     id: formData.get("id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

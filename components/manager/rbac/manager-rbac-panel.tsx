@@ -273,10 +273,6 @@ export function ManagerRbacPanel({
           Grant or revoke permissions for each role. Changes apply on the next
           request.
         </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Per-user private extras are edited under Manage users. Effective access
-          = role ∪ private extras. Changing a user’s role clears their extras.
-        </p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

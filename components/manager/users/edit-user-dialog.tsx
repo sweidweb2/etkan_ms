@@ -168,8 +168,7 @@ export function EditUserDialog({
           <DialogTitle>Edit user</DialogTitle>
           <DialogDescription>
             Update account details
-            {isStudentRole ? " and student profile fields" : ""}. Changing role
-            clears this user’s private permission overlays.
+            {isStudentRole ? " and student profile fields" : ""}.
           </DialogDescription>
         </DialogHeader>
 

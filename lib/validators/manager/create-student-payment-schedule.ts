@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { PAYMENT_SCHEDULE_STATUS_VALUES } from "@/lib/manager/accounting/constants";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 export const createStudentPaymentScheduleSchema = z.object({
   student_payment_phase_id: z
@@ -39,10 +38,8 @@ export type CreateStudentPaymentScheduleInput = z.infer<
   typeof createStudentPaymentScheduleSchema
 >;
 
-export function parseCreateStudentPaymentScheduleFormData(formData: FormData):
-  | { success: true; data: CreateStudentPaymentScheduleInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createStudentPaymentScheduleSchema.safeParse({
+export function parseCreateStudentPaymentScheduleFormData(formData: FormData) {
+  return safeParseFormData(createStudentPaymentScheduleSchema, {
     student_payment_phase_id: formData.get("student_payment_phase_id"),
     due_date: formData.get("due_date"),
     amount: formData.get("amount"),
@@ -50,14 +47,4 @@ export function parseCreateStudentPaymentScheduleFormData(formData: FormData):
     status: formData.get("status"),
     notes: formData.get("notes") ?? "",
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

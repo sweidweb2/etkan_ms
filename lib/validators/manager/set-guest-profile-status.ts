@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { GUEST_CURRENT_STATUS_VALUES } from "@/lib/constants/guest";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const NOTE_MAX = 2000;
 
@@ -30,22 +29,10 @@ export type SetGuestProfileStatusInput = z.infer<
   typeof setGuestProfileStatusSchema
 >;
 
-export function parseSetGuestProfileStatusFormData(formData: FormData):
-  | { success: true; data: SetGuestProfileStatusInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = setGuestProfileStatusSchema.safeParse({
+export function parseSetGuestProfileStatusFormData(formData: FormData) {
+  return safeParseFormData(setGuestProfileStatusSchema, {
     id: formData.get("id"),
     status: formData.get("status"),
     note: formData.get("note"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

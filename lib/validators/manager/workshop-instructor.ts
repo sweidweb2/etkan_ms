@@ -1,12 +1,11 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   WORKSHOP_INSTRUCTOR_ROLE_VALUES,
   WORKSHOP_WAGE_TYPES,
   WORKSHOP_WAGE_TYPE_VALUES,
 } from "@/lib/constants/manager-workshop-display";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 function optionalTrimmedNotes() {
   return z.preprocess((value) => {
@@ -104,10 +103,8 @@ export type RemoveWorkshopInstructorInput = z.infer<
   typeof removeWorkshopInstructorSchema
 >;
 
-export function parseCreateWorkshopInstructorFormData(formData: FormData):
-  | { success: true; data: CreateWorkshopInstructorInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createWorkshopInstructorSchema.safeParse({
+export function parseCreateWorkshopInstructorFormData(formData: FormData) {
+  return safeParseFormData(createWorkshopInstructorSchema, {
     workshop_id: formData.get("workshop_id"),
     user_id: formData.get("user_id"),
     role: formData.get("role"),
@@ -115,22 +112,10 @@ export function parseCreateWorkshopInstructorFormData(formData: FormData):
     wage_amount: formData.get("wage_amount"),
     notes: formData.get("notes"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseUpdateWorkshopInstructorFormData(formData: FormData):
-  | { success: true; data: UpdateWorkshopInstructorInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateWorkshopInstructorSchema.safeParse({
+export function parseUpdateWorkshopInstructorFormData(formData: FormData) {
+  return safeParseFormData(updateWorkshopInstructorSchema, {
     id: formData.get("id"),
     workshop_id: formData.get("workshop_id"),
     role: formData.get("role"),
@@ -138,33 +123,11 @@ export function parseUpdateWorkshopInstructorFormData(formData: FormData):
     wage_amount: formData.get("wage_amount"),
     notes: formData.get("notes"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseRemoveWorkshopInstructorFormData(formData: FormData):
-  | { success: true; data: RemoveWorkshopInstructorInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = removeWorkshopInstructorSchema.safeParse({
+export function parseRemoveWorkshopInstructorFormData(formData: FormData) {
+  return safeParseFormData(removeWorkshopInstructorSchema, {
     id: formData.get("id"),
     workshop_id: formData.get("workshop_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

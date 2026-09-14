@@ -2,9 +2,11 @@
 
 **Status:** Phase 0–1 complete — frozen list lives in code at `lib/constants/permissions.ts`.  
 **Baseline:** manager panel capabilities.  
-**Roles co-manager:** empty panels — workshop access seed only.  
-**Role supervisor:** empty `/supervisor` panel; seeded with manager catalog minus users / accounting / emailing / gallery / projects / blogs / notifications / backup / logs / settings / rbac / payment_schedules / cron_jobs (see `[08] role-seeded-permissions.md`). No new permission keys.  
-**Role CRM:** empty `/crm` panel; seeded with all `guests.*` + all `teams.*` + `registrations.view` for shared `/manager/guests*` and dossier links (see `[08]`). No new permission keys.
+**Roles co-manager:** empty seed (zero grants) — see `[08] role-seeded-permissions.md`.  
+**Role supervisor:** empty `/supervisor` panel; seeded allow-list: workshops + subjects (categories/exercises) + students + classes tree + instructor schedules + academic analysis (see `[08]`). No new permission keys.  
+**Role CRM:** empty `/crm` panel; seeded with all `guests.*` + all `teams.*` + full `registrations.*` for shared `/manager/guests*` and dossier/details (see `[08]`). No new permission keys.  
+**Role teacher:** class-tree grants only; own-class scoping in services (see `[08]`).  
+**Role student:** `students.view_own` + class/session/task reads + `accounting.view` / `payment_schedules.view` for own SPPs (see `[08]`).
 
 ---
 
@@ -377,14 +379,12 @@ Format: `key` — label — access
 
 | Key | Label | Access |
 |-----|-------|--------|
-| `rbac.manage` | Manage role and user permissions | write |
+| `rbac.manage` | Manage role permissions | write |
 
 **Notes**
 
-- No separate `rbac.user_permissions.manage` key — overlays reuse `rbac.manage`.
-- Editing **user** private extras additionally requires `profiles.role === manager` (service hard-check). Co-managers with only the permission key cannot manage overlays.
-- Overlays are allow keys only (no `effect` column). Redundant keys already on the role are stripped on save. Changing a user’s role clears their overlay. There is no app-level `rbac.manage` lockout for overlays.
-- `npm run seed:rbac` seeds the catalog + `role_permissions` only; `user_permissions` stays empty unless set in Manage users.
+- `npm run seed:rbac` seeds the catalog + `role_permissions` only.
+- Effective permissions are role grants only (`role_permissions[profiles.role]`).
 
 ---
 
@@ -584,8 +584,7 @@ rbac.manage
 
 `profiles.is_instructor` **or** `profiles.is_mentor` unlocks shared Manage workshops UI (list + detail) when the user also has `workshops.view`.
 
-- Role seed for many non-manager roles includes `WORKSHOP_ACCESS_SEED_PERMISSIONS` (view + sessions/documents writes + instructor/schedule views).
-- Assigning either attribute also syncs a **personal readonly** UBAC overlay for that user only: `workshops.view` + `instructor_schedules.view` (stripped if already on the role). Clearing **both** attributes revokes those overlay keys.
+- Admin seed still includes `WORKSHOP_ACCESS_SEED_PERMISSIONS` (view + sessions/documents writes + instructor/schedule views). Other roles get workshops via their own matrix (see `[08]`).
 - Nav/route gate: `(is_instructor || is_mentor)` + matching `*.view`. Supervisor is treated as allowed without the flags.
 
 ```

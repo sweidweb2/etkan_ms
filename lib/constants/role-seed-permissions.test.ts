@@ -6,10 +6,13 @@ import {
 } from "@/lib/constants/permissions";
 import {
   CEO_WORKSHOP_SEED_PERMISSIONS,
+  CLASS_TREE_SEED_PERMISSIONS,
   CRM_SEED_PERMISSIONS,
   ROLE_SEED_PERMISSIONS,
-  SUPERVISOR_EXCLUDED_PERMISSION_FEATURES,
+  STUDENT_SEED_PERMISSIONS,
+  SUPERVISOR_SEED_FEATURES,
   SUPERVISOR_SEED_PERMISSIONS,
+  TEACHER_SEED_PERMISSIONS,
 } from "@/lib/constants/role-seed-permissions";
 import { ROLES } from "@/lib/constants/roles";
 
@@ -31,11 +34,10 @@ const CRM_EXPECTED_PERMISSIONS = [
   PERMISSIONS.TEAMS_DELETE,
   PERMISSIONS.TEAMS_ASSIGN_GUEST,
   PERMISSIONS.REGISTRATIONS_VIEW,
+  PERMISSIONS.REGISTRATIONS_UPDATE_STATUS,
 ] as const;
 
-const SUPERVISOR_EXCLUDED_FEATURE_SET = new Set(
-  SUPERVISOR_EXCLUDED_PERMISSION_FEATURES
-);
+const SUPERVISOR_FEATURE_SET = new Set(SUPERVISOR_SEED_FEATURES);
 
 describe("role-seed-permissions guests", () => {
   it("seeds all guests.* permissions to CEO", () => {
@@ -61,8 +63,8 @@ describe("role-seed-permissions guests", () => {
 });
 
 describe("role-seed-permissions crm", () => {
-  it("seeds guests, teams, and registrations.view only", () => {
-    expect(CRM_SEED_PERMISSIONS).toHaveLength(13);
+  it("seeds guests, teams, and full registrations", () => {
+    expect(CRM_SEED_PERMISSIONS).toHaveLength(14);
     expect([...CRM_SEED_PERMISSIONS].sort()).toEqual(
       [...CRM_EXPECTED_PERMISSIONS].sort()
     );
@@ -74,21 +76,9 @@ describe("role-seed-permissions crm", () => {
 });
 
 describe("role-seed-permissions supervisor", () => {
-  it("excludes every key from excluded feature groups", () => {
-    const excludedKeys = PERMISSION_DEFINITIONS.filter((definition) =>
-      SUPERVISOR_EXCLUDED_FEATURE_SET.has(definition.feature)
-    ).map((definition) => definition.key);
-
-    expect(excludedKeys.length).toBeGreaterThan(0);
-
-    for (const key of excludedKeys) {
-      expect(SUPERVISOR_SEED_PERMISSIONS).not.toContain(key);
-    }
-  });
-
-  it("grants remaining catalog keys including operational views", () => {
-    const expected = PERMISSION_DEFINITIONS.filter(
-      (definition) => !SUPERVISOR_EXCLUDED_FEATURE_SET.has(definition.feature)
+  it("grants only allow-listed feature groups", () => {
+    const expected = PERMISSION_DEFINITIONS.filter((definition) =>
+      SUPERVISOR_FEATURE_SET.has(definition.feature)
     ).map((definition) => definition.key);
 
     expect(SUPERVISOR_SEED_PERMISSIONS).toEqual(expected);
@@ -97,12 +87,15 @@ describe("role-seed-permissions supervisor", () => {
     );
 
     const required: PermissionKey[] = [
-      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.WORKSHOPS_VIEW,
+      PERMISSIONS.SUBJECTS_VIEW,
+      PERMISSIONS.SUBJECTS_CATEGORIES_VIEW,
+      PERMISSIONS.SUBJECTS_EXERCISES_VIEW,
       PERMISSIONS.STUDENTS_VIEW,
       PERMISSIONS.CLASSES_VIEW,
-      PERMISSIONS.WORKSHOPS_VIEW,
-      PERMISSIONS.GUESTS_VIEW,
-      PERMISSIONS.CLOUDFLARE_AI_USAGE_VIEW,
+      PERMISSIONS.SESSIONS_VIEW,
+      PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW,
+      PERMISSIONS.ACADEMIC_ANALYSIS_VIEW,
     ];
     for (const key of required) {
       expect(SUPERVISOR_SEED_PERMISSIONS).toContain(key);
@@ -112,8 +105,48 @@ describe("role-seed-permissions supervisor", () => {
     expect(SUPERVISOR_SEED_PERMISSIONS).not.toContain(
       PERMISSIONS.ACCOUNTING_VIEW
     );
+    expect(SUPERVISOR_SEED_PERMISSIONS).not.toContain(PERMISSIONS.GUESTS_VIEW);
     expect(SUPERVISOR_SEED_PERMISSIONS).not.toContain(
       PERMISSIONS.RBAC_MANAGE
     );
+  });
+});
+
+describe("role-seed-permissions teacher", () => {
+  it("seeds the full class tree only", () => {
+    expect(TEACHER_SEED_PERMISSIONS).toEqual(CLASS_TREE_SEED_PERMISSIONS);
+    expect(ROLE_SEED_PERMISSIONS[ROLES.TEACHER]).toEqual(
+      TEACHER_SEED_PERMISSIONS
+    );
+    expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.CLASSES_VIEW);
+    expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.SESSIONS_CREATE);
+    expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.TASKS_UPDATE_STUDENT);
+    expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.GRADES_COMPUTE);
+    expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.WORKSHOPS_VIEW);
+    expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.STUDENTS_VIEW);
+  });
+});
+
+describe("role-seed-permissions co-manager", () => {
+  it("seeds zero permissions", () => {
+    expect(ROLE_SEED_PERMISSIONS[ROLES.CO_MANAGER]).toEqual([]);
+  });
+});
+
+describe("role-seed-permissions student", () => {
+  it("seeds own profile, class reads, and SPP accounting views", () => {
+    expect(ROLE_SEED_PERMISSIONS[ROLES.STUDENT]).toEqual(
+      STUDENT_SEED_PERMISSIONS
+    );
+    expect(STUDENT_SEED_PERMISSIONS).toContain(PERMISSIONS.STUDENTS_VIEW_OWN);
+    expect(STUDENT_SEED_PERMISSIONS).toContain(PERMISSIONS.CLASSES_VIEW);
+    expect(STUDENT_SEED_PERMISSIONS).toContain(PERMISSIONS.SESSIONS_VIEW);
+    expect(STUDENT_SEED_PERMISSIONS).toContain(PERMISSIONS.TASKS_VIEW);
+    expect(STUDENT_SEED_PERMISSIONS).toContain(PERMISSIONS.ACCOUNTING_VIEW);
+    expect(STUDENT_SEED_PERMISSIONS).toContain(
+      PERMISSIONS.PAYMENT_SCHEDULES_VIEW
+    );
+    expect(STUDENT_SEED_PERMISSIONS).not.toContain(PERMISSIONS.WORKSHOPS_VIEW);
+    expect(STUDENT_SEED_PERMISSIONS).not.toContain(PERMISSIONS.CLASSES_CREATE);
   });
 });

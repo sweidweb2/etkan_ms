@@ -37,11 +37,27 @@ describe("isSupervisorForbiddenManagerPath", () => {
     expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_WORKSHOPS)).toBe(
       false
     );
-    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_GUESTS)).toBe(
+    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_SUBJECTS)).toBe(
       false
     );
     expect(
-      isSupervisorForbiddenManagerPath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE)
+      isSupervisorForbiddenManagerPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES)
     ).toBe(false);
+    expect(
+      isSupervisorForbiddenManagerPath(ROUTES.MANAGER_ACADEMIC_ANALYSIS)
+    ).toBe(false);
+  });
+
+  it("blocks guests, instructors, and other non-seed supervisor surfaces", () => {
+    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_GUESTS)).toBe(true);
+    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_REGISTRATIONS)).toBe(
+      true
+    );
+    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_INSTRUCTORS)).toBe(
+      true
+    );
+    expect(
+      isSupervisorForbiddenManagerPath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE)
+    ).toBe(true);
   });
 });

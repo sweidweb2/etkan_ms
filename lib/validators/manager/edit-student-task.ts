@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import {
@@ -104,11 +105,7 @@ export function parseEditStudentTaskFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return {

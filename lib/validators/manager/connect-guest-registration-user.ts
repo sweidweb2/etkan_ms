@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const connectGuestRegistrationUserSchema = z.object({
   guest_id: z.string().uuid({ message: "Invalid guest id." }),
@@ -11,21 +10,9 @@ export type ConnectGuestRegistrationUserInput = z.infer<
   typeof connectGuestRegistrationUserSchema
 >;
 
-export function parseConnectGuestRegistrationUserFormData(formData: FormData):
-  | { success: true; data: ConnectGuestRegistrationUserInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = connectGuestRegistrationUserSchema.safeParse({
+export function parseConnectGuestRegistrationUserFormData(formData: FormData) {
+  return safeParseFormData(connectGuestRegistrationUserSchema, {
     guest_id: formData.get("guest_id"),
     user_id: formData.get("user_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import {
   EMAIL_LOCALES,
@@ -355,11 +356,7 @@ export function parseSendEmailFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return { success: true, data: parsed.data };

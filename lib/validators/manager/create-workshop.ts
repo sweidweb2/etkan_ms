@@ -1,8 +1,7 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import { WORKSHOP_OFFERING_TYPE_VALUES } from "@/lib/constants/manager-workshop-display";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 function optionalTrimmedString(max: number, message: string) {
   return z.preprocess((value) => {
@@ -130,10 +129,8 @@ export const createWorkshopSchema = withDateOrderRefine(workshopFieldsSchema);
 
 export type CreateWorkshopInput = z.infer<typeof createWorkshopSchema>;
 
-export function parseCreateWorkshopFormData(formData: FormData):
-  | { success: true; data: CreateWorkshopInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createWorkshopSchema.safeParse({
+export function parseCreateWorkshopFormData(formData: FormData) {
+  return safeParseFormData(createWorkshopSchema, {
     name: formData.get("name"),
     type: formData.get("type"),
     phone: formData.get("phone"),
@@ -146,14 +143,4 @@ export function parseCreateWorkshopFormData(formData: FormData):
     start_date: formData.get("start_date"),
     end_date: formData.get("end_date"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

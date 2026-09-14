@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { PAYMENT_METHOD_VALUES } from "@/lib/manager/accounting/constants";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 function parseManagementFlag(value: FormDataEntryValue | null): boolean {
   if (value === null || value === undefined || value === "") {
@@ -62,10 +61,8 @@ export function createStudentPaymentFormSchema(maxAmount: number) {
   });
 }
 
-export function parseCreateStudentPaymentFormData(formData: FormData):
-  | { success: true; data: CreateStudentPaymentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createStudentPaymentSchema.safeParse({
+export function parseCreateStudentPaymentFormData(formData: FormData) {
+  return safeParseFormData(createStudentPaymentSchema, {
     student_payment_phase_id: formData.get("student_payment_phase_id"),
     payment_date: formData.get("payment_date"),
     amount: formData.get("amount"),
@@ -76,14 +73,4 @@ export function parseCreateStudentPaymentFormData(formData: FormData):
     ),
     notes: formData.get("notes") ?? "",
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

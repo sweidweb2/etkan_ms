@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { createClassSessionSchema } from "@/lib/validators/manager/create-class-session";
 import type { FieldErrors } from "@/types/auth";
@@ -35,11 +36,7 @@ export function parseUpdateClassSessionFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return {

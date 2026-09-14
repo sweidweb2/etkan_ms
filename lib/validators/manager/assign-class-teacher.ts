@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const assignClassTeacherSchema = z.object({
   class_id: z.string().uuid({ message: "Invalid class id." }),
@@ -9,23 +8,11 @@ export const assignClassTeacherSchema = z.object({
 
 export type AssignClassTeacherInput = z.infer<typeof assignClassTeacherSchema>;
 
-export function parseAssignClassTeacherFormData(formData: FormData):
-  | { success: true; data: AssignClassTeacherInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = assignClassTeacherSchema.safeParse({
+export function parseAssignClassTeacherFormData(formData: FormData) {
+  return safeParseFormData(assignClassTeacherSchema, {
     class_id: formData.get("class_id"),
     teacher_id: formData.get("teacher_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
 export const unassignClassTeacherSchema = z.object({
@@ -37,21 +24,9 @@ export type UnassignClassTeacherInput = z.infer<
   typeof unassignClassTeacherSchema
 >;
 
-export function parseUnassignClassTeacherFormData(formData: FormData):
-  | { success: true; data: UnassignClassTeacherInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = unassignClassTeacherSchema.safeParse({
+export function parseUnassignClassTeacherFormData(formData: FormData) {
+  return safeParseFormData(unassignClassTeacherSchema, {
     class_id: formData.get("class_id"),
     teacher_id: formData.get("teacher_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

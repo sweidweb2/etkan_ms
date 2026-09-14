@@ -28,8 +28,6 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import { syncAuthUserRole } from "@/services/auth/role.service";
-import { clearUserOverlayAfterRoleChange } from "@/services/auth/user-permissions.service";
-import { syncWorkshopAttributeAccessOverlay } from "@/services/auth/workshop-attribute-access.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerUserRow } from "@/types/manager-user";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -390,23 +388,6 @@ export async function createStaffUser(
       metadata: { note: "Staff account created." },
     });
 
-    if (is_instructor || is_mentor) {
-      const overlaySync = await syncWorkshopAttributeAccessOverlay(
-        adminClient,
-        actor,
-        {
-          userId: authUserId,
-          previousIsInstructor: false,
-          previousIsMentor: false,
-          nextIsInstructor: is_instructor,
-          nextIsMentor: is_mentor,
-        }
-      );
-      if (!overlaySync.success) {
-        throw new Error(overlaySync.error);
-      }
-    }
-
     return {
       success: true,
       user,
@@ -597,31 +578,18 @@ export async function updateManagerUser(
     };
   }
 
-    if (previousRole !== role) {
-      try {
-        await syncAuthUserRole(adminClient, userId, role);
-      } catch (err) {
-        return {
-          success: false,
-          error: mapUpdateManagerUserError(
-            err instanceof Error ? err.message : "Failed to sync role."
-          ),
-        };
-      }
-
-      const overlayClear = await clearUserOverlayAfterRoleChange(
-        adminClient,
-        actor,
-        {
-          userId,
-          previousRole,
-          newRole: role,
-        }
-      );
-      if (!overlayClear.success) {
-        return { success: false, error: overlayClear.error };
-      }
+  if (previousRole !== role) {
+    try {
+      await syncAuthUserRole(adminClient, userId, role);
+    } catch (err) {
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(
+          err instanceof Error ? err.message : "Failed to sync role."
+        ),
+      };
     }
+  }
 
   let studentProfileId: string | null = null;
   let studentFullName: string | null = null;
@@ -770,24 +738,6 @@ export async function updateManagerUser(
           : "User account updated.",
     },
   });
-
-  const overlaySync = await syncWorkshopAttributeAccessOverlay(
-    adminClient,
-    actor,
-    {
-      userId,
-      previousIsInstructor,
-      previousIsMentor,
-      nextIsInstructor: is_instructor,
-      nextIsMentor: is_mentor,
-    }
-  );
-  if (!overlaySync.success) {
-    return {
-      success: false,
-      error: mapUpdateManagerUserError(overlaySync.error),
-    };
-  }
 
   clearCachedSessionShell(userId);
 

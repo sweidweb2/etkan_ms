@@ -1,8 +1,10 @@
 import { z } from "zod";
+import {
+  formValidationFailure,
+  safeParseFormData,
+} from "@/lib/validators/safe-parse-form-data";
 import { EXERCISE_LEVEL_VALUES } from "@/lib/constants/exercise-level";
 import { EXERCISE_STATUS_VALUES } from "@/lib/constants/exercise-status";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const emptyTiptapDoc = { type: "doc", content: [{ type: "paragraph" }] };
 
@@ -12,7 +14,8 @@ export const tiptapDocSchema = z
   })
   .passthrough();
 
-export const createExerciseSchema = z.object({
+/** Shared fields for create and update exercise (no id). */
+export const exerciseFieldsSchema = z.object({
   title: z
     .string()
     .trim()
@@ -30,9 +33,11 @@ export const createExerciseSchema = z.object({
   body: tiptapDocSchema,
 });
 
+export const createExerciseSchema = exerciseFieldsSchema;
+
 export type CreateExerciseInput = z.infer<typeof createExerciseSchema>;
 
-function parseBodyFromFormData(formData: FormData): unknown {
+export function parseBodyFromFormData(formData: FormData): unknown {
   const raw = String(formData.get("body") ?? "").trim();
   if (!raw) {
     return emptyTiptapDoc;
@@ -44,40 +49,24 @@ function parseBodyFromFormData(formData: FormData): unknown {
   }
 }
 
-function parseCategoryIds(formData: FormData): string[] {
+export function parseCategoryIds(formData: FormData): string[] {
   return formData
     .getAll("category_ids")
     .map((value) => String(value).trim())
     .filter(Boolean);
 }
 
-export function parseCreateExerciseFormData(formData: FormData):
-  | { success: true; data: CreateExerciseInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
+export function parseCreateExerciseFormData(formData: FormData) {
   const body = parseBodyFromFormData(formData);
   if (body === null) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: { body: ["Exercise body is invalid."] },
-    };
+    return formValidationFailure({ body: ["Exercise body is invalid."] });
   }
 
-  const parsed = createExerciseSchema.safeParse({
+  return safeParseFormData(createExerciseSchema, {
     title: formData.get("title"),
     level: formData.get("level"),
     status: formData.get("status"),
     category_ids: parseCategoryIds(formData),
     body,
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

@@ -1,10 +1,9 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   SCHEDULE_SLOT_DURATION_LIMITS,
   SCHEDULE_SLOT_FIELD_LIMITS,
 } from "@/lib/constants/workshop-field-limits";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 import type {
   InstructorScheduleSlotPresetColor,
   InstructorScheduleSlotType,
@@ -342,49 +341,8 @@ export function dayOfWeekFromIsoDate(isoDate: string): number {
   return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
 
-export function parseCreateInstructorScheduleSlotFormData(formData: FormData):
-  | { success: true; data: CreateInstructorScheduleSlotInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const rawSlotDate = formData.get("slot_date");
-  const parsed = createInstructorScheduleSlotSchema.safeParse({
-    entity_type: formData.get("entity_type"),
-    record_id: formData.get("record_id"),
-    name: formData.get("name"),
-    slot_date:
-      typeof rawSlotDate === "string" && rawSlotDate.trim() !== ""
-        ? rawSlotDate
-        : undefined,
-    start_time: formData.get("start_time"),
-    end_time: formData.get("end_time"),
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  const slot_date = parsed.data.slot_date ?? todayIsoDateLocal();
-  const type = resolveInstructorScheduleSlotType({
-    entityType: parsed.data.entity_type,
-  });
-
-  return {
-    success: true,
-    data: {
-      ...parsed.data,
-      type,
-      slot_date,
-    },
-  };
-}
-
-export function parseUpdateInstructorScheduleSlotFormData(formData: FormData):
-  | { success: true; data: UpdateInstructorScheduleSlotInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateInstructorScheduleSlotSchema.safeParse({
+export function parseCreateInstructorScheduleSlotFormData(formData: FormData) {
+  return safeParseFormData(updateInstructorScheduleSlotSchema, {
     id: formData.get("id"),
     entity_type: formData.get("entity_type"),
     record_id: formData.get("record_id"),
@@ -394,34 +352,12 @@ export function parseUpdateInstructorScheduleSlotFormData(formData: FormData):
     start_time: formData.get("start_time"),
     end_time: formData.get("end_time"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseInstructorScheduleSlotIdFormData(formData: FormData):
-  | { success: true; data: InstructorScheduleSlotIdInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = instructorScheduleSlotIdSchema.safeParse({
+export function parseInstructorScheduleSlotIdFormData(formData: FormData) {
+  return safeParseFormData(instructorScheduleSlotIdSchema, {
     id: formData.get("id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
 export { timeToMinutes };

@@ -98,7 +98,7 @@ async function buildSessionShell(
 
   if (claimsRole) {
     // Profile and effective grants are independent when JWT already carries role.
-    // Effective = role grants ∥ user overlay merge (see getEffectivePermissionsForUserCached).
+    // Effective = role_permissions only (see getEffectivePermissionsForUserCached).
     const [profileResult, claimedPermissions] = await Promise.all([
       timeBag(bag, "session_profile", () =>
         profileRepository.findProfileById(client, user.id)

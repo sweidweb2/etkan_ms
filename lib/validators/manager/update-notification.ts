@@ -1,7 +1,6 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { createNotificationSchema } from "@/lib/validators/manager/create-notification";
-import type { FieldErrors } from "@/types/auth";
 
 export const updateNotificationSchema = createNotificationSchema.extend({
   id: z.string().uuid({ message: "Notification id is required." }),
@@ -9,10 +8,8 @@ export const updateNotificationSchema = createNotificationSchema.extend({
 
 export type UpdateNotificationInput = z.infer<typeof updateNotificationSchema>;
 
-export function parseUpdateNotificationFormData(formData: FormData):
-  | { success: true; data: UpdateNotificationInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateNotificationSchema.safeParse({
+export function parseUpdateNotificationFormData(formData: FormData) {
+  return safeParseFormData(updateNotificationSchema, {
     id: formData.get("id"),
     title: formData.get("title"),
     body: formData.get("body"),
@@ -21,14 +18,4 @@ export function parseUpdateNotificationFormData(formData: FormData):
     priority: formData.get("priority"),
     action_href: formData.get("action_href") ?? undefined,
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

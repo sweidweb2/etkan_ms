@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import {
   birthDateField,
   emailField,
@@ -71,12 +72,7 @@ export function parseCreateStudentFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return { success: true, data: resolveCreateStudentInput(parsed.data) };

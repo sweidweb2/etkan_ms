@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const markNotificationReadSchema = z
   .object({
@@ -19,21 +18,9 @@ export const markNotificationReadSchema = z
 
 export type MarkNotificationReadInput = z.infer<typeof markNotificationReadSchema>;
 
-export function parseMarkNotificationReadFormData(formData: FormData):
-  | { success: true; data: MarkNotificationReadInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = markNotificationReadSchema.safeParse({
+export function parseMarkNotificationReadFormData(formData: FormData) {
+  return safeParseFormData(markNotificationReadSchema, {
     id: formData.get("id") || undefined,
     mark_all: formData.get("mark_all") ?? undefined,
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

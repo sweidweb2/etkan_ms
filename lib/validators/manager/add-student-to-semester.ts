@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { STUDENT_SEMESTER_STATUS_VALUES } from "@/lib/constants/manager-student-semester-status";
 import type { FieldErrors } from "@/types/auth";
@@ -30,11 +31,7 @@ export function parseAddStudentToSemesterFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return {

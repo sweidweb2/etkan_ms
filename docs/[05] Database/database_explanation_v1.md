@@ -20,16 +20,16 @@ The initial migration defines the Etkan MS data model:
 | Area | Tables |
 | --- | --- |
 | Identity | `profiles`, `student_profiles` |
-| RBAC / UBAC | `permissions`, `role_permissions`, `user_permissions` |
+| RBAC | `permissions`, `role_permissions` |
 | Academics | `subjects`, `classes`, `class_teacher`, `student_class`, `tasks`, `student_tasks`, `student_course_grade` |
 | Equipment | `equipments`, `borrow_equipment` |
 | Other | `student_takeouts`, `audit_logs`, `email_sent`, `email_users` |
 
 Canonical SQL is in `supabase/migrations/`. Regenerate `types/supabase.ts` after schema changes.
 
-RBAC tables store the permission catalog and which `profiles.role` values may use each key. Seed with `npm run seed:rbac` after migrations (manager gets all permissions; other roles start empty).
+RBAC tables store the permission catalog and which `profiles.role` values may use each key. Seed with `npm run seed:rbac` after migrations (see `docs/[06] RBAC/[08] role-seeded-permissions.md` for the per-role matrix).
 
-`user_permissions` is the UBAC overlay: optional per-user allow keys (unique on `user_id` + `permission_key`). App effective access is `role ∪ allows`. No permission-mirrored RLS — services authorize via the admin client (see `docs/[06] RBAC/[05] enforcement.md` and `docs/[10] Plans/[02] rbac-plus-ubac.md`).
+App access is RBAC via `role_permissions` (effective = role grants). No permission-mirrored RLS — services authorize via the admin client (see `docs/[06] RBAC/[05] enforcement.md`).
 
 ## Next steps
 

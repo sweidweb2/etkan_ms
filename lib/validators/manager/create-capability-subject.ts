@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import {
   isSubjectScope,
   type SubjectScope,
@@ -33,12 +34,7 @@ export function parseCreateCapabilitySubjectFormData(formData: FormData):
   });
 
   if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return { success: true, scope, data: parsed.data };

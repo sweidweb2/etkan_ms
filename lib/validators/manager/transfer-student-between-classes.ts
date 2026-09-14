@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const transferStudentBetweenClassesSchema = z
   .object({
@@ -26,22 +25,10 @@ export type TransferStudentBetweenClassesInput = z.infer<
   typeof transferStudentBetweenClassesSchema
 >;
 
-export function parseTransferStudentBetweenClassesFormData(formData: FormData):
-  | { success: true; data: TransferStudentBetweenClassesInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = transferStudentBetweenClassesSchema.safeParse({
+export function parseTransferStudentBetweenClassesFormData(formData: FormData) {
+  return safeParseFormData(transferStudentBetweenClassesSchema, {
     student_profile_id: formData.get("student_profile_id"),
     from_class_id: formData.get("from_class_id"),
     to_class_id: formData.get("to_class_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

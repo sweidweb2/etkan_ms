@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const optionalProposalNotes = z.preprocess((value) => {
   if (value === null || value === undefined) {
@@ -25,21 +24,9 @@ export type UpdateWorkshopProposalNotesInput = z.infer<
   typeof updateWorkshopProposalNotesSchema
 >;
 
-export function parseUpdateWorkshopProposalNotesFormData(formData: FormData):
-  | { success: true; data: UpdateWorkshopProposalNotesInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateWorkshopProposalNotesSchema.safeParse({
+export function parseUpdateWorkshopProposalNotesFormData(formData: FormData) {
+  return safeParseFormData(updateWorkshopProposalNotesSchema, {
     id: formData.get("id"),
     proposal_notes: formData.get("proposal_notes"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

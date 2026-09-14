@@ -27,9 +27,6 @@ vi.mock("@/repositories/clear-mentor-related.repository", () => ({
     error: null,
   })),
 }));
-vi.mock("@/services/auth/workshop-attribute-access.service", () => ({
-  syncWorkshopAttributeAccessOverlay: vi.fn(async () => ({ success: true })),
-}));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -50,9 +47,6 @@ vi.mock("@/services/auth/authorization.service", () => ({
   getUnauthorizedError: vi.fn(async (_c, userId) =>
     userId ? null : "Unauthorized."
   ),
-}));
-vi.mock("@/services/auth/user-permissions.service", () => ({
-  clearUserOverlayAfterRoleChange: vi.fn(async () => ({ success: true })),
 }));
 vi.mock("@/lib/auth/session-shell-cache", () => ({
   clearCachedSessionShell: vi.fn(),

@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { GUEST_PIPELINE_STATUS_VALUES } from "@/lib/constants/guest";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 const NOTE_MAX = 2000;
 
@@ -28,22 +27,10 @@ export const changeGuestStatusSchema = z.object({
 
 export type ChangeGuestStatusInput = z.infer<typeof changeGuestStatusSchema>;
 
-export function parseChangeGuestStatusFormData(formData: FormData):
-  | { success: true; data: ChangeGuestStatusInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = changeGuestStatusSchema.safeParse({
+export function parseChangeGuestStatusFormData(formData: FormData) {
+  return safeParseFormData(changeGuestStatusSchema, {
     id: formData.get("id"),
     status: formData.get("status"),
     note: formData.get("note"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

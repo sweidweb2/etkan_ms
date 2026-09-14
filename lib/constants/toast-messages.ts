@@ -10,7 +10,6 @@ export const TOAST_MESSAGES = {
     signed_out: "You have been signed out.",
     signed_up: "Account created. Welcome!",
     staff_user_created: "Staff account created.",
-    user_permissions_updated: "User permissions updated.",
     student_created: "Student account created.",
     student_updated: "Student details updated.",
     session_deleted: "Session deleted.",

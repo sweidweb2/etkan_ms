@@ -1,10 +1,9 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import {
   createBlogSchema,
   optionalBlogImageFileSchema,
 } from "@/lib/validators/manager/create-blog";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 export const updateBlogSchema = createBlogSchema.extend({
   id: z.string().uuid({ message: "Invalid blog id." }),
@@ -14,10 +13,8 @@ export const updateBlogSchema = createBlogSchema.extend({
 
 export type UpdateBlogInput = z.infer<typeof updateBlogSchema>;
 
-export function parseUpdateBlogFormData(formData: FormData):
-  | { success: true; data: UpdateBlogInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateBlogSchema.safeParse({
+export function parseUpdateBlogFormData(formData: FormData) {
+  return safeParseFormData(updateBlogSchema, {
     id: formData.get("id"),
     slug: formData.get("slug"),
     title: formData.get("title"),
@@ -33,15 +30,4 @@ export function parseUpdateBlogFormData(formData: FormData):
     thumbnail: formData.get("thumbnail"),
     author_avatar: formData.get("author_avatar"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

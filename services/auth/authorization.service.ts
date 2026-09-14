@@ -4,7 +4,6 @@ import {
   hasAllPermissionsInSet,
   hasAnyPermissionInSet,
   hasPermissionInSet,
-  mergePermissionSets,
 } from "@/lib/auth/permission-checks";
 import {
   getCachedRolePermissionKeys,
@@ -17,12 +16,8 @@ import {
 } from "@/lib/constants/permissions";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { roleSchema } from "@/lib/validators/role";
+import * as permissionRepository from "@/repositories/permission.repository";
 import * as profileRepository from "@/repositories/profile.repository";
-import {
-  loadEffectivePermissionKeys,
-  loadRolePermissionKeys,
-  loadUserAllowKeys,
-} from "@/services/auth/permission-load";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -31,7 +26,6 @@ export {
   hasAllPermissionsInSet,
   hasAnyPermissionInSet,
   hasPermissionInSet,
-  mergePermissionSets,
   requirePermissionInSet,
 } from "@/lib/auth/permission-checks";
 
@@ -47,6 +41,27 @@ export function rememberUserRole(userId: string, role: RoleValue): void {
     return;
   }
   getKnownRoleHints().set(userId, role);
+}
+
+async function loadPermissionsForRoleWithClient(
+  client: Supabase,
+  role: RoleValue
+): Promise<ReadonlySet<PermissionKey>> {
+  const { data: grants, error: grantsError } =
+    await permissionRepository.listPermissionKeysByRole(client, role);
+
+  if (grantsError || !grants) {
+    return EMPTY_PERMISSIONS;
+  }
+
+  const keys = new Set<PermissionKey>();
+  for (const row of grants) {
+    if (isPermissionKey(row.permission_key)) {
+      keys.add(row.permission_key);
+    }
+  }
+
+  return keys;
 }
 
 async function resolveRoleForUser(
@@ -87,13 +102,13 @@ async function loadUserPermissionsWithClient(
     return EMPTY_PERMISSIONS;
   }
 
-  return loadEffectivePermissionKeys(client, userId, role);
+  return loadPermissionsForRoleWithClient(client, role);
 }
 
 /**
- * Load **effective** permissions for a user using the provided client (uncached).
+ * Load permissions for a user using the provided client (uncached).
  * Prefer this in unit tests and scripts.
- * Formula: `role ∪ allows`.
+ * Formula: role grants only.
  */
 export async function getUserPermissions(
   client: Supabase,
@@ -110,22 +125,14 @@ const loadPermissionsForRoleCached = cache(async (role: RoleValue) => {
 
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const client = createSupabaseAdminClient();
-  const keys = await loadRolePermissionKeys(client, role);
-  const permissions = new Set<PermissionKey>(keys);
-  setCachedRolePermissionKeys(role, keys);
+  const permissions = await loadPermissionsForRoleWithClient(client, role);
+  setCachedRolePermissionKeys(role, [...permissions]);
   return permissions;
 });
 
-const loadUserAllowKeysCached = cache(async (userId: string) => {
-  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-  const client = createSupabaseAdminClient();
-  return loadUserAllowKeys(client, userId);
-});
-
 /**
- * Request-scoped **role matrix** grants only (no UBAC overlay).
- * Use for Manager RBAC UI / seeding comparisons — **not** for authorizing a user.
- * For user checks, use `getUserPermissionsCached` / `getEffectivePermissionsForUserCached`.
+ * Request-scoped role grants (15m process cache).
+ * Use for Manager RBAC UI / seeding comparisons and for authorizing a known role.
  */
 export async function getPermissionsForRoleCached(
   role: RoleValue
@@ -134,12 +141,8 @@ export async function getPermissionsForRoleCached(
 }
 
 /**
- * Request-scoped effective permissions for a known user + role.
- * Loads role grants (15m process cache) ∥ user allows (request cache only), then merges.
+ * Request-scoped permissions for a known user + role (role grants only).
  * Prefer when JWT / session already resolved the role (session pack MISS, login warm).
- *
- * After overlay edits: call `clearCachedSessionShell(userId)` so the next pack rebuilds.
- * Role-matrix saves still clear role cache + all shells as today.
  */
 export async function getEffectivePermissionsForUserCached(
   userId: string,
@@ -150,21 +153,12 @@ export async function getEffectivePermissionsForUserCached(
   }
 
   rememberUserRole(userId, role);
-
-  const [roleKeys, allows] = await Promise.all([
-    loadPermissionsForRoleCached(role),
-    loadUserAllowKeysCached(userId),
-  ]);
-
-  return mergePermissionSets({
-    roleKeys,
-    allows,
-  });
+  return loadPermissionsForRoleCached(role);
 }
 
 /**
  * Request-scoped cached load (React `cache`). Uses the admin client.
- * Returns **effective** keys (role ∪ allow).
+ * Returns role permission keys.
  * If `rememberUserRole` ran earlier in the request, skips profiles.role.
  */
 export async function getUserPermissionsCached(

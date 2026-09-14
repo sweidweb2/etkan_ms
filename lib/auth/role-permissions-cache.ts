@@ -3,8 +3,7 @@
  * Avoids repeating role_permissions round-trips on session_pack MISS
  * within the TTL window (same class as session-shell-cache).
  *
- * Does **not** include UBAC overlays — those load per user on shell MISS and
- * merge via `getEffectivePermissionsForUserCached`. Clear with
+ * Effective session permissions are these role keys only. Clear with
  * `clearCachedRolePermissionKeys` on Manager RBAC role-matrix saves (and
  * clear session shells so users pick up the new effective set).
  */

@@ -71,7 +71,7 @@ AND hasPermission(workshops.view)
 ```
 
 Applies to **every role** (admin, manager, co-manager, ceo, teacher, student, crm).
-Assigning either attribute also syncs a personal readonly UBAC overlay (`workshops.view` + `instructor_schedules.view`) for that user; clearing both attributes revokes those overlay keys.
+Workshop **view** (and related) keys must already be on the user’s **role**; attributes alone do not grant permissions.
 
 ### 4.2 Shared routes (allowlist)
 

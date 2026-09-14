@@ -1,8 +1,7 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { emailField } from "@/lib/validators/auth/fields";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import { EMAIL_COMPOSE_LIMITS } from "@/lib/validators/manager/send-email";
-import type { FieldErrors } from "@/types/auth";
 
 export const resendEmailSchema = z
   .object({
@@ -63,22 +62,10 @@ function parseToEmails(formData: FormData): string[] {
   return [...new Set(multi)];
 }
 
-export function parseResendEmailFormData(formData: FormData):
-  | { success: true; data: ResendEmailInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = resendEmailSchema.safeParse({
+export function parseResendEmailFormData(formData: FormData) {
+  return safeParseFormData(resendEmailSchema, {
     emailSentId: formData.get("emailSentId"),
     userIds: parseUserIds(formData),
     toEmails: parseToEmails(formData),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

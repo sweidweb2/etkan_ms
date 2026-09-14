@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 
 export const createPhaseSchema = z.object({
   name: z
@@ -12,21 +11,8 @@ export const createPhaseSchema = z.object({
 
 export type CreatePhaseInput = z.infer<typeof createPhaseSchema>;
 
-export function parseCreatePhaseFormData(formData: FormData):
-  | { success: true; data: CreatePhaseInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createPhaseSchema.safeParse({
+export function parseCreatePhaseFormData(formData: FormData) {
+  return safeParseFormData(createPhaseSchema, {
     name: formData.get("name"),
   });
-
-  if (!parsed.success) {
-    const flattened = parsed.error.flatten().fieldErrors;
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(flattened),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

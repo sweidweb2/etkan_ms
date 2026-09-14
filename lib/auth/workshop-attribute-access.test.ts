@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  WORKSHOP_ATTRIBUTE_READONLY_PERMISSIONS,
-  canAccessManageWorkshops,
-} from "@/lib/auth/workshop-attribute-access";
-import { PERMISSIONS } from "@/lib/constants/permissions";
+import { canAccessManageWorkshops } from "@/lib/auth/workshop-attribute-access";
 
 describe("canAccessManageWorkshops", () => {
   it("allows instructors and mentors", () => {
@@ -19,20 +15,5 @@ describe("canAccessManageWorkshops", () => {
     expect(
       canAccessManageWorkshops({ isInstructor: false, isMentor: false })
     ).toBe(false);
-  });
-});
-
-describe("WORKSHOP_ATTRIBUTE_READONLY_PERMISSIONS", () => {
-  it("is view-only workshops access for the attribute holder", () => {
-    expect(WORKSHOP_ATTRIBUTE_READONLY_PERMISSIONS).toEqual([
-      PERMISSIONS.WORKSHOPS_VIEW,
-      PERMISSIONS.INSTRUCTOR_SCHEDULES_VIEW,
-    ]);
-    expect(WORKSHOP_ATTRIBUTE_READONLY_PERMISSIONS).not.toContain(
-      PERMISSIONS.WORKSHOPS_CREATE
-    );
-    expect(WORKSHOP_ATTRIBUTE_READONLY_PERMISSIONS).not.toContain(
-      PERMISSIONS.WORKSHOPS_SESSIONS_CREATE
-    );
   });
 });

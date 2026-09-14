@@ -1,12 +1,11 @@
 import { z } from "zod";
+import { safeParseFormData } from "@/lib/validators/safe-parse-form-data";
 import { WORKSHOP_FIELD_LIMITS } from "@/lib/constants/workshop-field-limits";
 import {
   WORKSHOP_PAYMENT_METHOD_VALUES,
   WORKSHOP_PAYMENT_TYPES,
   WORKSHOP_PAYMENT_TYPE_VALUES,
 } from "@/lib/constants/manager-workshop-display";
-import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import type { FieldErrors } from "@/types/auth";
 
 function optionalPaymentMethod() {
   return z.preprocess((value) => {
@@ -158,10 +157,8 @@ export function updateWorkshopPaymentFormSchema(maxAmount: number | null) {
   });
 }
 
-export function parseCreateWorkshopPaymentFormData(formData: FormData):
-  | { success: true; data: CreateWorkshopPaymentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createWorkshopPaymentSchema.safeParse({
+export function parseCreateWorkshopPaymentFormData(formData: FormData) {
+  return safeParseFormData(createWorkshopPaymentSchema, {
     workshop_id: formData.get("workshop_id"),
     amount: formData.get("amount"),
     type: formData.get("type"),
@@ -169,22 +166,10 @@ export function parseCreateWorkshopPaymentFormData(formData: FormData):
     payment_method: formData.get("payment_method"),
     notes: formData.get("notes"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseUpdateWorkshopPaymentFormData(formData: FormData):
-  | { success: true; data: UpdateWorkshopPaymentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateWorkshopPaymentSchema.safeParse({
+export function parseUpdateWorkshopPaymentFormData(formData: FormData) {
+  return safeParseFormData(updateWorkshopPaymentSchema, {
     id: formData.get("id"),
     workshop_id: formData.get("workshop_id"),
     amount: formData.get("amount"),
@@ -193,33 +178,11 @@ export function parseUpdateWorkshopPaymentFormData(formData: FormData):
     payment_method: formData.get("payment_method"),
     notes: formData.get("notes"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseDeleteWorkshopPaymentFormData(formData: FormData):
-  | { success: true; data: DeleteWorkshopPaymentInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = deleteWorkshopPaymentSchema.safeParse({
+export function parseDeleteWorkshopPaymentFormData(formData: FormData) {
+  return safeParseFormData(deleteWorkshopPaymentSchema, {
     id: formData.get("id"),
     workshop_id: formData.get("workshop_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }

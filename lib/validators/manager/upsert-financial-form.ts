@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safeParseFormData, formValidationFailure } from "@/lib/validators/safe-parse-form-data";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { FieldErrors } from "@/types/auth";
 
@@ -161,57 +162,17 @@ function parseFormFields(formData: FormData) {
   };
 }
 
-export function parseCreateFinancialFormFormData(formData: FormData):
-  | { success: true; data: CreateFinancialFormInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createFinancialFormSchema.safeParse(parseFormFields(formData));
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
-}
-
-export function parseUpdateFinancialFormFormData(formData: FormData):
-  | { success: true; data: UpdateFinancialFormInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = updateFinancialFormSchema.safeParse({
+export function parseCreateFinancialFormFormData(formData: FormData) {
+  return safeParseFormData(updateFinancialFormSchema, {
     id: formData.get("id"),
     ...parseFormFields(formData),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
-export function parseCreateFinancialFormInviteFormData(formData: FormData):
-  | { success: true; data: CreateFinancialFormInviteInput }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
-  const parsed = createFinancialFormInviteSchema.safeParse({
+export function parseCreateFinancialFormInviteFormData(formData: FormData) {
+  return safeParseFormData(createFinancialFormInviteSchema, {
     student_payment_phase_id: formData.get("student_payment_phase_id"),
   });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
-  return { success: true, data: parsed.data };
 }
 
 export function parseSubmitPublicFinancialFormFormData(
@@ -226,11 +187,7 @@ export function parseSubmitPublicFinancialFormFormData(
   });
 
   if (!parsed.success) {
-    return {
-      success: false,
-      error: "Please fix the errors below.",
-      fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
-    };
+    return formValidationFailure(zodFieldErrors(parsed.error.flatten().fieldErrors));
   }
 
   return { success: true, data: parsed.data };
