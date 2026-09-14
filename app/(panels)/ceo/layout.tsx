@@ -1,11 +1,4 @@
-import { requireRole } from "@/lib/auth/require-role";
+import { createRoleLayout } from "@/lib/auth/create-role-layout";
 import { ROLES } from "@/lib/constants/roles";
 
-export default async function CeoLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  await requireRole(ROLES.CEO);
-  return children;
-}
+export default createRoleLayout(ROLES.CEO);

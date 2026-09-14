@@ -141,8 +141,11 @@ export async function getPermissionsForRoleCached(
 }
 
 /**
- * Request-scoped permissions for a known user + role (role grants only).
- * Prefer when JWT / session already resolved the role (session pack MISS, login warm).
+ * Permissions for a known user + role.
+ *
+ * Name kept for call-site stability. **Not** a UBAC merge — runtime is
+ * role grants only (`role_permissions[role]`). Per-user overlays were removed
+ * (`user_permissions` dropped). See `docs/[10] Plans/[02] rbac-plus-ubac.md`.
  */
 export async function getEffectivePermissionsForUserCached(
   userId: string,

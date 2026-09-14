@@ -16,6 +16,7 @@ function withManageWorkshops(navigation: PanelNavigation): PanelNavigation {
 }
 
 export const ADMIN_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
+/** Co-manager: same as admin — workshops only when instructor/mentor. */
 export const CO_MANAGER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 
 export const MANAGER_PANEL_NAVIGATION: PanelNavigation = {
@@ -349,6 +350,10 @@ export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation = {
   ],
 };
 
+/**
+ * Teacher panel: no dedicated teacher routes yet.
+ * Only shared workshop links when instructor/mentor + workshops.view.
+ */
 export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 
 /** Student panel: profile, classes, payments (+ workshops when instructor/mentor). */

@@ -92,18 +92,28 @@ export const ROUTES = {
 
 export type Route = (typeof ROUTES)[keyof typeof ROUTES];
 
-/** Post-login / fallback home for each role (no dedicated dashboard pages). */
+/**
+ * Post-login / fallback home for each role.
+ * Staff roles without a dedicated product surface land on an allowed
+ * `/manager/*` page (sidebar still uses ROLE_PANEL_ROOTS for identity).
+ * Prefer landings that do not require instructor/mentor (workshops do).
+ */
 const ROLE_HOME_ROUTES: Record<RoleValue, string> = {
   [ROLES.ADMIN]: ROUTES.ADMIN_ROOT,
   [ROLES.MANAGER]: ROUTES.MANAGER_STUDENTS,
-  [ROLES.CO_MANAGER]: ROUTES.MANAGER_WORKSHOPS,
-  [ROLES.CEO]: ROUTES.MANAGER_WORKSHOPS,
+  [ROLES.CO_MANAGER]: ROUTES.CO_MANAGER_ROOT,
+  [ROLES.CEO]: ROUTES.MANAGER_INSTRUCTORS,
   [ROLES.SUPERVISOR]: ROUTES.MANAGER_STUDENTS,
   [ROLES.CRM]: ROUTES.MANAGER_GUESTS,
+  /** Teacher product routes are not built yet — stay on the placeholder home. */
   [ROLES.TEACHER]: ROUTES.TEACHER_ROOT,
   [ROLES.STUDENT]: ROUTES.STUDENT_ROOT,
 };
 
+/**
+ * Panel identity roots (middleware / path-access). Kept even when home
+ * redirects into `/manager/*` so role shells and bookmarks still resolve.
+ */
 const ROLE_PANEL_ROOTS: Record<RoleValue, string> = {
   [ROLES.ADMIN]: ROUTES.ADMIN_ROOT,
   [ROLES.MANAGER]: ROUTES.MANAGER_ROOT,

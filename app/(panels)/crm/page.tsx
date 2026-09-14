@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/constants/routes";
+import { createStaffHomeRedirect } from "@/lib/auth/staff-home-redirect";
+import { ROLES } from "@/lib/constants/roles";
 
-export default function CrmPage() {
-  redirect(ROUTES.MANAGER_GUESTS);
-}
+export default createStaffHomeRedirect(ROLES.CRM);

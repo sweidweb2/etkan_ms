@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/constants/routes";
+import { createStaffHomeRedirect } from "@/lib/auth/staff-home-redirect";
+import { ROLES } from "@/lib/constants/roles";
 
-export default function SupervisorPage() {
-  redirect(ROUTES.MANAGER_STUDENTS);
-}
+export default createStaffHomeRedirect(ROLES.SUPERVISOR);

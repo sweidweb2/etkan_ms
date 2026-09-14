@@ -16,7 +16,6 @@ import {
 } from "@/lib/manager/compute-student-course-grade";
 import {
   buildStudentGradeMissingItems,
-  hasStudentGradeMissingItems,
 } from "@/lib/manager/student-grade-missing-items";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
@@ -38,7 +37,6 @@ import type {
 } from "@/types/manager-class-final-exam";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
-import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type {
   ManagerStudentAttendeeGradeEntry,
   ManagerStudentCourseGrade,
