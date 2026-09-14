@@ -385,6 +385,7 @@ export function ClassSessionDetailsPanel({
         phaseOptions={phaseOptions}
         defaultPhaseId={classRow.semester_id}
         groupGradeLevel={groupGradeLevel}
+        sessionReport={session.session_report}
         hasComputedGrades={hasComputedGrades}
         onSettingsUpdated={(nextSession, nextLinkedPhase) => {
           setSession(nextSession);

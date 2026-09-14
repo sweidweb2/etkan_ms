@@ -475,6 +475,83 @@ describe("updateSessionSettingsForManager", () => {
     });
     expect(sessionRepository.updateSessionSettings).not.toHaveBeenCalled();
   });
+
+  it("updates session report without clearing other settings", async () => {
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: {
+        ...sessionRecord,
+        semester_id: semesterId,
+        group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
+      },
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.updateSessionSettings).mockResolvedValue({
+      data: {
+        ...sessionRecord,
+        semester_id: semesterId,
+        group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
+        session_report: "Students finished the lab.",
+      },
+      error: null,
+    } as never);
+    vi.mocked(semesterRepository.findSemesterById).mockResolvedValue({
+      data: { id: semesterId, name: "Fall 2026" },
+      error: null,
+    } as never);
+
+    const result = await updateSessionSettingsForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        session_id: sessionId,
+        class_id: classId,
+        session_report: "Students finished the lab.",
+      }
+    );
+
+    expect(sessionRepository.updateSessionSettings).toHaveBeenCalledWith(
+      adminClient,
+      sessionId,
+      { session_report: "Students finished the lab." }
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("allows session report updates when computed course grades exist", async () => {
+    vi.mocked(
+      studentCourseGradeRepository.countStudentCourseGradesByClassId
+    ).mockResolvedValue({ count: 1, error: null } as never);
+    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
+      data: sessionRecord,
+      error: null,
+    } as never);
+    vi.mocked(sessionRepository.updateSessionSettings).mockResolvedValue({
+      data: {
+        ...sessionRecord,
+        session_report: "Follow-up notes.",
+      },
+      error: null,
+    } as never);
+
+    const result = await updateSessionSettingsForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      {
+        session_id: sessionId,
+        class_id: classId,
+        session_report: "Follow-up notes.",
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(sessionRepository.updateSessionSettings).toHaveBeenCalledWith(
+      adminClient,
+      sessionId,
+      { session_report: "Follow-up notes." }
+    );
+  });
 });
 
 describe("updateClassSessionForManager", () => {

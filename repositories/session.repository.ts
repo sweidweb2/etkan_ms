@@ -33,6 +33,7 @@ export type CreateSessionRecordInput = {
 export type UpdateSessionSettingsInput = {
   semester_id?: string | null;
   group_grade_level?: string | null;
+  session_report?: string | null;
 };
 
 export type UpdateSessionDetailsInput = {
@@ -143,6 +144,7 @@ export async function updateSessionSettings(
   const patch: {
     semester_id?: string | null;
     group_grade_level?: string | null;
+    session_report?: string | null;
   } = {};
 
   if ("semester_id" in input) {
@@ -151,6 +153,10 @@ export async function updateSessionSettings(
 
   if ("group_grade_level" in input) {
     patch.group_grade_level = input.group_grade_level ?? null;
+  }
+
+  if ("session_report" in input) {
+    patch.session_report = input.session_report ?? null;
   }
 
   return client

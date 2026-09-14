@@ -82,8 +82,15 @@ export function SubjectCatalogLinksSection({
       <div className="flex flex-col gap-6">
         <div className="grid gap-6 md:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <FieldLabel>Linked categories</FieldLabel>
-            <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3">
+            <FieldLabel
+              htmlFor="subject-linked-categories"
+              label="Linked categories"
+              hint="Optional"
+            />
+            <div
+              id="subject-linked-categories"
+              className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3"
+            >
               {categories.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No categories in the catalog yet.
@@ -114,8 +121,15 @@ export function SubjectCatalogLinksSection({
           </div>
 
           <div className="flex flex-col gap-2">
-            <FieldLabel>Linked exercises</FieldLabel>
-            <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3">
+            <FieldLabel
+              htmlFor="subject-linked-exercises"
+              label="Linked exercises"
+              hint="Optional"
+            />
+            <div
+              id="subject-linked-exercises"
+              className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3"
+            >
               {exercises.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No exercises in the catalog yet.

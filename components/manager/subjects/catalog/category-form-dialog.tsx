@@ -148,9 +148,11 @@ export function CategoryFormDialog({
         </DialogHeader>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="flex flex-col gap-2">
-            <FieldLabel htmlFor="category-name" error={Boolean(nameError)}>
-              Name
-            </FieldLabel>
+            <FieldLabel
+              htmlFor="category-name"
+              label="Name"
+              hint="Required"
+            />
             <Input
               id="category-name"
               disabled={isPending}
@@ -162,17 +164,20 @@ export function CategoryFormDialog({
             ) : null}
           </div>
           <div className="flex flex-col gap-2">
-            <FieldLabel htmlFor="category-parent" error={Boolean(parentError)}>
-              Parent
-            </FieldLabel>
+            <FieldLabel
+              htmlFor="category-parent"
+              label="Parent"
+              hint="Optional"
+            />
             <Select
               value={parentId || NONE_PARENT}
               disabled={isPending}
-              onValueChange={(value) =>
-                setValue("parent_id", value === NONE_PARENT ? "" : value, {
+              onValueChange={(value) => {
+                const nextParent = value === NONE_PARENT ? "" : value;
+                setValue("parent_id", nextParent as never, {
                   shouldDirty: true,
-                })
-              }
+                });
+              }}
             >
               <SelectTrigger id="category-parent" className="w-full">
                 <SelectValue placeholder="No parent" />

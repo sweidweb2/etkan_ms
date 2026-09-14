@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import {
   deleteCategoryAction,
@@ -184,8 +183,8 @@ export function SubjectsCatalogPanel({
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href={ROUTES.MANAGER_SUBJECTS}>Manage subjects</Link>
+            <BreadcrumbLink href={ROUTES.MANAGER_SUBJECTS}>
+              Manage subjects
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />

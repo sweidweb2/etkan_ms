@@ -1356,7 +1356,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.RBAC_MANAGE,
     feature: "rbac",
-    label: "Manage role permissions",
+    label: "Manage role and user permissions",
     access: PERMISSION_ACCESS.WRITE,
   },
 ] as const;

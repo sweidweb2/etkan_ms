@@ -24,6 +24,13 @@ export const updateSessionSettingsSchema = z.object({
       z.enum(GROUP_GRADE_VALUES, { message: "Invalid group grade level." }),
     ])
     .optional(),
+  session_report: z
+    .string()
+    .trim()
+    .max(5000, {
+      message: "Session report must be at most 5000 characters.",
+    })
+    .optional(),
 });
 
 export type UpdateSessionSettingsInput = z.infer<
@@ -46,6 +53,9 @@ export function parseUpdateSessionSettingsFormData(formData: FormData):
   const parsed = updateSessionSettingsSchema.safeParse({
     semester_id: formData.get("semester_id") ?? undefined,
     group_grade_level: formData.get("group_grade_level") ?? undefined,
+    session_report: formData.has("session_report")
+      ? String(formData.get("session_report") ?? "")
+      : undefined,
   });
 
   if (!parsed.success) {

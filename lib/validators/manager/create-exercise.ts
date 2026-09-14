@@ -59,7 +59,7 @@ export function parseCreateExerciseFormData(formData: FormData):
     return {
       success: false,
       error: "Please fix the errors below.",
-      fieldErrors: { body: "Exercise body is invalid." },
+      fieldErrors: { body: ["Exercise body is invalid."] },
     };
   }
 

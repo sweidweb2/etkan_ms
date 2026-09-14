@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { LayersIcon, UsersRoundIcon } from "lucide-react";
+import { FileTextIcon, LayersIcon, UsersRoundIcon } from "lucide-react";
 import { updateSessionSettingsAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -35,7 +35,7 @@ import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link
 
 const initialState: UpdateSessionSettingsActionState = {};
 
-type SaveTarget = "phase" | "groupGrade";
+type SaveTarget = "phase" | "groupGrade" | "sessionReport";
 
 type SessionDetailsActionsProps = {
   classId: string;
@@ -44,6 +44,7 @@ type SessionDetailsActionsProps = {
   phaseOptions: ManagerSessionPhaseLink[];
   defaultPhaseId?: string | null;
   groupGradeLevel: SessionGroupGradeLevelValue | null;
+  sessionReport?: string | null;
   hasComputedGrades?: boolean;
   onSettingsUpdated: (
     session: ManagerClassSessionRow,
@@ -78,6 +79,7 @@ export function SessionDetailsActions({
   phaseOptions,
   defaultPhaseId,
   groupGradeLevel,
+  sessionReport = null,
   hasComputedGrades = false,
   onSettingsUpdated,
   className,
@@ -91,6 +93,7 @@ export function SessionDetailsActions({
   const [saveTarget, setSaveTarget] = useState<SaveTarget | null>(null);
   const isPhasePending = isPending && saveTarget === "phase";
   const isGroupGradePending = isPending && saveTarget === "groupGrade";
+  const isSessionReportPending = isPending && saveTarget === "sessionReport";
 
   useActionStateToast(state, isPending);
 
@@ -117,9 +120,15 @@ export function SessionDetailsActions({
   const [selectedPhaseId, setSelectedPhaseId] = useState(initialPhaseId);
   const [selectedGroupGrade, setSelectedGroupGrade] =
     useState<SessionGroupGradeLevelValue | null>(groupGradeLevel);
+  const [sessionReportValue, setSessionReportValue] = useState(
+    sessionReport ?? ""
+  );
   const [phaseSyncKey, setPhaseSyncKey] = useState(initialPhaseId);
   const [groupGradeSyncKey, setGroupGradeSyncKey] = useState(
     groupGradeLevel ?? "none"
+  );
+  const [sessionReportSyncKey, setSessionReportSyncKey] = useState(
+    sessionReport ?? ""
   );
 
   if (initialPhaseId !== phaseSyncKey) {
@@ -131,6 +140,12 @@ export function SessionDetailsActions({
   if (nextGroupGradeSyncKey !== groupGradeSyncKey) {
     setGroupGradeSyncKey(nextGroupGradeSyncKey);
     setSelectedGroupGrade(groupGradeLevel);
+  }
+
+  const nextSessionReportSyncKey = sessionReport ?? "";
+  if (nextSessionReportSyncKey !== sessionReportSyncKey) {
+    setSessionReportSyncKey(nextSessionReportSyncKey);
+    setSessionReportValue(nextSessionReportSyncKey);
   }
 
   useActionStateSuccess(
@@ -178,14 +193,28 @@ export function SessionDetailsActions({
     });
   }
 
+  function handleSaveSessionReport() {
+    const formData = new FormData();
+    formData.set("class_id", classId);
+    formData.set("session_id", sessionId);
+    formData.set("session_report", sessionReportValue);
+
+    setSaveTarget("sessionReport");
+    startTransition(() => {
+      formAction(formData);
+    });
+  }
+
+  const sessionReportError = state.fieldErrors?.session_report?.[0];
+
   return (
     <ClassTabCollapsibleSection
       title="Session settings"
-      description="Link this session to a phase and set the group grade level."
+      description="Link this session to a phase, set the group grade level, and write the session report."
       storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.SESSION_DETAILS_SETTINGS}
       defaultOpen
     >
-      <div className={cn("grid gap-6 px-4 pt-2 pb-3 lg:grid-cols-2", className)}>
+      <div className={cn("grid gap-6 px-4 pt-2 pb-3 lg:grid-cols-3", className)}>
         <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 ring-1 ring-foreground/8">
           <div className="flex items-center gap-2">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
@@ -336,6 +365,55 @@ export function SessionDetailsActions({
               {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
             </p>
           ) : null}
+        </div>
+
+        <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 ring-1 ring-foreground/8">
+          <div className="flex items-center gap-2">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300">
+              <FileTextIcon className="size-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium">Session report</h3>
+              <p className="text-xs text-muted-foreground">
+                Optional notes about how the session went.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <FieldLabel
+              htmlFor="session-settings-report"
+              label="Report"
+              hint="Optional"
+            />
+            <textarea
+              id="session-settings-report"
+              rows={5}
+              value={sessionReportValue}
+              onChange={(event) => setSessionReportValue(event.target.value)}
+              aria-invalid={!!sessionReportError}
+              disabled={isPending}
+              className={cn(
+                "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
+              )}
+              placeholder="What happened in this session…"
+            />
+            {sessionReportError ? (
+              <p className="text-sm text-destructive">{sessionReportError}</p>
+            ) : null}
+          </div>
+
+          <Can permission={PERMISSIONS.SESSIONS_UPDATE_SETTINGS}>
+            <Button
+              type="button"
+              className="self-start"
+              disabled={isPending}
+              onClick={handleSaveSessionReport}
+            >
+              {isSessionReportPending ? <InlineSpinner /> : null}
+              Save session report
+            </Button>
+          </Can>
         </div>
       </div>
     </ClassTabCollapsibleSection>

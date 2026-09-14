@@ -180,9 +180,11 @@ export function ExerciseFormDialog({
         </DialogHeader>
         <form className="flex flex-col gap-4" onSubmit={onSubmit}>
           <div className="flex flex-col gap-2">
-            <FieldLabel htmlFor="exercise-title" error={Boolean(titleError)}>
-              Title
-            </FieldLabel>
+            <FieldLabel
+              htmlFor="exercise-title"
+              label="Title"
+              hint="Required"
+            />
             <Input
               id="exercise-title"
               value={title}
@@ -197,7 +199,11 @@ export function ExerciseFormDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="exercise-level">Level</FieldLabel>
+              <FieldLabel
+                htmlFor="exercise-level"
+                label="Level"
+                hint="Required"
+              />
               <Select
                 value={level}
                 disabled={isPending}
@@ -218,7 +224,11 @@ export function ExerciseFormDialog({
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="exercise-status">Status</FieldLabel>
+              <FieldLabel
+                htmlFor="exercise-status"
+                label="Status"
+                hint="Required"
+              />
               <Select
                 value={status}
                 disabled={isPending}
@@ -241,8 +251,15 @@ export function ExerciseFormDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <FieldLabel error={Boolean(categoriesError)}>Categories</FieldLabel>
-            <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-3">
+            <FieldLabel
+              htmlFor="exercise-categories"
+              label="Categories"
+              hint="At least one"
+            />
+            <div
+              id="exercise-categories"
+              className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-3"
+            >
               {categories.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Create a category first.
@@ -277,13 +294,19 @@ export function ExerciseFormDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <FieldLabel error={Boolean(bodyError)}>Body</FieldLabel>
-            <TiptapExerciseEditor
-              value={body}
-              disabled={isPending}
-              invalid={Boolean(bodyError)}
-              onChange={setBody}
+            <FieldLabel
+              htmlFor="exercise-body"
+              label="Body"
+              hint="Required"
             />
+            <div id="exercise-body">
+              <TiptapExerciseEditor
+                value={body}
+                disabled={isPending}
+                invalid={Boolean(bodyError)}
+                onChange={setBody}
+              />
+            </div>
             {bodyError ? (
               <p className="text-sm text-destructive">{bodyError}</p>
             ) : null}

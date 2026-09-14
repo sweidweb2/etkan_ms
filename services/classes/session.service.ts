@@ -679,6 +679,7 @@ export async function updateSessionSettingsForManager(
     class_id: string;
     semester_id?: string;
     group_grade_level?: string;
+    session_report?: string;
   }
 ): Promise<UpdateSessionSettingsResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SESSIONS_UPDATE_SETTINGS);
@@ -689,6 +690,7 @@ export async function updateSessionSettingsForManager(
   const parsed = updateSessionSettingsSchema.safeParse({
     semester_id: input.semester_id,
     group_grade_level: input.group_grade_level,
+    session_report: input.session_report,
   });
 
   if (!parsed.success) {
@@ -704,11 +706,6 @@ export async function updateSessionSettingsForManager(
     input.session_id
   );
 
-  const structureGuardPromise = assertClassStructureUnlockedForComputedGrades(
-    adminClient,
-    input.class_id
-  );
-
   if (existing.error) {
     return { success: false, error: existing.error.message };
   }
@@ -720,6 +717,7 @@ export async function updateSessionSettingsForManager(
   const patch: {
     semester_id?: string | null;
     group_grade_level?: string | null;
+    session_report?: string | null;
   } = {};
 
   if (parsed.data.semester_id !== undefined) {
@@ -734,20 +732,33 @@ export async function updateSessionSettingsForManager(
         : parsed.data.group_grade_level;
   }
 
+  if (parsed.data.session_report !== undefined) {
+    patch.session_report = normalizeOptionalString(parsed.data.session_report);
+  }
+
   if (
     patch.semester_id === undefined &&
-    patch.group_grade_level === undefined
+    patch.group_grade_level === undefined &&
+    patch.session_report === undefined
   ) {
     return {
       success: false,
-      error: "Provide a phase or group grade to update.",
+      error: "Provide a phase, group grade, or session report to update.",
     };
   }
 
-  const structureGuard = await structureGuardPromise;
+  const touchesStructure =
+    patch.semester_id !== undefined || patch.group_grade_level !== undefined;
 
-  if (!structureGuard.ok) {
-    return { success: false, error: structureGuard.error };
+  if (touchesStructure) {
+    const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+      adminClient,
+      input.class_id
+    );
+
+    if (!structureGuard.ok) {
+      return { success: false, error: structureGuard.error };
+    }
   }
 
   let validatedSemester: { id: string; name: string } | null = null;
@@ -817,10 +828,12 @@ export async function updateSessionSettingsForManager(
     old_data: {
       semester_id: existing.data.semester_id,
       group_grade_level: existing.data.group_grade_level,
+      session_report: existing.data.session_report,
     },
     new_data: {
       semester_id: session.semester_id,
       group_grade_level: session.group_grade_level,
+      session_report: session.session_report,
     },
     metadata: { note: "Session settings updated." },
   });

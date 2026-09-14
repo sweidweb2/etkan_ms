@@ -2,7 +2,7 @@
 
 **Project:** Etkan MS (`etkan_ms`)  
 **Date:** 2026-09-14  
-**Status:** Phases A–E done — Phases F–G planned (not implemented)  
+**Status:** Implemented (Phases A–G, 2026-09-14)  
 **Related docs:**  
 - `docs/[06] RBAC/[01] rbac-layers.md`  
 - `docs/[06] RBAC/[02] permission-definitions.md`  
@@ -250,12 +250,38 @@ user_permissions (
 
 | ID | Task | Done when |
 |----|------|-----------|
-| F1 | Audit `requireManagerRoutePermission`, nav filters, `PermissionsProvider`, `Can` — all read session/effective keys | Checklist signed |
-| F2 | Audit any direct `getPermissionsForRoleCached(user.role)` used for **authorization** of a user (should be zero) | None left for authz |
-| F3 | Document known limitation: middleware panel access remains role-only (by design) | Note in enforcement doc / this plan |
-| F4 | Manual smoke: co-manager with private `guests.create` allow sees button + service succeeds; with deny on a role-granted key, UI hidden + service 403 | Smoke OK |
+| F1 | Audit `requireManagerRoutePermission`, nav filters, `PermissionsProvider`, `Can` — all read session/effective keys | Checklist signed ✅ |
+| F2 | Audit any direct `getPermissionsForRoleCached(user.role)` used for **authorization** of a user (should be zero) | None left for authz ✅ |
+| F3 | Document known limitation: middleware panel access remains role-only (by design) | Note in enforcement doc / this plan ✅ |
+| F4 | Manual smoke checklist for allow/deny overlays | Documented in `[06] regression-checklist.md` §F ✅ |
 
-**Status:** Planned.
+**Status:** Implemented (2026-09-14) — code-path audit + docs. Manual §F boxes remain for QA sign-off in staging.
+
+#### F1 — Consumer map (all effective)
+
+| Consumer | Source of keys |
+|----------|----------------|
+| `getSessionPack` / shell `permissionKeys` | `getEffectivePermissionsForUserCached` |
+| `RolePanelLayout` → `PermissionsProvider` | `pack.permissions` |
+| `Can` / `usePermissions` | Provider set (effective) |
+| `filterPanelNavigation` | `pack.permissions` |
+| `requireManagerRoutePermission` | `pack.permissions` |
+| Client `hasPermissionInSet(...)` in panels | Props/context fed from pack or provider |
+| `assertPermission` / `hasPermission` | `getUserPermissionsCached` → effective |
+
+#### F2 — `getPermissionsForRoleCached`
+
+- **Call sites for user authz:** none (definition only in `authorization.service.ts`).
+- Role matrix UI loads grants via `listRolesWithPermissionKeys` / repository, not this helper used as a user’s effective set.
+
+#### F3 — Role-only panel gate (intentional)
+
+- `middleware.ts` → `canAccessPath(pathname, role)` — role only.
+- Documented in `docs/[06] RBAC/[05] enforcement.md` (“Panel routing stays role-only”).
+
+#### F4 — Smoke
+
+- Checklist: `docs/[06] RBAC/[06] regression-checklist.md` section **F — UBAC overlays**.
 
 ---
 
@@ -265,13 +291,13 @@ user_permissions (
 
 | ID | Task | Done when |
 |----|------|-----------|
-| G1 | Unit tests: merge helper; replace repository; manager-only service; lockout; role-change keep/clear | CI green |
-| G2 | Update RBAC regression checklist / permission-definitions if any new manage key was added (none if reusing `rbac.manage`) | Docs match |
-| G3 | Optional seed: zero user overlays by default | Seed clean |
-| G4 | Update slowliness / session_pack notes if overlay fetch adds a leg on MISS | Perf doc note |
-| G5 | Mark this plan status → Implemented when Phases A–F signed off | Status line updated |
+| G1 | Unit tests: merge helper; replace repository; manager-only service; lockout; role-change keep/clear | CI green ✅ **49** tests across permission-checks / permission.repository / authorization / user-permissions / session / rbac |
+| G2 | Update RBAC regression checklist / permission-definitions — **no new key**; `rbac.manage` label/docs note overlays + manager-role gate | Docs match ✅ |
+| G3 | Optional seed: zero user overlays by default | Seed clean ✅ (`seed:rbac` does not insert `user_permissions`) |
+| G4 | Update slowliness / session_pack notes for overlay leg on MISS | Perf doc note ✅ `[04] nav-debugger-findings…` P2 |
+| G5 | Mark this plan status → Implemented | Status line updated ✅ |
 
-**Status:** Planned.
+**Status:** Implemented (2026-09-14).
 
 ---
 

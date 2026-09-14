@@ -92,3 +92,35 @@ Without the matching write/export permission:
 - [ ] Non-instructor with `workshops.view` does not see workshops nav; deep link to `/manager/workshops` redirects to their dashboard
 - [ ] `/manager/workshops/payments` requires `workshops.payments.view`
 - [ ] Login redirect and maintenance behavior unchanged
+
+---
+
+## F — UBAC overlays (RBAC + private allow/deny)
+
+Prerequisites: migration `user_permissions` applied; actor is **manager** with `rbac.manage`.
+
+### Allow beyond role
+
+1. Pick a co-manager (or other manager-panel user) whose **role** lacks `guests.create`.
+2. Manage users → Permissions → set `guests.create` to **Allow** → save.
+3. Log in as that user (or soft-nav after shell bust).
+
+- [ ] Guests nav / create control visible (`Can` / nav filter use effective keys)
+- [ ] Creating a guest succeeds on the server (`assertPermission`)
+- [ ] Teacher/student with the same private allow still **cannot** open `/manager` (middleware role-only)
+
+### Deny against role
+
+1. Ensure the user’s role **includes** a write key (e.g. `guests.update`).
+2. Overlay → set that key to **Deny** → save.
+
+- [ ] Matching button hidden in UI
+- [ ] Forcing the action returns Unauthorized
+- [ ] Removing the deny restores access after shell refresh
+
+### Role change keep/discard
+
+- [ ] Changing role with leftover private allows prompts **Keep private permissions?**
+- [ ] Discard clears those overlays; Keep retains them (redundants already on the new role are pruned)
+
+Restore test overlays when done.
