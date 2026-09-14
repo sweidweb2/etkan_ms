@@ -60,9 +60,17 @@ export type UpdateManagerUserInput = z.infer<typeof updateManagerUserSchema>;
 export function parseUpdateManagerUserFormData(formData: FormData):
   | {
       success: true;
-      data: UpdateManagerUserInput & { userId: string };
+      data: UpdateManagerUserInput & {
+        userId: string;
+        keepPrivatePermissions?: boolean;
+      };
     }
-  | { success: false; error: string; fieldErrors?: FieldErrors } {
+  | {
+      success: false;
+      error: string;
+      fieldErrors?: FieldErrors;
+      requiresKeepPrivateDecision?: boolean;
+    } {
   const userId = String(formData.get("userId") ?? "").trim();
 
   if (!userId) {
@@ -71,6 +79,10 @@ export function parseUpdateManagerUserFormData(formData: FormData):
       error: "Unable to update user. Please refresh and try again.",
     };
   }
+
+  const keepRaw = formData.get("keepPrivatePermissions");
+  const keepPrivatePermissions =
+    keepRaw === "true" ? true : keepRaw === "false" ? false : undefined;
 
   const parsed = updateManagerUserSchema.safeParse({
     username: formData.get("username"),
@@ -98,6 +110,9 @@ export function parseUpdateManagerUserFormData(formData: FormData):
     data: {
       ...parsed.data,
       userId,
+      ...(keepPrivatePermissions === undefined
+        ? {}
+        : { keepPrivatePermissions }),
     },
   };
 }

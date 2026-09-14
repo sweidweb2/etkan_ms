@@ -27,6 +27,10 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import { syncAuthUserRole } from "@/services/auth/role.service";
+import {
+  commitOverlayAfterRoleChange,
+  planOverlayAfterRoleChange,
+} from "@/services/auth/user-permissions.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerUserRow } from "@/types/manager-user";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -65,6 +69,7 @@ export type UpdateManagerUserFailure = {
   success: false;
   error: string;
   fieldErrors?: FieldErrors;
+  requiresKeepPrivateDecision?: boolean;
 };
 
 export type UpdateManagerUserResult =
@@ -405,6 +410,7 @@ export async function updateManagerUser(
     birthDate?: string | null;
     phone?: string | null;
     status?: string;
+    keepPrivatePermissions?: boolean;
   }
 ): Promise<UpdateManagerUserResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.USERS_UPDATE);
@@ -506,6 +512,28 @@ export async function updateManagerUser(
   const previousIsMentor = existingProfile.data.is_mentor;
   const previousEmail = authUserResult.data.user.email ?? null;
 
+  let roleChangeOverlayPlan: Awaited<
+    ReturnType<typeof planOverlayAfterRoleChange>
+  > | null = null;
+
+  if (previousRole !== role) {
+    roleChangeOverlayPlan = await planOverlayAfterRoleChange(adminClient, {
+      userId,
+      previousRole,
+      newRole: role,
+      keepPrivatePermissions: input.keepPrivatePermissions,
+    });
+
+    if (!roleChangeOverlayPlan.success) {
+      return {
+        success: false,
+        error: roleChangeOverlayPlan.error,
+        requiresKeepPrivateDecision:
+          roleChangeOverlayPlan.requiresKeepPrivateDecision,
+      };
+    }
+  }
+
   const { data: updatedProfile, error: profileError } =
     await profileRepository.updateProfileById(adminClient, userId, {
       username: normalizedUsername,
@@ -563,6 +591,25 @@ export async function updateManagerUser(
           err instanceof Error ? err.message : "Failed to sync role."
         ),
       };
+    }
+
+    if (roleChangeOverlayPlan?.success) {
+      const overlayCommit = await commitOverlayAfterRoleChange(
+        adminClient,
+        actor,
+        {
+          userId,
+          previousRole,
+          newRole: role,
+          previousRows: roleChangeOverlayPlan.previousRows,
+          nextRows: roleChangeOverlayPlan.nextRows,
+          prunedKeys: roleChangeOverlayPlan.prunedKeys,
+          keep: roleChangeOverlayPlan.keep,
+        }
+      );
+      if (!overlayCommit.success) {
+        return { success: false, error: overlayCommit.error };
+      }
     }
   }
 

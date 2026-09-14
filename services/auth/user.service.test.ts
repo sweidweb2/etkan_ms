@@ -42,6 +42,19 @@ vi.mock("@/services/auth/authorization.service", () => ({
     userId ? null : "Unauthorized."
   ),
 }));
+vi.mock("@/services/auth/user-permissions.service", () => ({
+  planOverlayAfterRoleChange: vi.fn(async () => ({
+    success: true,
+    previousRows: [],
+    nextRows: [],
+    prunedKeys: [],
+    keep: true,
+  })),
+  commitOverlayAfterRoleChange: vi.fn(async () => ({ success: true })),
+}));
+vi.mock("@/lib/auth/session-shell-cache", () => ({
+  clearCachedSessionShell: vi.fn(),
+}));
 
 const adminClient = {} as never;
 const actor: AuditActor = {

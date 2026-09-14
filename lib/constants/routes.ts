@@ -30,6 +30,7 @@ export const ROUTES = {
   MANAGER_STUDENTS: "/manager/students",
   MANAGER_STUDENT_DETAIL: "/manager/students/[id]",
   MANAGER_SUBJECTS: "/manager/subjects",
+  MANAGER_SUBJECTS_CATALOG: "/manager/subjects/catalog",
   MANAGER_SUBJECT_DETAIL: "/manager/subjects/[id]",
   MANAGER_INSTRUCTORS: "/manager/instructors",
   MANAGER_INSTRUCTOR_SCHEDULES: "/manager/instructor-schedules",

@@ -2,7 +2,7 @@
 
 **Project:** Etkan MS (`etkan_ms`)  
 **Date:** 2026-09-14  
-**Status:** Phases A–B done — Phases C–G planned (not implemented)  
+**Status:** Phases A–D done — Phases E–G planned (not implemented)  
 **Related docs:**  
 - `docs/[06] RBAC/[01] rbac-layers.md`  
 - `docs/[06] RBAC/[02] permission-definitions.md`  
@@ -175,17 +175,24 @@ user_permissions (
 
 | ID | Task | Done when |
 |----|------|-----------|
-| C1 | Pure helper: `mergePermissionSets({ roleKeys, allows, denies })` → `ReadonlySet<PermissionKey>` (+ unit tests: allow beyond role, deny beats role, deny beats allow) | Tests green |
-| C2 | Extend permission load path: on session MISS / `getUserPermissions*`, load role keys **and** user overlay rows, then merge | `getUserPermissionsCached` returns effective |
-| C3 | Parallel MISS path: today profile ∥ role-perms; add user-overlay fetch (parallel with those when `userId` known) | Pack still correct; no role-only leak |
-| C4 | Session shell continues to store `permissionKeys` as **effective** only (UI/route gates unchanged callers) | HIT serves effective |
-| C5 | Keep `getPermissionsForRoleCached` for Manager RBAC role matrix UI only — do **not** use it as the user’s effective set | Call sites audited |
-| C6 | Cache bust helpers: document `clearCachedSessionShell(userId)` on overlay save; role matrix save still clears role cache + shells as today | Comments / small helper if useful |
-| C7 | Optional: short-TTL per-user overlay cache — only if MISS latency needs it; otherwise load overlay on each shell MISS | Decision in PR notes |
+| C1 | Pure helper: `mergePermissionSets({ roleKeys, allows, denies })` → `ReadonlySet<PermissionKey>` (+ unit tests: allow beyond role, deny beats role, deny beats allow) | Tests green ✅ `lib/auth/permission-checks.ts` |
+| C2 | Extend permission load path: on session MISS / `getUserPermissions*`, load role keys **and** user overlay rows, then merge | `getUserPermissionsCached` returns effective ✅ |
+| C3 | Parallel MISS path: today profile ∥ role-perms; add user-overlay fetch (parallel with those when `userId` known) | Pack still correct; no role-only leak ✅ via `getEffectivePermissionsForUserCached` |
+| C4 | Session shell continues to store `permissionKeys` as **effective** only (UI/route gates unchanged callers) | HIT serves effective ✅ |
+| C5 | Keep `getPermissionsForRoleCached` for Manager RBAC role matrix UI only — do **not** use it as the user’s effective set | Call sites audited ✅ (session + login use effective) |
+| C6 | Cache bust helpers: document `clearCachedSessionShell(userId)` on overlay save; role matrix save still clears role cache + shells as today | Comments ✅ shell + role-cache + rbac actions |
+| C7 | Optional: short-TTL per-user overlay cache — **skipped**; overlay loads on each shell MISS (request React `cache` only) | Decision: no process-TTL overlay cache ✅ |
 
-**Status:** Planned.
+**Status:** Implemented in repo (2026-09-14).
 
-**Tests:** `authorization.service` / permission-checks / session pack unit tests covering merge + deny.
+**Tests:** `permission-checks` (merge), `authorization.service` (allow/deny), `session` + `auth.service` (effective warm).
+
+**API notes**
+
+- `mergePermissionSets` — pure merge
+- `getEffectivePermissionsForUserCached(userId, role)` — session / login
+- `getUserPermissions` / `getUserPermissionsCached` — effective
+- `getPermissionsForRoleCached(role)` — **role matrix only**
 
 ---
 
@@ -195,15 +202,21 @@ user_permissions (
 
 | ID | Task | Done when |
 |----|------|-----------|
-| D1 | Service `getUserAccessBreakdown(actor, userId)` → `{ role, roleKeys, overlayRows, effectiveKeys }` | Manager can read breakdown |
-| D2 | Service `replaceUserPermissionsForManager(actor, userId, rows)` — assert `actor.role === manager` (and existing session auth); validate keys ∈ catalog; full snapshot replace; `granted_by = actor`; `clearCachedSessionShell(userId)` | Non-manager denied |
-| D3 | Audit on replace: `table_name: "user_permissions"`, `record_id: userId`, `old_data` / `new_data` = overlay snapshots, `severity: "warning"`, metadata note | Visible in audit UI |
-| D4 | `rbac.manage` lockout: refuse snapshot that would leave **zero** users/roles able to manage RBAC — mirror role-matrix lockout spirit for **effective** manager access (at least one manager with effective `rbac.manage`) | Cannot lock all managers out via deny |
-| D5 | Wire server actions under `app/(panels)/manager/users/` (or dedicated rbac-user actions) with toast messages | Action + toast keys |
-| D6 | Role-change path in `updateManagerUser`: detect `previousRole !== role`; compute private sets; if non-empty, require explicit `keepPrivatePermissions: boolean` from client (dialog); apply keep or hard-delete; audit keep/clear | Role change without flag fails when privates exist |
-| D7 | When privates empty (or only redundant allows ⊆ new role): auto-prune redundant allows; no dialog | Edit user saves without extra step |
+| D1 | Service `getUserAccessBreakdown(actor, userId)` → `{ role, roleKeys, overlayRows, effectiveKeys }` | Manager can read breakdown ✅ |
+| D2 | Service `replaceUserPermissionsForManager(actor, userId, rows)` — assert `actor.role === manager` (and `rbac.manage`); validate keys ∈ catalog; full snapshot replace; `granted_by = actor`; `clearCachedSessionShell(userId)` | Non-manager denied ✅ |
+| D3 | Audit on replace: `table_name: "user_permissions"`, `record_id: userId`, `old_data` / `new_data` = overlay snapshots, `severity: "warning"`, metadata note | Visible in audit UI ✅ |
+| D4 | `rbac.manage` lockout: refuse snapshot that would leave **zero** managers with effective `rbac.manage` | Cannot lock all managers out via deny ✅ |
+| D5 | Wire server actions under `app/(panels)/manager/users/` with toast messages | Action + toast key ✅ |
+| D6 | Role-change path in `updateManagerUser`: detect `previousRole !== role`; compute private sets; if non-empty, require explicit `keepPrivatePermissions`; apply keep or hard-delete; audit keep/clear | Role change without flag fails when privates exist ✅ |
+| D7 | When privates empty (or only redundant allows ⊆ new role): auto-prune redundant allows; no dialog | Edit user saves without extra step ✅ |
 
-**Status:** Planned.
+**Status:** Implemented in repo (2026-09-14). UI dialog/editor for overlay + keep-private confirm is Phase E.
+
+**API surface**
+
+- `services/auth/user-permissions.service.ts` — breakdown, replace, classify/plan/commit role-change overlay
+- Actions: `replaceUserPermissionsAction`, `getUserAccessBreakdownAction`; `updateUserAction` returns `requiresKeepPrivateDecision`
+- Toast key: `TOAST_MESSAGES.success.user_permissions_updated`
 
 ---
 

@@ -2263,6 +2263,66 @@ export type Database = {
           },
         ]
       }
+      subject_categories: {
+        Row: {
+          category_id: string
+          subject_id: string
+        }
+        Insert: {
+          category_id: string
+          subject_id: string
+        }
+        Update: {
+          category_id?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subject_categories_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subject_exercises: {
+        Row: {
+          exercise_id: string
+          subject_id: string
+        }
+        Insert: {
+          exercise_id: string
+          subject_id: string
+        }
+        Update: {
+          exercise_id?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subject_exercises_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subjects: {
         Row: {
           created_at: string | null
@@ -3205,6 +3265,13 @@ export type Database = {
       exercise_level: "easy" | "medium" | "hard"
       exercise_status: "draft" | "active" | "archived"
     }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 

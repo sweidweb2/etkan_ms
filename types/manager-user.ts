@@ -33,4 +33,5 @@ export type UpdateManagerUserActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   user?: ManagerUserRow;
+  requiresKeepPrivateDecision?: boolean;
 };
