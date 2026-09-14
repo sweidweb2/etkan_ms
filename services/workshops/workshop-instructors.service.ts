@@ -9,7 +9,9 @@ import {
   removeWorkshopInstructorSchema,
   updateWorkshopInstructorSchema,
 } from "@/lib/validators/manager/workshop-instructor";
+import * as profileRepository from "@/repositories/profile.repository";
 import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
+import type { WorkshopInstructorWithProfileRecord } from "@/repositories/workshop-instructor.repository";
 import * as workshopRepository from "@/repositories/workshop.repository";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
