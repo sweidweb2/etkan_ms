@@ -1,7 +1,7 @@
 "use client";
 
 import { DetailField } from "@/components/manager/shared/detail-field";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon } from "lucide-react";
 import {
