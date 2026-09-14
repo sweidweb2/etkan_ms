@@ -18,14 +18,16 @@
 
 | Previous | Current |
 |----------|---------|
-| Allow **and** deny overlays | **Allow-only** (`effect = 'allow'`) |
+| Allow **and** deny overlays | **Allow keys only** (no `effect` column) |
 | Effective `(role ∪ allow) − deny` | Effective `role ∪ allow` |
 | Role change → keep/discard dialog | Role change → **always clear** private overlay |
 | `/manager/rbac/private` Manage private page | Removed; edit under **Manage users** only |
 | Snapshot may store role-redundant allows | **Strip** redundant allows on save |
+| `rbac.manage` overlay lockout | **Removed** |
+| Role / private / effective breakdown UI | **Extras multi-select** only |
 
-Migration: `20260919120000_user_permissions_allow_only.sql`  
-Modules: `lib/auth/user-permission-overlay.ts`, `services/auth/permission-load.ts`, `services/auth/user-permissions-lockout.ts`, `services/auth/user-permissions.service.ts`
+Migrations: `20260919120000_user_permissions_allow_only.sql`, `20260920120000_user_permissions_drop_effect.sql`  
+Modules: `lib/auth/permission-checks.ts` (`mergePermissionSets`, `normalizeAllowKeys`, `stripRedundantAllows`), `services/auth/permission-load.ts`, `services/auth/user-permissions.service.ts`
 
 ---
 
@@ -53,14 +55,15 @@ Modules: `lib/auth/user-permission-overlay.ts`, `services/auth/permission-load.t
 4. **Role change clears overlays.** On role change, hard-delete that user’s overlay rows (no keep dialog).
 5. **Only manager role** may create/update/delete user overlays. Manager is full-access for the catalog.
 6. **Audit log** required for overlay replaces and for role-change clear outcomes (`recordManagerAuditLog`).
-7. **Schema:** `user_permissions` with hard delete; save is a **full snapshot replace** of that user’s allow rows; unique `(user_id, permission_key)`; `effect` constrained to `'allow'`.
+7. **Schema:** `user_permissions` with hard delete; save is a **full snapshot replace** of that user’s allow keys; unique `(user_id, permission_key)`; no `effect` column.
 8. **Single resolution rule** used by session pack, route permission gates, and `assertPermission` / `getUserPermissions*`.
 9. **Caches:** keep 15m role-permission cache; on overlay change clear **that user’s** session shell; on role-matrix change keep today’s global shell + role-cache clear.
-10. **Admin UX:** manage overlays from **user details + Manage users**; show **from role / private allow / effective**; lockout rules for `rbac.manage` apply to effective access.
+10. **Admin UX:** manage overlays from **user details + Manage users** as a **private extras multi-select** (keys beyond role).
 11. **UBAC does not bypass panel role.** Teacher/student with extra manager-only keys still cannot enter `/manager` unless their **role** allows that panel.
 12. **No dynamic / permission-mirrored RLS** for this work.
 13. **Prefer new roles** when the same extras become common; UBAC is for exceptions.
 14. **Strip redundant allows** on every overlay save.
+15. **No overlay `rbac.manage` lockout** (role-matrix lockout in RBAC UI may still exist separately).
 
 ---
 
@@ -70,7 +73,7 @@ Modules: `lib/auth/user-permission-overlay.ts`, `services/auth/permission-load.t
 
 ```text
 role_keys     = role_permissions[profiles.role]
-user_allows   = user_permissions where effect = 'allow'
+user_allows   = user_permissions keys for that user
 
 effective     = role_keys ∪ user_allows
 ```
@@ -169,7 +172,7 @@ user_permissions (
 
 **Status:** Implemented in repo (2026-09-14). Apply with `npx supabase db push` (or your usual migrate path), then smoke that the table exists.
 
-**Repo API:** `listUserPermissionRows`, `replaceUserPermissions`, `deleteUserPermissions`, `deleteUserPermissionKeys`; `deletePermissionsNotInKeys` also clears orphan `user_permissions`.
+**Repo API:** `listUserPermissionRows`, `replaceUserPermissions`, `deleteUserPermissions`; `deletePermissionsNotInKeys` also clears orphan `user_permissions`.
 
 ---
 
@@ -179,7 +182,7 @@ user_permissions (
 
 | ID | Task | Done when |
 |----|------|-----------|
-| C1 | Pure helper: `mergePermissionSets({ roleKeys, allows, denies })` → `ReadonlySet<PermissionKey>` (+ unit tests: allow beyond role, deny beats role, deny beats allow) | Tests green ✅ `lib/auth/permission-checks.ts` |
+| C1 | Pure helper: `mergePermissionSets({ roleKeys, allows })` → `ReadonlySet<PermissionKey>` (+ unit tests: allow beyond role) | Tests green ✅ `lib/auth/permission-checks.ts` (deny branch removed in allow-only revision) |
 | C2 | Extend permission load path: on session MISS / `getUserPermissions*`, load role keys **and** user overlay rows, then merge | `getUserPermissionsCached` returns effective ✅ |
 | C3 | Parallel MISS path: today profile ∥ role-perms; add user-overlay fetch (parallel with those when `userId` known) | Pack still correct; no role-only leak ✅ via `getEffectivePermissionsForUserCached` |
 | C4 | Session shell continues to store `permissionKeys` as **effective** only (UI/route gates unchanged callers) | HIT serves effective ✅ |

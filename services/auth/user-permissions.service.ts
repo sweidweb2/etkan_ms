@@ -1,11 +1,8 @@
-import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
-import { mergePermissionSets } from "@/lib/auth/permission-checks";
 import {
   normalizeAllowKeys,
-  overlaySnapshot,
   stripRedundantAllows,
-  toOverlayAllowRows,
-} from "@/lib/auth/user-permission-overlay";
+} from "@/lib/auth/permission-checks";
+import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import {
   isPermissionKey,
   PERMISSIONS,
@@ -23,7 +20,6 @@ import {
   loadRolePermissionKeys,
   loadUserAllowKeys,
 } from "@/services/auth/permission-load";
-import { wouldRetainManagerEffectiveRbacManage } from "@/services/auth/user-permissions-lockout";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -33,32 +29,19 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-export type OverlayRowInput = {
-  permission_key: PermissionKey;
-  effect: "allow";
-};
-
 export type UserAccessBreakdown = {
   userId: string;
   role: RoleValue;
   roleKeys: PermissionKey[];
-  overlayRows: Array<{
-    permission_key: PermissionKey;
-    effect: "allow";
-    granted_by: string | null;
-    created_at: string;
-  }>;
-  effectiveKeys: PermissionKey[];
+  allowKeys: PermissionKey[];
 };
 
 export type ReplaceUserPermissionsResult =
-  | { success: true; message: string; rows: OverlayRowInput[] }
+  | { success: true; message: string; allowKeys: PermissionKey[] }
   | { success: false; error: string };
 
 const MANAGER_ONLY_MESSAGE =
   "Only managers can manage user permission overlays.";
-const RBAC_MANAGER_LOCKOUT_MESSAGE =
-  "Cannot save: at least one manager must keep effective rbac.manage access.";
 
 async function requireManagerActor(
   adminClient: Supabase,
@@ -93,35 +76,6 @@ async function requireManagerActor(
   return null;
 }
 
-async function loadOverlayRows(
-  adminClient: Supabase,
-  userId: string
-): Promise<UserAccessBreakdown["overlayRows"]> {
-  const { data, error } = await permissionRepository.listUserPermissionRows(
-    adminClient,
-    userId
-  );
-  if (error || !data) {
-    return [];
-  }
-
-  const rows: UserAccessBreakdown["overlayRows"] = [];
-  for (const row of data) {
-    if (row.effect !== "allow" || !isPermissionKey(row.permission_key)) {
-      continue;
-    }
-    rows.push({
-      permission_key: row.permission_key,
-      effect: "allow",
-      granted_by: row.granted_by,
-      created_at: row.created_at,
-    });
-  }
-  return rows.sort((a, b) =>
-    a.permission_key.localeCompare(b.permission_key)
-  );
-}
-
 export async function getUserAccessBreakdown(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -146,23 +100,16 @@ export async function getUserAccessBreakdown(
   }
 
   const role = parsedRole.data;
-  const [roleKeys, overlayRows] = await Promise.all([
+  const [roleKeys, allowKeys] = await Promise.all([
     loadRolePermissionKeys(adminClient, role),
-    loadOverlayRows(adminClient, userId),
+    loadUserAllowKeys(adminClient, userId),
   ]);
-  const effectiveKeys = [
-    ...mergePermissionSets({
-      roleKeys,
-      allows: overlayRows.map((row) => row.permission_key),
-    }),
-  ].sort();
 
   return {
     userId,
     role,
     roleKeys,
-    overlayRows,
-    effectiveKeys,
+    allowKeys: stripRedundantAllows(allowKeys, roleKeys),
   };
 }
 
@@ -171,7 +118,7 @@ export async function replaceUserPermissionsForManager(
   actorUserId: string | null,
   actor: AuditActor,
   userId: string,
-  rows: readonly { permission_key: string; effect?: string }[]
+  permissionKeys: readonly string[]
 ): Promise<ReplaceUserPermissionsResult> {
   const denied = await requireManagerActor(adminClient, actorUserId);
   if (denied) {
@@ -188,17 +135,11 @@ export async function replaceUserPermissionsForManager(
     return { success: false, error: "User not found." };
   }
 
-  for (const row of rows) {
-    if (!isPermissionKey(row.permission_key)) {
+  for (const key of permissionKeys) {
+    if (!isPermissionKey(key)) {
       return {
         success: false,
-        error: `Unknown permission key: ${row.permission_key}`,
-      };
-    }
-    if (row.effect !== undefined && row.effect !== "allow") {
-      return {
-        success: false,
-        error: "Only allow overlays are supported.",
+        error: `Unknown permission key: ${key}`,
       };
     }
   }
@@ -210,27 +151,17 @@ export async function replaceUserPermissionsForManager(
 
   const roleKeys = await loadRolePermissionKeys(adminClient, parsedRole.data);
   const nextAllowKeys = stripRedundantAllows(
-    normalizeAllowKeys(rows),
+    normalizeAllowKeys(permissionKeys),
     roleKeys
   );
-  const nextRows = toOverlayAllowRows(nextAllowKeys);
 
   const previousAllowKeys = await loadUserAllowKeys(adminClient, userId);
-
-  const retains = await wouldRetainManagerEffectiveRbacManage(
-    adminClient,
-    new Map([[userId, nextAllowKeys]])
-  );
-  if (!retains) {
-    return { success: false, error: RBAC_MANAGER_LOCKOUT_MESSAGE };
-  }
 
   const { error } = await permissionRepository.replaceUserPermissions(
     adminClient,
     userId,
-    nextRows.map((row) => ({
-      permission_key: row.permission_key,
-      effect: "allow" as const,
+    nextAllowKeys.map((permission_key) => ({
+      permission_key,
       granted_by: actorUserId,
     }))
   );
@@ -247,8 +178,8 @@ export async function replaceUserPermissionsForManager(
     severity: "warning",
     table_name: "user_permissions",
     record_id: userId,
-    old_data: overlaySnapshot(previousAllowKeys),
-    new_data: overlaySnapshot(nextAllowKeys),
+    old_data: { keys: previousAllowKeys },
+    new_data: { keys: nextAllowKeys },
     metadata: {
       note: "User permission overlay replaced.",
       target_role: profile.role,
@@ -260,14 +191,11 @@ export async function replaceUserPermissionsForManager(
   return {
     success: true,
     message: "User permissions updated.",
-    rows: nextRows,
+    allowKeys: nextAllowKeys,
   };
 }
 
-/**
- * On role change, hard-clear the user's private allow overlay.
- * Caller must enforce manager rbac.manage lockout before demoting.
- */
+/** On role change, hard-clear the user's private allow overlay. */
 export async function clearUserOverlayAfterRoleChange(
   adminClient: Supabase,
   actor: AuditActor,
@@ -305,8 +233,8 @@ export async function clearUserOverlayAfterRoleChange(
     severity: "warning",
     table_name: "user_permissions",
     record_id: userId,
-    old_data: overlaySnapshot(previousAllowKeys),
-    new_data: overlaySnapshot([]),
+    old_data: { keys: previousAllowKeys },
+    new_data: { keys: [] },
     metadata: {
       note: "Role changed; private permissions cleared.",
       previous_role: previousRole,
@@ -317,5 +245,3 @@ export async function clearUserOverlayAfterRoleChange(
   clearCachedSessionShell(userId);
   return { success: true };
 }
-
-export { wouldRetainManagerEffectiveRbacManage } from "@/services/auth/user-permissions-lockout";

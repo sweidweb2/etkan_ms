@@ -48,27 +48,7 @@ describe("getUserAccessBreakdown", () => {
     mockActorIsManager();
   });
 
-  it("rejects non-manager actors", async () => {
-    vi.mocked(profileRepository.findRoleById).mockResolvedValue({
-      data: { role: ROLES.CO_MANAGER },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    const result = await getUserAccessBreakdown(
-      adminClient,
-      actor.userId,
-      "user-1"
-    );
-
-    expect(result).toEqual({
-      error: "Only managers can manage user permission overlays.",
-    });
-  });
-
-  it("returns role, overlay, and effective keys", async () => {
+  it("returns role keys and private allow keys (ignores role-covered)", async () => {
     vi.mocked(profileRepository.findProfileById).mockResolvedValue({
       data: {
         id: "user-1",
@@ -77,7 +57,7 @@ describe("getUserAccessBreakdown", () => {
         is_instructor: false,
         is_mentor: false,
         created_at: "2026-01-01",
-      },
+      } as never,
       error: null,
       count: null,
       status: 200,
@@ -95,14 +75,12 @@ describe("getUserAccessBreakdown", () => {
         {
           user_id: "user-1",
           permission_key: PERMISSIONS.SUBJECTS_CREATE,
-          effect: "allow",
           granted_by: "manager-1",
           created_at: "2026-09-14T00:00:00.000Z",
         },
         {
           user_id: "user-1",
           permission_key: PERMISSIONS.SUBJECTS_VIEW,
-          effect: "deny",
           granted_by: "manager-1",
           created_at: "2026-09-14T00:00:00.000Z",
         },
@@ -119,23 +97,12 @@ describe("getUserAccessBreakdown", () => {
       "user-1"
     );
 
-    expect("error" in result).toBe(false);
-    if ("error" in result) return;
-
-    expect(result.role).toBe(ROLES.CO_MANAGER);
-    expect(result.roleKeys).toEqual([PERMISSIONS.SUBJECTS_VIEW]);
-    expect(result.overlayRows).toEqual([
-      {
-        permission_key: PERMISSIONS.SUBJECTS_CREATE,
-        effect: "allow",
-        granted_by: "manager-1",
-        created_at: "2026-09-14T00:00:00.000Z",
-      },
-    ]);
-    expect(result.effectiveKeys).toEqual([
-      PERMISSIONS.SUBJECTS_CREATE,
-      PERMISSIONS.SUBJECTS_VIEW,
-    ]);
+    expect(result).toMatchObject({
+      userId: "user-1",
+      role: ROLES.CO_MANAGER,
+      roleKeys: [PERMISSIONS.SUBJECTS_VIEW],
+      allowKeys: [PERMISSIONS.SUBJECTS_CREATE],
+    });
   });
 });
 
@@ -146,7 +113,7 @@ describe("replaceUserPermissionsForManager", () => {
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
   });
 
-  it("replaces overlay, audits, and clears the user shell", async () => {
+  it("strips role-covered keys, replaces, audits, clears shell", async () => {
     const { clearCachedSessionShell } = await import(
       "@/lib/auth/session-shell-cache"
     );
@@ -159,7 +126,14 @@ describe("replaceUserPermissionsForManager", () => {
         is_instructor: false,
         is_mentor: false,
         created_at: "2026-01-01",
-      },
+      } as never,
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    });
+    vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
+      data: [{ permission_key: PERMISSIONS.SUBJECTS_VIEW }],
       error: null,
       count: null,
       status: 200,
@@ -171,35 +145,6 @@ describe("replaceUserPermissionsForManager", () => {
       count: null,
       status: 200,
       statusText: "OK",
-    });
-    vi.mocked(permissionRepository.listPermissionKeysByRole).mockResolvedValue({
-      data: [{ permission_key: PERMISSIONS.RBAC_MANAGE }],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(profileRepository.listProfiles).mockResolvedValue({
-      data: [
-        {
-          id: "manager-1",
-          username: "mgr",
-          role: ROLES.MANAGER,
-          is_instructor: false,
-          is_mentor: false,
-          created_at: "2026-01-01",
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-    vi.mocked(
-      permissionRepository.listUserPermissionRowsForUsers
-    ).mockResolvedValue({
-      data: [],
-      error: null,
     });
     vi.mocked(permissionRepository.replaceUserPermissions).mockResolvedValue({
       data: [],
@@ -214,7 +159,7 @@ describe("replaceUserPermissionsForManager", () => {
       actor.userId,
       actor,
       "user-1",
-      [{ permission_key: PERMISSIONS.SUBJECTS_VIEW, effect: "allow" }]
+      [PERMISSIONS.SUBJECTS_VIEW, PERMISSIONS.SUBJECTS_CREATE]
     );
 
     expect(result.success).toBe(true);
@@ -223,45 +168,13 @@ describe("replaceUserPermissionsForManager", () => {
       "user-1",
       [
         {
-          permission_key: PERMISSIONS.SUBJECTS_VIEW,
-          effect: "allow",
+          permission_key: PERMISSIONS.SUBJECTS_CREATE,
           granted_by: actor.userId,
         },
       ]
     );
     expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
     expect(clearCachedSessionShell).toHaveBeenCalledWith("user-1");
-  });
-
-  it("rejects deny overlays", async () => {
-    vi.mocked(profileRepository.findProfileById).mockResolvedValue({
-      data: {
-        id: "manager-1",
-        username: "mgr",
-        role: ROLES.MANAGER,
-        is_instructor: false,
-        is_mentor: false,
-        created_at: "2026-01-01",
-      },
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    const result = await replaceUserPermissionsForManager(
-      adminClient,
-      actor.userId,
-      actor,
-      "manager-1",
-      [{ permission_key: PERMISSIONS.RBAC_MANAGE, effect: "deny" }]
-    );
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/Only allow overlays are supported/);
-    }
-    expect(permissionRepository.replaceUserPermissions).not.toHaveBeenCalled();
   });
 });
 
@@ -276,7 +189,6 @@ describe("clearUserOverlayAfterRoleChange", () => {
         {
           user_id: "user-1",
           permission_key: PERMISSIONS.SUBJECTS_CREATE,
-          effect: "allow",
           granted_by: null,
           created_at: "2026-09-14T00:00:00.000Z",
         },
@@ -305,25 +217,5 @@ describe("clearUserOverlayAfterRoleChange", () => {
       adminClient,
       "user-1"
     );
-    expect(auditLogService.recordManagerAuditLog).toHaveBeenCalled();
-  });
-
-  it("no-ops when there are no private allows", async () => {
-    vi.mocked(permissionRepository.listUserPermissionRows).mockResolvedValue({
-      data: [],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    const result = await clearUserOverlayAfterRoleChange(adminClient, actor, {
-      userId: "user-1",
-      previousRole: ROLES.TEACHER,
-      newRole: ROLES.CO_MANAGER,
-    });
-
-    expect(result).toEqual({ success: true });
-    expect(permissionRepository.deleteUserPermissions).not.toHaveBeenCalled();
   });
 });

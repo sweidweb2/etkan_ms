@@ -1,7 +1,7 @@
 import { ROUTES } from "@/lib/constants/routes";
 import type { PanelNavItem, PanelNavigation } from "@/types/panel";
 
-/** Shared across roles; filtered by `workshops.view` + `is_instructor`. */
+/** Shared across roles; filtered by `workshops.view` + instructor/mentor flag. */
 const MANAGE_WORKSHOPS_NAV_ITEM: PanelNavItem = {
   title: "Manage workshops",
   href: ROUTES.MANAGER_WORKSHOPS,
@@ -257,8 +257,8 @@ export const CEO_PANEL_NAVIGATION: PanelNavigation = {
 /** @deprecated Use `CEO_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const CEO_PANEL_NAV: PanelNavItem[] = CEO_PANEL_NAVIGATION.items!;
 
-/** CRM: guests only (shared `/manager/guests*` routes). */
-export const CRM_PANEL_NAVIGATION: PanelNavigation = {
+/** CRM: guests (+ Manage workshops when instructor/mentor + workshops.view). */
+export const CRM_PANEL_NAVIGATION = withManageWorkshops({
   items: [
     {
       title: "Guests",
@@ -266,7 +266,7 @@ export const CRM_PANEL_NAVIGATION: PanelNavigation = {
       icon: "user-plus",
     },
   ],
-};
+});
 
 /** @deprecated Use `CRM_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const CRM_PANEL_NAV: PanelNavItem[] = CRM_PANEL_NAVIGATION.items!;
@@ -409,8 +409,8 @@ export const TEACHER_PANEL_NAVIGATION: PanelNavigation = withManageWorkshops({
 /** @deprecated Use `TEACHER_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const TEACHER_PANEL_NAV: PanelNavItem[] = TEACHER_PANEL_NAVIGATION.items!;
 
-/** Student panel: profile, classes, payments. */
-export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
+/** Student panel: profile, classes, payments (+ workshops when instructor/mentor). */
+export const STUDENT_PANEL_NAVIGATION = withManageWorkshops({
   items: [
     {
       title: "My profile",
@@ -428,7 +428,7 @@ export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
       icon: "calculator",
     },
   ],
-};
+});
 
 /** @deprecated Use `STUDENT_PANEL_NAVIGATION` — kept for flatten/search helpers. */
 export const STUDENT_PANEL_NAV: PanelNavItem[] = STUDENT_PANEL_NAVIGATION.items!;

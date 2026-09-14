@@ -127,16 +127,6 @@ export async function replaceUserPermissionsAction(
   }
 
   const permissionKeys = formData.getAll("permissionKey").map(String);
-  const effects = formData.getAll("effect").map(String);
-
-  if (permissionKeys.length !== effects.length) {
-    return { success: false, error: "Invalid permission overlay payload." };
-  }
-
-  const rows = permissionKeys.map((permission_key, index) => ({
-    permission_key,
-    effect: effects[index] ?? "",
-  }));
 
   const adminClient = createSupabaseAdminClient();
   const result = await replaceUserPermissionsForManager(
@@ -144,7 +134,7 @@ export async function replaceUserPermissionsAction(
     actor.userId,
     actor,
     userId,
-    rows
+    permissionKeys
   );
 
   if (!result.success) {

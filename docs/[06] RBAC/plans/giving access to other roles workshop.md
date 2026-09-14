@@ -13,7 +13,7 @@
    - Detail: `/manager/workshops/[id]`
    - Payments overview: `/manager/workshops/payments` (gated separately)
 2. Sidebar shows **Manage workshops** only when **both**:
-   - profile `is_instructor === true`
+   - profile `is_instructor === true` **or** `is_mentor === true`
    - user has `workshops.view`
 3. List page action menu items are permission-gated (create / schedules / total payments).
 4. Detail page **7 sections** show/hide by permission (not only action buttons inside them).
@@ -66,11 +66,12 @@
 Show **Manage workshops** → `ROUTES.MANAGER_WORKSHOPS` when:
 
 ```
-is_instructor === true
+(is_instructor === true OR is_mentor === true)
 AND hasPermission(workshops.view)
 ```
 
-Applies to **every role** (admin, manager, co-manager, ceo, teacher, trainer, student).
+Applies to **every role** (admin, manager, co-manager, ceo, teacher, student, crm).
+Assigning either attribute also syncs a personal readonly UBAC overlay (`workshops.view` + `instructor_schedules.view`) for that user; clearing both attributes revokes those overlay keys.
 
 ### 4.2 Shared routes (allowlist)
 

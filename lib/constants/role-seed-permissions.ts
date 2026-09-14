@@ -12,7 +12,9 @@ import { ROLES, type RoleValue } from "@/lib/constants/roles";
  * and supervisor).
  * Sessions/documents CRUD + workshop/instructor/schedule reads.
  * Does not include workshops.payments.view.
- * Cross-role UI uses shared `/manager/workshops*` routes when `is_instructor` + view.
+ * Cross-role UI uses shared `/manager/workshops*` when
+ * (`is_instructor` or `is_mentor`) + view. Attribute assign also syncs a
+ * personal readonly overlay (`workshops.view` + `instructor_schedules.view`).
  */
 export const WORKSHOP_ACCESS_SEED_PERMISSIONS = [
   PERMISSIONS.WORKSHOPS_VIEW,

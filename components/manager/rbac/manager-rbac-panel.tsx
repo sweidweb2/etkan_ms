@@ -274,9 +274,8 @@ export function ManagerRbacPanel({
           request.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Per-user private allows are edited under Manage users (user details).
-          Effective access = role ∪ private allows. Changing a user’s role
-          clears their private overlay.
+          Per-user private extras are edited under Manage users. Effective access
+          = role ∪ private extras. Changing a user’s role clears their extras.
         </p>
       </div>
 

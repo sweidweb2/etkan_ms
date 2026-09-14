@@ -158,6 +158,7 @@ export async function login(
       profileResult.data?.username ?? null
     ),
     isInstructor: profileResult.data?.is_instructor === true,
+    isMentor: profileResult.data?.is_mentor === true,
     permissionKeys: [...permissions],
     cachedClaimsRole: claimsRole,
   });

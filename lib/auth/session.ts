@@ -13,6 +13,7 @@ import {
   setCachedSessionShell,
   type SessionShellPayload,
 } from "@/lib/auth/session-shell-cache";
+import { canAccessManageWorkshops } from "@/lib/auth/workshop-attribute-access";
 import {
   isNavTimingEnabled,
   navTimingServerLog,
@@ -36,6 +37,7 @@ export type SessionPack = {
   role: RoleValue | null;
   displayName: string;
   isInstructor: boolean;
+  isMentor: boolean;
   permissions: ReadonlySet<PermissionKey>;
 };
 
@@ -44,6 +46,7 @@ const EMPTY_SESSION_PACK: SessionPack = {
   role: null,
   displayName: "User",
   isInstructor: false,
+  isMentor: false,
   permissions: EMPTY_PERMISSIONS,
 };
 
@@ -135,6 +138,7 @@ async function buildSessionShell(
   }
 
   const isInstructor = profile?.is_instructor === true;
+  const isMentor = profile?.is_mentor === true;
 
   let displayName = displayNameFromAuthUser(user, profile?.username ?? null);
 
@@ -158,6 +162,7 @@ async function buildSessionShell(
     role,
     displayName,
     isInstructor,
+    isMentor,
     permissionKeys: [...permissions],
     cachedClaimsRole: claimsRole,
   };
@@ -175,6 +180,7 @@ function packFromShell(
     role: shell.role,
     displayName: shell.displayName,
     isInstructor: shell.isInstructor,
+    isMentor: shell.isMentor,
     permissions: permissionsFromKeys(shell.permissionKeys),
   };
 }
@@ -281,6 +287,18 @@ export async function getSessionRole(): Promise<RoleValue | null> {
 
 export async function getSessionIsInstructor(): Promise<boolean> {
   return (await getSessionPack()).isInstructor;
+}
+
+export async function getSessionIsMentor(): Promise<boolean> {
+  return (await getSessionPack()).isMentor;
+}
+
+export async function getSessionCanAccessManageWorkshops(): Promise<boolean> {
+  const pack = await getSessionPack();
+  return canAccessManageWorkshops({
+    isInstructor: pack.isInstructor,
+    isMentor: pack.isMentor,
+  });
 }
 
 export async function getSessionDisplayName(): Promise<string> {

@@ -235,7 +235,6 @@ describe("authorization.service", () => {
         {
           user_id: userId,
           permission_key: PERMISSIONS.SUBJECTS_VIEW,
-          effect: "allow",
           granted_by: null,
           created_at: "2026-09-14T00:00:00.000Z",
         },
@@ -252,30 +251,5 @@ describe("authorization.service", () => {
     expect(
       await hasPermission(client, userId, PERMISSIONS.SUBJECTS_VIEW)
     ).toBe(true);
-  });
-
-  it("ignores non-allow overlay rows when loading effective permissions", async () => {
-    const userId = "44444444-4444-4444-8444-444444444402";
-    mockManagerGrants();
-    vi.mocked(permissionRepository.listUserPermissionRows).mockResolvedValue({
-      data: [
-        {
-          user_id: userId,
-          permission_key: PERMISSIONS.SUBJECTS_CREATE,
-          effect: "deny" as "allow",
-          granted_by: null,
-          created_at: "2026-09-14T00:00:00.000Z",
-        },
-      ],
-      error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
-    });
-
-    const permissions = await getUserPermissions(client, userId);
-
-    expect(permissions.has(PERMISSIONS.SUBJECTS_VIEW)).toBe(true);
-    expect(permissions.has(PERMISSIONS.SUBJECTS_CREATE)).toBe(true);
   });
 });

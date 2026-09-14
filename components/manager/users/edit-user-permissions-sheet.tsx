@@ -2,6 +2,7 @@
 
 import {
   useActionState,
+  useEffect,
   useMemo,
   useState,
   useTransition,
@@ -35,8 +36,6 @@ import type { UserAccessBreakdown } from "@/services/auth/user-permissions.servi
 
 const initialState: ReplaceUserPermissionsActionState = {};
 
-type OverlayEffect = "default" | "allow";
-
 type EditUserPermissionsSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,24 +44,6 @@ type EditUserPermissionsSheetProps = {
   breakdown: UserAccessBreakdown | null;
   onSaved: (breakdown: UserAccessBreakdown) => void;
 };
-
-function effectFromBreakdown(
-  breakdown: UserAccessBreakdown | null
-): Record<PermissionKey, OverlayEffect> {
-  const next = {} as Record<PermissionKey, OverlayEffect>;
-  for (const definition of PERMISSION_DEFINITIONS) {
-    next[definition.key] = "default";
-  }
-  if (!breakdown) {
-    return next;
-  }
-  for (const row of breakdown.overlayRows) {
-    if (row.effect === "allow") {
-      next[row.permission_key] = "allow";
-    }
-  }
-  return next;
-}
 
 export function EditUserPermissionsSheet({
   open,
@@ -80,24 +61,19 @@ export function EditUserPermissionsSheet({
   const isPending = isActionPending || isTransitionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
-  const [effects, setEffects] = useState(() => effectFromBreakdown(breakdown));
+  const [selected, setSelected] = useState<Set<PermissionKey>>(
+    () => new Set(breakdown?.allowKeys ?? [])
+  );
   const [searchQuery, setSearchQuery] = useState("");
-  const [syncedKey, setSyncedKey] = useState<string | null>(null);
-
-  const nextKey = open
-    ? `open:${userId}:${breakdown?.overlayRows
-        .map((row) => row.permission_key)
-        .join("|") ?? "none"}`
-    : null;
-  if (nextKey !== syncedKey) {
-    setSyncedKey(nextKey);
-    if (open) {
-      setEffects(effectFromBreakdown(breakdown));
-      setSearchQuery("");
-    }
-  }
 
   useActionStateToast(state, isPending);
+
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(breakdown?.allowKeys ?? []));
+      setSearchQuery("");
+    }
+  }, [open, breakdown]);
 
   useActionStateSuccess(state, isPending, () => {
     if (!breakdown) {
@@ -106,26 +82,13 @@ export function EditUserPermissionsSheet({
     }
 
     const roleSet = new Set(breakdown.roleKeys);
-    const allowKeys = (
-      Object.entries(effects) as [PermissionKey, OverlayEffect][]
-    )
-      .filter(([, effect]) => effect === "allow")
-      .map(([permission_key]) => permission_key)
-      .filter((key) => !roleSet.has(key));
-
-    const overlayRows = allowKeys.map((permission_key) => ({
-      permission_key,
-      effect: "allow" as const,
-      granted_by: null,
-      created_at: new Date().toISOString(),
-    }));
-
-    const effective = new Set<PermissionKey>([...roleSet, ...allowKeys]);
+    const allowKeys = [...selected]
+      .filter((key) => !roleSet.has(key))
+      .sort();
 
     onSaved({
       ...breakdown,
-      overlayRows,
-      effectiveKeys: [...effective].sort(),
+      allowKeys,
     });
     onOpenChange(false);
   });
@@ -145,6 +108,9 @@ export function EditUserPermissionsSheet({
         if (definition.feature !== feature) {
           return false;
         }
+        if (roleSet.has(definition.key)) {
+          return false;
+        }
         if (!normalizedSearch) {
           return true;
         }
@@ -153,26 +119,26 @@ export function EditUserPermissionsSheet({
         return haystack.includes(normalizedSearch);
       }),
     })).filter((group) => group.definitions.length > 0);
-  }, [normalizedSearch]);
+  }, [normalizedSearch, roleSet]);
 
-  function setEffect(key: PermissionKey, effect: OverlayEffect) {
-    setEffects((prev) => ({ ...prev, [key]: effect }));
+  function toggleKey(key: PermissionKey) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   }
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData();
     formData.set("userId", userId);
-
-    for (const [key, effect] of Object.entries(effects) as [
-      PermissionKey,
-      OverlayEffect,
-    ][]) {
-      if (effect !== "allow") {
-        continue;
-      }
+    for (const key of selected) {
       formData.append("permissionKey", key);
-      formData.append("effect", "allow");
     }
 
     startTransition(() => {
@@ -188,11 +154,10 @@ export function EditUserPermissionsSheet({
         showCloseButton={!isPending}
       >
         <SheetHeader>
-          <SheetTitle>Private permissions</SheetTitle>
+          <SheetTitle>Private extras</SheetTitle>
           <SheetDescription>
-            Overlay for {userLabel}. Default follows the role; Allow adds a
-            grant beyond the role. Redundant allows already on the role are
-            dropped on save.
+            Extra permissions for {userLabel}, beyond their role. Keys already
+            on the role are hidden.
           </SheetDescription>
         </SheetHeader>
 
@@ -212,63 +177,49 @@ export function EditUserPermissionsSheet({
           />
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
-            {grouped.map((group) => (
-              <section key={group.feature} className="space-y-2">
-                <h3 className="text-sm font-medium">{group.label}</h3>
-                <ul className="divide-y rounded-lg border">
-                  {group.definitions.map((definition) => {
-                    const effect = effects[definition.key] ?? "default";
-                    const onRole = roleSet.has(definition.key);
-
-                    return (
-                      <li
-                        key={definition.key}
-                        className="flex flex-col gap-2 px-3 py-2.5"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium">
-                            {definition.label}
-                          </p>
-                          <p className="font-mono text-xs text-muted-foreground">
-                            {definition.key}
-                            {onRole ? " · on role" : ""}
-                          </p>
-                        </div>
-                        <div
-                          className="inline-flex rounded-lg border p-0.5"
-                          role="group"
-                          aria-label={`Effect for ${definition.label}`}
-                        >
-                          {(
-                            [
-                              ["default", "Default"],
-                              ["allow", "Allow"],
-                            ] as const
-                          ).map(([value, label]) => (
-                            <button
-                              key={value}
-                              type="button"
+            {grouped.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No extra permissions available
+                {normalizedSearch ? " for this search" : " beyond this role"}.
+              </p>
+            ) : (
+              grouped.map((group) => (
+                <section key={group.feature} className="space-y-2">
+                  <h3 className="text-sm font-medium">{group.label}</h3>
+                  <ul className="divide-y rounded-lg border">
+                    {group.definitions.map((definition) => {
+                      const checked = selected.has(definition.key);
+                      return (
+                        <li key={definition.key}>
+                          <label
+                            className={cn(
+                              "flex cursor-pointer items-start gap-3 px-3 py-2.5",
+                              isPending && "cursor-not-allowed opacity-60"
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-1 size-4 rounded border"
+                              checked={checked}
                               disabled={isPending}
-                              onClick={() => setEffect(definition.key, value)}
-                              className={cn(
-                                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                                effect === value
-                                  ? value === "allow"
-                                    ? "bg-emerald-600 text-white"
-                                    : "bg-primary text-primary-foreground"
-                                  : "text-muted-foreground hover:bg-muted"
-                              )}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
+                              onChange={() => toggleKey(definition.key)}
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium">
+                                {definition.label}
+                              </span>
+                              <span className="block font-mono text-xs text-muted-foreground">
+                                {definition.key}
+                              </span>
+                            </span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))
+            )}
           </div>
         </form>
 
@@ -287,7 +238,7 @@ export function EditUserPermissionsSheet({
             disabled={isPending || !breakdown}
           >
             {isPending ? <InlineSpinner data-icon="inline-start" /> : null}
-            Save overlay
+            Save extras
           </Button>
         </SheetFooter>
       </SheetContent>

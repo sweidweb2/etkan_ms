@@ -95,24 +95,24 @@ Without the matching write/export permission:
 
 ---
 
-## F — UBAC overlays (RBAC + private allows)
+## F — UBAC overlays (RBAC + private extras)
 
-Prerequisites: migration `user_permissions` (+ allow-only revision) applied; actor is **manager** with `rbac.manage`.
+Prerequisites: `user_permissions` migrations applied (incl. drop `effect`); actor is **manager** with `rbac.manage`.
 
 ### Allow beyond role
 
 1. Pick a co-manager (or other manager-panel user) whose **role** lacks `guests.create`.
-2. Manage users → Permissions → set `guests.create` to **Allow** → save.
+2. Manage users → Private extras → check `guests.create` → save.
 3. Log in as that user (or soft-nav after shell bust).
 
 - [ ] Guests nav / create control visible (`Can` / nav filter use effective keys)
 - [ ] Creating a guest succeeds on the server (`assertPermission`)
 - [ ] Teacher/student with the same private allow still **cannot** open `/manager` (middleware role-only)
-- [ ] Saving an allow already on the role stores no overlay row for that key
+- [ ] Keys already on the role do not appear in the extras picker
 
 ### Role change clears overlays
 
-- [ ] Changing role with leftover private allows clears those overlays (no keep/discard dialog)
+- [ ] Changing role with leftover private extras clears those rows (no keep/discard dialog)
 - [ ] Effective access follows the new role only after change
 
 Restore test overlays when done.

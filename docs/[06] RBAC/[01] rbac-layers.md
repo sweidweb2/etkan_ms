@@ -16,7 +16,7 @@ What we store:
 - **Permissions** — named actions (e.g. view grades, edit students)  
 - **Role ↔ Permission** — which actions each role may perform (baseline RBAC)  
 - **User ↔ Role** — which role each person has (one role per user today)  
-- **User ↔ Permission overlay (UBAC)** — optional per-user **allow** rows on top of the role  
+- **User ↔ Permission overlay (UBAC)** — optional per-user **allow keys** on top of the role  
 
 This is the source of truth. Everything else reads from here.
 
@@ -31,7 +31,7 @@ Flow:
 1. Who is the current user?  
 2. What **role** do they have?  
 3. What permissions does that role include?  
-4. Apply their **private overlay**: union **allows**  
+4. Apply their **private extras**: union **allow keys**  
 5. Allow or deny from the **effective** set  
 
 ```text

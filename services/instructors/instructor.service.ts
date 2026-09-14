@@ -10,6 +10,7 @@ import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
+import { syncWorkshopAttributeAccessOverlay } from "@/services/auth/workshop-attribute-access.service";
 import { SUBJECT_SCOPES } from "@/lib/constants/subject-scope";
 import { loadSubjectScopeData } from "@/services/subjects/subject-catalog.service";
 import { addInstructorsSchema } from "@/lib/validators/manager/add-instructors";
@@ -187,6 +188,21 @@ export async function removeInstructorForManager(
     return { success: false, error: profileError.message };
   }
 
+  const overlaySync = await syncWorkshopAttributeAccessOverlay(
+    adminClient,
+    actorUserId ? { userId: actorUserId, userLabel: "Manager" } : null,
+    {
+      userId: trimmedId,
+      previousIsInstructor: true,
+      previousIsMentor: existing.data.is_mentor === true,
+      nextIsInstructor: false,
+      nextIsMentor: existing.data.is_mentor === true,
+    }
+  );
+  if (!overlaySync.success) {
+    return { success: false, error: overlaySync.error };
+  }
+
   clearCachedSessionShell(trimmedId);
 
   return {
@@ -259,8 +275,25 @@ export async function addInstructorsForManager(
     return { success: false, error: updateError.message };
   }
 
-  for (const id of toPromote) {
-    clearCachedSessionShell(id);
+  for (const profile of profiles ?? []) {
+    if (profile.is_instructor) {
+      continue;
+    }
+    const overlaySync = await syncWorkshopAttributeAccessOverlay(
+      adminClient,
+      actorUserId ? { userId: actorUserId, userLabel: "Manager" } : null,
+      {
+        userId: profile.id,
+        previousIsInstructor: false,
+        previousIsMentor: profile.is_mentor === true,
+        nextIsInstructor: true,
+        nextIsMentor: profile.is_mentor === true,
+      }
+    );
+    if (!overlaySync.success) {
+      return { success: false, error: overlaySync.error };
+    }
+    clearCachedSessionShell(profile.id);
   }
 
   return {

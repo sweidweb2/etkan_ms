@@ -50,12 +50,10 @@ export function requirePermissionInSet(
 export type MergePermissionSetsInput = {
   roleKeys: Iterable<string>;
   allows?: Iterable<string>;
-  denies?: Iterable<string>;
 };
 
 /**
- * Effective permissions: `(role ∪ allows) − denies`.
- * Denies are optional (UBAC overlays are allow-only; denies unused by overlay path).
+ * Effective permissions: `role ∪ allows`.
  * Invalid keys are skipped.
  */
 export function mergePermissionSets(
@@ -77,13 +75,30 @@ export function mergePermissionSets(
     }
   }
 
-  if (input.denies) {
-    for (const key of input.denies) {
-      if (isPermissionKey(key)) {
-        effective.delete(key);
-      }
+  return effective;
+}
+
+/** Unique catalog keys from raw strings (sorted). */
+export function normalizeAllowKeys(
+  keys: readonly string[]
+): PermissionKey[] {
+  const unique = new Set<PermissionKey>();
+  for (const key of keys) {
+    if (isPermissionKey(key)) {
+      unique.add(key);
     }
   }
+  return [...unique].sort();
+}
 
-  return effective;
+/** Drop allows already covered by the role baseline (true privates only). */
+export function stripRedundantAllows(
+  allowKeys: readonly PermissionKey[],
+  roleKeys: ReadonlySet<PermissionKey> | readonly PermissionKey[]
+): PermissionKey[] {
+  const roleSet =
+    roleKeys instanceof Set
+      ? roleKeys
+      : new Set<PermissionKey>(roleKeys);
+  return allowKeys.filter((key) => !roleSet.has(key)).sort();
 }

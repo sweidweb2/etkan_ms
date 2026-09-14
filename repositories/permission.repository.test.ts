@@ -2,7 +2,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROLES } from "@/lib/constants/roles";
 import {
-  deleteUserPermissionKeys,
   deleteUserPermissions,
   listPermissionKeysByRole,
   listPermissions,
@@ -185,7 +184,6 @@ describe("permission.repository", () => {
       {
         user_id: userId,
         permission_key: PERMISSIONS.SUBJECTS_VIEW,
-        effect: "allow",
         granted_by: "manager-1",
         created_at: "2026-09-14T00:00:00.000Z",
       },
@@ -217,14 +215,12 @@ describe("permission.repository", () => {
         {
           user_id: userId,
           permission_key: PERMISSIONS.SUBJECTS_VIEW,
-          effect: "allow",
           granted_by: grantedBy,
           created_at: "2026-09-14T00:00:00.000Z",
         },
         {
           user_id: userId,
           permission_key: PERMISSIONS.SUBJECTS_CREATE,
-          effect: "allow",
           granted_by: grantedBy,
           created_at: "2026-09-14T00:00:00.000Z",
         },
@@ -242,12 +238,10 @@ describe("permission.repository", () => {
     const result = await replaceUserPermissions(client, userId, [
       {
         permission_key: PERMISSIONS.SUBJECTS_VIEW,
-        effect: "allow",
         granted_by: grantedBy,
       },
       {
         permission_key: PERMISSIONS.SUBJECTS_CREATE,
-        effect: "allow",
         granted_by: grantedBy,
       },
     ]);
@@ -257,13 +251,11 @@ describe("permission.repository", () => {
       {
         user_id: userId,
         permission_key: PERMISSIONS.SUBJECTS_VIEW,
-        effect: "allow",
         granted_by: grantedBy,
       },
       {
         user_id: userId,
         permission_key: PERMISSIONS.SUBJECTS_CREATE,
-        effect: "allow",
         granted_by: grantedBy,
       },
     ]);
@@ -282,7 +274,6 @@ describe("permission.repository", () => {
       replaceUserPermissions(client, "user-1", [
         {
           permission_key: PERMISSIONS.SUBJECTS_VIEW,
-          effect: "allow",
         },
       ])
     ).rejects.toThrow("Unknown permission keys: subjects.view");
@@ -313,7 +304,6 @@ describe("permission.repository", () => {
         {
           user_id: userId,
           permission_key: PERMISSIONS.SUBJECTS_VIEW,
-          effect: "allow",
           granted_by: "manager-2",
           created_at: "2026-09-14T00:00:00.000Z",
         },
@@ -331,12 +321,10 @@ describe("permission.repository", () => {
     await replaceUserPermissions(client, userId, [
       {
         permission_key: PERMISSIONS.SUBJECTS_VIEW,
-        effect: "allow",
         granted_by: "manager-1",
       },
       {
         permission_key: PERMISSIONS.SUBJECTS_VIEW,
-        effect: "allow",
         granted_by: "manager-2",
       },
     ]);
@@ -345,7 +333,6 @@ describe("permission.repository", () => {
       {
         user_id: userId,
         permission_key: PERMISSIONS.SUBJECTS_VIEW,
-        effect: "allow",
         granted_by: "manager-2",
       },
     ]);
@@ -362,24 +349,5 @@ describe("permission.repository", () => {
     expect(from).toHaveBeenCalledWith("user_permissions");
     expect(chain.delete).toHaveBeenCalled();
     expect(chain.eq).toHaveBeenCalledWith("user_id", userId);
-  });
-
-  it("deletes specific user permission keys", async () => {
-    const userId = "user-1";
-    const chain = createChain({ data: null, error: null });
-    const from = vi.fn().mockReturnValue(chain);
-    const client = { from } as never;
-
-    await deleteUserPermissionKeys(client, userId, [
-      PERMISSIONS.SUBJECTS_VIEW,
-      PERMISSIONS.SUBJECTS_CREATE,
-    ]);
-
-    expect(from).toHaveBeenCalledWith("user_permissions");
-    expect(chain.eq).toHaveBeenCalledWith("user_id", userId);
-    expect(chain.in).toHaveBeenCalledWith("permission_key", [
-      PERMISSIONS.SUBJECTS_VIEW,
-      PERMISSIONS.SUBJECTS_CREATE,
-    ]);
   });
 });

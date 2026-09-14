@@ -8,7 +8,7 @@ import {
 import { isSupervisorForbiddenManagerPath } from "@/lib/auth/supervisor-manager-access";
 import {
   getNavRscTimingBag,
-  getSessionIsInstructor,
+  getSessionCanAccessManageWorkshops,
   getSessionRole,
 } from "@/lib/auth/session";
 import { ROLES } from "@/lib/constants/roles";
@@ -63,11 +63,11 @@ export default async function ManagerLayout({
     redirect(getDashboardRouteForRole(role));
   }
 
-  // Workshop shared UI still requires the instructor flag.
-  // Instructors list, schedules, and AI usage do not (CEO need not be an instructor).
+  // Workshop shared UI requires instructor and/or mentor attribute.
+  // Instructors list, schedules, and AI usage do not (CEO need not be flagged).
   if (isSharedManagerWorkshopPath(pathname)) {
-    const isInstructor = await getSessionIsInstructor();
-    if (!isInstructor) {
+    const canAccess = await getSessionCanAccessManageWorkshops();
+    if (!canAccess) {
       redirect(getDashboardRouteForRole(role));
     }
   }

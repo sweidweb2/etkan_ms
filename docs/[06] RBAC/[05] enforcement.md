@@ -11,7 +11,7 @@ effective = role_permissions ∪ user_allows
 ```
 
 - **Role grants** come from `role_permissions` (Manager RBAC UI).
-- **User overlay** (`user_permissions`, Manage users → private permissions): optional per-user **allow** rows only. Plan: [`[10] Plans/[02] rbac-plus-ubac.md`](../[10]%20Plans/[02]%20rbac-plus-ubac.md).
+- **User overlay** (`user_permissions`, Manage users → private extras): optional per-user allow keys. Plan: [`[10] Plans/[02] rbac-plus-ubac.md`](../[10]%20Plans/[02]%20rbac-plus-ubac.md).
 - Session shell / `getUserPermissionsCached` / `requireManagerRoutePermission` / nav filter / `PermissionsProvider` + `Can` / `assertPermission` all use the **same** effective set from `getSessionPack().permissions`.
 - `getPermissionsForRoleCached(role)` is **role-matrix only** (Manager RBAC UI / seed comparisons) — never use it to authorize a user.
 

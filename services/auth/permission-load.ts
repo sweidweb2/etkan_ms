@@ -33,9 +33,7 @@ export async function loadRolePermissionKeys(
   return [...new Set(keys)].sort();
 }
 
-/**
- * Load UBAC allow keys for a user. Non-allow rows are ignored.
- */
+/** Load UBAC allow keys for a user. */
 export async function loadUserAllowKeys(
   client: Supabase,
   userId: string
@@ -54,9 +52,6 @@ export async function loadUserAllowKeys(
 
   const keys: PermissionKey[] = [];
   for (const row of data) {
-    if (row.effect !== "allow") {
-      continue;
-    }
     if (isPermissionKey(row.permission_key)) {
       keys.push(row.permission_key);
     }

@@ -21,6 +21,7 @@ import { updateManagerUserSchema } from "@/lib/validators/manager/update-user";
 import * as authRepository from "@/repositories/auth.repository";
 import { clearInstructorWorkshopRelatedData } from "@/lib/manager/instructors/clear-instructor-related";
 import * as profileRepository from "@/repositories/profile.repository";
+import { clearMentorRelatedData } from "@/repositories/clear-mentor-related.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import {
   recordManagerAuditLog,
@@ -28,7 +29,7 @@ import {
 } from "@/services/ops/audit-log.service";
 import { syncAuthUserRole } from "@/services/auth/role.service";
 import { clearUserOverlayAfterRoleChange } from "@/services/auth/user-permissions.service";
-import { wouldRetainManagerEffectiveRbacManage } from "@/services/auth/user-permissions-lockout";
+import { syncWorkshopAttributeAccessOverlay } from "@/services/auth/workshop-attribute-access.service";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerUserRow } from "@/types/manager-user";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -389,6 +390,23 @@ export async function createStaffUser(
       metadata: { note: "Staff account created." },
     });
 
+    if (is_instructor || is_mentor) {
+      const overlaySync = await syncWorkshopAttributeAccessOverlay(
+        adminClient,
+        actor,
+        {
+          userId: authUserId,
+          previousIsInstructor: false,
+          previousIsMentor: false,
+          nextIsInstructor: is_instructor,
+          nextIsMentor: is_mentor,
+        }
+      );
+      if (!overlaySync.success) {
+        throw new Error(overlaySync.error);
+      }
+    }
+
     return {
       success: true,
       user,
@@ -520,21 +538,6 @@ export async function updateManagerUser(
   const previousIsMentor = existingProfile.data.is_mentor;
   const previousEmail = authUserResult.data.user.email ?? null;
 
-  if (previousRole === ROLES.MANAGER && role !== ROLES.MANAGER) {
-    const retains = await wouldRetainManagerEffectiveRbacManage(
-      adminClient,
-      new Map([[userId, []]]),
-      new Map([[userId, role]])
-    );
-    if (!retains) {
-      return {
-        success: false,
-        error:
-          "Cannot save: at least one manager must keep effective rbac.manage access.",
-      };
-    }
-  }
-
   const { data: updatedProfile, error: profileError } =
     await profileRepository.updateProfileById(adminClient, userId, {
       username: normalizedUsername,
@@ -561,6 +564,18 @@ export async function updateManagerUser(
       return {
         success: false,
         error: mapUpdateManagerUserError(relatedClear.error),
+      };
+    }
+  }
+
+  if (previousIsMentor && !is_mentor) {
+    const mentorClear = await clearMentorRelatedData(adminClient, userId);
+    if (mentorClear.error) {
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(
+          mentorClear.error.message || "Unable to clear mentor-related data."
+        ),
       };
     }
   }
@@ -755,6 +770,24 @@ export async function updateManagerUser(
           : "User account updated.",
     },
   });
+
+  const overlaySync = await syncWorkshopAttributeAccessOverlay(
+    adminClient,
+    actor,
+    {
+      userId,
+      previousIsInstructor,
+      previousIsMentor,
+      nextIsInstructor: is_instructor,
+      nextIsMentor: is_mentor,
+    }
+  );
+  if (!overlaySync.success) {
+    return {
+      success: false,
+      error: mapUpdateManagerUserError(overlaySync.error),
+    };
+  }
 
   clearCachedSessionShell(userId);
 

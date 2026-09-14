@@ -2562,21 +2562,18 @@ export type Database = {
       user_permissions: {
         Row: {
           created_at: string
-          effect: string
           granted_by: string | null
           permission_key: string
           user_id: string
         }
         Insert: {
           created_at?: string
-          effect: string
           granted_by?: string | null
           permission_key: string
           user_id: string
         }
         Update: {
           created_at?: string
-          effect?: string
           granted_by?: string | null
           permission_key?: string
           user_id?: string

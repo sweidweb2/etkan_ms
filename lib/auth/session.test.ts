@@ -99,6 +99,7 @@ describe("getSessionPack", () => {
       role: null,
       displayName: "User",
       isInstructor: false,
+      isMentor: false,
       permissions: new Set(),
     });
     expect(mod.findProfileById).not.toHaveBeenCalled();
@@ -126,6 +127,7 @@ describe("getSessionPack", () => {
         username: "ada",
         role: ROLES.MANAGER,
         is_instructor: true,
+        is_mentor: false,
         created_at: "2026-01-01",
       },
       error: null,
@@ -142,6 +144,7 @@ describe("getSessionPack", () => {
       role: ROLES.MANAGER,
       displayName: "Ada Manager",
       isInstructor: true,
+      isMentor: false,
       permissions,
     });
     expect(mod.findProfileById).toHaveBeenCalledTimes(1);
@@ -160,6 +163,7 @@ describe("getSessionPack", () => {
         role: ROLES.MANAGER,
         displayName: "Ada Manager",
         isInstructor: true,
+        isMentor: false,
         permissionKeys: [PERMISSIONS.DASHBOARD_VIEW],
         cachedClaimsRole: null,
       })
@@ -183,6 +187,7 @@ describe("getSessionPack", () => {
       role: ROLES.CEO,
       displayName: "Ceo User",
       isInstructor: false,
+      isMentor: false,
       permissionKeys: [PERMISSIONS.WORKSHOPS_VIEW],
       cachedClaimsRole: ROLES.CEO,
     });
@@ -217,6 +222,7 @@ describe("getSessionPack", () => {
       role: ROLES.CEO,
       displayName: "Ceo User",
       isInstructor: false,
+      isMentor: false,
       permissionKeys: [PERMISSIONS.WORKSHOPS_VIEW],
       cachedClaimsRole: ROLES.CEO,
     });
@@ -227,6 +233,7 @@ describe("getSessionPack", () => {
         username: "mgr",
         role: ROLES.MANAGER,
         is_instructor: false,
+        is_mentor: false,
         created_at: "2026-01-01",
       },
       error: null,

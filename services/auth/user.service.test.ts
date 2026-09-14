@@ -21,6 +21,15 @@ vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/lib/manager/instructors/clear-instructor-related", () => ({
   clearInstructorWorkshopRelatedData: vi.fn(),
 }));
+vi.mock("@/repositories/clear-mentor-related.repository", () => ({
+  clearMentorRelatedData: vi.fn(async () => ({
+    data: { capabilities: 0 },
+    error: null,
+  })),
+}));
+vi.mock("@/services/auth/workshop-attribute-access.service", () => ({
+  syncWorkshopAttributeAccessOverlay: vi.fn(async () => ({ success: true })),
+}));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -44,9 +53,6 @@ vi.mock("@/services/auth/authorization.service", () => ({
 }));
 vi.mock("@/services/auth/user-permissions.service", () => ({
   clearUserOverlayAfterRoleChange: vi.fn(async () => ({ success: true })),
-}));
-vi.mock("@/services/auth/user-permissions-lockout", () => ({
-  wouldRetainManagerEffectiveRbacManage: vi.fn(async () => true),
 }));
 vi.mock("@/lib/auth/session-shell-cache", () => ({
   clearCachedSessionShell: vi.fn(),

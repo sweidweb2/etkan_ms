@@ -18,19 +18,15 @@ export type RolePermissionRow = {
   permission_key: string;
 };
 
-export type UserPermissionEffect = "allow";
-
 export type UserPermissionRow = {
   user_id: string;
   permission_key: string;
-  effect: UserPermissionEffect;
   granted_by: string | null;
   created_at: string;
 };
 
 export type UserPermissionUpsertInput = {
   permission_key: PermissionKey;
-  effect: UserPermissionEffect;
   granted_by?: string | null;
 };
 
@@ -83,26 +79,8 @@ export async function listUserPermissionRows(
 ) {
   return client
     .from("user_permissions")
-    .select("user_id, permission_key, effect, granted_by, created_at")
+    .select("user_id, permission_key, granted_by, created_at")
     .eq("user_id", userId)
-    .order("permission_key", { ascending: true });
-}
-
-/** Overlay rows for many users (lockout / batch reads). */
-export async function listUserPermissionRowsForUsers(
-  client: Supabase,
-  userIds: readonly string[]
-) {
-  const uniqueIds = [...new Set(userIds.filter(Boolean))];
-  if (uniqueIds.length === 0) {
-    return { data: [] as UserPermissionRow[], error: null };
-  }
-
-  return client
-    .from("user_permissions")
-    .select("user_id, permission_key, effect, granted_by, created_at")
-    .in("user_id", uniqueIds)
-    .order("user_id", { ascending: true })
     .order("permission_key", { ascending: true });
 }
 
@@ -225,11 +203,10 @@ export async function replaceUserPermissions(
       uniqueRows.map((row) => ({
         user_id: userId,
         permission_key: row.permission_key,
-        effect: row.effect,
         granted_by: row.granted_by ?? null,
       }))
     )
-    .select("user_id, permission_key, effect, granted_by, created_at");
+    .select("user_id, permission_key, granted_by, created_at");
 }
 
 /**
@@ -240,26 +217,6 @@ export async function deleteUserPermissions(
   userId: string
 ) {
   return client.from("user_permissions").delete().eq("user_id", userId);
-}
-
-/**
- * Hard-delete specific overlay keys for a user.
- */
-export async function deleteUserPermissionKeys(
-  client: Supabase,
-  userId: string,
-  permissionKeys: readonly PermissionKey[]
-) {
-  const uniqueKeys = [...new Set(permissionKeys)];
-  if (uniqueKeys.length === 0) {
-    return { data: [], error: null };
-  }
-
-  return client
-    .from("user_permissions")
-    .delete()
-    .eq("user_id", userId)
-    .in("permission_key", uniqueKeys);
 }
 
 /**

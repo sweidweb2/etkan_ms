@@ -515,7 +515,6 @@ Table role_permissions {
 Table user_permissions {
   user_id uuid [not null]
   permission_key text [not null]
-  effect text [not null, note: 'allow only']
   granted_by uuid
   created_at timestamptz [not null, default: `now()`]
 

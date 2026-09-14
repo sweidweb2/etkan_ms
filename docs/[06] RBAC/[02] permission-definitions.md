@@ -382,8 +382,8 @@ Format: `key` — label — access
 **Notes**
 
 - No separate `rbac.user_permissions.manage` key — overlays reuse `rbac.manage`.
-- Editing **user** allow overlays additionally requires `profiles.role === manager` (service hard-check). Co-managers with only the permission key cannot manage overlays.
-- Overlays are **allow-only** (no deny). Redundant allows already on the role are stripped on save. Changing a user’s role clears their overlay.
+- Editing **user** private extras additionally requires `profiles.role === manager` (service hard-check). Co-managers with only the permission key cannot manage overlays.
+- Overlays are allow keys only (no `effect` column). Redundant keys already on the role are stripped on save. Changing a user’s role clears their overlay. There is no app-level `rbac.manage` lockout for overlays.
 - `npm run seed:rbac` seeds the catalog + `role_permissions` only; `user_permissions` stays empty unless set in Manage users.
 
 ---
@@ -580,9 +580,13 @@ rbac.manage
 
 **Count:** 162 keys · all unique · naming consistent · accounting includes phase/payment/adjustment/transaction writes and income statement view · academic analysis includes view · payment schedules includes view/create/update/delete · instructors includes view / create / delete / capabilities update · workshops includes CRUD plus status / instructors / documents / sessions / payments module writes (incl. `workshops.payments.view`) · registrations includes view / update_status · guests includes view / create / update / delete / change_status / registration.manage / create_student · projects includes view / create / update / delete · blogs includes view / create / update / delete · students includes `students.view_own` for the student panel.
 
-### is_instructor — shared seed package
+### is_instructor / is_mentor — shared Manage workshops access
 
-Roles with `profiles.is_instructor` use these grants for shared Manage workshops UI (seed: `WORKSHOP_ACCESS_SEED_PERMISSIONS`). Nav/route also requires the flag + matching `*.view`.
+`profiles.is_instructor` **or** `profiles.is_mentor` unlocks shared Manage workshops UI (list + detail) when the user also has `workshops.view`.
+
+- Role seed for many non-manager roles includes `WORKSHOP_ACCESS_SEED_PERMISSIONS` (view + sessions/documents writes + instructor/schedule views).
+- Assigning either attribute also syncs a **personal readonly** UBAC overlay for that user only: `workshops.view` + `instructor_schedules.view` (stripped if already on the role). Clearing **both** attributes revokes those overlay keys.
+- Nav/route gate: `(is_instructor || is_mentor)` + matching `*.view`. Supervisor is treated as allowed without the flags.
 
 ```
 workshops.view

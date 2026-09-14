@@ -29,7 +29,7 @@ Canonical SQL is in `supabase/migrations/`. Regenerate `types/supabase.ts` after
 
 RBAC tables store the permission catalog and which `profiles.role` values may use each key. Seed with `npm run seed:rbac` after migrations (manager gets all permissions; other roles start empty).
 
-`user_permissions` is the UBAC overlay: optional per-user `allow` rows (unique on `user_id` + `permission_key`). App effective access is `role ∪ allows`. No permission-mirrored RLS — services authorize via the admin client (see `docs/[06] RBAC/[05] enforcement.md` and `docs/[10] Plans/[02] rbac-plus-ubac.md`).
+`user_permissions` is the UBAC overlay: optional per-user allow keys (unique on `user_id` + `permission_key`). App effective access is `role ∪ allows`. No permission-mirrored RLS — services authorize via the admin client (see `docs/[06] RBAC/[05] enforcement.md` and `docs/[10] Plans/[02] rbac-plus-ubac.md`).
 
 ## Next steps
 
