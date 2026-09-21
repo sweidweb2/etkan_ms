@@ -24,7 +24,7 @@ describe("getPostLoginRedirect", () => {
     expect(getPostLoginRedirect(ROLES.STUDENT)).toBe(ROUTES.STUDENT_ROOT);
     expect(getPostLoginRedirect(ROLES.ADMIN)).toBe(ROUTES.ADMIN_ROOT);
     expect(getPostLoginRedirect(ROLES.CO_MANAGER)).toBe(
-      ROUTES.MANAGER_WORKSHOPS
+      ROUTES.CO_MANAGER_ROOT
     );
     expect(getPostLoginRedirect(ROLES.SUPERVISOR)).toBe(
       ROUTES.MANAGER_STUDENTS
