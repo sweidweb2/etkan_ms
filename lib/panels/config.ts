@@ -6,7 +6,6 @@ import {
   CRM_PANEL_NAVIGATION,
   MANAGER_PANEL_NAVIGATION,
   STUDENT_PANEL_NAVIGATION,
-  SUPERVISOR_PANEL_NAVIGATION,
   TEACHER_PANEL_NAVIGATION,
 } from "@/lib/constants/panel-nav";
 import type { PanelConfig, PanelVariant } from "@/types/panel";
@@ -35,7 +34,7 @@ const PANEL_CONFIG_BY_ROLE: Record<RoleValue, PanelConfig> = {
   [ROLES.SUPERVISOR]: {
     variant: "supervisor",
     label: "Supervisor",
-    navigation: SUPERVISOR_PANEL_NAVIGATION,
+    navigation: MANAGER_PANEL_NAVIGATION,
   },
   [ROLES.CRM]: {
     variant: "crm",

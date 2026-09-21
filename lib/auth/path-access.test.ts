@@ -87,7 +87,7 @@ describe("canAccessPath", () => {
     expect(canAccessPath(ROUTES.MANAGER_REGISTRATIONS, ROLES.CRM)).toBe(true);
   });
 
-  it("allows supervisor to enter manager paths (layout hard-blocks excluded)", () => {
+  it("allows supervisor to enter manager paths (layout gates by permission)", () => {
     expect(canAccessPath(ROUTES.MANAGER_STUDENTS, ROLES.SUPERVISOR)).toBe(
       true
     );

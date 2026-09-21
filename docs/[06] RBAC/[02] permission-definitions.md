@@ -3,7 +3,7 @@
 **Status:** Phase 0–1 complete — frozen list lives in code at `lib/constants/permissions.ts`.  
 **Baseline:** manager panel capabilities.  
 **Roles co-manager:** empty seed (zero grants) — see `[08] role-seeded-permissions.md`.  
-**Role supervisor:** empty `/supervisor` panel; seeded allow-list: workshops + subjects (categories/exercises) + students + classes tree + instructor schedules + academic analysis (see `[08]`). No new permission keys.  
+**Role supervisor:** empty `/supervisor` panel; seeded allow-list: workshops + subjects (categories/exercises) + students + classes tree + instructor schedules + academic analysis (see `[08]`). Uses full manager nav filtered by grants — RBAC extras unlock UI/routes. No new permission keys.  
 **Role CRM:** empty `/crm` panel; seeded with all `guests.*` + all `teams.*` + full `registrations.*` for shared `/manager/guests*` and dossier/details (see `[08]`). No new permission keys.  
 **Role teacher:** class-tree grants only; own-class scoping in services (see `[08]`).  
 **Role student:** `students.view_own` + class/session/task reads + `accounting.view` / `payment_schedules.view` for own SPPs (see `[08]`).

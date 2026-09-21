@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  isManagerPanelPath,
-  isSupervisorForbiddenManagerPath,
-  SUPERVISOR_FORBIDDEN_MANAGER_PREFIXES,
-} from "@/lib/auth/supervisor-manager-access";
+import { isManagerPanelPath } from "@/lib/auth/supervisor-manager-access";
 import { ROUTES } from "@/lib/constants/routes";
 
 describe("isManagerPanelPath", () => {
@@ -16,48 +12,5 @@ describe("isManagerPanelPath", () => {
   it("rejects non-manager panels", () => {
     expect(isManagerPanelPath(ROUTES.SUPERVISOR_ROOT)).toBe(false);
     expect(isManagerPanelPath(ROUTES.TEACHER_ROOT)).toBe(false);
-  });
-});
-
-describe("isSupervisorForbiddenManagerPath", () => {
-  it("blocks every configured forbidden prefix and nested URLs", () => {
-    for (const prefix of SUPERVISOR_FORBIDDEN_MANAGER_PREFIXES) {
-      expect(isSupervisorForbiddenManagerPath(prefix)).toBe(true);
-      expect(isSupervisorForbiddenManagerPath(`${prefix}/nested`)).toBe(true);
-    }
-  });
-
-  it("allows operational manager paths supervisors may use", () => {
-    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_STUDENTS)).toBe(
-      false
-    );
-    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_CLASSES)).toBe(
-      false
-    );
-    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_WORKSHOPS)).toBe(
-      false
-    );
-    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_SUBJECTS)).toBe(
-      false
-    );
-    expect(
-      isSupervisorForbiddenManagerPath(ROUTES.MANAGER_INSTRUCTOR_SCHEDULES)
-    ).toBe(false);
-    expect(
-      isSupervisorForbiddenManagerPath(ROUTES.MANAGER_ACADEMIC_ANALYSIS)
-    ).toBe(false);
-  });
-
-  it("blocks guests, instructors, and other non-seed supervisor surfaces", () => {
-    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_GUESTS)).toBe(true);
-    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_REGISTRATIONS)).toBe(
-      true
-    );
-    expect(isSupervisorForbiddenManagerPath(ROUTES.MANAGER_INSTRUCTORS)).toBe(
-      true
-    );
-    expect(
-      isSupervisorForbiddenManagerPath(ROUTES.MANAGER_CLOUDFLARE_AI_USAGE)
-    ).toBe(true);
   });
 });

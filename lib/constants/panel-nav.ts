@@ -258,97 +258,11 @@ export const CRM_PANEL_NAVIGATION = withManageWorkshops({
 });
 
 /**
- * Supervisor: manager feature links minus excluded ops/system surfaces
- * (users, accounting/finance, email, gallery, projects, blogs, notifications,
- * backup, logs, rbac, settings).
+ * Supervisor: same manager catalog; `filterPanelNavigation` keeps only
+ * items whose view permission is granted (seed defaults + RBAC extras).
  */
-export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation = {
-  groups: [
-    {
-      id: "people",
-      label: "People",
-      defaultOpen: true,
-      items: [
-        {
-          title: "Manage students",
-          href: ROUTES.MANAGER_STUDENTS,
-          icon: "book-open",
-        },
-        {
-          title: "Registrations",
-          href: ROUTES.MANAGER_REGISTRATIONS,
-          icon: "clipboard-list",
-        },
-        {
-          title: "Guests",
-          href: ROUTES.MANAGER_GUESTS,
-          icon: "user-plus",
-        },
-      ],
-    },
-    {
-      id: "academics",
-      label: "Academics",
-      defaultOpen: true,
-      items: [
-        {
-          title: "Manage subjects",
-          href: ROUTES.MANAGER_SUBJECTS,
-          icon: "library",
-        },
-        {
-          title: "Manage classes",
-          href: ROUTES.MANAGER_CLASSES,
-          icon: "school",
-        },
-        {
-          title: "Manage teams",
-          href: ROUTES.MANAGER_SEMESTERS,
-          icon: "layers",
-        },
-      ],
-    },
-    {
-      id: "resources",
-      label: "Resources",
-      defaultOpen: true,
-      items: [
-        {
-          title: "Manage equipments",
-          href: ROUTES.MANAGER_EQUIPMENTS,
-          icon: "package",
-        },
-      ],
-    },
-    {
-      id: "instructors-workshops",
-      label: "Instructors & workshops",
-      defaultOpen: true,
-      items: [
-        {
-          title: "Manage instructors",
-          href: ROUTES.MANAGER_INSTRUCTORS,
-          icon: "school",
-        },
-        {
-          title: "Instructor schedules",
-          href: ROUTES.MANAGER_INSTRUCTOR_SCHEDULES,
-          icon: "calendar-days",
-        },
-        {
-          title: "Manage workshops",
-          href: ROUTES.MANAGER_WORKSHOPS,
-          icon: "presentation",
-        },
-        {
-          title: "AI usage",
-          href: ROUTES.MANAGER_CLOUDFLARE_AI_USAGE,
-          icon: "sparkles",
-        },
-      ],
-    },
-  ],
-};
+export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation =
+  MANAGER_PANEL_NAVIGATION;
 
 /**
  * Teacher panel: no dedicated teacher routes yet.

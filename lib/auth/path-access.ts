@@ -27,8 +27,7 @@ export function canAccessPath(pathname: string, role: RoleValue): boolean {
     return true;
   }
 
-  // Supervisors work on allowed /manager/* pages (layout enforces grants +
-  // hard-blocks excluded surfaces).
+  // Supervisors may enter any /manager/* path; layout gates by view permission.
   if (role === ROLES.SUPERVISOR && isManagerPanelPath(pathname)) {
     return true;
   }

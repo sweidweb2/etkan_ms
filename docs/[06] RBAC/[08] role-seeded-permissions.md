@@ -49,7 +49,7 @@ Allow-list only (`SUPERVISOR_SEED_PERMISSIONS` / `SUPERVISOR_SEED_FEATURES`):
 | Instructor schedules | all `instructor_schedules.*` |
 | Academic analysis | `academic_analysis.view` |
 
-Native panel: `/supervisor` (empty dashboard). Day-to-day UI uses allowed `/manager/*` routes. Layout **hard-blocks** non-seed surfaces (users, accounting, guests, registrations, equipment, instructors list, semesters, cloudflare AI usage, gallery, projects, blogs, notifications, backup, logs, settings, rbac, cron jobs, …) even if those keys are later granted in the RBAC UI. Workshops do **not** require `is_instructor` for supervisors.
+Native panel: `/supervisor` (empty dashboard). Day-to-day UI uses `/manager/*` routes with the **full manager nav catalog**, filtered by granted view permissions. Seed above is the **default** package; extra keys granted in the RBAC UI unlock matching sidebar links and routes (no hard-block override). Workshops do **not** require `is_instructor` for supervisors.
 
 ---
 
