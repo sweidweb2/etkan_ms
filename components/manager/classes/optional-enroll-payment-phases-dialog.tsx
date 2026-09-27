@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { assignOptionalEnrollPaymentPhasesAction } from "@/app/manager/accounting/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";

@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import {
   addWorkshopInstructorAction,
   loadWorkshopInstructorCandidatesAction,

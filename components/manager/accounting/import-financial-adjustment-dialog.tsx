@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { format } from "date-fns";
 import { importFinancialAdjustmentAction } from "@/app/manager/accounting/actions";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";

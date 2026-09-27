@@ -51,6 +51,10 @@ export function useActionStateSettled<T>(
     }
 
     handledRef.current = true;
-    onCompleteRef.current(state);
+    const completed = state;
+    // Leave the (possibly stuck) action transition so close/toast are urgent.
+    setTimeout(() => {
+      onCompleteRef.current(completed);
+    }, 0);
   }, [state, isPending]);
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useEffect, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { createStudentFromGuestAction } from "@/app/manager/guests/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { PasswordInput } from "@/components/auth/password-input";

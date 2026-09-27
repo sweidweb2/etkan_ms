@@ -12,6 +12,12 @@ api.etkan.org {
 	reverse_proxy host.docker.internal:54321
 }
 
+# Prod Supabase Kong (second stack; host port 55321). Staging stays on 54321.
+prod-api.etkan.org {
+	encode gzip
+	reverse_proxy host.docker.internal:55321
+}
+
 # Production — keep commented until @ / www cut over to this VPS.
 # www.etkan.org {
 # 	redir https://etkan.org{uri} permanent

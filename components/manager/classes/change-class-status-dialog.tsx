@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useEffect, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { z } from "zod";
 import { updateClassStatusAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";

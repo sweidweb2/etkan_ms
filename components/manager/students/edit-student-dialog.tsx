@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useEffect, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { updateStudentAction } from "@/app/manager/students/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";

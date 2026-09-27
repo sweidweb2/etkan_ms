@@ -1,5 +1,6 @@
 import "server-only";
 
+import { after } from "next/server";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ParseFormResult } from "@/lib/validators/safe-parse-form-data";
@@ -81,8 +82,16 @@ export async function runManagerAction<
   }
 
   const success = result as MutateSuccess<TMutateResult>;
-  await options.revalidate?.(success, parsed.data);
-  return options.mapSuccess(success, parsed.data);
+  const data = parsed.data;
+  const revalidate = options.revalidate;
+  if (revalidate) {
+    // Keep revalidatePath out of the action response. In production the
+    // bundled RSC refresh often does not commit until the next click.
+    after(() => {
+      void revalidate(success, data);
+    });
+  }
+  return options.mapSuccess(success, data);
 }
 
 /**
@@ -125,6 +134,12 @@ export async function runManagerMutation<
   }
 
   const success = result as MutateSuccess<TMutateResult>;
-  await options.revalidate?.(success, options.data);
-  return options.mapSuccess(success, options.data);
+  const data = options.data;
+  const revalidate = options.revalidate;
+  if (revalidate) {
+    after(() => {
+      void revalidate(success, data);
+    });
+  }
+  return options.mapSuccess(success, data);
 }

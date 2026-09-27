@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useEffect, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import type { FieldValues, UseFormRegister, UseFormSetValue } from "react-hook-form";
 import { updateGuestAction } from "@/app/manager/guests/actions";
 import { GuestFormFields } from "@/components/manager/guests/guest-form-fields";

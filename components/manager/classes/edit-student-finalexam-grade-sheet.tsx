@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { format } from "date-fns";
 import { updateStudentFinalExamGradeAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";

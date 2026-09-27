@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  useActionState,
   useEffect,
   useRef,
   useState,
   useTransition,
   type FormEvent,
 } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { uploadWorkshopDocumentAction } from "@/app/manager/workshops/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";

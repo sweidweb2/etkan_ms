@@ -1,12 +1,10 @@
 "use client";
 
-import {
-  useActionState,
-  useTransition,
-  type TransitionStartFunction,
-} from "react";
+import type { TransitionStartFunction } from "react";
+import { useTransition } from "react";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import type { ActionToastState } from "@/lib/toast";
 
@@ -38,7 +36,7 @@ type UseMutationDialogFormResult<TState extends MutationDialogState> = {
 
 /**
  * Composes the standard mutation Dialog/Sheet wiring:
- * useActionState + useTransition + pending-aware dismiss + toast + success close.
+ * form action + pending-aware dismiss + toast + success close.
  */
 export function useMutationDialogForm<TState extends MutationDialogState>({
   action,
@@ -48,25 +46,14 @@ export function useMutationDialogForm<TState extends MutationDialogState>({
   isReady,
 }: UseMutationDialogFormOptions<TState>): UseMutationDialogFormResult<TState> {
   const [, startTransition] = useTransition();
-  // React's useActionState generics use Awaited<State>, which does not preserve
-  // unconstrained type params — cast keeps FormData dispatch typing intact.
-  const [state, dispatch, isActionPending] = useActionState(
-    action as never,
-    initialState as never
-  ) as [TState, (payload: FormData) => void, boolean];
-  // Button / dismiss follow the action only. A leftover useTransition can
-  // stay pending until the next click after a successful save.
-  const isPending = isActionPending;
+  const [state, formAction, isPending] = useFormActionState(
+    action,
+    initialState
+  );
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);
   useActionStateSuccess(state, isPending, onSuccess, isReady);
-
-  function formAction(formData: FormData) {
-    startTransition(() => {
-      dispatch(formData);
-    });
-  }
 
   return {
     state,

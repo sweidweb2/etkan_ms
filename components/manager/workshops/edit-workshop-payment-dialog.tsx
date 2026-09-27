@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useTransition } from "react";
+import { useEffect, useMemo, useTransition } from "react";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { updateWorkshopPaymentAction } from "@/app/manager/workshops/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
