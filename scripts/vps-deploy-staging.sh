@@ -9,6 +9,8 @@ if [[ ! -f .env.staging ]]; then
   exit 1
 fi
 
+bash scripts/vps-patch-supabase-auth.sh
+
 docker compose --env-file .env.staging -f compose.yaml -f compose.staging.yaml up -d --build
 docker compose --env-file .env.staging -f compose.yaml -f compose.staging.yaml ps
 

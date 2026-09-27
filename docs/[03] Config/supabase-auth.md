@@ -48,7 +48,7 @@ Staging and production currently share one hosted project, so **both** HTTPS cal
 
 ## Local CLI Auth
 
-[`supabase/config.toml`](../../supabase/config.toml) `[auth]` `site_url` and `additional_redirect_urls` apply only to `npx supabase start`. They already include localhost / `127.0.0.1` callback URLs.
+[`supabase/config.toml`](../../supabase/config.toml) `[auth]` `site_url` and `additional_redirect_urls` apply only to `npx supabase start`. The committed `site_url` stays `http://127.0.0.1:3000` for local CLI. On the VPS, `scripts/vps-patch-supabase-auth.sh` sets `site_url` to `https://staging.etkan.org` (re-applied after each staging deploy checkout). `additional_redirect_urls` includes localhost plus staging/prod callbacks. After changing Auth config, restart the CLI stack (`npx supabase stop` then `npx supabase start`) so GoTrue reloads.
 
 ## Session inactivity timeout
 
