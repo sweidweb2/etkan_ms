@@ -24,15 +24,20 @@ jobs:
     environment: production
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Sync and rebuild production
-        uses: ./.github/actions/vps-sync
+      - name: SSH and pull + rebuild
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_BRANCH: ${{ github.ref_name }}
         with:
           host: ${{ secrets.VPS_HOST }}
-          user: ${{ secrets.VPS_USER }}
-          ssh_key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || '22' }}
-          remote_dir: ${{ secrets.VPS_DIR || '/home/deploy/etkan_ms' }}
-          remote_script: scripts/vps-deploy-prod.sh
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GH_TOKEN,GIT_BRANCH
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ~/etkan_ms
+            git fetch --prune "https://x-access-token:${GH_TOKEN}@github.com/sweidweb2/etkan_ms.git" "${GIT_BRANCH}"
+            git checkout -B "${GIT_BRANCH}" FETCH_HEAD
+            bash scripts/vps-deploy-prod.sh

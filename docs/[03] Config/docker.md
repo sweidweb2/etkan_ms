@@ -66,12 +66,14 @@ Copy the `*.example` files if the gitignored files are missing. Do not commit re
 
 PRs to `dev` / `main` run **CI only** (lint, typecheck, test, build). They do **not** deploy.
 
+Same idea as a Hostinger Laravel deploy: GitHub SSHs in, `git pull`s, then rebuilds the app.
+
 | Event | Workflow | What happens |
 | --- | --- | --- |
-| Push to `dev` (or **Actions → Deploy staging → Run**) | `deploy-staging.yml` | CI, then rsync + rebuild `etkan-staging-web` |
-| Push to `main` (or **Actions → Deploy production → Run**) | `deploy-prod.yml` | CI, then rsync + rebuild `etkan-prod-web` |
+| Push to `dev` | `deploy-staging.yml` | CI, then SSH → `git pull` → rebuild `etkan-staging-web` |
+| Push to `main` | `deploy-prod.yml` | CI, then SSH → `git pull` → rebuild `etkan-prod-web` |
 
-Env files on the VPS (`.env.staging`, `.env.production`) are **never** overwritten. Caddy and Supabase are **not** restarted.
+Env files on the VPS (`.env.staging`, `.env.production`) stay on the server. Caddy and Supabase are **not** restarted.
 
 Repo secrets (Settings → Secrets and variables → Actions):
 
@@ -80,12 +82,8 @@ Repo secrets (Settings → Secrets and variables → Actions):
 | `VPS_HOST` | `178.16.129.124` |
 | `VPS_USER` | `deploy` |
 | `VPS_SSH_KEY` | Private key for that user (full `BEGIN…END` block) |
-| `VPS_PORT` | optional, default `22` |
-| `VPS_DIR` | optional, default `/home/deploy/etkan_ms` |
 
-Put the matching **public** key in `/home/deploy/.ssh/authorized_keys` on the VPS. The `deploy` user must be able to run `docker compose`.
-
-Optional GitHub **Environments** `staging` and `production` (required reviewers on production) are referenced by the workflows.
+Put the matching **public** key in `/home/deploy/.ssh/authorized_keys`. `deploy` must be able to run `docker compose`.
 
 ## Commands (VPS)
 
