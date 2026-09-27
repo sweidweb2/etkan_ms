@@ -45,3 +45,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Cloud → VPS dumps (PII / passwords hashes). Never commit.
+/tmp/cloud-dump/

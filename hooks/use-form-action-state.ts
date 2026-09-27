@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   ensureActionTransitionFlushOnFetch,
@@ -42,8 +42,10 @@ export function useFormActionState<TState, TPayload = FormData>(
   const actionRef = useRef(action);
   const requestIdRef = useRef(0);
 
-  stateRef.current = state;
-  actionRef.current = action;
+  useEffect(() => {
+    stateRef.current = state;
+    actionRef.current = action;
+  }, [state, action]);
 
   const formAction = useCallback((payload: TPayload) => {
     const requestId = ++requestIdRef.current;

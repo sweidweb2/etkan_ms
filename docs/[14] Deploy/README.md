@@ -4,6 +4,7 @@ Snapshot of **what is actually running** after the September 2026 cutover. Use t
 
 - Staging (own app + own DB): [`vps-staging.md`](./vps-staging.md)
 - Production (own app + own DB): [`vps-prod.md`](./vps-prod.md)
+- **Cloud → VPS prod data copy:** [`cloud-to-vps.md`](./cloud-to-vps.md)
 - Next.js Docker files (commands): [`../[03] Config/docker.md`](../[03]%20Config/docker.md)
 - Auth URLs: [`../[03] Config/supabase-auth.md`](../[03]%20Config/supabase-auth.md)
 
@@ -25,7 +26,7 @@ Same machine: Hostinger VPS `178.16.129.124` (Ubuntu). Same git clone for **both
 | Public API | `https://api.etkan.org` | `https://prod-api.etkan.org` |
 | Auth `site_url` | `https://staging.etkan.org` | `https://etkan.org` |
 | GitHub deploy | push `dev` → `deploy-staging.yml` | push `main` → `deploy-prod.yml` |
-| Database contents | Staging seed / test data | New seed + 1 manager. **Not** a Cloud dump |
+| Database contents | Staging seed / test data | New seed + 1 manager until you run [`cloud-to-vps.md`](./cloud-to-vps.md) |
 
 Shared on purpose: Mailtrap, Turnstile, Cloudflare AI keys (HTTPS SaaS). Shared by accident today: **default CLI JWT secret** on both stacks — rotate before treating this as hardened production.
 
@@ -75,4 +76,4 @@ TTL is about **1 hour**. Different resolvers update at different times. How to s
 3. Do **not** `docker compose down` the proxy while changing one app.
 4. Rebuild the Next image after changing any `NEXT_PUBLIC_*` (baked at `docker build`).
 5. Official Supabase Docker is still the long-term target. Today both DBs are **CLI stacks** (`npx supabase start`), not the official compose project.
-6. Cloud (`*.supabase.co`) and Vercel still exist. Cloud data was **not** migrated. Delete those only after DNS and login are verified on this VPS.
+6. Cloud (`*.supabase.co`) and Vercel still exist. Cloud data is copied only by following [`cloud-to-vps.md`](./cloud-to-vps.md). Delete Cloud only after step 10 in that file.

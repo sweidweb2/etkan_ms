@@ -135,6 +135,6 @@ In Cloudflare Turnstile, allow `staging.etkan.org`, `etkan.org`, and `www.etkan.
 ## What is not done yet
 
 - Official self-hosted Supabase compose (CLI stacks are live instead)
-- Cloud → prod data migration
+- Cloud → prod data migration — [`../[14] Deploy/cloud-to-vps.md`](../[14]%20Deploy/cloud-to-vps.md)
 - JWT rotation off the CLI demo secret
 - Redis, extra cron workers, Cloudflare R2

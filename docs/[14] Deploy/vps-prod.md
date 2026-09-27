@@ -158,7 +158,7 @@ Extra findings:
 
 ## Later DevOps on prod
 
-- **Data:** Cloud was not dumped. Import is a separate project (schema + rows + storage + Auth users).
+- **Data:** Cloud was not copied at cutover. Follow [`cloud-to-vps.md`](./cloud-to-vps.md).
 - **JWT:** both CLI stacks still use the default demo JWT. Rotate before calling this hardened.
 - **Official Supabase Docker:** replace `etkan_supabase_prod` when you leave CLI mode; update `.env.production` + Caddy `prod-api` port + rebuild Next.
 - **www vs apex:** you may restore `www` → `etkan.org` **after** every resolver points `@` at the VPS. Doing it during a split recreates the redirect loop.
