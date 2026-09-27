@@ -1,0 +1,12 @@
+# Optional production-image smoke. Daily local work is still:
+#   npx supabase start
+#   npm run dev
+#
+# A Next container cannot use http://127.0.0.1:54321 to reach the host CLI
+# stack. Prefer `npm run dev` on the host against local Supabase.
+services:
+  web:
+    env_file:
+      - .env.local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

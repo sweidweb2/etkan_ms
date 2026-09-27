@@ -5,6 +5,7 @@ const PUBLIC_MARKETING_CACHE_CONTROL =
   "public, s-maxage=600, stale-while-revalidate=86400";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   images: {
     remotePatterns: [
       {
@@ -26,6 +27,12 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "54321",
         pathname: "/storage/v1/object/public/**",
       },
     ],

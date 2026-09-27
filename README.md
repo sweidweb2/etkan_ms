@@ -26,7 +26,16 @@ Create `.env.local` from the template:
 cp .env.example .env.local
 ```
 
-Then set your values:
+**Local Docker Supabase** (recommended on this machine — see [docs/local-supabase.md](docs/local-supabase.md)):
+
+```env
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from npx supabase status>
+SUPABASE_SERVICE_ROLE_KEY=<service role key from npx supabase status>
+```
+
+**Hosted Supabase** (staging/prod, or if you skip the local stack):
 
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
@@ -44,7 +53,9 @@ See [docs/config/supabase-auth.md](docs/config/supabase-auth.md) for Supabase re
 
 ### 3. Database
 
-Apply migrations and generate types:
+**Local:** `npx supabase start` applies `supabase/migrations/`. Then seed users (see [docs/local-supabase.md](docs/local-supabase.md) Step 6).
+
+**Hosted:** apply migrations and generate types:
 
 ```bash
 npx supabase db push
@@ -91,6 +102,8 @@ Architecture rules for contributors and agents live in [.cursor/rules/etkan_ms.m
 | [docs/config/supabase-auth.md](docs/config/supabase-auth.md) | Auth URL configuration |
 | [docs/cmds/migrations.md](docs/cmds/migrations.md) | Migration commands |
 | [docs/cmds/packages.md](docs/cmds/packages.md) | Dependency install reference |
+| [docs/local-supabase.md](docs/local-supabase.md) | Local slim Supabase via Docker CLI |
+| [docs/docker.md](docs/docker.md) | Next.js Docker for local / staging / prod |
 
 ## Scripts
 
