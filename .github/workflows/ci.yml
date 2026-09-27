@@ -2,16 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, dev]
   pull_request:
-    branches: [main, master]
+    branches: [main, dev]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  checks:
+  quality:
     name: Lint, typecheck & test
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -37,3 +37,29 @@ jobs:
 
       - name: Test
         run: npm test
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
