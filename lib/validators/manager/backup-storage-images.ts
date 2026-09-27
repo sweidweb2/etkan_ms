@@ -36,7 +36,7 @@ export function parseBackupStorageImageFileQuery(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? "Invalid storage image request.",
+      error: parsed.error.issues[0]?.message ?? "Invalid storage file request.",
     };
   }
 

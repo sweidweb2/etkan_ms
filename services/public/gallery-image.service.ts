@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { loadPublicCachedData } from "@/lib/cache/load-public-cached-data";
 import { PUBLIC_CONTENT_CACHE_TAGS } from "@/lib/cache/public-content-cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -116,17 +117,18 @@ function mapUpdateGalleryImageError(message: string): string {
 }
 
 const listGalleryImagesForPublicCached = unstable_cache(
-  async () => {
-    const adminClient = createSupabaseAdminClient();
-    const { data, error } =
-      await galleryImageRepository.listGalleryImages(adminClient);
+  async () =>
+    loadPublicCachedData([], async () => {
+      const adminClient = createSupabaseAdminClient();
+      const { data, error } =
+        await galleryImageRepository.listGalleryImages(adminClient);
 
-    if (error) {
-      throw new Error(error.message);
-    }
+      if (error) {
+        throw new Error(error.message);
+      }
 
-    return (data ?? []).map(mapGalleryImageRecordToRow);
-  },
+      return (data ?? []).map(mapGalleryImageRecordToRow);
+    }),
   ["public-gallery-images"],
   { tags: [PUBLIC_CONTENT_CACHE_TAGS.GALLERY], revalidate: 3600 }
 );

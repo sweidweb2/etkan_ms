@@ -5,7 +5,7 @@ import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/services/auth/auth.service";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
-  buildStorageImagesZipForBackup,
+  buildStorageFilesZipForBackup,
   getBackupStorageExportUnauthorized,
 } from "@/services/backup/backup-storage.service";
 
@@ -37,22 +37,22 @@ export async function GET() {
   }
 
   try {
-    const result = await buildStorageImagesZipForBackup(adminClient);
+    const result = await buildStorageFilesZipForBackup(adminClient);
 
     return new NextResponse(new Uint8Array(result.buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="${result.fileName}"`,
-        "X-Backup-Image-Count": String(result.listing.files.length),
-        "X-Backup-Image-Failed": String(result.failedCount),
+        "X-Backup-File-Count": String(result.listing.files.length),
+        "X-Backup-File-Failed": String(result.failedCount),
       },
     });
   } catch (error) {
     const message =
       error instanceof Error
         ? error.message
-        : "Unable to export storage images.";
+        : "Unable to export storage files.";
     return NextResponse.json({ message }, { status: 500 });
   }
 }

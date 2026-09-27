@@ -14,7 +14,12 @@ import {
  * Shared shell for all role panels.
  * Keeping one layout parent means sidebar/header stay mounted when
  * navigating between role panel segments.
+ *
+ * Panels read session cookies and admin-only data. They must stay
+ * request-time so `next build` does not prerender them without secrets.
  */
+export const dynamic = "force-dynamic";
+
 export default async function PanelsLayout({
   children,
 }: {

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ChevronDownIcon, Download, ImagesIcon, MessageSquareTextIcon } from "lucide-react";
+import { ChevronDownIcon, Download, FolderArchive, MessageSquareTextIcon } from "lucide-react";
 import { FieldLabel } from "@/components/auth/field-label";
 import { Can } from "@/components/auth/can";
 import { ExportStorageImagesDialog } from "@/components/manager/backup/export-storage-images-dialog";
@@ -559,8 +559,8 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
             <CardHeader className="border-b bg-muted/40 py-3">
               <CardTitle>Export All Tables</CardTitle>
               <CardDescription>
-                Download every backup-enabled table as JSON, SQL, or a ZIP of
-                CSVs.
+                Download every public table row as JSON, SQL inserts, or a ZIP
+                of CSVs.
               </CardDescription>
             </CardHeader>
             <CardFooter className="bg-muted/40">
@@ -578,9 +578,10 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
 
           <Card className="gap-0 py-0">
             <CardHeader className="border-b bg-muted/40 py-3">
-              <CardTitle>Export Storage Images</CardTitle>
+              <CardTitle>Export Storage Files</CardTitle>
               <CardDescription>
-                Collect every image from Supabase storage into one ZIP download.
+                Download every file from projects, blogs, authors, workshops,
+                registration, and student task uploads.
               </CardDescription>
             </CardHeader>
             <CardFooter className="bg-muted/40">
@@ -596,8 +597,8 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                   onClick={() => setIsStorageExportOpen(true)}
                   disabled={pendingScope !== null}
                 >
-                  <ImagesIcon aria-hidden />
-                  Export storage images
+                  <FolderArchive aria-hidden />
+                  Export storage files
                 </Button>
               </Can>
             </CardFooter>

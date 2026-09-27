@@ -6,7 +6,7 @@ import { parseBackupStorageImageFileQuery } from "@/lib/validators/manager/backu
 import { getCurrentUser } from "@/services/auth/auth.service";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
-  downloadStorageImageForBackup,
+  downloadStorageFileForBackup,
   getBackupStorageExportUnauthorized,
 } from "@/services/backup/backup-storage.service";
 
@@ -48,12 +48,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    const blob = await downloadStorageImageForBackup(
+    const blob = await downloadStorageFileForBackup(
       adminClient,
       parsed.data.bucket,
       parsed.data.path
     );
-    const fileName = parsed.data.path.split("/").pop() ?? "image";
+    const fileName = parsed.data.path.split("/").pop() ?? "file";
     const contentType = blob.type || "application/octet-stream";
     const payload = new Blob([await blob.arrayBuffer()], { type: contentType });
 
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     const message =
       error instanceof Error
         ? error.message
-        : "Unable to download storage image.";
+        : "Unable to download storage file.";
     return NextResponse.json({ message }, { status: 500 });
   }
 }

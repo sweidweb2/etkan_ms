@@ -5,14 +5,13 @@ import {
   BACKUP_STORAGE_BUCKET_LABELS,
   isBackupStorageBucket,
   isSafeStorageObjectPath,
-  isStorageImageFile,
   type BackupStorageBucket,
 } from "@/lib/constants/backup-storage";
 import * as backupStorageRepository from "@/repositories/backup-storage.repository";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import type {
-  BackupStorageImageFile,
-  BackupStorageImageList,
+  BackupStorageFile,
+  BackupStorageFileList,
 } from "@/types/backup-storage";
 
 type BackupStorageClient = Parameters<
@@ -23,9 +22,9 @@ const LIST_PAGE_SIZE = 100;
 const PLACEHOLDER_OBJECT_NAME = ".emptyFolderPlaceholder";
 const ZIP_DOWNLOAD_CONCURRENCY = 3;
 
-function createStorageImagesZipName() {
+function createStorageFilesZipName() {
   const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `backup-storage-images-${dateStamp}.zip`;
+  return `backup-storage-files-${dateStamp}.zip`;
 }
 
 export async function getBackupStorageExportUnauthorized(
@@ -97,28 +96,26 @@ async function listAllObjectsInBucket(
   return files;
 }
 
-export async function listStorageImagesForBackup(
+export async function listStorageFilesForBackup(
   client: BackupStorageClient
-): Promise<BackupStorageImageList> {
+): Promise<BackupStorageFileList> {
   const bucketResults = await Promise.all(
     BACKUP_STORAGE_BUCKETS.map(async (bucket) => {
       try {
         const objects = await listAllObjectsInBucket(client, bucket);
-        const imageFiles = objects
-          .filter((item) => isStorageImageFile(item.name, item.contentType))
-          .map((item) => ({
-            bucket,
-            path: item.path,
-            size: item.size,
-            contentType: item.contentType,
-          }));
+        const bucketFiles = objects.map((item) => ({
+          bucket,
+          path: item.path,
+          size: item.size,
+          contentType: item.contentType,
+        }));
 
         return {
           bucket,
           label: BACKUP_STORAGE_BUCKET_LABELS[bucket],
-          fileCount: imageFiles.length,
+          fileCount: bucketFiles.length,
           error: null as string | null,
-          imageFiles,
+          bucketFiles,
         };
       } catch (error) {
         return {
@@ -129,17 +126,17 @@ export async function listStorageImagesForBackup(
             error instanceof Error
               ? error.message
               : `Unable to list ${bucket} storage.`,
-          imageFiles: [] as BackupStorageImageFile[],
+          bucketFiles: [] as BackupStorageFile[],
         };
       }
     })
   );
 
-  const files: BackupStorageImageFile[] = [];
-  const buckets: BackupStorageImageList["buckets"] = [];
+  const files: BackupStorageFile[] = [];
+  const buckets: BackupStorageFileList["buckets"] = [];
 
   for (const result of bucketResults) {
-    files.push(...result.imageFiles);
+    files.push(...result.bucketFiles);
     buckets.push({
       bucket: result.bucket,
       label: result.label,
@@ -151,13 +148,13 @@ export async function listStorageImagesForBackup(
   return { files, buckets };
 }
 
-export async function downloadStorageImageForBackup(
+export async function downloadStorageFileForBackup(
   client: BackupStorageClient,
   bucket: string,
   path: string
 ): Promise<Blob> {
   if (!isBackupStorageBucket(bucket) || !isSafeStorageObjectPath(path)) {
-    throw new Error("Invalid storage image.");
+    throw new Error("Invalid storage file.");
   }
 
   const { data, error } = await backupStorageRepository.downloadStorageObject(
@@ -167,15 +164,15 @@ export async function downloadStorageImageForBackup(
   );
 
   if (error || !data) {
-    throw new Error("Unable to download storage image.");
+    throw new Error("Unable to download storage file.");
   }
 
   return data;
 }
 
-async function downloadStorageImagesIntoZip(
+async function downloadStorageFilesIntoZip(
   client: BackupStorageClient,
-  files: BackupStorageImageFile[],
+  files: BackupStorageFile[],
   zip: JSZip,
   signal?: AbortSignal
 ): Promise<number> {
@@ -196,7 +193,7 @@ async function downloadStorageImagesIntoZip(
       }
 
       try {
-        const blob = await downloadStorageImageForBackup(
+        const blob = await downloadStorageFileForBackup(
           client,
           file.bucket,
           file.path
@@ -217,16 +214,16 @@ async function downloadStorageImagesIntoZip(
   return failedCount;
 }
 
-export async function buildStorageImagesZipForBackup(
+export async function buildStorageFilesZipForBackup(
   client: BackupStorageClient,
   signal?: AbortSignal
 ): Promise<{
   buffer: Buffer;
   fileName: string;
-  listing: BackupStorageImageList;
+  listing: BackupStorageFileList;
   failedCount: number;
 }> {
-  const listing = await listStorageImagesForBackup(client);
+  const listing = await listStorageFilesForBackup(client);
 
   if (signal?.aborted) {
     throw new DOMException("The export was cancelled.", "AbortError");
@@ -236,7 +233,7 @@ export async function buildStorageImagesZipForBackup(
   const failedCount =
     listing.files.length === 0
       ? 0
-      : await downloadStorageImagesIntoZip(client, listing.files, zip, signal);
+      : await downloadStorageFilesIntoZip(client, listing.files, zip, signal);
 
   if (signal?.aborted) {
     throw new DOMException("The export was cancelled.", "AbortError");
@@ -248,7 +245,7 @@ export async function buildStorageImagesZipForBackup(
 
   return {
     buffer,
-    fileName: createStorageImagesZipName(),
+    fileName: createStorageFilesZipName(),
     listing,
     failedCount,
   };

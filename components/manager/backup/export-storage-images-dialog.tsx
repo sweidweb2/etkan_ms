@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagesIcon } from "lucide-react";
+import { FolderArchive } from "lucide-react";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PendingFlowChecklist } from "@/components/loaders/pending-flow-checklist";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change
 import { BACKUP_STORAGE_BUCKET_LABELS } from "@/lib/constants/backup-storage";
 import { downloadBlob } from "@/lib/export/download-blob";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
-import type { BackupStorageImageList } from "@/types/backup-storage";
+import type { BackupStorageFileList } from "@/types/backup-storage";
 
 const FLOW_STEPS = [
   { id: "scan", label: "Scan storage buckets" },
@@ -32,9 +32,9 @@ type ExportStorageImagesDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-function createStorageImagesZipName() {
+function createStorageFilesZipName() {
   const dateStamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `backup-storage-images-${dateStamp}.zip`;
+  return `backup-storage-files-${dateStamp}.zip`;
 }
 
 async function readErrorMessage(response: Response, fallback: string) {
@@ -54,7 +54,7 @@ export function ExportStorageImagesDialog({
   const [status, setStatus] = useState<ExportStatus>("idle");
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<BackupStorageImageList["buckets"]>([]);
+  const [summary, setSummary] = useState<BackupStorageFileList["buckets"]>([]);
   const [progress, setProgress] = useState({
     completed: 0,
     total: 0,
@@ -103,32 +103,32 @@ export function ExportStorageImagesDialog({
 
       if (!zipResponse.ok) {
         throw new Error(
-          await readErrorMessage(zipResponse, "Unable to export storage images.")
+          await readErrorMessage(zipResponse, "Unable to export storage files.")
         );
       }
 
-      const imageCount = Number(
-        zipResponse.headers.get("X-Backup-Image-Count") ?? "0"
+      const fileCount = Number(
+        zipResponse.headers.get("X-Backup-File-Count") ?? "0"
       );
       const failedCount = Number(
-        zipResponse.headers.get("X-Backup-Image-Failed") ?? "0"
+        zipResponse.headers.get("X-Backup-File-Failed") ?? "0"
       );
 
       setProgress({
-        completed: imageCount,
-        total: imageCount,
+        completed: fileCount,
+        total: fileCount,
         failed: failedCount,
       });
 
-      if (imageCount === 0) {
+      if (fileCount === 0) {
         setActiveIndex(FLOW_STEPS.length);
         setStatus("success");
-        showSuccessToast("No images were found in storage.");
+        showSuccessToast("No files were found in storage.");
         return;
       }
 
       const zipBlob = await zipResponse.blob();
-      const fileName = createStorageImagesZipName();
+      const fileName = createStorageFilesZipName();
 
       setActiveIndex(2);
       downloadBlob({ blob: zipBlob, filename: fileName });
@@ -138,11 +138,11 @@ export function ExportStorageImagesDialog({
 
       if (failedCount > 0) {
         showSuccessToast(
-          "Storage images ZIP downloaded.",
-          `${imageCount - failedCount} saved, ${failedCount} skipped.`
+          "Storage files ZIP downloaded.",
+          `${fileCount - failedCount} saved, ${failedCount} skipped.`
         );
       } else {
-        showSuccessToast("Storage images ZIP downloaded.", fileName);
+        showSuccessToast("Storage files ZIP downloaded.", fileName);
       }
     } catch (caught) {
       if (controller.signal.aborted) {
@@ -154,7 +154,7 @@ export function ExportStorageImagesDialog({
       const message =
         caught instanceof Error
           ? caught.message
-          : "Unable to export storage images.";
+          : "Unable to export storage files.";
       setStatus("error");
       setError(message);
       showErrorToast(message);
@@ -177,13 +177,13 @@ export function ExportStorageImagesDialog({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ImagesIcon className="size-4 text-muted-foreground" />
-            Export storage images
+            <FolderArchive className="size-4 text-muted-foreground" />
+            Export storage files
           </DialogTitle>
           <DialogDescription>
-            Scans image files in the projects, workshops, and registration
-            buckets on the server, packs them into one ZIP, and downloads it.
-            PDFs and other files are skipped.
+            Scans every file in the projects, blogs, authors, workshops,
+            registration, and student task uploads buckets, packs them into one
+            ZIP, and downloads it.
           </DialogDescription>
         </DialogHeader>
 
@@ -209,7 +209,7 @@ export function ExportStorageImagesDialog({
                     {BACKUP_STORAGE_BUCKET_LABELS[bucket.bucket] ?? bucket.label}:{" "}
                     {bucket.error
                       ? bucket.error
-                      : `${bucket.fileCount} image${bucket.fileCount === 1 ? "" : "s"}`}
+                      : `${bucket.fileCount} file${bucket.fileCount === 1 ? "" : "s"}`}
                   </li>
                 ))}
               </ul>

@@ -210,6 +210,7 @@ function serializePayloadToSql(payload: BackupExportPayload): string {
     "-- Etkan MS backup",
     `-- Exported at: ${payload.exportedAt}`,
     `-- Scope: ${payload.scope}`,
+    "-- Contents: public table rows",
     "",
   ].join("\n");
 

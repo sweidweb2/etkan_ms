@@ -26,23 +26,19 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
-const MAINTENANCE_BLOCKED_ROLES: ReadonlySet<RoleValue> = new Set([
-  ROLES.STUDENT,
-  ROLES.TEACHER,
-]);
-
 const MAINTENANCE_LOGIN_ERROR =
   "The app is under maintenance. Please try again later.";
 
 /**
- * Gate teacher/student at session-create time only (login, signup auto-session,
- * auth callback). Middleware does not re-check on every navigation.
+ * Block every role except manager at session-create time only (login,
+ * signup auto-session, auth callback). Existing sessions stay valid;
+ * middleware does not re-check on every navigation.
  */
 export async function rejectIfMaintenanceBlocksRole(
   client: Supabase,
   role: RoleValue
 ): Promise<string | null> {
-  if (!MAINTENANCE_BLOCKED_ROLES.has(role)) {
+  if (role === ROLES.MANAGER) {
     return null;
   }
 

@@ -316,7 +316,7 @@ Format: `key` — label — access
 | `backup.view` | View backup history | read |
 | `backup.export_table` | Export table backup | write |
 | `backup.export_full` | Export full backup | write |
-| `backup.export_storage` | Export storage images | write |
+| `backup.export_storage` | Export storage files | write |
 | `backup.download` | Download backup file | write |
 
 ### Logs

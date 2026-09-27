@@ -1209,7 +1209,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.BACKUP_EXPORT_STORAGE,
     feature: "backup",
-    label: "Export storage images",
+    label: "Export storage files",
     access: PERMISSION_ACCESS.WRITE,
   },
   {

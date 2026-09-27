@@ -28,17 +28,6 @@ export const BACKUP_STORAGE_BUCKET_LABELS: Record<BackupStorageBucket, string> =
     [STUDENT_TASK_UPLOADS_STORAGE_BUCKET]: "Student task uploads",
   };
 
-const IMAGE_EXTENSIONS = [
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".webp",
-  ".gif",
-  ".svg",
-  ".avif",
-  ".bmp",
-] as const;
-
 export function isBackupStorageBucket(
   value: string
 ): value is BackupStorageBucket {
@@ -58,17 +47,4 @@ export function isSafeStorageObjectPath(path: string): boolean {
   return segments.every(
     (segment) => segment.length > 0 && segment !== "." && segment !== ".."
   );
-}
-
-export function isStorageImageFile(
-  fileName: string,
-  contentType?: string | null
-): boolean {
-  const mime = contentType?.trim().toLowerCase() ?? "";
-  if (mime.startsWith("image/")) {
-    return true;
-  }
-
-  const lowerName = fileName.trim().toLowerCase();
-  return IMAGE_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
 }

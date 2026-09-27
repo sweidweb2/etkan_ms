@@ -43,8 +43,9 @@ export function MaintenanceModeSection({
       <CardHeader className="pb-2">
         <CardTitle>Maintenance mode</CardTitle>
         <CardDescription>
-          Temporarily disable the app and show the maintenance page. Manager
-          settings stay accessible so you can turn it off.
+          Block new sign-ins for every role except manager. People who are
+          already logged in stay in. Manager settings stay accessible so you
+          can turn it off.
         </CardDescription>
       </CardHeader>
       <CardContent>

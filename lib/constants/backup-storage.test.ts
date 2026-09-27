@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   isBackupStorageBucket,
   isSafeStorageObjectPath,
-  isStorageImageFile,
 } from "@/lib/constants/backup-storage";
 
 describe("backup storage helpers", () => {
@@ -22,12 +21,5 @@ describe("backup storage helpers", () => {
     expect(isSafeStorageObjectPath("/root.png")).toBe(false);
     expect(isSafeStorageObjectPath("folder//photo.png")).toBe(false);
     expect(isSafeStorageObjectPath("")).toBe(false);
-  });
-
-  it("detects images by mime or extension", () => {
-    expect(isStorageImageFile("id.pdf", "application/pdf")).toBe(false);
-    expect(isStorageImageFile("id.png", "application/pdf")).toBe(true);
-    expect(isStorageImageFile("scan", "image/jpeg")).toBe(true);
-    expect(isStorageImageFile("card.WEBP", null)).toBe(true);
   });
 });

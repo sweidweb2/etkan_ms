@@ -1,6 +1,6 @@
 import type { BackupStorageBucket } from "@/lib/constants/backup-storage";
 
-export interface BackupStorageImageFile {
+export interface BackupStorageFile {
   bucket: BackupStorageBucket;
   path: string;
   size: number | null;
@@ -14,7 +14,7 @@ export interface BackupStorageBucketSummary {
   error: string | null;
 }
 
-export interface BackupStorageImageList {
-  files: BackupStorageImageFile[];
+export interface BackupStorageFileList {
+  files: BackupStorageFile[];
   buckets: BackupStorageBucketSummary[];
 }

@@ -162,35 +162,20 @@ describe("login", () => {
     expect(authRepository.signOut).not.toHaveBeenCalled();
   });
 
-  it("rejects student login when maintenance mode is on", async () => {
+  it.each([
+    ROLES.ADMIN,
+    ROLES.CO_MANAGER,
+    ROLES.CEO,
+    ROLES.SUPERVISOR,
+    ROLES.CRM,
+    ROLES.TEACHER,
+    ROLES.STUDENT,
+  ] as const)("rejects %s login when maintenance mode is on", async (role) => {
     vi.mocked(authRepository.signInWithPassword).mockResolvedValue({
       data: { user: authUser, session: {} as never },
       error: null,
     });
-    mockProfileRole(ROLES.STUDENT);
-    vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(true);
-    vi.mocked(authRepository.signOut).mockResolvedValue({ error: null });
-
-    const result = await login(authClient, {
-      email: "jane@school.com",
-      password: "secret123",
-    });
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toBe(
-        "The app is under maintenance. Please try again later."
-      );
-    }
-    expect(authRepository.signOut).toHaveBeenCalledWith(authClient);
-  });
-
-  it("rejects teacher login when maintenance mode is on", async () => {
-    vi.mocked(authRepository.signInWithPassword).mockResolvedValue({
-      data: { user: authUser, session: {} as never },
-      error: null,
-    });
-    mockProfileRole(ROLES.TEACHER);
+    mockProfileRole(role);
     vi.mocked(appSettingsRepository.getMaintenanceMode).mockResolvedValue(true);
     vi.mocked(authRepository.signOut).mockResolvedValue({ error: null });
 

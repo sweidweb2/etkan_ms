@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { loadPublicCachedData } from "@/lib/cache/load-public-cached-data";
 import { PUBLIC_CONTENT_CACHE_TAGS } from "@/lib/cache/public-content-cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
@@ -218,17 +219,18 @@ export async function listPublicProjectsForManager(
 }
 
 const listPublicProjectsForPublicCached = unstable_cache(
-  async () => {
-    const adminClient = createSupabaseAdminClient();
-    const { data, error } =
-      await publicProjectRepository.listPublicProjects(adminClient);
+  async () =>
+    loadPublicCachedData([], async () => {
+      const adminClient = createSupabaseAdminClient();
+      const { data, error } =
+        await publicProjectRepository.listPublicProjects(adminClient);
 
-    if (error) {
-      throw new Error(error.message);
-    }
+      if (error) {
+        throw new Error(error.message);
+      }
 
-    return (data ?? []).map(mapPublicProjectRecordToRow);
-  },
+      return (data ?? []).map(mapPublicProjectRecordToRow);
+    }),
   ["public-projects-list"],
   { tags: [PUBLIC_CONTENT_CACHE_TAGS.PROJECTS], revalidate: 3600 }
 );

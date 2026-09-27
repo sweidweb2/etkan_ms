@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/services/auth/auth.service";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   getBackupStorageExportUnauthorized,
-  listStorageImagesForBackup,
+  listStorageFilesForBackup,
 } from "@/services/backup/backup-storage.service";
 
 export async function GET() {
@@ -37,13 +37,13 @@ export async function GET() {
   }
 
   try {
-    const payload = await listStorageImagesForBackup(adminClient);
+    const payload = await listStorageFilesForBackup(adminClient);
     return NextResponse.json(payload);
   } catch (error) {
     const message =
       error instanceof Error
         ? error.message
-        : "Unable to list storage images.";
+        : "Unable to list storage files.";
     return NextResponse.json({ message }, { status: 500 });
   }
 }

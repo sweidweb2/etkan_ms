@@ -74,6 +74,23 @@ export const BACKUP_TABLES = [
 
 export type BackupTableName = (typeof BACKUP_TABLES)[number];
 
+/** Stable order for paged exports. Tables without `id` use their primary key. */
+const BACKUP_TABLE_ORDER_OVERRIDES: Partial<
+  Record<BackupTableName, readonly string[]>
+> = {
+  category_exercises: ["category_id", "exercise_id"],
+  permissions: ["key"],
+  role_permissions: ["role", "permission_key"],
+  subject_categories: ["subject_id", "category_id"],
+  subject_exercises: ["subject_id", "exercise_id"],
+};
+
+export function getBackupTableOrderColumns(
+  tableName: BackupTableName
+): readonly string[] {
+  return BACKUP_TABLE_ORDER_OVERRIDES[tableName] ?? ["id"];
+}
+
 type MissingPublicTables = Exclude<PublicTableName, BackupTableName>;
 const _assertBackupTablesComplete: MissingPublicTables extends never
   ? true

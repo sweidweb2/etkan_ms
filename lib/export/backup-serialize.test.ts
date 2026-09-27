@@ -141,6 +141,7 @@ describe("serializeBackupExport", () => {
 
     expect(typeof file.body).toBe("string");
     const sql = file.body as string;
+    expect(sql).toContain("-- Contents: public table rows");
     const formsInsertAt = sql.indexOf(
       `INSERT INTO "student_financial_forms"`
     );
