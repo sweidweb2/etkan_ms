@@ -1,6 +1,6 @@
 # Local Supabase — implementation steps
 
-Follow these steps in order. This is **local Docker on your PC**, not the Hostinger VPS plan ([`nextjs_supabase_hostinger_roadmap.md`](./nextjs_supabase_hostinger_roadmap.md)).
+Follow these steps in order. This is **local Docker on your PC**, not the Hostinger VPS plan ([`nextjs_supabase_hostinger_roadmap.md`](../nextjs_supabase_hostinger_roadmap.md)).
 
 The repo is already initialized. Do **not** run `supabase init`.
 
@@ -104,7 +104,7 @@ A warning about missing `supabase/seed.sql` is OK. Ignore it.
 
 ## Step 5 — Point the app at local Supabase
 
-Copy [`.env.example`](../.env.example) to `.env.local` if you do not have one. For a **local** stack the required keys must look like this:
+Copy [`.env.example`](../../.env.example) to `.env.local` if you do not have one. For a **local** stack the required keys must look like this:
 
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
@@ -156,7 +156,7 @@ npx supabase migration list
 
 Confirm the project ref in the hosted dashboard if yours is different (`npm run gen:types` uses `diqqcfnrysgzeiqfadic`).
 
-**Local** and **Remote** versions in `migration list` must match. If they do not, fix schema first: [`[05] Database/migration-reset-and-squash.md`](./[05]%20Database/migration-reset-and-squash.md). Do not restore across a mismatch.
+**Local** and **Remote** versions in `migration list` must match. If they do not, fix schema first: [`[05] Database/migration-reset-and-squash.md`](../[05]%20Database/migration-reset-and-squash.md). Do not restore across a mismatch.
 
 Never run `npx supabase db reset --linked` on production. That wipes the **hosted** database.
 
@@ -296,8 +296,8 @@ App email still goes through Mailtrap. Auth confirmations are off locally.
 
 ## Related
 
-- Next.js Docker (staging/prod image): [`docker.md`](./docker.md)
-- Auth URLs: [`[03] Config/supabase-auth.md`](./[03]%20Config/supabase-auth.md)
-- Migrations: [`[02] CMDs/migrations.md`](./[02]%20CMDs/migrations.md)
-- Reset / squash: [`[05] Database/migration-reset-and-squash.md`](./[05]%20Database/migration-reset-and-squash.md)
+- Next.js Docker (staging/prod image): [`docker.md`](../docker.md)
+- Auth URLs: [`supabase-auth.md`](./supabase-auth.md)
+- Migrations: [`[02] CMDs/migrations.md`](../[02]%20CMDs/migrations.md)
+- Reset / squash: [`[05] Database/migration-reset-and-squash.md`](../[05]%20Database/migration-reset-and-squash.md)
 - Official CLI: [https://supabase.com/docs/guides/local-development](https://supabase.com/docs/guides/local-development)

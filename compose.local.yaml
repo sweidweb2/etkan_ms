@@ -4,8 +4,13 @@
 #
 # A Next container cannot use http://127.0.0.1:54321 to reach the host CLI
 # stack. Prefer `npm run dev` on the host against local Supabase.
+name: etkan-local
+
 services:
   web:
+    container_name: etkan-local-web
+    ports:
+      - "3000:3000"
     env_file:
       - .env.local
     extra_hosts:

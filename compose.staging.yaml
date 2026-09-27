@@ -1,5 +1,10 @@
+name: etkan-staging
+
 services:
   web:
+    container_name: etkan-staging-web
+    ports:
+      - "3001:3000"
     env_file:
       - .env.staging
     restart: unless-stopped

@@ -1,5 +1,10 @@
+name: etkan-prod
+
 services:
   web:
+    container_name: etkan-prod-web
+    ports:
+      - "3000:3000"
     env_file:
       - .env.production
     restart: unless-stopped
