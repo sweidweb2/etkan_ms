@@ -11,6 +11,10 @@ services:
       - "443:443/udp"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Host resolv.conf is 127.0.0.53 (systemd-resolved); that address is dead inside the container.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

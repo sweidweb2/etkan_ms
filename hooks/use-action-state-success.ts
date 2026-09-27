@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useActionStateSettled } from "@/hooks/use-action-state-settled";
 
 type SuccessState = {
   success?: boolean;
 };
 
 /**
- * Runs `onSuccess` once per completed action (pending → settled),
- * matching `useActionStateToast`. Avoids duplicate list updates when
- * parent re-renders recreate callback identities or Strict Mode remounts.
+ * Runs `onSuccess` once per completed action.
+ * Settles from the new action state, not from transition pending going false.
  */
 export function useActionStateSuccess<T extends SuccessState>(
   state: T,
@@ -17,43 +16,5 @@ export function useActionStateSuccess<T extends SuccessState>(
   onSuccess: (state: T) => void,
   isReady: (state: T) => boolean = (next) => next.success === true
 ) {
-  const wasPendingRef = useRef(false);
-  const lastFingerprintRef = useRef<string | null>(null);
-  const onSuccessRef = useRef(onSuccess);
-  const isReadyRef = useRef(isReady);
-
-  useEffect(() => {
-    onSuccessRef.current = onSuccess;
-  }, [onSuccess]);
-
-  useEffect(() => {
-    isReadyRef.current = isReady;
-  }, [isReady]);
-
-  useEffect(() => {
-    if (isPending) {
-      wasPendingRef.current = true;
-      lastFingerprintRef.current = null;
-      return;
-    }
-
-    if (!wasPendingRef.current) {
-      return;
-    }
-
-    wasPendingRef.current = false;
-
-    if (!isReadyRef.current(state)) {
-      return;
-    }
-
-    const fingerprint = JSON.stringify(state);
-
-    if (lastFingerprintRef.current === fingerprint) {
-      return;
-    }
-
-    lastFingerprintRef.current = fingerprint;
-    onSuccessRef.current(state);
-  }, [state, isPending]);
+  useActionStateSettled(state, isPending, isReady, onSuccess);
 }

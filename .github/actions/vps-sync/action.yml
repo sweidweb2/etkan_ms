@@ -1,0 +1,59 @@
+name: Sync repo to VPS
+description: Copy this checkout to the VPS without overwriting env files, then run a remote script.
+
+inputs:
+  host:
+    required: true
+  user:
+    required: true
+  ssh_key:
+    required: true
+  port:
+    required: false
+    default: "22"
+  remote_dir:
+    required: false
+    default: /home/deploy/etkan_ms
+  remote_script:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install SSH key
+      shell: bash
+      env:
+        SSH_KEY: ${{ inputs.ssh_key }}
+        VPS_HOST: ${{ inputs.host }}
+        VPS_PORT: ${{ inputs.port }}
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+    - name: Rsync app (keep VPS .env files)
+      shell: bash
+      run: |
+        rsync -az --delete \
+          -e "ssh -p ${{ inputs.port }} -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+          --exclude '.git/' \
+          --exclude 'node_modules/' \
+          --exclude '.next/' \
+          --exclude '.cursor/' \
+          --exclude '.env' \
+          --exclude '.env.local' \
+          --exclude '.env.staging' \
+          --exclude '.env.production' \
+          --exclude '.env.hosted' \
+          ./ "${{ inputs.user }}@${{ inputs.host }}:${{ inputs.remote_dir }}/"
+
+    - name: Run remote deploy script
+      shell: bash
+      run: |
+        ssh -p "${{ inputs.port }}" \
+          -i ~/.ssh/id_ed25519 \
+          -o IdentitiesOnly=yes \
+          "${{ inputs.user }}@${{ inputs.host }}" \
+          "bash ${{ inputs.remote_dir }}/${{ inputs.remote_script }}"

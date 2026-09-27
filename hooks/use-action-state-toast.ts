@@ -1,21 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useActionStateSettled } from "@/hooks/use-action-state-settled";
 import {
   showActionResultToast,
   showErrorToast,
   type ActionToastState,
 } from "@/lib/toast";
-
-function stateFingerprint(state: ActionToastState) {
-  return JSON.stringify({
-    success: state.success ?? null,
-    error: state.error ?? null,
-    message: state.message ?? null,
-    note: state.note ?? null,
-    warning: state.warning ?? null,
-  });
-}
 
 function hasToastPayload(state: ActionToastState) {
   return (
@@ -31,44 +21,17 @@ export function useActionStateToast(
   state: ActionToastState,
   isPending: boolean
 ) {
-  const wasPendingRef = useRef(false);
-  const lastFingerprintRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (isPending) {
-      wasPendingRef.current = true;
-      lastFingerprintRef.current = null;
-      return;
-    }
-
-    if (!wasPendingRef.current) {
-      return;
-    }
-
-    wasPendingRef.current = false;
-
-    if (!hasToastPayload(state)) {
-      return;
-    }
-
-    const fingerprint = stateFingerprint(state);
-
-    if (lastFingerprintRef.current === fingerprint) {
-      return;
-    }
-
-    lastFingerprintRef.current = fingerprint;
-
-    if (state.success === true) {
-      showActionResultToast(state);
-      if (state.warning) {
-        showErrorToast(state.warning);
+  useActionStateSettled(state, isPending, hasToastPayload, (next) => {
+    if (next.success === true) {
+      showActionResultToast(next);
+      if (next.warning) {
+        showErrorToast(next.warning);
       }
       return;
     }
 
-    if (state.error) {
-      showErrorToast(state.error);
+    if (next.error) {
+      showErrorToast(next.error);
     }
-  }, [state, isPending]);
+  });
 }

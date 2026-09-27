@@ -47,14 +47,16 @@ export function useMutationDialogForm<TState extends MutationDialogState>({
   onSuccess,
   isReady,
 }: UseMutationDialogFormOptions<TState>): UseMutationDialogFormResult<TState> {
-  const [isTransitionPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   // React's useActionState generics use Awaited<State>, which does not preserve
   // unconstrained type params — cast keeps FormData dispatch typing intact.
   const [state, dispatch, isActionPending] = useActionState(
     action as never,
     initialState as never
   ) as [TState, (payload: FormData) => void, boolean];
-  const isPending = isActionPending || isTransitionPending;
+  // Button / dismiss follow the action only. A leftover useTransition can
+  // stay pending until the next click after a successful save.
+  const isPending = isActionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
   useActionStateToast(state, isPending);

@@ -21,7 +21,7 @@ There are three separate migrations.
 
 ### 1.1 Next.js application
 
-Move the Next.js application from Vercel to a Dockerized Next.js deployment running on the VPS.
+✅ Move the Next.js application to a Dockerized production build **in this repo** (`Dockerfile`, `output: "standalone"`, `compose.yaml` + staging/prod). Not yet running on the Hostinger VPS.
 
 ### 1.2 Supabase backend
 
@@ -98,13 +98,13 @@ R2 is useful for separating object storage from the VPS. However, it is not auto
 
 ### Step 5 — Move Next.js to Docker
 
-- Add a production Dockerfile.
-- Use `output: "standalone"` where appropriate.
-- Build the production image.
+- ✅ Add a production Dockerfile.
+- ✅ Use `output: "standalone"` where appropriate.
+- ✅ Build the production image (verified locally with `npm run build` / `npm start`).
 - Run the application on the VPS.
-- Configure production environment variables.
-- Connect the application to the new Supabase API URL.
-- Test:
+- ✅ Configure production environment **templates** (`.env.staging.example`, `.env.production.example`; shared Mailtrap / Turnstile / Cloudflare AI).
+- Connect the application to the new Supabase API URL (templates use `https://api.etkan.org`; stack not running).
+- Test on the VPS:
   - Server Components
   - Server Actions
   - API routes
@@ -116,10 +116,10 @@ R2 is useful for separating object storage from the VPS. However, it is not auto
 
 ### Step 6 — Configure networking and domains
 
-- Put Caddy or Nginx in front of the services.
-- Enable HTTPS.
-- Route `app.example.com` to Next.js.
-- Route `api.example.com` to the Supabase API gateway.
+- ✅ Caddyfile + `compose.proxy.yaml` in the repo (`staging.etkan.org` → 3001, `etkan.org` → 3000, `www` redirect).
+- Enable HTTPS (Let's Encrypt on the VPS when Caddy is up).
+- ✅ Route Next.js hosts in Caddy (not live until VPS + DNS).
+- Route `api.etkan.org` to Kong (block is in Caddyfile, **commented** until self-hosted API exists).
 - Keep PostgreSQL private.
 - Restrict Supabase Studio.
 - Configure Cloudflare DNS.
@@ -227,9 +227,9 @@ If the VPS is far from users, has poor network connectivity, lacks CPU or RAM, o
 
 ### Next.js
 
-- [ ] Production Dockerfile created
-- [ ] Production image built
-- [ ] Environment variables configured
+- [x] Production Dockerfile created
+- [x] Production image built (local)
+- [x] Environment variable templates configured (staging/prod + `.env.supabase.vps.example`)
 - [ ] Next.js connected to new API
 - [ ] Authentication tested
 - [ ] Server Actions tested

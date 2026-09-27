@@ -1,16 +1,23 @@
-# VPS reverse proxy. DNS for both hosts must point at this machine.
+# VPS reverse proxy. DNS for these hosts must point at this machine.
 # First cert issue is easier with Cloudflare DNS-only (grey cloud), then Full (strict).
+# Kong on the Supabase CLI stack is host port 54321 (not 8000).
 
 staging.etkan.org {
 	encode gzip
 	reverse_proxy host.docker.internal:3001
 }
 
-www.etkan.org {
-	redir https://etkan.org{uri} permanent
+api.etkan.org {
+	encode gzip
+	reverse_proxy host.docker.internal:54321
 }
 
-etkan.org {
-	encode gzip
-	reverse_proxy host.docker.internal:3000
-}
+# Production — keep commented until @ / www cut over to this VPS.
+# www.etkan.org {
+# 	redir https://etkan.org{uri} permanent
+# }
+#
+# etkan.org {
+# 	encode gzip
+# 	reverse_proxy host.docker.internal:3000
+# }
