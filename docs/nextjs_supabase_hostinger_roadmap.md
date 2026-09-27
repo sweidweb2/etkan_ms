@@ -21,7 +21,7 @@ There are three separate migrations.
 
 ### 1.1 Next.js application
 
-✅ Move the Next.js application to a Dockerized production build **in this repo** (`Dockerfile`, `output: "standalone"`, `compose.yaml` + staging/prod). Not yet running on the Hostinger VPS.
+✅ Move the Next.js application to a Dockerized production build **in this repo** and onto the Hostinger VPS (staging + prod containers behind Caddy). As-built notes: [`[14] Deploy/README.md`](./[14]%20Deploy/README.md).
 
 ### 1.2 Supabase backend
 

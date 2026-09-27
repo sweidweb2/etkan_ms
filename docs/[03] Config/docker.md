@@ -1,10 +1,16 @@
 # Docker — Next.js local / staging / prod
 
-This repo Dockerizes **Next.js only**. Local Supabase is the CLI (`npx supabase start`). Staging and production Next containers will talk to a **self-hosted** Supabase API (`https://api.etkan.org`) once that stack is added — env templates are ready; do **not** `up` Supabase from this repo yet.
+This repo Dockerizes **Next.js only**. Local Supabase is the CLI (`npx supabase start`). On the Hostinger VPS, staging and production each have **their own** CLI Supabase stack (not Cloud, not a shared VPS database).
 
-Mailtrap, Turnstile, and Cloudflare Workers AI are HTTPS APIs — no extra containers. Staging and prod use the **same** SaaS keys.
+**As-built VPS reference** (hosts, ports, deploys, findings):
 
-Do **not** add a custom slim Supabase compose file. Use the official Docker deployment later ([`nextjs_supabase_hostinger_roadmap.md`](../nextjs_supabase_hostinger_roadmap.md)).
+- [`../[14] Deploy/README.md`](../[14]%20Deploy/README.md)
+- [`../[14] Deploy/vps-staging.md`](../[14]%20Deploy/vps-staging.md)
+- [`../[14] Deploy/vps-prod.md`](../[14]%20Deploy/vps-prod.md)
+
+Mailtrap, Turnstile, and Cloudflare Workers AI are HTTPS APIs — no extra containers. Staging and prod copy the **same** SaaS keys.
+
+Do **not** add a custom slim Supabase compose file. Official Docker deployment is still later ([`nextjs_supabase_hostinger_roadmap.md`](../nextjs_supabase_hostinger_roadmap.md)). Today both VPS databases are `npx supabase start`.
 
 Daily local development stays on the host:
 
@@ -13,41 +19,43 @@ npx supabase start
 npm run dev
 ```
 
-See [`local-supabase.md`](./[03]%20Config/local-supabase.md).
+See [`local-supabase.md`](./local-supabase.md).
 
 ## Two apps on one VPS
 
 | App | Hostname | Compose project | Container | Host port |
 | --- | --- | --- | --- | --- |
 | Staging | `https://staging.etkan.org` | `etkan-staging` | `etkan-staging-web` | `3001` → container `3000` |
-| Production | `https://etkan.org` | `etkan-prod` | `etkan-prod-web` | `3000` → container `3000` |
+| Production | `https://etkan.org` and `www` | `etkan-prod` | `etkan-prod-web` | `3000` → container `3000` |
 | Proxy | TLS + host routing | `etkan-proxy` | `etkan-caddy` | `80` / `443` |
+| Staging API | `https://api.etkan.org` | CLI `etkan_ms` | Kong | host `54321` |
+| Prod API | `https://prod-api.etkan.org` | CLI `etkan_ms_prod` | Kong | host `55321` |
 
 ```
 Internet → Caddy
-              ├ staging.etkan.org → 127.0.0.1:3001
-              ├ etkan.org         → 127.0.0.1:3000
-              └ api.etkan.org     → 127.0.0.1:8000  (Kong; enable in Caddyfile later)
-Both Next containers → same self-hosted Supabase (when that stack is running)
+              ├ staging.etkan.org     → :3001  (etkan-staging-web)
+              ├ etkan.org / www       → :3000  (etkan-prod-web)
+              ├ api.etkan.org         → :54321 (staging Kong)
+              └ prod-api.etkan.org    → :55321 (prod Kong)
 ```
 
-`www.etkan.org` redirects to `https://etkan.org`.
+`www` and apex both serve prod Next (no redirect). See the prod deploy note on split DNS.
 
 ## Files
 
 | File | Role |
 | --- | --- |
-| [`Dockerfile`](../Dockerfile) | Multi-stage production image (`output: "standalone"`) |
-| [`compose.yaml`](../compose.yaml) | Shared `web` image build |
-| [`compose.local.yaml`](../compose.local.yaml) | Optional image smoke (not the default local workflow) |
-| [`compose.staging.yaml`](../compose.staging.yaml) | Staging container on host port `3001` |
-| [`compose.prod.yaml`](../compose.prod.yaml) | Production container on host port `3000` |
-| [`compose.proxy.yaml`](../compose.proxy.yaml) | Caddy for the two hostnames |
-| [`Caddyfile`](../Caddyfile) | App hosts; `api.etkan.org` block commented until Kong is up |
-| [`.env.example`](../.env.example) | Local key list |
-| [`.env.staging.example`](../.env.staging.example) | Staging Next template |
-| [`.env.production.example`](../.env.production.example) | Production Next template |
-| [`.env.supabase.vps.example`](../.env.supabase.vps.example) | Official VPS Supabase env contract |
+| [`Dockerfile`](../../Dockerfile) | Multi-stage production image (`output: "standalone"`) |
+| [`compose.yaml`](../../compose.yaml) | Shared `web` image build |
+| [`compose.local.yaml`](../../compose.local.yaml) | Optional image smoke (not the default local workflow) |
+| [`compose.staging.yaml`](../../compose.staging.yaml) | Staging container on host port `3001` |
+| [`compose.prod.yaml`](../../compose.prod.yaml) | Production container on host port `3000` |
+| [`compose.proxy.yaml`](../../compose.proxy.yaml) | Caddy |
+| [`Caddyfile`](../../Caddyfile) | All public hosts — must stay in git (deploy uses `git checkout -f`) |
+| [`.env.example`](../../.env.example) | Local key list |
+| [`.env.staging.example`](../../.env.staging.example) | Staging Next template (`https://api.etkan.org`) |
+| [`.env.production.example`](../../.env.production.example) | Production Next template (`https://prod-api.etkan.org`) |
+| [`.env.supabase.vps.example`](../../.env.supabase.vps.example) | Official VPS Supabase env contract (future) |
 
 `NEXT_PUBLIC_*` values are baked in at **image build** time. Pass the same file to Compose so build args and runtime env stay aligned.
 
@@ -66,14 +74,12 @@ Copy the `*.example` files if the gitignored files are missing. Do not commit re
 
 PRs to `dev` / `main` run **CI only** (lint, typecheck, test, build). They do **not** deploy.
 
-Same idea as a Hostinger Laravel deploy: GitHub SSHs in, `git pull`s, then rebuilds the app.
-
 | Event | Workflow | What happens |
 | --- | --- | --- |
-| Push to `dev` | `deploy-staging.yml` | CI, then SSH → `git pull` → rebuild `etkan-staging-web` |
-| Push to `main` | `deploy-prod.yml` | CI, then SSH → `git pull` → rebuild `etkan-prod-web` |
+| Push to `dev` | `deploy-staging.yml` | CI, then SSH → `git checkout -f` → rebuild `etkan-staging-web` |
+| Push to `main` | `deploy-prod.yml` | CI, then SSH → `git checkout -f` → rebuild `etkan-prod-web` |
 
-Env files on the VPS (`.env.staging`, `.env.production`) stay on the server. Caddy and Supabase are **not** restarted.
+Env files on the VPS (`.env.staging`, `.env.production`) stay on the server. Caddy and Supabase are **not** restarted (staging re-patches Auth `site_url` in `~/etkan_ms/supabase/config.toml` only).
 
 Repo secrets (Settings → Secrets and variables → Actions):
 
@@ -87,15 +93,16 @@ Put the matching **public** key in `/home/deploy/.ssh/authorized_keys`. `deploy`
 
 ## Commands (VPS)
 
-```powershell
+```bash
 # Staging image + container
 docker compose --env-file .env.staging -f compose.yaml -f compose.staging.yaml up -d --build
 
 # Production image + container
 docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml up -d --build
 
-# Caddy (after both apps are listening)
+# Caddy
 docker compose -f compose.proxy.yaml up -d
+docker compose -f compose.proxy.yaml exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
 Optional local image smoke:
@@ -104,28 +111,30 @@ Optional local image smoke:
 docker compose --env-file .env.local -f compose.yaml -f compose.local.yaml up --build
 ```
 
-Stop one stack:
+Stop **one** Next stack (not Caddy, not the other app):
 
-```powershell
-docker compose -f compose.yaml -f compose.staging.yaml down
-docker compose -f compose.yaml -f compose.prod.yaml down
-docker compose -f compose.proxy.yaml down
+```bash
+docker compose --env-file .env.staging -f compose.yaml -f compose.staging.yaml down
+docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml down
 ```
+
+Do not `down` `compose.proxy.yaml` unless you intend to drop TLS for every host.
 
 ## DNS and TLS
 
-Point `staging.etkan.org`, `etkan.org`, `www.etkan.org`, and (when enabling Kong) `api.etkan.org` at the VPS. First Let's Encrypt issue is easier with Cloudflare **DNS only** (grey cloud). After certificates exist, you can use Full (strict).
+Point `staging`, `api`, `prod-api`, `@`, and `www` at the VPS. First Let's Encrypt issue is easier with Cloudflare **DNS only** (grey cloud). Caddy container DNS must be `1.1.1.1` / `8.8.8.8`.
 
-Open VPS firewall ports **80** and **443**. App ports `3000` / `3001` can stay localhost-only if Caddy runs on the same machine.
+Open VPS firewall ports **80** and **443**.
 
 ## Auth and Turnstile
 
-See [`supabase-auth.md`](./supabase-auth.md). On self-hosted Auth, set Site URL to `https://etkan.org` and additional redirects to both `/auth/callback` URLs (see `.env.supabase.vps.example`).
+See [`supabase-auth.md`](./supabase-auth.md) and the [14] Deploy notes. Staging and prod Auth `site_url` values are **different** (two CLI stacks).
 
 In Cloudflare Turnstile, allow `staging.etkan.org`, `etkan.org`, and `www.etkan.org`. Use that same list in `TURNSTILE_HOSTNAMES` on both Next env files.
 
-## What is not started yet
+## What is not done yet
 
-- Official self-hosted Supabase containers (env template only)
-- Redis, extra cron workers
-- Cloudflare R2
+- Official self-hosted Supabase compose (CLI stacks are live instead)
+- Cloud → prod data migration
+- JWT rotation off the CLI demo secret
+- Redis, extra cron workers, Cloudflare R2

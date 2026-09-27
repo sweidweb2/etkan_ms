@@ -1,5 +1,5 @@
 # Next.js image only. Staging/prod env: .env.staging.example / .env.production.example
-# (shared SaaS keys; NEXT_PUBLIC_SUPABASE_URL=https://api.etkan.org when VPS Kong is up).
+# Staging API: https://api.etkan.org  Prod API: https://prod-api.etkan.org
 services:
   web:
     build:

@@ -9,5 +9,5 @@ services:
       - .env.production
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      - "api.etkan.org:host-gateway"
+      - "prod-api.etkan.org:host-gateway"
     restart: unless-stopped

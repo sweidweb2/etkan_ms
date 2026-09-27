@@ -18,12 +18,15 @@ prod-api.etkan.org {
 	reverse_proxy host.docker.internal:55321
 }
 
-# Production — keep commented until @ / www cut over to this VPS.
-# www.etkan.org {
-# 	redir https://etkan.org{uri} permanent
-# }
-#
-# etkan.org {
-# 	encode gzip
-# 	reverse_proxy host.docker.internal:3000
-# }
+# Serve both hosts (no www↔apex bounce). A split DNS period
+# (apex still on Vercel, www on this VPS) plus opposite redirects
+# caused ERR_TOO_MANY_REDIRECTS.
+www.etkan.org {
+	encode gzip
+	reverse_proxy host.docker.internal:3000
+}
+
+etkan.org {
+	encode gzip
+	reverse_proxy host.docker.internal:3000
+}
