@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/services/auth/auth.service";
+import { getSessionAuthIdentity } from "@/services/auth/auth.service";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   getBackupStorageExportUnauthorized,
@@ -11,7 +11,8 @@ import {
 
 export async function GET() {
   const sessionClient = await createSupabaseServerActionClient();
-  const user = await getCurrentUser(sessionClient);
+  const identity = await getSessionAuthIdentity(sessionClient);
+  const user = identity?.user ?? null;
 
   if (!user) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });

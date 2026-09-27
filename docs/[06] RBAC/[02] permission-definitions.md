@@ -317,6 +317,8 @@ Format: `key` — label — access
 | `backup.export_table` | Export table backup | write |
 | `backup.export_full` | Export full backup | write |
 | `backup.export_storage` | Export storage files | write |
+| `backup.export_auth` | Export auth users | write |
+| `backup.export_auth_settings` | Export dashboard auth settings | write |
 | `backup.download` | Download backup file | write |
 
 ### Logs
@@ -553,6 +555,8 @@ backup.view
 backup.export_table
 backup.export_full
 backup.export_storage
+backup.export_auth
+backup.export_auth_settings
 backup.download
 logs.view
 cloudflare_ai_usage.view

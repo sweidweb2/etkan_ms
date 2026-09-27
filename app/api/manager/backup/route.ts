@@ -7,7 +7,7 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { parseBackupExportFormat } from "@/lib/validators/manager/backup-export";
-import { getCurrentUser } from "@/services/auth/auth.service";
+import { getSessionAuthIdentity } from "@/services/auth/auth.service";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import { recordBackupHistory } from "@/services/backup/backup-history.service";
 import {
@@ -38,7 +38,8 @@ function createBackupFileResponse(
 
 export async function GET(request: Request) {
   const sessionClient = await createSupabaseServerActionClient();
-  const user = await getCurrentUser(sessionClient);
+  const identity = await getSessionAuthIdentity(sessionClient);
+  const user = identity?.user ?? null;
 
   if (!user) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });

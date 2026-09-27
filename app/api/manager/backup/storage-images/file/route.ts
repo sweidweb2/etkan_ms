@@ -3,7 +3,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
 import { parseBackupStorageImageFileQuery } from "@/lib/validators/manager/backup-storage-images";
-import { getCurrentUser } from "@/services/auth/auth.service";
+import { getSessionAuthIdentity } from "@/services/auth/auth.service";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   downloadStorageFileForBackup,
@@ -12,7 +12,8 @@ import {
 
 export async function GET(request: Request) {
   const sessionClient = await createSupabaseServerActionClient();
-  const user = await getCurrentUser(sessionClient);
+  const identity = await getSessionAuthIdentity(sessionClient);
+  const user = identity?.user ?? null;
 
   if (!user) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });

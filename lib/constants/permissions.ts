@@ -260,6 +260,8 @@ export const PERMISSIONS = {
   BACKUP_EXPORT_TABLE: "backup.export_table",
   BACKUP_EXPORT_FULL: "backup.export_full",
   BACKUP_EXPORT_STORAGE: "backup.export_storage",
+  BACKUP_EXPORT_AUTH: "backup.export_auth",
+  BACKUP_EXPORT_AUTH_SETTINGS: "backup.export_auth_settings",
   BACKUP_DOWNLOAD: "backup.download",
 
   LOGS_VIEW: "logs.view",
@@ -1210,6 +1212,18 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.BACKUP_EXPORT_STORAGE,
     feature: "backup",
     label: "Export storage files",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.BACKUP_EXPORT_AUTH,
+    feature: "backup",
+    label: "Export auth users",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.BACKUP_EXPORT_AUTH_SETTINGS,
+    feature: "backup",
+    label: "Export dashboard auth settings",
     access: PERMISSION_ACCESS.WRITE,
   },
   {

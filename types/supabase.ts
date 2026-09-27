@@ -2968,6 +2968,7 @@ export type Database = {
         Args: { p_class_id: string; p_user_ids: string[] }
         Returns: Json
       }
+      export_auth_schema_backup: { Args: never; Returns: Json }
       reorder_mentor_subjects: {
         Args: { p_ordered_ids: string[] }
         Returns: {

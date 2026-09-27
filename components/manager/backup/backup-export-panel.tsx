@@ -3,7 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ChevronDownIcon, Download, FolderArchive, MessageSquareTextIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  Download,
+  FolderArchive,
+  KeyRound,
+  MessageSquareTextIcon,
+  SlidersHorizontal,
+} from "lucide-react";
 import { FieldLabel } from "@/components/auth/field-label";
 import { Can } from "@/components/auth/can";
 import { ExportStorageImagesDialog } from "@/components/manager/backup/export-storage-images-dialog";
@@ -55,7 +62,25 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import type { BackupHistoryEntry } from "@/types/backup-history";
 
-type PendingExportScope = "table" | "all" | null;
+type PendingExportScope = "table" | "all" | "auth" | "auth_settings" | null;
+type HistoryScopeFilter =
+  | "all"
+  | "table"
+  | "full"
+  | "auth"
+  | "storage"
+  | "auth_settings";
+
+const BACKUP_HISTORY_SCOPE_LABELS: Record<
+  BackupHistoryEntry["scope"],
+  string
+> = {
+  table: "Single table",
+  all: "All tables",
+  auth: "Auth users",
+  storage: "Storage files",
+  auth_settings: "Dashboard auth settings",
+};
 type BackupExportPanelProps = {
   initialHistory: BackupHistoryEntry[];
 };
@@ -70,7 +95,7 @@ function getFilenameFromDisposition(headerValue: string | null) {
 }
 
 async function downloadBackupFile(url: string) {
-  const response = await fetch(url);
+  const response = await fetch(url, { credentials: "same-origin" });
 
   if (!response.ok) {
     let message = "Unable to export backup.";
@@ -101,7 +126,10 @@ async function downloadBackupFile(url: string) {
   link.remove();
   URL.revokeObjectURL(objectUrl);
 
-  return filename;
+  return {
+    filename,
+    headers: response.headers,
+  };
 }
 
 function formatBackupDate(value: string) {
@@ -118,6 +146,28 @@ function buildBackupExportUrl(
   }
 
   return `/api/manager/backup?${params.toString()}`;
+}
+
+function getHistoryExportUrl(
+  entry: BackupHistoryEntry,
+  format: BackupExportFormat
+) {
+  if (entry.scope === "auth") {
+    return "/api/manager/backup/auth";
+  }
+
+  if (entry.scope === "storage") {
+    return "/api/manager/backup/storage-images/zip";
+  }
+
+  if (entry.scope === "auth_settings") {
+    return "/api/manager/backup/auth-settings";
+  }
+
+  return buildBackupExportUrl(
+    format,
+    entry.scope === "table" ? entry.tableName : null
+  );
 }
 
 function BackupExportMenu({
@@ -194,9 +244,7 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
     null
   );
   const [isStorageExportOpen, setIsStorageExportOpen] = useState(false);
-  const [scopeFilter, setScopeFilter] = useState<"all" | "table" | "full">(
-    "all"
-  );
+  const [scopeFilter, setScopeFilter] = useState<HistoryScopeFilter>("all");
   const [keywordFilter, setKeywordFilter] = useState<string>("");
   const [pageSize, setPageSize] = useState<5 | 8 | 12>(8);
   const [page, setPage] = useState(1);
@@ -205,9 +253,9 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
     const scopeMatches =
       scopeFilter === "all"
         ? true
-        : scopeFilter === "table"
-          ? entry.scope === "table"
-          : entry.scope === "all";
+        : scopeFilter === "full"
+          ? entry.scope === "all"
+          : entry.scope === scopeFilter;
 
     if (!scopeMatches) {
       return false;
@@ -258,11 +306,11 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
   async function handleTableExport(format: BackupExportFormat) {
     try {
       setPendingScope("table");
-      const fileName = await downloadBackupFile(
+      const { filename } = await downloadBackupFile(
         buildBackupExportUrl(format, selectedTable)
       );
 
-      showSuccessToast("Table export completed.", fileName);
+      showSuccessToast("Table export completed.", filename);
       router.refresh();
     } catch (error) {
       const message =
@@ -276,9 +324,9 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
   async function handleDatabaseExport(format: BackupExportFormat) {
     try {
       setPendingScope("all");
-      const fileName = await downloadBackupFile(buildBackupExportUrl(format));
+      const { filename } = await downloadBackupFile(buildBackupExportUrl(format));
 
-      showSuccessToast("Full database export completed.", fileName);
+      showSuccessToast("Full database export completed.", filename);
       router.refresh();
     } catch (error) {
       const message =
@@ -295,14 +343,11 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
   ) {
     try {
       setPendingHistoryExportId(entry.id);
-      const fileName = await downloadBackupFile(
-        buildBackupExportUrl(
-          format,
-          entry.scope === "table" ? entry.tableName : null
-        )
+      const { filename } = await downloadBackupFile(
+        getHistoryExportUrl(entry, format)
       );
 
-      showSuccessToast("Backup re-export completed.", fileName);
+      showSuccessToast("Backup re-export completed.", filename);
       router.refresh();
     } catch (error) {
       const message =
@@ -313,16 +358,60 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
     }
   }
 
+  async function handleAuthExport() {
+    try {
+      setPendingScope("auth");
+      const { filename } = await downloadBackupFile("/api/manager/backup/auth");
+      showSuccessToast("Auth users export completed.", filename);
+      router.refresh();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to export auth users.";
+      showErrorToast(message);
+    } finally {
+      setPendingScope(null);
+    }
+  }
+
+  async function handleAuthSettingsExport() {
+    try {
+      setPendingScope("auth_settings");
+      const { filename, headers } = await downloadBackupFile(
+        "/api/manager/backup/auth-settings"
+      );
+      const isComplete = headers.get("X-Backup-Auth-Settings-Complete") === "1";
+      if (isComplete) {
+        showSuccessToast("Dashboard auth settings export completed.", filename);
+      } else {
+        showSuccessToast(
+          "Dashboard auth settings export is incomplete.",
+          "Add SUPABASE_ACCESS_TOKEN, then export again for SMTP, templates, and OAuth."
+        );
+      }
+      router.refresh();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to export dashboard auth settings.";
+      showErrorToast(message);
+    } finally {
+      setPendingScope(null);
+    }
+  }
+
   const isTableExportPending = pendingScope === "table";
   const isDatabaseExportPending = pendingScope === "all";
+  const isAuthExportPending = pendingScope === "auth";
+  const isAuthSettingsExportPending = pendingScope === "auth_settings";
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Backup</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Export tables as JSON, SQL, or CSV, or collect every image in
-          Supabase storage into a ZIP.
+          Export public tables, then download auth users, storage files, and
+          dashboard auth settings before you replace this Supabase project.
         </p>
       </div>
 
@@ -344,7 +433,7 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <Select value={scopeFilter} onValueChange={(v) => {
                       if (!v) return;
-                      setScopeFilter(v as "all" | "table" | "full");
+                      setScopeFilter(v as HistoryScopeFilter);
                       setPage(1);
                     }}>
                       <SelectTrigger className="w-full sm:w-36">
@@ -354,6 +443,11 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                         <SelectItem value="all">All</SelectItem>
                         <SelectItem value="table">Tables</SelectItem>
                         <SelectItem value="full">Full DB</SelectItem>
+                        <SelectItem value="auth">Auth users</SelectItem>
+                        <SelectItem value="storage">Storage</SelectItem>
+                        <SelectItem value="auth_settings">
+                          Auth settings
+                        </SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -391,11 +485,10 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                       const fileNameShort = truncateText(entry.fileName, 44);
                       const scopeLineShort =
                         entry.scope === "table"
-                          ? truncateText(
-                              `Table export: ${tableLabel}`,
-                              52
-                            )
-                          : "Full database export";
+                          ? truncateText(`Table export: ${tableLabel}`, 52)
+                          : entry.scope === "all"
+                            ? "Full database export"
+                            : BACKUP_HISTORY_SCOPE_LABELS[entry.scope];
 
                       return (
                         <tr key={entry.id} className="bg-muted/20">
@@ -578,10 +671,43 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
 
           <Card className="gap-0 py-0">
             <CardHeader className="border-b bg-muted/40 py-3">
+              <CardTitle>Export Auth Users</CardTitle>
+              <CardDescription>
+                Passwords and login emails live here. <code>profiles.id</code>{" "}
+                only points at those users. Without this dump, nobody can sign
+                in after a restore.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter className="bg-muted/40">
+              <Can
+                anyOf={[
+                  PERMISSIONS.BACKUP_EXPORT_AUTH,
+                  PERMISSIONS.BACKUP_EXPORT_FULL,
+                ]}
+              >
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => void handleAuthExport()}
+                  disabled={pendingScope !== null}
+                >
+                  {isAuthExportPending ? (
+                    <InlineSpinner />
+                  ) : (
+                    <KeyRound aria-hidden />
+                  )}
+                  Export auth users
+                </Button>
+              </Can>
+            </CardFooter>
+          </Card>
+
+          <Card className="gap-0 py-0">
+            <CardHeader className="border-b bg-muted/40 py-3">
               <CardTitle>Export Storage Files</CardTitle>
               <CardDescription>
-                Download every file from projects, blogs, authors, workshops,
-                registration, and student task uploads.
+                Bucket rules are in the migrations. The files themselves are
+                only in this ZIP from Manager → Backup.
               </CardDescription>
             </CardHeader>
             <CardFooter className="bg-muted/40">
@@ -599,6 +725,40 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                 >
                   <FolderArchive aria-hidden />
                   Export storage files
+                </Button>
+              </Can>
+            </CardFooter>
+          </Card>
+
+          <Card className="gap-0 py-0">
+            <CardHeader className="border-b bg-muted/40 py-3">
+              <CardTitle>Export Dashboard Auth Settings</CardTitle>
+              <CardDescription>
+                Site URL, redirect URLs, email templates, SMTP, and any OAuth
+                providers. Those are project settings, not SQL. A complete
+                export needs <code>SUPABASE_ACCESS_TOKEN</code> in the server
+                env.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter className="bg-muted/40">
+              <Can
+                anyOf={[
+                  PERMISSIONS.BACKUP_EXPORT_AUTH_SETTINGS,
+                  PERMISSIONS.BACKUP_EXPORT_FULL,
+                ]}
+              >
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => void handleAuthSettingsExport()}
+                  disabled={pendingScope !== null}
+                >
+                  {isAuthSettingsExportPending ? (
+                    <InlineSpinner />
+                  ) : (
+                    <SlidersHorizontal aria-hidden />
+                  )}
+                  Export auth settings
                 </Button>
               </Can>
             </CardFooter>
@@ -633,9 +793,7 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                     Scope
                   </dt>
                   <dd className="text-sm text-foreground">
-                    {detailsEntry.scope === "table"
-                      ? "Single table"
-                      : "All tables"}
+                    {BACKUP_HISTORY_SCOPE_LABELS[detailsEntry.scope]}
                   </dd>
                 </div>
 
@@ -676,6 +834,24 @@ export function BackupExportPanel({ initialHistory }: BackupExportPanelProps) {
                         Table: {detailsEntry.tableName ?? "—"}
                         <br />
                         Rows: {detailsEntry.rowCount}
+                      </>
+                    ) : detailsEntry.scope === "auth" ? (
+                      <>
+                        Tables: auth.users, auth.identities
+                        <br />
+                        Rows: {detailsEntry.rowCount}
+                      </>
+                    ) : detailsEntry.scope === "storage" ? (
+                      <>
+                        Buckets: {detailsEntry.tableCount}
+                        <br />
+                        Files: {detailsEntry.rowCount}
+                      </>
+                    ) : detailsEntry.scope === "auth_settings" ? (
+                      <>
+                        Dashboard auth config
+                        <br />
+                        Complete: {detailsEntry.rowCount > 0 ? "Yes" : "No"}
                       </>
                     ) : (
                       <>

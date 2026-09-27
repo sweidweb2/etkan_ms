@@ -1,4 +1,9 @@
-export type BackupHistoryScope = "table" | "all";
+export type BackupHistoryScope =
+  | "table"
+  | "all"
+  | "auth"
+  | "storage"
+  | "auth_settings";
 
 export interface BackupHistoryEntry {
   id: string;
