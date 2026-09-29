@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useState, type MouseEvent, type PointerEvent } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +48,11 @@ export function CopyTextButton({
     }
   }
 
+  function stopRowNavigation(event: PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger
@@ -57,11 +62,12 @@ export function CopyTextButton({
             variant="ghost"
             size="icon-xs"
             className={cn(
-              "size-6 shrink-0 text-muted-foreground hover:bg-primary/15 hover:text-primary",
+              "relative z-10 size-6 shrink-0 text-muted-foreground hover:bg-primary/15 hover:text-primary",
               className
             )}
             aria-label={label}
             disabled={!trimmed}
+            onPointerDown={stopRowNavigation}
             onClick={(event) => {
               void handleCopy(event);
             }}

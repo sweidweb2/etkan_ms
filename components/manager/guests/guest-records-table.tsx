@@ -120,6 +120,24 @@ function StatusBadge({ status }: { status: GuestCurrentStatus }) {
   );
 }
 
+function CopyHitArea({ children }: { children: ReactNode }) {
+  return (
+    <span
+      className="relative z-10 inline-flex shrink-0"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 function CopyableValue({
   value,
   display,
@@ -139,19 +157,21 @@ function CopyableValue({
   const shown = display ?? (trimmed || "—");
 
   return (
-    <div className="relative z-10 flex min-w-0 items-center gap-1">
+    <div className="flex min-w-0 items-center gap-1">
       <TruncatedCell
         value={shown}
         maxLength={maxLength}
         className="min-w-0"
       />
       {trimmed ? (
-        <CopyTextButton
-          value={trimmed}
-          label={label}
-          successMessage={successMessage}
-          errorMessage={errorMessage}
-        />
+        <CopyHitArea>
+          <CopyTextButton
+            value={trimmed}
+            label={label}
+            successMessage={successMessage}
+            errorMessage={errorMessage}
+          />
+        </CopyHitArea>
       ) : null}
     </div>
   );
@@ -210,7 +230,7 @@ function GuestRecordRow({
       ) : null}
 
       <td className="px-4 py-3 font-medium">
-        <div className="relative z-10 flex min-w-0 items-center gap-1">
+        <div className="flex min-w-0 items-center gap-1">
           <Link
             prefetch={false}
             href={getManagerGuestDetailRoute(guest.id)}
@@ -223,12 +243,14 @@ function GuestRecordRow({
               className="min-w-0"
             />
           </Link>
-          <CopyTextButton
-            value={guest.full_name}
-            label={`Copy name for ${guest.full_name}`}
-            successMessage="Name copied to clipboard."
-            errorMessage="Unable to copy name."
-          />
+          <CopyHitArea>
+            <CopyTextButton
+              value={guest.full_name}
+              label={`Copy name for ${guest.full_name}`}
+              successMessage="Name copied to clipboard."
+              errorMessage="Unable to copy name."
+            />
+          </CopyHitArea>
         </div>
       </td>
       <td className="px-4 py-3 whitespace-nowrap">
