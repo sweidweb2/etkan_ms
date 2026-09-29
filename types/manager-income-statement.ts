@@ -79,3 +79,5 @@ export type CreateTransactionActionState = {
 };
 
 export type UpdateTransactionActionState = CreateTransactionActionState;
+
+export type DeleteTransactionActionState = CreateTransactionActionState;

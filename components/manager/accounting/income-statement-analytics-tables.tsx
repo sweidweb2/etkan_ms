@@ -10,12 +10,14 @@ import {
   ChevronRightIcon,
   CircleHelpIcon,
   PencilIcon,
+  Trash2Icon,
   UserRoundXIcon,
   UsersIcon,
   WalletIcon,
   type LucideIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
+import { DeleteTransactionDialog } from "@/components/manager/accounting/delete-transaction-dialog";
 import { EditTransactionDialog } from "@/components/manager/accounting/edit-transaction-dialog";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
@@ -297,6 +299,9 @@ export function IncomeStatementAnalyticsEtkanTab({
   const [editOpen, setEditOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<ManagerIncomeAnalyticsTransactionRow | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingTransaction, setDeletingTransaction] =
+    useState<ManagerIncomeAnalyticsTransactionRow | null>(null);
 
   const credits = transactions.filter(
     (row) => row.type === TRANSACTION_TYPES.CREDIT
@@ -312,6 +317,13 @@ export function IncomeStatementAnalyticsEtkanTab({
     setEditOpen(open);
     if (!open) {
       setEditingTransaction(null);
+    }
+  }
+
+  function handleDeleteOpenChange(open: boolean) {
+    setDeleteOpen(open);
+    if (!open) {
+      setDeletingTransaction(null);
     }
   }
 
@@ -465,28 +477,51 @@ export function IncomeStatementAnalyticsEtkanTab({
                         {row.linked_workshop_payment_id ? (
                           <span
                             className="text-xs text-muted-foreground"
-                            title="Edit this from Workshops payments"
+                            title="Manage this from Workshops payments"
                           >
                             Workshop
                           </span>
                         ) : (
-                          <Can
-                            permission={PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE}
-                          >
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              className="size-7"
-                              aria-label={`Edit transaction ${row.description}`}
-                              onClick={() => {
-                                setEditingTransaction(row);
-                                setEditOpen(true);
-                              }}
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <Can
+                              permission={
+                                PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
+                              }
                             >
-                              <PencilIcon className="size-3.5" />
-                            </Button>
-                          </Can>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="size-7"
+                                aria-label={`Edit transaction ${row.description}`}
+                                onClick={() => {
+                                  setEditingTransaction(row);
+                                  setEditOpen(true);
+                                }}
+                              >
+                                <PencilIcon className="size-3.5" />
+                              </Button>
+                            </Can>
+                            <Can
+                              permission={
+                                PERMISSIONS.ACCOUNTING_TRANSACTIONS_DELETE
+                              }
+                            >
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                aria-label={`Delete transaction ${row.description}`}
+                                onClick={() => {
+                                  setDeletingTransaction(row);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                <Trash2Icon className="size-3.5" />
+                              </Button>
+                            </Can>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -512,6 +547,11 @@ export function IncomeStatementAnalyticsEtkanTab({
         open={editOpen}
         onOpenChange={handleEditOpenChange}
         transaction={editingTransaction}
+      />
+      <DeleteTransactionDialog
+        open={deleteOpen}
+        onOpenChange={handleDeleteOpenChange}
+        transaction={deletingTransaction}
       />
     </div>
   );

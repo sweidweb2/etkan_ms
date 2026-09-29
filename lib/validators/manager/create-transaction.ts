@@ -194,3 +194,15 @@ export function parseUpdateTransactionFormData(formData: FormData) {
     },
   };
 }
+
+export const deleteTransactionSchema = z.object({
+  id: z.string().uuid({ message: "Invalid transaction." }),
+});
+
+export type DeleteTransactionInput = z.infer<typeof deleteTransactionSchema>;
+
+export function parseDeleteTransactionFormData(formData: FormData) {
+  return safeParseFormData(deleteTransactionSchema, {
+    id: formData.get("id"),
+  });
+}

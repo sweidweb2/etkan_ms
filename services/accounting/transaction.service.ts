@@ -54,6 +54,9 @@ function mapTransactionRow(
 export const WORKSHOP_LINKED_TRANSACTION_EDIT_ERROR =
   "This transaction is linked to a workshop payment. Edit it from Workshops.";
 
+export const WORKSHOP_LINKED_TRANSACTION_DELETE_ERROR =
+  "This transaction is linked to a workshop payment. Delete it from Workshops.";
+
 export type CreateTransactionResult =
   | {
       success: true;
@@ -392,5 +395,95 @@ export async function updateTransactionForManager(
     success: true,
     transaction,
     message: "Transaction updated.",
+  };
+}
+
+export type DeleteTransactionResult =
+  | {
+      success: true;
+      message: string;
+      transactionId: string;
+    }
+  | {
+      success: false;
+      error: string;
+      fieldErrors?: FieldErrors;
+    };
+
+export async function deleteTransactionForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: { id: string }
+): Promise<DeleteTransactionResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_TRANSACTIONS_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const existingResult = await transactionRepository.findTransactionById(
+    adminClient,
+    input.id
+  );
+  if (existingResult.error) {
+    return { success: false, error: existingResult.error.message };
+  }
+  if (!existingResult.data) {
+    return { success: false, error: "Transaction not found." };
+  }
+
+  const existing = mapTransactionRow(
+    existingResult.data as transactionRepository.TransactionRecord
+  );
+
+  const linkedPayment =
+    await workshopPaymentRepository.findWorkshopPaymentByTransactionId(
+      adminClient,
+      input.id
+    );
+  if (linkedPayment.error) {
+    return { success: false, error: linkedPayment.error.message };
+  }
+  if (linkedPayment.data) {
+    return { success: false, error: WORKSHOP_LINKED_TRANSACTION_DELETE_ERROR };
+  }
+
+  const { error } = await transactionRepository.deleteTransaction(
+    adminClient,
+    input.id
+  );
+  if (error) {
+    return {
+      success: false,
+      error: error.message || "Unable to delete transaction.",
+    };
+  }
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "warning",
+    table_name: "transactions",
+    record_id: existing.id,
+    old_data: {
+      transaction_date: existing.transaction_date,
+      type: existing.type,
+      amount: existing.amount,
+      description: existing.description,
+      category: existing.category,
+      payment_method: existing.payment_method ?? PAYMENT_METHODS.OTHER,
+      recorded_by: existing.recorded_by,
+      notes: existing.notes,
+    },
+    metadata: { note: "External transaction deleted." },
+  });
+
+  return {
+    success: true,
+    transactionId: existing.id,
+    message: "Transaction deleted.",
   };
 }
