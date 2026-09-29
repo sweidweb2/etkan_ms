@@ -28,7 +28,8 @@ if [[ -z "${GH_TOKEN:-}" || -z "${GHCR_USER:-}" ]]; then
 fi
 
 # Refuse accidental staging env / wrong API host.
-if grep -qE '^NEXT_PUBLIC_SUPABASE_URL=.*api\.etkan\.org' .env.production; then
+# Match staging host only — do not use .*api.etkan.org (that also hits prod-api).
+if grep -qE '^NEXT_PUBLIC_SUPABASE_URL=https://api\.etkan\.org' .env.production; then
   echo "Refusing deploy: .env.production points at staging API (api.etkan.org)." >&2
   exit 1
 fi
