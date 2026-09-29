@@ -15,6 +15,7 @@ import {
   recordManagerAuditLog,
   type AuditActor,
 } from "@/services/ops/audit-log.service";
+import { attachGuestRegistrationEmails } from "@/services/guests/attach-guest-registration-emails";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerGuestRow } from "@/types/manager-guest";
 import type { ManagerTeamRow } from "@/types/manager-team";
@@ -150,6 +151,7 @@ function mapGuestRecordToRow(
     id: record.id,
     full_name: record.full_name,
     phone: record.phone,
+    email: null,
     age: record.age,
     school_or_university: record.school_or_university,
     education_level:
@@ -198,10 +200,12 @@ export async function listTeamsForManager(
   }
 
   const guestsById = new Map(
-    (guestsResult.data ?? []).map((record) => [
-      record.id,
-      mapGuestRecordToRow(record),
-    ])
+    (
+      await attachGuestRegistrationEmails(
+        adminClient,
+        (guestsResult.data ?? []).map(mapGuestRecordToRow)
+      )
+    ).map((guest) => [guest.id, guest])
   );
 
   const membersByTeam = new Map<string, ManagerGuestRow[]>();
@@ -532,7 +536,7 @@ async function listTeamMembers(
     }
   }
 
-  return members;
+  return attachGuestRegistrationEmails(adminClient, members);
 }
 
 function isUniqueNameViolation(message: string | undefined): boolean {

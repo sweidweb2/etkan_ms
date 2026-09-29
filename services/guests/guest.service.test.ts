@@ -115,6 +115,10 @@ function mockGuestStatusEvents(
 describe("listGuestsForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(registrationRepository.listActiveEmailsByGuestIds).mockResolvedValue({
+      data: [],
+      ...okResult,
+    });
   });
 
   it("throws when actor is unauthorized", async () => {
@@ -128,11 +132,16 @@ describe("listGuestsForManager", () => {
       data: [guestRecord],
       ...okResult,
     });
+    vi.mocked(registrationRepository.listActiveEmailsByGuestIds).mockResolvedValue({
+      data: [{ guest_id: guestId, email: "ada@example.com" }],
+      ...okResult,
+    });
 
     const guests = await listGuestsForManager(adminClient, actor.userId);
     expect(guests).toHaveLength(1);
     expect(guests[0]?.full_name).toBe("Ada Lovelace");
     expect(guests[0]?.status).toBe("scheduled");
+    expect(guests[0]?.email).toBe("ada@example.com");
   });
 });
 

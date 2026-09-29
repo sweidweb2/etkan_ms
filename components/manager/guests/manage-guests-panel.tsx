@@ -131,6 +131,7 @@ function matchesSearch(guest: ManagerGuestRow, query: string) {
   const haystack = [
     guest.full_name,
     guest.phone ?? "",
+    guest.email ?? "",
     guest.school_or_university ?? "",
   ]
     .join(" ")

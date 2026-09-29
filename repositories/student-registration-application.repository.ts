@@ -360,6 +360,29 @@ export async function listApplicationIdsByGuestId(
     .eq("guest_id", guestId);
 }
 
+/** Active (non-cancelled) registration emails keyed by guest, newest first. */
+export async function listActiveEmailsByGuestIds(
+  client: Supabase,
+  guestIds: readonly string[]
+) {
+  if (guestIds.length === 0) {
+    return {
+      data: [] as { guest_id: string; email: string }[],
+      error: null,
+      count: null,
+      status: 200,
+      statusText: "OK",
+    };
+  }
+
+  return client
+    .from("student_registration_applications")
+    .select("guest_id, email, created_at")
+    .in("guest_id", [...guestIds])
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false });
+}
+
 export async function deleteStudentRegistrationApplicationById(
   client: Supabase,
   id: string

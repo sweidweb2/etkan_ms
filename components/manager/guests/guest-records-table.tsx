@@ -17,17 +17,15 @@ import {
 import Link from "next/link";
 import { Can } from "@/components/auth/can";
 import { Button } from "@/components/ui/button";
+import { CopyTextButton } from "@/components/ui/copy-text-button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  formatGuestReferredFrom,
   GUEST_CURRENT_STATUS_BADGE_CLASSES,
   GUEST_CURRENT_STATUS_LABELS,
-  GUEST_EDUCATION_LEVEL_LABELS,
-  GUEST_INTERESTED_SERVICE_LABELS,
   type GuestCurrentStatus,
 } from "@/lib/constants/guest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
@@ -41,8 +39,9 @@ export const UNASSIGNED_GROUP = "unassigned-guests";
 
 const COLUMN_LIMITS = {
   name: 28,
+  phone: 18,
+  email: 28,
   school: 20,
-  referred: 18,
 } as const;
 
 const CLOSED_STATUSES: readonly GuestCurrentStatus[] = [
@@ -121,6 +120,43 @@ function StatusBadge({ status }: { status: GuestCurrentStatus }) {
   );
 }
 
+function CopyableValue({
+  value,
+  display,
+  maxLength,
+  label,
+  successMessage,
+  errorMessage,
+}: {
+  value: string | null | undefined;
+  display?: string;
+  maxLength: number;
+  label: string;
+  successMessage: string;
+  errorMessage: string;
+}) {
+  const trimmed = value?.trim() ?? "";
+  const shown = display ?? (trimmed || "—");
+
+  return (
+    <div className="relative z-10 flex min-w-0 items-center gap-1">
+      <TruncatedCell
+        value={shown}
+        maxLength={maxLength}
+        className="min-w-0"
+      />
+      {trimmed ? (
+        <CopyTextButton
+          value={trimmed}
+          label={label}
+          successMessage={successMessage}
+          errorMessage={errorMessage}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function GuestRecordRow({
   guest,
   showDragColumn,
@@ -174,42 +210,50 @@ function GuestRecordRow({
       ) : null}
 
       <td className="px-4 py-3 font-medium">
-        <Link
-          prefetch={false}
-          href={getManagerGuestDetailRoute(guest.id)}
-          className="after:absolute after:inset-0"
-          aria-label={`View details for ${guest.full_name}`}
-        >
-          <TruncatedCell value={guest.full_name} maxLength={COLUMN_LIMITS.name} />
-        </Link>
+        <div className="relative z-10 flex min-w-0 items-center gap-1">
+          <Link
+            prefetch={false}
+            href={getManagerGuestDetailRoute(guest.id)}
+            className="min-w-0 after:absolute after:inset-0"
+            aria-label={`View details for ${guest.full_name}`}
+          >
+            <TruncatedCell
+              value={guest.full_name}
+              maxLength={COLUMN_LIMITS.name}
+              className="min-w-0"
+            />
+          </Link>
+          <CopyTextButton
+            value={guest.full_name}
+            label={`Copy name for ${guest.full_name}`}
+            successMessage="Name copied to clipboard."
+            errorMessage="Unable to copy name."
+          />
+        </div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap">{guest.phone ?? "—"}</td>
+      <td className="px-4 py-3 whitespace-nowrap">
+        <CopyableValue
+          value={guest.phone}
+          maxLength={COLUMN_LIMITS.phone}
+          label={`Copy phone for ${guest.full_name}`}
+          successMessage="Phone copied to clipboard."
+          errorMessage="Unable to copy phone."
+        />
+      </td>
+      <td className="max-w-[14rem] px-4 py-3">
+        <CopyableValue
+          value={guest.email}
+          maxLength={COLUMN_LIMITS.email}
+          label={`Copy email for ${guest.full_name}`}
+          successMessage="Email copied to clipboard."
+          errorMessage="Unable to copy email."
+        />
+      </td>
       <td className="px-4 py-3">{guest.age ?? "—"}</td>
       <td className="px-4 py-3">
         <TruncatedCell
           value={guest.school_or_university ?? "—"}
           maxLength={COLUMN_LIMITS.school}
-        />
-      </td>
-      <td className="px-4 py-3">
-        {guest.education_level
-          ? GUEST_EDUCATION_LEVEL_LABELS[guest.education_level]
-          : "—"}
-      </td>
-      <td className="px-4 py-3">
-        {guest.interested_service
-          ? GUEST_INTERESTED_SERVICE_LABELS[guest.interested_service]
-          : "—"}
-      </td>
-      <td className="px-4 py-3">
-        <TruncatedCell
-          value={
-            formatGuestReferredFrom(
-              guest.referred_from,
-              guest.referred_from_other
-            ) ?? "—"
-          }
-          maxLength={COLUMN_LIMITS.referred}
         />
       </td>
       <td className="px-4 py-3">
@@ -277,7 +321,7 @@ export function GuestRecordsTable({
   onViewNotes,
   onEditGuest,
 }: GuestRecordsTableProps) {
-  const columnCount = showDragColumn ? 11 : 10;
+  const columnCount = showDragColumn ? 9 : 8;
 
   return (
     <table className="w-full min-w-[64rem] text-left text-sm">
@@ -290,11 +334,9 @@ export function GuestRecordsTable({
           ) : null}
           <th className="px-4 py-3 font-medium">Name</th>
           <th className="px-4 py-3 font-medium">Phone</th>
+          <th className="px-4 py-3 font-medium">Email</th>
           <th className="px-4 py-3 font-medium">Age</th>
           <th className="px-4 py-3 font-medium">School / uni</th>
-          <th className="px-4 py-3 font-medium">Education</th>
-          <th className="px-4 py-3 font-medium">Service</th>
-          <th className="px-4 py-3 font-medium">Referred from</th>
           <th className="px-4 py-3 font-medium">Status</th>
           <th className="px-4 py-3 font-medium">Created</th>
           <th className="px-4 py-3 font-medium">

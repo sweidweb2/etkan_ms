@@ -40,6 +40,7 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import { releaseGuestFromTeamIfBecameClosed } from "@/services/teams/team.service";
+import { attachGuestRegistrationEmails } from "@/services/guests/attach-guest-registration-emails";
 import { getGuestRegistrationInviteBundleForManager } from "@/services/guests/guest-registration.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
@@ -179,6 +180,7 @@ function mapGuestRecordToRow(record: GuestRecord): ManagerGuestRow {
     id: record.id,
     full_name: record.full_name,
     phone: record.phone,
+    email: null,
     age: record.age,
     school_or_university: record.school_or_university,
     education_level: record.education_level,
@@ -245,7 +247,10 @@ export async function listGuestsForManager(
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapGuestRecordToRow);
+  return attachGuestRegistrationEmails(
+    adminClient,
+    (data ?? []).map(mapGuestRecordToRow)
+  );
 }
 
 export async function getGuestForManager(
@@ -268,7 +273,10 @@ export async function getGuestForManager(
     return null;
   }
 
-  return mapGuestRecordToRow(data);
+  const [guest] = await attachGuestRegistrationEmails(adminClient, [
+    mapGuestRecordToRow(data),
+  ]);
+  return guest ?? null;
 }
 
 export async function listGuestStatusEventsForManager(
@@ -326,7 +334,10 @@ export async function getGuestDetailForManager(
     }
 
     return {
-      guest: mapGuestRecordToRow(guestResult.data),
+      guest: {
+        ...mapGuestRecordToRow(guestResult.data),
+        email: registration.application?.email ?? null,
+      },
       statusEvents: (eventsResult.data ?? []).map(mapGuestStatusEventRecordToRow),
       registrationInvite: registration.invite,
       registrationApplication: registration.application,
