@@ -76,11 +76,13 @@ Do not run that from the prod folder. Do not point staging Auth at `https://etka
 
 Flow:
 
-1. Reusable CI (lint, typecheck, test, build).
-2. SSH as `deploy` (`VPS_HOST` / `VPS_USER` / `VPS_SSH_KEY`).
-3. `cd /home/deploy/etkan_ms`
-4. `git fetch` with `GITHUB_TOKEN`, then `git checkout -f -B dev FETCH_HEAD`
-5. `bash scripts/vps-deploy-staging.sh` — require `.env.staging`, patch Auth `site_url`, rebuild `etkan-staging-web`, curl `http://127.0.0.1:3001` until 200/307/308 (retry loop; first curl was often `000`).
+1. Reusable CI (lint, typecheck, test, build gate).
+2. **Build the Docker image in GitHub Actions** and push to GHCR (`ghcr.io/sweidweb2/etkan-ms:staging-<sha>`).
+3. SSH as `deploy` (`VPS_HOST` / `VPS_USER` / `VPS_SSH_KEY`).
+4. `cd /home/deploy/etkan_ms`, `git checkout -f -B dev FETCH_HEAD`
+5. `bash scripts/vps-deploy-staging.sh` — login GHCR, **`docker pull`**, patch Auth `site_url`, restart **only** `etkan-staging-web` (`--no-build`), curl `:3001` until healthy.
+
+Required secret: `STAGING_SUPABASE_ANON_KEY` (repo secret; same anon value as `.env.staging`).
 
 PRs to `dev` run **CI only**. They do not deploy.
 

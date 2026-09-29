@@ -1,5 +1,6 @@
 name: Deploy staging
 
+# 1) CI  2) Build+push image on Actions (GHCR)  3) VPS docker pull + restart only
 on:
   push:
     branches: [dev]
@@ -11,16 +12,76 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: sweidweb2/etkan-ms
 
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
-  deploy:
-    name: Deploy to staging VPS
+  build:
+    name: Build and push staging image
     needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+
+    steps:
+      - name: Check build secrets
+        env:
+          ANON: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$ANON" ]; then
+            echo "::error::Add repository secret STAGING_SUPABASE_ANON_KEY (Next anon key for api.etkan.org)."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tags
+        id: meta
+        run: |
+          img="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          echo "image=${img}:staging-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "tags<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${img}:staging-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "${img}:staging" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=etkan-staging
+          cache-to: type=gha,mode=max,scope=etkan-staging
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=https://staging.etkan.org
+            NEXT_PUBLIC_SUPABASE_URL=https://api.etkan.org
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_NAV_DEBUG=0
+
+  deploy:
+    name: Pull on VPS and restart staging
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Check VPS secrets exist
@@ -30,25 +91,29 @@ jobs:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           missing=0
-          [ -z "$VPS_HOST" ] && echo "::error::Add repository secret VPS_HOST (the VPS IP)." && missing=1
-          [ -z "$VPS_USER" ] && echo "::error::Add repository secret VPS_USER (usually deploy)." && missing=1
-          [ -z "$VPS_SSH_KEY" ] && echo "::error::Add repository secret VPS_SSH_KEY (private SSH key)." && missing=1
+          [ -z "$VPS_HOST" ] && echo "::error::Add repository secret VPS_HOST." && missing=1
+          [ -z "$VPS_USER" ] && echo "::error::Add repository secret VPS_USER." && missing=1
+          [ -z "$VPS_SSH_KEY" ] && echo "::error::Add repository secret VPS_SSH_KEY." && missing=1
           exit "$missing"
 
-      - name: SSH and pull + rebuild
+      - name: SSH pull image and restart etkan-staging-web
         uses: appleboy/ssh-action@v1.2.2
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+          ETKAN_WEB_IMAGE: ${{ needs.build.outputs.image }}
           GIT_BRANCH: ${{ github.ref_name }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GH_TOKEN,GIT_BRANCH
-          command_timeout: 20m
+          envs: GH_TOKEN,GHCR_USER,ETKAN_WEB_IMAGE,GIT_BRANCH
+          command_timeout: 15m
           script: |
             set -euo pipefail
             cd ~/etkan_ms
             git fetch --prune "https://x-access-token:${GH_TOKEN}@github.com/sweidweb2/etkan_ms.git" "${GIT_BRANCH}"
             git checkout -f -B "${GIT_BRANCH}" FETCH_HEAD
+            export ETKAN_WEB_IMAGE GH_TOKEN GHCR_USER
             bash scripts/vps-deploy-staging.sh
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep -E 'NAMES|etkan-prod-web|etkan-staging-web|etkan-caddy' || true

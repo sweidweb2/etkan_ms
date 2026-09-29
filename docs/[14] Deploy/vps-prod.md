@@ -83,10 +83,17 @@ Redirect allow-list must include `https://etkan.org/auth/callback` and `https://
 
 Flow:
 
-1. Same CI as staging.
-2. SSH, `cd /home/deploy/etkan_ms`
-3. `git checkout -f -B main FETCH_HEAD`
-4. `bash scripts/vps-deploy-prod.sh` — require `.env.production`, rebuild `etkan-prod-web`, health-check `http://127.0.0.1:3000`
+1. Same CI as staging (lint / typecheck / test / `next build` gate).
+2. **Build the Docker image in GitHub Actions** and push to GHCR (`ghcr.io/sweidweb2/etkan-ms:prod-<sha>`).
+3. SSH, `cd /home/deploy/etkan_ms`, checkout `main`.
+4. `bash scripts/vps-deploy-prod.sh` — login to GHCR, **`docker pull`**, restart **only** `etkan-prod-web` (`--no-build`). Health-check `http://127.0.0.1:3000`.
+5. Does **not** restart staging Next or either Supabase CLI stack. Prod stays up until the container swap.
+
+Required GitHub secrets (in addition to `VPS_*`):
+
+| Secret | Where | Value |
+| --- | --- | --- |
+| `PROD_SUPABASE_ANON_KEY` | Environment **production** | Same as `.env.production` `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 
 PRs to `main` are CI only.
 

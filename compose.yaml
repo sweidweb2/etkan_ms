@@ -1,7 +1,11 @@
 # Next.js image only. Staging/prod env: .env.staging.example / .env.production.example
 # Staging API: https://api.etkan.org  Prod API: https://prod-api.etkan.org
+#
+# CI builds and pushes to GHCR. VPS deploys set ETKAN_WEB_IMAGE and pull (no --build).
+# Local emergency: ETKAN_WEB_IMAGE=etkan-web:local docker compose ... up -d --build
 services:
   web:
+    image: ${ETKAN_WEB_IMAGE:-etkan-web:local}
     build:
       context: .
       dockerfile: Dockerfile

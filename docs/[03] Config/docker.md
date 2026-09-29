@@ -72,14 +72,16 @@ Copy the `*.example` files if the gitignored files are missing. Do not commit re
 
 ## GitHub Actions deploy
 
-PRs to `dev` / `main` run **CI only** (lint, typecheck, test, build). They do **not** deploy.
+PRs to `dev` / `main` run **CI only** (lint, typecheck, test, `next build`). They do **not** deploy.
 
 | Event | Workflow | What happens |
 | --- | --- | --- |
-| Push to `dev` | `deploy-staging.yml` | CI, then SSH → `git checkout -f` → rebuild `etkan-staging-web` |
-| Push to `main` | `deploy-prod.yml` | CI, then SSH → `git checkout -f` → rebuild `etkan-prod-web` |
+| Push to `dev` | `deploy-staging.yml` | CI → **build+push GHCR** → VPS `docker pull` + restart `etkan-staging-web` |
+| Push to `main` | `deploy-prod.yml` | CI → **build+push GHCR** → VPS `docker pull` + restart `etkan-prod-web` |
 
-Env files on the VPS (`.env.staging`, `.env.production`) stay on the server. Caddy and Supabase are **not** restarted (staging re-patches Auth `site_url` in `~/etkan_ms/supabase/config.toml` only).
+No `docker compose --build` on the VPS for normal deploys. Image: `ghcr.io/sweidweb2/etkan-ms:{staging\|prod}-<sha>`.
+
+Env files on the VPS (`.env.staging`, `.env.production`) stay for **runtime** secrets (service role, Mailtrap, etc.). `NEXT_PUBLIC_*` for the running image are baked in Actions. Caddy and Supabase are **not** restarted (staging re-patches Auth `site_url` in `~/etkan_ms/supabase/config.toml` only).
 
 Repo secrets (Settings → Secrets and variables → Actions):
 
@@ -88,17 +90,20 @@ Repo secrets (Settings → Secrets and variables → Actions):
 | `VPS_HOST` | `178.16.129.124` |
 | `VPS_USER` | `deploy` |
 | `VPS_SSH_KEY` | Private key for that user (full `BEGIN…END` block) |
+| `STAGING_SUPABASE_ANON_KEY` | Staging anon JWT (bake staging image) |
+| `PROD_SUPABASE_ANON_KEY` | Prod anon JWT — put on GitHub Environment **production** |
 
-Put the matching **public** key in `/home/deploy/.ssh/authorized_keys`. `deploy` must be able to run `docker compose`.
+Put the matching **public** key in `/home/deploy/.ssh/authorized_keys`. `deploy` must be able to run `docker` / `docker compose`.
 
 ## Commands (VPS)
 
 ```bash
-# Staging image + container
-docker compose --env-file .env.staging -f compose.yaml -f compose.staging.yaml up -d --build
+# Emergency local build on the VPS (prefer Actions+GHCR for normal deploys)
+ETKAN_WEB_IMAGE=etkan-web:local \
+  docker compose --env-file .env.staging -f compose.yaml -f compose.staging.yaml up -d --build
 
-# Production image + container
-docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml up -d --build
+ETKAN_WEB_IMAGE=etkan-web:local \
+  docker compose --env-file .env.production -f compose.yaml -f compose.prod.yaml up -d --build
 
 # Caddy
 docker compose -f compose.proxy.yaml up -d
