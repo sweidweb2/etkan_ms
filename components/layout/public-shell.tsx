@@ -14,7 +14,7 @@ type PublicShellProps = {
 
 /**
  * Client shell so dir/lang update with locale without re-fetching the RSC tree.
- * Public chrome is session-free (login/register live in the footer only).
+ * Public chrome is session-free (login/register in the navbar and footer).
  */
 export function PublicShell({ children }: PublicShellProps) {
   const { dir, locale } = usePublicI18n();

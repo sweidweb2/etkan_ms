@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 import { LanguageToggle } from "@/components/layout/language-toggle";
+import {
+  removeTempRegistrationDocumentAction,
+  tempUploadRegistrationDocumentAction,
+} from "@/app/(public)/register/actions";
 import { RegistrationWizard } from "@/components/public/registration/registration-wizard";
 import {
   Card,
@@ -86,6 +90,8 @@ export default async function RegisterGuestPage({
       <RegistrationWizard
         mode="guest-public"
         submitAction={submitGuestRegistrationByTokenAction}
+        documentUploadAction={tempUploadRegistrationDocumentAction}
+        documentRemoveAction={removeTempRegistrationDocumentAction}
         inviteToken={context.token}
         ageHint={context.prefill.age}
         initialDraft={{

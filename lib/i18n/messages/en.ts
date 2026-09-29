@@ -1063,6 +1063,8 @@ export const en = {
   "registration.documents.remove": "Remove",
   "registration.documents.uploading": "Uploading…",
   "registration.documents.uploadError": "Unable to upload file.",
+  "registration.documents.staleActionError":
+    "This page is out of date. Refresh and upload again.",
   "registration.field.guardianName": "Guardian name",
   "registration.field.guardianPhone": "Guardian phone",
   "registration.field.consentTerms": "I agree to the terms of registration.",

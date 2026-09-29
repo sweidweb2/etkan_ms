@@ -9,7 +9,11 @@ import {
   useTransition,
 } from "react";
 import { CheckIcon } from "lucide-react";
-import { submitPublicRegistrationAction } from "@/app/(public)/register/actions";
+import {
+  removeTempRegistrationDocumentAction,
+  submitPublicRegistrationAction,
+  tempUploadRegistrationDocumentAction,
+} from "@/app/(public)/register/actions";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
@@ -283,8 +287,8 @@ function RegistrationWizardContent({
   inviteToken,
   guestId,
   hidePageHeader = false,
-  documentUploadAction,
-  documentRemoveAction,
+  documentUploadAction = tempUploadRegistrationDocumentAction,
+  documentRemoveAction = removeTempRegistrationDocumentAction,
   onSuccess,
   onPendingChange,
   turnstileSiteKey = "",

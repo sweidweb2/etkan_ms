@@ -2,10 +2,6 @@
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { UploadIcon, XIcon } from "lucide-react";
-import {
-  removeTempRegistrationDocumentAction,
-  tempUploadRegistrationDocumentAction,
-} from "@/app/(public)/register/actions";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -58,8 +54,9 @@ type RegistrationDocumentsStepProps = {
     id_document_type?: string;
     documents?: string;
   };
-  uploadAction?: RegistrationDocumentUploadAction;
-  removeAction?: RegistrationDocumentRemoveAction;
+  /** Prefer passing from a Server Component — avoids stale default action IDs. */
+  uploadAction: RegistrationDocumentUploadAction;
+  removeAction: RegistrationDocumentRemoveAction;
   onBusyChange?: (isBusy: boolean) => void;
   onIdDocumentTypeChange: (value: string) => void;
   onDocumentsChange: (documents: RegistrationUploadedDocument[]) => void;
@@ -106,14 +103,27 @@ function PendingUploadRow({
   );
 }
 
+function isStaleServerActionError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  return (
+    message.includes("Failed to find Server Action") ||
+    message.includes("was not found on the server")
+  );
+}
+
 export function RegistrationDocumentsStep({
   uploadSessionId,
   idDocumentType,
   documents,
   disabled = false,
   errors,
-  uploadAction = tempUploadRegistrationDocumentAction,
-  removeAction = removeTempRegistrationDocumentAction,
+  uploadAction,
+  removeAction,
   onBusyChange,
   onIdDocumentTypeChange,
   onDocumentsChange,
@@ -166,26 +176,46 @@ export function RegistrationDocumentsStep({
 
     startUploadTransition(async () => {
       const uploaded: RegistrationUploadedDocument[] = [];
+      const localIds = new Set(localEntries.map((entry) => entry.localId));
 
-      for (const entry of localEntries) {
-        const formData = new FormData();
-        formData.set("upload_session_id", uploadSessionId);
-        formData.set("file", entry.file);
+      try {
+        for (const entry of localEntries) {
+          const formData = new FormData();
+          formData.set("upload_session_id", uploadSessionId);
+          formData.set("file", entry.file);
 
-        const result = await uploadAction(formData);
+          let result: TempUploadRegistrationDocumentActionState;
+          try {
+            result = await uploadAction(formData);
+          } catch (error) {
+            setPendingUploads((current) =>
+              current.filter((item) => item.localId !== entry.localId)
+            );
+            showErrorToast(
+              isStaleServerActionError(error)
+                ? t("registration.documents.staleActionError")
+                : t("registration.documents.uploadError")
+            );
+            continue;
+          }
 
-        setPendingUploads((current) =>
-          current.filter((item) => item.localId !== entry.localId)
-        );
-
-        if (!result.success || !result.document) {
-          showErrorToast(
-            result.error ?? t("registration.documents.uploadError")
+          setPendingUploads((current) =>
+            current.filter((item) => item.localId !== entry.localId)
           );
-          continue;
-        }
 
-        uploaded.push(result.document);
+          if (!result.success || !result.document) {
+            showErrorToast(
+              result.error ?? t("registration.documents.uploadError")
+            );
+            continue;
+          }
+
+          uploaded.push(result.document);
+        }
+      } finally {
+        setPendingUploads((current) =>
+          current.filter((item) => !localIds.has(item.localId))
+        );
       }
 
       if (uploaded.length > 0) {
@@ -200,15 +230,25 @@ export function RegistrationDocumentsStep({
       formData.set("upload_session_id", uploadSessionId);
       formData.set("storage_path", storagePath);
 
-      const result = await removeAction(formData);
-      if (!result.success) {
-        showErrorToast(result.error ?? t("registration.documents.uploadError"));
-        return;
-      }
+      try {
+        const result = await removeAction(formData);
+        if (!result.success) {
+          showErrorToast(
+            result.error ?? t("registration.documents.uploadError")
+          );
+          return;
+        }
 
-      onDocumentsChange(
-        documents.filter((doc) => doc.storage_path !== storagePath)
-      );
+        onDocumentsChange(
+          documents.filter((doc) => doc.storage_path !== storagePath)
+        );
+      } catch (error) {
+        showErrorToast(
+          isStaleServerActionError(error)
+            ? t("registration.documents.staleActionError")
+            : t("registration.documents.uploadError")
+        );
+      }
     });
   }
 

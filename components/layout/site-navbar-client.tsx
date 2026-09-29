@@ -49,6 +49,33 @@ function BrandNavLink({
   );
 }
 
+function LoginNavLink({
+  className,
+  onNavigate,
+}: {
+  className?: string;
+  onNavigate?: () => void;
+}) {
+  const { t } = usePublicI18n();
+  const pathname = usePathname();
+  const isActive = pathname === ROUTES.LOGIN;
+
+  return (
+    <Link
+      href={ROUTES.LOGIN}
+      suppressHydrationWarning
+      onClick={onNavigate}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        buttonVariants({ variant: "outline", size: "default" }),
+        className
+      )}
+    >
+      {t("nav.login")}
+    </Link>
+  );
+}
+
 function RegisterNavLink({
   className,
   onNavigate,
@@ -70,6 +97,23 @@ function RegisterNavLink({
     >
       {t("nav.register")}
     </Link>
+  );
+}
+
+function AuthNavActions({
+  className,
+  linkClassName,
+  onNavigate,
+}: {
+  className?: string;
+  linkClassName?: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <div className={cn("flex items-center gap-2", className)}>
+      <LoginNavLink className={linkClassName} onNavigate={onNavigate} />
+      <RegisterNavLink className={linkClassName} onNavigate={onNavigate} />
+    </div>
   );
 }
 
@@ -239,8 +283,9 @@ export function SiteNavbarClient() {
             {t("nav.blogs")}
           </MobileNavLink>
           <div className="mt-2 px-1">
-            <RegisterNavLink
-              className="w-full justify-center"
+            <AuthNavActions
+              className="flex-col"
+              linkClassName="w-full justify-center"
               onNavigate={closeMobileMenu}
             />
           </div>
@@ -253,9 +298,9 @@ export function SiteNavbarClient() {
     return (
       <NavbarShell
         desktopActions={
-          <div className="flex items-center gap-2" aria-hidden="true">
+          <div className="flex items-center gap-4" aria-hidden="true">
             <LanguageToggle />
-            <RegisterNavLink />
+            <AuthNavActions />
           </div>
         }
         mobileMenu={
@@ -277,9 +322,9 @@ export function SiteNavbarClient() {
   return (
     <NavbarShell
       desktopActions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <LanguageToggle />
-          <RegisterNavLink />
+          <AuthNavActions />
         </div>
       }
       mobileMenu={mobileMenu}

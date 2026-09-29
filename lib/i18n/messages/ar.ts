@@ -1066,6 +1066,8 @@ export const ar = {
   "registration.documents.remove": "إزالة",
   "registration.documents.uploading": "جارٍ الرفع…",
   "registration.documents.uploadError": "تعذر رفع الملف.",
+  "registration.documents.staleActionError":
+    "هذه الصفحة غير محدّثة. حدّث الصفحة ثم ارفع الملف مرة أخرى.",
   "registration.field.guardianName": "اسم الوصي",
   "registration.field.guardianPhone": "هاتف الوصي",
   "registration.field.consentTerms": "أوافق على شروط التسجيل.",
