@@ -57,6 +57,59 @@ export const WORKSHOP_LINKED_TRANSACTION_EDIT_ERROR =
 export const WORKSHOP_LINKED_TRANSACTION_DELETE_ERROR =
   "This transaction is linked to a workshop payment. Delete it from Workshops.";
 
+type MutableExternalTransactionResult =
+  | { success: true; transaction: transactionRepository.TransactionRecord }
+  | { success: false; error: string };
+
+function toTransactionAuditSnapshot(
+  row: transactionRepository.TransactionRecord
+) {
+  return {
+    transaction_date: row.transaction_date,
+    type: row.type,
+    amount: Number(row.amount),
+    description: row.description,
+    category: row.category,
+    payment_method: row.payment_method ?? PAYMENT_METHODS.OTHER,
+    recorded_by: row.recorded_by,
+    notes: row.notes,
+  };
+}
+
+/**
+ * Load a transaction and ensure it is not workshop-linked (edit/delete from Workshops).
+ */
+async function assertExternalTransactionMutable(
+  adminClient: Supabase,
+  transactionId: string,
+  linkedError: string
+): Promise<MutableExternalTransactionResult> {
+  const [existingResult, linkedPayment] = await Promise.all([
+    transactionRepository.findTransactionById(adminClient, transactionId),
+    workshopPaymentRepository.findWorkshopPaymentByTransactionId(
+      adminClient,
+      transactionId
+    ),
+  ]);
+  if (existingResult.error) {
+    return { success: false, error: existingResult.error.message };
+  }
+  if (!existingResult.data) {
+    return { success: false, error: "Transaction not found." };
+  }
+  if (linkedPayment.error) {
+    return { success: false, error: linkedPayment.error.message };
+  }
+  if (linkedPayment.data) {
+    return { success: false, error: linkedError };
+  }
+
+  return {
+    success: true,
+    transaction: existingResult.data as transactionRepository.TransactionRecord,
+  };
+}
+
 export type CreateTransactionResult =
   | {
       success: true;
@@ -246,32 +299,15 @@ export async function updateTransactionForManager(
     return { success: false, error: unauthorized };
   }
 
-  const existingResult = await transactionRepository.findTransactionById(
+  const mutable = await assertExternalTransactionMutable(
     adminClient,
-    input.id
+    input.id,
+    WORKSHOP_LINKED_TRANSACTION_EDIT_ERROR
   );
-  if (existingResult.error) {
-    return { success: false, error: existingResult.error.message };
+  if (!mutable.success) {
+    return { success: false, error: mutable.error };
   }
-  if (!existingResult.data) {
-    return { success: false, error: "Transaction not found." };
-  }
-
-  const existing = mapTransactionRow(
-    existingResult.data as transactionRepository.TransactionRecord
-  );
-
-  const linkedPayment =
-    await workshopPaymentRepository.findWorkshopPaymentByTransactionId(
-      adminClient,
-      input.id
-    );
-  if (linkedPayment.error) {
-    return { success: false, error: linkedPayment.error.message };
-  }
-  if (linkedPayment.data) {
-    return { success: false, error: WORKSHOP_LINKED_TRANSACTION_EDIT_ERROR };
-  }
+  const existing = mutable.transaction;
 
   if (!isTransactionType(input.type)) {
     return {
@@ -368,26 +404,10 @@ export async function updateTransactionForManager(
     severity: "info",
     table_name: "transactions",
     record_id: transaction.id,
-    old_data: {
-      transaction_date: existing.transaction_date,
-      type: existing.type,
-      amount: existing.amount,
-      description: existing.description,
-      category: existing.category,
-      payment_method: existing.payment_method ?? PAYMENT_METHODS.OTHER,
-      recorded_by: existing.recorded_by,
-      notes: existing.notes,
-    },
-    new_data: {
-      transaction_date: transaction.transaction_date,
-      type: transaction.type,
-      amount: transaction.amount,
-      description: transaction.description,
-      category: transaction.category,
-      payment_method: transaction.payment_method ?? PAYMENT_METHODS.OTHER,
-      recorded_by: transaction.recorded_by,
-      notes: transaction.notes,
-    },
+    old_data: toTransactionAuditSnapshot(existing),
+    new_data: toTransactionAuditSnapshot(
+      updated as transactionRepository.TransactionRecord
+    ),
     metadata: { note: "External transaction updated." },
   });
 
@@ -425,32 +445,15 @@ export async function deleteTransactionForManager(
     return { success: false, error: unauthorized };
   }
 
-  const existingResult = await transactionRepository.findTransactionById(
+  const mutable = await assertExternalTransactionMutable(
     adminClient,
-    input.id
+    input.id,
+    WORKSHOP_LINKED_TRANSACTION_DELETE_ERROR
   );
-  if (existingResult.error) {
-    return { success: false, error: existingResult.error.message };
+  if (!mutable.success) {
+    return { success: false, error: mutable.error };
   }
-  if (!existingResult.data) {
-    return { success: false, error: "Transaction not found." };
-  }
-
-  const existing = mapTransactionRow(
-    existingResult.data as transactionRepository.TransactionRecord
-  );
-
-  const linkedPayment =
-    await workshopPaymentRepository.findWorkshopPaymentByTransactionId(
-      adminClient,
-      input.id
-    );
-  if (linkedPayment.error) {
-    return { success: false, error: linkedPayment.error.message };
-  }
-  if (linkedPayment.data) {
-    return { success: false, error: WORKSHOP_LINKED_TRANSACTION_DELETE_ERROR };
-  }
+  const existing = mutable.transaction;
 
   const { error } = await transactionRepository.deleteTransaction(
     adminClient,
@@ -468,16 +471,7 @@ export async function deleteTransactionForManager(
     severity: "warning",
     table_name: "transactions",
     record_id: existing.id,
-    old_data: {
-      transaction_date: existing.transaction_date,
-      type: existing.type,
-      amount: existing.amount,
-      description: existing.description,
-      category: existing.category,
-      payment_method: existing.payment_method ?? PAYMENT_METHODS.OTHER,
-      recorded_by: existing.recorded_by,
-      notes: existing.notes,
-    },
+    old_data: toTransactionAuditSnapshot(existing),
     metadata: { note: "External transaction deleted." },
   });
 

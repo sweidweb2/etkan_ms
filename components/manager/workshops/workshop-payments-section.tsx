@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import {
@@ -14,14 +14,7 @@ import { EditWorkshopPaymentDialog } from "@/components/manager/workshops/edit-w
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDestructiveDialog } from "@/components/ui/confirm-destructive-dialog";
 import {
   WORKSHOP_PAYMENT_METHOD_LABELS,
   WORKSHOP_PAYMENT_TYPE_LABELS,
@@ -32,9 +25,7 @@ import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-d
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cn } from "@/lib/utils";
 import { isWorkshopFullyPaid } from "@/lib/validators/manager/workshop-payment";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
 import type {
   DeleteWorkshopPaymentActionState,
   ManagerWorkshopPaymentRow,
@@ -92,33 +83,30 @@ export function WorkshopPaymentsSection({
     useState<ManagerWorkshopPaymentRow | null>(null);
   const [deletingPayment, setDeletingPayment] =
     useState<ManagerWorkshopPaymentRow | null>(null);
-  const [isTransitionPending, startTransition] = useTransition();
-  const [deleteState, deleteAction, isDeletePending] = useActionState(
-    deleteWorkshopPaymentAction,
-    initialDeleteState
-  );
-  const isDeleteActionPending = isDeletePending || isTransitionPending;
-  const handleDeleteOpenChange = usePendingAwareOpenChange(
-    isDeleteActionPending,
-    (open) => {
+
+  const { formAction, isPending, handleOpenChange } = useMutationDialogForm({
+    action: deleteWorkshopPaymentAction,
+    initialState: initialDeleteState,
+    open: Boolean(deletingPayment),
+    onOpenChange: (open) => {
       if (!open) {
         setDeletingPayment(null);
       }
-    }
-  );
-
-  useActionStateToast(deleteState, isDeleteActionPending);
-  useActionStateSuccess(deleteState, isDeleteActionPending, () => {
-    if (deletingPayment) {
-      const removedId = deletingPayment.id;
-      setPayments((current) => current.filter((payment) => payment.id !== removedId));
-      void loadWorkshopPaymentsAction(workshopId).then((result) => {
-        if (result) {
-          setSummary(result.summary);
-        }
-      });
-    }
-    setDeletingPayment(null);
+    },
+    onSuccess: () => {
+      if (deletingPayment) {
+        const removedId = deletingPayment.id;
+        setPayments((rows) =>
+          rows.filter((payment) => payment.id !== removedId)
+        );
+        void loadWorkshopPaymentsAction(workshopId).then((result) => {
+          if (result) {
+            setSummary(result.summary);
+          }
+        });
+      }
+      setDeletingPayment(null);
+    },
   });
 
   useEffect(() => {
@@ -160,18 +148,6 @@ export function WorkshopPaymentsSection({
       current.map((row) => (row.id === payment.id ? payment : row))
     );
     void syncPaymentsFromServer();
-  }
-
-  function handleConfirmDelete() {
-    if (!deletingPayment) {
-      return;
-    }
-    const formData = new FormData();
-    formData.set("id", deletingPayment.id);
-    formData.set("workshop_id", workshopId);
-    startTransition(() => {
-      deleteAction(formData);
-    });
   }
 
   const fullyPaid = isWorkshopFullyPaid(workshopPrice, summary.net);
@@ -216,49 +192,34 @@ export function WorkshopPaymentsSection({
         onUpdated={handlePaymentUpdated}
       />
 
-      <Dialog
+      <ConfirmDestructiveDialog
         open={Boolean(deletingPayment)}
-        onOpenChange={handleDeleteOpenChange}
+        onOpenChange={handleOpenChange}
+        isPending={isPending}
+        canConfirm={Boolean(deletingPayment)}
+        title="Delete payment"
+        description={
+          <>
+            Permanently delete this{" "}
+            {deletingPayment
+              ? WORKSHOP_PAYMENT_TYPE_LABELS[deletingPayment.type].toLowerCase()
+              : "payment"}{" "}
+            of{" "}
+            {deletingPayment
+              ? formatPaymentPhaseMoney(deletingPayment.amount)
+              : "—"}
+            ? This cannot be undone.
+          </>
+        }
+        formAction={formAction}
       >
-        <DialogContent
-          className="sm:max-w-md"
-          showCloseButton={!isDeleteActionPending}
-        >
-          <DialogHeader>
-            <DialogTitle>Delete payment</DialogTitle>
-            <DialogDescription>
-              Permanently delete this{" "}
-              {deletingPayment
-                ? WORKSHOP_PAYMENT_TYPE_LABELS[deletingPayment.type].toLowerCase()
-                : "payment"}{" "}
-              of{" "}
-              {deletingPayment
-                ? formatPaymentPhaseMoney(deletingPayment.amount)
-                : "—"}
-              ? This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleDeleteOpenChange(false)}
-              disabled={isDeleteActionPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleteActionPending}
-            >
-              {isDeleteActionPending ? <InlineSpinner /> : null}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {deletingPayment ? (
+          <>
+            <input type="hidden" name="id" value={deletingPayment.id} />
+            <input type="hidden" name="workshop_id" value={workshopId} />
+          </>
+        ) : null}
+      </ConfirmDestructiveDialog>
 
       <ClassTabCollapsibleSection
         title="Payments"

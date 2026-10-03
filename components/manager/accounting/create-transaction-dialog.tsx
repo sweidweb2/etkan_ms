@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { createTransactionAction } from "@/app/manager/income-statement/actions";
+import { PastMonthTransactionConfirmDialog } from "@/components/manager/accounting/past-month-transaction-confirm-dialog";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -40,10 +42,11 @@ import {
   type TransactionCategory,
   type TransactionType,
 } from "@/lib/manager/accounting/constants";
+import { isPastIncomeStatementMonth } from "@/lib/manager/accounting/is-past-income-statement-month";
 import {
   createTransactionFormSchema,
   type CreateTransactionFormValues,
-} from "@/lib/validators/manager/create-transaction";
+} from "@/lib/validators/manager/transaction";
 import type { CreateTransactionActionState } from "@/types/manager-income-statement";
 
 const initialState: CreateTransactionActionState = {};
@@ -60,6 +63,7 @@ export function CreateTransactionDialog({
   open,
   onOpenChange,
 }: CreateTransactionDialogProps) {
+  const router = useRouter();
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
     createTransactionAction,
@@ -67,6 +71,9 @@ export function CreateTransactionDialog({
   );
   const isPending = isActionPending || isTransitionPending;
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+  const [pastConfirmOpen, setPastConfirmOpen] = useState(false);
+  const [pendingValues, setPendingValues] =
+    useState<CreateTransactionFormValues | null>(null);
 
   useActionStateToast(state, isPending);
 
@@ -117,9 +124,10 @@ export function CreateTransactionDialog({
 
   useActionStateSuccess(state, isPending, () => {
     onOpenChange(false);
+    router.refresh();
   });
 
-  function onSubmit(values: CreateTransactionFormValues) {
+  function submitValues(values: CreateTransactionFormValues) {
     const formData = new FormData();
     formData.set("transaction_date", values.transaction_date);
     formData.set("type", values.type);
@@ -141,6 +149,15 @@ export function CreateTransactionDialog({
     });
   }
 
+  function onSubmit(values: CreateTransactionFormValues) {
+    if (isPastIncomeStatementMonth(values.transaction_date)) {
+      setPendingValues(values);
+      setPastConfirmOpen(true);
+      return;
+    }
+    submitValues(values);
+  }
+
   const typeError = errors.type?.message ?? state.fieldErrors?.type?.[0];
   const dateError =
     errors.transaction_date?.message ??
@@ -157,6 +174,7 @@ export function CreateTransactionDialog({
     errors.recorded_by?.message ?? state.fieldErrors?.recorded_by?.[0];
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent showCloseButton={!isPending} className="sm:max-w-lg">
         <DialogHeader>
@@ -392,5 +410,25 @@ export function CreateTransactionDialog({
         </form>
       </DialogContent>
     </Dialog>
+    <PastMonthTransactionConfirmDialog
+      open={pastConfirmOpen}
+      onOpenChange={(nextOpen) => {
+        setPastConfirmOpen(nextOpen);
+        if (!nextOpen) {
+          setPendingValues(null);
+        }
+      }}
+      disabled={isPending}
+      onConfirm={() => {
+        const values = pendingValues;
+        setPastConfirmOpen(false);
+        setPendingValues(null);
+        if (!values) {
+          return;
+        }
+        submitValues(values);
+      }}
+    />
+    </>
   );
 }

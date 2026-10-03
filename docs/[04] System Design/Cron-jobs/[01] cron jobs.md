@@ -37,9 +37,12 @@ select public.mark_overdue_pending_work_missing();
   - `topic` = `S{nb_order}` (e.g. `S3`)
   - `semester_id` from the class
   - seeds attendees via `ensure_session_attendees_for_members`
+  - inserts a manager `academic` notification (inbox only: `suppress_live_toast = true`) linking to the session
 - **Skips:** classes with no sessions; classes that already have `student_course_grade` rows (same structure lock as manual create); non-`in_progress` classes.
-- **Tables:** `sessions`, `classes`, `attendee`, `student_course_grade`
-- **Migration:** `supabase/migrations/20261003160000_cron_auto_create_weekly_class_sessions.sql`
+- **Tables:** `sessions`, `classes`, `attendee`, `student_course_grade`, `notifications`
+- **Migrations:**
+  - `supabase/migrations/20261003160000_cron_auto_create_weekly_class_sessions.sql`
+  - `supabase/migrations/20261003180000_cron_auto_sessions_notify.sql`
 
 ### Verify
 
@@ -54,6 +57,32 @@ select * from cron.job_run_details order by start_time desc limit 20;
 ```sql
 -- true bypasses the Lebanon-midnight hour gate (for testing)
 select public.auto_create_weekly_class_sessions(true);
+```
+
+## record-monthly-opening-balance
+
+- **Schedule:** **1st of each month** at **00:00 Asia/Beirut** (`0 21,22 * * *` UTC + day/hour gate)
+- **Function:** `public.record_monthly_opening_balance(p_force boolean default false)`
+- **What it does:** Computes previous calendar month available money (`student_payments` + credit `transactions` − debit `transactions`) and inserts one `transactions` row dated the 1st of the new month:
+  - amount `> 0` → credit
+  - amount `< 0` → debit (`abs`)
+  - amount `= 0` → credit `0`
+  - `category = opening_balance`, `recorded_by = System`, `payment_method = other`
+  - manager inbox notification (`suppress_live_toast = true`) → `/manager/income-statement`
+- **Idempotent:** skips if an `opening_balance` row already exists for that 1st.
+- **Tables:** `transactions`, `student_payments`, `notifications`
+- **Migration:** `supabase/migrations/20261003190000_cron_record_monthly_opening_balance.sql`
+
+### Verify
+
+```sql
+select * from cron.job_run_details order by start_time desc limit 20;
+```
+
+### Manual run
+
+```sql
+select public.record_monthly_opening_balance(true);
 ```
 
 ## Removed

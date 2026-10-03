@@ -6,22 +6,20 @@ import {
   ArrowDownLeftIcon,
   ArrowUpRightIcon,
   BadgeDollarSignIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CircleHelpIcon,
-  PencilIcon,
-  Trash2Icon,
   UserRoundXIcon,
   UsersIcon,
   WalletIcon,
   type LucideIcon,
 } from "lucide-react";
-import { Can } from "@/components/auth/can";
-import { DeleteTransactionDialog } from "@/components/manager/accounting/delete-transaction-dialog";
-import { EditTransactionDialog } from "@/components/manager/accounting/edit-transaction-dialog";
+import { usePermissions } from "@/components/auth/permissions-provider";
+import { ExternalTransactionRowActions } from "@/components/manager/accounting/external-transaction-row-actions";
+import {
+  IncomeTablePagination,
+  usePagedRows,
+} from "@/components/manager/accounting/income-table-paging";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -35,6 +33,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useExternalTransactionDialogs } from "@/hooks/use-external-transaction-dialogs";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
@@ -57,8 +57,6 @@ import type {
   ManagerIncomeAnalyticsUnpaidStudentRow,
 } from "@/types/manager-income-statement-analytics";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
-
 function TruncatedCell({
   value,
   maxLength,
@@ -79,25 +77,6 @@ function TruncatedCell({
       {display}
     </span>
   );
-}
-
-function getPageNumbers(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const pages: Array<number | "ellipsis"> = [1];
-  const start = Math.max(2, currentPage - 1);
-  const end = Math.min(totalPages - 1, currentPage + 1);
-
-  if (start > 2) pages.push("ellipsis");
-  for (let page = start; page <= end; page += 1) {
-    pages.push(page);
-  }
-  if (end < totalPages - 1) pages.push("ellipsis");
-  pages.push(totalPages);
-
-  return pages;
 }
 
 function MiniStatCard({
@@ -149,132 +128,6 @@ function MiniStatCard({
   );
 }
 
-function TablePagination({
-  totalCount,
-  pageSize,
-  currentPage,
-  onPageChange,
-  onPageSizeChange,
-}: {
-  totalCount: number;
-  pageSize: number;
-  currentPage: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: (typeof PAGE_SIZE_OPTIONS)[number]) => void;
-}) {
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const rangeStart = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
-  const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-
-  return (
-    <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <span>
-          Showing {rangeStart}–{rangeEnd} of {totalCount}
-        </span>
-        <span aria-hidden="true">·</span>
-        <div className="flex items-center gap-2">
-          <span>Rows</span>
-          <Select
-            value={String(pageSize)}
-            onValueChange={(value) => {
-              if (value == null) return;
-              onPageSizeChange(
-                Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]
-              );
-            }}
-          >
-            <SelectTrigger
-              size="sm"
-              className="w-16"
-              aria-label="Rows per page"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="start">
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <SelectItem key={size} value={String(size)}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          disabled={safeCurrentPage <= 1}
-          onClick={() => onPageChange(Math.max(1, safeCurrentPage - 1))}
-          aria-label="Previous page"
-        >
-          <ChevronLeftIcon />
-        </Button>
-        {pageNumbers.map((page, index) =>
-          page === "ellipsis" ? (
-            <span
-              key={`ellipsis-${index}`}
-              className="px-1 text-muted-foreground"
-            >
-              …
-            </span>
-          ) : (
-            <Button
-              key={page}
-              type="button"
-              variant={page === safeCurrentPage ? "default" : "outline"}
-              size="icon-sm"
-              onClick={() => onPageChange(page)}
-              aria-label={`Page ${page}`}
-              aria-current={page === safeCurrentPage ? "page" : undefined}
-            >
-              {page}
-            </Button>
-          )
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          disabled={safeCurrentPage >= totalPages}
-          onClick={() =>
-            onPageChange(Math.min(totalPages, safeCurrentPage + 1))
-          }
-          aria-label="Next page"
-        >
-          <ChevronRightIcon />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function usePagedRows<T>(rows: T[]) {
-  const [pageSize, setPageSize] =
-    useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
-  const [page, setPage] = useState(1);
-
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const pagedRows = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [pageSize, rows, safePage]);
-
-  return {
-    pageSize,
-    setPageSize,
-    page: safePage,
-    setPage,
-    pagedRows,
-  };
-}
-
 type EtkanTabProps = {
   transactions: ManagerIncomeAnalyticsTransactionRow[];
   /** Null = year-wide; detail ledger rows are not loaded. */
@@ -292,47 +145,47 @@ export function IncomeStatementAnalyticsEtkanTab({
   month,
 }: EtkanTabProps) {
   const isYearWide = month === null;
+  const permissions = usePermissions();
+  const canUpdateTransactions = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
+  );
+  const canDeleteTransactions = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.ACCOUNTING_TRANSACTIONS_DELETE
+  );
+  const [transactionRows, setTransactionRows] = useState(transactions);
+  const [prevTransactions, setPrevTransactions] = useState(transactions);
+  if (transactions !== prevTransactions) {
+    setPrevTransactions(transactions);
+    setTransactionRows(transactions);
+  }
   const [typeFilter, setTypeFilter] =
     useState<TransactionTypeFilter>(TYPE_FILTER_ALL);
   const filteredTransactions = useMemo(
     () =>
       typeFilter === TYPE_FILTER_ALL
-        ? transactions
-        : transactions.filter((row) => row.type === typeFilter),
-    [transactions, typeFilter]
+        ? transactionRows
+        : transactionRows.filter((row) => row.type === typeFilter),
+    [transactionRows, typeFilter]
   );
   const { pageSize, setPageSize, page, setPage, pagedRows } =
     usePagedRows(filteredTransactions);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] =
-    useState<ManagerIncomeAnalyticsTransactionRow | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deletingTransaction, setDeletingTransaction] =
-    useState<ManagerIncomeAnalyticsTransactionRow | null>(null);
+  const { openEdit, openDelete, dialogs } = useExternalTransactionDialogs({
+    onDeleted: (id) => {
+      setTransactionRows((rows) => rows.filter((row) => row.id !== id));
+    },
+  });
 
-  const credits = transactions.filter(
+  const credits = transactionRows.filter(
     (row) => row.type === TRANSACTION_TYPES.CREDIT
   );
-  const debits = transactions.filter(
+  const debits = transactionRows.filter(
     (row) => row.type === TRANSACTION_TYPES.DEBIT
   );
   const creditsTotal = credits.reduce((sum, row) => sum + row.amount, 0);
   const debitsTotal = debits.reduce((sum, row) => sum + row.amount, 0);
   const netExternal = creditsTotal - debitsTotal;
-
-  function handleEditOpenChange(open: boolean) {
-    setEditOpen(open);
-    if (!open) {
-      setEditingTransaction(null);
-    }
-  }
-
-  function handleDeleteOpenChange(open: boolean) {
-    setDeleteOpen(open);
-    if (!open) {
-      setDeletingTransaction(null);
-    }
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -488,55 +341,16 @@ export function IncomeStatementAnalyticsEtkanTab({
                         />
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {row.linked_workshop_payment_id ? (
-                          <span
-                            className="text-xs text-muted-foreground"
-                            title="Manage this from Workshops payments"
-                          >
-                            Workshop
-                          </span>
-                        ) : (
-                          <div className="inline-flex items-center justify-end gap-1">
-                            <Can
-                              permission={
-                                PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
-                              }
-                            >
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="size-7"
-                                aria-label={`Edit transaction ${row.description}`}
-                                onClick={() => {
-                                  setEditingTransaction(row);
-                                  setEditOpen(true);
-                                }}
-                              >
-                                <PencilIcon className="size-3.5" />
-                              </Button>
-                            </Can>
-                            <Can
-                              permission={
-                                PERMISSIONS.ACCOUNTING_TRANSACTIONS_DELETE
-                              }
-                            >
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                aria-label={`Delete transaction ${row.description}`}
-                                onClick={() => {
-                                  setDeletingTransaction(row);
-                                  setDeleteOpen(true);
-                                }}
-                              >
-                                <Trash2Icon className="size-3.5" />
-                              </Button>
-                            </Can>
-                          </div>
-                        )}
+                        <ExternalTransactionRowActions
+                          description={row.description}
+                          linkedWorkshopPaymentId={
+                            row.linked_workshop_payment_id
+                          }
+                          canUpdate={canUpdateTransactions}
+                          canDelete={canDeleteTransactions}
+                          onEdit={() => openEdit(row)}
+                          onDelete={() => openDelete(row)}
+                        />
                       </td>
                     </tr>
                   );
@@ -545,7 +359,7 @@ export function IncomeStatementAnalyticsEtkanTab({
             </tbody>
           </table>
         </div>
-        <TablePagination
+        <IncomeTablePagination
           totalCount={filteredTransactions.length}
           pageSize={pageSize}
           currentPage={page}
@@ -557,16 +371,7 @@ export function IncomeStatementAnalyticsEtkanTab({
         />
       </section>
 
-      <EditTransactionDialog
-        open={editOpen}
-        onOpenChange={handleEditOpenChange}
-        transaction={editingTransaction}
-      />
-      <DeleteTransactionDialog
-        open={deleteOpen}
-        onOpenChange={handleDeleteOpenChange}
-        transaction={deletingTransaction}
-      />
+      {dialogs}
     </div>
   );
 }
@@ -721,7 +526,7 @@ export function IncomeStatementAnalyticsStudentsTab({
             </tbody>
           </table>
         </div>
-        <TablePagination
+        <IncomeTablePagination
           totalCount={payments.length}
           pageSize={paymentsPager.pageSize}
           currentPage={paymentsPager.page}
@@ -796,7 +601,7 @@ export function IncomeStatementAnalyticsStudentsTab({
             </tbody>
           </table>
         </div>
-        <TablePagination
+        <IncomeTablePagination
           totalCount={unpaidStudents.length}
           pageSize={unpaidPager.pageSize}
           currentPage={unpaidPager.page}
@@ -881,7 +686,7 @@ export function IncomeStatementAnalyticsStudentsTab({
             </tbody>
           </table>
         </div>
-        <TablePagination
+        <IncomeTablePagination
           totalCount={adjustedStudents.length}
           pageSize={adjustedPager.pageSize}
           currentPage={adjustedPager.page}

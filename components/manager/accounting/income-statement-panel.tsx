@@ -8,19 +8,23 @@ import {
   FileTextIcon,
   GraduationCapIcon,
   LineChartIcon,
-  PencilIcon,
   SlidersHorizontalIcon,
-  Trash2Icon,
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Can } from "@/components/auth/can";
+import { usePermissions } from "@/components/auth/permissions-provider";
 import { CreateTransactionDialog } from "@/components/manager/accounting/create-transaction-dialog";
-import { DeleteTransactionDialog } from "@/components/manager/accounting/delete-transaction-dialog";
-import { EditTransactionDialog } from "@/components/manager/accounting/edit-transaction-dialog";
+import { ExternalTransactionRowActions } from "@/components/manager/accounting/external-transaction-row-actions";
+import {
+  IncomeTablePagination,
+  usePagedRows,
+} from "@/components/manager/accounting/income-table-paging";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useExternalTransactionDialogs } from "@/hooks/use-external-transaction-dialogs";
+import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
@@ -34,10 +38,7 @@ import {
 } from "@/lib/manager/accounting/constants";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
-import type {
-  ManagerIncomeStatementData,
-  ManagerIncomeTransactionRow,
-} from "@/types/manager-income-statement";
+import type { ManagerIncomeStatementData } from "@/types/manager-income-statement";
 
 function formatAdjustmentValue(
   valueType: FinancialAdjustmentValueType,
@@ -87,32 +88,36 @@ export function IncomeStatementPanel({
   readOnly = false,
   hideAllTimePaymentsCard = false,
 }: IncomeStatementPanelProps) {
-  const { stats, adjustments, transactions } = data;
+  const { stats, adjustments } = data;
+  const [transactions, setTransactions] = useState(data.transactions);
+  const [prevTransactions, setPrevTransactions] = useState(data.transactions);
+  if (data.transactions !== prevTransactions) {
+    setPrevTransactions(data.transactions);
+    setTransactions(data.transactions);
+  }
+  const permissions = usePermissions();
+  const canUpdateTransactions = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
+  );
+  const canDeleteTransactions = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.ACCOUNTING_TRANSACTIONS_DELETE
+  );
+  const transactionsPager = usePagedRows(transactions);
+  const adjustmentsPager = usePagedRows(adjustments);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] =
-    useState<ManagerIncomeTransactionRow | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deletingTransaction, setDeletingTransaction] =
-    useState<ManagerIncomeTransactionRow | null>(null);
-
-  function handleEditOpenChange(open: boolean) {
-    setEditOpen(open);
-    if (!open) {
-      setEditingTransaction(null);
-    }
-  }
-
-  function handleDeleteOpenChange(open: boolean) {
-    setDeleteOpen(open);
-    if (!open) {
-      setDeletingTransaction(null);
-    }
-  }
+  const { openEdit, openDelete, dialogs } = useExternalTransactionDialogs({
+    onDeleted: (id) => {
+      setTransactions((rows) => rows.filter((row) => row.id !== id));
+    },
+  });
 
   const paymentsLabel = periodLabel
     ? `Payments · ${periodLabel}`
     : "Payments this month";
+  const showTransactionActions =
+    !readOnly && (canUpdateTransactions || canDeleteTransactions);
 
   return (
     <div className="flex flex-col gap-6">
@@ -224,25 +229,25 @@ export function IncomeStatementPanel({
                 <th className="px-4 py-3 font-medium text-right">Amount</th>
                 <th className="px-4 py-3 font-medium">Method</th>
                 <th className="px-4 py-3 font-medium">Recorded by</th>
-                {readOnly ? null : (
+                {showTransactionActions ? (
                   <th className="px-4 py-3 font-medium text-right">
                     <span className="sr-only">Actions</span>
                   </th>
-                )}
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {transactions.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={readOnly ? 7 : 8}
+                    colSpan={showTransactionActions ? 8 : 7}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
                     No external transactions recorded yet.
                   </td>
                 </tr>
               ) : (
-                transactions.map((row) => {
+                transactionsPager.pagedRows.map((row) => {
                   const isCredit = row.type === TRANSACTION_TYPES.CREDIT;
                   return (
                     <tr
@@ -293,59 +298,20 @@ export function IncomeStatementPanel({
                           maxLength={24}
                         />
                       </td>
-                      {readOnly ? null : (
+                      {showTransactionActions ? (
                         <td className="px-4 py-3 text-right">
-                          {row.linked_workshop_payment_id ? (
-                            <span
-                              className="text-xs text-muted-foreground"
-                              title="Manage this from Workshops payments"
-                            >
-                              Workshop
-                            </span>
-                          ) : (
-                            <div className="inline-flex items-center justify-end gap-1">
-                              <Can
-                                permission={
-                                  PERMISSIONS.ACCOUNTING_TRANSACTIONS_UPDATE
-                                }
-                              >
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="size-7"
-                                  aria-label={`Edit transaction ${row.description}`}
-                                  onClick={() => {
-                                    setEditingTransaction(row);
-                                    setEditOpen(true);
-                                  }}
-                                >
-                                  <PencilIcon className="size-3.5" />
-                                </Button>
-                              </Can>
-                              <Can
-                                permission={
-                                  PERMISSIONS.ACCOUNTING_TRANSACTIONS_DELETE
-                                }
-                              >
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                  aria-label={`Delete transaction ${row.description}`}
-                                  onClick={() => {
-                                    setDeletingTransaction(row);
-                                    setDeleteOpen(true);
-                                  }}
-                                >
-                                  <Trash2Icon className="size-3.5" />
-                                </Button>
-                              </Can>
-                            </div>
-                          )}
+                          <ExternalTransactionRowActions
+                            description={row.description}
+                            linkedWorkshopPaymentId={
+                              row.linked_workshop_payment_id
+                            }
+                            canUpdate={canUpdateTransactions}
+                            canDelete={canDeleteTransactions}
+                            onEdit={() => openEdit(row)}
+                            onDelete={() => openDelete(row)}
+                          />
                         </td>
-                      )}
+                      ) : null}
                     </tr>
                   );
                 })
@@ -353,6 +319,18 @@ export function IncomeStatementPanel({
             </tbody>
           </table>
         </div>
+        {transactions.length > 0 ? (
+          <IncomeTablePagination
+            totalCount={transactions.length}
+            pageSize={transactionsPager.pageSize}
+            currentPage={transactionsPager.page}
+            onPageChange={transactionsPager.setPage}
+            onPageSizeChange={(size) => {
+              transactionsPager.setPageSize(size);
+              transactionsPager.setPage(1);
+            }}
+          />
+        ) : null}
       </ClassTabCollapsibleSection>
 
       <ClassTabCollapsibleSection
@@ -447,7 +425,7 @@ export function IncomeStatementPanel({
                     </td>
                   </tr>
                 ) : (
-                  adjustments.map((row) => (
+                  adjustmentsPager.pagedRows.map((row) => (
                     <tr
                       key={row.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
@@ -486,6 +464,18 @@ export function IncomeStatementPanel({
                 )}
               </tbody>
             </table>
+            {adjustments.length > 0 ? (
+              <IncomeTablePagination
+                totalCount={adjustments.length}
+                pageSize={adjustmentsPager.pageSize}
+                currentPage={adjustmentsPager.page}
+                onPageChange={adjustmentsPager.setPage}
+                onPageSizeChange={(size) => {
+                  adjustmentsPager.setPageSize(size);
+                  adjustmentsPager.setPage(1);
+                }}
+              />
+            ) : null}
           </div>
         </div>
       </ClassTabCollapsibleSection>
@@ -496,16 +486,7 @@ export function IncomeStatementPanel({
             open={createOpen}
             onOpenChange={setCreateOpen}
           />
-          <EditTransactionDialog
-            open={editOpen}
-            onOpenChange={handleEditOpenChange}
-            transaction={editingTransaction}
-          />
-          <DeleteTransactionDialog
-            open={deleteOpen}
-            onOpenChange={handleDeleteOpenChange}
-            transaction={deletingTransaction}
-          />
+          {dialogs}
         </>
       )}
     </div>

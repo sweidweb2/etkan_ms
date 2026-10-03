@@ -184,12 +184,22 @@ export async function getIncomeStatementForManager(
       ...adjustmentRows.map((row) => row.student_payment_phase_id),
     ]),
   ];
+  const transactionIds = transactionRows.map((row) => row.id);
 
-  const { data: sppRecords, error: sppLoadError } =
-    await studentPaymentPhaseRepository.listSppsByIds(adminClient, sppIds);
+  // Wave 2: SPPs + workshop links (independent after wave 1).
+  const [sppResult, linksResult] = await Promise.all([
+    studentPaymentPhaseRepository.listSppsByIds(adminClient, sppIds),
+    workshopPaymentRepository.listWorkshopPaymentLinksByTransactionIds(
+      adminClient,
+      transactionIds
+    ),
+  ]);
 
-  if (sppLoadError) {
-    throw new Error(sppLoadError.message);
+  if (sppResult.error) {
+    throw new Error(sppResult.error.message);
+  }
+  if (linksResult.error) {
+    throw new Error(linksResult.error.message);
   }
 
   const sppById = new Map<
@@ -198,7 +208,7 @@ export async function getIncomeStatementForManager(
   >();
   const phaseIds = new Set<string>();
 
-  for (const spp of sppRecords ?? []) {
+  for (const spp of sppResult.data ?? []) {
     sppById.set(spp.id, {
       student_id: spp.student_id,
       payment_phase_id: spp.payment_phase_id,
@@ -206,17 +216,39 @@ export async function getIncomeStatementForManager(
     phaseIds.add(spp.payment_phase_id);
   }
 
-  const { data: phases, error: phaseError } =
-    await paymentPhaseRepository.listPaymentPhaseAmountsByIds(adminClient, [
-      ...phaseIds,
+  const studentIds = [
+    ...new Set([...sppById.values()].map((spp) => spp.student_id)),
+  ];
+
+  // Wave 3: phases + profile labels (both need SPP results).
+  const [phasesResult, profilesResult, studentProfilesResult] =
+    await Promise.all([
+      paymentPhaseRepository.listPaymentPhaseAmountsByIds(adminClient, [
+        ...phaseIds,
+      ]),
+      studentIds.length > 0
+        ? profileRepository.listProfilesByIds(adminClient, studentIds)
+        : Promise.resolve({ data: [], error: null }),
+      studentIds.length > 0
+        ? studentProfileRepository.listStudentProfilesByUserIds(
+            adminClient,
+            studentIds
+          )
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
-  if (phaseError) {
-    throw new Error(phaseError.message);
+  if (phasesResult.error) {
+    throw new Error(phasesResult.error.message);
+  }
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+  if (studentProfilesResult.error) {
+    throw new Error(studentProfilesResult.error.message);
   }
 
   const phaseById = new Map(
-    (phases ?? []).map((phase) => [
+    (phasesResult.data ?? []).map((phase) => [
       phase.id,
       {
         name: phase.name,
@@ -227,35 +259,24 @@ export async function getIncomeStatementForManager(
     ])
   );
 
-  const studentIds = [
-    ...new Set([...sppById.values()].map((spp) => spp.student_id)),
-  ];
-
   const labelByStudentId = new Map<string, string>();
-  if (studentIds.length > 0) {
-    const [{ data: profiles }, { data: studentProfiles }] = await Promise.all([
-      profileRepository.listProfilesByIds(adminClient, studentIds),
-      studentProfileRepository.listStudentProfilesByUserIds(
-        adminClient,
-        studentIds
-      ),
-    ]);
+  const usernameById = new Map(
+    (profilesResult.data ?? []).map((profile) => [
+      profile.id,
+      profile.username,
+    ])
+  );
+  const fullNameByUserId = new Map(
+    (studentProfilesResult.data ?? []).map((profile) => [
+      profile.user_id,
+      profile.full_name,
+    ])
+  );
 
-    const usernameById = new Map(
-      (profiles ?? []).map((profile) => [profile.id, profile.username])
-    );
-    const fullNameByUserId = new Map(
-      (studentProfiles ?? []).map((profile) => [
-        profile.user_id,
-        profile.full_name,
-      ])
-    );
-
-    for (const studentId of studentIds) {
-      const fullName = fullNameByUserId.get(studentId)?.trim();
-      const username = usernameById.get(studentId)?.trim();
-      labelByStudentId.set(studentId, fullName || username || studentId);
-    }
+  for (const studentId of studentIds) {
+    const fullName = fullNameByUserId.get(studentId)?.trim();
+    const username = usernameById.get(studentId)?.trim();
+    labelByStudentId.set(studentId, fullName || username || studentId);
   }
 
   const totalPaymentsAmount = paymentRows.reduce(
@@ -319,15 +340,6 @@ export async function getIncomeStatementForManager(
     };
   });
 
-  const transactionIds = transactionRows.map((row) => row.id);
-  const linksResult =
-    await workshopPaymentRepository.listWorkshopPaymentLinksByTransactionIds(
-      adminClient,
-      transactionIds
-    );
-  if (linksResult.error) {
-    throw new Error(linksResult.error.message);
-  }
   const linkedPaymentByTransactionId = new Map<string, string>();
   for (const link of linksResult.data ?? []) {
     if (link.transaction_id) {

@@ -38,14 +38,39 @@ export const MANAGER_CRON_JOBS: ManagerCronJobRow[] = [
     summary:
       "Create the next weekly session for in-progress classes that are overdue.",
     description:
-      "At Lebanon midnight, finds in-progress classes whose latest session starts_at is more than 6.5 days ago, then creates at most one new session per class: starts_at = last starts_at + 7 days, ends_at = starts_at + 7 days, topic S{nb_order}, same semester_id, and seeds attendee rows for current members. Skips classes with no sessions and classes that already have computed course grades (same lock as manual session create). Scheduled at 21:00 and 22:00 UTC with an Asia/Beirut hour gate so DST offsets still hit local midnight once.",
+      "At Lebanon midnight, finds in-progress classes whose latest session starts_at is more than 6.5 days ago, then creates at most one new session per class: starts_at = last starts_at + 7 days, ends_at = starts_at + 7 days, topic S{nb_order}, same semester_id, and seeds attendee rows for current members. Also inserts a manager academic notification (inbox only, suppress_live_toast) linking to the new session. Skips classes with no sessions and classes that already have computed course grades (same lock as manual session create). Scheduled at 21:00 and 22:00 UTC with an Asia/Beirut hour gate so DST offsets still hit local midnight once.",
     function_name: "public.auto_create_weekly_class_sessions()",
-    tables: ["sessions", "classes", "attendee", "student_course_grade"],
+    tables: [
+      "sessions",
+      "classes",
+      "attendee",
+      "student_course_grade",
+      "notifications",
+    ],
     migration:
-      "supabase/migrations/20261003160000_cron_auto_create_weekly_class_sessions.sql",
+      "supabase/migrations/20261003180000_cron_auto_sessions_notify.sql",
     verify_hint:
       "Dashboard → Integrations → Cron, or: select * from cron.job_run_details order by start_time desc limit 20;",
     manual_run: "select public.auto_create_weekly_class_sessions(true);",
+  },
+  {
+    id: "record-monthly-opening-balance",
+    job_name: "record-monthly-opening-balance",
+    schedule: "0 21,22 * * *",
+    schedule_label: "1st of month at 00:00 Asia/Beirut",
+    frequency: CRON_JOB_FREQUENCIES.DAILY,
+    status: CRON_JOB_STATUSES.ACTIVE,
+    summary:
+      "Record last month’s available money as an opening balance transaction.",
+    description:
+      "On the 1st at Lebanon midnight, computes previous-month available money (student payments + credit transactions − debit transactions) and inserts one opening_balance transaction dated the 1st of the new month: credit if positive, debit if negative, zero credit if zero. Idempotent per 1st. Inserts a manager billing notification (inbox only, suppress_live_toast). Scheduled at 21:00 and 22:00 UTC with an Asia/Beirut day=1 and hour=0 gate.",
+    function_name: "public.record_monthly_opening_balance()",
+    tables: ["transactions", "student_payments", "notifications"],
+    migration:
+      "supabase/migrations/20261003190000_cron_record_monthly_opening_balance.sql",
+    verify_hint:
+      "Dashboard → Integrations → Cron, or: select * from cron.job_run_details order by start_time desc limit 20;",
+    manual_run: "select public.record_monthly_opening_balance(true);",
   },
 ];
 
