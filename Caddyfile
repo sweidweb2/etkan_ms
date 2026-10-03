@@ -7,14 +7,14 @@ staging.etkan.org {
 	reverse_proxy host.docker.internal:3001
 }
 
+# No encode on API hosts: Caddy gzip breaks Realtime WebSocket upgrades
+# (browser wss://…/realtime/v1/websocket never reaches 101).
 api.etkan.org {
-	encode gzip
 	reverse_proxy host.docker.internal:54321
 }
 
 # Prod Supabase Kong (second stack; host port 55321). Staging stays on 54321.
 prod-api.etkan.org {
-	encode gzip
 	reverse_proxy host.docker.internal:55321
 }
 

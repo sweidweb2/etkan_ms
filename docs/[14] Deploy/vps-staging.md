@@ -9,8 +9,9 @@ Recorded **2026-09-27** after the first VPS bring-up.
 | Check | Result |
 | --- | --- |
 | Site | `https://staging.etkan.org` — Caddy → `etkan-staging-web` |
-| API | `https://api.etkan.org` — Caddy → Kong on host port **54321** |
+| API | `https://api.etkan.org` — Caddy → Kong on host port **54321** (no `encode gzip` on this host; it breaks Realtime WS) |
 | Auth health | `https://api.etkan.org/auth/v1/health` returns GoTrue JSON |
+| Realtime | `supabase_realtime_etkan_ms` must be Up; `wss://api.etkan.org/realtime/v1/websocket` upgrades to **101** |
 | App env | `NEXT_PUBLIC_SITE_URL=https://staging.etkan.org` |
 | App API env | `NEXT_PUBLIC_SUPABASE_URL=https://api.etkan.org` |
 | Database | Self-hosted CLI stack in `/home/deploy/etkan_ms` (`project_id = etkan_ms`) |
