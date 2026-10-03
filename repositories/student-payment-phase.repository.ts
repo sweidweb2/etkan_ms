@@ -156,17 +156,49 @@ export async function listSppsFullByIds(client: Supabase, ids: string[]) {
     .in("id", ids);
 }
 
-/** Active SPPs with remaining balance (for unpaid analytics). */
+const ACTIVE_UNPAID_SPPS_PAGE_SIZE = 1000;
+
+const ACTIVE_UNPAID_SPP_COLUMNS =
+  "id, student_id, payment_phase_id, status, remaining_amount, final_amount_due, total_paid, payment_phases!inner(status)";
+
+/** Active SPPs with remaining balance (for unpaid analytics). Paged past max_rows. */
 export async function listActiveUnpaidSpps(client: Supabase) {
-  return client
-    .from("student_payment_phases")
-    .select(
-      "id, student_id, payment_phase_id, status, remaining_amount, final_amount_due, total_paid, payment_phases!inner(status)"
-    )
-    .neq("status", "cancelled")
-    .gt("remaining_amount", 0)
-    .not("payment_phases.status", "in", "(cancelled,closed)")
-    .order("created_at", { ascending: false });
+  const rows: Array<{
+    id: string;
+    student_id: string;
+    payment_phase_id: string;
+    status: string;
+    remaining_amount: number;
+    final_amount_due: number;
+    total_paid: number;
+    payment_phases: { status: string } | { status: string }[] | null;
+  }> = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await client
+      .from("student_payment_phases")
+      .select(ACTIVE_UNPAID_SPP_COLUMNS)
+      .neq("status", "cancelled")
+      .gt("remaining_amount", 0)
+      .not("payment_phases.status", "in", "(cancelled,closed)")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + ACTIVE_UNPAID_SPPS_PAGE_SIZE - 1);
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    const page = data ?? [];
+    rows.push(...page);
+
+    if (page.length < ACTIVE_UNPAID_SPPS_PAGE_SIZE) {
+      break;
+    }
+    offset += ACTIVE_UNPAID_SPPS_PAGE_SIZE;
+  }
+
+  return { data: rows, error: null };
 }
 
 export async function listAllSpps(client: Supabase) {

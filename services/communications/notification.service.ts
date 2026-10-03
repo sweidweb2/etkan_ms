@@ -6,6 +6,7 @@ import {
 import { NOTIFICATION_ACTION_NONE_VALUE } from "@/lib/validators/manager/create-notification";
 import { createNotificationSchema } from "@/lib/validators/manager/create-notification";
 import { updateNotificationSchema } from "@/lib/validators/manager/update-notification";
+import { getManagerRegistrationDetailRoute } from "@/lib/constants/routes";
 import * as notificationRepository from "@/repositories/notification.repository";
 import type { NotificationRecord } from "@/repositories/notification.repository";
 import {
@@ -108,6 +109,7 @@ function mapNotificationRecordToRow(
     read_at: record.read_at,
     created_by: record.created_by,
     created_at: record.created_at,
+    suppress_live_toast: record.suppress_live_toast,
   };
 }
 
@@ -541,4 +543,76 @@ export async function deleteNotificationForManager(
   });
 
   return { success: true, message: "Notification deleted." };
+}
+
+export async function getUnreadNotificationCountForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<number> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.NOTIFICATIONS_VIEW
+  );
+
+  const { count, error } =
+    await notificationRepository.countUnreadNotifications(adminClient);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return count ?? 0;
+}
+
+/**
+ * System event: guest/public registration submitted.
+ * Does not require NOTIFICATIONS_CREATE. Never throws — callers must not fail registration.
+ */
+export async function notifyManagersOfRegistrationSubmitted(
+  adminClient: Supabase,
+  input: {
+    applicationId: string;
+    applicantName: string;
+    liveToast: boolean;
+    createdBy?: string | null;
+  }
+): Promise<void> {
+  const name = input.applicantName.trim() || "An applicant";
+  const actionHref = getManagerRegistrationDetailRoute(input.applicationId);
+
+  try {
+    const { error } = await notificationRepository.createNotification(
+      adminClient,
+      {
+        recipient_id: null,
+        audience: "manager",
+        category: "registration",
+        priority: "normal",
+        title: "New registration submitted",
+        body: `${name} submitted a registration application.`,
+        action_href: actionHref,
+        created_by: input.createdBy ?? null,
+        suppress_live_toast: !input.liveToast,
+      }
+    );
+
+    if (error) {
+      console.error(
+        "[notifications] failed to notify managers of registration",
+        {
+          applicationId: input.applicationId,
+          message: error.message,
+        }
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[notifications] failed to notify managers of registration",
+      {
+        applicationId: input.applicationId,
+        error,
+      }
+    );
+  }
 }

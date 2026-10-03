@@ -46,7 +46,7 @@ Open `supabase/config.toml` and confirm:
 | `[db]` (Postgres) | present (always on) |
 | `[auth] enabled` | `true` |
 | `[storage] enabled` | `true` |
-| `[realtime] enabled` | `false` |
+| `[realtime] enabled` | `true` |
 | `[studio] enabled` | `false` |
 | `[inbucket] enabled` | `false` |
 | `[edge_runtime] enabled` | `false` |
@@ -55,7 +55,7 @@ Open `supabase/config.toml` and confirm:
 | `[db.pooler] enabled` | `false` |
 | `[api] schemas` | `["public"]` (no GraphQL) |
 
-That is what this app needs: **Postgres + Auth + API + Storage**. Nothing else.
+That is what this app needs: **Postgres + Auth + API + Storage + Realtime** (manager live notification toasts). Nothing else.
 
 Want Studio later? Set `[studio] enabled = true`, then redo Step 4.
 

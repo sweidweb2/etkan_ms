@@ -589,7 +589,7 @@ export async function submitGuestRegistrationForManager(
   const submitResult = await submitPublicRegistrationApplication(
     adminClient,
     input,
-    { guest_id: guestId, skipRateLimit: true }
+    { guest_id: guestId, skipRateLimit: true, staffActorUserId: actor.userId }
   );
 
   if (!submitResult.success) {

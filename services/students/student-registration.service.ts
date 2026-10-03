@@ -39,6 +39,7 @@ import {
   assertPermission,
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
+import { notifyManagersOfRegistrationSubmitted } from "@/services/communications/notification.service";
 import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerRegistrationApplicationRow,
@@ -299,6 +300,8 @@ export async function submitPublicRegistrationApplication(
   options?: {
     guest_id?: string | null;
     skipRateLimit?: boolean;
+    /** Staff-filled dossier: persist notification without live toast. */
+    staffActorUserId?: string | null;
   }
 ): Promise<
   | { success: true; message: string; id: string }
@@ -452,6 +455,14 @@ export async function submitPublicRegistrationApplication(
           : "Unable to submit registration documents.",
     };
   }
+
+  const staffActorUserId = options?.staffActorUserId ?? null;
+  await notifyManagersOfRegistrationSubmitted(adminClient, {
+    applicationId,
+    applicantName: input.full_name,
+    liveToast: !staffActorUserId,
+    createdBy: staffActorUserId,
+  });
 
   return {
     success: true,

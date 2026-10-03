@@ -10,6 +10,7 @@ import { parseUpdateNotificationFormData } from "@/lib/validators/manager/update
 import {
   createNotificationForManager,
   deleteNotificationForManager,
+  getUnreadNotificationCountForManager,
   listNotificationsPageForManager,
   markNotificationReadForManager,
   updateNotificationForManager,
@@ -116,5 +117,22 @@ export async function loadNotificationsPageAction(input: {
       pageSize: input.pageSize,
       stats: { total: 0, unread: 0, highPriority: 0 },
     };
+  }
+}
+
+export async function getUnreadNotificationCountAction(): Promise<number> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return 0;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await getUnreadNotificationCountForManager(
+      adminClient,
+      actor.userId
+    );
+  } catch {
+    return 0;
   }
 }

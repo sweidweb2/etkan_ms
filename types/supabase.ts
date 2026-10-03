@@ -1061,6 +1061,7 @@ export type Database = {
           priority: string
           read_at: string | null
           recipient_id: string | null
+          suppress_live_toast: boolean
           title: string
         }
         Insert: {
@@ -1075,6 +1076,7 @@ export type Database = {
           priority?: string
           read_at?: string | null
           recipient_id?: string | null
+          suppress_live_toast?: boolean
           title: string
         }
         Update: {
@@ -1089,6 +1091,7 @@ export type Database = {
           priority?: string
           read_at?: string | null
           recipient_id?: string | null
+          suppress_live_toast?: boolean
           title?: string
         }
         Relationships: [
@@ -3135,6 +3138,11 @@ export type Database = {
           p_student_payment_phase_id: string
         }
         Returns: Json
+      }
+      sum_student_payment_amounts: { Args: never; Returns: number }
+      list_income_statement_activity_months: {
+        Args: never
+        Returns: { month: number; year: number }[]
       }
       update_student_payment: {
         Args: {

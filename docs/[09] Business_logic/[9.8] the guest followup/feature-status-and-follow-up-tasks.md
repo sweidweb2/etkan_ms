@@ -58,6 +58,7 @@ The original [`implementation-plan.md`](./implementation-plan.md) is **historica
 - [x] Unique partial index: at most one non-cancelled application per `guest_id`
 - [x] Create student from a filled registration (prefill mapped fields, optional password, link user, record routing pipeline steps, optional profile finished)
 - [x] Connect to user whenever an active registration exists (independent of guest profile status); Create student is hidden once linked
+- [x] Guest/public registration submit creates a manager `notifications` row (unread); live toast via Supabase Realtime when not staff-filled; header unread badge when `notifications.view`
 
 ### Authz, nav, docs that match code
 

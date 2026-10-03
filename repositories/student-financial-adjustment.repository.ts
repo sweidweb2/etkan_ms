@@ -71,13 +71,6 @@ export async function listAllFinancialAdjustments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
-/** Dates only — used to discover months that have adjustment activity. */
-export async function listAllFinancialAdjustmentDates(client: Supabase) {
-  return client
-    .from("student_financial_adjustments")
-    .select("effective_date");
-}
-
 /** Inclusive `from`, exclusive `to` on `effective_date` (ISO date strings). */
 export async function listFinancialAdjustmentsBetween(
   client: Supabase,

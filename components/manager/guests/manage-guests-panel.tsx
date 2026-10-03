@@ -18,15 +18,17 @@ import {
   type DragOverEvent,
 } from "@dnd-kit/react";
 import { CollisionPriority } from "@dnd-kit/abstract";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, BellIcon, PlusIcon, SearchIcon } from "lucide-react";
 import {
   assignGuestToTeamAction,
   deleteTeamAction,
 } from "@/app/manager/guests/actions";
+import { loadNotificationsPageAction } from "@/app/manager/notifications/actions";
 import { Can } from "@/components/auth/can";
 import { usePermissions } from "@/components/auth/permissions-provider";
 import { AddGuestDialog } from "@/components/manager/guests/add-guest-dialog";
 import { EditGuestDialog } from "@/components/manager/guests/edit-guest-dialog";
+import { GuestRegistrationNotificationsSheet } from "@/components/manager/guests/guest-registration-notifications-sheet";
 import {
   GuestRecordsTable,
   isClosedStatus,
@@ -305,6 +307,9 @@ export function ManageGuestsPanel({
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isRegistrationNotifsOpen, setIsRegistrationNotifsOpen] =
+    useState(false);
+  const [registrationUnreadCount, setRegistrationUnreadCount] = useState(0);
   const [notesGuest, setNotesGuest] = useState<ManagerGuestRow | null>(null);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [editGuest, setEditGuest] = useState<ManagerGuestRow | null>(null);
@@ -328,6 +333,32 @@ export function ManageGuestsPanel({
     permissions,
     PERMISSIONS.TEAMS_ASSIGN_GUEST
   );
+  const canViewNotifications = hasPermissionInSet(
+    permissions,
+    PERMISSIONS.NOTIFICATIONS_VIEW
+  );
+
+  useEffect(() => {
+    if (!canViewNotifications) {
+      return;
+    }
+
+    let cancelled = false;
+    void loadNotificationsPageAction({
+      page: 1,
+      pageSize: 1,
+      category: "registration",
+      readFilter: "unread",
+    }).then((page) => {
+      if (!cancelled) {
+        setRegistrationUnreadCount(page.total);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canViewNotifications]);
 
   const [isDeleteTeamTransitionPending, startDeleteTeamTransition] =
     useTransition();
@@ -567,13 +598,43 @@ export function ManageGuestsPanel({
               Pre-user intake cards before registration and team handoff.
             </p>
           </div>
-          <Can permission={PERMISSIONS.GUESTS_CREATE}>
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Create guest
-            </Button>
-          </Can>
+          <div className="flex flex-wrap items-center gap-2">
+            <Can permission={PERMISSIONS.NOTIFICATIONS_VIEW}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsRegistrationNotifsOpen(true)}
+                className="relative"
+                aria-label={
+                  registrationUnreadCount > 0
+                    ? `Registration alerts, ${registrationUnreadCount} unread`
+                    : "Registration alerts"
+                }
+              >
+                <BellIcon data-icon="inline-start" />
+                Registration alerts
+                {registrationUnreadCount > 0 ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-1 right-1 size-2 rounded-full bg-red-500 ring-2 ring-background"
+                  />
+                ) : null}
+              </Button>
+            </Can>
+            <Can permission={PERMISSIONS.GUESTS_CREATE}>
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Create guest
+              </Button>
+            </Can>
+          </div>
         </div>
+
+        <GuestRegistrationNotificationsSheet
+          open={isRegistrationNotifsOpen}
+          onOpenChange={setIsRegistrationNotifsOpen}
+          onUnreadCountChange={setRegistrationUnreadCount}
+        />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <UserStatCard

@@ -24,6 +24,23 @@ export function showInfoToast(message: string, description?: string) {
   toast.info(message, { description });
 }
 
+export function showInfoToastWithAction(
+  message: string,
+  options: {
+    description?: string;
+    actionLabel: string;
+    onAction: () => void;
+  }
+) {
+  toast.info(message, {
+    description: options.description,
+    action: {
+      label: options.actionLabel,
+      onClick: options.onAction,
+    },
+  });
+}
+
 export function showToast(
   variant: ToastVariant,
   message: string,

@@ -390,6 +390,181 @@ export async function getIncomeStatementAnalyticsSummaryForManager(
   };
 }
 
+type UnpaidSppRow = {
+  id: string;
+  student_id: string;
+  payment_phase_id: string;
+  status: string;
+  remaining_amount: number;
+  final_amount_due: number;
+  total_paid: number;
+};
+
+type PhaseAmountRow = {
+  name: string;
+  status: string;
+  amount: number;
+  duration_months: number;
+};
+
+async function loadStudentLabelsByIds(
+  adminClient: Supabase,
+  studentIds: string[]
+): Promise<Map<string, string>> {
+  const labelByStudentId = new Map<string, string>();
+  if (studentIds.length === 0) {
+    return labelByStudentId;
+  }
+
+  const [{ data: profiles }, { data: studentProfiles }] = await Promise.all([
+    profileRepository.listProfilesByIds(adminClient, studentIds),
+    studentProfileRepository.listStudentProfilesByUserIds(
+      adminClient,
+      studentIds
+    ),
+  ]);
+
+  const usernameById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.username])
+  );
+  const fullNameByUserId = new Map(
+    (studentProfiles ?? []).map((profile) => [
+      profile.user_id,
+      profile.full_name,
+    ])
+  );
+
+  for (const studentId of studentIds) {
+    const fullName = fullNameByUserId.get(studentId)?.trim();
+    const username = usernameById.get(studentId)?.trim();
+    labelByStudentId.set(studentId, fullName || username || studentId);
+  }
+
+  return labelByStudentId;
+}
+
+function buildUnpaidStudentRows(
+  unpaidSpps: UnpaidSppRow[],
+  paidSppIdsInPeriod: Set<string>,
+  phaseById: Map<string, PhaseAmountRow>,
+  labelByStudentId: Map<string, string>
+) {
+  return unpaidSpps
+    .filter((spp) => {
+      if (Number(spp.remaining_amount) <= 0) {
+        return false;
+      }
+      const phaseStatus = phaseById.get(spp.payment_phase_id)?.status;
+      if (
+        phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED ||
+        phaseStatus === PAYMENT_PHASE_STATUSES.CLOSED
+      ) {
+        return false;
+      }
+      return !paidSppIdsInPeriod.has(spp.id);
+    })
+    .map((spp) => {
+      const remainingAmount = Number(spp.remaining_amount);
+      const finalAmountDue = Number(spp.final_amount_due);
+      const phase = phaseById.get(spp.payment_phase_id);
+      const durationMonths = Math.max(phase?.duration_months ?? 1, 1);
+      // final_amount_due already reflects scholarships / adjustments.
+      const approxMonthlyDue = finalAmountDue / durationMonths;
+      const approxMonthlyRemaining = Math.min(
+        Math.max(0, remainingAmount),
+        Math.max(0, approxMonthlyDue)
+      );
+
+      return {
+        spp_id: spp.id,
+        student_id: spp.student_id,
+        student_label: labelByStudentId.get(spp.student_id) || "—",
+        payment_phase_name: phase?.name ?? "—",
+        status: isSppStatus(spp.status)
+          ? spp.status
+          : STUDENT_PAYMENT_PHASE_STATUSES.PENDING,
+        remaining_amount: remainingAmount,
+        final_amount_due: finalAmountDue,
+        total_paid: Number(spp.total_paid),
+        approx_monthly_remaining: approxMonthlyRemaining,
+      };
+    })
+    .sort((a, b) => a.student_label.localeCompare(b.student_label));
+}
+
+/**
+ * Year-wide charts stay on the summary path. Detail tables for "all months"
+ * only load the unpaid snapshot (+ who paid in the year), not full ledger rows.
+ */
+async function getYearWideUnpaidAnalyticsTables(
+  adminClient: Supabase,
+  year: number
+): Promise<ManagerIncomeStatementAnalyticsTables> {
+  const { fromInclusive, toExclusive } = dateRangeForYearMonth(year, null);
+
+  const [paidSppIdsResult, unpaidSppsResult] = await Promise.all([
+    studentPaymentRepository.listPaidSppIdsBetween(
+      adminClient,
+      fromInclusive,
+      toExclusive
+    ),
+    studentPaymentPhaseRepository.listActiveUnpaidSpps(adminClient),
+  ]);
+
+  if (paidSppIdsResult.error) {
+    throw new Error(paidSppIdsResult.error.message);
+  }
+  if (unpaidSppsResult.error) {
+    throw new Error(unpaidSppsResult.error.message);
+  }
+
+  const unpaidSpps = (unpaidSppsResult.data ?? []) as UnpaidSppRow[];
+  const paidSppIdsInPeriod = new Set(paidSppIdsResult.data ?? []);
+  const phaseIds = [
+    ...new Set(unpaidSpps.map((spp) => spp.payment_phase_id)),
+  ];
+
+  const { data: phases, error: phaseError } =
+    await paymentPhaseRepository.listPaymentPhaseAmountsByIds(
+      adminClient,
+      phaseIds
+    );
+
+  if (phaseError) {
+    throw new Error(phaseError.message);
+  }
+
+  const phaseById = new Map(
+    (phases ?? []).map((phase) => [
+      phase.id,
+      {
+        name: phase.name,
+        status: phase.status,
+        amount: Number(phase.amount),
+        duration_months: Number(phase.duration_months) || 1,
+      },
+    ])
+  );
+
+  const studentIds = [...new Set(unpaidSpps.map((spp) => spp.student_id))];
+  const labelByStudentId = await loadStudentLabelsByIds(
+    adminClient,
+    studentIds
+  );
+
+  return {
+    payments: [],
+    transactions: [],
+    unpaidStudents: buildUnpaidStudentRows(
+      unpaidSpps,
+      paidSppIdsInPeriod,
+      phaseById,
+      labelByStudentId
+    ),
+    adjustedStudents: [],
+  };
+}
+
 /**
  * Labeled payment / transaction / unpaid / adjustment tables (heavy joins).
  */
@@ -406,6 +581,10 @@ export async function getIncomeStatementAnalyticsTablesForManager(
     actorUserId,
     PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_ANALYTICS_VIEW
   );
+
+  if (input.month === null) {
+    return getYearWideUnpaidAnalyticsTables(adminClient, input.year);
+  }
 
   const { fromInclusive, toExclusive } = dateRangeForYearMonth(
     input.year,
@@ -444,7 +623,7 @@ export async function getIncomeStatementAnalyticsTablesForManager(
   const scopedPayments = paymentsResult.data ?? [];
   const scopedAdjustments = adjustmentsResult.data ?? [];
   const scopedTransactions = transactionsResult.data ?? [];
-  const unpaidSpps = unpaidSppsResult.data ?? [];
+  const unpaidSpps = (unpaidSppsResult.data ?? []) as UnpaidSppRow[];
 
   const relatedSppIds = [
     ...new Set([
@@ -505,40 +684,14 @@ export async function getIncomeStatementAnalyticsTablesForManager(
   const phaseNameById = new Map(
     [...phaseById.entries()].map(([id, phase]) => [id, phase.name])
   );
-  const phaseStatusById = new Map(
-    [...phaseById.entries()].map(([id, phase]) => [id, phase.status])
-  );
 
   const studentIds = [
     ...new Set([...sppById.values()].map((spp) => spp.student_id)),
   ];
-  const labelByStudentId = new Map<string, string>();
-
-  if (studentIds.length > 0) {
-    const [{ data: profiles }, { data: studentProfiles }] = await Promise.all([
-      profileRepository.listProfilesByIds(adminClient, studentIds),
-      studentProfileRepository.listStudentProfilesByUserIds(
-        adminClient,
-        studentIds
-      ),
-    ]);
-
-    const usernameById = new Map(
-      (profiles ?? []).map((profile) => [profile.id, profile.username])
-    );
-    const fullNameByUserId = new Map(
-      (studentProfiles ?? []).map((profile) => [
-        profile.user_id,
-        profile.full_name,
-      ])
-    );
-
-    for (const studentId of studentIds) {
-      const fullName = fullNameByUserId.get(studentId)?.trim();
-      const username = usernameById.get(studentId)?.trim();
-      labelByStudentId.set(studentId, fullName || username || studentId);
-    }
-  }
+  const labelByStudentId = await loadStudentLabelsByIds(
+    adminClient,
+    studentIds
+  );
 
   const payments = scopedPayments.map((row) => {
     const spp = sppById.get(row.student_payment_phase_id);
@@ -597,47 +750,12 @@ export async function getIncomeStatementAnalyticsTablesForManager(
     scopedPayments.map((row) => row.student_payment_phase_id)
   );
 
-  const unpaidStudents = unpaidSpps
-    .filter((spp) => {
-      if (Number(spp.remaining_amount) <= 0) {
-        return false;
-      }
-      const phaseStatus = phaseStatusById.get(spp.payment_phase_id);
-      if (
-        phaseStatus === PAYMENT_PHASE_STATUSES.CANCELLED ||
-        phaseStatus === PAYMENT_PHASE_STATUSES.CLOSED
-      ) {
-        return false;
-      }
-      return !paidSppIdsInPeriod.has(spp.id);
-    })
-    .map((spp) => {
-      const remainingAmount = Number(spp.remaining_amount);
-      const finalAmountDue = Number(spp.final_amount_due);
-      const phase = phaseById.get(spp.payment_phase_id);
-      const durationMonths = Math.max(phase?.duration_months ?? 1, 1);
-      // final_amount_due already reflects scholarships / adjustments.
-      const approxMonthlyDue = finalAmountDue / durationMonths;
-      const approxMonthlyRemaining = Math.min(
-        Math.max(0, remainingAmount),
-        Math.max(0, approxMonthlyDue)
-      );
-
-      return {
-        spp_id: spp.id,
-        student_id: spp.student_id,
-        student_label: labelByStudentId.get(spp.student_id) || "—",
-        payment_phase_name: phase?.name ?? "—",
-        status: isSppStatus(spp.status)
-          ? spp.status
-          : STUDENT_PAYMENT_PHASE_STATUSES.PENDING,
-        remaining_amount: remainingAmount,
-        final_amount_due: finalAmountDue,
-        total_paid: Number(spp.total_paid),
-        approx_monthly_remaining: approxMonthlyRemaining,
-      };
-    })
-    .sort((a, b) => a.student_label.localeCompare(b.student_label));
+  const unpaidStudents = buildUnpaidStudentRows(
+    unpaidSpps,
+    paidSppIdsInPeriod,
+    phaseById,
+    labelByStudentId
+  );
 
   const paidThisPeriodBySppId = new Map<string, number>();
   for (const row of scopedPayments) {

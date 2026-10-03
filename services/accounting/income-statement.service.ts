@@ -15,6 +15,7 @@ import {
   type TransactionType,
 } from "@/lib/manager/accounting/constants";
 import { dateRangeForYearMonth } from "@/lib/utils/iso-date-range";
+import * as incomeStatementRepository from "@/repositories/income-statement.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
@@ -108,23 +109,6 @@ function currentIncomeStatementPeriod(now: Date = new Date()): IncomeStatementPe
     year: now.getFullYear(),
     month: now.getMonth() + 1,
   };
-}
-
-function yearMonthKeyFromIsoDate(value: string): string | null {
-  if (value.length < 7) {
-    return null;
-  }
-  const year = Number(value.slice(0, 4));
-  const month = Number(value.slice(5, 7));
-  if (
-    !Number.isFinite(year) ||
-    !Number.isFinite(month) ||
-    month < 1 ||
-    month > 12
-  ) {
-    return null;
-  }
-  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 /**
@@ -415,58 +399,28 @@ export async function listIncomeStatementHistoryMonthsForManager(
     PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW
   );
 
-  const [paymentsResult, adjustmentsResult, transactionsResult] =
-    await Promise.all([
-      studentPaymentRepository.listAllPaymentDates(adminClient),
-      studentFinancialAdjustmentRepository.listAllFinancialAdjustmentDates(
-        adminClient
-      ),
-      transactionRepository.listAllTransactionDates(adminClient),
-    ]);
+  const monthsResult =
+    await incomeStatementRepository.listIncomeStatementActivityMonths(
+      adminClient
+    );
 
-  if (paymentsResult.error) {
-    throw new Error(paymentsResult.error.message);
-  }
-  if (adjustmentsResult.error) {
-    throw new Error(adjustmentsResult.error.message);
-  }
-  if (transactionsResult.error) {
-    throw new Error(transactionsResult.error.message);
+  if (monthsResult.error) {
+    throw new Error(monthsResult.error.message);
   }
 
   const currentKey = incomeStatementPeriodKey(
     currentIncomeStatementPeriod(now)
   );
-  const keys = new Set<string>();
 
-  for (const row of paymentsResult.data ?? []) {
-    const key = yearMonthKeyFromIsoDate(row.payment_date);
-    if (key && key !== currentKey) {
-      keys.add(key);
-    }
-  }
-  for (const row of adjustmentsResult.data ?? []) {
-    const key = yearMonthKeyFromIsoDate(row.effective_date);
-    if (key && key !== currentKey) {
-      keys.add(key);
-    }
-  }
-  for (const row of transactionsResult.data ?? []) {
-    const key = yearMonthKeyFromIsoDate(row.transaction_date);
-    if (key && key !== currentKey) {
-      keys.add(key);
-    }
-  }
-
-  return [...keys]
-    .sort((a, b) => b.localeCompare(a))
-    .map((key) => {
-      const period = parseIncomeStatementMonthKey(key)!;
+  return (monthsResult.data ?? [])
+    .map((period) => {
+      const key = incomeStatementPeriodKey(period);
       return {
         year: period.year,
         month: period.month,
         key,
         label: incomeStatementPeriodLabel(period),
       };
-    });
+    })
+    .filter((period) => period.key !== currentKey);
 }

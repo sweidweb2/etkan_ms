@@ -471,7 +471,11 @@ describe("submitGuestRegistrationForManager", () => {
     ).toHaveBeenCalledWith(
       adminClient,
       sampleInput,
-      { guest_id: guestId, skipRateLimit: true }
+      {
+        guest_id: guestId,
+        skipRateLimit: true,
+        staffActorUserId: actor.userId,
+      }
     );
   });
 });

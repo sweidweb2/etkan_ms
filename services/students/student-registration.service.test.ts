@@ -7,6 +7,7 @@ import * as documentRepository from "@/repositories/student-registration-documen
 import * as registrationStorage from "@/repositories/registration-storage.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as authorizationService from "@/services/auth/authorization.service";
+import * as notificationService from "@/services/communications/notification.service";
 import {
   getLinkedRegistrationApplicationIdForStudentManager,
   getRegistrationApplicationDetailForManager,
@@ -40,6 +41,9 @@ vi.mock("@/services/auth/authorization.service", () => ({
     userId ? null : "Unauthorized."
   ),
   hasPermission: vi.fn(async (_c, userId) => Boolean(userId)),
+}));
+vi.mock("@/services/communications/notification.service", () => ({
+  notifyManagersOfRegistrationSubmitted: vi.fn(async () => undefined),
 }));
 
 const adminClient = {} as never;
@@ -219,6 +223,57 @@ describe("student-registration.service", () => {
     expect(
       documentRepository.createStudentRegistrationDocuments
     ).toHaveBeenCalledOnce();
+    expect(
+      notificationService.notifyManagersOfRegistrationSubmitted
+    ).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        applicationId,
+        applicantName: validInput.full_name,
+        liveToast: true,
+        createdBy: null,
+      })
+    );
+  });
+
+  it("suppresses live toast when staff fills the registration", async () => {
+    vi.mocked(
+      registrationRepository.createStudentRegistrationApplication
+    ).mockResolvedValue({
+      data: { id: applicationId },
+      error: null,
+    } as never);
+    vi.mocked(
+      registrationStorage.moveRegistrationStorageObject
+    ).mockResolvedValue({ error: null });
+    vi.mocked(
+      documentRepository.createStudentRegistrationDocuments
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
+
+    const result = await submitPublicRegistrationApplication(
+      adminClient,
+      validInput,
+      {
+        guest_id: "gggggggg-gggg-4ggg-8ggg-gggggggggggg",
+        skipRateLimit: true,
+        staffActorUserId: actorUserId,
+      }
+    );
+
+    expect(result.success).toBe(true);
+    expect(
+      notificationService.notifyManagersOfRegistrationSubmitted
+    ).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({
+        applicationId,
+        liveToast: false,
+        createdBy: actorUserId,
+      })
+    );
   });
 
   it("rolls back application when document move fails", async () => {

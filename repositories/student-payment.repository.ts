@@ -97,25 +97,57 @@ export async function listAllPayments(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
-/** All-time SPP payment total. PostgREST aggregates are disabled on this API. */
+/** All-time SPP payment total via DB aggregate (avoids PostgREST max_rows). */
 export async function sumAllPaymentAmounts(client: Supabase) {
-  const { data, error } = await client.from("student_payments").select("amount");
+  const { data, error } = await client.rpc("sum_student_payment_amounts");
 
   if (error) {
     return { data: 0, error };
   }
 
-  const total = (data ?? []).reduce(
-    (sum, row) => sum + Math.max(0, Number(row.amount) || 0),
-    0
-  );
-
-  return { data: total, error: null };
+  return { data: Math.max(0, Number(data) || 0), error: null };
 }
 
-/** Dates only — used to discover months that have payment activity. */
-export async function listAllPaymentDates(client: Supabase) {
-  return client.from("student_payments").select("payment_date");
+const PAID_SPP_IDS_PAGE_SIZE = 1000;
+
+/**
+ * Distinct SPP ids that received a payment in `[fromInclusive, toExclusive)`.
+ * Paged to stay inside PostgREST `max_rows`.
+ */
+export async function listPaidSppIdsBetween(
+  client: Supabase,
+  fromInclusive: string,
+  toExclusive: string
+) {
+  const ids = new Set<string>();
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await client
+      .from("student_payments")
+      .select("student_payment_phase_id")
+      .gte("payment_date", fromInclusive)
+      .lt("payment_date", toExclusive)
+      .range(offset, offset + PAID_SPP_IDS_PAGE_SIZE - 1);
+
+    if (error) {
+      return { data: null as string[] | null, error };
+    }
+
+    const page = data ?? [];
+    for (const row of page) {
+      if (row.student_payment_phase_id) {
+        ids.add(row.student_payment_phase_id);
+      }
+    }
+
+    if (page.length < PAID_SPP_IDS_PAGE_SIZE) {
+      break;
+    }
+    offset += PAID_SPP_IDS_PAGE_SIZE;
+  }
+
+  return { data: [...ids], error: null };
 }
 
 /** Inclusive `from`, exclusive `to` on `payment_date` (ISO date strings). */

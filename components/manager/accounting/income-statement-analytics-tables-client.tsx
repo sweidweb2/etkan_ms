@@ -58,6 +58,7 @@ export function IncomeStatementAnalyticsTablesClient({
           <IncomeStatementAnalyticsEtkanTab
             key={`etkan-${year}-${month ?? "all"}`}
             transactions={tables.transactions}
+            month={month}
           />
         </TabsContentPrimitive>
         <TabsContentPrimitive value="students" className="outline-none">
@@ -66,6 +67,7 @@ export function IncomeStatementAnalyticsTablesClient({
             payments={tables.payments}
             unpaidStudents={tables.unpaidStudents}
             adjustedStudents={tables.adjustedStudents}
+            month={month}
           />
         </TabsContentPrimitive>
       </TabsContentsPrimitive>

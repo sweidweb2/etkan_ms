@@ -27,6 +27,35 @@ select * from cron.job_run_details order by start_time desc limit 20;
 select public.mark_overdue_pending_work_missing();
 ```
 
+## auto-create-weekly-class-sessions
+
+- **Schedule:** daily at **00:00 Asia/Beirut** (`0 21,22 * * *` UTC + hour gate)
+- **Function:** `public.auto_create_weekly_class_sessions(p_force boolean default false)`
+- **What it does:** For each `in_progress` class whose latest session `starts_at` is older than **6.5 days**, creates **at most one** new session:
+  - `starts_at` = last session `starts_at` + 7 days
+  - `ends_at` = new `starts_at` + 7 days
+  - `topic` = `S{nb_order}` (e.g. `S3`)
+  - `semester_id` from the class
+  - seeds attendees via `ensure_session_attendees_for_members`
+- **Skips:** classes with no sessions; classes that already have `student_course_grade` rows (same structure lock as manual create); non-`in_progress` classes.
+- **Tables:** `sessions`, `classes`, `attendee`, `student_course_grade`
+- **Migration:** `supabase/migrations/20261003160000_cron_auto_create_weekly_class_sessions.sql`
+
+### Verify
+
+- Dashboard → Integrations → Cron, or:
+
+```sql
+select * from cron.job_run_details order by start_time desc limit 20;
+```
+
+### Manual run
+
+```sql
+-- true bypasses the Lebanon-midnight hour gate (for testing)
+select public.auto_create_weekly_class_sessions(true);
+```
+
 ## Removed
 
 ### start-scheduled-semesters

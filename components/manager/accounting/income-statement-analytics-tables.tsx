@@ -277,14 +277,21 @@ function usePagedRows<T>(rows: T[]) {
 
 type EtkanTabProps = {
   transactions: ManagerIncomeAnalyticsTransactionRow[];
+  /** Null = year-wide; detail ledger rows are not loaded. */
+  month: number | null;
 };
 
 const TYPE_FILTER_ALL = "all";
 type TransactionTypeFilter = typeof TYPE_FILTER_ALL | TransactionType;
 
+const YEAR_WIDE_DETAIL_HINT =
+  "Select a specific month to load payment and transaction detail rows.";
+
 export function IncomeStatementAnalyticsEtkanTab({
   transactions,
+  month,
 }: EtkanTabProps) {
+  const isYearWide = month === null;
   const [typeFilter, setTypeFilter] =
     useState<TransactionTypeFilter>(TYPE_FILTER_ALL);
   const filteredTransactions = useMemo(
@@ -329,6 +336,11 @@ export function IncomeStatementAnalyticsEtkanTab({
 
   return (
     <div className="flex flex-col gap-6">
+      {isYearWide ? (
+        <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          {YEAR_WIDE_DETAIL_HINT}
+        </p>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MiniStatCard
           label="Transactions"
@@ -412,9 +424,11 @@ export function IncomeStatementAnalyticsEtkanTab({
                     colSpan={8}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
-                    {typeFilter === TYPE_FILTER_ALL
-                      ? "No transactions in this period."
-                      : `No ${TRANSACTION_TYPE_LABELS[typeFilter].toLowerCase()} transactions in this period.`}
+                    {isYearWide
+                      ? YEAR_WIDE_DETAIL_HINT
+                      : typeFilter === TYPE_FILTER_ALL
+                        ? "No transactions in this period."
+                        : `No ${TRANSACTION_TYPE_LABELS[typeFilter].toLowerCase()} transactions in this period.`}
                   </td>
                 </tr>
               ) : (
@@ -561,6 +575,8 @@ type StudentsTabProps = {
   payments: ManagerIncomeAnalyticsPaymentRow[];
   unpaidStudents: ManagerIncomeAnalyticsUnpaidStudentRow[];
   adjustedStudents: ManagerIncomeAnalyticsAdjustedStudentRow[];
+  /** Null = year-wide; payment/adjustment detail rows are not loaded. */
+  month: number | null;
 };
 
 function formatAdjustmentValue(
@@ -577,7 +593,9 @@ export function IncomeStatementAnalyticsStudentsTab({
   payments,
   unpaidStudents,
   adjustedStudents,
+  month,
 }: StudentsTabProps) {
+  const isYearWide = month === null;
   const paymentsPager = usePagedRows(payments);
   const unpaidPager = usePagedRows(unpaidStudents);
   const adjustedPager = usePagedRows(adjustedStudents);
@@ -593,6 +611,12 @@ export function IncomeStatementAnalyticsStudentsTab({
 
   return (
     <div className="flex flex-col gap-6">
+      {isYearWide ? (
+        <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          {YEAR_WIDE_DETAIL_HINT} Unpaid students below still cover the full
+          year.
+        </p>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MiniStatCard
           label="Payments"
@@ -649,7 +673,9 @@ export function IncomeStatementAnalyticsStudentsTab({
                     colSpan={7}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
-                    No student payments in this period.
+                    {isYearWide
+                      ? YEAR_WIDE_DETAIL_HINT
+                      : "No student payments in this period."}
                   </td>
                 </tr>
               ) : (
@@ -811,7 +837,9 @@ export function IncomeStatementAnalyticsStudentsTab({
                     colSpan={6}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
-                    No students with financial adjustments.
+                    {isYearWide
+                      ? YEAR_WIDE_DETAIL_HINT
+                      : "No students with financial adjustments."}
                   </td>
                 </tr>
               ) : (

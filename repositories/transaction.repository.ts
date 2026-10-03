@@ -39,11 +39,6 @@ export async function listAllTransactions(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
-/** Dates only — used to discover months that have transaction activity. */
-export async function listAllTransactionDates(client: Supabase) {
-  return client.from("transactions").select("transaction_date");
-}
-
 /** Inclusive `from`, exclusive `to` on `transaction_date` (ISO date strings). */
 export async function listTransactionsBetween(
   client: Supabase,

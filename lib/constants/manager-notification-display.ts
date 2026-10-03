@@ -17,6 +17,7 @@ export const NOTIFICATION_CATEGORY_VALUES = [
   "equipment",
   "attendance",
   "general",
+  "registration",
 ] as const;
 
 export const NOTIFICATION_PRIORITY_VALUES = ["low", "normal", "high"] as const;
@@ -55,6 +56,7 @@ export const NOTIFICATION_CATEGORY_LABELS: Record<
   equipment: "Equipment",
   attendance: "Attendance",
   general: "General",
+  registration: "Registration",
 };
 
 export const NOTIFICATION_CATEGORY_BADGE_CLASSES: Record<
@@ -67,6 +69,7 @@ export const NOTIFICATION_CATEGORY_BADGE_CLASSES: Record<
   equipment: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
   attendance: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   general: "bg-muted text-muted-foreground",
+  registration: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
 };
 
 export const NOTIFICATION_PRIORITY_LABELS: Record<

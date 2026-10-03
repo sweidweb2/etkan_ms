@@ -20,10 +20,10 @@ import type {
   UpdateTransactionActionState,
 } from "@/types/manager-income-statement";
 
+/** Live + analytics only — history month discovery is expensive; leave it until visited. */
 function revalidateIncomeStatementPaths() {
   revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT);
   revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_ANALYTICS);
-  revalidatePath(ROUTES.MANAGER_INCOME_STATEMENT_HISTORY);
 }
 
 export async function createTransactionAction(

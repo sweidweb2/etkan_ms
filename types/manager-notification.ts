@@ -19,6 +19,7 @@ export interface ManagerNotificationRow {
   read_at: string | null;
   created_by: string | null;
   created_at: string;
+  suppress_live_toast: boolean;
 }
 
 export type CreateNotificationActionState = {

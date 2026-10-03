@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { AdminPanelSearch } from "@/components/panels/admin-panel-search";
+import { PanelNotificationsBell } from "@/components/panels/panel-notifications-bell";
 import { PanelSidebar } from "@/components/panels/panel-sidebar";
 import { PanelUserMenu } from "@/components/panels/panel-user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { PermissionKey } from "@/lib/constants/permissions";
+import { PERMISSIONS, type PermissionKey } from "@/lib/constants/permissions";
 import { flattenPanelNavItems } from "@/lib/panels/flatten-nav";
 import type { PanelNavigation, PanelVariant } from "@/types/panel";
 
@@ -34,6 +35,9 @@ export function PanelShell({
   children,
 }: PanelShellProps) {
   const navItems = flattenPanelNavItems(navigation);
+  const canViewNotifications = permissions.includes(
+    PERMISSIONS.NOTIFICATIONS_VIEW
+  );
 
   return (
     <PermissionsProvider permissions={permissions}>
@@ -52,6 +56,7 @@ export function PanelShell({
               className="w-full max-w-md justify-self-center"
             />
             <div className="flex items-center gap-2 justify-self-end">
+              {canViewNotifications ? <PanelNotificationsBell /> : null}
               <ThemeToggle />
               <PanelUserMenu displayName={displayName} />
             </div>

@@ -260,6 +260,7 @@ export function IncomeStatementAnalyticsPanel({
               <IncomeStatementAnalyticsEtkanTab
                 key={`etkan-${data.year}-${data.month ?? "all"}`}
                 transactions={data.transactions}
+                month={data.month}
               />
             </TabsContentPrimitive>
 
@@ -269,6 +270,7 @@ export function IncomeStatementAnalyticsPanel({
                 payments={data.payments}
                 unpaidStudents={data.unpaidStudents}
                 adjustedStudents={data.adjustedStudents}
+                month={data.month}
               />
             </TabsContentPrimitive>
           </TabsContentsPrimitive>
