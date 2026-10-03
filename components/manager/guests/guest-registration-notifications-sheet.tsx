@@ -50,12 +50,21 @@ export function GuestRegistrationNotificationsSheet({
     []
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(open);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [pendingReadId, setPendingReadId] = useState<string | null>(null);
   const [markReadState, markReadAction, isMarkReadPending] = useFormActionState(
     markNotificationReadAction,
     initialMarkReadState
   );
+
+  // Start loading when the sheet opens (render-time sync; avoid setState in effect).
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setIsLoading(true);
+    }
+  }
 
   useActionStateToast(markReadState, isMarkReadPending);
   useActionStateSuccess(markReadState, isMarkReadPending, () => {
@@ -87,7 +96,6 @@ export function GuestRegistrationNotificationsSheet({
     }
 
     let cancelled = false;
-    setIsLoading(true);
 
     void Promise.all([
       loadNotificationsPageAction({
