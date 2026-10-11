@@ -1,7 +1,10 @@
 import { ROUTES } from "@/lib/constants/routes";
 
 export const SITE = {
-  name: "Etkan MS",
+  /** Public / marketing brand (home, auth, SEO). */
+  name: "Etkan",
+  /** Management System brand for role panels and internal tooling. */
+  systemName: "Etkan MS",
   description: "School management system",
   tagline: "Administration and student management.",
 } as const;

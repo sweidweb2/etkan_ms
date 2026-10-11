@@ -1,5 +1,6 @@
 export const en = {
-  "brand.name": "Etkan MS",
+  "brand.name": "Etkan",
+  "brand.systemName": "Etkan MS",
   "brand.description": "School management system",
 
   "nav.home": "Home",

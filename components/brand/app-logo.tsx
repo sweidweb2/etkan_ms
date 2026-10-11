@@ -32,6 +32,11 @@ type AppLogoProps = {
    * marketing and auth routes are locked to light.
    */
   tone?: "auto" | "on-light" | "on-dark";
+  /**
+   * Accessible name. Defaults to the public brand; pass `SITE.systemName` in
+   * role panels so screen readers hear the Management System name.
+   */
+  label?: string;
   /** Rendered height in pixels. */
   height?: number;
   className?: string;
@@ -41,6 +46,7 @@ type AppLogoProps = {
 export function AppLogo({
   shape = "lockup",
   tone = "on-light",
+  label = SITE.name,
   height = 32,
   className,
   priority = false,
@@ -62,7 +68,7 @@ export function AppLogo({
   return (
     <span
       role="img"
-      aria-label={SITE.name}
+      aria-label={label}
       className={cn("inline-flex shrink-0 items-center", className)}
     >
       {tone === "on-dark" ? null : image(asset.onLight, tone === "auto" ? "dark:hidden" : undefined)}

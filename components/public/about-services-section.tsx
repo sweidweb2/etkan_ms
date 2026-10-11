@@ -33,7 +33,9 @@ function FoundationRow({
   const client = t(foundation.clientKey);
   const headline = t(foundation.headlineKey);
   const explore = t("about.services.explore");
-  const imageSrc = toEmbeddableGalleryImageUrl(foundation.imageSrc);
+  const imageSrc = foundation.imageSrc
+    ? toEmbeddableGalleryImageUrl(foundation.imageSrc)
+    : null;
 
   const content = (
     <>
@@ -43,20 +45,31 @@ function FoundationRow({
           "group-hover:shadow-[0_0_0_1px_rgba(196,196,232,0.35),0_24px_60px_-28px_rgba(0,0,0,0.55)]"
         )}
       >
-        {/* Native img: Drive thumbnails must not go through next/image optimization. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageSrc}
-          alt={t(foundation.imageAltKey)}
-          loading={index === 0 ? "eager" : "lazy"}
-          decoding="async"
-          referrerPolicy="no-referrer"
-          className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#1a1a2e]/70 via-transparent to-transparent"
-        />
+        {imageSrc ? (
+          <>
+            {/* Native img: Drive thumbnails must not go through next/image optimization. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageSrc}
+              alt={t(foundation.imageAltKey)}
+              loading={index === 0 ? "eager" : "lazy"}
+              decoding="async"
+              referrerPolicy="no-referrer"
+              className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#1a1a2e]/70 via-transparent to-transparent"
+            />
+          </>
+        ) : (
+          <div
+            className="absolute inset-0 overflow-hidden bg-[#2A2A52]"
+            aria-hidden="true"
+          >
+            <div className="image-skeleton-shimmer absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+          </div>
+        )}
         <div className="absolute inset-x-0 bottom-0 flex flex-wrap gap-2 p-3 sm:p-4">
           {foundation.tagKeys.map((tagKey) => (
             <span
@@ -304,7 +317,7 @@ function SectionPatterns() {
 }
 
 type AboutServicesSectionProps = {
-  /** Random gallery Drive URLs (same source as /gallery). Falls back to defaults. */
+  /** Random gallery Drive URLs (same source as /gallery). Missing URLs show a skeleton. */
   imageUrls?: string[];
 };
 
@@ -319,8 +332,7 @@ export function AboutServicesSection({
 
   const foundations = FEATURED_ABOUT_FOUNDATIONS.map((foundation, index) => {
     const galleryUrl = imageUrls[index]?.trim();
-    if (!galleryUrl) return foundation;
-    return { ...foundation, imageSrc: galleryUrl };
+    return { ...foundation, imageSrc: galleryUrl || undefined };
   });
 
   return (

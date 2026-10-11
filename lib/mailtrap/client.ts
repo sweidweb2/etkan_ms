@@ -1,6 +1,7 @@
 import "server-only";
 
 import { MailtrapClient } from "mailtrap";
+import { SITE } from "@/lib/config/site";
 
 export type MailtrapSender = {
   email: string;
@@ -23,7 +24,7 @@ export function createMailtrapClient() {
 /** Verified sending-domain address used as the From header. */
 export function getMailtrapSender(): MailtrapSender {
   const email = process.env.MAILTRAP_FROM_EMAIL;
-  const name = process.env.MAILTRAP_FROM_NAME ?? "Etkan MS";
+  const name = process.env.MAILTRAP_FROM_NAME ?? SITE.systemName;
 
   if (!email) {
     throw new Error(

@@ -70,7 +70,7 @@ const SLIDES: HeroSlide[] = [
         titleKey: "hero.slide1.card2.title",
         bodyKey: "hero.slide1.card2.body",
         imageSrc:
-          "https://media.istockphoto.com/id/2276854525/photo/electronic-components-and-hardware-engineering-tools-organized-on-a-dark-work-desk-close-up.jpg?s=2048x2048&w=is&k=20&c=vL9Xly7erRY2XdCOi8Wss3hhe5ZsY7i9jFRZe9JbZdQ=",
+          "https://images.unsplash.com/photo-1634452015397-ad0686a2ae2d?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       },
     ],
   },
@@ -91,7 +91,7 @@ const SLIDES: HeroSlide[] = [
         titleKey: "hero.slide2.card2.title",
         bodyKey: "hero.slide2.card2.body",
         imageSrc:
-          "https://media.istockphoto.com/id/1355140477/photo/top-view-of-laptop-with-text-html5.jpg?s=2048x2048&w=is&k=20&c=uSkopBhFAAajALqs8xZCXZODKXaOklYH_OikPcytYEI=",
+          "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?q=80&w=1169&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       },
     ],
   },

@@ -212,9 +212,9 @@ export async function sendMailtrapTestEmail(
 ): Promise<SendEmailResult> {
   return sendEmail({
     to,
-    subject: "Etkan MS — Mailtrap test",
-    text: "This is a test email from Etkan MS via Mailtrap.",
-    html: "<p>This is a test email from <strong>Etkan MS</strong> via Mailtrap.</p>",
+    subject: `${SITE.systemName} — Mailtrap test`,
+    text: `This is a test email from ${SITE.systemName} via Mailtrap.`,
+    html: `<p>This is a test email from <strong>${SITE.systemName}</strong> via Mailtrap.</p>`,
   });
 }
 

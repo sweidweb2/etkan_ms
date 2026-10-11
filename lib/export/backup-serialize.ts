@@ -4,6 +4,7 @@ import {
   type BackupExportFormat,
 } from "@/lib/constants/backup-formats";
 import type { BackupTableName } from "@/lib/constants/backup-tables";
+import { SITE } from "@/lib/config/site";
 import type { BackupExportPayload } from "@/types/backup-export";
 
 export type SerializedBackupFile = {
@@ -207,7 +208,7 @@ export function serializeTableRowsToCsv(rows: unknown[]): string {
 
 function serializePayloadToSql(payload: BackupExportPayload): string {
   const header = [
-    "-- Etkan MS backup",
+    `-- ${SITE.systemName} backup`,
     `-- Exported at: ${payload.exportedAt}`,
     `-- Scope: ${payload.scope}`,
     "-- Contents: public table rows",

@@ -47,6 +47,19 @@ export function PublicI18nProvider({
     });
   }, [initialLocale]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const className = "locale-ar";
+    if (locale === "ar") {
+      root.classList.add(className);
+    } else {
+      root.classList.remove(className);
+    }
+    return () => {
+      root.classList.remove(className);
+    };
+  }, [locale]);
+
   const messages = useMemo(() => getMessages(locale), [locale]);
   const dir = getDir(locale);
 

@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { RolePanelLayout } from "@/components/panels/role-panel-layout";
 import { getNavRscTimingBag, getSessionRole } from "@/lib/auth/session";
+import { SITE } from "@/lib/config/site";
 import { ROUTES } from "@/lib/constants/routes";
 import {
   NAV_TIMING_HEADER,
@@ -19,6 +21,17 @@ import {
  * request-time so `next build` does not prerender them without secrets.
  */
 export const dynamic = "force-dynamic";
+
+/** Panels are the Management System — keep the MS brand here.
+ * `absolute` blocks the public root template (`%s | Etkan`). */
+export const metadata: Metadata = {
+  title: {
+    absolute: SITE.systemName,
+    default: SITE.systemName,
+    template: `%s | ${SITE.systemName}`,
+  },
+  applicationName: SITE.systemName,
+};
 
 export default async function PanelsLayout({
   children,
