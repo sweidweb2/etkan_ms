@@ -213,6 +213,7 @@ export async function deleteNotificationById(client: Supabase, id: string) {
 export type NotificationRealtimeHandlers = {
   onInsert?: (notification: NotificationRecord) => void;
   onUpdate?: (notification: NotificationRecord) => void;
+  onStatus?: (status: string, err?: Error | null) => void;
 };
 
 /**
@@ -224,7 +225,7 @@ export function subscribeToNotificationChanges(
   handlers: NotificationRealtimeHandlers
 ) {
   const channel = client
-    .channel("manager-notifications")
+    .channel(`manager-notifications:${crypto.randomUUID()}`)
     .on(
       "postgres_changes",
       {
@@ -253,7 +254,9 @@ export function subscribeToNotificationChanges(
         }
       }
     )
-    .subscribe();
+    .subscribe((status, err) => {
+      handlers.onStatus?.(status, err);
+    });
 
   return () => {
     void client.removeChannel(channel);
