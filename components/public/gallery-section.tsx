@@ -8,10 +8,10 @@ import {
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { GravityStarsBackground } from "@/components/animate-ui/components/backgrounds/gravity-stars";
+import { GalleryPublicImage } from "@/components/public/gallery-public-image";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { cn } from "@/lib/utils";
-import { toEmbeddableGalleryImageUrl } from "@/lib/utils/gallery-image-url";
 import type { ManagerGalleryImageRow } from "@/types/manager-gallery-image";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -78,7 +78,6 @@ function GalleryColumnCard({
   aspectClass: string;
   priority?: boolean;
 }) {
-  const src = toEmbeddableGalleryImageUrl(image.direct_url);
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading"
   );
@@ -107,18 +106,14 @@ function GalleryColumnCard({
       ) : null}
 
       {status !== "error" ? (
-        // Native img: Drive thumbnails must not go through next/image optimization.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
+        <GalleryPublicImage
+          src={image.direct_url}
           alt={image.name}
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
-          referrerPolicy="no-referrer"
+          priority={priority}
           onLoad={() => setStatus("loaded")}
           onError={() => setStatus("error")}
           className={cn(
-            "absolute inset-0 size-full object-cover transition-opacity duration-500 ease-out",
+            "object-cover transition-opacity duration-500 ease-out",
             status === "loaded" ? "opacity-100" : "opacity-0"
           )}
         />

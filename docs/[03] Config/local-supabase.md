@@ -210,6 +210,7 @@ npx supabase storage cp -r ss://auther/ supabase/dumps/storage/auther --experime
 npx supabase storage cp -r ss://workshops/ supabase/dumps/storage/workshops --experimental --linked
 npx supabase storage cp -r ss://registration/ supabase/dumps/storage/registration --experimental --linked
 npx supabase storage cp -r ss://student-task-uploads/ supabase/dumps/storage/student-task-uploads --experimental --linked
+npx supabase storage cp -r ss://gallery/ supabase/dumps/storage/gallery --experimental --linked
 
 npx supabase storage cp -r supabase/dumps/storage/projects ss://projects/ --experimental --local
 npx supabase storage cp -r supabase/dumps/storage/blogs ss://blogs/ --experimental --local
@@ -217,6 +218,7 @@ npx supabase storage cp -r supabase/dumps/storage/auther ss://auther/ --experime
 npx supabase storage cp -r supabase/dumps/storage/workshops ss://workshops/ --experimental --local
 npx supabase storage cp -r supabase/dumps/storage/registration ss://registration/ --experimental --local
 npx supabase storage cp -r supabase/dumps/storage/student-task-uploads ss://student-task-uploads --experimental --local
+npx supabase storage cp -r supabase/dumps/storage/gallery ss://gallery/ --experimental --local
 ```
 
 Check one bucket:

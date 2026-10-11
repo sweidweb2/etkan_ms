@@ -16,13 +16,6 @@ export type CreateGalleryImageActionState = {
   image?: ManagerGalleryImageRow;
 };
 
-export type BulkCreateGalleryImagesActionState = {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  images?: ManagerGalleryImageRow[];
-};
-
 export type UpdateGalleryImageActionState = {
   success?: boolean;
   error?: string;

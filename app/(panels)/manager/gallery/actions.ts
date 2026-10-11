@@ -6,13 +6,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseCreateGalleryImageFormData } from "@/lib/validators/manager/create-gallery-image";
 import { parseUpdateGalleryImageFormData } from "@/lib/validators/manager/update-gallery-image";
 import {
-  createGalleryImageForManager,
-  createGalleryImagesBulkForManager,
+  createGalleryImageFromUploadForManager,
   deleteGalleryImageForManager,
-  updateGalleryImageForManager,
+  updateGalleryImageFromUploadForManager,
 } from "@/services/public/gallery-image.service";
 import type {
-  BulkCreateGalleryImagesActionState,
   CreateGalleryImageActionState,
   DeleteGalleryImageActionState,
   UpdateGalleryImageActionState,
@@ -34,7 +32,7 @@ export async function createGalleryImageAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await createGalleryImageForManager(
+  const result = await createGalleryImageFromUploadForManager(
     adminClient,
     actor.userId,
     actor,
@@ -58,37 +56,6 @@ export async function createGalleryImageAction(
   };
 }
 
-export async function createGalleryImagesBulkAction(
-  _prevState: BulkCreateGalleryImagesActionState,
-  formData: FormData
-): Promise<BulkCreateGalleryImagesActionState> {
-  const actor = await getSessionAuditActor();
-  const rawJson = String(formData.get("records_json") ?? "");
-
-  const adminClient = createSupabaseAdminClient();
-  const result = await createGalleryImagesBulkForManager(
-    adminClient,
-    actor.userId,
-    actor,
-    rawJson
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-
-  revalidatePublicGallery();
-
-  return {
-    success: true,
-    message: result.message,
-    images: result.images,
-  };
-}
-
 export async function updateGalleryImageAction(
   _prevState: UpdateGalleryImageActionState,
   formData: FormData
@@ -105,7 +72,7 @@ export async function updateGalleryImageAction(
   }
 
   const adminClient = createSupabaseAdminClient();
-  const result = await updateGalleryImageForManager(
+  const result = await updateGalleryImageFromUploadForManager(
     adminClient,
     actor.userId,
     actor,

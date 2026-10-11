@@ -2,12 +2,17 @@ import { unstable_cache } from "next/cache";
 import { loadPublicCachedData } from "@/lib/cache/load-public-cached-data";
 import { PUBLIC_CONTENT_CACHE_TAGS } from "@/lib/cache/public-content-cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { optimizeGalleryImage } from "@/lib/manager/gallery/optimize-image";
+import {
+  buildGalleryImageStoragePath,
+  getGalleryImageObjectPathFromPublicUrl,
+} from "@/lib/manager/gallery/storage-path";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { parseBulkGalleryImagesJson } from "@/lib/validators/manager/bulk-create-gallery-images";
 import { createGalleryImageSchema } from "@/lib/validators/manager/create-gallery-image";
 import { updateGalleryImageSchema } from "@/lib/validators/manager/update-gallery-image";
 import * as galleryImageRepository from "@/repositories/gallery-image.repository";
 import type { GalleryImageRecord } from "@/repositories/gallery-image.repository";
+import * as galleryStorageRepository from "@/repositories/gallery-storage.repository";
 import {
   assertPermission,
   getUnauthorizedError,
@@ -38,21 +43,6 @@ export type CreateGalleryImageFailure = {
 export type CreateGalleryImageResult =
   | CreateGalleryImageSuccess
   | CreateGalleryImageFailure;
-
-export type BulkCreateGalleryImagesSuccess = {
-  success: true;
-  images: ManagerGalleryImageRow[];
-  message: string;
-};
-
-export type BulkCreateGalleryImagesFailure = {
-  success: false;
-  error: string;
-};
-
-export type BulkCreateGalleryImagesResult =
-  | BulkCreateGalleryImagesSuccess
-  | BulkCreateGalleryImagesFailure;
 
 export type UpdateGalleryImageSuccess = {
   success: true;
@@ -116,6 +106,79 @@ function mapUpdateGalleryImageError(message: string): string {
   return "Unable to update gallery image. Please try again.";
 }
 
+async function uploadOptimizedGalleryImage(
+  adminClient: Supabase,
+  file: File
+): Promise<
+  | { success: true; publicUrl: string; storagePath: string }
+  | { success: false; error: string }
+> {
+  const fileBytes = await file.arrayBuffer();
+  const optimized = await optimizeGalleryImage({
+    bytes: fileBytes,
+    mimeType: file.type,
+    originalFileName: file.name,
+    byteLength: fileBytes.byteLength,
+  });
+
+  if (!optimized.success) {
+    return { success: false, error: optimized.error };
+  }
+
+  const storagePath = buildGalleryImageStoragePath(optimized.fileName);
+  const uploadResult = await galleryStorageRepository.uploadGalleryImage(
+    adminClient,
+    storagePath,
+    new Uint8Array(optimized.buffer),
+    optimized.contentType
+  );
+
+  if (uploadResult.error) {
+    return {
+      success: false,
+      error: uploadResult.error.message || "Unable to upload image.",
+    };
+  }
+
+  const publicUrl = galleryStorageRepository.getGalleryImagePublicUrl(
+    adminClient,
+    storagePath
+  );
+
+  if (!publicUrl) {
+    await galleryStorageRepository.removeGalleryImages(adminClient, [
+      storagePath,
+    ]);
+    return { success: false, error: "Unable to upload image." };
+  }
+
+  return { success: true, publicUrl, storagePath };
+}
+
+async function removeStoredGalleryImage(
+  adminClient: Supabase,
+  directUrl: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  const objectPath = getGalleryImageObjectPathFromPublicUrl(directUrl);
+  if (!objectPath) {
+    return { success: true };
+  }
+
+  const result = await galleryStorageRepository.removeGalleryImages(
+    adminClient,
+    [objectPath]
+  );
+
+  if (result.error) {
+    return {
+      success: false,
+      error: result.error.message || "Unable to delete gallery image file.",
+    };
+  }
+
+  return { success: true };
+}
+
 const listGalleryImagesForPublicCached = unstable_cache(
   async () =>
     loadPublicCachedData([], async () => {
@@ -160,11 +223,14 @@ export async function listGalleryImagesForManager(
   return (data ?? []).map(mapGalleryImageRecordToRow);
 }
 
-export async function createGalleryImageForManager(
+/**
+ * Create a gallery row from an uploaded file (optimize → Storage → direct_url).
+ */
+export async function createGalleryImageFromUploadForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  input: { name: string; direct_url: string }
+  input: unknown
 ): Promise<CreateGalleryImageResult> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
@@ -185,17 +251,26 @@ export async function createGalleryImageForManager(
     };
   }
 
-  const { name, direct_url } = parsed.data;
+  const uploaded = await uploadOptimizedGalleryImage(
+    adminClient,
+    parsed.data.file
+  );
+  if (!uploaded.success) {
+    return { success: false, error: uploaded.error };
+  }
 
   const { data, error } = await galleryImageRepository.createGalleryImage(
     adminClient,
     {
-      name: name.trim(),
-      direct_url: direct_url.trim(),
+      name: parsed.data.name,
+      direct_url: uploaded.publicUrl,
     }
   );
 
   if (error || !data) {
+    await galleryStorageRepository.removeGalleryImages(adminClient, [
+      uploaded.storagePath,
+    ]);
     return {
       success: false,
       error: mapCreateGalleryImageError(error?.message ?? "Unknown error"),
@@ -211,7 +286,7 @@ export async function createGalleryImageForManager(
       name: data.name,
       direct_url: data.direct_url,
     },
-    metadata: { note: "Gallery image created." },
+    metadata: { note: "Gallery image uploaded." },
   });
 
   return {
@@ -221,82 +296,14 @@ export async function createGalleryImageForManager(
   };
 }
 
-export async function createGalleryImagesBulkForManager(
+/**
+ * Update name and/or replace the stored image file.
+ */
+export async function updateGalleryImageFromUploadForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   actor: AuditActor,
-  rawJson: string
-): Promise<BulkCreateGalleryImagesResult> {
-  const unauthorized = await getUnauthorizedError(
-    adminClient,
-    actorUserId,
-    PERMISSIONS.GALLERY_CREATE
-  );
-  if (unauthorized) {
-    return { success: false, error: unauthorized };
-  }
-
-  const parsed = parseBulkGalleryImagesJson(rawJson);
-
-  if (!parsed.success) {
-    return { success: false, error: parsed.error };
-  }
-
-  const seenUrls = new Set<string>();
-  const rows: Array<{ name: string; direct_url: string }> = [];
-
-  for (const record of parsed.data) {
-    const directUrl = record.direct_url.trim();
-    if (seenUrls.has(directUrl)) {
-      continue;
-    }
-    seenUrls.add(directUrl);
-    rows.push({ name: record.name.trim(), direct_url: directUrl });
-  }
-
-  const { data, error } = await galleryImageRepository.bulkInsertGalleryImages(
-    adminClient,
-    rows
-  );
-
-  if (error) {
-    return {
-      success: false,
-      error: mapCreateGalleryImageError(error.message),
-    };
-  }
-
-  const images = (data ?? []).map(mapGalleryImageRecordToRow);
-  const skipped = parsed.data.length - images.length;
-
-  await recordManagerAuditLog(adminClient, actor, {
-    action: "insert",
-    severity: "info",
-    table_name: "gallery_images",
-    new_data: {
-      direct_urls: images.map((image) => image.direct_url),
-    },
-    metadata: {
-      note: "Gallery images imported from JSON.",
-      requested: parsed.data.length,
-      inserted: images.length,
-      skipped,
-    },
-  });
-
-  const message =
-    skipped > 0
-      ? `Imported ${images.length} images (${skipped} skipped as duplicates).`
-      : `Imported ${images.length} images.`;
-
-  return { success: true, images, message };
-}
-
-export async function updateGalleryImageForManager(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  actor: AuditActor,
-  input: { id: string; name: string; direct_url: string }
+  input: unknown
 ): Promise<UpdateGalleryImageResult> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
@@ -333,22 +340,47 @@ export async function updateGalleryImageForManager(
     return { success: false, error: "Gallery image not found." };
   }
 
-  const { name, direct_url } = parsed.data;
+  let nextDirectUrl = existing.data.direct_url;
+  let uploadedStoragePath: string | null = null;
+
+  if (parsed.data.file instanceof File) {
+    const uploaded = await uploadOptimizedGalleryImage(
+      adminClient,
+      parsed.data.file
+    );
+    if (!uploaded.success) {
+      return { success: false, error: uploaded.error };
+    }
+    nextDirectUrl = uploaded.publicUrl;
+    uploadedStoragePath = uploaded.storagePath;
+  }
 
   const { data, error } = await galleryImageRepository.updateGalleryImage(
     adminClient,
     parsed.data.id,
     {
-      name: name.trim(),
-      direct_url: direct_url.trim(),
+      name: parsed.data.name,
+      direct_url: nextDirectUrl,
     }
   );
 
   if (error || !data) {
+    if (uploadedStoragePath) {
+      await galleryStorageRepository.removeGalleryImages(adminClient, [
+        uploadedStoragePath,
+      ]);
+    }
     return {
       success: false,
       error: mapUpdateGalleryImageError(error?.message ?? "Unknown error"),
     };
+  }
+
+  if (
+    uploadedStoragePath &&
+    existing.data.direct_url !== nextDirectUrl
+  ) {
+    await removeStoredGalleryImage(adminClient, existing.data.direct_url);
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -416,6 +448,8 @@ export async function deleteGalleryImageForManager(
       error: "Unable to delete gallery image. Please try again.",
     };
   }
+
+  await removeStoredGalleryImage(adminClient, existing.data.direct_url);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",

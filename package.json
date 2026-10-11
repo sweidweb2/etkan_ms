@@ -19,6 +19,7 @@
     "seed:projects": "tsx scripts/seed-public-projects.ts",
     "wipe:equipment": "tsx scripts/wipe-equipment-data.ts",
     "smoke:authz": "tsx scripts/smoke-authorization.ts",
+    "smoke:gallery": "tsx scripts/smoke-gallery-storage.ts",
     "seed": "tsx scripts/seed-admin.ts && tsx scripts/seed-demo-data.ts",
     "test:mailtrap": "tsx scripts/test-mailtrap.ts",
     "gen:types": "supabase gen types typescript --project-id diqqcfnrysgzeiqfadic > types/supabase.ts"
@@ -64,6 +65,7 @@
     "recharts": "^3.8.1",
     "server-only": "^0.0.1",
     "shadcn": "^4.10.0",
+    "sharp": "^0.35.5",
     "sonner": "^2.0.7",
     "supabase": "^2.106.0",
     "tailwind-merge": "^3.6.0",

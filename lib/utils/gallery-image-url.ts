@@ -1,7 +1,27 @@
 /**
+ * True when `url` is a Supabase public Storage object URL
+ * (`…/storage/v1/object/public/…`). Safe for `next/image` (remotePatterns).
+ */
+export function isSupabasePublicStorageUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.pathname.includes("/storage/v1/object/public/");
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Google Drive `uc?id=` links send `Cross-Origin-Resource-Policy: same-site`
  * (blocked as hotlinked `<img>` sources). Prefer the thumbnail endpoint, which
  * returns a cross-origin-safe JPEG and avoids googleusercontent rate limits.
+ *
+ * Supabase Storage public URLs (and other non-Drive hosts) pass through unchanged.
  */
 export function toEmbeddableGalleryImageUrl(url: string): string {
   const trimmed = url.trim();
@@ -13,6 +33,11 @@ export function toEmbeddableGalleryImageUrl(url: string): string {
   try {
     parsed = new URL(trimmed);
   } catch {
+    return trimmed;
+  }
+
+  // Storage / CDN / other hosts — no rewrite.
+  if (isSupabasePublicStorageUrl(trimmed)) {
     return trimmed;
   }
 
