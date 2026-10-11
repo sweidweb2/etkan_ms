@@ -2,6 +2,7 @@ import type { MessageKey } from "@/lib/i18n/messages/en";
 
 export const ar = {
   "brand.name": "إتقان",
+  "brand.systemName": "إتقان MS",
   "brand.description": "نظام إدارة المدارس",
 
   "nav.home": "الرئيسية",

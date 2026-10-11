@@ -1,3 +1,4 @@
+import { SITE } from "@/lib/config/site";
 import type {
   AuthBackupTableName,
   AuthSchemaBackupPayload,
@@ -73,7 +74,7 @@ export function serializeAuthSchemaBackupToSql(
   payload: AuthSchemaBackupPayload
 ): string {
   const header = [
-    "-- Etkan MS auth backup",
+    `-- ${SITE.systemName} auth backup`,
     `-- Exported at: ${payload.exportedAt}`,
     "-- Tables: auth.users, auth.identities",
     "-- Restores login emails and password hashes. Apply after schema migrations.",

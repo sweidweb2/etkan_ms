@@ -26,7 +26,8 @@ export type AboutFoundation = {
   id: AboutFoundationId;
   featured: true;
   href: string;
-  imageSrc: string;
+  /** Gallery Drive URL when available; omit for a skeleton placeholder. */
+  imageSrc?: string;
   tagKeys: MessageKey[];
   clientKey: MessageKey;
   headlineKey: MessageKey;
@@ -43,8 +44,6 @@ export const ABOUT_FOUNDATIONS: AboutFoundation[] = [
     id: "breeding",
     featured: true,
     href: ROUTES.CAREERS,
-    imageSrc:
-      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=900&auto=format&fit=crop",
     tagKeys: [
       "about.services.breeding.tag1",
       "about.services.breeding.tag2",
@@ -62,8 +61,6 @@ export const ABOUT_FOUNDATIONS: AboutFoundation[] = [
     id: "education",
     featured: true,
     href: ROUTES.CAREERS,
-    imageSrc:
-      "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=900&auto=format&fit=crop",
     tagKeys: [
       "about.services.education.tag1",
       "about.services.education.tag2",
@@ -81,8 +78,6 @@ export const ABOUT_FOUNDATIONS: AboutFoundation[] = [
     id: "production",
     featured: true,
     href: ROUTES.PROJECTS,
-    imageSrc:
-      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=900&auto=format&fit=crop",
     tagKeys: [
       "about.services.production.tag1",
       "about.services.production.tag2",

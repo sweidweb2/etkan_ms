@@ -1,4 +1,5 @@
 import { MailtrapClient } from "mailtrap";
+import { SITE } from "@/lib/config/site";
 import { loadEnvLocal } from "@/scripts/lib/load-env-local";
 
 async function main() {
@@ -6,7 +7,7 @@ async function main() {
 
   const token = process.env.MAILTRAP_API_KEY;
   const fromEmail = process.env.MAILTRAP_FROM_EMAIL;
-  const fromName = process.env.MAILTRAP_FROM_NAME ?? "Etkan MS";
+  const fromName = process.env.MAILTRAP_FROM_NAME ?? SITE.systemName;
   const to = process.env.MAILTRAP_TEST_TO ?? "asweid657@gmail.com";
 
   if (!token) {
@@ -26,9 +27,9 @@ async function main() {
   const response = await client.send({
     from: { email: fromEmail, name: fromName },
     to: [{ email: to }],
-    subject: "Etkan MS — Mailtrap test",
-    text: "This is a test email from Etkan MS via Mailtrap.",
-    html: "<p>This is a test email from <strong>Etkan MS</strong> via Mailtrap.</p>",
+    subject: `${SITE.systemName} — Mailtrap test`,
+    text: `This is a test email from ${SITE.systemName} via Mailtrap.`,
+    html: `<p>This is a test email from <strong>${SITE.systemName}</strong> via Mailtrap.</p>`,
   });
 
   console.log("Mailtrap test succeeded.");

@@ -13,6 +13,7 @@ import {
   PanelNavMenu,
 } from "@/components/panels/panel-collapsible-nav-group";
 import { AppLogo } from "@/components/brand/app-logo";
+import { SITE } from "@/lib/config/site";
 import type { PanelNavigation, PanelVariant } from "@/types/panel";
 
 type PanelSidebarProps = {
@@ -32,11 +33,12 @@ export function PanelSidebar({ variant, label, navigation }: PanelSidebarProps) 
           <AppLogo
             shape="mark"
             tone="on-dark"
+            label={SITE.systemName}
             height={24}
             className="hidden group-data-[collapsible=icon]:inline-flex"
           />
           <div className="flex min-w-0 flex-col gap-1 group-data-[collapsible=icon]:hidden">
-            <AppLogo tone="on-dark" height={20} />
+            <AppLogo tone="on-dark" label={SITE.systemName} height={20} />
             <span className="truncate text-sm font-semibold text-sidebar-foreground">
               {label}
             </span>
