@@ -6,6 +6,39 @@ type Supabase = SupabaseClient<Database>;
 const SLOT_COLUMNS =
   "id, entity_type, record_id, name, type, slot_date, day_of_week, start_time, end_time, source_workshop_id, source_slot_id, created_at, updated_at";
 
+/** Stay at or under PostgREST `max_rows` so entity-wide lists are not truncated. */
+const SLOT_LIST_PAGE_SIZE = 1000;
+
+async function collectInstructorScheduleSlotPages(
+  fetchPage: (from: number, to: number) => PromiseLike<{
+    data: InstructorScheduleSlotRecord[] | null;
+    error: { message: string } | null;
+  }>
+) {
+  const rows: InstructorScheduleSlotRecord[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await fetchPage(
+      offset,
+      offset + SLOT_LIST_PAGE_SIZE - 1
+    );
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    const page = data ?? [];
+    rows.push(...page);
+
+    if (page.length < SLOT_LIST_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+
+    offset += SLOT_LIST_PAGE_SIZE;
+  }
+}
+
 export type InstructorScheduleSlotRecord = {
   id: string;
   entity_type: string;
@@ -48,19 +81,27 @@ export async function listInstructorScheduleSlotsByEntity(
   entityType: string,
   options: ListInstructorScheduleSlotsByEntityOptions = {}
 ) {
-  let query = client
-    .from("instructor_schedule_slots")
-    .select(SLOT_COLUMNS)
-    .eq("entity_type", entityType)
-    .order("day_of_week", { ascending: true })
-    .order("start_time", { ascending: true });
-
   const excludeIds = options.excludeWorkshopRecordIds ?? [];
-  if (entityType === "workshop" && excludeIds.length > 0) {
-    query = query.not("record_id", "in", `(${excludeIds.join(",")})`);
-  }
 
-  return query;
+  return collectInstructorScheduleSlotPages((from, to) => {
+    let query = client
+      .from("instructor_schedule_slots")
+      .select(SLOT_COLUMNS)
+      .eq("entity_type", entityType)
+      .order("day_of_week", { ascending: true })
+      .order("start_time", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (entityType === "workshop" && excludeIds.length > 0) {
+      query = query.not("record_id", "in", `(${excludeIds.join(",")})`);
+    }
+
+    return query.then((result) => ({
+      data: (result.data ?? null) as InstructorScheduleSlotRecord[] | null,
+      error: result.error,
+    }));
+  });
 }
 
 export type ListAllInstructorScheduleSlotsOptions = {
@@ -72,20 +113,28 @@ export async function listAllInstructorScheduleSlots(
   client: Supabase,
   options: ListAllInstructorScheduleSlotsOptions = {}
 ) {
-  let query = client
-    .from("instructor_schedule_slots")
-    .select(SLOT_COLUMNS)
-    .order("day_of_week", { ascending: true })
-    .order("start_time", { ascending: true });
-
   const excludeIds = options.excludeWorkshopRecordIds ?? [];
-  if (excludeIds.length > 0) {
-    query = query.or(
-      `entity_type.eq.instructor,and(entity_type.eq.workshop,record_id.not.in.(${excludeIds.join(",")}))`
-    );
-  }
 
-  return query;
+  return collectInstructorScheduleSlotPages((from, to) => {
+    let query = client
+      .from("instructor_schedule_slots")
+      .select(SLOT_COLUMNS)
+      .order("day_of_week", { ascending: true })
+      .order("start_time", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (excludeIds.length > 0) {
+      query = query.or(
+        `entity_type.eq.instructor,and(entity_type.eq.workshop,record_id.not.in.(${excludeIds.join(",")}))`
+      );
+    }
+
+    return query.then((result) => ({
+      data: (result.data ?? null) as InstructorScheduleSlotRecord[] | null,
+      error: result.error,
+    }));
+  });
 }
 
 export type ListInstructorScheduleSlotsPageInput = {

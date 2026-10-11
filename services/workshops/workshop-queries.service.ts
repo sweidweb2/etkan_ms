@@ -1,6 +1,9 @@
 import {
+  WORKSHOP_OFFERING_TYPE_VALUES,
   WORKSHOP_PAYMENT_TYPES,
+  type WorkshopOfferingType,
 } from "@/lib/constants/manager-workshop-display";
+import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import type { RoleValue } from "@/lib/constants/roles";
@@ -26,6 +29,9 @@ import type {
   ManagerWorkshopPaymentsTotals,
   ManagerWorkshopRow,
   ManagerWorkshopDetailPageData,
+  ManagerWorkshopsListData,
+  ManagerWorkshopsListQuery,
+  ManagerWorkshopTypeCounts,
 } from "@/types/manager-workshop";
 import {
   actorCanAccessWorkshop,
@@ -61,16 +67,47 @@ export function buildWorkshopPaymentSummary(
   return { credits, debits, net, price, remaining };
 }
 
+const WORKSHOPS_LIST_PAGE_SIZE = 12;
+const WORKSHOPS_LIST_MAX_PAGE_SIZE = 48;
+
+const EMPTY_TYPE_COUNTS: ManagerWorkshopTypeCounts = {
+  course: 0,
+  private: 0,
+  workshop: 0,
+};
+
+function emptyWorkshopsList(
+  page: number,
+  pageSize: number
+): ManagerWorkshopsListData {
+  return {
+    workshops: [],
+    totalCount: 0,
+    page,
+    pageSize,
+    typeCounts: EMPTY_TYPE_COUNTS,
+  };
+}
+
 export async function listWorkshopsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
   /** Prefer session pack role to avoid a redundant profiles.role round-trip. */
-  actorRole?: RoleValue | null
-): Promise<ManagerWorkshopRow[]> {
+  actorRole?: RoleValue | null,
+  query: ManagerWorkshopsListQuery = {}
+): Promise<ManagerWorkshopsListData> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
 
+  const pageSize = Math.min(
+    WORKSHOPS_LIST_MAX_PAGE_SIZE,
+    Math.max(1, query.pageSize ?? WORKSHOPS_LIST_PAGE_SIZE)
+  );
+  const requestedPage = Math.max(1, query.page ?? 1);
+  const type: WorkshopOfferingType = query.type ?? "course";
+  const showCompleted = query.showCompleted ?? true;
+
   if (!actorUserId) {
-    return [];
+    return emptyWorkshopsList(requestedPage, pageSize);
   }
 
   const role =
@@ -78,47 +115,109 @@ export async function listWorkshopsForManager(
       ? actorRole
       : await resolveActorRole(adminClient, actorUserId);
 
-  if (roleCanViewAllWorkshops(role)) {
-    const result = await workshopRepository.listWorkshops(adminClient);
-    if (result.error) {
-      throw new Error(result.error.message);
+  let ids: string[] | undefined;
+  if (!roleCanViewAllWorkshops(role)) {
+    const assignmentsResult =
+      await workshopInstructorRepository.listWorkshopInstructorsByUserId(
+        adminClient,
+        actorUserId
+      );
+
+    if (assignmentsResult.error) {
+      throw new Error(assignmentsResult.error.message);
     }
-    return attachPaidNet(
-      adminClient,
-      (result.data ?? []).map(mapWorkshopRecordToRow)
-    );
+
+    ids = [
+      ...new Set(
+        (assignmentsResult.data ?? []).map((row) => row.workshop_id)
+      ),
+    ];
   }
 
-  const assignmentsResult =
-    await workshopInstructorRepository.listWorkshopInstructorsByUserId(
+  const status = query.status ?? null;
+  const hideCompletedConflict =
+    !showCompleted && status === WORKSHOP_STATUSES.COMPLETED;
+
+  const [pageResult, countsResult] = await Promise.all([
+    hideCompletedConflict || (ids && ids.length === 0)
+      ? Promise.resolve({ data: [], error: null, count: 0 })
+      : workshopRepository.listWorkshopsPage(adminClient, {
+          offset: (requestedPage - 1) * pageSize,
+          limit: pageSize,
+          type,
+          status: status ?? undefined,
+          excludeStatuses: showCompleted
+            ? undefined
+            : [WORKSHOP_STATUSES.COMPLETED],
+          search: query.search,
+          ids,
+        }),
+    workshopRepository.countWorkshopsByTypes(
       adminClient,
-      actorUserId
-    );
-
-  if (assignmentsResult.error) {
-    throw new Error(assignmentsResult.error.message);
-  }
-
-  const workshopIds = [
-    ...new Set(
-      (assignmentsResult.data ?? []).map((row) => row.workshop_id)
+      WORKSHOP_OFFERING_TYPE_VALUES,
+      { ids }
     ),
-  ];
+  ]);
 
-  const result = await workshopRepository.listWorkshopsByIds(
+  if (pageResult.error) {
+    throw new Error(pageResult.error.message);
+  }
+  if (countsResult.error) {
+    throw new Error(countsResult.error.message);
+  }
+
+  const workshops = await attachPaidNet(
     adminClient,
-    workshopIds
+    (pageResult.data ?? []).map(mapWorkshopRecordToRow)
   );
 
+  const typeCounts: ManagerWorkshopTypeCounts = {
+    course: countsResult.data?.course ?? 0,
+    private: countsResult.data?.private ?? 0,
+    workshop: countsResult.data?.workshop ?? 0,
+  };
+
+  return {
+    workshops,
+    totalCount: pageResult.count ?? workshops.length,
+    page: requestedPage,
+    pageSize,
+    typeCounts,
+  };
+}
+
+export async function getWorkshopRowForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  workshopId: string
+): Promise<ManagerWorkshopRow | null> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.WORKSHOPS_VIEW);
+
+  if (!actorUserId) {
+    return null;
+  }
+
+  const canAccess = await actorCanAccessWorkshop(
+    adminClient,
+    actorUserId,
+    workshopId
+  );
+  if (!canAccess) {
+    return null;
+  }
+
+  const result = await workshopRepository.findWorkshopById(
+    adminClient,
+    workshopId
+  );
   if (result.error) {
     throw new Error(result.error.message);
   }
+  if (!result.data) {
+    return null;
+  }
 
-  return attachPaidNet(
-    adminClient,
-    (result.data ?? []).map(mapWorkshopRecordToRow),
-    workshopIds
-  );
+  return mapWorkshopRecordToRow(result.data);
 }
 
 export function buildWorkshopPaymentsTotals(
@@ -190,11 +289,7 @@ export async function getWorkshopPaymentsOverviewForManager(
       offset,
       limit: pageSize,
     }),
-    workshopPaymentRepository.aggregateWorkshopPaymentsTotals(
-      adminClient,
-      WORKSHOP_PAYMENT_TYPES.CREDIT,
-      WORKSHOP_PAYMENT_TYPES.DEBIT
-    ),
+    workshopPaymentRepository.aggregateWorkshopPaymentsTotals(adminClient),
   ]);
 
   if (pageResult.error) {

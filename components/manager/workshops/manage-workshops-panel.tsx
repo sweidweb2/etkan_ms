@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CalendarDaysIcon,
@@ -17,6 +17,7 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { Can } from "@/components/auth/can";
+import { loadWorkshopsPageAction } from "@/app/manager/workshops/actions";
 import { AddWorkshopDialog } from "@/components/manager/workshops/add-workshop-dialog";
 import { WorkshopCard } from "@/components/manager/workshops/workshop-card";
 import { Button } from "@/components/ui/button";
@@ -42,15 +43,18 @@ import {
   type WorkshopOfferingType,
 } from "@/lib/constants/manager-workshop-display";
 import {
-  WORKSHOP_STATUSES,
   WORKSHOP_STATUS_VALUES,
   type WorkshopStatusValue,
 } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
-import type { ManagerWorkshopRow } from "@/types/manager-workshop";
+import type {
+  ManagerWorkshopsListData,
+  ManagerWorkshopsListQuery,
+  ManagerWorkshopTypeCounts,
+} from "@/types/manager-workshop";
 
 const PAGE_SIZE = 12;
 const STATUS_ALL = "all";
@@ -76,86 +80,103 @@ const TAB_TRIGGER_CLASS = cn(
   "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
 );
 
-function matchesSearch(workshop: ManagerWorkshopRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const haystack = [
-    workshop.name,
-    workshop.subject ?? "",
-    workshop.delivery_place ?? "",
-    workshop.target_audience ?? "",
-    workshop.phone ?? "",
-    workshop.type,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(normalizedQuery);
+function listQueryKey(query: {
+  type: WorkshopOfferingType;
+  status: StatusFilter;
+  showCompleted: boolean;
+  search: string;
+  page: number;
+}) {
+  return `${query.type}|${query.status}|${query.showCompleted}|${query.search}|${query.page}`;
 }
 
 type ManageWorkshopsPanelProps = {
-  initialWorkshops: ManagerWorkshopRow[];
+  initialData: ManagerWorkshopsListData;
 };
 
 export function ManageWorkshopsPanel({
-  initialWorkshops,
+  initialData,
 }: ManageWorkshopsPanelProps) {
-  const [workshops, setWorkshops] = useState(initialWorkshops);
-  const [prevWorkshops, setPrevWorkshops] = useState(initialWorkshops);
+  const [workshops, setWorkshops] = useState(initialData.workshops);
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const [typeCounts, setTypeCounts] = useState<ManagerWorkshopTypeCounts>(
+    initialData.typeCounts
+  );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [typeTab, setTypeTab] = useState<WorkshopOfferingType>(
     WORKSHOP_OFFERING_TYPES.COURSE
   );
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(STATUS_ALL);
   const [showCompletedByType, setShowCompletedByType] = useState(
     INITIAL_SHOW_COMPLETED
   );
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialData.page);
+  const loadedKeyRef = useRef(
+    listQueryKey({
+      type: WORKSHOP_OFFERING_TYPES.COURSE,
+      status: STATUS_ALL,
+      showCompleted: true,
+      search: "",
+      page: initialData.page,
+    })
+  );
 
   const showCompleted = showCompletedByType[typeTab];
+  const pageSize = initialData.pageSize || PAGE_SIZE;
 
-  if (initialWorkshops !== prevWorkshops) {
-    setPrevWorkshops(initialWorkshops);
-    setWorkshops(initialWorkshops);
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
-  const typeCounts = useMemo(() => {
-    const counts: Record<WorkshopOfferingType, number> = {
-      workshop: 0,
-      private: 0,
-      course: 0,
-    };
-    for (const workshop of workshops) {
-      counts[workshop.type] += 1;
-    }
-    return counts;
-  }, [workshops]);
-
-  const filtered = useMemo(() => {
-    return workshops.filter((workshop) => {
-      if (workshop.type !== typeTab) {
-        return false;
-      }
-      if (statusFilter !== STATUS_ALL && workshop.status !== statusFilter) {
-        return false;
-      }
-      if (!showCompleted && workshop.status === WORKSHOP_STATUSES.COMPLETED) {
-        return false;
-      }
-      return matchesSearch(workshop, search);
-    });
-  }, [workshops, search, showCompleted, statusFilter, typeTab]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageItems = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE
+  const listQuery = useMemo<ManagerWorkshopsListQuery>(
+    () => ({
+      page,
+      pageSize,
+      type: typeTab,
+      status: statusFilter === STATUS_ALL ? null : statusFilter,
+      showCompleted,
+      search: debouncedSearch,
+    }),
+    [debouncedSearch, page, pageSize, showCompleted, statusFilter, typeTab]
   );
+
+  useEffect(() => {
+    const key = listQueryKey({
+      type: typeTab,
+      status: statusFilter,
+      showCompleted,
+      search: debouncedSearch,
+      page,
+    });
+    if (key === loadedKeyRef.current) {
+      return;
+    }
+    loadedKeyRef.current = key;
+    let cancelled = false;
+    setIsLoading(true);
+    void loadWorkshopsPageAction(listQuery).then((data) => {
+      if (cancelled) {
+        return;
+      }
+      setIsLoading(false);
+      if (!data) {
+        showErrorToast("Unable to load workshops.");
+        return;
+      }
+      setWorkshops(data.workshops);
+      setTotalCount(data.totalCount);
+      setTypeCounts(data.typeCounts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, listQuery, page, showCompleted, statusFilter, typeTab]);
 
   const showCompletedCheckboxId = `show-completed-${typeTab}`;
   const typeLabel = WORKSHOP_OFFERING_TYPE_LABELS[typeTab];
@@ -293,7 +314,7 @@ export function ManageWorkshopsPanel({
         </label>
       </div>
 
-      {pageItems.length === 0 ? (
+      {workshops.length === 0 ? (
         <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
           {typeCounts[typeTab] === 0 ? (
             <>
@@ -309,26 +330,30 @@ export function ManageWorkshopsPanel({
           )}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {pageItems.map((workshop) => (
+        <div
+          className={cn(
+            "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+            isLoading && "opacity-60"
+          )}
+        >
+          {workshops.map((workshop) => (
             <WorkshopCard key={workshop.id} workshop={workshop} />
           ))}
         </div>
       )}
 
-      {filtered.length > PAGE_SIZE ? (
+      {totalCount > pageSize ? (
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            {(safePage - 1) * PAGE_SIZE + 1}–
-            {Math.min(safePage * PAGE_SIZE, filtered.length)} of{" "}
-            {filtered.length}
+            {(page - 1) * pageSize + 1}–
+            {Math.min(page * pageSize, totalCount)} of {totalCount}
           </p>
           <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={safePage <= 1}
+              disabled={isLoading || page <= 1}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
             >
               <ChevronLeftIcon data-icon="inline-start" />
@@ -338,9 +363,9 @@ export function ManageWorkshopsPanel({
               type="button"
               variant="outline"
               size="sm"
-              disabled={safePage >= totalPages}
+              disabled={isLoading || page * pageSize >= totalCount}
               onClick={() =>
-                setPage((current) => Math.min(totalPages, current + 1))
+                setPage((current) => current + 1)
               }
             >
               Next
@@ -354,9 +379,37 @@ export function ManageWorkshopsPanel({
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         onWorkshopCreated={(workshop) => {
-          setWorkshops((current) => prependUniqueById(current, workshop));
+          const nextShowCompleted = showCompletedByType[workshop.type];
           setTypeTab(workshop.type);
+          setSearch("");
+          setDebouncedSearch("");
+          setStatusFilter(STATUS_ALL);
           setPage(1);
+          loadedKeyRef.current = listQueryKey({
+            type: workshop.type,
+            status: STATUS_ALL,
+            showCompleted: nextShowCompleted,
+            search: "",
+            page: 1,
+          });
+          setIsLoading(true);
+          void loadWorkshopsPageAction({
+            page: 1,
+            pageSize,
+            type: workshop.type,
+            status: null,
+            showCompleted: nextShowCompleted,
+            search: "",
+          }).then((data) => {
+            setIsLoading(false);
+            if (!data) {
+              showErrorToast("Unable to load workshops.");
+              return;
+            }
+            setWorkshops(data.workshops);
+            setTotalCount(data.totalCount);
+            setTypeCounts(data.typeCounts);
+          });
         }}
       />
     </div>

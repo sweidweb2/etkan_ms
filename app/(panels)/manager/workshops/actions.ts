@@ -59,6 +59,8 @@ import {
   listWorkshopInstructorCandidatesForManager,
   listWorkshopPaymentsForManager,
   listWorkshopScheduleSlotsForManager,
+  getWorkshopRowForManager,
+  listWorkshopsForManager,
 } from "@/services/workshops/workshop.service";
 import type { ManagerInstructorScheduleSession } from "@/types/manager-instructor-schedule";
 import type {
@@ -74,6 +76,9 @@ import type {
   ManagerWorkshopInstructorCandidate,
   ManagerWorkshopPaymentRow,
   ManagerWorkshopPaymentSummary,
+  ManagerWorkshopRow,
+  ManagerWorkshopsListData,
+  ManagerWorkshopsListQuery,
   RemoveWorkshopInstructorActionState,
   RenameWorkshopDocumentActionState,
   UpdateWorkshopActionState,
@@ -82,6 +87,47 @@ import type {
   UpdateWorkshopSessionActionState,
   UploadWorkshopDocumentActionState,
 } from "@/types/manager-workshop";
+
+export async function loadWorkshopsPageAction(
+  query: ManagerWorkshopsListQuery
+): Promise<ManagerWorkshopsListData | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listWorkshopsForManager(
+      adminClient,
+      actor.userId,
+      undefined,
+      query
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function loadWorkshopRowAction(
+  workshopId: string
+): Promise<ManagerWorkshopRow | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await getWorkshopRowForManager(
+      adminClient,
+      actor.userId,
+      workshopId
+    );
+  } catch {
+    return null;
+  }
+}
 
 export async function loadWorkshopPaymentsAction(
   workshopId: string

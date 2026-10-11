@@ -3140,6 +3140,47 @@ export type Database = {
         Returns: Json
       }
       sum_student_payment_amounts: { Args: never; Returns: number }
+      aggregate_workshop_payment_totals: { Args: never; Returns: Json }
+      sum_workshop_payment_nets: {
+        Args: { p_workshop_ids: string[] }
+        Returns: { paid_net: number; workshop_id: string }[]
+      }
+      academic_analysis_student_counts: {
+        Args: never
+        Returns: {
+          active_count: number
+          inactive_count: number
+          total_count: number
+        }[]
+      }
+      list_class_session_progress: {
+        Args: never
+        Returns: {
+          actual_sessions: number
+          class_id: string
+          class_name: string
+          planned_sessions: number
+          status: string
+        }[]
+      }
+      list_academic_analysis_students: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string | null
+          p_status?: string | null
+        }
+        Returns: Json
+      }
+      count_spps_by_payment_phase: {
+        Args: { p_phase_ids: string[] }
+        Returns: {
+          active_count: number
+          paid_count: number
+          payment_phase_id: string
+          upfront_paid_count: number
+        }[]
+      }
       list_income_statement_activity_months: {
         Args: never
         Returns: { month: number; year: number }[]

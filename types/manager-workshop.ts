@@ -36,6 +36,25 @@ export interface ManagerWorkshopRow {
   paid_net?: number;
 }
 
+export type ManagerWorkshopTypeCounts = Record<WorkshopOfferingType, number>;
+
+export type ManagerWorkshopsListQuery = {
+  page?: number;
+  pageSize?: number;
+  type?: WorkshopOfferingType;
+  status?: WorkshopStatusValue | null;
+  showCompleted?: boolean;
+  search?: string;
+};
+
+export type ManagerWorkshopsListData = {
+  workshops: ManagerWorkshopRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  typeCounts: ManagerWorkshopTypeCounts;
+};
+
 export interface ManagerWorkshopInstructorRow {
   id: string;
   workshop_id: string;

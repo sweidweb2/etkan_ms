@@ -1,5 +1,4 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import type { RoleValue } from "@/lib/constants/roles";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import { assignClassTeacherSchema } from "@/lib/validators/manager/assign-class-teacher";
 import * as classRepository from "@/repositories/class.repository";
@@ -75,6 +74,13 @@ export async function assignTeacherToClassForManager(
     };
   }
 
+  if (!teacherResult.data.is_instructor) {
+    return {
+      success: false,
+      error: "Only instructor profiles can be assigned to a class.",
+    };
+  }
+
   const existing = await classTeacherRepository.findClassTeacherByTeacherAndClass(
     adminClient,
     parsed.data.teacher_id,
@@ -131,7 +137,6 @@ export async function assignTeacherToClassForManager(
     teacher: {
       id: teacherResult.data.id,
       username: teacherResult.data.username,
-      role: teacherResult.data.role as RoleValue,
       assigned: true,
       assignment_id: data.id,
     },

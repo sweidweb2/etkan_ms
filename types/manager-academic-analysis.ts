@@ -5,8 +5,14 @@ export type ManagerAcademicAnalysisStudentRow = {
   id: string;
   full_name: string;
   username: string | null;
-  email: string;
   status: StudentStatusValue;
+};
+
+export type ManagerAcademicAnalysisStudentsPage = {
+  students: ManagerAcademicAnalysisStudentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 export type ManagerAcademicAnalysisClassSessionPoint = {
@@ -24,6 +30,6 @@ export type ManagerAcademicAnalysisData = {
     inactive: number;
     total: number;
   };
-  students: ManagerAcademicAnalysisStudentRow[];
+  studentsPage: ManagerAcademicAnalysisStudentsPage;
   classSessionSeries: ManagerAcademicAnalysisClassSessionPoint[];
 };

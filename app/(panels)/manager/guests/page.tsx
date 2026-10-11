@@ -11,11 +11,18 @@ export default async function ManagerGuestsPage() {
   const user = await timer.step("session", () => getSessionUser());
   const actorUserId = user?.id ?? null;
 
+  const guestsPromise = timer.step("guests", () =>
+    listGuestsForManager(adminClient, actorUserId)
+  );
+
   const [guests, teams] = await Promise.all([
-    timer.step("guests", () => listGuestsForManager(adminClient, actorUserId)),
+    guestsPromise,
     // Roles without teams.view still get the guests table.
+    // Pass the in-flight guest list so teams skip a second guests + email load.
     timer.step("teams", () =>
-      listTeamsForManager(adminClient, actorUserId).catch(() => [])
+      listTeamsForManager(adminClient, actorUserId, guestsPromise).catch(
+        () => []
+      )
     ),
   ]);
   timer.end();

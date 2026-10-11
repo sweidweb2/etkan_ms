@@ -1,15 +1,19 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as guestRepository from "@/repositories/guest.repository";
+import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import * as teamRepository from "@/repositories/team.repository";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import { recordManagerAuditLog } from "@/services/ops/audit-log.service";
 import {
   assignGuestToTeamForManager,
   isClosedGuestStatus,
+  listTeamsForManager,
   releaseGuestFromTeamIfBecameClosed,
 } from "@/services/teams/team.service";
+import type { ManagerGuestRow } from "@/types/manager-guest";
 
 vi.mock("@/repositories/guest.repository");
+vi.mock("@/repositories/student-registration-application.repository");
 vi.mock("@/repositories/team.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
@@ -238,5 +242,82 @@ describe("releaseGuestFromTeamIfBecameClosed", () => {
 
     expect(teamRepository.findTeamGuestByGuestId).not.toHaveBeenCalled();
     expect(teamRepository.assignGuestToTeam).not.toHaveBeenCalled();
+  });
+});
+
+const knownGuest: ManagerGuestRow = {
+  id: guestId,
+  full_name: "Ada Lovelace",
+  phone: "+96171111111",
+  email: "ada@example.com",
+  age: 22,
+  school_or_university: "AUB",
+  education_level: "uni_year_3",
+  interested_service: "etkan_roadmap",
+  referred_from: null,
+  referred_from_other: null,
+  status: "scheduled",
+  notes: null,
+  created_by: actor.userId,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+};
+
+describe("listTeamsForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(teamRepository.listTeams).mockResolvedValue({
+      data: [teamRecord],
+      ...okResult,
+    });
+    vi.mocked(teamRepository.listTeamGuests).mockResolvedValue({
+      data: [
+        {
+          id: "membership-1",
+          team_id: teamId,
+          guest_id: guestId,
+          created_at: "2026-01-02T00:00:00.000Z",
+        },
+      ],
+      ...okResult,
+    });
+  });
+
+  it("reuses guests already loaded by the caller", async () => {
+    const teams = await listTeamsForManager(adminClient, actor.userId, [
+      knownGuest,
+    ]);
+
+    expect(guestRepository.listGuests).not.toHaveBeenCalled();
+    expect(registrationRepository.listActiveEmailsByGuestIds).not.toHaveBeenCalled();
+    expect(teams).toHaveLength(1);
+    expect(teams[0]?.guests).toEqual([knownGuest]);
+  });
+
+  it("waits on an in-flight guest list without querying guests again", async () => {
+    const teams = await listTeamsForManager(
+      adminClient,
+      actor.userId,
+      Promise.resolve([knownGuest])
+    );
+
+    expect(guestRepository.listGuests).not.toHaveBeenCalled();
+    expect(teams[0]?.guests[0]?.email).toBe("ada@example.com");
+  });
+
+  it("loads guests when the caller does not supply them", async () => {
+    vi.mocked(guestRepository.listGuests).mockResolvedValue({
+      data: [guestRecord],
+      ...okResult,
+    });
+    vi.mocked(registrationRepository.listActiveEmailsByGuestIds).mockResolvedValue({
+      data: [{ guest_id: guestId, email: "ada@example.com" }],
+      ...okResult,
+    });
+
+    const teams = await listTeamsForManager(adminClient, actor.userId);
+
+    expect(guestRepository.listGuests).toHaveBeenCalledOnce();
+    expect(teams[0]?.guests[0]?.email).toBe("ada@example.com");
   });
 });

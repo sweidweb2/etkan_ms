@@ -5,7 +5,6 @@ import {
   type StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
 import { isPhaseUpfrontWindowActive } from "@/lib/manager/accounting/upfront-window";
-import { countsAsUpfrontPaid } from "@/lib/manager/accounting/upfront-window";
 import {
   STUDENT_STATUSES,
   type StudentStatusValue,
@@ -367,7 +366,7 @@ export async function buildSppCountsByPhaseId(
   }
 
   const { data, error } =
-    await studentPaymentPhaseRepository.listSppStatusRowsByPaymentPhaseIds(
+    await studentPaymentPhaseRepository.countSppsByPaymentPhaseIds(
       adminClient,
       phases.map((phase) => phase.id)
     );
@@ -377,30 +376,12 @@ export async function buildSppCountsByPhaseId(
   }
 
   for (const row of data ?? []) {
-    const current = counts.get(row.payment_phase_id) ?? {
-      active: 0,
-      paid: 0,
-    };
-
-    if (row.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED) {
-      current.active += 1;
-    }
-
     const upfrontAmount = upfrontPhases.get(row.payment_phase_id);
-    const isPaid =
-      upfrontAmount === undefined
-        ? row.status === STUDENT_PAYMENT_PHASE_STATUSES.PAID
-        : countsAsUpfrontPaid({
-            status: row.status,
-            totalPaid: Number(row.total_paid),
-            upfrontAmount,
-          });
-
-    if (isPaid) {
-      current.paid += 1;
-    }
-
-    counts.set(row.payment_phase_id, current);
+    counts.set(row.payment_phase_id, {
+      active: row.active_count,
+      paid:
+        upfrontAmount === undefined ? row.paid_count : row.upfront_paid_count,
+    });
   }
 
   return counts;

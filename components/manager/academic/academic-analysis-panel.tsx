@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   BookOpenIcon,
   ChevronLeftIcon,
@@ -11,6 +11,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { loadAcademicAnalysisStudentsPageAction } from "@/app/(panels)/manager/academic-analysis/actions";
 import { Can } from "@/components/auth/can";
 import { AcademicClassSessionProgressBars } from "@/components/manager/academic/academic-class-session-progress-bars";
 import { AnalyticsStatCard } from "@/components/manager/accounting/analytics-stat-card";
@@ -42,10 +43,7 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
-import type {
-  ManagerAcademicAnalysisData,
-  ManagerAcademicAnalysisStudentRow,
-} from "@/types/manager-academic-analysis";
+import type { ManagerAcademicAnalysisData } from "@/types/manager-academic-analysis";
 
 const STATUS_FILTER_ALL = "all";
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
@@ -114,66 +112,74 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function matchesStudentSearch(
-  student: ManagerAcademicAnalysisStudentRow,
-  query: string
-) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const haystack = [
-    student.full_name,
-    student.username ?? "",
-    student.email,
-    MANAGER_STUDENT_STATUS_LABELS[student.status],
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(normalizedQuery);
-}
-
 type AcademicAnalysisPanelProps = {
   data: ManagerAcademicAnalysisData;
 };
 
 export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
+  const [isPending, startTransition] = useTransition();
+  const skipNextFetch = useRef(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
     10
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(data.studentsPage.page);
+  const [students, setStudents] = useState(data.studentsPage.students);
+  const [total, setTotal] = useState(data.studentsPage.total);
 
-  const filteredStudents = useMemo(() => {
-    return data.students.filter((student) => {
-      const matchesStatus =
-        statusFilter === STATUS_FILTER_ALL || student.status === statusFilter;
-      return matchesStatus && matchesStudentSearch(student, searchQuery);
+  const appliedSearch = useRef("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (appliedSearch.current === searchQuery) {
+        return;
+      }
+      appliedSearch.current = searchQuery;
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (skipNextFetch.current) {
+      skipNextFetch.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    startTransition(async () => {
+      const pageData = await loadAcademicAnalysisStudentsPageAction({
+        page: currentPage,
+        pageSize,
+        status: statusFilter,
+        search: debouncedSearch,
+      });
+      if (cancelled) {
+        return;
+      }
+      setStudents(pageData.students);
+      setTotal(pageData.total);
+      setCurrentPage(pageData.page);
     });
-  }, [data.students, searchQuery, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, pageSize, statusFilter, debouncedSearch]);
+
+  const hasActiveFilters =
+    statusFilter !== STATUS_FILTER_ALL || debouncedSearch.trim().length > 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedStudents = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredStudents.slice(startIndex, startIndex + pageSize);
-  }, [filteredStudents, pageSize, safeCurrentPage]);
-
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-  const rangeStart =
-    filteredStudents.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(
-    safeCurrentPage * pageSize,
-    filteredStudents.length
-  );
+  const rangeStart = total === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, total);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1);
   };
 
   const handleStatusFilterChange = (value: string | null) => {
@@ -255,7 +261,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                 <Input
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search name, username, or email…"
+                  placeholder="Search name or username…"
                   className="pl-8"
                   aria-label="Search students"
                 />
@@ -286,7 +292,13 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border">
+          <div
+            className={cn(
+              "overflow-hidden rounded-xl border",
+              isPending && "opacity-70"
+            )}
+            aria-busy={isPending}
+          >
             <div className="overflow-x-auto">
               <table className="w-full min-w-[36rem] text-left text-sm">
                 <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -297,26 +309,19 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.students.length === 0 ? (
+                  {students.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
                         className="px-4 py-10 text-center text-muted-foreground"
                       >
-                        No students yet.
-                      </td>
-                    </tr>
-                  ) : paginatedStudents.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No students match your filters.
+                        {hasActiveFilters
+                          ? "No students match your filters."
+                          : "No students yet."}
                       </td>
                     </tr>
                   ) : (
-                    paginatedStudents.map((student) => (
+                    students.map((student) => (
                       <tr
                         key={student.id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -371,7 +376,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
-                  Showing {rangeStart}–{rangeEnd} of {filteredStudents.length}
+                  Showing {rangeStart}–{rangeEnd} of {total}
                 </span>
                 <span aria-hidden="true">·</span>
                 <div className="flex items-center gap-2">
@@ -403,7 +408,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  disabled={safeCurrentPage <= 1}
+                  disabled={isPending || safeCurrentPage <= 1}
                   onClick={() => setCurrentPage((page) => page - 1)}
                   aria-label="Previous page"
                 >
@@ -425,6 +430,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                       variant={page === safeCurrentPage ? "default" : "outline"}
                       size="icon-sm"
                       className="min-w-7"
+                      disabled={isPending || page === safeCurrentPage}
                       onClick={() => setCurrentPage(page)}
                       aria-label={`Page ${page}`}
                       aria-current={
@@ -440,7 +446,7 @@ export function AcademicAnalysisPanel({ data }: AcademicAnalysisPanelProps) {
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  disabled={safeCurrentPage >= totalPages}
+                  disabled={isPending || safeCurrentPage >= totalPages}
                   onClick={() => setCurrentPage((page) => page + 1)}
                   aria-label="Next page"
                 >

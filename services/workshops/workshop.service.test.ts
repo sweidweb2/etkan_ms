@@ -188,13 +188,19 @@ describe("listWorkshopsForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
       data: [],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+    });
+    vi.mocked(workshopRepository.listWorkshopsPage).mockResolvedValue({
+      data: [],
+      error: null,
+      count: 0,
+    });
+    vi.mocked(workshopRepository.countWorkshopsByTypes).mockResolvedValue({
+      data: { course: 0, private: 0, workshop: 0 },
+      error: null,
     });
   });
 
@@ -204,89 +210,74 @@ describe("listWorkshopsForManager", () => {
     );
   });
 
-  it("returns all workshops for manager", async () => {
-    vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
+  it("returns a workshop page for manager", async () => {
+    vi.mocked(workshopRepository.listWorkshopsPage).mockResolvedValue({
       data: [workshopRecord],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+      count: 1,
     });
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
-      data: [
-        {
-          workshop_id: workshopId,
-          amount: 100,
-          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
-        },
-        {
-          workshop_id: workshopId,
-          amount: 40,
-          type: WORKSHOP_PAYMENT_TYPES.DEBIT,
-        },
-      ],
+      data: [{ workshop_id: workshopId, paid_net: 60 }],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
 
-    const workshops = await listWorkshopsForManager(
+    const result = await listWorkshopsForManager(
       adminClient,
       actor.userId,
       ROLES.MANAGER
     );
 
-    expect(workshops).toHaveLength(1);
-    expect(workshops[0]?.name).toBe("Intro to UX");
-    expect(workshops[0]?.paid_net).toBe(60);
-    expect(workshops[0]?.status).toBe(WORKSHOP_STATUSES.DRAFT);
-    expect(workshopRepository.listWorkshops).toHaveBeenCalled();
+    expect(result.workshops).toHaveLength(1);
+    expect(result.totalCount).toBe(1);
+    expect(result.workshops[0]?.name).toBe("Intro to UX");
+    expect(result.workshops[0]?.paid_net).toBe(60);
+    expect(result.workshops[0]?.proposal_notes).toBeNull();
+    expect(result.workshops[0]?.status).toBe(WORKSHOP_STATUSES.DRAFT);
+    expect(workshopRepository.listWorkshopsPage).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({ offset: 0, limit: 12, type: "course" })
+    );
     expect(profileRepository.findRoleById).not.toHaveBeenCalled();
   });
 
-  it("returns all workshops for CEO", async () => {
-    vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
+  it("returns a workshop page for CEO", async () => {
+    vi.mocked(workshopRepository.listWorkshopsPage).mockResolvedValue({
       data: [workshopRecord],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+      count: 1,
     });
 
-    const workshops = await listWorkshopsForManager(
+    const result = await listWorkshopsForManager(
       adminClient,
       actor.userId,
       ROLES.CEO
     );
 
-    expect(workshops).toHaveLength(1);
-    expect(workshopRepository.listWorkshops).toHaveBeenCalled();
+    expect(result.workshops).toHaveLength(1);
+    expect(workshopRepository.listWorkshopsPage).toHaveBeenCalled();
     expect(
       workshopInstructorRepository.listWorkshopInstructorsByUserId
     ).not.toHaveBeenCalled();
     expect(profileRepository.findRoleById).not.toHaveBeenCalled();
   });
 
-  it("returns all workshops for supervisor", async () => {
-    vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
+  it("returns a workshop page for supervisor", async () => {
+    vi.mocked(workshopRepository.listWorkshopsPage).mockResolvedValue({
       data: [workshopRecord],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+      count: 1,
     });
 
-    const workshops = await listWorkshopsForManager(
+    const result = await listWorkshopsForManager(
       adminClient,
       actor.userId,
       ROLES.SUPERVISOR
     );
 
-    expect(workshops).toHaveLength(1);
-    expect(workshopRepository.listWorkshops).toHaveBeenCalled();
+    expect(result.workshops).toHaveLength(1);
+    expect(workshopRepository.listWorkshopsPage).toHaveBeenCalled();
     expect(
       workshopInstructorRepository.listWorkshopInstructorsByUserId
     ).not.toHaveBeenCalled();
@@ -314,23 +305,23 @@ describe("listWorkshopsForManager", () => {
       status: 200,
       statusText: "OK",
     });
-    vi.mocked(workshopRepository.listWorkshopsByIds).mockResolvedValue({
+    vi.mocked(workshopRepository.listWorkshopsPage).mockResolvedValue({
       data: [workshopRecord],
       error: null,
+      count: 1,
     });
 
-    const workshops = await listWorkshopsForManager(
+    const result = await listWorkshopsForManager(
       adminClient,
       actor.userId,
       ROLES.TEACHER
     );
 
-    expect(workshops).toHaveLength(1);
-    expect(workshopRepository.listWorkshopsByIds).toHaveBeenCalledWith(
+    expect(result.workshops).toHaveLength(1);
+    expect(workshopRepository.listWorkshopsPage).toHaveBeenCalledWith(
       adminClient,
-      [workshopId]
+      expect.objectContaining({ ids: [workshopId] })
     );
-    expect(workshopRepository.listWorkshops).not.toHaveBeenCalled();
     expect(profileRepository.findRoleById).not.toHaveBeenCalled();
   });
 
@@ -342,17 +333,15 @@ describe("listWorkshopsForManager", () => {
       status: 200,
       statusText: "OK",
     });
-    vi.mocked(workshopRepository.listWorkshops).mockResolvedValue({
+    vi.mocked(workshopRepository.listWorkshopsPage).mockResolvedValue({
       data: [workshopRecord],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
+      count: 1,
     });
 
-    const workshops = await listWorkshopsForManager(adminClient, actor.userId);
+    const result = await listWorkshopsForManager(adminClient, actor.userId);
 
-    expect(workshops).toHaveLength(1);
+    expect(result.workshops).toHaveLength(1);
     expect(profileRepository.findRoleById).toHaveBeenCalledWith(
       adminClient,
       actor.userId
@@ -677,9 +666,6 @@ describe("getWorkshopForManager", () => {
     ).mockResolvedValue({
       data: [],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
     vi.mocked(
       workshopSessionRepository.listWorkshopSessionsByWorkshopId
@@ -1765,13 +1751,10 @@ describe("createWorkshopPaymentForManager", () => {
       statusText: "OK",
     });
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
       data: [],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
     vi.mocked(workshopPaymentRepository.createWorkshopPayment).mockResolvedValue({
       data: paymentRecord,
@@ -1837,13 +1820,10 @@ describe("createWorkshopPaymentForManager", () => {
       statusText: "OK",
     });
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
       data: [],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
     vi.mocked(workshopPaymentRepository.createWorkshopPayment).mockResolvedValue({
       data: {
@@ -1919,13 +1899,10 @@ describe("createWorkshopPaymentForManager", () => {
       statusText: "OK",
     });
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
       data: [],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
     vi.mocked(workshopPaymentRepository.createWorkshopPayment).mockResolvedValue({
       data: paymentRecord,
@@ -1983,19 +1960,10 @@ describe("createWorkshopPaymentForManager", () => {
       statusText: "OK",
     });
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
-      data: [
-        {
-          workshop_id: workshopId,
-          amount: 100,
-          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
-        },
-      ],
+      data: [{ workshop_id: workshopId, paid_net: 100 }],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
 
     const result = await createWorkshopPaymentForManager(
@@ -2030,19 +1998,10 @@ describe("createWorkshopPaymentForManager", () => {
       statusText: "OK",
     });
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
-      data: [
-        {
-          workshop_id: workshopId,
-          amount: 150,
-          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
-        },
-      ],
+      data: [{ workshop_id: workshopId, paid_net: 150 }],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
 
     const result = await createWorkshopPaymentForManager(
@@ -2091,19 +2050,10 @@ describe("updateWorkshopPaymentForManager", () => {
       statusText: "OK",
     });
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
-      data: [
-        {
-          workshop_id: workshopId,
-          amount: 100,
-          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
-        },
-      ],
+      data: [{ workshop_id: workshopId, paid_net: 100 }],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
     vi.mocked(
       workshopPaymentRepository.updateWorkshopPaymentById
@@ -2177,19 +2127,10 @@ describe("updateWorkshopPaymentForManager", () => {
       statusText: "OK",
     });
     vi.mocked(
-      workshopPaymentRepository.listWorkshopPaymentAmounts
+      workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds
     ).mockResolvedValue({
-      data: [
-        {
-          workshop_id: workshopId,
-          amount: 100,
-          type: WORKSHOP_PAYMENT_TYPES.CREDIT,
-        },
-      ],
+      data: [{ workshop_id: workshopId, paid_net: 100 }],
       error: null,
-      count: null,
-      status: 200,
-      statusText: "OK",
     });
     vi.mocked(
       workshopPaymentRepository.updateWorkshopPaymentById

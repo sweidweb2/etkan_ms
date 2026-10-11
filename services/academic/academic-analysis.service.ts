@@ -5,20 +5,30 @@ import {
 } from "@/lib/constants/manager-class-status";
 import {
   STUDENT_STATUSES,
+  STUDENT_STATUS_VALUES,
   type StudentStatusValue,
 } from "@/lib/constants/manager-student-status";
-import * as classRepository from "@/repositories/class.repository";
-import type { ClassDetailRecord } from "@/repositories/class.repository";
-import * as profileRepository from "@/repositories/profile.repository";
-import * as sessionRepository from "@/repositories/session.repository";
-import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import * as authRepository from "@/repositories/auth.repository";
+import * as academicAnalysisRepository from "@/repositories/academic-analysis.repository";
 import { assertPermission } from "@/services/auth/authorization.service";
-import type { ManagerAcademicAnalysisData } from "@/types/manager-academic-analysis";
+import type {
+  ManagerAcademicAnalysisData,
+  ManagerAcademicAnalysisStudentRow,
+  ManagerAcademicAnalysisStudentsPage,
+} from "@/types/manager-academic-analysis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
+
+const DEFAULT_STUDENT_PAGE_SIZE = 10;
+const MAX_STUDENT_PAGE_SIZE = 25;
+
+export type AcademicAnalysisStudentQuery = {
+  page?: number;
+  pageSize?: number;
+  status?: string | null;
+  search?: string | null;
+};
 
 function mapStudentStatus(status: string | null): StudentStatusValue {
   if (
@@ -45,19 +55,90 @@ function mapClassStatus(status: string | null): ClassStatusValue {
   return CLASS_STATUSES.SCHEDULED;
 }
 
-function buildSessionCountMap(
-  rows: Array<{ class_id: string }> | null | undefined
-) {
-  const counts = new Map<string, number>();
-  for (const row of rows ?? []) {
-    counts.set(row.class_id, (counts.get(row.class_id) ?? 0) + 1);
+function clampPage(page: number | undefined): number {
+  if (!Number.isFinite(page) || page === undefined || page < 1) {
+    return 1;
   }
-  return counts;
+  return Math.floor(page);
+}
+
+function clampPageSize(pageSize: number | undefined): number {
+  if (!Number.isFinite(pageSize) || pageSize === undefined) {
+    return DEFAULT_STUDENT_PAGE_SIZE;
+  }
+  return Math.min(MAX_STUDENT_PAGE_SIZE, Math.max(1, Math.floor(pageSize)));
+}
+
+function normalizeStatus(status: string | null | undefined): string | null {
+  if (!status || status === "all") {
+    return null;
+  }
+  return STUDENT_STATUS_VALUES.includes(status as StudentStatusValue)
+    ? status
+    : null;
+}
+
+function normalizeSearch(search: string | null | undefined): string | null {
+  const cleaned = (search ?? "")
+    .trim()
+    .replace(/[%_\\]/g, "")
+    .slice(0, 80);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+async function loadStudentPage(
+  adminClient: Supabase,
+  query: AcademicAnalysisStudentQuery
+): Promise<ManagerAcademicAnalysisStudentsPage> {
+  const pageSize = clampPageSize(query.pageSize);
+  const page = clampPage(query.page);
+  const { data, error } =
+    await academicAnalysisRepository.listAcademicAnalysisStudents(adminClient, {
+      status: normalizeStatus(query.status),
+      search: normalizeSearch(query.search),
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const students: ManagerAcademicAnalysisStudentRow[] = (
+    data?.students ?? []
+  ).map((row) => ({
+    id: row.id,
+    full_name: row.full_name,
+    username: row.username,
+    status: mapStudentStatus(row.status),
+  }));
+
+  return {
+    students,
+    total: data?.total ?? 0,
+    page: data?.page ?? page,
+    pageSize: data?.page_size ?? pageSize,
+  };
+}
+
+export async function listAcademicAnalysisStudentsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  query: AcademicAnalysisStudentQuery
+): Promise<ManagerAcademicAnalysisStudentsPage> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACADEMIC_ANALYSIS_VIEW
+  );
+
+  return loadStudentPage(adminClient, query);
 }
 
 export async function getAcademicAnalysisForManager(
   adminClient: Supabase,
-  actorUserId: string | null
+  actorUserId: string | null,
+  query: AcademicAnalysisStudentQuery = {}
 ): Promise<ManagerAcademicAnalysisData> {
   await assertPermission(
     adminClient,
@@ -65,92 +146,38 @@ export async function getAcademicAnalysisForManager(
     PERMISSIONS.ACADEMIC_ANALYSIS_VIEW
   );
 
-  const [classesResult, studentsResult] = await Promise.all([
-    classRepository.listClassDetails(adminClient),
-    studentProfileRepository.listStudentProfiles(adminClient),
+  const [countsResult, seriesResult, studentsPage] = await Promise.all([
+    academicAnalysisRepository.academicAnalysisStudentCounts(adminClient),
+    academicAnalysisRepository.listClassSessionProgress(adminClient),
+    loadStudentPage(adminClient, query),
   ]);
 
-  if (classesResult.error) {
-    throw new Error(classesResult.error.message);
+  if (countsResult.error) {
+    throw new Error(countsResult.error.message);
   }
-  if (studentsResult.error) {
-    throw new Error(studentsResult.error.message);
-  }
-
-  const classRecords = (classesResult.data ?? []) as ClassDetailRecord[];
-  const studentProfiles = studentsResult.data ?? [];
-
-  const classIds = classRecords.map((record) => record.id);
-  const userIds = studentProfiles.map((row) => row.user_id);
-
-  const [sessionResult, profilesResult, emailsResult] = await Promise.all([
-    sessionRepository.listSessionCountsByClassIds(adminClient, classIds),
-    profileRepository.listProfilesByIds(adminClient, userIds),
-    authRepository.listAuthEmailsByIds(adminClient, userIds),
-  ]);
-
-  if (sessionResult.error) {
-    throw new Error(sessionResult.error.message);
-  }
-  if (profilesResult.error) {
-    throw new Error(profilesResult.error.message);
-  }
-  if (emailsResult.error) {
-    throw new Error(emailsResult.error.message);
+  if (seriesResult.error) {
+    throw new Error(seriesResult.error.message);
   }
 
-  const sessionCounts = buildSessionCountMap(sessionResult.data);
-  const profileById = new Map(
-    (profilesResult.data ?? []).map((row) => [row.id, row])
-  );
-  const emailById = emailsResult.data;
-
-  const classSessionSeries = classRecords
-    .map((record) => ({
-      classId: record.id,
-      className: record.name,
-      status: mapClassStatus(record.status),
-      actualSessions: sessionCounts.get(record.id) ?? 0,
-      plannedSessions: record.subjects?.nb_sessions ?? 0,
+  const counts = countsResult.data;
+  const classSessionSeries = (seriesResult.data ?? [])
+    .map((row) => ({
+      classId: row.class_id,
+      className: row.class_name,
+      status: mapClassStatus(row.status),
+      actualSessions: row.actual_sessions,
+      plannedSessions: row.planned_sessions,
     }))
     .sort((a, b) => a.className.localeCompare(b.className));
 
-  let active = 0;
-  let inactive = 0;
-  const students: ManagerAcademicAnalysisData["students"] = [];
-
-  for (const studentProfile of studentProfiles) {
-    const profile = profileById.get(studentProfile.user_id);
-    if (!profile) {
-      continue;
-    }
-
-    const status = mapStudentStatus(studentProfile.status);
-    if (status === STUDENT_STATUSES.ACTIVE) {
-      active += 1;
-    } else if (status === STUDENT_STATUSES.INACTIVE) {
-      inactive += 1;
-    }
-
-    students.push({
-      id: studentProfile.id,
-      full_name: studentProfile.full_name,
-      username: profile.username,
-      email: emailById.get(studentProfile.user_id) ?? "",
-      status,
-    });
-  }
-
-  students.sort((a, b) => a.full_name.localeCompare(b.full_name));
-
   return {
-    classCount: classRecords.length,
+    classCount: classSessionSeries.length,
     studentCounts: {
-      active,
-      inactive,
-      total: students.length,
+      active: counts?.active_count ?? 0,
+      inactive: counts?.inactive_count ?? 0,
+      total: counts?.total_count ?? 0,
     },
-    students,
+    studentsPage,
     classSessionSeries,
   };
 }

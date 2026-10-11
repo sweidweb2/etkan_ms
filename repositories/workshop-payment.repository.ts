@@ -74,79 +74,78 @@ export async function listWorkshopPaymentsPage(
     .range(input.offset, input.offset + input.limit - 1);
 }
 
-/** Totals without loading full payment rows (amount/type/workshop_id only). */
-export async function aggregateWorkshopPaymentsTotals(
-  client: Supabase,
-  creditType: string,
-  debitType: string
-) {
-  const [creditsResult, debitsResult, countResult, workshopIdsResult] =
-    await Promise.all([
-      client
-        .from("workshop_payments")
-        .select("amount")
-        .eq("type", creditType),
-      client
-        .from("workshop_payments")
-        .select("amount")
-        .eq("type", debitType),
-      client
-        .from("workshop_payments")
-        .select("id", { count: "exact", head: true }),
-      client.from("workshop_payments").select("workshop_id"),
-    ]);
+export type WorkshopPaymentTotals = {
+  credits: number;
+  debits: number;
+  net: number;
+  payment_count: number;
+  workshops_with_payments: number;
+};
 
-  if (creditsResult.error) {
-    return { data: null, error: creditsResult.error };
-  }
-  if (debitsResult.error) {
-    return { data: null, error: debitsResult.error };
-  }
-  if (countResult.error) {
-    return { data: null, error: countResult.error };
-  }
-  if (workshopIdsResult.error) {
-    return { data: null, error: workshopIdsResult.error };
+/** All-time overview totals via DB aggregate (avoids PostgREST max_rows). */
+export async function aggregateWorkshopPaymentsTotals(client: Supabase) {
+  const { data, error } = await client.rpc("aggregate_workshop_payment_totals");
+
+  if (error) {
+    return { data: null as WorkshopPaymentTotals | null, error };
   }
 
-  const credits = (creditsResult.data ?? []).reduce(
-    (sum, row) => sum + Number(row.amount ?? 0),
-    0
-  );
-  const debits = (debitsResult.data ?? []).reduce(
-    (sum, row) => sum + Number(row.amount ?? 0),
-    0
-  );
-  const workshopIds = new Set(
-    (workshopIdsResult.data ?? [])
-      .map((row) => row.workshop_id)
-      .filter(Boolean)
-  );
+  const row =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
+  const credits = Math.max(0, Number(row.credits) || 0);
+  const debits = Math.max(0, Number(row.debits) || 0);
 
   return {
     data: {
       credits,
       debits,
       net: credits - debits,
-      payment_count: countResult.count ?? 0,
-      workshops_with_payments: workshopIds.size,
-    },
+      payment_count: Math.max(0, Number(row.payment_count) || 0),
+      workshops_with_payments: Math.max(
+        0,
+        Number(row.workshops_with_payments) || 0
+      ),
+    } satisfies WorkshopPaymentTotals,
     error: null,
   };
 }
 
-/** Net paid per workshop without loading full payment rows. */
-export async function listWorkshopPaymentAmounts(
-  client: Supabase,
-  workshopIds?: string[]
-) {
-  const query = client.from("workshop_payments").select("workshop_id, amount, type");
+export type WorkshopPaymentNet = {
+  workshop_id: string;
+  paid_net: number;
+};
 
-  if (workshopIds) {
-    return query.in("workshop_id", workshopIds);
+/** Signed paid-net (credits minus debits) for the given workshops. */
+export async function sumWorkshopPaymentNetsByWorkshopIds(
+  client: Supabase,
+  workshopIds: string[]
+) {
+  if (workshopIds.length === 0) {
+    return { data: [] as WorkshopPaymentNet[], error: null };
   }
 
-  return query;
+  const { data, error } = await client.rpc("sum_workshop_payment_nets", {
+    p_workshop_ids: workshopIds,
+  });
+
+  if (error) {
+    return { data: null as WorkshopPaymentNet[] | null, error };
+  }
+
+  const nets: WorkshopPaymentNet[] = [];
+  for (const row of data ?? []) {
+    if (!row.workshop_id) {
+      continue;
+    }
+    nets.push({
+      workshop_id: row.workshop_id,
+      paid_net: Number(row.paid_net) || 0,
+    });
+  }
+
+  return { data: nets, error: null };
 }
 
 export async function findWorkshopPaymentById(client: Supabase, id: string) {

@@ -1,16 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as authRepository from "@/repositories/auth.repository";
-import * as classRepository from "@/repositories/class.repository";
-import * as profileRepository from "@/repositories/profile.repository";
-import * as sessionRepository from "@/repositories/session.repository";
-import * as studentProfileRepository from "@/repositories/student-profile.repository";
-import { getAcademicAnalysisForManager } from "@/services/academic/academic-analysis.service";
+import * as academicAnalysisRepository from "@/repositories/academic-analysis.repository";
+import {
+  getAcademicAnalysisForManager,
+  listAcademicAnalysisStudentsPageForManager,
+} from "@/services/academic/academic-analysis.service";
 
-vi.mock("@/repositories/class.repository");
-vi.mock("@/repositories/session.repository");
-vi.mock("@/repositories/student-profile.repository");
-vi.mock("@/repositories/profile.repository");
-vi.mock("@/repositories/auth.repository");
+vi.mock("@/repositories/academic-analysis.repository");
 
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
@@ -22,15 +17,7 @@ vi.mock("@/services/auth/authorization.service", () => ({
 const adminClient = {} as never;
 const actorUserId = "11111111-1111-4111-8111-111111111111";
 const classId = "a1a2b3c4-d5e6-7890-abcd-ef1234567890";
-const studentUserId = "b2b3c4d5-e6f7-8901-bcde-f12345678901";
 const studentProfileId = "c3c4d5e6-f7a8-9012-cdef-123456789012";
-
-const okResult = {
-  error: null,
-  count: null,
-  status: 200,
-  statusText: "OK",
-};
 
 describe("getAcademicAnalysisForManager", () => {
   beforeEach(() => {
@@ -41,77 +28,57 @@ describe("getAcademicAnalysisForManager", () => {
     await expect(
       getAcademicAnalysisForManager(adminClient, null)
     ).rejects.toThrow("Unauthorized.");
+    expect(
+      academicAnalysisRepository.academicAnalysisStudentCounts
+    ).not.toHaveBeenCalled();
+    expect(
+      academicAnalysisRepository.listAcademicAnalysisStudents
+    ).not.toHaveBeenCalled();
   });
 
-  it("maps class session series and student status counts", async () => {
-    vi.mocked(classRepository.listClassDetails).mockResolvedValue({
+  it("maps status counts, session series, and the first student page", async () => {
+    vi.mocked(
+      academicAnalysisRepository.academicAnalysisStudentCounts
+    ).mockResolvedValue({
+      data: { active_count: 1, inactive_count: 1, total_count: 2 },
+      error: null,
+    });
+    vi.mocked(
+      academicAnalysisRepository.listClassSessionProgress
+    ).mockResolvedValue({
       data: [
         {
-          id: classId,
-          name: "Intro CS",
-          subject_id: "subj-1",
+          class_id: classId,
+          class_name: "Intro CS",
           status: "in_progress",
-          semester_id: null,
-          created_at: "2026-01-01T00:00:00.000Z",
-          subjects: { name: "CS101", nb_sessions: 12 },
-          semesters: null,
+          actual_sessions: 3,
+          planned_sessions: 12,
         },
       ],
-      ...okResult,
+      error: null,
     });
-    vi.mocked(sessionRepository.listSessionCountsByClassIds).mockResolvedValue({
-      data: [{ class_id: classId }, { class_id: classId }, { class_id: classId }],
-      ...okResult,
-    });
-    vi.mocked(studentProfileRepository.listStudentProfiles).mockResolvedValue({
-      data: [
-        {
-          id: studentProfileId,
-          user_id: studentUserId,
-          full_name: "Ada Lovelace",
-          birth_date: null,
-          phone: null,
-          status: "active",
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: "d4d5e6f7-a8b9-0123-def0-234567890123",
-          user_id: "e5e6f7a8-b9c0-1234-ef01-345678901234",
-          full_name: "Inactive Student",
-          birth_date: null,
-          phone: null,
-          status: "inactive",
-          created_at: "2026-01-02T00:00:00.000Z",
-        },
-      ],
-      ...okResult,
-    });
-    vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
-      data: [
-        {
-          id: studentUserId,
-          username: "ada",
-          role: "student",
-          is_instructor: false,
-          is_mentor: false,
-          created_at: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: "e5e6f7a8-b9c0-1234-ef01-345678901234",
-          username: "inactive",
-          role: "student",
-          is_instructor: false,
-          is_mentor: false,
-          created_at: "2026-01-02T00:00:00.000Z",
-        },
-      ],
-      ...okResult,
-    } as never);
-    vi.mocked(authRepository.listAuthEmailsByIds).mockResolvedValue({
-      data: new Map([
-        [studentUserId, "ada@example.com"],
-        ["e5e6f7a8-b9c0-1234-ef01-345678901234", "inactive@example.com"],
-      ]),
+    vi.mocked(
+      academicAnalysisRepository.listAcademicAnalysisStudents
+    ).mockResolvedValue({
+      data: {
+        total: 2,
+        page: 1,
+        page_size: 10,
+        students: [
+          {
+            id: studentProfileId,
+            full_name: "Ada Lovelace",
+            username: "ada",
+            status: "active",
+          },
+          {
+            id: "d4d5e6f7-a8b9-0123-def0-234567890123",
+            full_name: "Inactive Student",
+            username: "inactive",
+            status: "inactive",
+          },
+        ],
+      },
       error: null,
     });
 
@@ -120,6 +87,14 @@ describe("getAcademicAnalysisForManager", () => {
       actorUserId
     );
 
+    expect(
+      academicAnalysisRepository.listAcademicAnalysisStudents
+    ).toHaveBeenCalledWith(adminClient, {
+      status: null,
+      search: null,
+      limit: 10,
+      offset: 0,
+    });
     expect(result.classCount).toBe(1);
     expect(result.studentCounts).toEqual({
       active: 1,
@@ -135,7 +110,57 @@ describe("getAcademicAnalysisForManager", () => {
         plannedSessions: 12,
       },
     ]);
-    expect(result.students).toHaveLength(2);
-    expect(result.students[0]?.full_name).toBe("Ada Lovelace");
+    expect(result.studentsPage.total).toBe(2);
+    expect(result.studentsPage.students[0]?.full_name).toBe("Ada Lovelace");
+    expect(result.studentsPage.students[0]).not.toHaveProperty("email");
+  });
+});
+
+describe("listAcademicAnalysisStudentsPageForManager", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("clamps page size and forwards status and search", async () => {
+    vi.mocked(
+      academicAnalysisRepository.listAcademicAnalysisStudents
+    ).mockResolvedValue({
+      data: {
+        total: 1,
+        page: 2,
+        page_size: 25,
+        students: [
+          {
+            id: studentProfileId,
+            full_name: "Ada Lovelace",
+            username: "ada",
+            status: "graduated",
+          },
+        ],
+      },
+      error: null,
+    });
+
+    const page = await listAcademicAnalysisStudentsPageForManager(
+      adminClient,
+      actorUserId,
+      {
+        page: 2,
+        pageSize: 500,
+        status: "graduated",
+        search: " ada% ",
+      }
+    );
+
+    expect(
+      academicAnalysisRepository.listAcademicAnalysisStudents
+    ).toHaveBeenCalledWith(adminClient, {
+      status: "graduated",
+      search: "ada",
+      limit: 25,
+      offset: 25,
+    });
+    expect(page.students[0]?.status).toBe("graduated");
+    expect(page.page).toBe(2);
   });
 });

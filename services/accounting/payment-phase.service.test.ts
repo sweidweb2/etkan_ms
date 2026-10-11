@@ -260,7 +260,7 @@ function mockListPhasesForManager(
     statusText: "OK",
   } as never);
   vi.mocked(
-    studentPaymentPhaseRepository.listSppStatusRowsByPaymentPhaseIds
+    studentPaymentPhaseRepository.countSppsByPaymentPhaseIds
   ).mockResolvedValue({
     data: [],
     error: null,
@@ -611,11 +611,15 @@ describe("updatePaymentPhaseForManager", () => {
       nextPhaseStatus: "opened",
     } as never);
     vi.mocked(
-      studentPaymentPhaseRepository.listSppStatusRowsByPaymentPhaseIds
+      studentPaymentPhaseRepository.countSppsByPaymentPhaseIds
     ).mockResolvedValue({
       data: [
-        { payment_phase_id: phaseId, status: "partially_paid" },
-        { payment_phase_id: phaseId, status: "cancelled" },
+        {
+          payment_phase_id: phaseId,
+          active_count: 1,
+          paid_count: 0,
+          upfront_paid_count: 0,
+        },
       ],
       error: null,
     } as never);
@@ -890,11 +894,13 @@ describe("transferStudentPaymentPhaseForManager", () => {
 describe("listPaymentPhasesForManager SPP counts", () => {
   // Upfront 200 of a 1000 phase: one student covered the upfront only, one is
   // short of it, one is fully paid, one is cancelled.
-  const sppStatusRows = [
-    { payment_phase_id: phaseId, status: "partially_paid", total_paid: 200 },
-    { payment_phase_id: phaseId, status: "partially_paid", total_paid: 150 },
-    { payment_phase_id: phaseId, status: "paid", total_paid: 1000 },
-    { payment_phase_id: phaseId, status: "cancelled", total_paid: 0 },
+  const sppPhaseCounts = [
+    {
+      payment_phase_id: phaseId,
+      active_count: 3,
+      paid_count: 1,
+      upfront_paid_count: 2,
+    },
   ];
 
   function mockPhaseList(record: typeof phaseListRecord) {
@@ -906,8 +912,8 @@ describe("listPaymentPhasesForManager SPP counts", () => {
       statusText: "OK",
     } as never);
     vi.mocked(
-      studentPaymentPhaseRepository.listSppStatusRowsByPaymentPhaseIds
-    ).mockResolvedValue({ data: sppStatusRows, error: null } as never);
+      studentPaymentPhaseRepository.countSppsByPaymentPhaseIds
+    ).mockResolvedValue({ data: sppPhaseCounts, error: null } as never);
     mockBillingClass();
   }
 

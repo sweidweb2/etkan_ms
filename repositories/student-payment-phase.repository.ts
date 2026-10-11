@@ -33,40 +33,92 @@ export type CreateStudentPaymentPhaseRecordInput = {
   remaining_amount: number;
 };
 
+const SPP_BY_PHASE_PAGE_SIZE = 1000;
+
+const SPP_BY_PHASE_COLUMNS = "id, payment_phase_id, status, student_id";
+
+export type SppByPhaseRow = {
+  id: string;
+  payment_phase_id: string;
+  status: string;
+  student_id: string;
+};
+
+/** All SPPs for the given phases, paged past PostgREST `max_rows`. */
 export async function listSppsByPaymentPhaseIds(
   client: Supabase,
   paymentPhaseIds: string[]
 ) {
   if (paymentPhaseIds.length === 0) {
-    return { data: [], error: null };
+    return { data: [] as SppByPhaseRow[], error: null };
   }
 
-  return client
-    .from("student_payment_phases")
-    .select("id, payment_phase_id, status, student_id")
-    .in("payment_phase_id", paymentPhaseIds);
+  const rows: SppByPhaseRow[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await client
+      .from("student_payment_phases")
+      .select(SPP_BY_PHASE_COLUMNS)
+      .in("payment_phase_id", paymentPhaseIds)
+      .order("id", { ascending: true })
+      .range(offset, offset + SPP_BY_PHASE_PAGE_SIZE - 1);
+
+    if (error) {
+      return { data: null as SppByPhaseRow[] | null, error };
+    }
+
+    const page = data ?? [];
+    rows.push(...page);
+
+    if (page.length < SPP_BY_PHASE_PAGE_SIZE) {
+      break;
+    }
+
+    offset += SPP_BY_PHASE_PAGE_SIZE;
+  }
+
+  return { data: rows, error: null };
 }
 
-/** Minimal columns for phase list active/paid counts (no student ids). */
-export async function listSppStatusRowsByPaymentPhaseIds(
+export type SppPhaseCounts = {
+  payment_phase_id: string;
+  active_count: number;
+  paid_count: number;
+  upfront_paid_count: number;
+};
+
+/** Active / paid / upfront-paid counts per phase (DB aggregate). */
+export async function countSppsByPaymentPhaseIds(
   client: Supabase,
   paymentPhaseIds: string[]
 ) {
   if (paymentPhaseIds.length === 0) {
-    return {
-      data: [] as Array<{
-        payment_phase_id: string;
-        status: string;
-        total_paid: number;
-      }>,
-      error: null,
-    };
+    return { data: [] as SppPhaseCounts[], error: null };
   }
 
-  return client
-    .from("student_payment_phases")
-    .select("payment_phase_id, status, total_paid")
-    .in("payment_phase_id", paymentPhaseIds);
+  const { data, error } = await client.rpc("count_spps_by_payment_phase", {
+    p_phase_ids: paymentPhaseIds,
+  });
+
+  if (error) {
+    return { data: null as SppPhaseCounts[] | null, error };
+  }
+
+  const counts: SppPhaseCounts[] = [];
+  for (const row of data ?? []) {
+    if (!row.payment_phase_id) {
+      continue;
+    }
+    counts.push({
+      payment_phase_id: row.payment_phase_id,
+      active_count: Math.max(0, Number(row.active_count) || 0),
+      paid_count: Math.max(0, Number(row.paid_count) || 0),
+      upfront_paid_count: Math.max(0, Number(row.upfront_paid_count) || 0),
+    });
+  }
+
+  return { data: counts, error: null };
 }
 
 export async function listSppsByPaymentPhaseId(

@@ -1,5 +1,4 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import type { RoleValue } from "@/lib/constants/roles";
 import {
   assertPermission,
 } from "@/services/auth/authorization.service";
@@ -98,7 +97,7 @@ export async function getClassCreateDialogDataForManager(
   const [subjectsResult, semestersResult, teachersResult] = await Promise.all([
     subjectRepository.listSubjects(adminClient),
     semesterRepository.listSemesters(adminClient),
-    profileRepository.listProfiles(adminClient),
+    profileRepository.listInstructorProfileOptions(adminClient),
   ]);
 
   if (subjectsResult.error) {
@@ -126,7 +125,6 @@ export async function getClassCreateDialogDataForManager(
     teachers: (teachersResult.data ?? []).map((teacher) => ({
       id: teacher.id,
       username: teacher.username,
-      role: teacher.role as RoleValue,
     })),
   };
 }
@@ -211,7 +209,8 @@ export async function listTeacherOptionsForManager(
 ): Promise<ManagerClassTeacherSelectOption[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
 
-  const teachersResult = await profileRepository.listProfiles(adminClient);
+  const teachersResult =
+    await profileRepository.listInstructorProfileOptions(adminClient);
 
   if (teachersResult.error) {
     throw new Error(teachersResult.error.message);
@@ -220,7 +219,6 @@ export async function listTeacherOptionsForManager(
   return (teachersResult.data ?? []).map((teacher) => ({
     id: teacher.id,
     username: teacher.username,
-    role: teacher.role as RoleValue,
   }));
 }
 
@@ -248,10 +246,31 @@ export async function listClassTeacherOptionsForManager(
     (assignmentsResult.data ?? []).map((row) => [row.teacher_id, row.id])
   );
 
-  return teachers.map((teacher) => ({
+  const knownIds = new Set(teachers.map((teacher) => teacher.id));
+  const missingAssignedIds = [...assignmentByTeacherId.keys()].filter(
+    (teacherId) => !knownIds.has(teacherId)
+  );
+
+  let assignedOutsideCatalog: ManagerClassTeacherSelectOption[] = [];
+  if (missingAssignedIds.length > 0) {
+    const extraResult = await profileRepository.listProfileOptionsByIds(
+      adminClient,
+      missingAssignedIds
+    );
+
+    if (extraResult.error) {
+      throw new Error(extraResult.error.message);
+    }
+
+    assignedOutsideCatalog = (extraResult.data ?? []).map((teacher) => ({
+      id: teacher.id,
+      username: teacher.username,
+    }));
+  }
+
+  return [...teachers, ...assignedOutsideCatalog].map((teacher) => ({
     id: teacher.id,
     username: teacher.username,
-    role: teacher.role,
     assigned: assignmentByTeacherId.has(teacher.id),
     assignment_id: assignmentByTeacherId.get(teacher.id) ?? null,
   }));

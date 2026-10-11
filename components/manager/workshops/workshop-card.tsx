@@ -8,10 +8,12 @@ import {
   PencilIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
+import { loadWorkshopRowAction } from "@/app/manager/workshops/actions";
 import { AddWorkshopPaymentDialog } from "@/components/manager/workshops/add-workshop-payment-dialog";
 import { EditWorkshopDialog } from "@/components/manager/workshops/edit-workshop-dialog";
 import { WorkshopSchedulesDialog } from "@/components/manager/workshops/workshop-schedules-dialog";
 import { WorkshopStatusBadge } from "@/components/manager/workshops/workshop-status-badge";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,6 +28,7 @@ import {
   WORKSHOP_PAYMENT_TYPES,
 } from "@/lib/constants/manager-workshop-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { showErrorToast } from "@/lib/toast";
 import { getManagerWorkshopDetailRoute } from "@/lib/constants/routes";
 import {
   getWorkshopPaymentRemainingCap,
@@ -54,6 +57,7 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
   const [workshop, setWorkshop] = useState(initialWorkshop);
   const [prevWorkshop, setPrevWorkshop] = useState(initialWorkshop);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isEditLoading, setIsEditLoading] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [isSchedulesOpen, setIsSchedulesOpen] = useState(false);
   const [paidNet, setPaidNet] = useState(initialWorkshop.paid_net ?? 0);
@@ -147,13 +151,30 @@ export function WorkshopCard({ workshop: initialWorkshop }: WorkshopCardProps) {
               size="sm"
               className="h-7 flex-1 px-2.5 text-xs pointer-events-auto relative z-10 bg-background"
               aria-label={`Edit ${workshop.name}`}
+              disabled={isEditLoading}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                setIsEditOpen(true);
+                if (isEditLoading) {
+                  return;
+                }
+                setIsEditLoading(true);
+                void loadWorkshopRowAction(workshop.id).then((row) => {
+                  setIsEditLoading(false);
+                  if (!row) {
+                    showErrorToast("Unable to load workshop.");
+                    return;
+                  }
+                  setWorkshop({ ...row, paid_net: paidNet });
+                  setIsEditOpen(true);
+                });
               }}
             >
-              <PencilIcon data-icon="inline-start" />
+              {isEditLoading ? (
+                <InlineSpinner className="mr-1.5" />
+              ) : (
+                <PencilIcon data-icon="inline-start" />
+              )}
               Edit
             </Button>
           </Can>

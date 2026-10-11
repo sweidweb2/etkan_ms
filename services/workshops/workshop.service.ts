@@ -43,6 +43,7 @@ export {
   buildWorkshopPaymentSummary,
   buildWorkshopPaymentsTotals,
   getWorkshopForManager,
+  getWorkshopRowForManager,
   getWorkshopPaymentsOverviewForManager,
   listAllWorkshopPaymentsForManager,
   listWorkshopInstructorCandidatesForManager,

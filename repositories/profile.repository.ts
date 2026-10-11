@@ -7,6 +7,8 @@ type Supabase = SupabaseClient<Database>;
 const PROFILE_COLUMNS =
   "id, username, role, is_instructor, is_mentor, created_at";
 
+const PROFILE_OPTION_COLUMNS = "id, username";
+
 export async function findProfileById(client: Supabase, id: string) {
   return client
     .from("profiles")
@@ -139,6 +141,23 @@ export async function listInstructorProfiles(client: Supabase) {
     .select(PROFILE_COLUMNS)
     .eq("is_instructor", true)
     .order("username", { ascending: true });
+}
+
+/** Slim rows for teacher/instructor pickers (`id`, `username` only). */
+export async function listInstructorProfileOptions(client: Supabase) {
+  return client
+    .from("profiles")
+    .select(PROFILE_OPTION_COLUMNS)
+    .eq("is_instructor", true)
+    .order("username", { ascending: true });
+}
+
+export async function listProfileOptionsByIds(client: Supabase, ids: string[]) {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return client.from("profiles").select(PROFILE_OPTION_COLUMNS).in("id", ids);
 }
 
 export async function listInstructorProfileIds(client: Supabase) {

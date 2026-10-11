@@ -258,7 +258,11 @@ function mapWorkshopOfferingType(type: string): WorkshopOfferingType {
   return WORKSHOP_OFFERING_TYPES.WORKSHOP;
 }
 
-export function mapWorkshopRecordToRow(record: WorkshopRecord): ManagerWorkshopRow {
+export function mapWorkshopRecordToRow(
+  record: Omit<WorkshopRecord, "proposal_notes"> & {
+    proposal_notes?: string | null;
+  }
+): ManagerWorkshopRow {
   return {
     id: record.id,
     name: record.name,
@@ -268,7 +272,7 @@ export function mapWorkshopRecordToRow(record: WorkshopRecord): ManagerWorkshopR
     phone: record.phone,
     target_audience: record.target_audience,
     nb_participants: record.nb_participants,
-    proposal_notes: record.proposal_notes,
+    proposal_notes: record.proposal_notes ?? null,
     number_of_sessions: record.number_of_sessions,
     price: record.price,
     start_date: record.start_date,
@@ -465,38 +469,24 @@ export async function syncWorkshopSessionCount(
   return null;
 }
 
-export function paidNetFromAmountRows(
-  rows: Array<{ workshop_id: string; amount: number | null; type: string }>,
-  workshopId: string
-): number {
-  let net = 0;
-  for (const row of rows) {
-    if (row.workshop_id !== workshopId) {
-      continue;
-    }
-    const amount = Number(row.amount ?? 0);
-    net += row.type === WORKSHOP_PAYMENT_TYPES.CREDIT ? amount : -amount;
-  }
-  return net;
-}
-
 export async function resolveWorkshopPaidNet(
   adminClient: Supabase,
   workshopId: string
 ): Promise<{ paidNet: number; error: string | null }> {
   const { data, error } =
-    await workshopPaymentRepository.listWorkshopPaymentAmounts(adminClient, [
-      workshopId,
-    ]);
+    await workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds(
+      adminClient,
+      [workshopId]
+    );
 
   if (error) {
     return { paidNet: 0, error: error.message };
   }
 
-  return {
-    paidNet: paidNetFromAmountRows(data ?? [], workshopId),
-    error: null,
-  };
+  const paidNet =
+    data?.find((row) => row.workshop_id === workshopId)?.paid_net ?? 0;
+
+  return { paidNet, error: null };
 }
 
 export function creditExceedsRemainingError(
@@ -560,32 +550,25 @@ export async function actorCanAccessWorkshop(
 
 export async function attachPaidNet(
   adminClient: Supabase,
-  workshops: ManagerWorkshopRow[],
-  workshopIds?: string[]
+  workshops: ManagerWorkshopRow[]
 ): Promise<ManagerWorkshopRow[]> {
   if (workshops.length === 0) {
     return workshops;
   }
 
   const { data, error } =
-    await workshopPaymentRepository.listWorkshopPaymentAmounts(
+    await workshopPaymentRepository.sumWorkshopPaymentNetsByWorkshopIds(
       adminClient,
-      workshopIds
+      workshops.map((workshop) => workshop.id)
     );
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const netByWorkshop = new Map<string, number>();
-  for (const row of data ?? []) {
-    const amount = Number(row.amount ?? 0);
-    const signed = row.type === WORKSHOP_PAYMENT_TYPES.CREDIT ? amount : -amount;
-    netByWorkshop.set(
-      row.workshop_id,
-      (netByWorkshop.get(row.workshop_id) ?? 0) + signed
-    );
-  }
+  const netByWorkshop = new Map(
+    (data ?? []).map((row) => [row.workshop_id, row.paid_net])
+  );
 
   return workshops.map((workshop) => ({
     ...workshop,

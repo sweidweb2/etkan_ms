@@ -42,7 +42,7 @@ These were addressed on the income-statement / finance path and are **out of sco
 
 Skill prompts: 69–84 (indexes, N+1, column select, pagination, aggregates, avoid whole-table loads).
 
-### A1. Workshop payment totals silently truncated at 1000
+### A1. Workshop payment totals silently truncated at 1000 ✅
 
 - **Severity:** critical  
 - **Skill prompts:** 52, 78, 80  
@@ -50,7 +50,7 @@ Skill prompts: 69–84 (indexes, N+1, column select, pagination, aggregates, avo
 - **Finding:** Loads credit/debit amount rows and workshop ids, then reduces in JS with no `.range` loop. PostgREST `max_rows=1000` truncates → wrong overview totals.  
 - **Suggested fix:** SQL/RPC aggregates (`sum` / `count` / `count(distinct workshop_id)`), or page all selects to exhaustion.
 
-### A2. Workshops list paid-net loads (and truncates) all payment amounts
+### A2. Workshops list paid-net loads (and truncates) all payment amounts ✅
 
 - **Severity:** critical  
 - **Skill prompts:** 48, 80  
@@ -58,7 +58,7 @@ Skill prompts: 69–84 (indexes, N+1, column select, pagination, aggregates, avo
 - **Finding:** `listWorkshopPaymentAmounts` without filter/range pulls the payments table (capped at 1000). Paid-net on the list is wrong and heavy.  
 - **Suggested fix:** RPC `sum(signed amount) group by workshop_id` for listed IDs; always pass `workshopIds`.
 
-### A3. Payment-phase SPP counts unbounded / truncated
+### A3. Payment-phase SPP counts unbounded / truncated ✅
 
 - **Severity:** critical  
 - **Skill prompts:** 78, 80  
@@ -66,7 +66,7 @@ Skill prompts: 69–84 (indexes, N+1, column select, pagination, aggregates, avo
 - **Finding:** All SPP status rows for all phases loaded and counted in JS. >1000 SPPs → silent undercount.  
 - **Suggested fix:** SQL `group by payment_phase_id` RPC/view, or page with `.range`.
 
-### A4. Accounting exceptions load all SPPs without paging
+### A4. Accounting exceptions load all SPPs without paging ✅
 
 - **Severity:** critical  
 - **Skill prompts:** 80, 70  
@@ -114,7 +114,7 @@ Skill prompts: 69–84 (indexes, N+1, column select, pagination, aggregates, avo
 - **Finding:** Full student profiles + in-progress memberships, filter in JS. Hot for accounting/classes pickers.  
 - **Suggested fix:** SQL anti-join with slim columns + limit/page.
 
-### A10. Teacher pickers load every profile
+### A10. Teacher pickers load every profile ✅
 
 - **Severity:** high  
 - **Skill prompts:** 71, 80  
@@ -122,7 +122,7 @@ Skill prompts: 69–84 (indexes, N+1, column select, pagination, aggregates, avo
 - **Finding:** Unfiltered full profiles for teacher select (not even `is_instructor`).  
 - **Suggested fix:** Instructor-filtered slim `id, username` query.
 
-### A11. Calendar “all entity” scope loads all schedule slots
+### A11. Calendar “all entity” scope loads all schedule slots ✅
 
 - **Severity:** high  
 - **Skill prompts:** 52, 80  
@@ -130,7 +130,7 @@ Skill prompts: 69–84 (indexes, N+1, column select, pagination, aggregates, avo
 - **Finding:** Entity-wide paths select all slots with no range → max_rows truncates calendar.  
 - **Suggested fix:** Always scope by `record_id` and/or date window; page if “all” remains.
 
-### A12. Workshops list itself unbounded
+### A12. Workshops list itself unbounded ✅
 
 - **Severity:** medium  
 - **Skill prompts:** 52  
@@ -176,7 +176,7 @@ Skill prompts: 69–84 (indexes, N+1, column select, pagination, aggregates, avo
 
 Skill prompts: 47–59 (payload trim, parallelize, waterfalls, dedupe, pagination, batching).
 
-### B1. Guests page double-fetches entire guests table
+### B1. ✅ Guests page double-fetches entire guests table
 
 - **Severity:** high  
 - **Skill prompts:** 49, 50, 51  
@@ -184,7 +184,7 @@ Skill prompts: 47–59 (payload trim, parallelize, waterfalls, dedupe, paginatio
 - **Finding:** Parallel page load runs two full guest list + email joins.  
 - **Suggested fix:** Load guests once; pass into teams mapper, or teams query only member IDs with a slim select.
 
-### B2. Academic analysis loads all students + Auth Admin emails
+### B2. ✅ Academic analysis loads all students + Auth Admin emails
 
 - **Severity:** high  
 - **Skill prompts:** 48, 50, 56  
@@ -372,7 +372,7 @@ Skill prompts: 1–13 (memo, lists, debounce, virtualize, defer offscreen).
 - **Finding:** Entire catalog in client state; search refilters immediately; TipTap rides along via dialog.  
 - **Suggested fix:** Server filter/page; debounce search; dynamic TipTap dialog.
 
-### D13. Academic analysis holds all students client-side
+### D13. ✅ Academic analysis holds all students client-side
 
 - **Severity:** medium  
 - **Skill prompts:** 5, 52  

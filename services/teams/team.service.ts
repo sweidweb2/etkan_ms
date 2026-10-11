@@ -176,17 +176,45 @@ function auditPayload(record: TeamRecord) {
   };
 }
 
+/**
+ * Guests already loaded by the caller (for example the guests page).
+ * When set, team listing does not query `guests` or registration emails again.
+ */
+type KnownTeamGuests =
+  | readonly ManagerGuestRow[]
+  | Promise<readonly ManagerGuestRow[]>;
+
+async function resolveGuestsForTeams(
+  adminClient: Supabase,
+  knownGuests?: KnownTeamGuests
+): Promise<readonly ManagerGuestRow[]> {
+  if (knownGuests !== undefined) {
+    return knownGuests;
+  }
+
+  const guestsResult = await guestRepository.listGuests(adminClient);
+  if (guestsResult.error) {
+    throw new Error(guestsResult.error.message);
+  }
+
+  return attachGuestRegistrationEmails(
+    adminClient,
+    (guestsResult.data ?? []).map(mapGuestRecordToRow)
+  );
+}
+
 /** Teams with their members resolved from the guests list. */
 export async function listTeamsForManager(
   adminClient: Supabase,
-  actorUserId: string | null
+  actorUserId: string | null,
+  knownGuests?: KnownTeamGuests
 ): Promise<ManagerTeamRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.TEAMS_VIEW);
 
-  const [teamsResult, membershipResult, guestsResult] = await Promise.all([
+  const [teamsResult, membershipResult, guests] = await Promise.all([
     teamRepository.listTeams(adminClient),
     teamRepository.listTeamGuests(adminClient),
-    guestRepository.listGuests(adminClient),
+    resolveGuestsForTeams(adminClient, knownGuests),
   ]);
 
   if (teamsResult.error) {
@@ -195,18 +223,8 @@ export async function listTeamsForManager(
   if (membershipResult.error) {
     throw new Error(membershipResult.error.message);
   }
-  if (guestsResult.error) {
-    throw new Error(guestsResult.error.message);
-  }
 
-  const guestsById = new Map(
-    (
-      await attachGuestRegistrationEmails(
-        adminClient,
-        (guestsResult.data ?? []).map(mapGuestRecordToRow)
-      )
-    ).map((guest) => [guest.id, guest])
-  );
+  const guestsById = new Map(guests.map((guest) => [guest.id, guest]));
 
   const membersByTeam = new Map<string, ManagerGuestRow[]>();
 
