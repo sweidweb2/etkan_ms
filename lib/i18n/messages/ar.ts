@@ -228,17 +228,22 @@ export const ar = {
     "شبكة مصغّرة للحظات المشاريع. ستُملأ الخلايا بالصور عندما تضيفها.",
   "homeActivity.mosaic.ariaLabel": "شبكة صور مشاريع إتقان",
 
-  "homeHeatmap.eyebrow": "الإيقاع",
-  "homeHeatmap.title": "خريطة حرارية للتعلّم والعمل",
-  "homeHeatmap.lead":
-    "خريطة بأسلوب المساهمات بلون إتقان—الخلايا القوية تُظهر كم يظهر المجتمع ليتعلّم وينجز.",
-  "homeHeatmap.ariaLabel": "خريطة حرارية تُظهر كثافة عالية للتعلّم والعمل في إتقان",
-  "homeHeatmap.less": "أقل",
-  "homeHeatmap.more": "أكثر",
-
   "courseLogos.eyebrow": "ماذا نعلّم",
   "courseLogos.title": "دورات عبر البرمجة والعتاد والصناعة",
   "courseLogos.ariaLabel": "مواضيع دورات إتقان",
+
+  "homeLearningPath.title": "من التعلّم وحدك عبر الإنترنت إلى مسار واضح",
+  "homeLearningPath.lead":
+    "الموارد العشوائية تتركك تخمّن. إتقان يحوّل التعلّم إلى بنية يمكنك اتباعها.",
+  "homeLearningPath.step1.title": "التعلّم وحدك",
+  "homeLearningPath.step1.body":
+    "دروس وفيديوهات ومنشورات—كلّها مفيدة، ولا يشكّل أيّ منها مسارًا.",
+  "homeLearningPath.step2.title": "المهارات تبدأ بالتجمّع",
+  "homeLearningPath.step2.body":
+    "تجمع قطعًا، لكن التقدّم يبقى غير متساوٍ—فجوات ومسارات مسدودة بلا خطوة تالية واضحة.",
+  "homeLearningPath.step3.title": "منظّم مع إتقان",
+  "homeLearningPath.step3.body":
+    "مسار واحد ومشاريع موجّهة ومجتمع، فيتراكم التعلّم بدل أن يتشتت.",
 
   "projects.section.students.title": "مشاريع الطلاب",
   "projects.section.students.lead":

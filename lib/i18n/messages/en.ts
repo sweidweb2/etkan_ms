@@ -227,17 +227,22 @@ export const en = {
     "A zoomed-out grid of project moments. Photos will fill these cells as you add them.",
   "homeActivity.mosaic.ariaLabel": "Grid of Etkan project images",
 
-  "homeHeatmap.eyebrow": "Rhythm",
-  "homeHeatmap.title": "Learning & working heatmap",
-  "homeHeatmap.lead":
-    "A contribution-style map tinted in Etkan’s color—strong cells show how often the community shows up to learn and ship.",
-  "homeHeatmap.ariaLabel": "Activity heatmap showing high density of learning and work at Etkan",
-  "homeHeatmap.less": "Less",
-  "homeHeatmap.more": "More",
-
   "courseLogos.eyebrow": "What we teach",
   "courseLogos.title": "Courses across code, hardware, and making",
   "courseLogos.ariaLabel": "Etkan course topics",
+
+  "homeLearningPath.title": "From alone online to a clear path",
+  "homeLearningPath.lead":
+    "Random resources leave you guessing. Etkan turns learning into a structure you can follow.",
+  "homeLearningPath.step1.title": "Learning alone",
+  "homeLearningPath.step1.body":
+    "Tutorials, videos, and posts—each helpful, none of them a path.",
+  "homeLearningPath.step2.title": "Skills start to gather",
+  "homeLearningPath.step2.body":
+    "You pick up pieces, but progress stays uneven—gaps, dead ends, and no clear next step.",
+  "homeLearningPath.step3.title": "Structured with Etkan",
+  "homeLearningPath.step3.body":
+    "One path, guided projects, and a community so learning compounds instead of scattering.",
 
   "projects.section.students.title": "Student projects",
   "projects.section.students.lead":
