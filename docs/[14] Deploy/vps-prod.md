@@ -155,6 +155,8 @@ Extra findings:
 | `prod-api` TLS / hairpin | Curling the public name from the VPS itself | `curl --resolve prod-api.etkan.org:443:127.0.0.1` or check Caddy logs for `certificate obtained` |
 | Empty-looking “Cloud data” on the homepage | Same Next marketing UI | Count `auth.users` on `supabase_db_etkan_ms_prod` |
 | Prod still showing Cloud panel data | Would mean baked `NEXT_PUBLIC_SUPABASE_URL` is still `*.supabase.co` | Print URL from `.env.production` and `docker exec etkan-prod-web printenv NEXT_PUBLIC_SUPABASE_URL` (URLs only) |
+| Live toasts / bell badge never update; no `wss://…/realtime/v1/websocket` in DevTools | `[realtime] enabled = false` in `~/etkan_supabase_prod/supabase/config.toml` (no Realtime container; Kong returns `503 name resolution failed`) | Set `enabled = true`, then `npx supabase stop && npx supabase start` in that folder. Keep Realtime out of `--exclude`. |
+| Realtime WS flaky through Caddy | `encode gzip` on `api` / `prod-api` hosts | Do **not** put `encode gzip` on those API host blocks (committed `Caddyfile`). |
 
 ## What a prod deploy must not do
 
