@@ -32,12 +32,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (including *.example) — never commit
 .env*
-!.env.example
-!.env.staging.example
-!.env.production.example
-!.env.supabase.vps.example
+
+# local Next / Supabase config (ports can differ per machine)
+next.config.ts
+supabase/config.toml
 
 # vercel
 .vercel
