@@ -77,7 +77,7 @@ Phased plan for moving manager gallery from Google Drive URL paste to Supabase S
 - Local migration `20261011120000` applied; `gallery` bucket present (15MB) — skipped full `db reset` (destructive; not required)
 - Smoke: `npm run smoke:gallery` → [`scripts/smoke-gallery-storage.ts`](../../scripts/smoke-gallery-storage.ts) — upload → replace (old object removed) → delete (no orphan)
 - Unit tests: `lib/manager/gallery/*` + `gallery-image-url` (22 passed)
-- Optional later (out of scope): one-off script to pull Drive files into Storage
+- Drive → Storage one-shot: [`scripts/migrate-gallery-from-drive.ts`](../../scripts/migrate-gallery-from-drive.ts)
 
 ```mermaid
 flowchart LR
@@ -89,8 +89,37 @@ flowchart LR
   DB --> Public[Public gallery About]
 ```
 
+## Drive → Storage migration
+
+Inventory: [`public/drive images/google_drive_images.json`](../../public/drive%20images/google_drive_images.json)
+
+**Local (needs Drive once):**
+
+```powershell
+npm run migrate:gallery-drive
+```
+
+Downloads each Drive file → Sharp WebP → uploads to local `gallery` bucket → upserts `gallery_images.direct_url` → writes:
+
+- `supabase/dumps/storage/gallery/` (files; gitignored)
+- `scripts/data/gallery-migrate-manifest.json` (status + object paths)
+
+Re-run the same command to retry failures; already-migrated rows skip.
+
+**Deploy / another env (no Drive):**
+
+1. Copy `supabase/dumps/storage/gallery/` + the manifest to the machine (or keep them from the local run).
+2. Point `.env` at that Supabase (`NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`).
+3. Ensure the `gallery` bucket migration is applied.
+4. Run:
+
+```powershell
+npm run migrate:gallery-from-dump
+```
+
+That uploads dump WebPs into the current bucket and inserts/updates DB rows with the correct public URLs for that env.
+
 ## Out of scope
 
 - Runtime/dynamic buckets
-- Full automated Drive → Storage migration (optional follow-up)
 - Changing public marquee layout design

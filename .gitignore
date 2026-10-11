@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Cloud → VPS dumps (PII / passwords hashes). Never commit.
 /tmp/cloud-dump/
+
+# Local Storage dumps (binary). Manifest under scripts/data/ is OK to commit.
+/supabase/dumps/storage/

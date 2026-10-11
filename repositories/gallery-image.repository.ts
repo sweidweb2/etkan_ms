@@ -89,3 +89,11 @@ export async function bulkInsertGalleryImages(
 export async function listExistingDirectUrls(client: Supabase) {
   return client.from("gallery_images").select("direct_url");
 }
+
+/** Full list for seed/migrate scripts (no UI page limit). */
+export async function listAllGalleryImages(client: Supabase) {
+  return client
+    .from("gallery_images")
+    .select("id, name, direct_url")
+    .order("created_at", { ascending: false });
+}

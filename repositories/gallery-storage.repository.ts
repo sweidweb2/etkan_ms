@@ -29,7 +29,8 @@ export async function uploadGalleryImage(
   client: Supabase,
   storagePath: string,
   body: Blob | ArrayBuffer | File | Buffer | Uint8Array,
-  contentType: string
+  contentType: string,
+  options?: { upsert?: boolean }
 ): Promise<{ error: { message: string } | null }> {
   const { objectPath } = splitGalleryImageStoragePath(storagePath);
   const uploadBody = toUploadBlob(body, contentType);
@@ -38,7 +39,7 @@ export async function uploadGalleryImage(
     .from(GALLERY_STORAGE_BUCKET)
     .upload(objectPath, uploadBody, {
       contentType,
-      upsert: false,
+      upsert: options?.upsert ?? false,
     });
 
   if (error) {
