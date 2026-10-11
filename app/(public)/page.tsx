@@ -1,5 +1,6 @@
 import dynamic from "next/dynamic";
 import { HomeHero } from "@/components/public/home-hero";
+import { HomeLearningPathSection } from "@/components/public/home-learning-path-section";
 
 const HomeCareerStagesSection = dynamic(
   () =>
@@ -31,12 +32,6 @@ const HomeCourseLogosSection = dynamic(
       default: mod.HomeCourseLogosSection,
     }))
 );
-const HomeHeatmapSection = dynamic(
-  () =>
-    import("@/components/public/home-heatmap-section").then((mod) => ({
-      default: mod.HomeHeatmapSection,
-    }))
-);
 const HomeContactCtaSection = dynamic(
   () =>
     import("@/components/public/home-contact-cta-section").then((mod) => ({
@@ -53,7 +48,7 @@ export default function HomePage() {
       <HomeTestimonialsSection />
       <HomeJourneySection />
       <HomeCourseLogosSection />
-      <HomeHeatmapSection />
+      <HomeLearningPathSection />
       <HomeContactCtaSection />
     </>
   );
