@@ -4,6 +4,12 @@ import {
   BLOGS_STORAGE_BUCKET,
   splitBlogImageStoragePath,
 } from "@/lib/manager/blogs/storage-path";
+import {
+  getObjectPublicUrl,
+  removeObjects,
+  uploadObject,
+  type StorageObjectBody,
+} from "@/repositories/object-storage.repository";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -16,21 +22,11 @@ export async function uploadBlogImage(
   client: Supabase,
   bucket: BlogBucket,
   storagePath: string,
-  body: Blob | ArrayBuffer | File | Buffer,
+  body: StorageObjectBody,
   contentType: string
 ): Promise<{ error: { message: string } | null }> {
   const { objectPath } = splitBlogImageStoragePath(storagePath, bucket);
-
-  const { error } = await client.storage.from(bucket).upload(objectPath, body, {
-    contentType,
-    upsert: false,
-  });
-
-  if (error) {
-    return { error: { message: error.message } };
-  }
-
-  return { error: null };
+  return uploadObject(client, bucket, objectPath, body, contentType);
 }
 
 export function getBlogImagePublicUrl(
@@ -39,8 +35,7 @@ export function getBlogImagePublicUrl(
   storagePath: string
 ): string {
   const { objectPath } = splitBlogImageStoragePath(storagePath, bucket);
-  const { data } = client.storage.from(bucket).getPublicUrl(objectPath);
-  return data.publicUrl;
+  return getObjectPublicUrl(client, bucket, objectPath);
 }
 
 export async function removeBlogImages(
@@ -56,11 +51,5 @@ export async function removeBlogImages(
     (path) => splitBlogImageStoragePath(path, bucket).objectPath
   );
 
-  const { error } = await client.storage.from(bucket).remove(objectPaths);
-
-  if (error) {
-    return { error: { message: error.message } };
-  }
-
-  return { error: null };
+  return removeObjects(client, bucket, objectPaths);
 }

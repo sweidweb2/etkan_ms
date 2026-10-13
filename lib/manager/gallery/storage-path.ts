@@ -60,26 +60,3 @@ export function getGalleryImagePublicUrl(
   const base = supabaseUrl.replace(/\/$/, "");
   return `${base}/storage/v1/object/public/${bucket}/${objectPath}`;
 }
-
-/**
- * Object key inside the `gallery` bucket, if `directUrl` is a public Storage URL
- * for that bucket. Returns null for Drive / external URLs.
- */
-export function getGalleryImageObjectPathFromPublicUrl(
-  directUrl: string
-): string | null {
-  try {
-    const parsed = new URL(directUrl);
-    const marker = `/storage/v1/object/public/${GALLERY_STORAGE_BUCKET}/`;
-    const index = parsed.pathname.indexOf(marker);
-    if (index === -1) {
-      return null;
-    }
-    const objectPath = decodeURIComponent(
-      parsed.pathname.slice(index + marker.length)
-    );
-    return objectPath.length > 0 ? objectPath : null;
-  } catch {
-    return null;
-  }
-}

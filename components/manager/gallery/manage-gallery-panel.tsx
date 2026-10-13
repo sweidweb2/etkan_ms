@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -12,7 +12,10 @@ import {
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
-import { deleteGalleryImageAction } from "@/app/manager/gallery/actions";
+import {
+  deleteGalleryImageAction,
+  loadGalleryImagesPageAction,
+} from "@/app/manager/gallery/actions";
 import { Can } from "@/components/auth/can";
 import { AddGalleryImageDialog } from "@/components/manager/gallery/add-gallery-image-dialog";
 import { EditGalleryImageDialog } from "@/components/manager/gallery/edit-gallery-image-dialog";
@@ -47,17 +50,18 @@ import { useFormActionState as useActionState } from "@/hooks/use-form-action-st
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { GALLERY_MANAGER_PAGE_SIZE_OPTIONS } from "@/lib/constants/manager-gallery";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { toEmbeddableGalleryImageUrl } from "@/lib/utils/gallery-image-url";
-import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   DeleteGalleryImageActionState,
   ManagerGalleryImageRow,
+  ManagerGalleryListData,
 } from "@/types/manager-gallery-image";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const PAGE_SIZE_OPTIONS = GALLERY_MANAGER_PAGE_SIZE_OPTIONS;
 const COLUMN_LIMITS = {
   name: 36,
   url: 48,
@@ -106,21 +110,18 @@ function TruncatedCell({
 
 function GalleryThumb({
   name,
-  directUrl,
+  url,
   className,
 }: {
   name: string;
-  directUrl: string;
+  url: string;
   className?: string;
 }) {
-  const src = toEmbeddableGalleryImageUrl(directUrl);
-
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- Drive + Storage URLs; Phase 5 may switch Storage to next/image
+    // eslint-disable-next-line @next/next/no-img-element -- small manager preview
     <img
-      src={src}
+      src={url}
       alt={name}
-      referrerPolicy="no-referrer"
       className={cn("bg-muted object-cover", className)}
       loading="lazy"
     />
@@ -139,9 +140,9 @@ function ImageActions({
   return (
     <div className="flex items-center justify-end gap-1">
       <CopyTextButton
-        value={image.direct_url}
+        value={image.url}
         label={`Copy URL for ${image.name}`}
-        successMessage="Direct URL copied."
+        successMessage="Image URL copied."
       />
       <Can permission={PERMISSIONS.GALLERY_UPDATE}>
         <Button
@@ -198,34 +199,28 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function matchesSearch(image: ManagerGalleryImageRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const haystack = [image.name, image.direct_url].join(" ").toLowerCase();
-  return haystack.includes(normalizedQuery);
-}
-
 export function ManageGalleryPanel({
-  initialImages,
+  initialData,
 }: {
-  initialImages: ManagerGalleryImageRow[];
+  initialData: ManagerGalleryListData;
 }) {
-  const [images, setImages] = useState(initialImages);
-  const [prevImages, setPrevImages] = useState(initialImages);
+  const [list, setList] = useState(initialData);
   const [viewMode, setViewMode] = useState<GalleryViewMode>("table");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingImage, setEditingImage] =
     useState<ManagerGalleryImageRow | null>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<ManagerGalleryImageRow | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
+    initialData.pageSize as (typeof PAGE_SIZE_OPTIONS)[number]
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialData.page);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const requestKey = `${currentPage}|${pageSize}|${appliedSearch}|${refreshToken}`;
+  const loadedKeyRef = useRef(requestKey);
+  const appliedSearchRef = useRef(appliedSearch);
 
   const [deleteState, deleteAction, isDeletePending] = useActionState(
     deleteGalleryImageAction,
@@ -234,17 +229,56 @@ export function ManageGalleryPanel({
 
   useActionStateToast(deleteState, isDeletePending);
 
-  if (initialImages !== prevImages) {
-    setPrevImages(initialImages);
-    setImages(initialImages);
-  }
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      const nextSearch = searchInput.trim();
+      if (appliedSearchRef.current === nextSearch) {
+        return;
+      }
+      appliedSearchRef.current = nextSearch;
+      setAppliedSearch(nextSearch);
+      setCurrentPage(1);
+    }, 300);
+
+    return () => window.clearTimeout(handle);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (loadedKeyRef.current === requestKey) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void loadGalleryImagesPageAction({
+      page: currentPage,
+      pageSize,
+      search: appliedSearch,
+    }).then((result) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (!result.success) {
+        showErrorToast(result.error);
+        return;
+      }
+
+      loadedKeyRef.current = `${result.data.page}|${result.data.pageSize}|${appliedSearch}|${refreshToken}`;
+      setList(result.data);
+      if (result.data.page !== currentPage) {
+        setCurrentPage(result.data.page);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedSearch, currentPage, pageSize, refreshToken, requestKey]);
 
   useActionStateSuccess(deleteState, isDeletePending, () => {
-    if (deleteTarget) {
-      const removedId = deleteTarget.id;
-      setImages((current) => current.filter((row) => row.id !== removedId));
-    }
     setDeleteTarget(null);
+    setRefreshToken((token) => token + 1);
   });
 
   const handleDeleteOpenChange = usePendingAwareOpenChange(
@@ -256,35 +290,24 @@ export function ManageGalleryPanel({
     }
   );
 
-  const filteredImages = useMemo(() => {
-    return images.filter((image) => matchesSearch(image, searchQuery));
-  }, [images, searchQuery]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredImages.length / pageSize)
-  );
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const images = list.images;
+  const totalPages = Math.max(1, Math.ceil(list.totalCount / list.pageSize));
+  const safeCurrentPage = list.page;
   const rangeStart =
-    filteredImages.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+    list.totalCount === 0 ? 0 : (safeCurrentPage - 1) * list.pageSize + 1;
   const rangeEnd = Math.min(
-    safeCurrentPage * pageSize,
-    filteredImages.length
-  );
-  const paginatedImages = filteredImages.slice(
-    (safeCurrentPage - 1) * pageSize,
-    safeCurrentPage * pageSize
+    safeCurrentPage * list.pageSize,
+    list.totalCount
   );
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
 
   const emptyMessage =
-    images.length === 0
+    list.catalogCount === 0
       ? "No gallery images yet. Add one to get started."
       : "No images match your search.";
 
   function handleSearchChange(value: string) {
-    setSearchQuery(value);
-    setCurrentPage(1);
+    setSearchInput(value);
   }
 
   function handlePageSizeChange(value: string | null) {
@@ -330,9 +353,12 @@ export function ManageGalleryPanel({
         <AddGalleryImageDialog
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
-          onImageCreated={(image) => {
-            setImages((current) => prependUniqueById(current, image));
+          onImageCreated={() => {
+            appliedSearchRef.current = "";
+            setSearchInput("");
+            setAppliedSearch("");
             setCurrentPage(1);
+            setRefreshToken((token) => token + 1);
           }}
         />
 
@@ -345,12 +371,10 @@ export function ManageGalleryPanel({
           }}
           image={editingImage}
           onImageUpdated={(image) => {
-            setImages((current) =>
-              current.map((row) => (row.id === image.id ? image : row))
-            );
             setEditingImage((current) =>
               current?.id === image.id ? image : current
             );
+            setRefreshToken((token) => token + 1);
           }}
         />
 
@@ -400,12 +424,12 @@ export function ManageGalleryPanel({
         <div className="grid gap-4 sm:grid-cols-2">
           <UserStatCard
             label="Total images"
-            value={images.length}
+            value={list.catalogCount}
             accentClassName="border-l-sky-500"
           />
           <UserStatCard
             label="Matching search"
-            value={filteredImages.length}
+            value={list.totalCount}
             accentClassName="border-l-violet-500"
           />
         </div>
@@ -442,9 +466,9 @@ export function ManageGalleryPanel({
               <div className="relative max-w-md">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  value={searchQuery}
+                  value={searchInput}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search name or URL…"
+                  placeholder="Search name…"
                   className="pl-8"
                   aria-label="Search gallery images"
                 />
@@ -458,7 +482,7 @@ export function ManageGalleryPanel({
                     <tr className="border-b bg-muted/40 text-left">
                       <th className="px-4 py-3 font-medium">Preview</th>
                       <th className="px-4 py-3 font-medium">Name</th>
-                      <th className="px-4 py-3 font-medium">Direct URL</th>
+                      <th className="px-4 py-3 font-medium">URL</th>
                       <th className="px-4 py-3 font-medium">Added</th>
                       <th className="px-4 py-3 font-medium text-right">
                         Actions
@@ -466,7 +490,7 @@ export function ManageGalleryPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedImages.length === 0 ? (
+                    {images.length === 0 ? (
                       <tr>
                         <td
                           colSpan={5}
@@ -476,7 +500,7 @@ export function ManageGalleryPanel({
                         </td>
                       </tr>
                     ) : (
-                      paginatedImages.map((image) => (
+                      images.map((image) => (
                         <tr
                           key={image.id}
                           className="border-b last:border-b-0 hover:bg-muted/30"
@@ -484,7 +508,7 @@ export function ManageGalleryPanel({
                           <td className="px-4 py-3">
                             <GalleryThumb
                               name={image.name}
-                              directUrl={image.direct_url}
+                              url={image.url}
                               className="size-12 rounded-md"
                             />
                           </td>
@@ -496,7 +520,7 @@ export function ManageGalleryPanel({
                           </td>
                           <td className="max-w-[20rem] px-4 py-3 text-muted-foreground">
                             <TruncatedCell
-                              value={image.direct_url}
+                              value={image.url}
                               maxLength={COLUMN_LIMITS.url}
                               className="min-w-0"
                             />
@@ -517,20 +541,20 @@ export function ManageGalleryPanel({
                   </tbody>
                 </table>
               </div>
-            ) : paginatedImages.length === 0 ? (
+            ) : images.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </p>
             ) : (
               <ul className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {paginatedImages.map((image) => (
+                {images.map((image) => (
                   <li
                     key={image.id}
                     className="overflow-hidden rounded-lg border bg-card"
                   >
                     <GalleryThumb
                       name={image.name}
-                      directUrl={image.direct_url}
+                      url={image.url}
                       className="aspect-[4/3] w-full"
                     />
                     <div className="flex flex-col gap-2 p-3">
@@ -556,7 +580,7 @@ export function ManageGalleryPanel({
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>
-                  Showing {rangeStart}–{rangeEnd} of {filteredImages.length}
+                  Showing {rangeStart}–{rangeEnd} of {list.totalCount}
                 </span>
                 <span aria-hidden="true">·</span>
                 <div className="flex items-center gap-2">

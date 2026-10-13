@@ -691,7 +691,7 @@ No N+1 DB loops. Image work is Supabase Storage, not REST table chatter. **Do no
 | Function | Round trips | Notes |
 |----------|-------------|-------|
 | `listGalleryImagesForManager` | 2 | perm → list |
-| `createGalleryImageForManager` | 3 | perm → insert (`direct_url` only — no storage upload) → audit |
+| `createGalleryImageFromUploadForManager` | 3 | perm → upload → insert `storage_path` → audit |
 | `updateGalleryImageForManager` | 4 | perm → find → update → audit |
 | `deleteGalleryImageForManager` | 4 | perm → find → delete → audit |
 

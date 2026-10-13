@@ -128,7 +128,7 @@ export function AddGalleryImageDialog({
           <DialogTitle>Add gallery image</DialogTitle>
           <DialogDescription>
             Upload an image (JPEG, PNG, WebP, or GIF, max 15 MB). It is
-            optimized and stored in Supabase Storage.
+            stored in Supabase Storage.
           </DialogDescription>
         </DialogHeader>
 

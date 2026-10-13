@@ -24,7 +24,10 @@ export const GALLERY_IMAGE_ACCEPT = [
   ...GALLERY_IMAGE_ALLOWED_EXTENSIONS,
 ].join(",");
 
-/** Longest edge after resize (px). */
-export const GALLERY_IMAGE_MAX_EDGE = 2048;
+/** Newest images rendered on the public gallery and about marquees. */
+export const PUBLIC_GALLERY_LIMIT = 48;
 
-export const GALLERY_IMAGE_WEBP_QUALITY = 82;
+/** Default manager list page size. */
+export const GALLERY_MANAGER_PAGE_SIZE = 12;
+
+export const GALLERY_MANAGER_PAGE_SIZE_OPTIONS = [12, 24, 48] as const;

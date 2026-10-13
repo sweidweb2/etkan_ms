@@ -3,6 +3,11 @@ import {
   REGISTRATION_STORAGE_BUCKET,
   splitRegistrationStoragePath,
 } from "@/lib/public/registration/storage-path";
+import {
+  removeObjects,
+  uploadObject,
+  type StorageObjectBody,
+} from "@/repositories/object-storage.repository";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -10,23 +15,17 @@ type Supabase = SupabaseClient<Database>;
 export async function uploadRegistrationStorageObject(
   client: Supabase,
   storagePath: string,
-  body: Blob | ArrayBuffer | File | Buffer,
+  body: StorageObjectBody,
   contentType: string
 ): Promise<{ error: { message: string } | null }> {
   const { objectPath } = splitRegistrationStoragePath(storagePath);
-
-  const { error } = await client.storage
-    .from(REGISTRATION_STORAGE_BUCKET)
-    .upload(objectPath, body, {
-      contentType,
-      upsert: false,
-    });
-
-  if (error) {
-    return { error: { message: error.message } };
-  }
-
-  return { error: null };
+  return uploadObject(
+    client,
+    REGISTRATION_STORAGE_BUCKET,
+    objectPath,
+    body,
+    contentType
+  );
 }
 
 export async function removeRegistrationStorageObjects(
@@ -41,15 +40,7 @@ export async function removeRegistrationStorageObjects(
     (path) => splitRegistrationStoragePath(path).objectPath
   );
 
-  const { error } = await client.storage
-    .from(REGISTRATION_STORAGE_BUCKET)
-    .remove(objectPaths);
-
-  if (error) {
-    return { error: { message: error.message } };
-  }
-
-  return { error: null };
+  return removeObjects(client, REGISTRATION_STORAGE_BUCKET, objectPaths);
 }
 
 /**
@@ -71,16 +62,13 @@ export async function moveRegistrationStorageObject(
     return { error: { message: copyError.message } };
   }
 
-  const { error: removeError } = await client.storage
-    .from(REGISTRATION_STORAGE_BUCKET)
-    .remove([from.objectPath]);
+  const removed = await removeObjects(client, REGISTRATION_STORAGE_BUCKET, [
+    from.objectPath,
+  ]);
 
-  if (removeError) {
-    // Best-effort cleanup of destination if temp delete fails after copy.
-    await client.storage
-      .from(REGISTRATION_STORAGE_BUCKET)
-      .remove([to.objectPath]);
-    return { error: { message: removeError.message } };
+  if (removed.error) {
+    await removeObjects(client, REGISTRATION_STORAGE_BUCKET, [to.objectPath]);
+    return removed;
   }
 
   return { error: null };

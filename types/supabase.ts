@@ -694,23 +694,23 @@ export type Database = {
       gallery_images: {
         Row: {
           created_at: string
-          direct_url: string
           id: string
           name: string
+          storage_path: string
           updated_at: string
         }
         Insert: {
           created_at?: string
-          direct_url: string
           id?: string
           name: string
+          storage_path: string
           updated_at?: string
         }
         Update: {
           created_at?: string
-          direct_url?: string
           id?: string
           name?: string
+          storage_path?: string
           updated_at?: string
         }
         Relationships: []

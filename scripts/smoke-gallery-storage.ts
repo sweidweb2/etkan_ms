@@ -3,34 +3,26 @@
  *
  * Usage: npx tsx scripts/smoke-gallery-storage.ts
  */
-import sharp from "sharp";
-import { optimizeGalleryImage } from "@/lib/manager/gallery/optimize-image";
 import {
   buildGalleryImageStoragePath,
-  getGalleryImageObjectPathFromPublicUrl,
+  splitGalleryImageStoragePath,
 } from "@/lib/manager/gallery/storage-path";
 import * as galleryImageRepository from "@/repositories/gallery-image.repository";
-import * as galleryStorageRepository from "@/repositories/gallery-storage.repository";
+import {
+  removeObjects,
+  uploadObject,
+} from "@/repositories/object-storage.repository";
 import { createSeedAdminClient } from "@/scripts/lib/create-seed-admin-client";
 
-async function makePngFile(name: string, color: {
-  r: number;
-  g: number;
-  b: number;
-}): Promise<File> {
-  const buffer = await sharp({
-    create: {
-      width: 64,
-      height: 64,
-      channels: 3,
-      background: color,
-    },
-  })
-    .png()
-    .toBuffer();
+/** 1×1 PNG. Built without Sharp so the smoke path matches production uploads. */
+const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64"
+);
 
-  const copy = new ArrayBuffer(buffer.byteLength);
-  new Uint8Array(copy).set(buffer);
+function pngFile(name: string): File {
+  const copy = new ArrayBuffer(TINY_PNG.byteLength);
+  new Uint8Array(copy).set(TINY_PNG);
   return new File([copy], name, { type: "image/png" });
 }
 
@@ -68,100 +60,78 @@ async function main() {
   const nameA = `smoke-gallery-a-${stamp}`;
   const nameB = `smoke-gallery-b-${stamp}`;
 
-  console.log("1) Optimize + upload first image…");
-  const fileA = await makePngFile(`${nameA}.png`, { r: 20, g: 80, b: 160 });
-  const optimizedA = await optimizeGalleryImage({
-    bytes: await fileA.arrayBuffer(),
-    mimeType: fileA.type,
-    originalFileName: fileA.name,
-    byteLength: fileA.size,
-  });
-  assert(optimizedA.success, "optimize A failed");
-
-  const pathA = buildGalleryImageStoragePath(optimizedA.fileName);
-  const uploadA = await galleryStorageRepository.uploadGalleryImage(
+  console.log("1) Upload original PNG…");
+  const fileA = pngFile(`${nameA}.png`);
+  const pathA = buildGalleryImageStoragePath(fileA.name);
+  const splitA = splitGalleryImageStoragePath(pathA);
+  const uploadA = await uploadObject(
     client,
-    pathA,
-    new Uint8Array(optimizedA.buffer),
-    optimizedA.contentType
+    splitA.bucket,
+    splitA.objectPath,
+    fileA,
+    fileA.type
   );
   assert(!uploadA.error, uploadA.error?.message ?? "upload A failed");
-
-  const urlA = galleryStorageRepository.getGalleryImagePublicUrl(client, pathA);
-  const objectA = getGalleryImageObjectPathFromPublicUrl(urlA);
-  assert(objectA, "could not parse object path from url A");
-  assert(await objectExists(client, objectA), "object A missing after upload");
-
-  const downloadedA = await fetch(urlA);
-  assert(downloadedA.ok, `download A failed: ${downloadedA.status}`);
-  const bytesA = Buffer.from(await downloadedA.arrayBuffer());
-  const metaA = await sharp(bytesA).metadata();
-  assert(metaA.format === "webp" && metaA.width, "downloaded A is not valid webp");
+  assert(
+    await objectExists(client, splitA.objectPath),
+    "object A missing after upload"
+  );
 
   const created = await galleryImageRepository.createGalleryImage(client, {
     name: nameA,
-    direct_url: urlA,
+    storage_path: pathA,
   });
   assert(created.data && !created.error, created.error?.message ?? "insert failed");
   const rowId = created.data.id;
+  assert(created.data.storage_path === pathA, "row did not store storage_path");
   console.log("   row", rowId);
-  console.log("   url", urlA);
+  console.log("   path", pathA);
 
   console.log("2) Replace image (upload B, update row, remove A)…");
-  const fileB = await makePngFile(`${nameB}.png`, { r: 200, g: 40, b: 40 });
-  const optimizedB = await optimizeGalleryImage({
-    bytes: await fileB.arrayBuffer(),
-    mimeType: fileB.type,
-    originalFileName: fileB.name,
-    byteLength: fileB.size,
-  });
-  assert(optimizedB.success, "optimize B failed");
-
-  const pathB = buildGalleryImageStoragePath(optimizedB.fileName);
-  const uploadB = await galleryStorageRepository.uploadGalleryImage(
+  const fileB = pngFile(`${nameB}.png`);
+  const pathB = buildGalleryImageStoragePath(fileB.name);
+  const splitB = splitGalleryImageStoragePath(pathB);
+  const uploadB = await uploadObject(
     client,
-    pathB,
-    new Uint8Array(optimizedB.buffer),
-    optimizedB.contentType
+    splitB.bucket,
+    splitB.objectPath,
+    fileB,
+    fileB.type
   );
   assert(!uploadB.error, uploadB.error?.message ?? "upload B failed");
 
-  const urlB = galleryStorageRepository.getGalleryImagePublicUrl(client, pathB);
-  const objectB = getGalleryImageObjectPathFromPublicUrl(urlB);
-  assert(objectB, "could not parse object path from url B");
-
   const updated = await galleryImageRepository.updateGalleryImage(client, rowId, {
     name: nameB,
-    direct_url: urlB,
+    storage_path: pathB,
   });
   assert(updated.data && !updated.error, updated.error?.message ?? "update failed");
+  assert(updated.data.storage_path === pathB, "row still has the old path");
 
-  const removeA = await galleryStorageRepository.removeGalleryImages(client, [
-    objectA,
-  ]);
+  const removeA = await removeObjects(client, splitA.bucket, [splitA.objectPath]);
   assert(!removeA.error, removeA.error?.message ?? "remove A failed");
   assert(
-    !(await objectExists(client, objectA)),
+    !(await objectExists(client, splitA.objectPath)),
     "object A still present after replace (orphan)"
   );
-  assert(await objectExists(client, objectB), "object B missing after replace");
+  assert(
+    await objectExists(client, splitB.objectPath),
+    "object B missing after replace"
+  );
   console.log("   replace ok; old object removed");
 
-  console.log("3) Delete row + storage object B…");
+  console.log("3) Delete storage object B, then the row…");
+  const removeB = await removeObjects(client, splitB.bucket, [splitB.objectPath]);
+  assert(!removeB.error, removeB.error?.message ?? "remove B failed");
+  assert(
+    !(await objectExists(client, splitB.objectPath)),
+    "object B still present after delete (orphan)"
+  );
+
   const deleted = await galleryImageRepository.deleteGalleryImageById(
     client,
     rowId
   );
   assert(!deleted.error, deleted.error?.message ?? "delete row failed");
-
-  const removeB = await galleryStorageRepository.removeGalleryImages(client, [
-    objectB,
-  ]);
-  assert(!removeB.error, removeB.error?.message ?? "remove B failed");
-  assert(
-    !(await objectExists(client, objectB)),
-    "object B still present after delete (orphan)"
-  );
 
   console.log("Smoke gallery storage: OK");
 }

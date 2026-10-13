@@ -8,13 +8,39 @@ import { parseUpdateGalleryImageFormData } from "@/lib/validators/manager/update
 import {
   createGalleryImageFromUploadForManager,
   deleteGalleryImageForManager,
+  listGalleryImagesForManager,
   updateGalleryImageFromUploadForManager,
-} from "@/services/public/gallery-image.service";
+} from "@/services/gallery/gallery-image.service";
 import type {
   CreateGalleryImageActionState,
   DeleteGalleryImageActionState,
+  ManagerGalleryListQuery,
   UpdateGalleryImageActionState,
 } from "@/types/manager-gallery-image";
+
+export async function loadGalleryImagesPageAction(
+  query: ManagerGalleryListQuery
+) {
+  const actor = await getSessionAuditActor();
+  const adminClient = createSupabaseAdminClient();
+
+  try {
+    const data = await listGalleryImagesForManager(
+      adminClient,
+      actor.userId,
+      query
+    );
+    return { success: true as const, data };
+  } catch (error) {
+    return {
+      success: false as const,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load gallery images.",
+    };
+  }
+}
 
 export async function createGalleryImageAction(
   _prevState: CreateGalleryImageActionState,

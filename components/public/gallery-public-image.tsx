@@ -1,10 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import {
-  isSupabasePublicStorageUrl,
-  toEmbeddableGalleryImageUrl,
-} from "@/lib/utils/gallery-image-url";
 import { cn } from "@/lib/utils";
 
 type GalleryPublicImageProps = {
@@ -18,10 +14,7 @@ type GalleryPublicImageProps = {
   onError?: () => void;
 };
 
-/**
- * Public gallery/about media: `next/image` for Supabase Storage URLs;
- * native `<img>` for legacy Drive thumbnails (must not go through the optimizer).
- */
+/** Public gallery and about images. `next/image` resizes the stored original. */
 export function GalleryPublicImage({
   src,
   alt,
@@ -31,35 +24,16 @@ export function GalleryPublicImage({
   onLoad,
   onError,
 }: GalleryPublicImageProps) {
-  const embeddableSrc = toEmbeddableGalleryImageUrl(src);
-  const useNextImage = isSupabasePublicStorageUrl(embeddableSrc);
-
-  if (useNextImage) {
-    return (
-      <Image
-        src={embeddableSrc}
-        alt={alt}
-        fill
-        sizes={sizes}
-        priority={priority}
-        className={cn(className)}
-        onLoad={onLoad}
-        onError={onError}
-      />
-    );
-  }
-
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- Drive thumbnails / non-Storage URLs
-    <img
-      src={embeddableSrc}
+    <Image
+      src={src}
       alt={alt}
-      loading={priority ? "eager" : "lazy"}
-      decoding="async"
-      referrerPolicy="no-referrer"
+      fill
+      sizes={sizes}
+      priority={priority}
+      className={cn(className)}
       onLoad={onLoad}
       onError={onError}
-      className={cn("absolute inset-0 size-full", className)}
     />
   );
 }

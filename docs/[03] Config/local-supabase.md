@@ -221,22 +221,6 @@ npx supabase storage cp -r supabase/dumps/storage/student-task-uploads ss://stud
 npx supabase storage cp -r supabase/dumps/storage/gallery ss://gallery/ --experimental --local
 ```
 
-#### Gallery Drive → Storage (optional)
-
-One-time move from `public/drive images/google_drive_images.json` into the local `gallery` bucket (+ dump for later deploy):
-
-```powershell
-npm run migrate:gallery-drive
-```
-
-Restore the same files into another Supabase (local or VPS) without hitting Drive again:
-
-```powershell
-npm run migrate:gallery-from-dump
-```
-
-See `docs/gallery-feature/PLAN.md` → “Drive → Storage migration”.
-
 Check one bucket:
 
 ```powershell

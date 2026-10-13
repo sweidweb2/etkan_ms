@@ -107,7 +107,7 @@ function GalleryColumnCard({
 
       {status !== "error" ? (
         <GalleryPublicImage
-          src={image.direct_url}
+          src={image.url}
           alt={image.name}
           priority={priority}
           onLoad={() => setStatus("loaded")}

@@ -957,7 +957,7 @@ Table student_registration_documents {
 Table gallery_images {
   id uuid [pk, default: `gen_random_uuid()`]
   name text [not null]
-  direct_url text [not null, unique, note: 'Absolute image URL (Supabase gallery bucket public URL, or legacy Google Drive)']
+  storage_path text [not null, unique, note: 'Object path in the public gallery bucket, including the gallery/ prefix']
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
 
@@ -965,7 +965,7 @@ Table gallery_images {
     (created_at) [name: 'idx_gallery_images_created_at']
   }
 
-  Note: 'Public gallery page images (display name + direct URL). Storage bucket: gallery (public). Schema stores URL only, not storage_path.'
+  Note: 'Public gallery page images. Display URL is built from storage_path. Bucket: gallery (public read, service-role writes).'
 }
 
 Table public_projects {

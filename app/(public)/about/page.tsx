@@ -10,7 +10,7 @@ export default async function AboutPage() {
   const galleryImages = await listGalleryImagesForPublic();
   const randomUrls = shuffleArray(galleryImages)
     .slice(0, FEATURED_ABOUT_FOUNDATIONS.length)
-    .map((image) => image.direct_url);
+    .map((image) => image.url);
 
   return (
     <>

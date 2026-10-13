@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   GALLERY_STORAGE_BUCKET,
   buildGalleryImageStoragePath,
-  getGalleryImageObjectPathFromPublicUrl,
   getGalleryImagePublicUrl,
   sanitizeGalleryImageFileName,
   splitGalleryImageStoragePath,
@@ -49,26 +48,5 @@ describe("getGalleryImagePublicUrl", () => {
     expect(url).toBe(
       "https://example.supabase.co/storage/v1/object/public/gallery/abc-file.webp"
     );
-  });
-});
-
-describe("getGalleryImageObjectPathFromPublicUrl", () => {
-  it("extracts the object path from a gallery public URL", () => {
-    expect(
-      getGalleryImageObjectPathFromPublicUrl(
-        "https://example.supabase.co/storage/v1/object/public/gallery/abc-file.webp"
-      )
-    ).toBe("abc-file.webp");
-  });
-
-  it("returns null for Drive / external URLs", () => {
-    expect(
-      getGalleryImageObjectPathFromPublicUrl(
-        "https://drive.google.com/uc?id=abc"
-      )
-    ).toBeNull();
-    expect(
-      getGalleryImageObjectPathFromPublicUrl("https://cdn.example.com/a.png")
-    ).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import {
   GALLERY_IMAGE_ALLOWED_EXTENSIONS,
   GALLERY_IMAGE_ALLOWED_MIME_TYPES,
   GALLERY_IMAGE_MAX_BYTES,
+  type GalleryImageMimeType,
 } from "@/lib/constants/manager-gallery";
 
 const allowedMimeSet = new Set<string>(GALLERY_IMAGE_ALLOWED_MIME_TYPES);
@@ -17,8 +18,25 @@ function extensionOf(fileName: string): string {
   return base.slice(dot).toLowerCase();
 }
 
+const EXTENSION_CONTENT_TYPES: Record<string, GalleryImageMimeType> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+};
+
+/** MIME to store. Uses the file type when it is allowed, otherwise the extension. */
+export function galleryImageContentType(file: File): string {
+  const mime = file.type.trim().toLowerCase();
+  if (allowedMimeSet.has(mime)) {
+    return mime;
+  }
+  return EXTENSION_CONTENT_TYPES[extensionOf(file.name)] ?? "application/octet-stream";
+}
+
 /**
- * Client-side pre-check before upload (UX). Server still validates + optimizes.
+ * Shared file check for the dropzone and the create/update schemas.
  */
 export function validateGalleryImageClientFile(
   file: File | null | undefined
