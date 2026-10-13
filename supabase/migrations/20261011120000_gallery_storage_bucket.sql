@@ -15,6 +15,9 @@ set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+-- Public read so gallery URLs render without a session.
+-- Writes stay on the service role (admin client). A signed-in student
+-- must not be able to upload or delete gallery objects with their JWT.
 drop policy if exists "Public read gallery images" on storage.objects;
 create policy "Public read gallery images"
   on storage.objects
@@ -23,23 +26,5 @@ create policy "Public read gallery images"
   using (bucket_id = 'gallery');
 
 drop policy if exists "Authenticated insert gallery images" on storage.objects;
-create policy "Authenticated insert gallery images"
-  on storage.objects
-  for insert
-  to authenticated
-  with check (bucket_id = 'gallery');
-
 drop policy if exists "Authenticated update gallery images" on storage.objects;
-create policy "Authenticated update gallery images"
-  on storage.objects
-  for update
-  to authenticated
-  using (bucket_id = 'gallery')
-  with check (bucket_id = 'gallery');
-
 drop policy if exists "Authenticated delete gallery images" on storage.objects;
-create policy "Authenticated delete gallery images"
-  on storage.objects
-  for delete
-  to authenticated
-  using (bucket_id = 'gallery');

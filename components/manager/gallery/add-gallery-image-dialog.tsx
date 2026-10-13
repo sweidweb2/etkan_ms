@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { DicesIcon } from "lucide-react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { createGalleryImageAction } from "@/app/manager/gallery/actions";
@@ -53,12 +53,10 @@ export function AddGalleryImageDialog({
 }: AddGalleryImageDialogProps) {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [clientFileError, setClientFileError] = useState<string | null>(null);
-  const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
+  const [state, formAction, isPending] = useActionState(
     createGalleryImageAction,
     initialState
   );
-  const isPending = isActionPending || isTransitionPending;
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
@@ -116,9 +114,7 @@ export function AddGalleryImageDialog({
     formData.set("name", values.name.trim());
     formData.set("file", values.file);
 
-    startTransition(() => {
-      formAction(formData);
-    });
+    formAction(formData);
   }
 
   const nameError = errors.name?.message ?? state.fieldErrors?.name?.[0];

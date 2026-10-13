@@ -86,14 +86,69 @@ export async function bulkInsertGalleryImages(
     .select(GALLERY_IMAGE_COLUMNS);
 }
 
+/** Stay at or under PostgREST `max_rows` so seed/migrate lists are complete. */
+const GALLERY_LIST_PAGE_SIZE = 1000;
+
+async function collectGalleryPages<T>(
+  fetchPage: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: { message: string } | null;
+  }>
+) {
+  const rows: T[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await fetchPage(
+      offset,
+      offset + GALLERY_LIST_PAGE_SIZE - 1
+    );
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    const page = data ?? [];
+    rows.push(...page);
+
+    if (page.length < GALLERY_LIST_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+
+    offset += GALLERY_LIST_PAGE_SIZE;
+  }
+}
+
 export async function listExistingDirectUrls(client: Supabase) {
-  return client.from("gallery_images").select("direct_url");
+  return collectGalleryPages<{ direct_url: string }>((from, to) =>
+    client
+      .from("gallery_images")
+      .select("direct_url")
+      .order("id", { ascending: true })
+      .range(from, to)
+      .then((result) => ({
+        data: result.data,
+        error: result.error,
+      }))
+  );
 }
 
 /** Full list for seed/migrate scripts (no UI page limit). */
 export async function listAllGalleryImages(client: Supabase) {
-  return client
-    .from("gallery_images")
-    .select("id, name, direct_url")
-    .order("created_at", { ascending: false });
+  return collectGalleryPages<{
+    id: string;
+    name: string;
+    direct_url: string;
+  }>((from, to) =>
+    client
+      .from("gallery_images")
+      .select("id, name, direct_url")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to)
+      .then((result) => ({
+        data: result.data,
+        error: result.error,
+      }))
+  );
 }

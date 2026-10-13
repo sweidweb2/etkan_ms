@@ -380,7 +380,17 @@ export async function updateGalleryImageFromUploadForManager(
     uploadedStoragePath &&
     existing.data.direct_url !== nextDirectUrl
   ) {
-    await removeStoredGalleryImage(adminClient, existing.data.direct_url);
+    const removed = await removeStoredGalleryImage(
+      adminClient,
+      existing.data.direct_url
+    );
+    if (!removed.success) {
+      return {
+        success: false,
+        error:
+          "The image was saved, but the previous file could not be removed from storage.",
+      };
+    }
   }
 
   await recordManagerAuditLog(adminClient, actor, {
@@ -437,6 +447,14 @@ export async function deleteGalleryImageForManager(
     return { success: false, error: "Gallery image not found." };
   }
 
+  const removed = await removeStoredGalleryImage(
+    adminClient,
+    existing.data.direct_url
+  );
+  if (!removed.success) {
+    return { success: false, error: removed.error };
+  }
+
   const { error } = await galleryImageRepository.deleteGalleryImageById(
     adminClient,
     imageId
@@ -445,11 +463,10 @@ export async function deleteGalleryImageForManager(
   if (error) {
     return {
       success: false,
-      error: "Unable to delete gallery image. Please try again.",
+      error:
+        "The image file was removed, but the gallery record could not be deleted.",
     };
   }
-
-  await removeStoredGalleryImage(adminClient, existing.data.direct_url);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "delete",

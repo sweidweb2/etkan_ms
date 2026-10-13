@@ -29,7 +29,9 @@ async function makePngFile(name: string, color: {
     .png()
     .toBuffer();
 
-  return new File([buffer], name, { type: "image/png" });
+  const copy = new ArrayBuffer(buffer.byteLength);
+  new Uint8Array(copy).set(buffer);
+  return new File([copy], name, { type: "image/png" });
 }
 
 async function objectExists(

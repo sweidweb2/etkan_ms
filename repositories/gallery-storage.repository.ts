@@ -20,7 +20,9 @@ function toUploadBlob(
     return new Blob([new Uint8Array(body)], { type: contentType });
   }
   if (body instanceof Uint8Array) {
-    return new Blob([body], { type: contentType });
+    const copy = new ArrayBuffer(body.byteLength);
+    new Uint8Array(copy).set(body);
+    return new Blob([copy], { type: contentType });
   }
   return new Blob([body], { type: contentType });
 }

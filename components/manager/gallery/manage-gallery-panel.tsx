@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, useActionState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -43,6 +43,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -226,21 +227,19 @@ export function ManageGalleryPanel({
   );
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [isTransitionPending, startTransition] = useTransition();
   const [deleteState, deleteAction, isDeletePending] = useActionState(
     deleteGalleryImageAction,
     initialDeleteState
   );
-  const isDeleteActionPending = isDeletePending || isTransitionPending;
 
-  useActionStateToast(deleteState, isDeleteActionPending);
+  useActionStateToast(deleteState, isDeletePending);
 
   if (initialImages !== prevImages) {
     setPrevImages(initialImages);
     setImages(initialImages);
   }
 
-  useActionStateSuccess(deleteState, isDeleteActionPending, () => {
+  useActionStateSuccess(deleteState, isDeletePending, () => {
     if (deleteTarget) {
       const removedId = deleteTarget.id;
       setImages((current) => current.filter((row) => row.id !== removedId));
@@ -249,7 +248,7 @@ export function ManageGalleryPanel({
   });
 
   const handleDeleteOpenChange = usePendingAwareOpenChange(
-    isDeleteActionPending,
+    isDeletePending,
     (nextOpen) => {
       if (!nextOpen) {
         setDeleteTarget(null);
@@ -305,9 +304,7 @@ export function ManageGalleryPanel({
     const formData = new FormData();
     formData.set("id", deleteTarget.id);
 
-    startTransition(() => {
-      deleteAction(formData);
-    });
+    deleteAction(formData);
   }
 
   return (
@@ -363,7 +360,7 @@ export function ManageGalleryPanel({
         >
           <DialogContent
             className="sm:max-w-md"
-            showCloseButton={!isDeleteActionPending}
+            showCloseButton={!isDeletePending}
           >
             <DialogHeader>
               <DialogTitle>Delete gallery image</DialogTitle>
@@ -377,7 +374,7 @@ export function ManageGalleryPanel({
                 type="button"
                 variant="outline"
                 onClick={() => handleDeleteOpenChange(false)}
-                disabled={isDeleteActionPending}
+                disabled={isDeletePending}
               >
                 Cancel
               </Button>
@@ -385,9 +382,9 @@ export function ManageGalleryPanel({
                 type="button"
                 variant="destructive"
                 onClick={handleConfirmDelete}
-                disabled={isDeleteActionPending}
+                disabled={isDeletePending}
               >
-                {isDeleteActionPending ? (
+                {isDeletePending ? (
                   <>
                     <InlineSpinner />
                     Deleting
