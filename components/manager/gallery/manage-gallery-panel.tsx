@@ -1,19 +1,23 @@
 "use client";
 
-import { useMemo, useState, useTransition, useActionState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  LayoutGridIcon,
+  ListIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
-import { deleteGalleryImageAction } from "@/app/manager/gallery/actions";
+import {
+  deleteGalleryImageAction,
+  loadGalleryImagesPageAction,
+} from "@/app/manager/gallery/actions";
 import { Can } from "@/components/auth/can";
 import { AddGalleryImageDialog } from "@/components/manager/gallery/add-gallery-image-dialog";
-import { BulkGalleryJsonForm } from "@/components/manager/gallery/bulk-gallery-json-form";
 import { EditGalleryImageDialog } from "@/components/manager/gallery/edit-gallery-image-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -42,30 +46,33 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { GALLERY_MANAGER_PAGE_SIZE_OPTIONS } from "@/lib/constants/manager-gallery";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   DeleteGalleryImageActionState,
   ManagerGalleryImageRow,
+  ManagerGalleryListData,
 } from "@/types/manager-gallery-image";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const PAGE_SIZE_OPTIONS = GALLERY_MANAGER_PAGE_SIZE_OPTIONS;
 const COLUMN_LIMITS = {
   name: 36,
   url: 48,
 } as const;
 
-const TABS = [
-  { value: "records", label: "Records" },
-  { value: "bulk", label: "Create from JSON" },
+const VIEW_MODES = [
+  { value: "table", label: "Table", icon: ListIcon },
+  { value: "grid", label: "Grid", icon: LayoutGridIcon },
 ] as const;
 
-type GalleryTab = (typeof TABS)[number]["value"];
+type GalleryViewMode = (typeof VIEW_MODES)[number]["value"];
 
 const initialDeleteState: DeleteGalleryImageActionState = {};
 
@@ -101,6 +108,69 @@ function TruncatedCell({
   );
 }
 
+function GalleryThumb({
+  name,
+  url,
+  className,
+}: {
+  name: string;
+  url: string;
+  className?: string;
+}) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- small manager preview
+    <img
+      src={url}
+      alt={name}
+      className={cn("bg-muted object-cover", className)}
+      loading="lazy"
+    />
+  );
+}
+
+function ImageActions({
+  image,
+  onEdit,
+  onDelete,
+}: {
+  image: ManagerGalleryImageRow;
+  onEdit: (image: ManagerGalleryImageRow) => void;
+  onDelete: (image: ManagerGalleryImageRow) => void;
+}) {
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <CopyTextButton
+        value={image.url}
+        label={`Copy URL for ${image.name}`}
+        successMessage="Image URL copied."
+      />
+      <Can permission={PERMISSIONS.GALLERY_UPDATE}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Edit ${image.name}`}
+          onClick={() => onEdit(image)}
+        >
+          <PencilIcon />
+        </Button>
+      </Can>
+      <Can permission={PERMISSIONS.GALLERY_DELETE}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Delete ${image.name}`}
+          className="text-destructive hover:text-destructive"
+          onClick={() => onDelete(image)}
+        >
+          <Trash2Icon />
+        </Button>
+      </Can>
+    </div>
+  );
+}
+
 function getPageNumbers(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -129,59 +199,90 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function matchesSearch(image: ManagerGalleryImageRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const haystack = [image.name, image.direct_url].join(" ").toLowerCase();
-  return haystack.includes(normalizedQuery);
-}
-
 export function ManageGalleryPanel({
-  initialImages,
+  initialData,
 }: {
-  initialImages: ManagerGalleryImageRow[];
+  initialData: ManagerGalleryListData;
 }) {
-  const [activeTab, setActiveTab] = useState<GalleryTab>("records");
-  const [images, setImages] = useState(initialImages);
-  const [prevImages, setPrevImages] = useState(initialImages);
+  const [list, setList] = useState(initialData);
+  const [viewMode, setViewMode] = useState<GalleryViewMode>("table");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingImage, setEditingImage] =
     useState<ManagerGalleryImageRow | null>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<ManagerGalleryImageRow | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
+    initialData.pageSize as (typeof PAGE_SIZE_OPTIONS)[number]
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialData.page);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const requestKey = `${currentPage}|${pageSize}|${appliedSearch}|${refreshToken}`;
+  const loadedKeyRef = useRef(requestKey);
+  const appliedSearchRef = useRef(appliedSearch);
 
-  const [isTransitionPending, startTransition] = useTransition();
   const [deleteState, deleteAction, isDeletePending] = useActionState(
     deleteGalleryImageAction,
     initialDeleteState
   );
-  const isDeleteActionPending = isDeletePending || isTransitionPending;
 
-  useActionStateToast(deleteState, isDeleteActionPending);
+  useActionStateToast(deleteState, isDeletePending);
 
-  if (initialImages !== prevImages) {
-    setPrevImages(initialImages);
-    setImages(initialImages);
-  }
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      const nextSearch = searchInput.trim();
+      if (appliedSearchRef.current === nextSearch) {
+        return;
+      }
+      appliedSearchRef.current = nextSearch;
+      setAppliedSearch(nextSearch);
+      setCurrentPage(1);
+    }, 300);
 
-  useActionStateSuccess(deleteState, isDeleteActionPending, () => {
-    if (deleteTarget) {
-      const removedId = deleteTarget.id;
-      setImages((current) => current.filter((row) => row.id !== removedId));
+    return () => window.clearTimeout(handle);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (loadedKeyRef.current === requestKey) {
+      return;
     }
+
+    let cancelled = false;
+
+    void loadGalleryImagesPageAction({
+      page: currentPage,
+      pageSize,
+      search: appliedSearch,
+    }).then((result) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (!result.success) {
+        showErrorToast(result.error);
+        return;
+      }
+
+      loadedKeyRef.current = `${result.data.page}|${result.data.pageSize}|${appliedSearch}|${refreshToken}`;
+      setList(result.data);
+      if (result.data.page !== currentPage) {
+        setCurrentPage(result.data.page);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedSearch, currentPage, pageSize, refreshToken, requestKey]);
+
+  useActionStateSuccess(deleteState, isDeletePending, () => {
     setDeleteTarget(null);
+    setRefreshToken((token) => token + 1);
   });
 
   const handleDeleteOpenChange = usePendingAwareOpenChange(
-    isDeleteActionPending,
+    isDeletePending,
     (nextOpen) => {
       if (!nextOpen) {
         setDeleteTarget(null);
@@ -189,30 +290,24 @@ export function ManageGalleryPanel({
     }
   );
 
-  const filteredImages = useMemo(() => {
-    return images.filter((image) => matchesSearch(image, searchQuery));
-  }, [images, searchQuery]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredImages.length / pageSize)
-  );
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const images = list.images;
+  const totalPages = Math.max(1, Math.ceil(list.totalCount / list.pageSize));
+  const safeCurrentPage = list.page;
   const rangeStart =
-    filteredImages.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+    list.totalCount === 0 ? 0 : (safeCurrentPage - 1) * list.pageSize + 1;
   const rangeEnd = Math.min(
-    safeCurrentPage * pageSize,
-    filteredImages.length
-  );
-  const paginatedImages = filteredImages.slice(
-    (safeCurrentPage - 1) * pageSize,
-    safeCurrentPage * pageSize
+    safeCurrentPage * list.pageSize,
+    list.totalCount
   );
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
 
+  const emptyMessage =
+    list.catalogCount === 0
+      ? "No gallery images yet. Add one to get started."
+      : "No images match your search.";
+
   function handleSearchChange(value: string) {
-    setSearchQuery(value);
-    setCurrentPage(1);
+    setSearchInput(value);
   }
 
   function handlePageSizeChange(value: string | null) {
@@ -232,9 +327,7 @@ export function ManageGalleryPanel({
     const formData = new FormData();
     formData.set("id", deleteTarget.id);
 
-    startTransition(() => {
-      deleteAction(formData);
-    });
+    deleteAction(formData);
   }
 
   return (
@@ -249,44 +342,23 @@ export function ManageGalleryPanel({
               Images shown on the public gallery page.
             </p>
           </div>
-          {activeTab === "records" ? (
-            <Can permission={PERMISSIONS.GALLERY_CREATE}>
-              <Button type="button" onClick={() => setIsAddOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                Add image
-              </Button>
-            </Can>
-          ) : null}
+          <Can permission={PERMISSIONS.GALLERY_CREATE}>
+            <Button type="button" onClick={() => setIsAddOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Add image
+            </Button>
+          </Can>
         </div>
-
-        <Can permission={PERMISSIONS.GALLERY_CREATE}>
-          <div
-            role="tablist"
-            aria-label="Gallery views"
-            className="inline-flex w-fit gap-1 rounded-md border bg-muted/40 p-1 sm:mx-auto"
-          >
-            {TABS.map((tab) => (
-              <Button
-                key={tab.value}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.value}
-                size="sm"
-                variant={activeTab === tab.value ? "default" : "ghost"}
-                onClick={() => setActiveTab(tab.value)}
-              >
-                {tab.label}
-              </Button>
-            ))}
-          </div>
-        </Can>
 
         <AddGalleryImageDialog
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
-          onImageCreated={(image) => {
-            setImages((current) => prependUniqueById(current, image));
+          onImageCreated={() => {
+            appliedSearchRef.current = "";
+            setSearchInput("");
+            setAppliedSearch("");
             setCurrentPage(1);
+            setRefreshToken((token) => token + 1);
           }}
         />
 
@@ -299,12 +371,10 @@ export function ManageGalleryPanel({
           }}
           image={editingImage}
           onImageUpdated={(image) => {
-            setImages((current) =>
-              current.map((row) => (row.id === image.id ? image : row))
-            );
             setEditingImage((current) =>
               current?.id === image.id ? image : current
             );
+            setRefreshToken((token) => token + 1);
           }}
         />
 
@@ -314,7 +384,7 @@ export function ManageGalleryPanel({
         >
           <DialogContent
             className="sm:max-w-md"
-            showCloseButton={!isDeleteActionPending}
+            showCloseButton={!isDeletePending}
           >
             <DialogHeader>
               <DialogTitle>Delete gallery image</DialogTitle>
@@ -328,7 +398,7 @@ export function ManageGalleryPanel({
                 type="button"
                 variant="outline"
                 onClick={() => handleDeleteOpenChange(false)}
-                disabled={isDeleteActionPending}
+                disabled={isDeletePending}
               >
                 Cancel
               </Button>
@@ -336,9 +406,9 @@ export function ManageGalleryPanel({
                 type="button"
                 variant="destructive"
                 onClick={handleConfirmDelete}
-                disabled={isDeleteActionPending}
+                disabled={isDeletePending}
               >
-                {isDeleteActionPending ? (
+                {isDeletePending ? (
                   <>
                     <InlineSpinner />
                     Deleting
@@ -351,216 +421,244 @@ export function ManageGalleryPanel({
           </DialogContent>
         </Dialog>
 
-        {activeTab === "bulk" ? (
-          <BulkGalleryJsonForm
-            onImagesCreated={(created) => {
-              setImages((current) => prependUniqueById(current, created));
-              setCurrentPage(1);
-              setActiveTab("records");
-            }}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <UserStatCard
+            label="Total images"
+            value={list.catalogCount}
+            accentClassName="border-l-sky-500"
           />
-        ) : (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <UserStatCard
-                label="Total images"
-                value={images.length}
-                accentClassName="border-l-sky-500"
-              />
-              <UserStatCard
-                label="Matching search"
-                value={filteredImages.length}
-                accentClassName="border-l-violet-500"
-              />
+          <UserStatCard
+            label="Matching search"
+            value={list.totalCount}
+            accentClassName="border-l-violet-500"
+          />
+        </div>
+
+        <Card className="py-0">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b py-3">
+            <CardTitle>Gallery images</CardTitle>
+            <div
+              role="group"
+              aria-label="Gallery view"
+              className="inline-flex gap-1 rounded-md border bg-muted/40 p-1"
+            >
+              {VIEW_MODES.map((mode) => {
+                const Icon = mode.icon;
+                const selected = viewMode === mode.value;
+                return (
+                  <Button
+                    key={mode.value}
+                    type="button"
+                    size="sm"
+                    variant={selected ? "default" : "ghost"}
+                    aria-pressed={selected}
+                    onClick={() => setViewMode(mode.value)}
+                  >
+                    <Icon data-icon="inline-start" />
+                    {mode.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardHeader>
+          <CardContent className="px-0 pb-0">
+            <div className="border-b px-4 pt-2 pb-3">
+              <div className="relative max-w-md">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchInput}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                  placeholder="Search name…"
+                  className="pl-8"
+                  aria-label="Search gallery images"
+                />
+              </div>
             </div>
 
-            <Card className="py-0">
-              <CardHeader className="border-b py-3">
-                <CardTitle>Gallery images</CardTitle>
-              </CardHeader>
-              <CardContent className="px-0 pb-0">
-                <div className="border-b px-4 pt-2 pb-3">
-                  <div className="relative max-w-md">
-                    <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={searchQuery}
-                      onChange={(event) => handleSearchChange(event.target.value)}
-                      placeholder="Search name or URL…"
-                      className="pl-8"
-                      aria-label="Search gallery images"
-                    />
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/40 text-left">
-                        <th className="px-4 py-3 font-medium">Name</th>
-                        <th className="px-4 py-3 font-medium">Direct URL</th>
-                        <th className="px-4 py-3 font-medium">Added</th>
-                        <th className="px-4 py-3 font-medium text-right">Actions</th>
+            {viewMode === "table" ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Preview</th>
+                      <th className="px-4 py-3 font-medium">Name</th>
+                      <th className="px-4 py-3 font-medium">URL</th>
+                      <th className="px-4 py-3 font-medium">Added</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {images.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-4 py-10 text-center text-muted-foreground"
+                        >
+                          {emptyMessage}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedImages.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={4}
-                            className="px-4 py-10 text-center text-muted-foreground"
-                          >
-                            {images.length === 0
-                              ? "No gallery images yet. Add one to get started."
-                              : "No images match your search."}
+                    ) : (
+                      images.map((image) => (
+                        <tr
+                          key={image.id}
+                          className="border-b last:border-b-0 hover:bg-muted/30"
+                        >
+                          <td className="px-4 py-3">
+                            <GalleryThumb
+                              name={image.name}
+                              url={image.url}
+                              className="size-12 rounded-md"
+                            />
+                          </td>
+                          <td className="max-w-[14rem] px-4 py-3 font-medium">
+                            <TruncatedCell
+                              value={image.name}
+                              maxLength={COLUMN_LIMITS.name}
+                            />
+                          </td>
+                          <td className="max-w-[20rem] px-4 py-3 text-muted-foreground">
+                            <TruncatedCell
+                              value={image.url}
+                              maxLength={COLUMN_LIMITS.url}
+                              className="min-w-0"
+                            />
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                            {format(new Date(image.created_at), "MMM d, yyyy")}
+                          </td>
+                          <td className="px-4 py-3">
+                            <ImageActions
+                              image={image}
+                              onEdit={setEditingImage}
+                              onDelete={setDeleteTarget}
+                            />
                           </td>
                         </tr>
-                      ) : (
-                        paginatedImages.map((image) => (
-                          <tr
-                            key={image.id}
-                            className="border-b last:border-b-0 hover:bg-muted/30"
-                          >
-                            <td className="max-w-[14rem] px-4 py-3 font-medium">
-                              <TruncatedCell
-                                value={image.name}
-                                maxLength={COLUMN_LIMITS.name}
-                              />
-                            </td>
-                        <td className="max-w-[20rem] px-4 py-3 text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <TruncatedCell
-                              value={image.direct_url}
-                              maxLength={COLUMN_LIMITS.url}
-                              className="min-w-0 flex-1"
-                            />
-                            <CopyTextButton
-                              value={image.direct_url}
-                              label={`Copy URL for ${image.name}`}
-                              successMessage="Direct URL copied."
-                            />
-                          </div>
-                        </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                              {format(new Date(image.created_at), "MMM d, yyyy")}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-1">
-                                <Can permission={PERMISSIONS.GALLERY_UPDATE}>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={`Edit ${image.name}`}
-                                    onClick={() => setEditingImage(image)}
-                                  >
-                                    <PencilIcon />
-                                  </Button>
-                                </Can>
-                                <Can permission={PERMISSIONS.GALLERY_DELETE}>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={`Delete ${image.name}`}
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => setDeleteTarget(image)}
-                                  >
-                                    <Trash2Icon />
-                                  </Button>
-                                </Can>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span>
-                      Showing {rangeStart}–{rangeEnd} of {filteredImages.length}
-                    </span>
-                    <span aria-hidden="true">·</span>
-                    <div className="flex items-center gap-2">
-                      <span>Rows</span>
-                      <Select
-                        value={String(pageSize)}
-                        onValueChange={handlePageSizeChange}
-                      >
-                        <SelectTrigger
-                          size="sm"
-                          className="w-16"
-                          aria-label="Rows per page"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent align="start">
-                          {PAGE_SIZE_OPTIONS.map((option) => (
-                            <SelectItem key={option} value={String(option)}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      disabled={safeCurrentPage <= 1}
-                      onClick={() => setCurrentPage((page) => page - 1)}
-                      aria-label="Previous page"
-                    >
-                      <ChevronLeftIcon />
-                    </Button>
-
-                    {pageNumbers.map((page, index) =>
-                      page === "ellipsis" ? (
-                        <span
-                          key={`ellipsis-${index}`}
-                          className="px-1 text-sm text-muted-foreground"
-                        >
-                          …
-                        </span>
-                      ) : (
-                        <Button
-                          key={page}
-                          type="button"
-                          variant={page === safeCurrentPage ? "default" : "outline"}
-                          size="icon-sm"
-                          className="min-w-7"
-                          onClick={() => setCurrentPage(page)}
-                          aria-label={`Page ${page}`}
-                          aria-current={
-                            page === safeCurrentPage ? "page" : undefined
-                          }
-                        >
-                          {page}
-                        </Button>
-                      )
+                      ))
                     )}
+                  </tbody>
+                </table>
+              </div>
+            ) : images.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+                {emptyMessage}
+              </p>
+            ) : (
+              <ul className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {images.map((image) => (
+                  <li
+                    key={image.id}
+                    className="overflow-hidden rounded-lg border bg-card"
+                  >
+                    <GalleryThumb
+                      name={image.name}
+                      url={image.url}
+                      className="aspect-[4/3] w-full"
+                    />
+                    <div className="flex flex-col gap-2 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {image.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(image.created_at), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <ImageActions
+                        image={image}
+                        onEdit={setEditingImage}
+                        onDelete={setDeleteTarget}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      disabled={safeCurrentPage >= totalPages}
-                      onClick={() => setCurrentPage((page) => page + 1)}
-                      aria-label="Next page"
+            <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>
+                  Showing {rangeStart}–{rangeEnd} of {list.totalCount}
+                </span>
+                <span aria-hidden="true">·</span>
+                <div className="flex items-center gap-2">
+                  <span>Rows</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={handlePageSizeChange}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="w-16"
+                      aria-label="Rows per page"
                     >
-                      <ChevronRightIcon />
-                    </Button>
-                  </div>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      {PAGE_SIZE_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={String(option)}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => setCurrentPage((page) => page - 1)}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeftIcon />
+                </Button>
+
+                {pageNumbers.map((page, index) =>
+                  page === "ellipsis" ? (
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="px-1 text-sm text-muted-foreground"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <Button
+                      key={page}
+                      type="button"
+                      variant={page === safeCurrentPage ? "default" : "outline"}
+                      size="icon-sm"
+                      className="min-w-7"
+                      onClick={() => setCurrentPage(page)}
+                      aria-label={`Page ${page}`}
+                      aria-current={
+                        page === safeCurrentPage ? "page" : undefined
+                      }
+                    >
+                      {page}
+                    </Button>
+                  )
+                )}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => setCurrentPage((page) => page + 1)}
+                  aria-label="Next page"
+                >
+                  <ChevronRightIcon />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </TooltipProvider>
   );

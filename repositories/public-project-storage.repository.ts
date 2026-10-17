@@ -3,6 +3,12 @@ import {
   PROJECTS_STORAGE_BUCKET,
   splitProjectImageStoragePath,
 } from "@/lib/manager/projects/storage-path";
+import {
+  getObjectPublicUrl,
+  removeObjects,
+  uploadObject,
+  type StorageObjectBody,
+} from "@/repositories/object-storage.repository";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -10,23 +16,17 @@ type Supabase = SupabaseClient<Database>;
 export async function uploadPublicProjectImage(
   client: Supabase,
   storagePath: string,
-  body: Blob | ArrayBuffer | File | Buffer,
+  body: StorageObjectBody,
   contentType: string
 ): Promise<{ error: { message: string } | null }> {
   const { objectPath } = splitProjectImageStoragePath(storagePath);
-
-  const { error } = await client.storage
-    .from(PROJECTS_STORAGE_BUCKET)
-    .upload(objectPath, body, {
-      contentType,
-      upsert: false,
-    });
-
-  if (error) {
-    return { error: { message: error.message } };
-  }
-
-  return { error: null };
+  return uploadObject(
+    client,
+    PROJECTS_STORAGE_BUCKET,
+    objectPath,
+    body,
+    contentType
+  );
 }
 
 export function getPublicProjectImageUrl(
@@ -34,10 +34,7 @@ export function getPublicProjectImageUrl(
   storagePath: string
 ): string {
   const { objectPath } = splitProjectImageStoragePath(storagePath);
-  const { data } = client.storage
-    .from(PROJECTS_STORAGE_BUCKET)
-    .getPublicUrl(objectPath);
-  return data.publicUrl;
+  return getObjectPublicUrl(client, PROJECTS_STORAGE_BUCKET, objectPath);
 }
 
 export async function removePublicProjectImages(
@@ -52,13 +49,5 @@ export async function removePublicProjectImages(
     (path) => splitProjectImageStoragePath(path).objectPath
   );
 
-  const { error } = await client.storage
-    .from(PROJECTS_STORAGE_BUCKET)
-    .remove(objectPaths);
-
-  if (error) {
-    return { error: { message: error.message } };
-  }
-
-  return { error: null };
+  return removeObjects(client, PROJECTS_STORAGE_BUCKET, objectPaths);
 }

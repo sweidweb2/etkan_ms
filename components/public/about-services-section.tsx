@@ -8,10 +8,10 @@ import {
   type AboutFoundation,
 } from "@/lib/constants/about-services";
 import { ROUTES } from "@/lib/constants/routes";
+import { GalleryPublicImage } from "@/components/public/gallery-public-image";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
 import { cn } from "@/lib/utils";
-import { toEmbeddableGalleryImageUrl } from "@/lib/utils/gallery-image-url";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, amount: 0.18, margin: "0px 0px -6% 0px" } as const;
@@ -33,9 +33,7 @@ function FoundationRow({
   const client = t(foundation.clientKey);
   const headline = t(foundation.headlineKey);
   const explore = t("about.services.explore");
-  const imageSrc = foundation.imageSrc
-    ? toEmbeddableGalleryImageUrl(foundation.imageSrc)
-    : null;
+  const imageSrc = foundation.imageSrc?.trim() || null;
 
   const content = (
     <>
@@ -47,15 +45,12 @@ function FoundationRow({
       >
         {imageSrc ? (
           <>
-            {/* Native img: Drive thumbnails must not go through next/image optimization. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <GalleryPublicImage
               src={imageSrc}
               alt={t(foundation.imageAltKey)}
-              loading={index === 0 ? "eager" : "lazy"}
-              decoding="async"
-              referrerPolicy="no-referrer"
-              className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              priority={index === 0}
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
             <div
               aria-hidden="true"

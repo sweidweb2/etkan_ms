@@ -4,6 +4,11 @@ import {
   STUDENT_TASK_UPLOAD_SIGNED_URL_EXPIRES_SECONDS,
 } from "@/lib/constants/manager-student-task-uploads";
 import { splitStudentTaskUploadStoragePath } from "@/lib/manager/student-tasks/storage-path";
+import {
+  removeObjects,
+  uploadObject,
+  type StorageObjectBody,
+} from "@/repositories/object-storage.repository";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -15,23 +20,17 @@ type Supabase = SupabaseClient<Database>;
 export async function uploadStudentTaskStorageObject(
   client: Supabase,
   storagePath: string,
-  body: Blob | ArrayBuffer | File | Buffer,
+  body: StorageObjectBody,
   contentType: string
 ): Promise<{ error: { message: string } | null }> {
   const { objectPath } = splitStudentTaskUploadStoragePath(storagePath);
-
-  const { error } = await client.storage
-    .from(STUDENT_TASK_UPLOADS_STORAGE_BUCKET)
-    .upload(objectPath, body, {
-      contentType,
-      upsert: false,
-    });
-
-  if (error) {
-    return { error: { message: error.message } };
-  }
-
-  return { error: null };
+  return uploadObject(
+    client,
+    STUDENT_TASK_UPLOADS_STORAGE_BUCKET,
+    objectPath,
+    body,
+    contentType
+  );
 }
 
 /**
@@ -50,15 +49,11 @@ export async function removeStudentTaskStorageObjects(
     (path) => splitStudentTaskUploadStoragePath(path).objectPath
   );
 
-  const { error } = await client.storage
-    .from(STUDENT_TASK_UPLOADS_STORAGE_BUCKET)
-    .remove(objectPaths);
-
-  if (error) {
-    return { error: { message: error.message } };
-  }
-
-  return { error: null };
+  return removeObjects(
+    client,
+    STUDENT_TASK_UPLOADS_STORAGE_BUCKET,
+    objectPaths
+  );
 }
 
 export async function createStudentTaskUploadSignedUrl(

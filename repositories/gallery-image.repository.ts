@@ -4,29 +4,72 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const GALLERY_IMAGE_COLUMNS =
-  "id, name, direct_url, created_at, updated_at";
+  "id, name, storage_path, created_at, updated_at";
 
 export type GalleryImageRecord = {
   id: string;
   name: string;
-  direct_url: string;
+  storage_path: string;
   created_at: string;
   updated_at: string;
 };
 
 export type CreateGalleryImageRecordInput = {
   name: string;
-  direct_url: string;
+  storage_path: string;
 };
 
 export type UpdateGalleryImageRecordInput = CreateGalleryImageRecordInput;
 
-export async function listGalleryImages(client: Supabase) {
+export type ListGalleryImagesPageInput = {
+  page: number;
+  pageSize: number;
+  search: string;
+};
+
+function nameSearchTerm(search: string): string {
+  return search.trim().replace(/[%_,]/g, "");
+}
+
+export async function listGalleryImagesPage(
+  client: Supabase,
+  input: ListGalleryImagesPageInput
+) {
+  const from = (input.page - 1) * input.pageSize;
+  const to = from + input.pageSize - 1;
+  const term = nameSearchTerm(input.search);
+
+  let query = client
+    .from("gallery_images")
+    .select(GALLERY_IMAGE_COLUMNS, { count: "exact" });
+
+  if (term) {
+    query = query.ilike("name", `%${term}%`);
+  }
+
+  return query
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
+}
+
+export async function countGalleryImages(client: Supabase) {
+  return client
+    .from("gallery_images")
+    .select("id", { count: "exact", head: true });
+}
+
+/** Newest rows for the public marquee. Callers pass the cap. */
+export async function listPublicGalleryImages(
+  client: Supabase,
+  limit: number
+) {
   return client
     .from("gallery_images")
     .select(GALLERY_IMAGE_COLUMNS)
     .order("created_at", { ascending: false })
-    .limit(200);
+    .order("id", { ascending: false })
+    .limit(limit);
 }
 
 export async function findGalleryImageById(client: Supabase, id: string) {
@@ -45,7 +88,7 @@ export async function createGalleryImage(
     .from("gallery_images")
     .insert({
       name: input.name,
-      direct_url: input.direct_url,
+      storage_path: input.storage_path,
     })
     .select(GALLERY_IMAGE_COLUMNS)
     .single();
@@ -60,7 +103,7 @@ export async function updateGalleryImage(
     .from("gallery_images")
     .update({
       name: input.name,
-      direct_url: input.direct_url,
+      storage_path: input.storage_path,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -70,22 +113,4 @@ export async function updateGalleryImage(
 
 export async function deleteGalleryImageById(client: Supabase, id: string) {
   return client.from("gallery_images").delete().eq("id", id);
-}
-
-export async function bulkInsertGalleryImages(
-  client: Supabase,
-  rows: CreateGalleryImageRecordInput[]
-) {
-  if (rows.length === 0) {
-    return { data: [], error: null };
-  }
-
-  return client
-    .from("gallery_images")
-    .upsert(rows, { onConflict: "direct_url", ignoreDuplicates: true })
-    .select(GALLERY_IMAGE_COLUMNS);
-}
-
-export async function listExistingDirectUrls(client: Supabase) {
-  return client.from("gallery_images").select("direct_url");
 }

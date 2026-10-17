@@ -1,15 +1,17 @@
 import { ManageGalleryPanel } from "@/components/manager/gallery/manage-gallery-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listGalleryImagesForManager } from "@/services/public/gallery-image.service";
+import { GALLERY_MANAGER_PAGE_SIZE } from "@/lib/constants/manager-gallery";
+import { listGalleryImagesForManager } from "@/services/gallery/gallery-image.service";
 
 export default async function ManagerGalleryPage() {
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
-  const images = await listGalleryImagesForManager(
+  const initialData = await listGalleryImagesForManager(
     adminClient,
-    user?.id ?? null
+    user?.id ?? null,
+    { page: 1, pageSize: GALLERY_MANAGER_PAGE_SIZE, search: "" }
   );
 
-  return <ManageGalleryPanel initialImages={images} />;
+  return <ManageGalleryPanel initialData={initialData} />;
 }
