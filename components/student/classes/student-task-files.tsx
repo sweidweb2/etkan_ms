@@ -248,13 +248,13 @@ export function StudentTaskFiles({
         </div>
       </div>
 
+      {selectedFile ? (
       <div className="grid border-b sm:grid-cols-[11rem_1fr]">
-        <div className="border-b bg-muted/40 px-3 py-3 text-sm font-medium sm:border-r sm:border-b-0">
+        <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium sm:border-r sm:border-b-0">
           Chosen file
         </div>
-        <div className="px-3 py-3">
-          {selectedFile ? (
-            <form onSubmit={onSubmit} className="flex max-w-sm flex-col gap-3">
+        <div className="px-3 py-2">
+            <form onSubmit={onSubmit} className="flex max-w-sm flex-col gap-2">
               <div className="flex items-start gap-2">
                 <FileTextIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
@@ -290,11 +290,9 @@ export function StudentTaskFiles({
                 Save
               </Button>
             </form>
-          ) : (
-            <p className="text-sm text-muted-foreground">No file chosen yet.</p>
-          )}
         </div>
       </div>
+      ) : null}
 
       <div className="grid sm:grid-cols-[11rem_1fr]">
         <div className="flex items-start justify-between gap-2 border-b bg-muted/40 px-3 py-3 text-sm font-medium sm:block sm:border-r sm:border-b-0">

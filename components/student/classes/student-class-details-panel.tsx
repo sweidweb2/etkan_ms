@@ -504,69 +504,62 @@ export function StudentClassDetailsPanel({
           </TabsContent>
 
           <TabsContent value="tasks">
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b py-3">
-          <CardTitle>Tasks</CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
-          <Table className="min-w-[640px]">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-4">Task</TableHead>
-                <TableHead className="px-4">Session</TableHead>
-                <TableHead className="px-4">Status</TableHead>
-                <TableHead className="px-4">Grade</TableHead>
-                <TableHead className="px-4">Due</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detail.tasks.length === 0 ? (
+            <Table>
+              <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={5}
-                    className="h-20 px-4 text-center text-muted-foreground"
-                  >
-                    No tasks assigned in this class yet.
-                  </TableCell>
+                  <TableHead className="h-8 px-2">Task</TableHead>
+                  <TableHead className="h-8 px-2">Session</TableHead>
+                  <TableHead className="h-8 px-2">Status</TableHead>
+                  <TableHead className="h-8 px-2">Grade</TableHead>
+                  <TableHead className="h-8 px-2">Due</TableHead>
                 </TableRow>
-              ) : (
-                detail.tasks.map((task) => (
-                  <TableRow key={task.task_id} className={TASK_ROW_CLASS}>
-                    <TableCell className="px-4 font-medium whitespace-normal">
-                      <Link
-                        href={getStudentClassTaskDetailRoute(
-                          classRow.class_id,
-                          task.task_id
-                        )}
-                        prefetch={false}
-                        className="underline-offset-4 hover:underline"
-                      >
-                        {task.title}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="px-4 text-muted-foreground">
-                      {task.session_label ?? "—"}
-                    </TableCell>
-                    <TableCell className="px-4">
-                      <StudentTaskStatusBadge status={task.status} />
-                    </TableCell>
-                    <TableCell className="px-4 tabular-nums">
-                      {task.grade == null
-                        ? "—"
-                        : `${task.grade}/${task.max_grade}`}
-                    </TableCell>
-                    <TableCell className="px-4 text-muted-foreground">
-                      {task.due_date
-                        ? format(new Date(task.due_date), "MMM d, yyyy")
-                        : "—"}
+              </TableHeader>
+              <TableBody>
+                {detail.tasks.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell
+                      colSpan={5}
+                      className="px-2 py-6 text-center text-muted-foreground"
+                    >
+                      No tasks assigned in this class yet.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : (
+                  detail.tasks.map((task) => (
+                    <TableRow key={task.task_id} className={TASK_ROW_CLASS}>
+                      <TableCell className="px-2 py-2 font-medium whitespace-normal">
+                        <Link
+                          href={getStudentClassTaskDetailRoute(
+                            classRow.class_id,
+                            task.task_id
+                          )}
+                          prefetch={false}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {task.title}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-muted-foreground">
+                        {task.session_label ?? "—"}
+                      </TableCell>
+                      <TableCell className="px-2 py-2">
+                        <StudentTaskStatusBadge status={task.status} />
+                      </TableCell>
+                      <TableCell className="px-2 py-2 tabular-nums">
+                        {task.grade == null
+                          ? "—"
+                          : `${task.grade}/${task.max_grade}`}
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-muted-foreground">
+                        {task.due_date
+                          ? format(new Date(task.due_date), "MMM d, yyyy")
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </TabsContent>
         </TabsContents>
       </Tabs>
