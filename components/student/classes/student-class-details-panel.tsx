@@ -24,8 +24,16 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import {
+  Tabs,
+  TabsContent,
+  TabsContents,
+} from "@/components/animate-ui/components/animate/tabs";
+import {
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/animate-ui/primitives/animate/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import {
   Table,
   TableBody,
@@ -34,10 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  MANAGER_CLASS_STATUS_BADGE_CLASSES,
-  MANAGER_CLASS_STATUS_LABELS,
-} from "@/lib/constants/manager-class-display";
+import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import {
   getAttendanceDisplayKey,
   MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES,
@@ -71,6 +76,18 @@ type StudentClassDetailsPanelProps = {
 const TASK_ROW_CLASS =
   "cursor-pointer transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none";
 
+const SESSION_TIMING_LABELS = {
+  upcoming: "Upcoming",
+  in_progress: "In progress",
+  completed: "Completed",
+} as const;
+
+const SESSION_TIMING_CLASSES = {
+  upcoming: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  in_progress: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+  completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+} as const;
+
 export function StudentClassDetailsPanel({
   classRow,
   sessions,
@@ -79,34 +96,7 @@ export function StudentClassDetailsPanel({
   finalExam,
   studentFinalExamGrade,
 }: StudentClassDetailsPanelProps) {
-  const [selectedSessionId, setSelectedSessionId] = useState(
-    sessions[0]?.id ?? ""
-  );
-
-  const selectedSession =
-    sessions.find((session) => session.id === selectedSessionId) ??
-    sessions[0] ??
-    null;
-
-  const sessionTasks = useMemo(() => {
-    if (!selectedSession) {
-      return [];
-    }
-    return detail.tasks.filter(
-      (task) => task.session_id === selectedSession.id
-    );
-  }, [detail.tasks, selectedSession]);
-
-  const sessionAttendance = useMemo(() => {
-    if (!selectedSession) {
-      return null;
-    }
-    return (
-      detail.attendanceSlots.find(
-        (slot) => slot.session_id === selectedSession.id
-      ) ?? null
-    );
-  }, [detail.attendanceSlots, selectedSession]);
+  const [tab, setTab] = useState("details");
 
   const gradeChartData = detail.taskGradeTrend.map((point) => ({
     task_label: point.task_label,
@@ -130,6 +120,13 @@ export function StudentClassDetailsPanel({
     ];
   }, [detail.attendanceSlots]);
 
+  const classTabs = [
+    { value: "details", label: "Details" },
+    { value: "grades", label: "Grades & final exam" },
+    { value: "tasks", label: "Tasks" },
+    { value: "classmates", label: "Classmates" },
+  ] as const;
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb>
@@ -146,181 +143,170 @@ export function StudentClassDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{classRow.name}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span className="inline-flex rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm">
-            Subject · {classRow.subject_name}
-          </span>
-          <span
-            className={cn(
-              "inline-flex rounded-md px-2 py-0.5 text-xs font-medium capitalize",
-              MANAGER_CLASS_STATUS_BADGE_CLASSES[classRow.class_status]
-            )}
-          >
-            {MANAGER_CLASS_STATUS_LABELS[classRow.class_status]}
-          </span>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold">{classRow.name}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {classRow.subject_name}
+          </p>
+        </div>
+        <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+          <div>
+            <dt className="text-muted-foreground">Status</dt>
+            <dd className="mt-0.5 font-medium">
+              {MANAGER_CLASS_STATUS_LABELS[classRow.class_status]}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Joined</dt>
+            <dd className="mt-0.5 font-medium">
+              {format(new Date(classRow.joined_at), "MMM d, yyyy")}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Sessions</dt>
+            <dd className="mt-0.5 font-medium tabular-nums">{sessions.length}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Completed</dt>
+            <dd className="mt-0.5 font-medium tabular-nums">
+              {
+                sessions.filter(
+                  (session) => getSessionTimingLabel(session) === "completed"
+                ).length
+              }
+            </dd>
+          </div>
+        </dl>
+      </div>
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b py-3">
-          <CardTitle>Sessions</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 pt-4 pb-4">
-          {sessions.length === 0 ? (
-            <p className="px-1 text-sm text-muted-foreground">
-              No sessions scheduled for this class yet.
-            </p>
-          ) : (
-            <>
-              <HorizontalScrollCarousel contentClassName="flex gap-2">
-                {sessions.map((session) => {
-                  const isActive = selectedSession?.id === session.id;
-                  return (
-                    <button
-                      key={session.id}
-                      type="button"
-                      onClick={() => setSelectedSessionId(session.id)}
-                      className={cn(
-                        "shrink-0 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                        isActive
-                          ? "border-primary bg-primary/10 text-foreground"
-                          : "border-border bg-card text-muted-foreground hover:bg-muted/50"
-                      )}
-                    >
-                      <p className="font-medium text-foreground">
-                        S{session.nb_order} · {session.topic}
-                      </p>
-                      <p className="mt-0.5 text-xs">
-                        {format(new Date(session.starts_at), "MMM d, yyyy")}
-                      </p>
-                    </button>
-                  );
-                })}
-              </HorizontalScrollCarousel>
+      <Tabs value={tab} onValueChange={setTab} className="gap-4">
+        <TabsListPrimitive className="grid w-full grid-cols-2 gap-1 self-start rounded-lg bg-muted p-1 sm:grid-cols-4 md:w-1/2">
+          {classTabs.map((item) => (
+            <TabsTriggerPrimitive
+              key={item.value}
+              value={item.value}
+              className="rounded-md px-2 py-1.5 text-center text-sm font-medium whitespace-normal text-muted-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-background data-[state=active]:text-foreground"
+            >
+              {item.label}
+            </TabsTriggerPrimitive>
+          ))}
+        </TabsListPrimitive>
 
-              {selectedSession ? (
-                <div className="grid gap-4 rounded-xl border p-4 lg:grid-cols-3">
-                  <div className="space-y-2 lg:col-span-1">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Session details
-                    </p>
-                    <dl className="space-y-2 text-sm">
-                      <div>
-                        <dt className="text-muted-foreground">Topic</dt>
-                        <dd className="font-medium">{selectedSession.topic}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">Starts</dt>
-                        <dd className="font-medium">
-                          {format(
-                            new Date(selectedSession.starts_at),
-                            "MMM d, yyyy h:mm a"
-                          )}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">Ends</dt>
-                        <dd className="font-medium">
-                          {format(
-                            new Date(selectedSession.ends_at),
-                            "MMM d, yyyy h:mm a"
-                          )}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">Timing</dt>
-                        <dd className="font-medium capitalize">
-                          {getSessionTimingLabel(selectedSession).replace(
-                            "_",
-                            " "
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
-                    <div className="pt-2">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Your attendance
-                      </p>
-                      <div className="mt-2">
-                        {sessionAttendance ? (
-                          <StudentAttendanceStatusBadge
-                            status={sessionAttendance.status}
-                          />
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            Not recorded
+        <TabsContents>
+          <TabsContent value="details" className="grid items-start gap-6 lg:grid-cols-2">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold">Sessions</h3>
+              {sessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No sessions scheduled for this class yet.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {sessions.map((session) => {
+                    const timing = getSessionTimingLabel(session);
+                    return (
+                      <article
+                        key={session.id}
+                        className="rounded-xl border border-border bg-card p-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Session {session.nb_order}
                           </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-2">
-                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Tasks this session
-                    </p>
-                    {sessionTasks.length === 0 ? (
-                      <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                        No tasks for this session.
-                      </p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="hover:bg-transparent">
-                            <TableHead>Task</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Grade</TableHead>
-                            <TableHead>Due</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {sessionTasks.map((task) => (
-                            <TableRow key={task.task_id} className="hover:bg-muted/40">
-                              <TableCell>
-                                <Link
-                                  href={getStudentClassTaskDetailRoute(
-                                    classRow.class_id,
-                                    task.task_id
-                                  )}
-                                  prefetch={false}
-                                  className="font-medium underline-offset-4 hover:underline"
-                                >
-                                  {task.title}
-                                </Link>
-                              </TableCell>
-                              <TableCell>
-                                <StudentTaskStatusBadge status={task.status} />
-                              </TableCell>
-                              <TableCell className="tabular-nums">
-                                {task.grade == null
-                                  ? "—"
-                                  : `${task.grade}/${task.max_grade}`}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {task.due_date
-                                  ? format(
-                                      new Date(task.due_date),
-                                      "MMM d, yyyy"
-                                    )
-                                  : "—"}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </div>
+                          <span
+                            className={cn(
+                              "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
+                              SESSION_TIMING_CLASSES[timing]
+                            )}
+                          >
+                            {SESSION_TIMING_LABELS[timing]}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 text-sm font-semibold">
+                          {session.topic}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {format(new Date(session.starts_at), "MMM d, yyyy")}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(session.starts_at), "h:mm a")}
+                          {" – "}
+                          {format(new Date(session.ends_at), "h:mm a")}
+                        </p>
+                      </article>
+                    );
+                  })}
                 </div>
-              ) : null}
-            </>
-          )}
-        </CardContent>
-      </Card>
+              )}
+            </div>
 
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold">Attendance</h3>
+              {detail.attendanceSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No attendance recorded for this class yet.
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {detail.attendanceSlots.map((slot) => (
+                      <div
+                        key={slot.session_id}
+                        className={cn(
+                          "rounded-lg border px-3 py-2",
+                          MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[
+                            getAttendanceDisplayKey(slot.status)
+                          ]
+                        )}
+                      >
+                        <p className="text-xs font-semibold">
+                          {slot.session_label}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {format(new Date(slot.session_at), "MMM d, yyyy")}
+                        </p>
+                        <div className="mt-2">
+                          <StudentAttendanceStatusBadge status={slot.status} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={attendanceBarData}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-border"
+                        />
+                        <XAxis
+                          dataKey="label"
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          allowDecimals={false}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip />
+                        <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                          {attendanceBarData.map((entry) => (
+                            <Cell key={entry.label} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="grades" className="flex flex-col gap-6">
       <Card className="gap-0 py-0">
         <CardHeader className="border-b py-3">
           <CardTitle>Grades</CardTitle>
@@ -474,7 +460,9 @@ export function StudentClassDetailsPanel({
           )}
         </CardContent>
       </Card>
+          </TabsContent>
 
+          <TabsContent value="classmates">
       <Card className="gap-0 py-0">
         <CardHeader className="border-b py-3">
           <CardTitle>Classmates</CardTitle>
@@ -513,91 +501,9 @@ export function StudentClassDetailsPanel({
           </Table>
         </CardContent>
       </Card>
+          </TabsContent>
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b py-3">
-          <CardTitle>Attendance</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="grid min-h-[22rem] gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
-            <div className="flex min-h-0 min-w-0 flex-col space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Session slots
-              </p>
-              {detail.attendanceSlots.length === 0 ? (
-                <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                  No sessions recorded for this class yet.
-                </p>
-              ) : (
-                <div className="grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto sm:grid-cols-3">
-                  {detail.attendanceSlots.map((slot) => (
-                    <div
-                      key={slot.session_id}
-                      className={cn(
-                        "rounded-lg border px-3 py-2",
-                        MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[
-                          getAttendanceDisplayKey(slot.status)
-                        ]
-                      )}
-                    >
-                      <p className="text-xs font-semibold">
-                        {slot.session_label}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {format(new Date(slot.session_at), "MMM d, yyyy")}
-                      </p>
-                      <div className="mt-2">
-                        <StudentAttendanceStatusBadge status={slot.status} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex min-h-[20rem] min-w-0 flex-col space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Attendance summary
-              </p>
-              {detail.attendanceSlots.length === 0 ? (
-                <p className="flex min-h-[18rem] flex-1 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-                  No attendance data yet.
-                </p>
-              ) : (
-                <div className="min-h-[18rem] flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={attendanceBarData}
-                      margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-border"
-                      />
-                      <XAxis
-                        dataKey="label"
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        allowDecimals={false}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <Tooltip />
-                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                        {attendanceBarData.map((entry) => (
-                          <Cell key={entry.label} fill={entry.fill} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
+          <TabsContent value="tasks">
       <Card className="gap-0 py-0">
         <CardHeader className="border-b py-3">
           <CardTitle>Tasks</CardTitle>
@@ -661,6 +567,9 @@ export function StudentClassDetailsPanel({
           </Table>
         </CardContent>
       </Card>
+          </TabsContent>
+        </TabsContents>
+      </Tabs>
     </div>
   );
 }

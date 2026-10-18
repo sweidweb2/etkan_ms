@@ -12,6 +12,7 @@ import { AdminPanelSearch } from "@/components/panels/admin-panel-search";
 import { PanelNotificationsBell } from "@/components/panels/panel-notifications-bell";
 import { PanelSidebar } from "@/components/panels/panel-sidebar";
 import { PanelUserMenu } from "@/components/panels/panel-user-menu";
+import { StudentPanelNavbar } from "@/components/panels/student-panel-navbar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PERMISSIONS, type PermissionKey } from "@/lib/constants/permissions";
 import { flattenPanelNavItems } from "@/lib/panels/flatten-nav";
@@ -38,6 +39,26 @@ export function PanelShell({
   const canViewNotifications = permissions.includes(
     PERMISSIONS.NOTIFICATIONS_VIEW
   );
+
+  if (variant === "student") {
+    return (
+      <PermissionsProvider permissions={permissions}>
+        <div className="flex h-svh w-full flex-col overflow-hidden bg-background">
+          <SessionIdleMonitor />
+          <StudentPanelNavbar
+            navigation={navigation}
+            displayName={displayName}
+            permissions={permissions}
+          />
+          <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+            <div className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-4 p-4 md:p-6">
+              {children}
+            </div>
+          </div>
+        </div>
+      </PermissionsProvider>
+    );
+  }
 
   return (
     <PermissionsProvider permissions={permissions}>
