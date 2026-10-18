@@ -125,7 +125,6 @@ export function StudentClassDetailsPanel({
     { value: "grades", label: "Grades & final exam" },
     { value: "tasks", label: "Tasks" },
     { value: "classmates", label: "Classmates" },
-    { value: "attendance", label: "Attendance" },
   ] as const;
 
   return (
@@ -182,12 +181,12 @@ export function StudentClassDetailsPanel({
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="gap-4">
-        <TabsListPrimitive className="grid w-1/2 grid-cols-5 gap-1 self-center rounded-lg bg-muted p-1">
+        <TabsListPrimitive className="grid w-full grid-cols-2 gap-1 self-start rounded-lg bg-muted p-1 sm:grid-cols-4 md:w-1/2">
           {classTabs.map((item) => (
             <TabsTriggerPrimitive
               key={item.value}
               value={item.value}
-              className="rounded-md px-2 py-1.5 text-center text-sm font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-background data-[state=active]:text-foreground"
+              className="rounded-md px-2 py-1.5 text-center text-sm font-medium whitespace-normal text-muted-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-background data-[state=active]:text-foreground"
             >
               {item.label}
             </TabsTriggerPrimitive>
@@ -195,49 +194,116 @@ export function StudentClassDetailsPanel({
         </TabsListPrimitive>
 
         <TabsContents>
-          <TabsContent value="details" className="flex flex-col gap-6">
-            {sessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No sessions scheduled for this class yet.
-              </p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {sessions.map((session) => {
-                  const timing = getSessionTimingLabel(session);
-                  return (
-                    <article
-                      key={session.id}
-                      className="rounded-xl border border-border bg-card p-3"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          Session {session.nb_order}
+          <TabsContent value="details" className="grid items-start gap-6 lg:grid-cols-2">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold">Sessions</h3>
+              {sessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No sessions scheduled for this class yet.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {sessions.map((session) => {
+                    const timing = getSessionTimingLabel(session);
+                    return (
+                      <article
+                        key={session.id}
+                        className="rounded-xl border border-border bg-card p-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Session {session.nb_order}
+                          </p>
+                          <span
+                            className={cn(
+                              "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
+                              SESSION_TIMING_CLASSES[timing]
+                            )}
+                          >
+                            {SESSION_TIMING_LABELS[timing]}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 text-sm font-semibold">
+                          {session.topic}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {format(new Date(session.starts_at), "MMM d, yyyy")}
                         </p>
-                        <span
-                          className={cn(
-                            "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
-                            SESSION_TIMING_CLASSES[timing]
-                          )}
-                        >
-                          {SESSION_TIMING_LABELS[timing]}
-                        </span>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(session.starts_at), "h:mm a")}
+                          {" – "}
+                          {format(new Date(session.ends_at), "h:mm a")}
+                        </p>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold">Attendance</h3>
+              {detail.attendanceSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No attendance recorded for this class yet.
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {detail.attendanceSlots.map((slot) => (
+                      <div
+                        key={slot.session_id}
+                        className={cn(
+                          "rounded-lg border px-3 py-2",
+                          MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[
+                            getAttendanceDisplayKey(slot.status)
+                          ]
+                        )}
+                      >
+                        <p className="text-xs font-semibold">
+                          {slot.session_label}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {format(new Date(slot.session_at), "MMM d, yyyy")}
+                        </p>
+                        <div className="mt-2">
+                          <StudentAttendanceStatusBadge status={slot.status} />
+                        </div>
                       </div>
-                      <h3 className="mt-2 text-sm font-semibold">
-                        {session.topic}
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {format(new Date(session.starts_at), "MMM d, yyyy")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(session.starts_at), "h:mm a")}
-                        {" – "}
-                        {format(new Date(session.ends_at), "h:mm a")}
-                      </p>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
+                    ))}
+                  </div>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={attendanceBarData}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-border"
+                        />
+                        <XAxis
+                          dataKey="label"
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          allowDecimals={false}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip />
+                        <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                          {attendanceBarData.map((entry) => (
+                            <Cell key={entry.label} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="grades" className="flex flex-col gap-6">
@@ -433,92 +499,6 @@ export function StudentClassDetailsPanel({
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
-          </TabsContent>
-
-          <TabsContent value="attendance">
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b py-3">
-          <CardTitle>Attendance</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="grid min-h-[22rem] gap-6 p-5 lg:grid-cols-2 lg:items-stretch">
-            <div className="flex min-h-0 min-w-0 flex-col space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Session slots
-              </p>
-              {detail.attendanceSlots.length === 0 ? (
-                <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                  No sessions recorded for this class yet.
-                </p>
-              ) : (
-                <div className="grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto sm:grid-cols-3">
-                  {detail.attendanceSlots.map((slot) => (
-                    <div
-                      key={slot.session_id}
-                      className={cn(
-                        "rounded-lg border px-3 py-2",
-                        MANAGER_STUDENT_ATTENDANCE_SLOT_CLASSES[
-                          getAttendanceDisplayKey(slot.status)
-                        ]
-                      )}
-                    >
-                      <p className="text-xs font-semibold">
-                        {slot.session_label}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {format(new Date(slot.session_at), "MMM d, yyyy")}
-                      </p>
-                      <div className="mt-2">
-                        <StudentAttendanceStatusBadge status={slot.status} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex min-h-[20rem] min-w-0 flex-col space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Attendance summary
-              </p>
-              {detail.attendanceSlots.length === 0 ? (
-                <p className="flex min-h-[18rem] flex-1 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-                  No attendance data yet.
-                </p>
-              ) : (
-                <div className="min-h-[18rem] flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={attendanceBarData}
-                      margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-border"
-                      />
-                      <XAxis
-                        dataKey="label"
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        allowDecimals={false}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <Tooltip />
-                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                        {attendanceBarData.map((entry) => (
-                          <Cell key={entry.label} fill={entry.fill} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </div>
         </CardContent>
       </Card>
           </TabsContent>
