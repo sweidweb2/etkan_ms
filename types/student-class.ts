@@ -24,9 +24,20 @@ export type StudentClassDetailForSelf = {
   classmates: StudentClassmateRow[];
   finalExam: ManagerClassFinalExamRow | null;
   studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
+  uploads: StudentTaskUploadForSelf[];
 };
 
-/** Student panel task detail: task fields + own grade only. */
+/** Own task file shown in the student portal. Storage path stays on the server. */
+export type StudentTaskUploadForSelf = {
+  id: string;
+  student_task_id: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  created_at: string;
+};
+
+/** Student panel task detail: task fields, own grade, and own uploads. */
 export type StudentClassTaskDetailForSelf = {
   classRow: ManagerStudentClassRow;
   task: {
@@ -39,11 +50,27 @@ export type StudentClassTaskDetailForSelf = {
     max_grade: number;
   };
   studentTask: {
+    id: string;
     status: StudentTaskStatusValue;
     grade: number | null;
     submitted_at: string | null;
     graded_at: string | null;
   } | null;
+  uploads: StudentTaskUploadForSelf[];
+};
+
+export type StudentTaskUploadActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  upload?: StudentTaskUploadForSelf;
+};
+
+export type DeleteStudentTaskUploadActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  uploadId?: string;
 };
 
 export type { ManagerStudentClassTaskRow };

@@ -10,6 +10,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StudentTaskFiles } from "@/components/student/classes/student-task-files";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
 import {
   getStudentClassDetailRoute,
@@ -109,6 +110,18 @@ export function StudentClassTaskDetailsPanel({
               </dd>
             </div>
           </dl>
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b px-4 py-2.5">
+          <CardTitle className="text-sm">Files</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 py-3">
+          <StudentTaskFiles
+            studentTaskId={studentTask?.id ?? null}
+            uploads={detail.uploads ?? []}
+          />
         </CardContent>
       </Card>
     </div>

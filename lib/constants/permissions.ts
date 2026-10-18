@@ -150,6 +150,7 @@ export const PERMISSIONS = {
   ATTENDANCE_UPDATE: "attendance.update",
 
   TASKS_VIEW: "tasks.view",
+  TASKS_MANAGE_OWN_UPLOADS: "tasks.manage_own_uploads",
   TASKS_CREATE: "tasks.create",
   TASKS_UPDATE: "tasks.update",
   TASKS_UPDATE_STUDENT: "tasks.update_student",
@@ -629,6 +630,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "tasks",
     label: "View tasks",
     access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.TASKS_MANAGE_OWN_UPLOADS,
+    feature: "tasks",
+    label: "Upload, open, and delete own task files",
+    access: PERMISSION_ACCESS.WRITE,
   },
   {
     key: PERMISSIONS.TASKS_CREATE,

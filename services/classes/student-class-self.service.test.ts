@@ -4,6 +4,7 @@ import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
+import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
 import * as taskRepository from "@/repositories/task.repository";
 import {
   assertPermission,
@@ -23,6 +24,7 @@ vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
+vi.mock("@/repositories/student-task-upload.repository");
 vi.mock("@/repositories/task.repository");
 vi.mock("@/services/classes/student-course-grade.service", () => ({
   listStudentClassAcademicBundlesForSelf: vi.fn(),
@@ -229,6 +231,12 @@ describe("getStudentClassDetailForSelf", () => {
       data: [{ user_id: "student-2", full_name: "Peer Student", id: "sp2" }],
       error: null,
     } as never);
+    vi.mocked(
+      studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
 
     const detail = await getStudentClassDetailForSelf(
       adminClient,
@@ -243,6 +251,7 @@ describe("getStudentClassDetailForSelf", () => {
     ]);
     expect(detail?.finalExam?.title).toBe("Final");
     expect(detail?.studentFinalExamGrade?.grade).toBe(90);
+    expect(detail?.uploads).toEqual([]);
   });
 });
 
@@ -358,6 +367,12 @@ describe("getStudentClassTaskForSelf", () => {
       ],
       error: null,
     } as never);
+    vi.mocked(
+      studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
 
     const detail = await getStudentClassTaskForSelf(
       adminClient,
@@ -369,6 +384,8 @@ describe("getStudentClassTaskForSelf", () => {
     expect(detail?.task.title).toBe("Homework");
     expect(detail?.task.session_label).toBe("S2");
     expect(detail?.studentTask?.grade).toBe(88);
+    expect(detail?.studentTask?.id).toBe("st-1");
+    expect(detail?.uploads).toEqual([]);
     expect(
       studentTaskRepository.listStudentTasksForGradesByTaskIdsAndStudentId
     ).toHaveBeenCalledWith(adminClient, [taskId], studentUserId);

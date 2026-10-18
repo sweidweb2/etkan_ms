@@ -19,12 +19,15 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";
+import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
+import type { StudentTaskUploadRecord } from "@/repositories/student-task-upload.repository";
 import * as taskRepository from "@/repositories/task.repository";
 import type { TaskRecord } from "@/repositories/task.repository";
 import {
   assertPermission,
   assertStudentSelfAccess,
 } from "@/services/auth/authorization.service";
+import { mapStudentTaskUploadForSelf } from "@/services/classes/student-task-upload-self.service";
 import { listStudentClassAcademicBundlesForSelf } from "@/services/classes/student-course-grade.service";
 import { listJoinedClassesForStudentSelf } from "@/services/students/student.service";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -219,6 +222,16 @@ export async function getStudentClassDetailForSelf(
     return null;
   }
 
+  const uploadResult =
+    await studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds(
+      adminClient,
+      bundle.detail.tasks.map((task) => task.student_task_id)
+    );
+
+  if (uploadResult.error) {
+    throw new Error(uploadResult.error.message);
+  }
+
   const sessions = ((sessionsResult.data ?? []) as SessionRecord[])
     .map(mapSessionRecord)
     .sort((left, right) => left.nb_order - right.nb_order);
@@ -230,6 +243,9 @@ export async function getStudentClassDetailForSelf(
     classmates,
     finalExam: bundle.finalExam,
     studentFinalExamGrade: bundle.studentFinalExamGrade,
+    uploads: ((uploadResult.data ?? []) as StudentTaskUploadRecord[]).map(
+      mapStudentTaskUploadForSelf
+    ),
   };
 }
 
@@ -326,6 +342,7 @@ export async function getStudentClassTaskForSelf(
     },
     studentTask: studentTaskRecord
       ? {
+          id: studentTaskRecord.id,
           status: mapStudentTaskStatus(studentTaskRecord.status),
           grade:
             studentTaskRecord.grade == null
@@ -335,5 +352,24 @@ export async function getStudentClassTaskForSelf(
           graded_at: studentTaskRecord.graded_at,
         }
       : null,
+    uploads: studentTaskRecord
+      ? await listOwnTaskUploads(adminClient, studentTaskRecord.id)
+      : [],
   };
+}
+
+async function listOwnTaskUploads(adminClient: Supabase, studentTaskId: string) {
+  const uploadResult =
+    await studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds(
+      adminClient,
+      [studentTaskId]
+    );
+
+  if (uploadResult.error) {
+    throw new Error(uploadResult.error.message);
+  }
+
+  return ((uploadResult.data ?? []) as StudentTaskUploadRecord[]).map(
+    mapStudentTaskUploadForSelf
+  );
 }

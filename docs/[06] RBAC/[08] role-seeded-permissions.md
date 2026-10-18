@@ -135,6 +135,7 @@ classes.view
 sessions.view
 attendance.view
 tasks.view
+tasks.manage_own_uploads
 grades.view
 final_exams.view
 accounting.view
