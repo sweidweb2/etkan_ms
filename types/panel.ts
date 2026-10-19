@@ -30,6 +30,9 @@ export type PanelNavItem = {
   title: string;
   href: string;
   icon: PanelNavIconKey;
+  /** Stays in the nav but does not navigate. */
+  locked?: boolean;
+  lockedMessage?: string;
 };
 
 export type PanelNavGroup = {

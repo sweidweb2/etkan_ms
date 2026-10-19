@@ -157,11 +157,12 @@ export const CRM_SEED_PERMISSIONS = [
 ] as const satisfies readonly PermissionKey[];
 
 /**
- * Student panel: own profile read-only, enrolled class tree reads
+ * Student panel: own profile (name, birth date, phone), enrolled class tree reads
  * (classes → sessions → tasks + related views), own SPP / payments.
  */
 export const STUDENT_SEED_PERMISSIONS = [
   PERMISSIONS.STUDENTS_VIEW_OWN,
+  PERMISSIONS.STUDENTS_UPDATE_OWN,
   PERMISSIONS.CLASSES_VIEW,
   PERMISSIONS.SESSIONS_VIEW,
   PERMISSIONS.ATTENDANCE_VIEW,

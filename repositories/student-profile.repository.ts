@@ -137,6 +137,28 @@ export async function updateStudentProfileById(
     .single();
 }
 
+/** Updates name, birth date, and phone. Status is left unchanged. */
+export async function updateStudentProfileDetailsById(
+  client: Supabase,
+  studentProfileId: string,
+  input: {
+    full_name: string;
+    birth_date?: string | null;
+    phone?: string | null;
+  }
+) {
+  return client
+    .from("student_profiles")
+    .update({
+      full_name: input.full_name,
+      birth_date: input.birth_date ?? null,
+      phone: input.phone ?? null,
+    })
+    .eq("id", studentProfileId)
+    .select("id, user_id, full_name, birth_date, phone, status, created_at")
+    .single();
+}
+
 export async function updateStudentProfileStatusById(
   client: Supabase,
   studentProfileId: string,

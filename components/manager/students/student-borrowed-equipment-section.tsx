@@ -59,6 +59,10 @@ const COLUMN_LIMITS = {
 
 type StudentBorrowedEquipmentSectionProps = {
   initialBorrows: ManagerStudentBorrowEquipmentRow[];
+  description?: string;
+  defaultOpen?: boolean;
+  /** Persist open/closed in localStorage. Off for the student borrowings page. */
+  persistOpen?: boolean;
 };
 
 function TruncatedCell({
@@ -145,6 +149,9 @@ function formatDateCell(value: string | null) {
 
 export function StudentBorrowedEquipmentSection({
   initialBorrows,
+  description = "borrow_equipment records for this student with status, dates, and actions.",
+  defaultOpen = false,
+  persistOpen = true,
 }: StudentBorrowedEquipmentSectionProps) {
   const [borrows, setBorrows] =
     useState<ManagerStudentBorrowEquipmentRow[]>(initialBorrows);
@@ -313,9 +320,13 @@ export function StudentBorrowedEquipmentSection({
 
       <ClassTabCollapsibleSection
         title="Borrowed equipment"
-        description="borrow_equipment records for this student with status, dates, and actions."
-        storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.STUDENT_DETAILS_BORROWING}
-        defaultOpen={false}
+        description={description}
+        storageKey={
+          persistOpen
+            ? COLLAPSIBLE_SECTION_STORAGE_KEYS.STUDENT_DETAILS_BORROWING
+            : undefined
+        }
+        defaultOpen={defaultOpen}
       >
           <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:px-5">
             <div className="relative min-w-0 flex-1">

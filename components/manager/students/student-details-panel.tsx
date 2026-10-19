@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { FileTextIcon, PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
+import { EditOwnProfileDialog } from "@/components/student/edit-own-profile-dialog";
 import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
 import { StudentBorrowedEquipmentSection } from "@/components/manager/students/student-borrowed-equipment-section";
 import { StudentActivitySection } from "@/components/manager/students/student-activity-section";
@@ -43,7 +44,7 @@ import type { ManagerStudentBorrowEquipmentRow } from "@/types/manager-student-b
 
 type StudentDetailsPanelProps = {
   student: ManagerStudentRow;
-  stats: ManagerStudentDetailStats;
+  stats?: ManagerStudentDetailStats;
   availableClasses: ManagerClassOption[];
   classBundles: ManagerStudentClassAcademicBundle[];
   activityRows: ManagerStudentActivityRow[];
@@ -102,7 +103,7 @@ export function StudentDetailsPanel({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My profile</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your student details, classes, and borrowing. View only.
+            Your student details.
           </p>
         </div>
       ) : (
@@ -121,7 +122,7 @@ export function StudentDetailsPanel({
         </Breadcrumb>
       )}
 
-      <StudentDetailsSectionNav hideActivity={isSelf} />
+      {isSelf ? null : <StudentDetailsSectionNav />}
 
       {!isSelf ? (
         <EditStudentDialog
@@ -132,7 +133,16 @@ export function StudentDetailsPanel({
             setStudent(updatedStudent);
           }}
         />
-      ) : null}
+      ) : (
+        <EditOwnProfileDialog
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          student={student}
+          onStudentUpdated={(updatedStudent) => {
+            setStudent(updatedStudent);
+          }}
+        />
+      )}
 
       <Card className="gap-0 py-0">
         <CardHeader className="border-b bg-muted/40 py-3">
@@ -166,7 +176,19 @@ export function StudentDetailsPanel({
                 </Button>
               </Can>
             </CardAction>
-          ) : null}
+          ) : (
+            <CardAction className="self-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Edit profile"
+                onClick={() => setIsEditOpen(true)}
+              >
+                <PencilIcon />
+              </Button>
+            </CardAction>
+          )}
         </CardHeader>
         <CardContent className="pb-4 pt-2">
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -198,47 +220,53 @@ export function StudentDetailsPanel({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StudentDetailStatCard
-          label="Classes registered"
-          value={stats.classesRegistered}
-          accentClassName="border-l-sky-500"
-        />
-        <StudentDetailStatCard
-          label="Classes done"
-          value={stats.classesDone}
-          accentClassName="border-l-emerald-500"
-        />
-        <StudentDetailStatCard
-          label="Classes pending"
-          value={stats.classesPending}
-          accentClassName="border-l-amber-500"
-        />
-        <StudentDetailStatCard
-          label="Tasks done"
-          value={`${stats.tasksDone} / ${stats.tasksTotal}`}
-          accentClassName="border-l-violet-500"
-        />
-      </div>
+      {!isSelf && stats ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StudentDetailStatCard
+            label="Classes registered"
+            value={stats.classesRegistered}
+            accentClassName="border-l-sky-500"
+          />
+          <StudentDetailStatCard
+            label="Classes done"
+            value={stats.classesDone}
+            accentClassName="border-l-emerald-500"
+          />
+          <StudentDetailStatCard
+            label="Classes pending"
+            value={stats.classesPending}
+            accentClassName="border-l-amber-500"
+          />
+          <StudentDetailStatCard
+            label="Tasks done"
+            value={`${stats.tasksDone} / ${stats.tasksTotal}`}
+            accentClassName="border-l-violet-500"
+          />
+        </div>
+      ) : null}
 
-      <div
-        id={STUDENT_DETAILS_SECTION_IDS.classes}
-        className="scroll-mt-6"
-      >
-        <StudentJoinedClassesSection
-          studentProfileId={student.student_profile_id}
-          initialClasses={classBundles.map((bundle) => bundle.classRow)}
-          availableClasses={isSelf ? [] : availableClasses}
-          classBundles={classBundles}
-        />
-      </div>
+      {isSelf ? null : (
+        <div
+          id={STUDENT_DETAILS_SECTION_IDS.classes}
+          className="scroll-mt-6"
+        >
+          <StudentJoinedClassesSection
+            studentProfileId={student.student_profile_id}
+            initialClasses={classBundles.map((bundle) => bundle.classRow)}
+            availableClasses={availableClasses}
+            classBundles={classBundles}
+          />
+        </div>
+      )}
 
-      <div
-        id={STUDENT_DETAILS_SECTION_IDS.borrowing}
-        className="scroll-mt-6"
-      >
-        <StudentBorrowedEquipmentSection initialBorrows={borrowRows} />
-      </div>
+      {isSelf ? null : (
+        <div
+          id={STUDENT_DETAILS_SECTION_IDS.borrowing}
+          className="scroll-mt-6"
+        >
+          <StudentBorrowedEquipmentSection initialBorrows={borrowRows} />
+        </div>
+      )}
 
       {!isSelf ? (
         <div

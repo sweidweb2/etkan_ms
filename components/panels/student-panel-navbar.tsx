@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { Lock, Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AppLogo } from "@/components/brand/app-logo";
 import { PANEL_ICONS } from "@/components/panels/panel-icons";
 import { PanelNotificationsBell } from "@/components/panels/panel-notifications-bell";
@@ -50,7 +50,7 @@ export function StudentPanelNavbar({
   const items = flattenPanelNavItems(navigation);
   const activeHref = resolveActiveNavHref(
     pathname,
-    items.map((item) => item.href)
+    items.filter((item) => !item.locked).map((item) => item.href)
   );
   const canViewNotifications = permissions.includes(
     PERMISSIONS.NOTIFICATIONS_VIEW
@@ -84,6 +84,8 @@ export function StudentPanelNavbar({
               title={item.title}
               icon={item.icon}
               isActive={item.href === activeHref}
+              locked={item.locked}
+              lockedMessage={item.lockedMessage}
             />
           ))}
         </nav>
@@ -120,6 +122,8 @@ export function StudentPanelNavbar({
               title={item.title}
               icon={item.icon}
               isActive={item.href === activeHref}
+              locked={item.locked}
+              lockedMessage={item.lockedMessage}
               onNavigate={closeMenu}
             />
           ))}
@@ -134,15 +138,68 @@ function StudentNavLink({
   title,
   icon,
   isActive,
+  locked = false,
+  lockedMessage = "Coming soon",
   onNavigate,
 }: {
   href: string;
   title: string;
   icon: keyof typeof PANEL_ICONS;
   isActive: boolean;
+  locked?: boolean;
+  lockedMessage?: string;
   onNavigate?: () => void;
 }) {
   const Icon = PANEL_ICONS[icon];
+  const [lockedNotice, setLockedNotice] = useState(0);
+
+  useEffect(() => {
+    if (lockedNotice === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setLockedNotice(0);
+    }, 2500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [lockedNotice]);
+
+  const itemClassName = cn(
+    "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium outline-none transition-colors",
+    "focus-visible:ring-3 focus-visible:ring-ring/50",
+    isActive
+      ? "bg-primary text-primary-foreground"
+      : "text-foreground hover:bg-accent hover:text-accent-foreground"
+  );
+
+  if (locked) {
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          aria-disabled="true"
+          onClick={() => setLockedNotice((current) => current + 1)}
+          className={cn(
+            itemClassName,
+            "cursor-default text-muted-foreground hover:bg-transparent hover:text-muted-foreground"
+          )}
+        >
+          <Icon className="size-4 shrink-0" aria-hidden />
+          <span>{title}</span>
+          <Lock className="size-3.5 shrink-0" aria-hidden />
+        </button>
+        {lockedNotice > 0 ? (
+          <p
+            role="status"
+            className="absolute top-full left-1/2 z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background shadow-sm"
+          >
+            {lockedMessage}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <Link
@@ -150,13 +207,7 @@ function StudentNavLink({
       prefetch={false}
       aria-current={isActive ? "page" : undefined}
       onClick={onNavigate}
-      className={cn(
-        "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium outline-none transition-colors",
-        "focus-visible:ring-3 focus-visible:ring-ring/50",
-        isActive
-          ? "bg-primary text-primary-foreground"
-          : "text-foreground hover:bg-accent hover:text-accent-foreground"
-      )}
+      className={itemClassName}
     >
       <Icon className="size-4 shrink-0" aria-hidden />
       <span>{title}</span>

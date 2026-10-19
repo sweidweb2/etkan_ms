@@ -270,8 +270,8 @@ export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation =
  */
 export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
 
-/** Student panel: profile, classes, payments (+ workshops when instructor/mentor). */
-export const STUDENT_PANEL_NAVIGATION = withManageWorkshops({
+/** Student panel: profile, classes, payments, then locked borrowings last. */
+const STUDENT_PANEL_NAVIGATION_BASE = withManageWorkshops({
   items: [
     {
       title: "My profile",
@@ -290,3 +290,17 @@ export const STUDENT_PANEL_NAVIGATION = withManageWorkshops({
     },
   ],
 });
+
+export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
+  ...STUDENT_PANEL_NAVIGATION_BASE,
+  items: [
+    ...(STUDENT_PANEL_NAVIGATION_BASE.items ?? []),
+    {
+      title: "My borrowings",
+      href: ROUTES.STUDENT_BORROWINGS,
+      icon: "package",
+      locked: true,
+      lockedMessage: "Coming soon",
+    },
+  ],
+};

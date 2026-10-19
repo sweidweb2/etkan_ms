@@ -86,6 +86,7 @@ export const ROUTES = {
   STUDENT_CLASSES: "/student/classes",
   STUDENT_CLASS_DETAIL: "/student/classes/[id]",
   STUDENT_CLASS_TASK_DETAIL: "/student/classes/[id]/tasks/[taskId]",
+  STUDENT_BORROWINGS: "/student/borrowings",
   STUDENT_PAYMENTS: "/student/payments",
   STUDENT_PAYMENT_DETAIL: "/student/payments/[sppId]",
 } as const;

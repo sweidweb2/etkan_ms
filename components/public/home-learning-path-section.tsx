@@ -6,6 +6,11 @@ import { cn } from "@/lib/utils";
 
 type Particle = { x: number; y: number; r: number; opacity: number };
 
+/** Fixed decimals so server HTML and client hydration emit the same attributes. */
+function svgNum(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 function particleRandom(seed: number) {
   let value = seed;
   return () => {
@@ -19,10 +24,10 @@ function particleRandom(seed: number) {
 function scatteredParticles(): Particle[] {
   const random = particleRandom(11);
   return Array.from({ length: 72 }, () => ({
-    x: 18 + random() * 284,
-    y: 14 + random() * 154,
-    r: 1.15 + random() * 2.1,
-    opacity: 0.28 + random() * 0.62,
+    x: svgNum(18 + random() * 284),
+    y: svgNum(14 + random() * 154),
+    r: svgNum(1.15 + random() * 2.1),
+    opacity: svgNum(0.28 + random() * 0.62),
   }));
 }
 
@@ -38,10 +43,10 @@ function clusteredParticles(): Particle[] {
       const angle = random() * Math.PI * 2;
       const distance = Math.pow(random(), 0.65) * group.spread;
       return {
-        x: group.x + Math.cos(angle) * distance,
-        y: group.y + Math.sin(angle) * distance * 0.82,
-        r: 1.2 + random() * 2,
-        opacity: 0.4 + random() * 0.55,
+        x: svgNum(group.x + Math.cos(angle) * distance),
+        y: svgNum(group.y + Math.sin(angle) * distance * 0.82),
+        r: svgNum(1.2 + random() * 2),
+        opacity: svgNum(0.4 + random() * 0.55),
       };
     })
   );
@@ -66,10 +71,10 @@ function networkParticles() {
     }
   }
   const project = (node: (typeof nodes)[number]) => ({
-    x: 160 + (node.x + node.z * 0.28) * 78,
-    y: 92 + node.y * 72,
-    r: 1.5 + (node.z + 1) * 0.7,
-    opacity: 0.45 + (node.z + 1) * 0.25,
+    x: svgNum(160 + (node.x + node.z * 0.28) * 78),
+    y: svgNum(92 + node.y * 72),
+    r: svgNum(1.5 + (node.z + 1) * 0.7),
+    opacity: svgNum(0.45 + (node.z + 1) * 0.25),
   });
   return { nodes: nodes.map(project), links, raw: nodes };
 }
@@ -117,7 +122,7 @@ function LearningPathArt({ kind }: { kind: (typeof STAGES)[number]["art"] }) {
             y2={nodes[to].y}
             stroke="currentColor"
             strokeWidth="0.6"
-            opacity={0.22 + ((raw[from].z + raw[to].z + 2) / 4) * 0.35}
+            opacity={svgNum(0.22 + ((raw[from].z + raw[to].z + 2) / 4) * 0.35)}
           />
         ))}
         {nodes.map((node, index) => (
