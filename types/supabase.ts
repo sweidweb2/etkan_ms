@@ -454,6 +454,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          image_url: string | null
           name: string
           semester_id: string | null
           status: string
@@ -462,6 +463,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          image_url?: string | null
           name: string
           semester_id?: string | null
           status?: string
@@ -470,6 +472,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          image_url?: string | null
           name?: string
           semester_id?: string | null
           status?: string

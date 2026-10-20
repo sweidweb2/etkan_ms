@@ -420,6 +420,7 @@ describe("listComputedStudentGradeSheetBundlesForManager", () => {
         semester_name: "Fall 2026",
         enrollment_count: 2,
         teacher_count: 1,
+        image_url: null,
         created_at: "2026-01-01T00:00:00.000Z",
       },
     });

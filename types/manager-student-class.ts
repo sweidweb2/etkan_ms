@@ -7,5 +7,6 @@ export interface ManagerStudentClassRow {
   name: string;
   subject_name: string;
   class_status: ClassStatusValue;
+  image_url: string | null;
   joined_at: string;
 }

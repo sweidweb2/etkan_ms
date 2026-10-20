@@ -165,6 +165,7 @@ async function mapClassRecordsToSemesterClassRows(
     name: record.name,
     status: mapClassStatus(record.status),
     semester_id: record.semester_id,
+    image_url: record.image_url,
     enrollment_count: enrollmentCounts.get(record.id) ?? 0,
     created_at: record.created_at ?? "",
   }));

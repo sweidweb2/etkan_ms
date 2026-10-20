@@ -11,6 +11,7 @@ export interface ManagerClassRow {
   status: ClassStatusValue;
   semester_id: string | null;
   semester_name: string | null;
+  image_url: string | null;
   enrollment_count: number;
   teacher_count: number;
   created_at: string;

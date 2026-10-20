@@ -116,7 +116,10 @@ Table classes {
   semester_id uuid
   name text [not null]
   status text [not null, default: 'scheduled']
+  image_url text
   created_at timestamp [default: `now()`]
+
+  Note: 'image_url is a public class-covers Storage URL. Null means no cover.'
 }
 
 Table class_categories {

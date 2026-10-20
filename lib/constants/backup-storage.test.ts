@@ -12,6 +12,7 @@ describe("backup storage helpers", () => {
     expect(isBackupStorageBucket("workshops")).toBe(true);
     expect(isBackupStorageBucket("registration")).toBe(true);
     expect(isBackupStorageBucket("student-task-uploads")).toBe(true);
+    expect(isBackupStorageBucket("class-covers")).toBe(true);
     expect(isBackupStorageBucket("avatars")).toBe(false);
   });
 

@@ -6,6 +6,7 @@ import { GALLERY_STORAGE_BUCKET } from "@/lib/manager/gallery/storage-path";
 import { PROJECTS_STORAGE_BUCKET } from "@/lib/manager/projects/storage-path";
 import { WORKSHOPS_STORAGE_BUCKET } from "@/lib/manager/workshops/storage-path";
 import { REGISTRATION_STORAGE_BUCKET } from "@/lib/public/registration/storage-path";
+import { CLASS_COVERS_STORAGE_BUCKET } from "@/lib/manager/classes/storage-path";
 import { STUDENT_TASK_UPLOADS_STORAGE_BUCKET } from "@/lib/constants/manager-student-task-uploads";
 
 export const BACKUP_STORAGE_BUCKETS = [
@@ -16,6 +17,7 @@ export const BACKUP_STORAGE_BUCKETS = [
   REGISTRATION_STORAGE_BUCKET,
   STUDENT_TASK_UPLOADS_STORAGE_BUCKET,
   GALLERY_STORAGE_BUCKET,
+  CLASS_COVERS_STORAGE_BUCKET,
 ] as const;
 
 export type BackupStorageBucket = (typeof BACKUP_STORAGE_BUCKETS)[number];
@@ -29,6 +31,7 @@ export const BACKUP_STORAGE_BUCKET_LABELS: Record<BackupStorageBucket, string> =
     [REGISTRATION_STORAGE_BUCKET]: "Registration",
     [STUDENT_TASK_UPLOADS_STORAGE_BUCKET]: "Student task uploads",
     [GALLERY_STORAGE_BUCKET]: "Gallery",
+    [CLASS_COVERS_STORAGE_BUCKET]: "Class covers",
   };
 
 export function isBackupStorageBucket(

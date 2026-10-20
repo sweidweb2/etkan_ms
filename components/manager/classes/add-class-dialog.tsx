@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import {
   createClassAction,
   loadClassCreateDialogDataAction,
 } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { ClassCoverField } from "@/components/manager/classes/class-cover-field";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -75,6 +76,10 @@ export function AddClassDialog({
     ManagerClassTeacherSelectOption[]
   >([]);
   const [optionsLoaded, setOptionsLoaded] = useState(false);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [isOptimizingCover, setIsOptimizingCover] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  const coverFileRef = useRef<File | null>(null);
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
 
@@ -171,8 +176,18 @@ export function AddClassDialog({
         return;
       }
 
-      onClassCreated(nextState.classRow);
-      onOpenChange(false);
+      const created = nextState.classRow;
+      if (!coverFileRef.current) {
+        onClassCreated(created);
+        onOpenChange(false);
+        return;
+      }
+
+      setUploadComplete(true);
+      window.setTimeout(() => {
+        onClassCreated(created);
+        onOpenChange(false);
+      }, 220);
     },
     (nextState) => Boolean(nextState.success && nextState.classRow)
   );
@@ -194,6 +209,11 @@ export function AddClassDialog({
         ? values.teacher_id
         : TEACHER_UNASSIGNED
     );
+    if (coverFile) {
+      formData.set("image", coverFile);
+    }
+    coverFileRef.current = coverFile;
+    setUploadComplete(false);
 
     startTransition(() => {
       formAction(formData);
@@ -389,6 +409,18 @@ export function AddClassDialog({
               <p className="text-sm text-destructive">{semesterError}</p>
             ) : null}
           </div>
+
+          <ClassCoverField
+            inputId="add-class-cover"
+            active={open}
+            disabled={isPending}
+            isUploading={isPending && Boolean(coverFile)}
+            uploadComplete={uploadComplete}
+            onChange={(value) => {
+              setCoverFile(value.file);
+              setIsOptimizingCover(value.isOptimizing);
+            }}
+          />
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">
@@ -400,7 +432,7 @@ export function AddClassDialog({
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-class-form" disabled={isPending || !optionsLoaded}>
+          <Button type="submit" form="add-class-form" disabled={isPending || !optionsLoaded || isOptimizingCover}>
             {isPending || !optionsLoaded ? (
               <>
                 <InlineSpinner className="mr-2" />

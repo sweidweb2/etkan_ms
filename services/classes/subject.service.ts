@@ -96,6 +96,7 @@ function mapClassRecordToSubjectClassRow(
     subject_id: record.subject_id ?? "",
     name: record.name,
     status: mapClassStatus(record.status),
+    image_url: record.image_url,
     subject_nb_sessions: subjectNbSessions,
     completed_sessions: completedSessions,
     created_at: record.created_at ?? "",

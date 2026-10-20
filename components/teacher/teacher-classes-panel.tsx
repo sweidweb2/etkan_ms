@@ -61,14 +61,22 @@ export function TeacherClassesPanel({ rows }: TeacherClassesPanelProps) {
               />
               <div className="relative flex flex-1 flex-col p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <span
-                    className={cn(
-                      "flex size-12 items-center justify-center rounded-2xl text-sm font-semibold tracking-wide",
-                      MANAGER_CLASS_STATUS_ICON_CLASSES[row.class_status]
-                    )}
-                  >
-                    {subjectMark(row.subject_name)}
-                  </span>
+                  {row.image_url ? (
+                    <img
+                      src={row.image_url}
+                      alt={row.name}
+                      className="size-12 rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <span
+                      className={cn(
+                        "flex size-12 items-center justify-center rounded-2xl text-sm font-semibold tracking-wide",
+                        MANAGER_CLASS_STATUS_ICON_CLASSES[row.class_status]
+                      )}
+                    >
+                      {subjectMark(row.subject_name)}
+                    </span>
+                  )}
                   <span
                     className={cn(
                       "inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-medium",

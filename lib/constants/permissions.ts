@@ -542,13 +542,13 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.CLASSES_CREATE,
     feature: "classes",
-    label: "Create class",
+    label: "Create class and optional cover image",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
     key: PERMISSIONS.CLASSES_UPDATE,
     feature: "classes",
-    label: "Edit class",
+    label: "Edit class and optional cover image",
     access: PERMISSION_ACCESS.WRITE,
   },
   {

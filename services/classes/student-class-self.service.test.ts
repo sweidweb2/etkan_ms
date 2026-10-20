@@ -62,6 +62,7 @@ const classRow = {
   name: "Math A",
   subject_name: "Mathematics",
   class_status: "in_progress" as const,
+  image_url: null,
   joined_at: "2026-09-01T00:00:00.000Z",
 };
 

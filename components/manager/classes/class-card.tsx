@@ -6,6 +6,7 @@ import {
   getClassProgressTone,
   getClassSessionCompletionRate,
 } from "@/lib/constants/manager-semester-class-progress";
+import { ClassCoverImage } from "@/components/classes/class-cover-image";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -85,6 +86,11 @@ export function ClassCard({ classRow }: ClassCardProps) {
           href={getManagerClassDetailRoute(classRow.id)}
           aria-label={`View ${classRow.name}`}
           className="absolute inset-0 z-0 rounded-xl"
+        />
+        <ClassCoverImage
+          src={classRow.image_url}
+          alt={classRow.name}
+          className="relative z-10"
         />
         <div className="relative z-10 flex flex-col gap-3 px-3 py-3 pointer-events-none">
           <div className="flex items-start justify-between gap-2">

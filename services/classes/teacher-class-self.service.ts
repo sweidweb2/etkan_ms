@@ -60,6 +60,7 @@ export async function listTeachingClassesForSelf(
       name: classRow.name,
       subject_name: classRow.subjects?.name ?? "Subject",
       class_status: mapClassStatus(classRow.status),
+      image_url: classRow.image_url,
       assigned_at: assignedAtByClassId.get(classRow.id) ?? null,
     }))
     .sort((left, right) => left.name.localeCompare(right.name));

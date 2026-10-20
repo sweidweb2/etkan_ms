@@ -626,6 +626,7 @@ export async function listJoinedClassesForStudentManager(
         name: classRow.name,
         subject_name: classRow.subjects?.name ?? "—",
         class_status: mapClassStatus(classRow.status),
+        image_url: classRow.image_url,
         joined_at: enrollment.joined_at ?? "",
       },
     ];
@@ -679,6 +680,7 @@ export async function listJoinedClassesForStudentSelf(
         name: classRow.name,
         subject_name: classRow.subjects?.name ?? "—",
         class_status: mapClassStatus(classRow.status),
+        image_url: classRow.image_url,
         joined_at: enrollment.joined_at ?? "",
       },
     ];

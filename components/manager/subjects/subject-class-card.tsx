@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { CalendarIcon, HashIcon, UsersIcon } from "lucide-react";
+import { ClassCoverImage } from "@/components/classes/class-cover-image";
 import {
   Card,
   CardContent,
@@ -77,6 +78,7 @@ export function SubjectClassCard({
   return (
     <TooltipProvider>
       <Card className="flex h-full flex-col overflow-hidden py-0 transition-shadow hover:shadow-md">
+        <ClassCoverImage src={classRow.image_url} alt={classRow.name} />
         <CardHeader className="gap-2 border-b bg-muted/20 py-3">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="min-w-0 flex-1 text-base leading-snug">

@@ -150,8 +150,8 @@ Format: `key` — label — access
 | Key | Label | Access |
 |-----|-------|--------|
 | `classes.view` | View classes | read |
-| `classes.create` | Create class | write |
-| `classes.update` | Edit class | write |
+| `classes.create` | Create class and optional cover image | write |
+| `classes.update` | Edit class and optional cover image | write |
 | `classes.change_status` | Change class status | write |
 | `classes.assign_teacher` | Assign teacher | write |
 | `classes.unassign_teacher` | Unassign teacher | write |

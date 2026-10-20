@@ -4,7 +4,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const CLASS_COLUMNS =
-  "id, subject_id, name, status, semester_id, created_at";
+  "id, subject_id, name, status, semester_id, image_url, created_at";
 
 export type ClassRecord = {
   id: string;
@@ -12,6 +12,7 @@ export type ClassRecord = {
   name: string;
   status: string | null;
   semester_id: string | null;
+  image_url: string | null;
   created_at: string | null;
 };
 
@@ -102,7 +103,7 @@ export async function countClassesBySemesterId(client: Supabase, semesterId: str
 }
 
 const CLASS_WITH_SUBJECT_SELECT =
-  "id, subject_id, name, status, semester_id, created_at, subjects ( name, nb_sessions )";
+  "id, subject_id, name, status, semester_id, image_url, created_at, subjects ( name, nb_sessions )";
 
 export type ClassWithSubjectRecord = ClassRecord & {
   subjects: { name: string; nb_sessions: number } | null;
@@ -206,7 +207,7 @@ export async function updateClassSemesterId(
 }
 
 const CLASS_DETAIL_SELECT =
-  "id, subject_id, name, status, semester_id, created_at, subjects ( name, nb_sessions ), semesters ( name )";
+  "id, subject_id, name, status, semester_id, image_url, created_at, subjects ( name, nb_sessions ), semesters ( name )";
 
 export type ClassDetailRecord = ClassRecord & {
   subjects: { name: string; nb_sessions: number } | null;
@@ -241,6 +242,19 @@ export async function updateClass(
       status: input.status,
       semester_id: input.semester_id,
     })
+    .eq("id", classId)
+    .select(CLASS_DETAIL_SELECT)
+    .single();
+}
+
+export async function updateClassImageUrl(
+  client: Supabase,
+  classId: string,
+  imageUrl: string | null
+) {
+  return client
+    .from("classes")
+    .update({ image_url: imageUrl })
     .eq("id", classId)
     .select(CLASS_DETAIL_SELECT)
     .single();

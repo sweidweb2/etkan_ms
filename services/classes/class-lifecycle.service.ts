@@ -1,4 +1,10 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { optimizeClassCoverForStorage } from "@/lib/manager/classes/optimize-class-cover";
+import {
+  buildClassCoverStoragePath,
+  getClassCoverObjectPathFromPublicUrl,
+} from "@/lib/manager/classes/storage-path";
+import * as classCoverStorageRepository from "@/repositories/class-cover-storage.repository";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import {
   CLASS_STATUSES,
@@ -36,6 +42,69 @@ import {
   type Supabase,
 } from "@/services/classes/class-shared";
 
+async function uploadCoverBytes(
+  adminClient: Supabase,
+  classId: string,
+  bytes: Buffer
+): Promise<{ success: true; publicUrl: string } | { success: false; error: string }> {
+  const storagePath = buildClassCoverStoragePath(classId);
+  const uploaded = await classCoverStorageRepository.uploadClassCover(
+    adminClient,
+    storagePath,
+    bytes
+  );
+
+  if (uploaded.error) {
+    return {
+      success: false,
+      error: uploaded.error.message || "Unable to upload image.",
+    };
+  }
+
+  const publicUrl = classCoverStorageRepository.getClassCoverPublicUrl(
+    adminClient,
+    storagePath
+  );
+
+  if (!publicUrl) {
+    await classCoverStorageRepository.removeClassCovers(adminClient, [storagePath]);
+    return { success: false, error: "Unable to upload image." };
+  }
+
+  return { success: true, publicUrl };
+}
+
+async function deleteStoredCover(
+  adminClient: Supabase,
+  imageUrl: string | null
+): Promise<void> {
+  if (!imageUrl) {
+    return;
+  }
+
+  const objectPath = getClassCoverObjectPathFromPublicUrl(imageUrl);
+  if (!objectPath) {
+    return;
+  }
+
+  await classCoverStorageRepository.removeClassCovers(adminClient, [objectPath]);
+}
+
+async function prepareClassCover(
+  file: File | null | undefined
+): Promise<{ ok: true; bytes: Buffer | null } | { ok: false; error: string }> {
+  if (!file || file.size <= 0) {
+    return { ok: true, bytes: null };
+  }
+
+  const optimized = await optimizeClassCoverForStorage(file);
+  if (!optimized.ok) {
+    return optimized;
+  }
+
+  return { ok: true, bytes: optimized.bytes };
+}
+
 export type CreateClassResult =
   | { success: true; classRow: ManagerClassRow; message: string }
   | MutationFailure;
@@ -50,6 +119,7 @@ export async function createClassForManager(
     status: string;
     semester_id?: string;
     teacher_id?: string;
+    image?: File | null;
   }
 ): Promise<CreateClassResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_CREATE);
@@ -93,6 +163,11 @@ export async function createClassForManager(
       error: "Please fix the errors below.",
       fieldErrors: { teacher_id: ["Invalid teacher."] },
     };
+  }
+
+  const preparedCover = await prepareClassCover(input.image);
+  if (!preparedCover.ok) {
+    return { success: false, error: preparedCover.error };
   }
 
   const [subjectResult, semesterResult, teacherResult] = await Promise.all([
@@ -189,7 +264,37 @@ export async function createClassForManager(
     });
   }
 
-  const classRow = mapClassDetailToRowWithCounts(data as ClassDetailRecord, {
+  let detail = data as ClassDetailRecord;
+  let imageChanged = false;
+  let message = "Class created.";
+
+  if (preparedCover.bytes) {
+    const uploaded = await uploadCoverBytes(
+      adminClient,
+      detail.id,
+      preparedCover.bytes
+    );
+
+    if (!uploaded.success) {
+      message = "Class created, but the cover image could not be saved.";
+    } else {
+      const saved = await classRepository.updateClassImageUrl(
+        adminClient,
+        detail.id,
+        uploaded.publicUrl
+      );
+
+      if (saved.error || !saved.data) {
+        await deleteStoredCover(adminClient, uploaded.publicUrl);
+        message = "Class created, but the cover image could not be saved.";
+      } else {
+        detail = saved.data as ClassDetailRecord;
+        imageChanged = true;
+      }
+    }
+  }
+
+  const classRow = mapClassDetailToRowWithCounts(detail, {
     enrollment_count: 0,
     teacher_count: nextTeacherId ? 1 : 0,
     completed_sessions: 0,
@@ -205,13 +310,14 @@ export async function createClassForManager(
       status: classRow.status,
       semester_id: classRow.semester_id,
       teacher_id: nextTeacherId,
+      image_changed: imageChanged,
     },
   });
 
   return {
     success: true,
     classRow,
-    message: "Class created.",
+    message,
   };
 }
 
@@ -229,6 +335,8 @@ export async function updateClassForManager(
     subject_id: string;
     status: string;
     semester_id?: string;
+    image?: File | null;
+    removeImage?: boolean;
   }
 ): Promise<UpdateClassResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_UPDATE);
@@ -255,6 +363,11 @@ export async function updateClassForManager(
     parsed.data.semester_id && parsed.data.semester_id !== "unlinked"
       ? parsed.data.semester_id
       : null;
+
+  const preparedCover = await prepareClassCover(input.image);
+  if (!preparedCover.ok) {
+    return { success: false, error: preparedCover.error };
+  }
 
   const [existing, counts, subjectResult, semesterResult] = await Promise.all([
     classRepository.findClassDetailById(adminClient, input.class_id),
@@ -317,10 +430,58 @@ export async function updateClassForManager(
     };
   }
 
-  const classRow = mapClassDetailToRowWithCounts(
-    data as ClassDetailRecord,
-    counts
-  );
+  let detail = data as ClassDetailRecord;
+  let imageChanged = false;
+  let message = "Class updated.";
+  const previousUrl = existing.data.image_url;
+
+  if (preparedCover.bytes) {
+    const uploaded = await uploadCoverBytes(
+      adminClient,
+      detail.id,
+      preparedCover.bytes
+    );
+
+    if (!uploaded.success) {
+      message = "Class updated, but the cover image could not be saved.";
+    } else {
+      const saved = await classRepository.updateClassImageUrl(
+        adminClient,
+        detail.id,
+        uploaded.publicUrl
+      );
+
+      if (saved.error || !saved.data) {
+        await deleteStoredCover(adminClient, uploaded.publicUrl);
+        message = "Class updated, but the cover image could not be saved.";
+      } else {
+        detail = saved.data as ClassDetailRecord;
+        imageChanged = true;
+        if (previousUrl && previousUrl !== uploaded.publicUrl) {
+          await deleteStoredCover(adminClient, previousUrl);
+        }
+      }
+    }
+  } else if (input.removeImage && previousUrl) {
+    const cleared = await classRepository.updateClassImageUrl(
+      adminClient,
+      detail.id,
+      null
+    );
+
+    if (cleared.error || !cleared.data) {
+      return {
+        success: false,
+        error: "Unable to remove the cover image.",
+      };
+    }
+
+    detail = cleared.data as ClassDetailRecord;
+    imageChanged = true;
+    await deleteStoredCover(adminClient, previousUrl);
+  }
+
+  const classRow = mapClassDetailToRowWithCounts(detail, counts);
 
   await recordManagerAuditLog(adminClient, actor, {
     action: "update",
@@ -337,13 +498,14 @@ export async function updateClassForManager(
       subject_id: classRow.subject_id,
       status: classRow.status,
       semester_id: classRow.semester_id,
+      image_changed: imageChanged,
     },
   });
 
   return {
     success: true,
     classRow,
-    message: "Class updated.",
+    message,
   };
 }
 

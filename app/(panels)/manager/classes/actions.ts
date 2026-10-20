@@ -219,6 +219,14 @@ export async function loadStudentsWithoutActiveClassAction(): Promise<
   }
 }
 
+function readClassCoverFile(formData: FormData): File | null {
+  const value = formData.get("image");
+  if (!(value instanceof File) || value.size <= 0) {
+    return null;
+  }
+  return value;
+}
+
 export async function createClassAction(
   _prevState: CreateClassActionState,
   formData: FormData
@@ -227,7 +235,10 @@ export async function createClassAction(
     formData,
     parse: parseCreateClassFormData,
     mutate: ({ adminClient, actor, data }) =>
-      createClassForManager(adminClient, actor.userId, actor, data),
+      createClassForManager(adminClient, actor.userId, actor, {
+        ...data,
+        image: readClassCoverFile(formData),
+      }),
     mapSuccess: (result) => ({
       success: true,
       message: result.message,
@@ -244,7 +255,11 @@ export async function updateClassAction(
     formData,
     parse: parseUpdateClassFormData,
     mutate: ({ adminClient, actor, data }) =>
-      updateClassForManager(adminClient, actor.userId, actor, data),
+      updateClassForManager(adminClient, actor.userId, actor, {
+        ...data,
+        image: readClassCoverFile(formData),
+        removeImage: formData.get("remove_image") === "1",
+      }),
     mapSuccess: (result) => ({
       success: true,
       message: result.message,

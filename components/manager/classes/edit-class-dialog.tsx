@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import {
   loadClassEditOptionsAction,
   updateClassAction,
 } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { ClassCoverField } from "@/components/manager/classes/class-cover-field";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,6 +70,11 @@ export function EditClassDialog({
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [removeCover, setRemoveCover] = useState(false);
+  const [isOptimizingCover, setIsOptimizingCover] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  const coverFileRef = useRef<File | null>(null);
   const [fetchedOptions, setFetchedOptions] = useState<{
     subjects: ManagerClassSubjectOption[];
     semesters: ManagerClassSemesterOption[];
@@ -174,8 +180,18 @@ export function EditClassDialog({
         return;
       }
 
-      onClassUpdated(nextState.classRow);
-      onOpenChange(false);
+      const updated = nextState.classRow;
+      if (!coverFileRef.current) {
+        onClassUpdated(updated);
+        onOpenChange(false);
+        return;
+      }
+
+      setUploadComplete(true);
+      window.setTimeout(() => {
+        onClassUpdated(updated);
+        onOpenChange(false);
+      }, 220);
     },
     (nextState) => Boolean(nextState.success && nextState.classRow)
   );
@@ -196,6 +212,13 @@ export function EditClassDialog({
         ? values.semester_id
         : SEMESTER_UNLINKED
     );
+    if (coverFile) {
+      formData.set("image", coverFile);
+    } else if (removeCover) {
+      formData.set("remove_image", "1");
+    }
+    coverFileRef.current = coverFile;
+    setUploadComplete(false);
 
     startTransition(() => {
       formAction(formData);
@@ -365,6 +388,22 @@ export function EditClassDialog({
               <p className="text-sm text-destructive">{semesterError}</p>
             ) : null}
           </div>
+
+          <ClassCoverField
+            inputId="edit-class-cover"
+            active={open}
+            disabled={isPending}
+            isUploading={isPending && Boolean(coverFile)}
+            uploadComplete={uploadComplete}
+            allowRemove
+            currentImageUrl={classRow?.image_url}
+            currentImageAlt={classRow?.name ?? "Class cover"}
+            onChange={(value) => {
+              setCoverFile(value.file);
+              setRemoveCover(value.removed);
+              setIsOptimizingCover(value.isOptimizing);
+            }}
+          />
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">
@@ -379,7 +418,7 @@ export function EditClassDialog({
           <Button
             type="submit"
             form="edit-class-form"
-            disabled={!classRow || isPending || isLoadingOptions}
+            disabled={!classRow || isPending || isLoadingOptions || isOptimizingCover}
           >
             {isPending ? (
               <>

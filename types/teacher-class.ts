@@ -6,5 +6,6 @@ export type TeacherClassRow = {
   name: string;
   subject_name: string;
   class_status: ClassStatusValue;
+  image_url: string | null;
   assigned_at: string | null;
 };

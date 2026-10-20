@@ -12,6 +12,7 @@ export interface ManagerSemesterClassRow {
   name: string;
   status: ClassStatusValue;
   semester_id: string | null;
+  image_url: string | null;
   enrollment_count: number;
   created_at: string;
 }
