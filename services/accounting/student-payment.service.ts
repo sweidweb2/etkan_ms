@@ -251,9 +251,13 @@ export async function getSppDetailForManager(
 
   const phaseRecord = phase as PaymentPhaseListRecord;
   const sppRecord = spp as StudentPaymentPhaseRecord;
-  const [studentMeta, billingClass] = await Promise.all([
+  const { loadActiveClearanceDtoBySppId } = await import(
+    "@/services/accounting/spp-clearance.service"
+  );
+  const [studentMeta, billingClass, currentClearance] = await Promise.all([
     resolveStudentMeta(adminClient, sppRecord.student_id),
     resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
+    loadActiveClearanceDtoBySppId(adminClient, sppRecord.id),
   ]);
   const phaseStatus = isPaymentPhaseStatus(phaseRecord.status)
     ? phaseRecord.status
@@ -295,6 +299,7 @@ export async function getSppDetailForManager(
       sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED,
     assigned_at: sppRecord.assigned_at,
     created_at: sppRecord.created_at,
+    current_clearance: currentClearance,
   };
 }
 
@@ -567,6 +572,7 @@ export async function deleteStudentPaymentForManager(
   input: {
     id: string;
     student_payment_phase_id?: string;
+    also_delete_clearance?: boolean;
   }
 ): Promise<DeleteStudentPaymentResult> {
   const unauthorized = await getUnauthorizedError(
@@ -624,6 +630,17 @@ export async function deleteStudentPaymentForManager(
     },
     metadata: { note: "Student payment deleted." },
   });
+
+  const { maybeDeleteClearanceAfterPaymentDelete } = await import(
+    "@/services/accounting/spp-clearance.service"
+  );
+  await maybeDeleteClearanceAfterPaymentDelete(
+    adminClient,
+    actorUserId,
+    actor,
+    data.studentPaymentPhaseId,
+    Boolean(parsed.data.also_delete_clearance)
+  );
 
   return {
     success: true,
@@ -732,7 +749,8 @@ function unwrapPhaseJoin(
 }
 
 function mapOpenSppWithPhaseToRow(
-  record: SppWithPhaseJoin
+  record: SppWithPhaseJoin,
+  currentClearance: StudentOpenSppRow["current_clearance"] = null
 ): StudentOpenSppRow | null {
   const phase = unwrapPhaseJoin(record.payment_phases);
   if (!phase) {
@@ -765,6 +783,7 @@ function mapOpenSppWithPhaseToRow(
     assigned_at: record.assigned_at,
     created_at: record.created_at,
     phase_created_at: phase.created_at,
+    current_clearance: currentClearance,
   };
 }
 
@@ -817,9 +836,21 @@ export async function listOpenSppsForSelf(
     throw new Error(error.message);
   }
 
+  const records = (data ?? []) as SppWithPhaseJoin[];
+  const { loadActiveClearanceDtosBySppIds } = await import(
+    "@/services/accounting/spp-clearance.service"
+  );
+  const clearances = await loadActiveClearanceDtosBySppIds(
+    adminClient,
+    records.map((record) => record.id)
+  );
+
   const rows: StudentOpenSppRow[] = [];
-  for (const record of (data ?? []) as SppWithPhaseJoin[]) {
-    const mapped = mapOpenSppWithPhaseToRow(record);
+  for (const record of records) {
+    const mapped = mapOpenSppWithPhaseToRow(
+      record,
+      clearances.get(record.id) ?? null
+    );
     if (mapped) {
       rows.push(mapped);
     }
@@ -876,9 +907,13 @@ export async function getSppDetailForSelf(
     return null;
   }
 
-  const [studentMeta, billingClass] = await Promise.all([
+  const { loadActiveClearanceDtoBySppId } = await import(
+    "@/services/accounting/spp-clearance.service"
+  );
+  const [studentMeta, billingClass, currentClearance] = await Promise.all([
     resolveStudentMeta(adminClient, sppRecord.student_id),
     resolveInProgressClassForSemester(adminClient, phaseRecord.semester_id),
+    loadActiveClearanceDtoBySppId(adminClient, sppRecord.id),
   ]);
   const sppStatus = isStudentPaymentPhaseStatus(sppRecord.status)
     ? sppRecord.status
@@ -915,6 +950,7 @@ export async function getSppDetailForSelf(
     payments_blocked: false,
     assigned_at: sppRecord.assigned_at,
     created_at: sppRecord.created_at,
+    current_clearance: currentClearance,
   };
 }
 

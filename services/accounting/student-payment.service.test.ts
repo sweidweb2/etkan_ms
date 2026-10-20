@@ -5,6 +5,7 @@ import * as profileRepository from "@/repositories/profile.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
+import * as clearanceRepository from "@/repositories/student-payment-phase-clearance.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
@@ -28,6 +29,11 @@ vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-payment.repository");
 vi.mock("@/repositories/student-profile.repository");
+vi.mock("@/repositories/student-payment-phase-clearance.repository", () => ({
+  findClearanceBySppId: vi.fn().mockResolvedValue({ data: null, error: null }),
+  findClearancesBySppIds: vi.fn().mockResolvedValue({ data: [], error: null }),
+  deleteClearanceById: vi.fn().mockResolvedValue({ data: null, error: null }),
+}));
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -44,6 +50,7 @@ vi.mock("@/services/auth/authorization.service", () => ({
   getUnauthorizedError: vi.fn(async (_c, userId) =>
     userId ? null : "Unauthorized."
   ),
+  hasPermission: vi.fn(async () => false),
 }));
 
 const adminClient = {} as never;
@@ -261,6 +268,10 @@ describe("createStudentPaymentForManager", () => {
 describe("getSppDetailForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(clearanceRepository.findClearanceBySppId).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
   });
 
   it("sets has_credit when remaining amount is negative (E9)", async () => {
@@ -495,6 +506,10 @@ describe("listOpenSppsForSelf", () => {
       if (!userId) throw new Error("Unauthorized.");
       return userId as string;
     });
+    vi.mocked(clearanceRepository.findClearancesBySppIds).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
   });
 
   it("returns mapped open-phase SPPs for the signed-in student", async () => {
@@ -546,6 +561,10 @@ describe("getSppDetailForSelf", () => {
       if (!userId) throw new Error("Unauthorized.");
       return userId as string;
     });
+    vi.mocked(clearanceRepository.findClearanceBySppId).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
   });
 
   it("returns own open-phase SPP detail", async () => {

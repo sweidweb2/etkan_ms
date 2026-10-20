@@ -65,6 +65,11 @@ export const SPP_DISPLAY_STATUS_BADGE_CLASSES: Record<
     "bg-teal-500/15 text-teal-700 dark:text-teal-300",
 };
 
+/** Separate overlay badge — shown beside ledger / upfront badges. */
+export const SPP_CURRENT_CLEARANCE_LABEL = "Current";
+export const SPP_CURRENT_CLEARANCE_BADGE_CLASS =
+  "bg-cyan-500/15 text-cyan-800 dark:text-cyan-200";
+
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",

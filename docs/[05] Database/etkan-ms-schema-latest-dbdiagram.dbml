@@ -748,6 +748,23 @@ Table student_payment_schedules {
   Note: 'Informational installments for an SPP. Does not affect financial totals.'
 }
 
+Table student_payment_phase_clearances {
+  id uuid [pk, default: `gen_random_uuid()`]
+  student_payment_phase_id uuid [not null, unique]
+  duration_days integer [not null, note: 'CHECK 1..365; expiry = created_at + duration_days']
+  notes text
+  created_by uuid
+  updated_by uuid
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    created_at [name: 'idx_student_payment_phase_clearances_created_at']
+  }
+
+  Note: 'Theoretical Current overlay per SPP. Hard-deleted on expiry. Does not affect money or status.'
+}
+
 Table student_financial_adjustments {
   id uuid [pk, default: `gen_random_uuid()`]
   student_payment_phase_id uuid [not null, unique]
@@ -821,6 +838,10 @@ Ref: student_payments.student_payment_phase_id > student_payment_phases.id
 
 Ref: student_payment_schedules.student_payment_phase_id > student_payment_phases.id
 Ref: student_payment_schedules.created_by > profiles.id
+
+Ref: student_payment_phase_clearances.student_payment_phase_id > student_payment_phases.id
+Ref: student_payment_phase_clearances.created_by > profiles.id
+Ref: student_payment_phase_clearances.updated_by > profiles.id
 
 Ref: student_financial_adjustments.student_payment_phase_id > student_payment_phases.id
 

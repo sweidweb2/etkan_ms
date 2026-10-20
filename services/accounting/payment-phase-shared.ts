@@ -320,7 +320,8 @@ export async function buildStudentMetaByUserId(
 export function mapSppRecordToRow(
   record: StudentPaymentPhaseRecord,
   studentLabel: string,
-  studentProfileId: string | null
+  studentProfileId: string | null,
+  currentClearance: ManagerSppRow["current_clearance"] = null
 ): ManagerSppRow {
   return {
     id: record.id,
@@ -338,6 +339,7 @@ export function mapSppRecordToRow(
     remaining_amount: Number(record.remaining_amount),
     assigned_at: record.assigned_at,
     created_at: record.created_at,
+    current_clearance: currentClearance,
   };
 }
 

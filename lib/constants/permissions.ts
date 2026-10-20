@@ -256,6 +256,10 @@ export const PERMISSIONS = {
   ACCOUNTING_ADJUSTMENTS_CREATE: "accounting.adjustments.create",
   ACCOUNTING_ADJUSTMENTS_UPDATE: "accounting.adjustments.update",
   ACCOUNTING_ADJUSTMENTS_DELETE: "accounting.adjustments.delete",
+  ACCOUNTING_CLEARANCES_VIEW: "accounting.clearances.view",
+  ACCOUNTING_CLEARANCES_CREATE: "accounting.clearances.create",
+  ACCOUNTING_CLEARANCES_UPDATE: "accounting.clearances.update",
+  ACCOUNTING_CLEARANCES_DELETE: "accounting.clearances.delete",
 
   PAYMENT_SCHEDULES_VIEW: "payment_schedules.view",
   PAYMENT_SCHEDULES_CREATE: "payment_schedules.create",
@@ -1204,6 +1208,30 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE,
     feature: "accounting",
     label: "Delete financial adjustment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_CLEARANCES_VIEW,
+    feature: "accounting",
+    label: "View SPP current clearances",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE,
+    feature: "accounting",
+    label: "Create SPP current clearance",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_CLEARANCES_UPDATE,
+    feature: "accounting",
+    label: "Edit SPP current clearance",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE,
+    feature: "accounting",
+    label: "Delete SPP current clearance",
     access: PERMISSION_ACCESS.WRITE,
   },
 

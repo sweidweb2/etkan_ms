@@ -16,6 +16,8 @@ import { PaymentScheduleSection } from "@/components/manager/accounting/payment-
 import { EditFinancialAdjustmentDialog } from "@/components/manager/accounting/edit-financial-adjustment-dialog";
 import { EditStudentPaymentDialog } from "@/components/manager/accounting/edit-student-payment-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
+import { SppClearanceSection } from "@/components/manager/accounting/spp-clearance-section";
+import { SppCurrentBadge } from "@/components/manager/accounting/spp-current-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { UpsertFinancialFormDialog } from "@/components/manager/accounting/upsert-financial-form-dialog";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
@@ -44,6 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip,
   TooltipContent,
@@ -230,6 +233,7 @@ export function SppDetailsPanel({
     useState<ManagerStudentPaymentRow | null>(null);
   const [deletingPayment, setDeletingPayment] =
     useState<ManagerStudentPaymentRow | null>(null);
+  const [alsoDeleteClearance, setAlsoDeleteClearance] = useState(false);
   const [isCreateAdjustmentOpen, setIsCreateAdjustmentOpen] = useState(false);
   const [isImportAdjustmentOpen, setIsImportAdjustmentOpen] = useState(false);
   const [isEditAdjustmentOpen, setIsEditAdjustmentOpen] = useState(false);
@@ -282,6 +286,7 @@ export function SppDetailsPanel({
     (open) => {
       if (!open) {
         setDeletingPayment(null);
+        setAlsoDeleteClearance(false);
       }
     }
   );
@@ -317,11 +322,18 @@ export function SppDetailsPanel({
   useActionStateToast(deletePaymentState, isDeletePaymentActionPending);
   useActionStateSuccess(deletePaymentState, isDeletePaymentActionPending, () => {
     const removedId = deletingPayment?.id;
+    const shouldClearClearance = alsoDeleteClearance;
     setDeletingPayment(null);
+    setAlsoDeleteClearance(false);
     if (removedId) {
       const nextPayments = payments.filter((payment) => payment.id !== removedId);
       setPayments(sortPayments(nextPayments));
-      setSpp((current) => applySppFinancials(current, adjustment, nextPayments));
+      setSpp((current) => {
+        const next = applySppFinancials(current, adjustment, nextPayments);
+        return shouldClearClearance
+          ? { ...next, current_clearance: null }
+          : next;
+      });
     }
   });
 
@@ -452,6 +464,9 @@ export function SppDetailsPanel({
     const formData = new FormData();
     formData.set("id", deletingPayment.id);
     formData.set("student_payment_phase_id", spp.id);
+    if (alsoDeleteClearance) {
+      formData.set("also_delete_clearance", "true");
+    }
     startTransition(() => {
       deletePaymentAction(formData);
     });
@@ -644,6 +659,21 @@ export function SppDetailsPanel({
                 ? Balances will recalculate.
               </DialogDescription>
             </DialogHeader>
+            {spp.current_clearance ? (
+              <Can permission={PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE}>
+                <label className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    id="also-delete-clearance"
+                    checked={alsoDeleteClearance}
+                    onCheckedChange={setAlsoDeleteClearance}
+                    disabled={isDeletePaymentActionPending}
+                    aria-label="Also remove Current marker"
+                    className="mt-0.5"
+                  />
+                  <span>Also remove the Current marker for this student</span>
+                </label>
+              </Can>
+            ) : null}
             <DialogFooter className="sm:justify-end">
               <Button
                 type="button"
@@ -837,6 +867,7 @@ export function SppDetailsPanel({
                   }
                 )}
               />
+              <SppCurrentBadge clearance={spp.current_clearance} />
               <PaymentPhaseStatusBadge status={spp.payment_phase_status} />
             </CardAction>
           </CardHeader>
@@ -1046,6 +1077,20 @@ export function SppDetailsPanel({
             payment_phase_status: spp.payment_phase_status,
           })}
           initialSchedules={initialSchedules}
+        />
+
+        <SppClearanceSection
+          key={spp.current_clearance?.id ?? "no-clearance"}
+          sppId={spp.id}
+          paymentPhaseId={spp.payment_phase_id}
+          sppStatus={spp.status}
+          initialClearance={spp.current_clearance}
+          onClearanceChange={(clearance) => {
+            setSpp((current) => ({
+              ...current,
+              current_clearance: clearance,
+            }));
+          }}
         />
 
         <Card>

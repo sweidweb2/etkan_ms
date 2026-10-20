@@ -1871,6 +1871,61 @@ export type Database = {
           },
         ]
       }
+      student_payment_phase_clearances: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          duration_days: number
+          id: string
+          notes: string | null
+          student_payment_phase_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          duration_days: number
+          id?: string
+          notes?: string | null
+          student_payment_phase_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          duration_days?: number
+          id?: string
+          notes?: string | null
+          student_payment_phase_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_payment_phase_clearances_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_payment_phase_clearances_student_payment_phase_id_fkey"
+            columns: ["student_payment_phase_id"]
+            isOneToOne: true
+            referencedRelation: "student_payment_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_payment_phase_clearances_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_payments: {
         Row: {
           amount: number
