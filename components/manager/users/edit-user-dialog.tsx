@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { updateUserAction } from "@/app/manager/users/actions";
 import { FieldLabel } from "@/components/auth/field-label";
+import { PasswordInput } from "@/components/auth/password-input";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +67,8 @@ function getDefaultValues(user: ManagerUserRow): UpdateManagerUserInput {
     birthDate: user.student_birth_date ?? "",
     phone: user.student_phone ?? "",
     status: user.student_status ?? STUDENT_STATUSES.ACTIVE,
+    password: "",
+    confirmPassword: "",
   };
 }
 
@@ -80,6 +83,8 @@ function buildUpdateFormData(
   formData.set("role", values.role);
   formData.set("is_instructor", String(values.is_instructor));
   formData.set("is_mentor", String(values.is_mentor));
+  formData.set("password", values.password ?? "");
+  formData.set("confirmPassword", values.confirmPassword ?? "");
 
   if (values.role === ROLES.STUDENT) {
     formData.set("fullName", values.fullName?.trim() ?? "");
@@ -143,6 +148,10 @@ export function EditUserDialog({
   const usernameError =
     errors.username?.message ?? state.fieldErrors?.username?.[0];
   const emailError = errors.email?.message ?? state.fieldErrors?.email?.[0];
+  const passwordError =
+    errors.password?.message ?? state.fieldErrors?.password?.[0];
+  const confirmPasswordError =
+    errors.confirmPassword?.message ?? state.fieldErrors?.confirmPassword?.[0];
   const roleError = errors.role?.message ?? state.fieldErrors?.role?.[0];
   const fullNameError =
     errors.fullName?.message ?? state.fieldErrors?.fullName?.[0];
@@ -210,6 +219,58 @@ export function EditUserDialog({
               />
               {emailError ? (
                 <p className="text-sm text-destructive">{emailError}</p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="edit-user-password"
+                label="New password"
+                hint="Optional. Leave blank to keep the current password."
+              />
+              <PasswordInput
+                id="edit-user-password"
+                autoComplete="new-password"
+                placeholder="Enter a new password"
+                maxLength={AUTH_LIMITS.password.max}
+                aria-invalid={!!passwordError}
+                disabled={isPending}
+                onGeneratePassword={(password) => {
+                  setValue("password", password, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue("confirmPassword", password, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+                {...register("password")}
+              />
+              {passwordError ? (
+                <p className="text-sm text-destructive">{passwordError}</p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="edit-user-confirm-password"
+                label="Confirm password"
+                hint={AUTH_FIELD_HINTS.confirmPassword}
+              />
+              <PasswordInput
+                id="edit-user-confirm-password"
+                autoComplete="new-password"
+                placeholder="Confirm the new password"
+                maxLength={AUTH_LIMITS.password.max}
+                aria-invalid={!!confirmPasswordError}
+                disabled={isPending}
+                {...register("confirmPassword")}
+              />
+              {confirmPasswordError ? (
+                <p className="text-sm text-destructive">
+                  {confirmPasswordError}
+                </p>
               ) : null}
             </div>
 

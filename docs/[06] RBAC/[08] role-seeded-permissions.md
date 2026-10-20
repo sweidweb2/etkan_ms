@@ -92,7 +92,7 @@ final_exams.*
 grades.*
 ```
 
-Same action surface as manager **inside** a class (sessions → tasks, attendance, grades, final exams, …). **Row scope** is assigned classes only (`class_teacher`) — enforced in services, not by fewer keys.  
+Same action surface as manager **inside** a class (sessions → tasks, attendance, grades, final exams, …). **My classes** (`/teacher/classes`) lists only classes assigned in `class_teacher`. **Row scope** is those assigned classes — enforced in services, not by fewer keys.  
 No workshop seed package (grant workshop keys on the role matrix when an instructor needs Manage workshops).
 
 ---

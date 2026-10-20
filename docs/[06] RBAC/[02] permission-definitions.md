@@ -58,7 +58,7 @@ Format: `key` — label — access
 |-----|-------|--------|
 | `users.view` | View users | read |
 | `users.create` | Create staff user | write |
-| `users.update` | Edit user | write |
+| `users.update` | Edit user account and password | write |
 
 ### Students
 

@@ -15,6 +15,7 @@ import { PanelUserMenu } from "@/components/panels/panel-user-menu";
 import { StudentPanelNavbar } from "@/components/panels/student-panel-navbar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PERMISSIONS, type PermissionKey } from "@/lib/constants/permissions";
+import { ROUTES } from "@/lib/constants/routes";
 import { flattenPanelNavItems } from "@/lib/panels/flatten-nav";
 import type { PanelNavigation, PanelVariant } from "@/types/panel";
 
@@ -40,7 +41,9 @@ export function PanelShell({
     PERMISSIONS.NOTIFICATIONS_VIEW
   );
 
-  if (variant === "student") {
+  if (variant === "student" || variant === "teacher") {
+    const isTeacher = variant === "teacher";
+
     return (
       <PermissionsProvider permissions={permissions}>
         <div className="flex h-svh w-full flex-col overflow-hidden bg-background">
@@ -49,6 +52,10 @@ export function PanelShell({
             navigation={navigation}
             displayName={displayName}
             permissions={permissions}
+            homeHref={isTeacher ? ROUTES.TEACHER_ROOT : ROUTES.STUDENT_ROOT}
+            homeLabel={isTeacher ? "Teacher home" : "Student home"}
+            navLabel={isTeacher ? "Teacher" : "Student"}
+            menuId={isTeacher ? "teacher-panel-menu" : "student-panel-menu"}
           />
           <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
             <div className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-4 p-4 md:p-6">

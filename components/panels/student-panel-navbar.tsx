@@ -20,6 +20,10 @@ type StudentPanelNavbarProps = {
   navigation: PanelNavigation;
   displayName: string;
   permissions?: readonly PermissionKey[];
+  homeHref?: string;
+  homeLabel?: string;
+  navLabel?: string;
+  menuId?: string;
 };
 
 function matchesNavHref(pathname: string, href: string): boolean {
@@ -44,6 +48,10 @@ export function StudentPanelNavbar({
   navigation,
   displayName,
   permissions = [],
+  homeHref = ROUTES.STUDENT_ROOT,
+  homeLabel = "Student home",
+  navLabel = "Student",
+  menuId = "student-panel-menu",
 }: StudentPanelNavbarProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -64,9 +72,9 @@ export function StudentPanelNavbar({
     <header className="w-full shrink-0 border-b border-border bg-background">
       <div className="relative flex h-14 w-full items-center px-4 md:px-6">
         <Link
-          href={ROUTES.STUDENT_ROOT}
+          href={homeHref}
           prefetch={false}
-          aria-label="Student home"
+          aria-label={homeLabel}
           className="relative z-10 shrink-0 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           onClick={closeMenu}
         >
@@ -74,7 +82,7 @@ export function StudentPanelNavbar({
         </Link>
 
         <nav
-          aria-label="Student"
+          aria-label={navLabel}
           className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex"
         >
           {items.map((item) => (
@@ -100,7 +108,7 @@ export function StudentPanelNavbar({
             size="icon"
             className="md:hidden"
             aria-expanded={menuOpen}
-            aria-controls="student-panel-menu"
+            aria-controls={menuId}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             onClick={() => setMenuOpen((open) => !open)}
           >
@@ -111,8 +119,8 @@ export function StudentPanelNavbar({
 
       {menuOpen ? (
         <nav
-          id="student-panel-menu"
-          aria-label="Student"
+          id={menuId}
+          aria-label={navLabel}
           className="flex w-full flex-col gap-1 border-t border-border px-3 py-2 md:hidden"
         >
           {items.map((item) => (

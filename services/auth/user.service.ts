@@ -418,6 +418,8 @@ export async function updateManagerUser(
     birthDate?: string | null;
     phone?: string | null;
     status?: string;
+    password?: string;
+    confirmPassword?: string;
   }
 ): Promise<UpdateManagerUserResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.USERS_UPDATE);
@@ -435,6 +437,8 @@ export async function updateManagerUser(
     birthDate: input.birthDate ?? "",
     phone: input.phone ?? "",
     status: input.status,
+    password: input.password ?? "",
+    confirmPassword: input.confirmPassword ?? "",
   });
 
   if (!parsed.success) {
@@ -576,6 +580,23 @@ export async function updateManagerUser(
       success: false,
       error: mapUpdateManagerUserError(authError.message),
     };
+  }
+
+  const nextPassword = (parsed.data.password ?? "").trim();
+  if (nextPassword) {
+    const { error: passwordError } =
+      await authRepository.updateAuthUserPasswordByAdmin(
+        adminClient,
+        userId,
+        nextPassword
+      );
+
+    if (passwordError) {
+      return {
+        success: false,
+        error: mapUpdateManagerUserError(passwordError.message),
+      };
+    }
   }
 
   if (previousRole !== role) {
@@ -723,6 +744,7 @@ export async function updateManagerUser(
       email: normalizedEmail,
       is_instructor,
       is_mentor,
+      password_changed: Boolean(nextPassword),
       ...(studentProfileId
         ? {
             student_profile_id: studentProfileId,

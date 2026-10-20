@@ -83,6 +83,7 @@ export const ROUTES = {
   SUPERVISOR_ROOT: "/supervisor",
   CRM_ROOT: "/crm",
   TEACHER_ROOT: "/teacher",
+  TEACHER_CLASSES: "/teacher/classes",
   STUDENT_ROOT: "/student",
 
   STUDENT_CLASSES: "/student/classes",
