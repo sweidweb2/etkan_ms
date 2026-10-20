@@ -13,16 +13,28 @@ import {
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { parseCreateSubjectFormData } from "@/lib/validators/manager/create-subject";
 import { parseUpdateSubjectFormData } from "@/lib/validators/manager/update-subject";
+import { parseCreateSubjectTaskFormData } from "@/lib/validators/manager/create-subject-task";
+import { parseUpdateSubjectTaskFormData } from "@/lib/validators/manager/update-subject-task";
 import {
   createSubjectForManager,
   deleteSubjectForManager,
   updateSubjectForManager,
 } from "@/services/classes/subject.service";
+import {
+  createSubjectTaskForManager,
+  deleteSubjectTaskForManager,
+  updateSubjectTaskForManager,
+} from "@/services/subjects/subject-tasks.service";
 import type {
   CreateSubjectActionState,
   DeleteSubjectActionState,
   UpdateSubjectActionState,
 } from "@/types/manager-subject";
+import type {
+  CreateSubjectTaskActionState,
+  DeleteSubjectTaskActionState,
+  UpdateSubjectTaskActionState,
+} from "@/types/manager-subject-task";
 
 export async function createSubjectAction(
   _prevState: CreateSubjectActionState,
@@ -93,5 +105,73 @@ export async function deleteSubjectAction(
         appendQueryParam(ROUTES.MANAGER_SUBJECTS, "toast", "subject_deleted")
       );
     },
+  });
+}
+
+export async function createSubjectTaskAction(
+  _prevState: CreateSubjectTaskActionState,
+  formData: FormData
+): Promise<CreateSubjectTaskActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseCreateSubjectTaskFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      createSubjectTaskForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerSubjectDetailRoute(data.subject_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      task: result.task,
+    }),
+  });
+}
+
+export async function updateSubjectTaskAction(
+  _prevState: UpdateSubjectTaskActionState,
+  formData: FormData
+): Promise<UpdateSubjectTaskActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseUpdateSubjectTaskFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      updateSubjectTaskForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerSubjectDetailRoute(data.subject_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      task: result.task,
+    }),
+  });
+}
+
+export async function deleteSubjectTaskAction(
+  _prevState: DeleteSubjectTaskActionState,
+  formData: FormData
+): Promise<DeleteSubjectTaskActionState> {
+  const id = String(formData.get("id") ?? "").trim();
+  const subjectId = String(formData.get("subject_id") ?? "").trim();
+
+  if (!id || !subjectId) {
+    return {
+      success: false,
+      error: "Subject task not found.",
+    };
+  }
+
+  return runManagerMutation({
+    data: { id, subjectId },
+    mutate: ({ adminClient, actor, data }) =>
+      deleteSubjectTaskForManager(adminClient, actor.userId, actor, data.id),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerSubjectDetailRoute(data.subjectId));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+    }),
   });
 }

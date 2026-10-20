@@ -8,7 +8,7 @@ import * as finalExamRepository from "@/repositories/final-exam.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
-import * as taskRepository from "@/repositories/task.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import * as classService from "@/services/classes/class.service";
 import {
   getStudentClassGradeDetailForManager,
@@ -20,7 +20,7 @@ vi.mock("@/repositories/final-exam.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-task.repository");
-vi.mock("@/repositories/task.repository");
+vi.mock("@/repositories/class-task.repository");
 vi.mock("@/services/classes/class.service", () => ({
   assertClassGradesUnlockedForManager: vi.fn(),
   listClassStudentsForManager: vi.fn(),
@@ -108,11 +108,12 @@ function mockGradeContext(options?: {
     error: null,
   } as never);
 
-  vi.mocked(taskRepository.listTasksForGradesBySessionIds).mockResolvedValue({
+  vi.mocked(classTaskRepository.listClassTasksForGradesByClassId).mockResolvedValue({
     data: [
       {
         id: taskOneId,
-        session_id: sessionOneId,
+        class_id: classId,
+        sort_order: 0,
         title: "Worksheet 1",
         max_grade: 20,
         due_date: "2026-07-11T00:00:00.000Z",
@@ -329,15 +330,16 @@ describe("getStudentClassGradeDetailForManager", () => {
     ]);
   });
 
-  it("includes orphan tasks without a session as Unassigned", async () => {
+  it("includes every class task regardless of sessions", async () => {
     const orphanTaskId = "22222222-2222-4222-8222-222222222222";
 
     mockGradeContext();
-    vi.mocked(taskRepository.listTasksForGradesBySessionIds).mockResolvedValue({
+    vi.mocked(classTaskRepository.listClassTasksForGradesByClassId).mockResolvedValue({
       data: [
         {
           id: taskOneId,
-          session_id: sessionOneId,
+          class_id: classId,
+          sort_order: 0,
           title: "Worksheet 1",
           max_grade: 20,
           due_date: "2026-07-11T00:00:00.000Z",
@@ -345,7 +347,8 @@ describe("getStudentClassGradeDetailForManager", () => {
         },
         {
           id: orphanTaskId,
-          session_id: null,
+          class_id: classId,
+          sort_order: 1,
           title: "Legacy orphan",
           max_grade: 100,
           due_date: null,
@@ -393,7 +396,7 @@ describe("getStudentClassGradeDetailForManager", () => {
         expect.objectContaining({
           id: orphanTaskId,
           session_id: null,
-          session_label: "Unassigned",
+          session_label: "Class",
         }),
       ])
     );

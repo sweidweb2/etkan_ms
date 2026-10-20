@@ -103,7 +103,8 @@ function pathMatchesPrefix(pathname: string, prefix: string): boolean {
 /**
  * Nested class routes with dynamic ids:
  * `/manager/classes/:id/grades...` → grades.view
- * `/manager/classes/:id/sessions/:sid/tasks...` → tasks.view
+ * `/manager/classes/:id/tasks...` → tasks.view
+ * `/manager/classes/:id/sessions/:sid/tasks...` → tasks.view (legacy)
  * `/manager/classes/:id/sessions...` → sessions.view
  */
 function getClassNestedViewPermission(
@@ -120,6 +121,10 @@ function getClassNestedViewPermission(
 
   if (segments[3] === "grades") {
     return PERMISSIONS.GRADES_VIEW;
+  }
+
+  if (segments[3] === "tasks") {
+    return PERMISSIONS.TASKS_VIEW;
   }
 
   if (segments[3] === "sessions") {

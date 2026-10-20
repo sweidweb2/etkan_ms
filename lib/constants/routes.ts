@@ -58,6 +58,8 @@ export const ROUTES = {
   MANAGER_CLASS_STUDENT_GRADES_DETAIL:
     "/manager/classes/[id]/grades/students/[studentId]",
   MANAGER_CLASS_SESSION_DETAIL: "/manager/classes/[id]/sessions/[sessionId]",
+  MANAGER_CLASS_TASK_DETAIL: "/manager/classes/[id]/tasks/[taskId]",
+  /** @deprecated Use MANAGER_CLASS_TASK_DETAIL */
   MANAGER_CLASS_SESSION_TASK_DETAIL:
     "/manager/classes/[id]/sessions/[sessionId]/tasks/[taskId]",
   MANAGER_EQUIPMENTS: "/manager/equipments",
@@ -269,12 +271,20 @@ export function getManagerClassSessionDetailRoute(
   return `/manager/classes/${classId}/sessions/${sessionId}`;
 }
 
-export function getManagerClassSessionTaskDetailRoute(
+export function getManagerClassTaskDetailRoute(
   classId: string,
-  sessionId: string,
   taskId: string
 ): string {
-  return `/manager/classes/${classId}/sessions/${sessionId}/tasks/${taskId}`;
+  return `/manager/classes/${classId}/tasks/${taskId}`;
+}
+
+/** @deprecated Use getManagerClassTaskDetailRoute */
+export function getManagerClassSessionTaskDetailRoute(
+  classId: string,
+  _sessionId: string,
+  taskId: string
+): string {
+  return getManagerClassTaskDetailRoute(classId, taskId);
 }
 
 export const PANEL_ROOTS = [...Object.values(ROLE_PANEL_ROOTS)] as const;

@@ -10,6 +10,8 @@ export {
   listClassTasksForManager,
   getSessionDetailForManager,
   getSessionTaskDetailForManager,
+  getClassTaskDetailForManager,
+  type ManagerClassTaskDetailBundle,
   type ManagerSessionDetailBundle,
   type ManagerSessionTaskDetailBundle,
 } from "@/services/classes/session-queries.service";

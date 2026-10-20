@@ -5,7 +5,6 @@ import { updateSessionSettingsSchema } from "@/lib/validators/manager/update-ses
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
-import * as taskRepository from "@/repositories/task.repository";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -370,13 +369,10 @@ export async function deleteClassSessionForManager(
 
   const session = existing.data;
 
-  const [structureGuard, tasksResult] = await Promise.all([
-    assertClassStructureUnlockedForComputedGrades(
-      adminClient,
-      session.class_id
-    ),
-    taskRepository.listTasksBySessionId(adminClient, sessionId),
-  ]);
+  const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+    adminClient,
+    session.class_id
+  );
 
   if (!structureGuard.ok) {
     return { success: false, error: structureGuard.error };
@@ -386,20 +382,6 @@ export async function deleteClassSessionForManager(
     return {
       success: false,
       error: "Clear the session difficulty before deleting.",
-    };
-  }
-
-  if (tasksResult.error) {
-    return {
-      success: false,
-      error: "Unable to delete session. Please try again.",
-    };
-  }
-
-  if ((tasksResult.data ?? []).length > 0) {
-    return {
-      success: false,
-      error: "Delete or reassign session tasks before deleting the session.",
     };
   }
 

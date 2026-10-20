@@ -41,6 +41,8 @@ const initialDeleteState: DeleteStudentTaskUploadActionState = {};
 type StudentTaskFilesProps = {
   studentTaskId: string | null;
   uploads: StudentTaskUploadForSelf[];
+  /** Uploads are only allowed once the class task has been started. */
+  started?: boolean;
 };
 
 function formatFileSize(bytes: number) {
@@ -56,6 +58,7 @@ function formatFileSize(bytes: number) {
 export function StudentTaskFiles({
   studentTaskId,
   uploads: initialUploads = [],
+  started = true,
 }: StudentTaskFilesProps) {
   const [uploads, setUploads] = useState(initialUploads);
   const [prevUploads, setPrevUploads] = useState(initialUploads);
@@ -187,7 +190,7 @@ export function StudentTaskFiles({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!studentTaskId || !selectedFile || isUploadPending) {
+    if (!started || !studentTaskId || !selectedFile || isUploadPending) {
       return;
     }
     if (rejectOversizedFile(selectedFile)) {
@@ -208,7 +211,9 @@ export function StudentTaskFiles({
   }
 
   const atMaxFiles = uploads.length >= STUDENT_TASK_UPLOAD_MAX_FILES;
-  const canSave = Boolean(selectedFile) && !isUploadPending && !atMaxFiles;
+  const uploadsBlocked = !started || atMaxFiles;
+  const canSave =
+    started && Boolean(selectedFile) && !isUploadPending && !atMaxFiles;
 
   return (
     <div className="overflow-hidden rounded-lg border">
@@ -218,7 +223,7 @@ export function StudentTaskFiles({
         name="file"
         accept={STUDENT_TASK_UPLOAD_ACCEPT}
         className="sr-only"
-        disabled={isUploadPending || atMaxFiles}
+        disabled={isUploadPending || uploadsBlocked}
         onChange={onFileChange}
       />
 
@@ -231,7 +236,7 @@ export function StudentTaskFiles({
             type="button"
             variant="outline"
             size="sm"
-            disabled={isUploadPending || atMaxFiles}
+            disabled={isUploadPending || uploadsBlocked}
             onClick={() => fileInputRef.current?.click()}
           >
             {selectedFile ? "Change file" : "Choose file"}
@@ -240,7 +245,12 @@ export function StudentTaskFiles({
             PDF, images, text, Word, Excel, or PowerPoint. Up to{" "}
             {formatFileSize(STUDENT_TASK_UPLOAD_MAX_BYTES)}.
           </p>
-          {atMaxFiles ? (
+          {!started ? (
+            <p className="text-xs text-muted-foreground">
+              Not started yet. You can upload files once this task is started.
+            </p>
+          ) : null}
+          {started && atMaxFiles ? (
             <p className="text-xs text-muted-foreground">
               {STUDENT_TASK_UPLOAD_MAX_FILES} file limit reached.
             </p>

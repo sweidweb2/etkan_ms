@@ -4,22 +4,24 @@ import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
-/** tasks table row scoped to a class session. */
-export interface ManagerSessionTaskRow {
+/** class_tasks row for manager class/task surfaces. */
+export interface ManagerClassTaskRow {
   id: string;
-  session_id: string;
+  class_id: string;
+  source_subject_task_id: string | null;
   title: string;
   description: string | null;
-  due_date: string | null;
+  period: number;
   max_grade: number | null;
+  sort_order: number;
+  started: boolean;
+  started_at: string | null;
+  due_date: string | null;
   created_at: string;
 }
 
-/** Session task with parent session labels for the class-level tasks table. */
-export interface ManagerClassTaskRow extends ManagerSessionTaskRow {
-  session_nb_order: number;
-  session_topic: string;
-}
+/** @deprecated Use ManagerClassTaskRow — session-scoped tasks are gone. */
+export type ManagerSessionTaskRow = ManagerClassTaskRow;
 
 /** attendee table row joined with student profile for session detail. */
 export interface ManagerSessionAttendeeRow {
@@ -102,6 +104,46 @@ export type UpdateSessionSettingsActionState = {
   linkedPhase?: ManagerSessionPhaseLink | null;
 };
 
+export type CreateClassTaskActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  task?: ManagerClassTaskRow;
+};
+
+export type UpdateClassTaskActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  task?: ManagerClassTaskRow;
+  gradesClamped?: boolean;
+};
+
+export type DeleteClassTaskActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+};
+
+export type SetClassTaskStartedActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  task?: ManagerClassTaskRow;
+};
+
+export type ImportSubjectTasksActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  tasks?: ManagerClassTaskRow[];
+  importedCount?: number;
+  skippedCount?: number;
+};
+
+/** @deprecated Use CreateClassTaskActionState. */
 export type CreateSessionTaskActionState = {
   success?: boolean;
   error?: string;

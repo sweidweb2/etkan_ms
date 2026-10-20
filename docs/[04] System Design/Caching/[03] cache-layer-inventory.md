@@ -176,7 +176,7 @@ Prefer **fresh** service → repository, or data that is already static in the r
 | Mutations (all domains) | `create*` / `update*` / `delete*` / status changes | Never cache writes; only invalidate after |
 | Accounting sync / recalc | `accounting-sync`, `accounting-recalc`, payment/adjustment services | Correctness over speed |
 | Student status side effects | `changeStudentStatusForManager`, previews | Cross-domain; fresh |
-| Session attendance / tasks | `updateAttendee*`, `createSessionTask*`, etc. | Live classroom data |
+| Session attendance / class tasks | `updateAttendee*`, `createClassTask*`, etc. | Live classroom data |
 | Financial form public token flows | `getInviteFormContextByToken`, `submitFinancialFormByToken` | Security + freshness |
 | Cloudflare AI usage log | `listCloudflareAiUsageForManager` | Ops log; fresh OK |
 | Backup history | `getRecentBackupHistory` | Short list; freshness preferred |

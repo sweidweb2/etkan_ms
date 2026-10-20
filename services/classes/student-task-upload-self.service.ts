@@ -7,13 +7,12 @@ import {
   uploadStudentTaskFileSchema,
 } from "@/lib/validators/manager/student-task-upload";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as studentTaskStorageRepository from "@/repositories/student-task-storage.repository";
 import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
 import type { StudentTaskUploadRecord } from "@/repositories/student-task-upload.repository";
-import * as taskRepository from "@/repositories/task.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import {
   assertStudentSelfAccess,
   getUnauthorizedError,
@@ -53,7 +52,6 @@ type OwnStudentTaskContext =
       ok: true;
       userId: string;
       classId: string;
-      sessionId: string;
       taskId: string;
     }
   | { ok: false; error: string; fieldErrors?: FieldErrors };
@@ -61,7 +59,8 @@ type OwnStudentTaskContext =
 async function resolveOwnStudentTask(
   adminClient: Supabase,
   actorUserId: string | null,
-  studentTaskId: string
+  studentTaskId: string,
+  options?: { requireStarted?: boolean }
 ): Promise<OwnStudentTaskContext> {
   const unauthorized = await getUnauthorizedError(
     adminClient,
@@ -90,7 +89,7 @@ async function resolveOwnStudentTask(
     return { ok: false, error: "Task not found." };
   }
 
-  const taskResult = await taskRepository.findTaskById(
+  const taskResult = await classTaskRepository.findClassTaskById(
     adminClient,
     studentTaskResult.data.task_id
   );
@@ -102,26 +101,11 @@ async function resolveOwnStudentTask(
     };
   }
 
-  if (!taskResult.data?.session_id) {
+  if (!taskResult.data) {
     return { ok: false, error: "Task not found." };
   }
 
-  const sessionResult = await sessionRepository.findSessionById(
-    adminClient,
-    taskResult.data.session_id
-  );
-
-  if (sessionResult.error) {
-    return {
-      ok: false,
-      error: sessionResult.error.message || "Unable to open this task.",
-    };
-  }
-
-  const classId = sessionResult.data?.class_id;
-  if (!classId) {
-    return { ok: false, error: "Task not found." };
-  }
+  const classId = taskResult.data.class_id;
 
   const membership = await studentClassRepository.findStudentClassByUserAndClass(
     adminClient,
@@ -138,11 +122,14 @@ async function resolveOwnStudentTask(
     return { ok: false, error: "Task not found." };
   }
 
+  if (options?.requireStarted && !taskResult.data.started) {
+    return { ok: false, error: "This task has not started yet." };
+  }
+
   return {
     ok: true,
     userId,
     classId,
-    sessionId: taskResult.data.session_id,
     taskId: studentTaskResult.data.task_id,
   };
 }
@@ -176,7 +163,8 @@ export async function uploadStudentTaskFileForSelf(
   const owned = await resolveOwnStudentTask(
     adminClient,
     actorUserId,
-    parsed.data.student_task_id
+    parsed.data.student_task_id,
+    { requireStarted: true }
   );
 
   if (!owned.ok) {
@@ -315,7 +303,8 @@ export async function deleteStudentTaskUploadForSelf(
   const owned = await resolveOwnStudentTask(
     adminClient,
     actorUserId,
-    existing.data.student_task_id
+    existing.data.student_task_id,
+    { requireStarted: true }
   );
 
   if (!owned.ok) {

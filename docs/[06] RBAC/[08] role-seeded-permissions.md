@@ -43,7 +43,7 @@ Allow-list only (`SUPERVISOR_SEED_PERMISSIONS` / `SUPERVISOR_SEED_FEATURES`):
 | Area | Feature groups |
 |------|----------------|
 | Workshops | all `workshops.*` |
-| Subjects | all `subjects.*` (incl. categories + exercises) |
+| Subjects | all `subjects.*` (incl. categories + exercises + tasks) |
 | Students | all `students.*` |
 | Classes tree | `classes.*`, `sessions.*`, `attendance.*`, `tasks.*`, `final_exams.*`, `grades.*` |
 | Instructor schedules | all `instructor_schedules.*` |

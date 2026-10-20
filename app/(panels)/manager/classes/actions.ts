@@ -10,8 +10,7 @@ import { getSessionAuditActor } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerClassDetailRoute,
-  getManagerClassSessionDetailRoute,
-  getManagerClassSessionTaskDetailRoute,
+  getManagerClassTaskDetailRoute,
 } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -23,8 +22,8 @@ import {
 import { parseCreateClassFormData } from "@/lib/validators/manager/create-class";
 import { parseCreateClassSessionFormData } from "@/lib/validators/manager/create-class-session";
 import { parseCreateFinalExamFormData } from "@/lib/validators/manager/create-final-exam";
-import { parseCreateSessionTaskFormData } from "@/lib/validators/manager/create-session-task";
-import { parseUpdateSessionTaskFormData } from "@/lib/validators/manager/update-session-task";
+import { parseCreateClassTaskFormData } from "@/lib/validators/manager/create-class-task";
+import { parseUpdateClassTaskFormData } from "@/lib/validators/manager/update-class-task";
 import { parseEditStudentFinalExamGradeFormData } from "@/lib/validators/manager/edit-student-finalexam-grade";
 import { parseEditStudentTaskFormData } from "@/lib/validators/manager/edit-student-task";
 import {
@@ -60,13 +59,17 @@ import {
   updateStudentFinalExamGradeForManager,
 } from "@/services/classes/class.service";
 import {
-  createSessionTaskForManager,
+  createClassTaskForManager,
+  deleteClassTaskForManager,
+  importSubjectTasksForClassForManager,
+  setClassTaskStartedForManager,
+  updateClassTaskForManager,
+} from "@/services/classes/class-tasks.service";
+import {
   deleteClassSessionForManager,
-  deleteSessionTaskForManager,
   updateAttendeeForManager,
   updateClassSessionForManager,
   updateSessionSettingsForManager,
-  updateSessionTaskForManager,
   updateStudentTaskForManager,
 } from "@/services/classes/session.service";
 import {
@@ -99,14 +102,16 @@ import type {
   ManagerStudentWithoutActiveClassRow,
 } from "@/types/manager-student";
 import type {
-  CreateSessionTaskActionState,
+  CreateClassTaskActionState,
   DeleteClassSessionActionState,
-  DeleteSessionTaskActionState,
+  DeleteClassTaskActionState,
   DeleteStudentTaskUploadActionState,
+  ImportSubjectTasksActionState,
+  SetClassTaskStartedActionState,
   UpdateAttendeeActionState,
   UpdateClassSessionActionState,
+  UpdateClassTaskActionState,
   UpdateSessionSettingsActionState,
-  UpdateSessionTaskActionState,
   UpdateStudentTaskActionState,
   UploadStudentTaskFileActionState,
 } from "@/types/manager-class-session-detail";
@@ -525,19 +530,19 @@ export async function deleteClassSessionAction(
   });
 }
 
-export async function createSessionTaskAction(
-  _prevState: CreateSessionTaskActionState,
+export async function createClassTaskAction(
+  _prevState: CreateClassTaskActionState,
   formData: FormData
-): Promise<CreateSessionTaskActionState> {
+): Promise<CreateClassTaskActionState> {
   return runManagerAction({
     formData,
-    parse: parseCreateSessionTaskFormData,
+    parse: parseCreateClassTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
-      createSessionTaskForManager(adminClient, actor.userId, actor, data),
-    revalidate: (_result, data) => {
+      createClassTaskForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result, data) => {
       revalidatePath(getManagerClassDetailRoute(data.class_id));
       revalidatePath(
-        getManagerClassSessionDetailRoute(data.class_id, data.session_id)
+        getManagerClassTaskDetailRoute(data.class_id, result.task.id)
       );
     },
     mapSuccess: (result) => ({
@@ -548,27 +553,18 @@ export async function createSessionTaskAction(
   });
 }
 
-export async function updateSessionTaskAction(
-  _prevState: UpdateSessionTaskActionState,
+export async function updateClassTaskAction(
+  _prevState: UpdateClassTaskActionState,
   formData: FormData
-): Promise<UpdateSessionTaskActionState> {
+): Promise<UpdateClassTaskActionState> {
   return runManagerAction({
     formData,
-    parse: parseUpdateSessionTaskFormData,
+    parse: parseUpdateClassTaskFormData,
     mutate: ({ adminClient, actor, data }) =>
-      updateSessionTaskForManager(adminClient, actor.userId, actor, data),
+      updateClassTaskForManager(adminClient, actor.userId, actor, data),
     revalidate: (_result, data) => {
       revalidatePath(getManagerClassDetailRoute(data.class_id));
-      revalidatePath(
-        getManagerClassSessionDetailRoute(data.class_id, data.session_id)
-      );
-      revalidatePath(
-        getManagerClassSessionTaskDetailRoute(
-          data.class_id,
-          data.session_id,
-          data.id
-        )
-      );
+      revalidatePath(getManagerClassTaskDetailRoute(data.class_id, data.id));
     },
     mapSuccess: (result) => ({
       success: true,
@@ -579,15 +575,14 @@ export async function updateSessionTaskAction(
   });
 }
 
-export async function deleteSessionTaskAction(
-  _prevState: DeleteSessionTaskActionState,
+export async function deleteClassTaskAction(
+  _prevState: DeleteClassTaskActionState,
   formData: FormData
-): Promise<DeleteSessionTaskActionState> {
+): Promise<DeleteClassTaskActionState> {
   const id = String(formData.get("id") ?? "").trim();
   const class_id = String(formData.get("class_id") ?? "").trim();
-  const session_id = String(formData.get("session_id") ?? "").trim();
 
-  if (!id || !class_id || !session_id) {
+  if (!id || !class_id) {
     return {
       success: false,
       error: "Task not found.",
@@ -595,24 +590,95 @@ export async function deleteSessionTaskAction(
   }
 
   return runManagerMutation({
-    data: { id, class_id, session_id },
+    data: { id, class_id },
     mutate: ({ adminClient, actor, data }) =>
-      deleteSessionTaskForManager(adminClient, actor.userId, actor, data),
-    revalidate: (result) => {
+      deleteClassTaskForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result, data) => {
       revalidatePath(getManagerClassDetailRoute(result.classId));
-      revalidatePath(
-        getManagerClassSessionDetailRoute(result.classId, result.sessionId)
-      );
+      revalidatePath(getManagerClassTaskDetailRoute(result.classId, data.id));
     },
     mapSuccess: (result) => {
       redirect(
         appendQueryParam(
-          getManagerClassSessionDetailRoute(result.classId, result.sessionId),
+          getManagerClassDetailRoute(result.classId),
           "toast",
           "task_deleted"
         )
       );
     },
+  });
+}
+
+export async function setClassTaskStartedAction(
+  _prevState: SetClassTaskStartedActionState,
+  formData: FormData
+): Promise<SetClassTaskStartedActionState> {
+  const id = String(formData.get("id") ?? "").trim();
+  const class_id = String(formData.get("class_id") ?? "").trim();
+  const startedRaw = String(formData.get("started") ?? "").trim();
+
+  if (!id || !class_id) {
+    return {
+      success: false,
+      error: "Task not found.",
+    };
+  }
+
+  if (startedRaw !== "true" && startedRaw !== "false") {
+    return {
+      success: false,
+      error: "Start state is required.",
+    };
+  }
+
+  return runManagerMutation({
+    data: { id, class_id, started: startedRaw === "true" },
+    mutate: ({ adminClient, actor, data }) =>
+      setClassTaskStartedForManager(adminClient, actor.userId, actor, data),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerClassDetailRoute(data.class_id));
+      revalidatePath(getManagerClassTaskDetailRoute(data.class_id, data.id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      task: result.task,
+    }),
+  });
+}
+
+export async function importSubjectTasksForClassAction(
+  _prevState: ImportSubjectTasksActionState,
+  formData: FormData
+): Promise<ImportSubjectTasksActionState> {
+  const class_id = String(formData.get("class_id") ?? "").trim();
+
+  if (!class_id) {
+    return {
+      success: false,
+      error: "Class not found.",
+    };
+  }
+
+  return runManagerMutation({
+    data: { class_id },
+    mutate: ({ adminClient, actor, data }) =>
+      importSubjectTasksForClassForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
+    revalidate: (_result, data) => {
+      revalidatePath(getManagerClassDetailRoute(data.class_id));
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      tasks: result.tasks,
+      importedCount: result.importedCount,
+      skippedCount: result.skippedCount,
+    }),
   });
 }
 
@@ -647,14 +713,10 @@ export async function updateStudentTaskAction(
         revalidatePath(getManagerClassDetailRoute(result.classId));
       }
 
-      if (result.classId && result.sessionId) {
+      if (result.classId) {
         revalidatePath(
-          getManagerClassSessionDetailRoute(result.classId, result.sessionId)
-        );
-        revalidatePath(
-          getManagerClassSessionTaskDetailRoute(
+          getManagerClassTaskDetailRoute(
             result.classId,
-            result.sessionId,
             result.studentTask.task_id
           )
         );
@@ -682,16 +744,9 @@ export async function uploadStudentTaskFileAction(
         revalidatePath(getManagerClassDetailRoute(result.classId));
       }
 
-      if (result.classId && result.sessionId) {
+      if (result.classId) {
         revalidatePath(
-          getManagerClassSessionDetailRoute(result.classId, result.sessionId)
-        );
-        revalidatePath(
-          getManagerClassSessionTaskDetailRoute(
-            result.classId,
-            result.sessionId,
-            result.taskId
-          )
+          getManagerClassTaskDetailRoute(result.classId, result.taskId)
         );
       }
     },
@@ -717,16 +772,9 @@ export async function deleteStudentTaskUploadAction(
         revalidatePath(getManagerClassDetailRoute(result.classId));
       }
 
-      if (result.classId && result.sessionId) {
+      if (result.classId) {
         revalidatePath(
-          getManagerClassSessionDetailRoute(result.classId, result.sessionId)
-        );
-        revalidatePath(
-          getManagerClassSessionTaskDetailRoute(
-            result.classId,
-            result.sessionId,
-            result.taskId
-          )
+          getManagerClassTaskDetailRoute(result.classId, result.taskId)
         );
       }
     },

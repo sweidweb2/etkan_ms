@@ -21,8 +21,8 @@ import * as studentTaskRepository from "@/repositories/student-task.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";
 import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
 import type { StudentTaskUploadRecord } from "@/repositories/student-task-upload.repository";
-import * as taskRepository from "@/repositories/task.repository";
-import type { TaskRecord } from "@/repositories/task.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
+import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import {
   assertPermission,
   assertStudentSelfAccess,
@@ -279,42 +279,18 @@ export async function getStudentClassTaskForSelf(
     return null;
   }
 
-  const { data: task, error: taskError } = await taskRepository.findTaskById(
-    adminClient,
-    taskId
-  );
+  const { data: task, error: taskError } =
+    await classTaskRepository.findClassTaskById(adminClient, taskId);
 
   if (taskError) {
     throw new Error(taskError.message);
   }
 
-  if (!task) {
+  if (!task || task.class_id !== classId) {
     return null;
   }
 
-  const taskRecord = task as TaskRecord;
-  let sessionLabel: string | null = null;
-
-  if (taskRecord.session_id) {
-    const { data: session, error: sessionError } =
-      await sessionRepository.findSessionById(
-        adminClient,
-        taskRecord.session_id
-      );
-
-    if (sessionError) {
-      throw new Error(sessionError.message);
-    }
-
-    if (!session || session.class_id !== classId) {
-      return null;
-    }
-
-    sessionLabel = `S${session.nb_order}`;
-  } else {
-    return null;
-  }
-
+  const taskRecord = task as ClassTaskRecord;
   const studentTasksResult =
     await studentTaskRepository.listStudentTasksForGradesByTaskIdsAndStudentId(
       adminClient,
@@ -333,8 +309,9 @@ export async function getStudentClassTaskForSelf(
     classRow,
     task: {
       id: taskRecord.id,
-      session_id: taskRecord.session_id,
-      session_label: sessionLabel,
+      session_id: null,
+      session_label: null,
+      started: taskRecord.started,
       title: taskRecord.title,
       description: taskRecord.description,
       due_date: taskRecord.due_date,

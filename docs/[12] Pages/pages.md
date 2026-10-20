@@ -44,7 +44,7 @@ Track each page as we replace the center **spinner** with **skeletons** and (lat
 | [~] | Class grades | `/manager/classes/[id]/grades` | list |
 | [~] | Student grades detail | `/manager/classes/[id]/grades/students/[studentId]` | detail |
 | [~] | Session detail | `/manager/classes/[id]/sessions/[sessionId]` | detail |
-| [~] | Session task detail | `.../sessions/[sessionId]/tasks/[taskId]` | detail |
+| [~] | Class task detail | `/manager/classes/[id]/tasks/[taskId]` | detail |
 | [~] | Equipments | `/manager/equipments` | list |
 | [~] | Equipment detail | `/manager/equipments/[id]` | detail |
 | [~] | Borrow equipment | `/manager/equipments/borrow` | list |

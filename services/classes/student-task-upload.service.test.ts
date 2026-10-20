@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
-import * as sessionRepository from "@/repositories/session.repository";
 import * as studentCourseGradeRepository from "@/repositories/student-course-grade.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as studentTaskStorageRepository from "@/repositories/student-task-storage.repository";
 import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
-import * as taskRepository from "@/repositories/task.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
 import {
@@ -14,12 +13,11 @@ import {
   uploadStudentTaskFileForManager,
 } from "@/services/classes/student-task-upload.service";
 
-vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-course-grade.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/student-task-storage.repository");
 vi.mock("@/repositories/student-task-upload.repository");
-vi.mock("@/repositories/task.repository");
+vi.mock("@/repositories/class-task.repository");
 vi.mock("@/services/ops/audit-log.service", () => ({
   recordManagerAuditLog: vi.fn().mockResolvedValue(null),
 }));
@@ -41,7 +39,6 @@ const actor: AuditActor = {
 };
 
 const classId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const sessionId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const taskId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const studentId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const studentTaskId = "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1";
@@ -91,22 +88,15 @@ describe("uploadStudentTaskFileForManager", () => {
       data: studentTaskRecord,
       error: null,
     } as never);
-    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+    vi.mocked(classTaskRepository.findClassTaskById).mockResolvedValue({
       data: {
         id: taskId,
-        session_id: sessionId,
+        class_id: classId,
         title: "Homework",
         description: null,
         due_date: null,
         max_grade: 20,
         created_at: "2026-07-01T00:00:00.000Z",
-      },
-      error: null,
-    } as never);
-    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
-      data: {
-        id: sessionId,
-        class_id: classId,
       },
       error: null,
     } as never);
@@ -271,22 +261,15 @@ describe("deleteStudentTaskUploadForManager", () => {
       data: studentTaskRecord,
       error: null,
     } as never);
-    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+    vi.mocked(classTaskRepository.findClassTaskById).mockResolvedValue({
       data: {
         id: taskId,
-        session_id: sessionId,
+        class_id: classId,
         title: "Homework",
         description: null,
         due_date: null,
         max_grade: 20,
         created_at: "2026-07-01T00:00:00.000Z",
-      },
-      error: null,
-    } as never);
-    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
-      data: {
-        id: sessionId,
-        class_id: classId,
       },
       error: null,
     } as never);

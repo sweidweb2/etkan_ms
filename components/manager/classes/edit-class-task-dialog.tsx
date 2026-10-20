@@ -2,7 +2,7 @@
 
 import { useEffect, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
-import { updateSessionTaskAction } from "@/app/manager/classes/actions";
+import { updateClassTaskAction } from "@/app/manager/classes/actions";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
@@ -20,43 +20,50 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
-  updateSessionTaskSchema,
-  type UpdateSessionTaskInput,
-} from "@/lib/validators/manager/update-session-task";
-import { toSchoolDateTimeLocalValue } from "@/lib/utils/datetime-local-value";
+  updateClassTaskSchema,
+  type UpdateClassTaskInput,
+} from "@/lib/validators/manager/update-class-task";
 import { cn } from "@/lib/utils";
 import type {
-  ManagerSessionTaskRow,
-  UpdateSessionTaskActionState,
+  ManagerClassTaskRow,
+  UpdateClassTaskActionState,
 } from "@/types/manager-class-session-detail";
 
-const initialState: UpdateSessionTaskActionState = {};
+const initialState: UpdateClassTaskActionState = {};
 
-type EditSessionTaskDialogProps = {
+type EditClassTaskDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  task: ManagerSessionTaskRow;
+  task: ManagerClassTaskRow;
   classId: string;
-  sessionId: string;
-  sessionLabel: string;
+  className: string;
   onTaskUpdated: (
-    task: ManagerSessionTaskRow,
+    task: ManagerClassTaskRow,
     options?: { gradesClamped?: boolean }
   ) => void;
 };
 
-export function EditSessionTaskDialog({
+function getDefaultValues(task: ManagerClassTaskRow) {
+  return {
+    title: task.title,
+    description: task.description ?? "",
+    period: task.period,
+    max_grade: task.max_grade ?? "",
+    sort_order: task.sort_order,
+  };
+}
+
+export function EditClassTaskDialog({
   open,
   onOpenChange,
   task,
   classId,
-  sessionId,
-  sessionLabel,
+  className,
   onTaskUpdated,
-}: EditSessionTaskDialogProps) {
+}: EditClassTaskDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
-    updateSessionTaskAction,
+    updateClassTaskAction,
     initialState
   );
   const isPending = isActionPending || isTransitionPending;
@@ -71,14 +78,9 @@ export function EditSessionTaskDialog({
     reset,
     formState: { errors },
   } = useZodForm({
-    schema: updateSessionTaskSchema,
+    schema: updateClassTaskSchema,
     mode: "onBlur",
-    defaultValues: {
-      title: task.title,
-      description: task.description ?? "",
-      due_date: toSchoolDateTimeLocalValue(task.due_date),
-      max_grade: task.max_grade ?? "",
-    },
+    defaultValues: getDefaultValues(task),
   });
 
   useEffect(() => {
@@ -86,12 +88,7 @@ export function EditSessionTaskDialog({
       return;
     }
 
-    reset({
-      title: task.title,
-      description: task.description ?? "",
-      due_date: toSchoolDateTimeLocalValue(task.due_date),
-      max_grade: task.max_grade ?? "",
-    });
+    reset(getDefaultValues(task));
   }, [open, reset, task]);
 
   useActionStateSuccess(
@@ -110,14 +107,14 @@ export function EditSessionTaskDialog({
     (nextState) => Boolean(nextState.success && nextState.task)
   );
 
-  function onSubmit(values: UpdateSessionTaskInput) {
+  function onSubmit(values: UpdateClassTaskInput) {
     const formData = new FormData();
     formData.set("id", task.id);
     formData.set("class_id", classId);
-    formData.set("session_id", sessionId);
     formData.set("title", values.title);
     formData.set("description", values.description ?? "");
-    formData.set("due_date", values.due_date ?? "");
+    formData.set("period", String(values.period));
+    formData.set("sort_order", String(values.sort_order));
     formData.set(
       "max_grade",
       values.max_grade === undefined || values.max_grade === ""
@@ -131,6 +128,9 @@ export function EditSessionTaskDialog({
   }
 
   const titleError = errors.title?.message ?? state.fieldErrors?.title?.[0];
+  const periodError = errors.period?.message ?? state.fieldErrors?.period?.[0];
+  const descriptionError =
+    errors.description?.message ?? state.fieldErrors?.description?.[0];
   const maxGradeError =
     errors.max_grade?.message ?? state.fieldErrors?.max_grade?.[0];
 
@@ -140,24 +140,25 @@ export function EditSessionTaskDialog({
         <DialogHeader>
           <DialogTitle>Edit task</DialogTitle>
           <DialogDescription>
-            Update task details for {sessionLabel}.
+            Update task details for {className}. Changing the period does not
+            move the due date of an already started task.
           </DialogDescription>
         </DialogHeader>
 
         <form
-          id="edit-session-task-form"
+          id="edit-class-task-form"
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col gap-4"
           noValidate
         >
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="edit-session-task-title"
+              htmlFor="edit-class-task-title"
               label="Title"
               hint="Required"
             />
             <Input
-              id="edit-session-task-title"
+              id="edit-class-task-title"
               aria-invalid={!!titleError}
               disabled={isPending}
               {...register("title")}
@@ -169,44 +170,55 @@ export function EditSessionTaskDialog({
 
           <div className="flex flex-col gap-2">
             <FieldLabel
-              htmlFor="edit-session-task-description"
+              htmlFor="edit-class-task-description"
               label="Description"
               hint="Optional"
             />
             <textarea
-              id="edit-session-task-description"
+              id="edit-class-task-description"
               rows={3}
+              aria-invalid={!!descriptionError}
               disabled={isPending}
               className={cn(
-                "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
+                "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
               )}
               {...register("description")}
             />
+            {descriptionError ? (
+              <p className="text-sm text-destructive">{descriptionError}</p>
+            ) : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <FieldLabel
-                htmlFor="edit-session-task-due-date"
-                label="Due date"
-                hint="Optional"
+                htmlFor="edit-class-task-period"
+                label="Period (days)"
+                hint="Required"
               />
               <Input
-                id="edit-session-task-due-date"
-                type="datetime-local"
+                id="edit-class-task-period"
+                type="number"
+                min={1}
+                max={3650}
+                step={1}
+                aria-invalid={!!periodError}
                 disabled={isPending}
-                {...register("due_date")}
+                {...register("period")}
               />
+              {periodError ? (
+                <p className="text-sm text-destructive">{periodError}</p>
+              ) : null}
             </div>
 
             <div className="flex flex-col gap-2">
               <FieldLabel
-                htmlFor="edit-session-task-max-grade"
+                htmlFor="edit-class-task-max-grade"
                 label="Max grade"
                 hint="Optional"
               />
               <Input
-                id="edit-session-task-max-grade"
+                id="edit-class-task-max-grade"
                 type="number"
                 min={0}
                 max={999}
@@ -233,7 +245,7 @@ export function EditSessionTaskDialog({
           </Button>
           <Button
             type="submit"
-            form="edit-session-task-form"
+            form="edit-class-task-form"
             disabled={isPending}
           >
             {isPending ? (

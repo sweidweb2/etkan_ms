@@ -114,6 +114,10 @@ export const PERMISSIONS = {
   SUBJECTS_EXERCISES_CREATE: "subjects.exercises.create",
   SUBJECTS_EXERCISES_UPDATE: "subjects.exercises.update",
   SUBJECTS_EXERCISES_DELETE: "subjects.exercises.delete",
+  SUBJECTS_TASKS_VIEW: "subjects.tasks.view",
+  SUBJECTS_TASKS_CREATE: "subjects.tasks.create",
+  SUBJECTS_TASKS_UPDATE: "subjects.tasks.update",
+  SUBJECTS_TASKS_DELETE: "subjects.tasks.delete",
 
   INSTRUCTORS_VIEW: "instructors.view",
   INSTRUCTORS_CREATE: "instructors.create",
@@ -444,6 +448,30 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SUBJECTS_EXERCISES_DELETE,
     feature: "subjects",
     label: "Delete subject exercise",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_TASKS_VIEW,
+    feature: "subjects",
+    label: "View subject tasks",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_TASKS_CREATE,
+    feature: "subjects",
+    label: "Create subject task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_TASKS_UPDATE,
+    feature: "subjects",
+    label: "Edit subject task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_TASKS_DELETE,
+    feature: "subjects",
+    label: "Delete subject task",
     access: PERMISSION_ACCESS.WRITE,
   },
 

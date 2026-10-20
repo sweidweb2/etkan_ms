@@ -8,7 +8,7 @@ Catalog for the manager UI: `lib/constants/manager-cron-jobs.ts` — update that
 - **Function:** `public.mark_overdue_pending_work_missing()`
 - **What it does:** Finds student task and final-exam grade rows that are still `pending` after the parent due date has passed, and sets their status to `missing`.
 - **Tables:**
-  - `student_tasks` (via `tasks.due_date`)
+  - `student_tasks` (via `class_tasks.due_date`)
   - `student_finalexam_grade` (via `final_exam.due_date`)
 - **Leaves unchanged:** `submitted`, `graded`, `late`, and already-`missing` rows; rows with a null due date.
 - **Migration:** `supabase/migrations/20260711000000_cron_mark_overdue_pending_missing.sql`

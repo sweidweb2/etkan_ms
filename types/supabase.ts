@@ -2303,7 +2303,7 @@ export type Database = {
             foreignKeyName: "student_tasks_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
-            referencedRelation: "tasks"
+            referencedRelation: "class_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -2398,40 +2398,109 @@ export type Database = {
         }
         Relationships: []
       }
-      tasks: {
+      subject_tasks: {
         Row: {
-          created_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          max_grade: number | null
+          period: number
+          sort_order: number
+          subject_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_grade?: number | null
+          period: number
+          sort_order?: number
+          subject_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_grade?: number | null
+          period?: number
+          sort_order?: number
+          subject_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_tasks_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_tasks: {
+        Row: {
+          class_id: string
+          created_at: string
           description: string | null
           due_date: string | null
           id: string
           max_grade: number | null
-          session_id: string | null
+          period: number
+          sort_order: number
+          source_subject_task_id: string | null
+          started: boolean
+          started_at: string | null
           title: string
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          class_id: string
+          created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
           max_grade?: number | null
-          session_id?: string | null
+          period: number
+          sort_order?: number
+          source_subject_task_id?: string | null
+          started?: boolean
+          started_at?: string | null
           title: string
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          class_id?: string
+          created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
           max_grade?: number | null
-          session_id?: string | null
+          period?: number
+          sort_order?: number
+          source_subject_task_id?: string | null
+          started?: boolean
+          started_at?: string | null
           title?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "tasks_session_id_fkey"
-            columns: ["session_id"]
+            foreignKeyName: "class_tasks_class_id_fkey"
+            columns: ["class_id"]
             isOneToOne: false
-            referencedRelation: "sessions"
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_tasks_source_subject_task_id_fkey"
+            columns: ["source_subject_task_id"]
+            isOneToOne: false
+            referencedRelation: "subject_tasks"
             referencedColumns: ["id"]
           },
         ]

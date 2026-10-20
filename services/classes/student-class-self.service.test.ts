@@ -5,7 +5,7 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
-import * as taskRepository from "@/repositories/task.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import {
   assertPermission,
   assertStudentSelfAccess,
@@ -25,7 +25,7 @@ vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/student-task-upload.repository");
-vi.mock("@/repositories/task.repository");
+vi.mock("@/repositories/class-task.repository");
 vi.mock("@/services/classes/student-course-grade.service", () => ({
   listStudentClassAcademicBundlesForSelf: vi.fn(),
 }));
@@ -277,28 +277,15 @@ describe("getStudentClassTaskForSelf", () => {
     vi.mocked(studentService.listJoinedClassesForStudentSelf).mockResolvedValue(
       [classRow]
     );
-    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+    vi.mocked(classTaskRepository.findClassTaskById).mockResolvedValue({
       data: {
         id: taskId,
-        session_id: sessionId,
+        class_id: "other-class",
+        started: true,
         title: "Homework",
         description: null,
         due_date: null,
         max_grade: 100,
-        created_at: "2026-09-01T00:00:00.000Z",
-      },
-      error: null,
-    } as never);
-    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
-      data: {
-        id: sessionId,
-        class_id: "other-class",
-        nb_order: 1,
-        topic: "Intro",
-        starts_at: "2026-09-01T10:00:00.000Z",
-        ends_at: "2026-09-01T12:00:00.000Z",
-        semester_id: null,
-        group_grade_level: null,
         created_at: "2026-09-01T00:00:00.000Z",
       },
       error: null,
@@ -324,28 +311,15 @@ describe("getStudentClassTaskForSelf", () => {
     vi.mocked(studentService.listJoinedClassesForStudentSelf).mockResolvedValue(
       [classRow]
     );
-    vi.mocked(taskRepository.findTaskById).mockResolvedValue({
+    vi.mocked(classTaskRepository.findClassTaskById).mockResolvedValue({
       data: {
         id: taskId,
-        session_id: sessionId,
+        class_id: classId,
+        started: true,
         title: "Homework",
         description: "Do the work",
         due_date: "2026-09-10",
         max_grade: 100,
-        created_at: "2026-09-01T00:00:00.000Z",
-      },
-      error: null,
-    } as never);
-    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
-      data: {
-        id: sessionId,
-        class_id: classId,
-        nb_order: 2,
-        topic: "Algebra",
-        starts_at: "2026-09-01T10:00:00.000Z",
-        ends_at: "2026-09-01T12:00:00.000Z",
-        semester_id: null,
-        group_grade_level: null,
         created_at: "2026-09-01T00:00:00.000Z",
       },
       error: null,
@@ -382,7 +356,8 @@ describe("getStudentClassTaskForSelf", () => {
     );
 
     expect(detail?.task.title).toBe("Homework");
-    expect(detail?.task.session_label).toBe("S2");
+    expect(detail?.task.session_label).toBeNull();
+    expect(detail?.task.started).toBe(true);
     expect(detail?.studentTask?.grade).toBe(88);
     expect(detail?.studentTask?.id).toBe("st-1");
     expect(detail?.uploads).toEqual([]);
