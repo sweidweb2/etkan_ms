@@ -35,6 +35,17 @@ export async function listClassTeacherCountsByClassIds(
   return client.from("class_teacher").select("class_id").in("class_id", classIds);
 }
 
+export async function listClassTeachersByTeacherId(
+  client: Supabase,
+  teacherId: string
+) {
+  return client
+    .from("class_teacher")
+    .select(CLASS_TEACHER_COLUMNS)
+    .eq("teacher_id", teacherId)
+    .order("assigned_at", { ascending: false });
+}
+
 export async function listClassTeachersByClassId(
   client: Supabase,
   classId: string

@@ -265,10 +265,23 @@ export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation =
   MANAGER_PANEL_NAVIGATION;
 
 /**
- * Teacher panel: no dedicated teacher routes yet.
- * Only shared workshop links when instructor/mentor + workshops.view.
+ * Teacher app bar: My profile, then My classes (same order as the student bar).
+ * Manage workshops follows when instructor/mentor + workshops.view.
  */
-export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
+export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({
+  items: [
+    {
+      title: "My profile",
+      href: ROUTES.TEACHER_ROOT,
+      icon: "book-open",
+    },
+    {
+      title: "My classes",
+      href: ROUTES.TEACHER_CLASSES,
+      icon: "school",
+    },
+  ],
+});
 
 /** Student panel: profile, classes, payments, then locked borrowings last. */
 const STUDENT_PANEL_NAVIGATION_BASE = withManageWorkshops({

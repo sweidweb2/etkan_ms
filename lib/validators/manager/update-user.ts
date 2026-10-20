@@ -11,6 +11,10 @@ import {
   usernameField,
 } from "@/lib/validators/auth/fields";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
+import {
+  addOptionalPasswordPairIssues,
+  optionalPasswordInput,
+} from "@/lib/validators/auth/optional-created-password";
 import type { FieldErrors } from "@/types/auth";
 
 export const updateManagerUserSchema = z
@@ -30,8 +34,12 @@ export const updateManagerUserSchema = z
         message: "Please select a status.",
       })
       .optional(),
+    password: optionalPasswordInput,
+    confirmPassword: optionalPasswordInput,
   })
   .superRefine((values, ctx) => {
+    addOptionalPasswordPairIssues(values, ctx);
+
     if (values.role !== ROLES.STUDENT) {
       return;
     }
@@ -89,6 +97,8 @@ export function parseUpdateManagerUserFormData(formData: FormData):
     birthDate: formData.get("birthDate") ?? "",
     phone: formData.get("phone") ?? "",
     status: formData.get("status") || undefined,
+    password: formData.get("password") ?? "",
+    confirmPassword: formData.get("confirmPassword") ?? "",
   });
 
   if (!parsed.success) {

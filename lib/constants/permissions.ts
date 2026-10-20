@@ -333,7 +333,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.USERS_UPDATE,
     feature: "users",
-    label: "Edit user",
+    label: "Edit user account and password",
     access: PERMISSION_ACCESS.WRITE,
   },
 
