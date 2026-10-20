@@ -94,7 +94,7 @@ export function ChangeOwnPasswordDialog({
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Change password</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs">
             Enter your old password, then choose a new one and confirm it.
           </DialogDescription>
         </DialogHeader>
@@ -157,6 +157,16 @@ export function ChangeOwnPasswordDialog({
             {confirmPasswordError ? (
               <p className="text-sm text-destructive">{confirmPasswordError}</p>
             ) : null}
+            <p className="text-xs text-muted-foreground">
+              If you forgot your password, contact{" "}
+              <a
+                href="mailto:info@etkan.org"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                info@etkan.org
+              </a>
+              .
+            </p>
           </div>
           <DialogFooter>
             <Button

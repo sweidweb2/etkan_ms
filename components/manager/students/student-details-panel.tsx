@@ -56,6 +56,37 @@ type StudentDetailsPanelProps = {
 };
 
 
+function StudentAnalyticsCards({
+  stats,
+}: {
+  stats: ManagerStudentDetailStats;
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StudentDetailStatCard
+        label="Classes registered"
+        value={stats.classesRegistered}
+        accentClassName="border-l-sky-500"
+      />
+      <StudentDetailStatCard
+        label="Classes done"
+        value={stats.classesDone}
+        accentClassName="border-l-emerald-500"
+      />
+      <StudentDetailStatCard
+        label="Classes pending"
+        value={stats.classesPending}
+        accentClassName="border-l-amber-500"
+      />
+      <StudentDetailStatCard
+        label="Tasks done"
+        value={`${stats.tasksDone} / ${stats.tasksTotal}`}
+        accentClassName="border-l-violet-500"
+      />
+    </div>
+  );
+}
+
 function formatBirthDate(value: string | null) {
   if (!value) {
     return "—";
@@ -237,30 +268,7 @@ export function StudentDetailsPanel({
         </CardContent>
       </Card>
 
-      {!isSelf && stats ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StudentDetailStatCard
-            label="Classes registered"
-            value={stats.classesRegistered}
-            accentClassName="border-l-sky-500"
-          />
-          <StudentDetailStatCard
-            label="Classes done"
-            value={stats.classesDone}
-            accentClassName="border-l-emerald-500"
-          />
-          <StudentDetailStatCard
-            label="Classes pending"
-            value={stats.classesPending}
-            accentClassName="border-l-amber-500"
-          />
-          <StudentDetailStatCard
-            label="Tasks done"
-            value={`${stats.tasksDone} / ${stats.tasksTotal}`}
-            accentClassName="border-l-violet-500"
-          />
-        </div>
-      ) : null}
+      {!isSelf && stats ? <StudentAnalyticsCards stats={stats} /> : null}
 
       {isSelf ? null : (
         <div

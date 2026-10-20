@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/login-form";
 import {
   Card,
@@ -8,8 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getPostLoginRedirect } from "@/lib/auth/redirect";
-import { getSessionRole } from "@/lib/auth/session";
 import { PUBLIC_SIGNUP_ENABLED } from "@/lib/constants/auth";
 import { ROUTES } from "@/lib/constants/routes";
 import { getPublicLocale } from "@/lib/i18n/get-public-locale";
@@ -20,13 +17,9 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  // Signed-in visitors are redirected in middleware. Do not load the session
+  // pack here — that call was holding this page for many seconds.
   const params = await searchParams;
-  const role = await getSessionRole();
-
-  if (role) {
-    redirect(getPostLoginRedirect(role, params.next));
-  }
-
   const locale = await getPublicLocale();
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
