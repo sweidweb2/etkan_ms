@@ -114,6 +114,10 @@ export const PERMISSIONS = {
   SUBJECTS_EXERCISES_CREATE: "subjects.exercises.create",
   SUBJECTS_EXERCISES_UPDATE: "subjects.exercises.update",
   SUBJECTS_EXERCISES_DELETE: "subjects.exercises.delete",
+  SUBJECTS_TASKS_VIEW: "subjects.tasks.view",
+  SUBJECTS_TASKS_CREATE: "subjects.tasks.create",
+  SUBJECTS_TASKS_UPDATE: "subjects.tasks.update",
+  SUBJECTS_TASKS_DELETE: "subjects.tasks.delete",
 
   INSTRUCTORS_VIEW: "instructors.view",
   INSTRUCTORS_CREATE: "instructors.create",
@@ -252,6 +256,10 @@ export const PERMISSIONS = {
   ACCOUNTING_ADJUSTMENTS_CREATE: "accounting.adjustments.create",
   ACCOUNTING_ADJUSTMENTS_UPDATE: "accounting.adjustments.update",
   ACCOUNTING_ADJUSTMENTS_DELETE: "accounting.adjustments.delete",
+  ACCOUNTING_CLEARANCES_VIEW: "accounting.clearances.view",
+  ACCOUNTING_CLEARANCES_CREATE: "accounting.clearances.create",
+  ACCOUNTING_CLEARANCES_UPDATE: "accounting.clearances.update",
+  ACCOUNTING_CLEARANCES_DELETE: "accounting.clearances.delete",
 
   PAYMENT_SCHEDULES_VIEW: "payment_schedules.view",
   PAYMENT_SCHEDULES_CREATE: "payment_schedules.create",
@@ -444,6 +452,30 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.SUBJECTS_EXERCISES_DELETE,
     feature: "subjects",
     label: "Delete subject exercise",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_TASKS_VIEW,
+    feature: "subjects",
+    label: "View subject tasks",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_TASKS_CREATE,
+    feature: "subjects",
+    label: "Create subject task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_TASKS_UPDATE,
+    feature: "subjects",
+    label: "Edit subject task",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.SUBJECTS_TASKS_DELETE,
+    feature: "subjects",
+    label: "Delete subject task",
     access: PERMISSION_ACCESS.WRITE,
   },
 
@@ -1176,6 +1208,30 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.ACCOUNTING_ADJUSTMENTS_DELETE,
     feature: "accounting",
     label: "Delete financial adjustment",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_CLEARANCES_VIEW,
+    feature: "accounting",
+    label: "View SPP month paid clearances",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE,
+    feature: "accounting",
+    label: "Create SPP month paid clearance",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_CLEARANCES_UPDATE,
+    feature: "accounting",
+    label: "Edit SPP month paid clearance",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE,
+    feature: "accounting",
+    label: "Delete SPP month paid clearance",
     access: PERMISSION_ACCESS.WRITE,
   },
 

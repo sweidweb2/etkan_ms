@@ -11,11 +11,11 @@ import * as authRepository from "@/repositories/auth.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";
-import type { TaskRecord } from "@/repositories/task.repository";
+import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import type { FieldErrors } from "@/types/auth";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
-  ManagerSessionTaskRow,
+  ManagerClassTaskRow,
   ManagerStudentTaskRow,
 } from "@/types/manager-class-session-detail";
 import {
@@ -97,14 +97,19 @@ export function mapSessionRecord(record: SessionRecord): ManagerClassSessionRow 
   };
 }
 
-export function mapTaskRecord(record: TaskRecord): ManagerSessionTaskRow {
+export function mapTaskRecord(record: ClassTaskRecord): ManagerClassTaskRow {
   return {
     id: record.id,
-    session_id: record.session_id ?? "",
+    class_id: record.class_id,
+    source_subject_task_id: record.source_subject_task_id,
     title: record.title,
     description: record.description,
-    due_date: record.due_date,
+    period: record.period,
     max_grade: record.max_grade,
+    sort_order: record.sort_order,
+    started: record.started,
+    started_at: record.started_at,
+    due_date: record.due_date,
     created_at: record.created_at ?? "",
   };
 }

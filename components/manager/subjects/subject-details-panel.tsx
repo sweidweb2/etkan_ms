@@ -11,6 +11,7 @@ import { EditSubjectDialog } from "@/components/manager/subjects/edit-subject-di
 import { SubjectCatalogLinksSection } from "@/components/manager/subjects/subject-catalog-links-section";
 import { SubjectClassesSection } from "@/components/manager/subjects/subject-classes-section";
 import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject-collapsible-section";
+import { SubjectTasksSection } from "@/components/manager/subjects/subject-tasks-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
@@ -46,6 +47,7 @@ import type {
   ManagerSubjectRow,
 } from "@/types/manager-subject";
 import type { ManagerSubjectClassRow } from "@/types/manager-subject-class";
+import type { ManagerSubjectTaskRow } from "@/types/manager-subject-task";
 import type { ManagerCategoryRow } from "@/types/manager-category";
 import type { ManagerExerciseRow } from "@/types/manager-exercise";
 
@@ -56,6 +58,7 @@ type SubjectDetailsPanelProps = {
   exercises: ManagerExerciseRow[];
   linkedCategoryIds: string[];
   linkedExerciseIds: string[];
+  tasks?: ManagerSubjectTaskRow[];
 };
 
 const initialDeleteState: DeleteSubjectActionState = {};
@@ -97,6 +100,7 @@ export function SubjectDetailsPanel({
   exercises,
   linkedCategoryIds,
   linkedExerciseIds,
+  tasks = [],
 }: SubjectDetailsPanelProps) {
   const [subject, setSubject] = useState<ManagerSubjectRow>(initialSubject);
   const [prevSubject, setPrevSubject] =
@@ -264,6 +268,14 @@ export function SubjectDetailsPanel({
         initialCategoryIds={linkedCategoryIds}
         initialExerciseIds={linkedExerciseIds}
       />
+
+      <Can permission={PERMISSIONS.SUBJECTS_TASKS_VIEW}>
+        <SubjectTasksSection
+          subjectId={subject.id}
+          subjectName={subject.name}
+          tasks={tasks}
+        />
+      </Can>
 
       <SubjectCollapsibleSection
         title="Classes"

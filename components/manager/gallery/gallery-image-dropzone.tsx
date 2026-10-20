@@ -101,6 +101,7 @@ export function GalleryImageDropzone({
 
   useEffect(() => {
     if (!selectedFile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear object-URL preview when file is removed
       setPreviewUrl(null);
       setIsSelectProgressActive(false);
       setSelectProgressComplete(false);
@@ -135,6 +136,7 @@ export function GalleryImageDropzone({
 
   useEffect(() => {
     if (isUploading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror upload start into progress UI
       setUploadComplete(false);
       return;
     }

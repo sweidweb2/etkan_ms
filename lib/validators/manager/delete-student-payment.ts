@@ -9,6 +9,10 @@ export const deleteStudentPaymentSchema = z.object({
     .uuid({ message: "Student payment phase is required." })
     .optional()
     .or(z.literal("")),
+  also_delete_clearance: z
+    .union([z.literal("true"), z.literal("false"), z.literal(""), z.boolean()])
+    .optional()
+    .transform((value) => value === true || value === "true"),
 });
 
 export type DeleteStudentPaymentInput = z.infer<
@@ -19,5 +23,6 @@ export function parseDeleteStudentPaymentFormData(formData: FormData) {
   return safeParseFormData(deleteStudentPaymentSchema, {
     id: formData.get("id"),
     student_payment_phase_id: formData.get("student_payment_phase_id") ?? "",
+    also_delete_clearance: formData.get("also_delete_clearance") ?? "",
   });
 }

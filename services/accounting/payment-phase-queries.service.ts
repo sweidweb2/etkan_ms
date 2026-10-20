@@ -610,17 +610,27 @@ export async function listSppsForPhaseForManager(
     return [];
   }
 
-  const meta = await buildStudentMetaByUserId(
-    adminClient,
-    [...new Set(records.map((record) => record.student_id))]
-  );
+  const [meta, clearances] = await Promise.all([
+    buildStudentMetaByUserId(
+      adminClient,
+      [...new Set(records.map((record) => record.student_id))]
+    ),
+    import("@/services/accounting/spp-clearance.service").then(
+      ({ loadActiveClearanceDtosBySppIds }) =>
+        loadActiveClearanceDtosBySppIds(
+          adminClient,
+          records.map((record) => record.id)
+        )
+    ),
+  ]);
 
   return records.map((record) => {
     const studentMeta = meta.get(record.student_id);
     return mapSppRecordToRow(
       record,
       studentMeta?.label ?? record.student_id,
-      studentMeta?.student_profile_id ?? null
+      studentMeta?.student_profile_id ?? null,
+      clearances.get(record.id) ?? null
     );
   });
 }

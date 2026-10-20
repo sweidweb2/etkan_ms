@@ -6,7 +6,7 @@
 **Role supervisor:** empty `/supervisor` panel; seeded allow-list: workshops + subjects (categories/exercises) + students + classes tree + instructor schedules + academic analysis (see `[08]`). Uses full manager nav filtered by grants — RBAC extras unlock UI/routes. No new permission keys.  
 **Role CRM:** empty `/crm` panel; seeded with all `guests.*` + all `teams.*` + full `registrations.*` for shared `/manager/guests*` and dossier/details (see `[08]`). No new permission keys.  
 **Role teacher:** class-tree grants only; own-class scoping in services (see `[08]`).  
-**Role student:** `students.view_own` + class/session/task reads + `accounting.view` / `payment_schedules.view` for own SPPs (see `[08]`).
+**Role student:** `students.view_own` + class/session/task reads + `accounting.view` / `accounting.clearances.view` / `payment_schedules.view` for own SPPs (see `[08]`).
 
 ---
 
@@ -87,6 +87,10 @@ Format: `key` — label — access
 | `subjects.exercises.create` | Create subject exercise | write |
 | `subjects.exercises.update` | Edit subject exercise | write |
 | `subjects.exercises.delete` | Delete subject exercise | write |
+| `subjects.tasks.view` | View subject tasks | read |
+| `subjects.tasks.create` | Create subject task | write |
+| `subjects.tasks.update` | Edit subject task | write |
+| `subjects.tasks.delete` | Delete subject task | write |
 
 ### Instructors
 
@@ -295,6 +299,10 @@ Format: `key` — label — access
 | `accounting.adjustments.create` | Create financial adjustment | write |
 | `accounting.adjustments.update` | Edit financial adjustment | write |
 | `accounting.adjustments.delete` | Delete financial adjustment | write |
+| `accounting.clearances.view` | View SPP month paid clearances | read |
+| `accounting.clearances.create` | Create SPP month paid clearance | write |
+| `accounting.clearances.update` | Edit SPP month paid clearance | write |
+| `accounting.clearances.delete` | Delete SPP month paid clearance | write |
 
 ### Academic analysis
 
@@ -417,6 +425,10 @@ subjects.exercises.view
 subjects.exercises.create
 subjects.exercises.update
 subjects.exercises.delete
+subjects.tasks.view
+subjects.tasks.create
+subjects.tasks.update
+subjects.tasks.delete
 <!-- ======================================== -->
 instructors.view
 instructors.create
@@ -550,6 +562,10 @@ accounting.payments.delete
 accounting.adjustments.create
 accounting.adjustments.update
 accounting.adjustments.delete
+accounting.clearances.view
+accounting.clearances.create
+accounting.clearances.update
+accounting.clearances.delete
 payment_schedules.view
 payment_schedules.create
 payment_schedules.update

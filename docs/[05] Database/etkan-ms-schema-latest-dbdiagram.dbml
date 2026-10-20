@@ -351,14 +351,47 @@ Table attendee {
   }
 }
 
-Table tasks {
+Table subject_tasks {
   id uuid [pk, default: `gen_random_uuid()`]
-  session_id uuid
-  title text [not null]
+  subject_id uuid [not null]
+  title text [not null, note: "trim(title) <> ''"]
   description text
-  due_date timestamp
+  period integer [not null, note: '> 0 days']
   max_grade numeric(5,2)
-  created_at timestamp [default: `now()`]
+  sort_order integer [not null, default: 0]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    subject_id [name: 'subject_tasks_subject_id_idx']
+    (subject_id, sort_order) [name: 'subject_tasks_subject_sort_idx']
+  }
+
+  Note: 'Curriculum tasks for a subject. Cloned onto classes; later edits do not sync.'
+}
+
+Table class_tasks {
+  id uuid [pk, default: `gen_random_uuid()`]
+  class_id uuid [not null]
+  source_subject_task_id uuid [note: 'Provenance only; ON DELETE SET NULL']
+  title text [not null, note: "trim(title) <> ''"]
+  description text
+  period integer [not null, note: '> 0 days']
+  max_grade numeric(5,2)
+  sort_order integer [not null, default: 0]
+  started boolean [not null, default: false]
+  started_at timestamptz
+  due_date timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    class_id [name: 'class_tasks_class_id_idx']
+    (class_id, sort_order) [name: 'class_tasks_class_sort_idx']
+    source_subject_task_id [name: 'class_tasks_source_subject_task_id_idx']
+  }
+
+  Note: 'Live graded tasks for a class. started=false ⇒ due_date null; students cannot submit.'
 }
 
 Table student_tasks {
@@ -614,9 +647,11 @@ Ref: sessions.semester_id > semesters.id
 Ref: attendee.session_id > sessions.id
 Ref: attendee.student_id > profiles.id
 
-Ref: tasks.session_id > sessions.id
+Ref: subject_tasks.subject_id > subjects.id
+Ref: class_tasks.class_id > classes.id
+Ref: class_tasks.source_subject_task_id > subject_tasks.id
 
-Ref: student_tasks.task_id > tasks.id
+Ref: student_tasks.task_id > class_tasks.id
 Ref: student_tasks.student_id > profiles.id
 Ref: student_task_uploads.student_task_id > student_tasks.id
 Ref: student_task_uploads.uploaded_by > profiles.id
@@ -716,6 +751,23 @@ Table student_payment_schedules {
   Note: 'Informational installments for an SPP. Does not affect financial totals.'
 }
 
+Table student_payment_phase_clearances {
+  id uuid [pk, default: `gen_random_uuid()`]
+  student_payment_phase_id uuid [not null, unique]
+  duration_days integer [not null, note: 'CHECK 1..365; expiry = created_at + duration_days']
+  notes text
+  created_by uuid
+  updated_by uuid
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    created_at [name: 'idx_student_payment_phase_clearances_created_at']
+  }
+
+  Note: 'Theoretical Month paid overlay per SPP. Hard-deleted on expiry. Does not affect money or status.'
+}
+
 Table student_financial_adjustments {
   id uuid [pk, default: `gen_random_uuid()`]
   student_payment_phase_id uuid [not null, unique]
@@ -789,6 +841,10 @@ Ref: student_payments.student_payment_phase_id > student_payment_phases.id
 
 Ref: student_payment_schedules.student_payment_phase_id > student_payment_phases.id
 Ref: student_payment_schedules.created_by > profiles.id
+
+Ref: student_payment_phase_clearances.student_payment_phase_id > student_payment_phases.id
+Ref: student_payment_phase_clearances.created_by > profiles.id
+Ref: student_payment_phase_clearances.updated_by > profiles.id
 
 Ref: student_financial_adjustments.student_payment_phase_id > student_payment_phases.id
 

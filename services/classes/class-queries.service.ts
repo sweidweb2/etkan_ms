@@ -28,7 +28,7 @@ import * as studentClassRepository from "@/repositories/student-class.repository
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
-import * as taskRepository from "@/repositories/task.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import {
   CLASS_GRADES_LOCKED_ERROR,
@@ -563,7 +563,7 @@ export async function getClassAnalyticsForManager(
   const sessionIds = sessions.map((session) => session.id);
 
   const [tasksResult, attendeesResult] = await Promise.all([
-    taskRepository.listTasksBySessionIds(adminClient, sessionIds),
+    classTaskRepository.listClassTasksByClassId(adminClient, classId),
     attendeeRepository.listAttendeesBySessionIds(adminClient, sessionIds),
   ]);
 
@@ -587,14 +587,30 @@ export async function getClassAnalyticsForManager(
   }
 
   const studentTasks = studentTasksResult.data ?? [];
+  // Tasks are class-scoped. For the per-session trend, bucket each started
+  // task into the latest session that began on/before its start (or the first
+  // session when it started before any session).
+  const sessionsByStart = [...sessions].sort(
+    (left, right) =>
+      new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime()
+  );
   const tasksBySessionId = new Map<string, typeof tasks>();
   for (const task of tasks) {
-    if (!task.session_id) {
+    if (!task.started || !task.started_at) {
       continue;
     }
-    const list = tasksBySessionId.get(task.session_id) ?? [];
+    const startedMs = new Date(task.started_at).getTime();
+    let bucket = sessionsByStart[0];
+    for (const session of sessionsByStart) {
+      if (new Date(session.starts_at).getTime() <= startedMs) {
+        bucket = session;
+      } else {
+        break;
+      }
+    }
+    const list = tasksBySessionId.get(bucket.id) ?? [];
     list.push(task);
-    tasksBySessionId.set(task.session_id, list);
+    tasksBySessionId.set(bucket.id, list);
   }
 
   const gradesByTaskId = buildGradesByTaskId(studentTasks);

@@ -44,6 +44,8 @@ export type StudentClassTaskDetailForSelf = {
     id: string;
     session_id: string | null;
     session_label: string | null;
+    /** Students may only upload once the class task is started. */
+    started: boolean;
     title: string;
     description: string | null;
     due_date: string | null;

@@ -4,6 +4,7 @@ import type {
   PaymentPhaseStatus,
   StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
+import type { ManagerSppClearanceDto } from "@/types/manager-spp-clearance";
 
 export type ManagerPaymentPhaseRow = {
   id: string;
@@ -89,6 +90,8 @@ export type ManagerSppRow = {
   remaining_amount: number;
   assigned_at: string;
   created_at: string;
+  /** Active Month paid overlay; null when missing or expired. */
+  current_clearance: ManagerSppClearanceDto | null;
 };
 
 export type CreatePaymentPhaseActionState = {

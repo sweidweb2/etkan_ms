@@ -3,10 +3,8 @@
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { PlusIcon } from "lucide-react";
 import { updateAttendeeAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
-import { AddSessionTaskDialog } from "@/components/manager/classes/add-session-task-dialog";
 import {
   Tabs as TabsPrimitive,
   TabsContent as TabsContentPrimitive,
@@ -15,7 +13,6 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -29,7 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getManagerClassSessionTaskDetailRoute } from "@/lib/constants/routes";
+import { getManagerClassTaskDetailRoute } from "@/lib/constants/routes";
 import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import {
   ATTENDEE_STATUSES,
@@ -42,10 +39,7 @@ import {
   SESSION_TASK_TABLE_LIMITS,
 } from "@/lib/constants/manager-class-session-detail-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import {
-  CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
-  STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
-} from "@/lib/manager/class-grades-access";
+import { STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { cn } from "@/lib/utils";
@@ -70,10 +64,9 @@ type SessionDetailsTabsSectionProps = {
   classId: string;
   sessionId: string;
   sessionLabel: string;
-  sessionStartsAt: string;
+  /** @deprecated Sessions no longer own tasks; kept for the legacy bundle shape. */
   initialTasks: ManagerSessionTaskRow[];
   initialAttendees: ManagerSessionAttendeeRow[];
-  hasComputedGrades?: boolean;
   lockedUserIds?: string[];
 };
 
@@ -127,19 +120,15 @@ function formatDateTimeCell(value: string | null) {
 
 function SessionTasksTable({
   classId,
-  sessionId,
   tasks,
 }: {
   classId: string;
-  sessionId: string;
   tasks: ManagerSessionTaskRow[];
 }) {
   const router = useRouter();
 
   const handleOpenTask = (taskId: string) => {
-    router.push(
-      getManagerClassSessionTaskDetailRoute(classId, sessionId, taskId)
-    );
+    router.push(getManagerClassTaskDetailRoute(classId, taskId));
   };
 
   return (
@@ -161,7 +150,7 @@ function SessionTasksTable({
                 colSpan={5}
                 className="px-4 py-10 text-center text-muted-foreground"
               >
-                No tasks linked to this session yet.
+                Tasks are managed on the class page, not per session.
               </td>
             </tr>
           ) : (
@@ -390,44 +379,16 @@ export function SessionDetailsTabsSection({
   classId,
   sessionId,
   sessionLabel,
-  sessionStartsAt,
   initialTasks,
   initialAttendees,
-  hasComputedGrades = false,
   lockedUserIds = [],
 }: SessionDetailsTabsSectionProps) {
-  const [activeTab, setActiveTab] = useState<SessionDetailsTabValue>("tasks");
-  const [tasks, setTasks] = useState(initialTasks);
+  const [activeTab, setActiveTab] =
+    useState<SessionDetailsTabValue>("attendee");
   const [attendees, setAttendees] = useState(initialAttendees);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-
-  const defaultDueDate = useMemo(() => {
-    const dueDate = new Date(sessionStartsAt);
-    dueDate.setDate(dueDate.getDate() + 2);
-    dueDate.setHours(23, 59, 0, 0);
-
-    const offset = dueDate.getTimezoneOffset();
-    const local = new Date(dueDate.getTime() - offset * 60_000);
-    return local.toISOString().slice(0, 16);
-  }, [sessionStartsAt]);
 
   return (
     <TooltipProvider>
-      <AddSessionTaskDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        classId={classId}
-        sessionId={sessionId}
-        sessionLabel={sessionLabel}
-        defaultDueDate={defaultDueDate}
-        onCreateTask={(task) => {
-          setTasks((current) => [
-            task,
-            ...current.filter((row) => row.id !== task.id),
-          ]);
-        }}
-      />
-
       <ClassTabCollapsibleSection
         title="Tasks & attendance"
         description={`Tasks and attendee records for ${sessionLabel}.`}
@@ -435,32 +396,6 @@ export function SessionDetailsTabsSection({
           COLLAPSIBLE_SECTION_STORAGE_KEYS.SESSION_DETAILS_TASKS_ATTENDEE
         }
         defaultOpen
-        action={
-          activeTab === "tasks" ? (
-            <Can permission={PERMISSIONS.TASKS_CREATE}>
-              {hasComputedGrades ? (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<span className="inline-flex" tabIndex={0} />}
-                  >
-                    <Button type="button" disabled>
-                      <PlusIcon data-icon="inline-start" />
-                      Create task
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Button type="button" onClick={() => setIsAddOpen(true)}>
-                  <PlusIcon data-icon="inline-start" />
-                  Create task
-                </Button>
-              )}
-            </Can>
-          ) : null
-        }
       >
         <TabsPrimitive
           value={activeTab}
@@ -498,11 +433,7 @@ export function SessionDetailsTabsSection({
 
           <TabsContentsPrimitive>
             <TabsContentPrimitive value="tasks" className="px-0 py-0">
-              <SessionTasksTable
-                classId={classId}
-                sessionId={sessionId}
-                tasks={tasks}
-              />
+              <SessionTasksTable classId={classId} tasks={initialTasks} />
             </TabsContentPrimitive>
             <TabsContentPrimitive value="attendee" className="px-0 py-0">
               <SessionAttendeesTable

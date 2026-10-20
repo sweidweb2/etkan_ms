@@ -4,6 +4,13 @@ import { CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
 
 export { CLASS_STATUS_VALUES };
 
+const booleanFromForm = z.preprocess((value) => {
+  if (typeof value === "boolean") return value;
+  if (value === "true" || value === "on" || value === "1") return true;
+  if (value === "false" || value === "" || value == null) return false;
+  return value;
+}, z.boolean());
+
 export const createClassSchema = z.object({
   name: z
     .string()
@@ -19,6 +26,7 @@ export const createClassSchema = z.object({
   }),
   semester_id: z.string().optional().or(z.literal("")),
   teacher_id: z.string().optional().or(z.literal("")),
+  clone_subject_tasks: booleanFromForm.default(false),
 });
 
 export type CreateClassInput = z.infer<typeof createClassSchema>;
@@ -30,5 +38,6 @@ export function parseCreateClassFormData(formData: FormData) {
     status: formData.get("status"),
     semester_id: formData.get("semester_id") ?? "",
     teacher_id: formData.get("teacher_id") ?? "",
+    clone_subject_tasks: formData.get("clone_subject_tasks") ?? "false",
   });
 }

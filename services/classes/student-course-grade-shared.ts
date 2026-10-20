@@ -29,7 +29,7 @@ import * as studentCourseGradeRepository from "@/repositories/student-course-gra
 import type { StudentCourseGradeRecord } from "@/repositories/student-course-grade.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import type { StudentTaskRecord } from "@/repositories/student-task.repository";
-import * as taskRepository from "@/repositories/task.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import { listClassStudentsForManager } from "@/services/classes/class.service";
 import type {
   ManagerClassFinalExamRow,
@@ -132,54 +132,31 @@ export function resolveFactorWeights(options?: ComputeGradeOptions): FactorWeigh
 }
 
 export function buildClassTaskRows(
-  sessions: SessionRecord[],
   tasks: Array<{
     id: string;
-    session_id: string | null;
     title?: string;
     max_grade: number | null;
     due_date?: string | null;
+    sort_order?: number | null;
     created_at?: string | null;
   }>
 ): ManagerClassTaskForGradesRow[] {
-  const sessionById = new Map(sessions.map((session) => [session.id, session]));
-  const rows: ManagerClassTaskForGradesRow[] = [];
-
-  for (const task of tasks) {
-    const session = task.session_id
-      ? sessionById.get(task.session_id)
-      : undefined;
-
-    if (!session) {
-      rows.push({
-        id: task.id,
-        session_id: task.session_id,
-        session_label: "Unassigned",
-        session_nb_order: Number.MAX_SAFE_INTEGER,
-        title: task.title ?? "Task",
-        max_grade: task.max_grade,
-        due_date: task.due_date ?? null,
-        created_at: task.created_at ?? null,
-      });
-      continue;
-    }
-
-    rows.push({
-      id: task.id,
-      session_id: task.session_id,
-      session_label: `S${session.nb_order}`,
-      session_nb_order: session.nb_order,
-      title: task.title ?? "Task",
-      max_grade: task.max_grade,
-      due_date: task.due_date ?? null,
-      created_at: task.created_at ?? null,
-    });
-  }
+  const rows: ManagerClassTaskForGradesRow[] = tasks.map((task) => ({
+    id: task.id,
+    // Tasks are class-scoped; session fields are kept only for UI compatibility.
+    session_id: null,
+    session_label: "Class",
+    session_nb_order: task.sort_order ?? 0,
+    title: task.title ?? "Task",
+    max_grade: task.max_grade,
+    due_date: task.due_date ?? null,
+    created_at: task.created_at ?? null,
+  }));
 
   return rows.sort((left, right) => {
-    const sessionCompare = left.session_nb_order - right.session_nb_order;
-    if (sessionCompare !== 0) {
-      return sessionCompare;
+    const orderCompare = left.session_nb_order - right.session_nb_order;
+    if (orderCompare !== 0) {
+      return orderCompare;
     }
 
     return (
@@ -207,7 +184,7 @@ export async function loadClassGradeContext(
 
   const [tasksResult, finalExamResult, storedGradesResult, attendeesResult] =
     await Promise.all([
-      taskRepository.listTasksForGradesBySessionIds(adminClient, sessionIds),
+      classTaskRepository.listClassTasksForGradesByClassId(adminClient, classId),
       finalExamRepository.findFinalExamByClassId(adminClient, classId),
       studentCourseGradeRepository.listStudentCourseGradesByClassId(
         adminClient,
@@ -233,13 +210,12 @@ export async function loadClassGradeContext(
   }
 
   const classTasks = buildClassTaskRows(
-    sessions,
     (tasksResult.data ?? []).map((task) => ({
       id: task.id,
-      session_id: task.session_id,
       title: task.title,
       max_grade: task.max_grade,
       due_date: task.due_date,
+      sort_order: task.sort_order,
       created_at: task.created_at,
     }))
   );
@@ -679,7 +655,7 @@ export async function listStudentClassAcademicBundlesUnchecked(
 
   const [tasksResult, attendeesResult, finalExamGradesResult] =
     await Promise.all([
-      taskRepository.listTasksForGradesBySessionIds(adminClient, sessionIds),
+      classTaskRepository.listClassTasksForGradesByClassIds(adminClient, classIds),
       attendeeRepository.listAttendeesBySessionIdsAndStudentId(
         adminClient,
         sessionIds,
@@ -737,27 +713,22 @@ export async function listStudentClassAcademicBundlesUnchecked(
     )
   );
 
-  const tasksBySessionId = new Map<string, typeof allTasks>();
+  const tasksByClassId = new Map<string, typeof allTasks>();
   for (const task of allTasks) {
-    if (!task.session_id) continue;
-    const list = tasksBySessionId.get(task.session_id) ?? [];
+    const list = tasksByClassId.get(task.class_id) ?? [];
     list.push(task);
-    tasksBySessionId.set(task.session_id, list);
+    tasksByClassId.set(task.class_id, list);
   }
 
   return joinedClasses.map((classRow) => {
     const classSessions = sessionsByClassId.get(classRow.class_id) ?? [];
-    const classTaskInputs = classSessions.flatMap(
-      (session) => tasksBySessionId.get(session.id) ?? []
-    );
     const classTasks = buildClassTaskRows(
-      classSessions,
-      classTaskInputs.map((task) => ({
+      (tasksByClassId.get(classRow.class_id) ?? []).map((task) => ({
         id: task.id,
-        session_id: task.session_id,
         title: task.title,
         max_grade: task.max_grade,
         due_date: task.due_date,
+        sort_order: task.sort_order,
         created_at: task.created_at,
       }))
     );

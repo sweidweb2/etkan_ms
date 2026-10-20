@@ -378,10 +378,8 @@ export function ClassSessionDetailsPanel({
         classId={classRow.id}
         sessionId={session.id}
         sessionLabel={`S${session.nb_order} · ${session.topic}`}
-        sessionStartsAt={session.starts_at}
         initialTasks={initialTasks}
         initialAttendees={initialAttendees}
-        hasComputedGrades={hasComputedGrades}
         lockedUserIds={lockedUserIds}
       />
     </div>

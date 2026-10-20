@@ -79,7 +79,11 @@ export function StudentClassTaskDetailsPanel({
           <div className="flex items-center gap-1.5">
             <dt className="text-muted-foreground">Status</dt>
             <dd>
-              {studentTask ? (
+              {!task.started ? (
+                <span className="inline-flex w-fit rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  Not started
+                </span>
+              ) : studentTask ? (
                 <StudentTaskStatusBadge status={studentTask.status} />
               ) : (
                 <span className="text-muted-foreground">Not assigned</span>
@@ -103,6 +107,7 @@ export function StudentClassTaskDetailsPanel({
       <StudentTaskFiles
         studentTaskId={studentTask?.id ?? null}
         uploads={detail.uploads ?? []}
+        started={task.started}
       />
     </div>
   );

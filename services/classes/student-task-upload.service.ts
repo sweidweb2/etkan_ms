@@ -7,12 +7,11 @@ import {
   uploadStudentTaskFileSchema,
 } from "@/lib/validators/manager/student-task-upload";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
-import * as sessionRepository from "@/repositories/session.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as studentTaskStorageRepository from "@/repositories/student-task-storage.repository";
 import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
 import type { StudentTaskUploadRecord } from "@/repositories/student-task-upload.repository";
-import * as taskRepository from "@/repositories/task.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import {
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
@@ -56,7 +55,7 @@ async function resolveClassIdForStudentTask(
   | { ok: true; classId: string | null; sessionId: string | null }
   | { ok: false; error: string }
 > {
-  const taskResult = await taskRepository.findTaskById(adminClient, taskId);
+  const taskResult = await classTaskRepository.findClassTaskById(adminClient, taskId);
 
   if (taskResult.error) {
     return { ok: false, error: taskResult.error.message };
@@ -66,25 +65,11 @@ async function resolveClassIdForStudentTask(
     return { ok: false, error: "Task not found." };
   }
 
-  const sessionId = taskResult.data.session_id;
-
-  if (!sessionId) {
-    return { ok: true, classId: null, sessionId: null };
-  }
-
-  const sessionResult = await sessionRepository.findSessionById(
-    adminClient,
-    sessionId
-  );
-
-  if (sessionResult.error) {
-    return { ok: false, error: sessionResult.error.message };
-  }
-
+  // Tasks are class-scoped; there is no owning session anymore.
   return {
     ok: true,
-    classId: sessionResult.data?.class_id ?? null,
-    sessionId,
+    classId: taskResult.data.class_id,
+    sessionId: null,
   };
 }
 
@@ -449,7 +434,7 @@ export async function getStudentTaskUploadSignedUrlForManager(
 
 /**
  * Best-effort storage cleanup for uploads belonging to student_task ids
- * that are about to be deleted with a session task.
+ * that are about to be deleted with a class task.
  */
 export async function removeStorageForStudentTaskUploads(
   adminClient: Supabase,

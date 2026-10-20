@@ -12,7 +12,7 @@ import { EditClassDialog } from "@/components/manager/classes/edit-class-dialog"
 import { ClassFinalExamSection } from "@/components/manager/classes/class-final-exam-section";
 import { ClassSessionProgressTrack } from "@/components/manager/classes/class-session-progress-track";
 import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
-import { ClassSessionTasksSection } from "@/components/manager/classes/class-session-tasks-section";
+import { ClassTasksSection } from "@/components/manager/classes/class-tasks-section";
 import { ClassStudentsSection } from "@/components/manager/classes/class-students-section";
 import type { ClassTransferOption } from "@/components/manager/classes/transfer-student-between-classes-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
@@ -343,10 +343,12 @@ export function ClassDetailsPanel({
       />
 
       {canViewTasks ? (
-        <ClassSessionTasksSection
+        <ClassTasksSection
           classId={classRow.id}
           className={classRow.name}
           tasks={initialTasks}
+          hasSubject={Boolean(classRow.subject_id)}
+          hasComputedGrades={hasComputedGrades}
         />
       ) : null}
 

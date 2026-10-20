@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DicesIcon } from "lucide-react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { createGalleryImageAction } from "@/app/manager/gallery/actions";
@@ -58,8 +58,6 @@ export function AddGalleryImageDialog({
     initialState
   );
 
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
-
   useActionStateToast(state, isPending);
 
   const {
@@ -78,15 +76,21 @@ export function AddGalleryImageDialog({
   const selectedFile = watch("file");
   const { ref: nameRef, ...nameRegister } = register("name");
 
-  useEffect(() => {
-    if (!open) {
-      reset(emptyDefaults);
-      setClientFileError(null);
-      setFileInputKey((key) => key + 1);
+  function resetDialogForm() {
+    reset(emptyDefaults);
+    setClientFileError(null);
+    setFileInputKey((key) => key + 1);
+  }
+
+  const handleOpenChange = usePendingAwareOpenChange(isPending, (next) => {
+    if (!next) {
+      resetDialogForm();
     }
-  }, [open, reset]);
+    onOpenChange(next);
+  });
 
   useActionStateSuccess(state, isPending, (nextState) => {
+    resetDialogForm();
     onOpenChange(false);
     if (nextState.image) {
       onImageCreated(nextState.image);

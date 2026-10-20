@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
 import { PaymentScheduleStatusBadge } from "@/components/manager/accounting/payment-schedule-status-badge";
+import { SppCurrentBadge } from "@/components/manager/accounting/spp-current-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import {
@@ -118,6 +119,7 @@ export function StudentSppDetailsPanel({
                 }
               )}
             />
+            <SppCurrentBadge clearance={spp.current_clearance} />
             <PaymentPhaseStatusBadge status={spp.payment_phase_status} />
           </CardAction>
         </CardHeader>

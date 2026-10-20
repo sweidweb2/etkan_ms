@@ -365,6 +365,12 @@ Expected total = expected student payments + expected external credits.
 
 ---
 
+## SPP Month paid clearance overlay
+
+Theoretical per-SPP marker (`student_payment_phase_clearances`): one row max, manager-chosen `duration_days`, hard-deleted by daily cron (`purge-expired-spp-clearances`) or manually. Shows a separate **Month paid** badge beside ledger / Upfront paid badges. Does **not** change SPP money, status, phase close, schedules, or income-statement analytics. Student portal shows the same badge (read-only). Permissions: `accounting.clearances.*`.
+
+---
+
 ## Explicitly out of scope (v1)
 
 From plan §9 — **not missing bugs**:

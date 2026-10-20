@@ -164,7 +164,8 @@ export async function listGalleryImagesForManager(
   await assertPermission(adminClient, actorUserId, PERMISSIONS.GALLERY_VIEW);
 
   const normalized = normalizeListQuery(query);
-  let { page, pageSize, search } = normalized;
+  let { page } = normalized;
+  const { pageSize, search } = normalized;
 
   let listed = await galleryImageRepository.listGalleryImagesPage(adminClient, {
     page,

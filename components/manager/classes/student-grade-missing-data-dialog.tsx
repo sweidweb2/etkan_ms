@@ -15,7 +15,7 @@ import {
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
 import {
   getManagerClassDetailRoute,
-  getManagerClassSessionTaskDetailRoute,
+  getManagerClassTaskDetailRoute,
 } from "@/lib/constants/routes";
 import type { ManagerClassFinalExamRow, ManagerStudentFinalExamGradeRow } from "@/types/manager-class-final-exam";
 import type {
@@ -141,14 +141,10 @@ export function StudentGradeMissingDataDialog({
         );
       }
 
-      if (item.taskId && item.sessionId) {
+      if (item.taskId) {
         return (
           <Link
-            href={getManagerClassSessionTaskDetailRoute(
-              classId,
-              item.sessionId,
-              item.taskId
-            )}
+            href={getManagerClassTaskDetailRoute(classId, item.taskId)}
             className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             Open task

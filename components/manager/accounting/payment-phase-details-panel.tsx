@@ -14,6 +14,8 @@ import { format } from "date-fns";
 import {
   BanIcon,
   BanknoteIcon,
+  CalendarCheckIcon,
+  CalendarXIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
@@ -23,12 +25,16 @@ import {
 } from "lucide-react";
 import { cancelPaymentPhaseAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
+import { BulkCreateSppClearancesDialog } from "@/components/manager/accounting/bulk-create-spp-clearances-dialog";
+import { BulkDeleteSppClearancesDialog } from "@/components/manager/accounting/bulk-delete-spp-clearances-dialog";
 import { CreateStudentPaymentDialog } from "@/components/manager/accounting/create-student-payment-dialog";
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
+import { SppCurrentBadge } from "@/components/manager/accounting/spp-current-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { TransferSppDialog } from "@/components/manager/accounting/transfer-spp-dialog";
 import { UpfrontWindowChip } from "@/components/manager/accounting/upfront-window-chip";
+import { UpsertSppClearanceDialog } from "@/components/manager/accounting/upsert-spp-clearance-dialog";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import {
   Breadcrumb,
@@ -223,6 +229,11 @@ export function PaymentPhaseDetailsPanel({
   const [recordPaymentSppId, setRecordPaymentSppId] = useState<string | null>(
     null
   );
+  const [isBulkClearanceOpen, setIsBulkClearanceOpen] = useState(false);
+  const [isBulkClearanceDeleteOpen, setIsBulkClearanceDeleteOpen] =
+    useState(false);
+  const [clearanceTargetSpp, setClearanceTargetSpp] =
+    useState<ManagerSppRow | null>(null);
   const [transferringSpp, setTransferringSpp] = useState<ManagerSppRow | null>(
     null
   );
@@ -263,6 +274,23 @@ export function PaymentPhaseDetailsPanel({
 
   const isCancelled = phase.status === PAYMENT_PHASE_STATUSES.CANCELLED;
   const canRecordPayments = !isCancelled;
+
+  const { canBulkSetMonthPaid, canBulkRemoveMonthPaid, monthPaidMarkerCount } =
+    useMemo(() => {
+      const eligibleForSet = spps.filter(
+        (spp) =>
+          spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
+          spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
+      );
+      const withMarker = spps.filter((spp) => spp.current_clearance);
+      return {
+        canBulkSetMonthPaid: eligibleForSet.some(
+          (spp) => !spp.current_clearance
+        ),
+        canBulkRemoveMonthPaid: withMarker.length > 0,
+        monthPaidMarkerCount: withMarker.length,
+      };
+    }, [spps]);
 
   const openRecordPayment = (sppId: string) => {
     setRecordPaymentSppId(sppId);
@@ -399,6 +427,59 @@ export function PaymentPhaseDetailsPanel({
           }}
         />
 
+        <BulkCreateSppClearancesDialog
+          open={isBulkClearanceOpen}
+          onOpenChange={setIsBulkClearanceOpen}
+          paymentPhaseId={phase.id}
+          onCreated={() => {
+            router.refresh();
+          }}
+        />
+
+        <BulkDeleteSppClearancesDialog
+          open={isBulkClearanceDeleteOpen}
+          onOpenChange={setIsBulkClearanceDeleteOpen}
+          paymentPhaseId={phase.id}
+          markerCount={monthPaidMarkerCount}
+          onDeleted={() => {
+            setSpps((current) =>
+              current.map((row) =>
+                row.current_clearance
+                  ? { ...row, current_clearance: null }
+                  : row
+              )
+            );
+            router.refresh();
+          }}
+        />
+
+        <UpsertSppClearanceDialog
+          key={clearanceTargetSpp?.id ?? "clearance-closed"}
+          open={clearanceTargetSpp !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setClearanceTargetSpp(null);
+            }
+          }}
+          sppId={clearanceTargetSpp?.id ?? ""}
+          paymentPhaseId={phase.id}
+          clearance={clearanceTargetSpp?.current_clearance ?? null}
+          onSaved={(clearance) => {
+            const sppId = clearanceTargetSpp?.id;
+            if (!sppId) {
+              return;
+            }
+            setSpps((current) =>
+              current.map((row) =>
+                row.id === sppId
+                  ? { ...row, current_clearance: clearance }
+                  : row
+              )
+            );
+            setClearanceTargetSpp(null);
+          }}
+        />
+
         <Dialog open={isCancelOpen} onOpenChange={handleCancelOpenChange}>
           <DialogContent
             className="sm:max-w-md"
@@ -530,6 +611,32 @@ export function PaymentPhaseDetailsPanel({
         <Card className="py-0">
           <CardHeader className="border-b py-3">
             <CardTitle>Student payment phases</CardTitle>
+            <CardAction className="flex flex-wrap items-center gap-2">
+              <Can permission={PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!canBulkSetMonthPaid}
+                  onClick={() => setIsBulkClearanceOpen(true)}
+                >
+                  <CalendarCheckIcon data-icon="inline-start" />
+                  Bulk set Month paid
+                </Button>
+              </Can>
+              <Can permission={PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!canBulkRemoveMonthPaid}
+                  onClick={() => setIsBulkClearanceDeleteOpen(true)}
+                >
+                  <CalendarXIcon data-icon="inline-start" />
+                  Bulk remove Month paid
+                </Button>
+              </Can>
+            </CardAction>
           </CardHeader>
           <CardContent className="px-0 pb-0">
             <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">
@@ -638,18 +745,24 @@ export function PaymentPhaseDetailsPanel({
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <SppStatusBadge
-                            status={resolveSppDisplayStatus(
-                              {
-                                status: spp.status,
-                                totalPaid: spp.total_paid,
-                              },
-                              {
-                                upfrontWindowActive: phase.upfront_window_active,
-                                upfrontAmount: phase.upfront_amount,
-                              }
-                            )}
-                          />
+                          <span className="inline-flex flex-wrap items-center gap-1.5">
+                            <SppStatusBadge
+                              status={resolveSppDisplayStatus(
+                                {
+                                  status: spp.status,
+                                  totalPaid: spp.total_paid,
+                                },
+                                {
+                                  upfrontWindowActive:
+                                    phase.upfront_window_active,
+                                  upfrontAmount: phase.upfront_amount,
+                                }
+                              )}
+                            />
+                            <SppCurrentBadge
+                              clearance={spp.current_clearance}
+                            />
+                          </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
                           {formatPaymentPhaseMoney(spp.original_amount)}
@@ -704,6 +817,46 @@ export function PaymentPhaseDetailsPanel({
                                     <BanknoteIcon />
                                   </TooltipTrigger>
                                   <TooltipContent>Record payment</TooltipContent>
+                                </Tooltip>
+                              </Can>
+                            ) : null}
+                            {spp.status !==
+                              STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
+                            spp.status !==
+                              STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED ? (
+                              <Can
+                                permission={
+                                  spp.current_clearance
+                                    ? PERMISSIONS.ACCOUNTING_CLEARANCES_UPDATE
+                                    : PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE
+                                }
+                              >
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label={
+                                          spp.current_clearance
+                                            ? `Edit Month paid marker for ${spp.student_label}`
+                                            : `Set Month paid marker for ${spp.student_label}`
+                                        }
+                                        className="text-muted-foreground hover:text-foreground"
+                                        onClick={() =>
+                                          setClearanceTargetSpp(spp)
+                                        }
+                                      />
+                                    }
+                                  >
+                                    <CalendarCheckIcon />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {spp.current_clearance
+                                      ? "Edit Month paid"
+                                      : "Set Month paid"}
+                                  </TooltipContent>
                                 </Tooltip>
                               </Can>
                             ) : null}

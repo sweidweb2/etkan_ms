@@ -10,6 +10,7 @@ import { FieldLabel } from "@/components/auth/field-label";
 import { ClassCoverField } from "@/components/manager/classes/class-cover-field";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -122,9 +124,11 @@ export function AddClassDialog({
       status: CLASS_STATUSES.SCHEDULED,
       semester_id: "",
       teacher_id: "",
+      clone_subject_tasks: true,
     },
   });
 
+  const cloneSubjectTasks = Boolean(watch("clone_subject_tasks"));
   const selectedSubjectId = watch("subject_id");
   const selectedStatus = watch("status");
   const selectedSemesterId = watch("semester_id");
@@ -164,6 +168,7 @@ export function AddClassDialog({
         status: CLASS_STATUSES.SCHEDULED,
         semester_id: "",
         teacher_id: "",
+        clone_subject_tasks: true,
       });
     }
   }, [open, reset]);
@@ -214,6 +219,7 @@ export function AddClassDialog({
     }
     coverFileRef.current = coverFile;
     setUploadComplete(false);
+    formData.set("clone_subject_tasks", cloneSubjectTasks ? "true" : "false");
 
     startTransition(() => {
       formAction(formData);
@@ -421,6 +427,30 @@ export function AddClassDialog({
               setIsOptimizingCover(value.isOptimizing);
             }}
           />
+
+          <div className="flex items-start gap-3 rounded-lg border bg-muted/30 px-3 py-2.5">
+            <Checkbox
+              id="add-class-clone-subject-tasks"
+              checked={cloneSubjectTasks}
+              onCheckedChange={(checked) =>
+                setValue("clone_subject_tasks", checked)
+              }
+              disabled={isPending}
+              className="mt-0.5"
+            />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <Label
+                htmlFor="add-class-clone-subject-tasks"
+                className="cursor-pointer text-sm font-medium"
+              >
+                Clone all subject tasks
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Copies the subject&apos;s task templates onto the new class.
+                Tasks stay unstarted until you start them.
+              </p>
+            </div>
+          </div>
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">

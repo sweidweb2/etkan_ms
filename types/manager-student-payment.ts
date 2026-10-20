@@ -4,6 +4,7 @@ import type {
   PaymentPhaseStatus,
   StudentPaymentPhaseStatus,
 } from "@/lib/manager/accounting/constants";
+import type { ManagerSppClearanceDto } from "@/types/manager-spp-clearance";
 
 export type ManagerSppDetail = {
   id: string;
@@ -32,6 +33,7 @@ export type ManagerSppDetail = {
   payments_blocked: boolean;
   assigned_at: string;
   created_at: string;
+  current_clearance: ManagerSppClearanceDto | null;
 };
 
 /** Student panel list row: own SPP on an opened payment phase. */
@@ -53,6 +55,7 @@ export type StudentOpenSppRow = {
   assigned_at: string;
   created_at: string;
   phase_created_at: string;
+  current_clearance: ManagerSppClearanceDto | null;
 };
 
 export type ManagerStudentPaymentRow = {

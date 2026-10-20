@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getRequiredViewPermissionForManagerPath } from "@/lib/auth/manager-route-permissions";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ROUTES } from "@/lib/constants/routes";
+import { getManagerClassTaskDetailRoute, ROUTES } from "@/lib/constants/routes";
 
 describe("getRequiredViewPermissionForManagerPath", () => {
   it("maps top-level manager list routes", () => {
@@ -74,6 +74,15 @@ describe("getRequiredViewPermissionForManagerPath", () => {
         "/manager/classes/c1/sessions/sess-1"
       )
     ).toBe(PERMISSIONS.SESSIONS_VIEW);
+    expect(
+      getRequiredViewPermissionForManagerPath("/manager/classes/c1/tasks/t1")
+    ).toBe(PERMISSIONS.TASKS_VIEW);
+    expect(
+      getRequiredViewPermissionForManagerPath(
+        getManagerClassTaskDetailRoute("c1", "t1")
+      )
+    ).toBe(PERMISSIONS.TASKS_VIEW);
+    // Legacy session-scoped task URL (redirects to the class task route).
     expect(
       getRequiredViewPermissionForManagerPath(
         "/manager/classes/c1/sessions/sess-1/tasks/t1"

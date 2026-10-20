@@ -14,11 +14,13 @@ import { createClassSchema } from "@/lib/validators/manager/create-class";
 import { createClassSessionSchema } from "@/lib/validators/manager/create-class-session";
 import * as classRepository from "@/repositories/class.repository";
 import type { ClassDetailRecord } from "@/repositories/class.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as profileRepository from "@/repositories/profile.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import type { SessionRecord } from "@/repositories/session.repository";
+import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
 import {
   recordManagerAuditLog,
@@ -27,6 +29,7 @@ import {
 import { backfillSppsForClassBecomeInProgress } from "@/services/accounting/accounting-sync.service";
 import { assertClassStructureUnlockedForComputedGrades } from "@/services/classes/class-computed-grade-lock.service";
 import { ensureSessionAttendeesForMembers } from "@/services/classes/session.service";
+import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import {
@@ -120,6 +123,7 @@ export async function createClassForManager(
     semester_id?: string;
     teacher_id?: string;
     image?: File | null;
+    clone_subject_tasks?: boolean | string;
   }
 ): Promise<CreateClassResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_CREATE);
@@ -133,6 +137,7 @@ export async function createClassForManager(
     status: input.status,
     semester_id: input.semester_id ?? "",
     teacher_id: input.teacher_id ?? "",
+    clone_subject_tasks: input.clone_subject_tasks ?? false,
   });
 
   if (!parsed.success) {
@@ -300,6 +305,25 @@ export async function createClassForManager(
     completed_sessions: 0,
   });
 
+  if (parsed.data.clone_subject_tasks) {
+    const { cloneSubjectTasksOntoClass } = await import(
+      "@/services/classes/class-tasks.service"
+    );
+    const cloneResult = await cloneSubjectTasksOntoClass(
+      adminClient,
+      data.id,
+      parsed.data.subject_id
+    );
+    if (cloneResult.error) {
+      return {
+        success: false,
+        error:
+          cloneResult.error ||
+          "Class was created, but subject tasks could not be cloned.",
+      };
+    }
+  }
+
   await recordManagerAuditLog(adminClient, actor, {
     action: "insert",
     table_name: "classes",
@@ -311,6 +335,7 @@ export async function createClassForManager(
       semester_id: classRow.semester_id,
       teacher_id: nextTeacherId,
       image_changed: imageChanged,
+      clone_subject_tasks: parsed.data.clone_subject_tasks,
     },
   });
 
@@ -337,6 +362,7 @@ export async function updateClassForManager(
     semester_id?: string;
     image?: File | null;
     removeImage?: boolean;
+    subject_task_mode?: string;
   }
 ): Promise<UpdateClassResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_UPDATE);
@@ -349,6 +375,7 @@ export async function updateClassForManager(
     subject_id: input.subject_id,
     status: input.status,
     semester_id: input.semester_id ?? "",
+    subject_task_mode: input.subject_task_mode,
   });
 
   if (!parsed.success) {
@@ -409,6 +436,83 @@ export async function updateClassForManager(
         error: "Please fix the errors below.",
         fieldErrors: { semester_id: ["Semester not found."] },
       };
+    }
+  }
+
+  const subjectChanged =
+    (existing.data.subject_id ?? "") !== parsed.data.subject_id;
+
+  if (subjectChanged && !parsed.data.subject_task_mode) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: {
+        subject_task_mode: [
+          "Choose whether to keep current class tasks or replace them from the new subject.",
+        ],
+      },
+    };
+  }
+
+  if (subjectChanged && parsed.data.subject_task_mode === "replace") {
+    const structureGuard = await assertClassStructureUnlockedForComputedGrades(
+      adminClient,
+      input.class_id
+    );
+    if (!structureGuard.ok) {
+      return { success: false, error: structureGuard.error };
+    }
+
+    const existingTasks = await classTaskRepository.listClassTasksByClassId(
+      adminClient,
+      input.class_id
+    );
+    if (existingTasks.error) {
+      return { success: false, error: existingTasks.error.message };
+    }
+
+    for (const task of existingTasks.data ?? []) {
+      const studentTasksResult =
+        await studentTaskRepository.listStudentTasksByTaskId(
+          adminClient,
+          task.id
+        );
+      if (studentTasksResult.error) {
+        return { success: false, error: studentTasksResult.error.message };
+      }
+      const studentTaskIds = (studentTasksResult.data ?? []).map((row) => row.id);
+      const storageCleanup = await removeStorageForStudentTaskUploads(
+        adminClient,
+        studentTaskIds
+      );
+      if (storageCleanup.error) {
+        return {
+          success: false,
+          error:
+            storageCleanup.error.message ||
+            "Unable to delete student task upload files.",
+        };
+      }
+    }
+
+    const deleteTasks = await classTaskRepository.deleteClassTasksByClassId(
+      adminClient,
+      input.class_id
+    );
+    if (deleteTasks.error) {
+      return { success: false, error: deleteTasks.error.message };
+    }
+
+    const { cloneSubjectTasksOntoClass } = await import(
+      "@/services/classes/class-tasks.service"
+    );
+    const cloneResult = await cloneSubjectTasksOntoClass(
+      adminClient,
+      input.class_id,
+      parsed.data.subject_id
+    );
+    if (cloneResult.error) {
+      return { success: false, error: cloneResult.error };
     }
   }
 
@@ -499,6 +603,9 @@ export async function updateClassForManager(
       status: classRow.status,
       semester_id: classRow.semester_id,
       image_changed: imageChanged,
+      subject_task_mode: subjectChanged
+        ? parsed.data.subject_task_mode ?? "keep"
+        : null,
     },
   });
 

@@ -35,6 +35,7 @@ import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-displ
 import {
   CLASS_STATUS_VALUES,
   updateClassSchema,
+  type SubjectTaskMode,
   type UpdateClassInput,
 } from "@/lib/validators/manager/update-class";
 import type {
@@ -45,6 +46,26 @@ import type {
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
 const SEMESTER_UNLINKED = "unlinked";
+
+const SUBJECT_TASK_MODE_OPTIONS: ReadonlyArray<{
+  value: SubjectTaskMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "keep",
+    label: "Keep current class tasks",
+    description:
+      "Existing class tasks and student work stay as they are. Nothing is copied from the new subject.",
+  },
+  {
+    value: "replace",
+    label: "Replace from new subject",
+    description:
+      "Deletes all current class tasks (including student grades and uploads) and clones the new subject's tasks.",
+  },
+];
+
 const initialState: UpdateClassActionState = {};
 
 type EditClassDialogProps = {
@@ -104,6 +125,8 @@ export function EditClassDialog({
     handleSubmit,
     reset,
     setValue,
+    setError,
+    clearErrors,
     watch,
     formState: { errors },
   } = useZodForm({
@@ -114,12 +137,19 @@ export function EditClassDialog({
       subject_id: "",
       status: CLASS_STATUSES.SCHEDULED,
       semester_id: "",
+      subject_task_mode: undefined,
     },
   });
 
   const selectedSubjectId = watch("subject_id");
   const selectedStatus = watch("status");
   const selectedSemesterId = watch("semester_id");
+  const selectedSubjectTaskMode = watch("subject_task_mode");
+  const isSubjectChanged = Boolean(
+    classRow &&
+      selectedSubjectId &&
+      selectedSubjectId !== (classRow.subject_id ?? "")
+  );
 
   const subjectSelectItems = subjectOptions.map((subject) => ({
     value: subject.id,
@@ -149,6 +179,7 @@ export function EditClassDialog({
       subject_id: classRow.subject_id,
       status: classRow.status as UpdateClassInput["status"],
       semester_id: classRow.semester_id ?? SEMESTER_UNLINKED,
+      subject_task_mode: undefined,
     });
   }, [classRow, open, reset]);
 
@@ -201,6 +232,16 @@ export function EditClassDialog({
       return;
     }
 
+    const subjectChanged = values.subject_id !== (classRow.subject_id ?? "");
+    if (subjectChanged && !values.subject_task_mode) {
+      setError("subject_task_mode", {
+        type: "required",
+        message:
+          "Choose whether to keep current class tasks or replace them from the new subject.",
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.set("class_id", classRow.id);
     formData.set("name", values.name);
@@ -219,6 +260,9 @@ export function EditClassDialog({
     }
     coverFileRef.current = coverFile;
     setUploadComplete(false);
+    if (subjectChanged && values.subject_task_mode) {
+      formData.set("subject_task_mode", values.subject_task_mode);
+    }
 
     startTransition(() => {
       formAction(formData);
@@ -230,6 +274,9 @@ export function EditClassDialog({
     errors.subject_id?.message ?? state.fieldErrors?.subject_id?.[0];
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
   const semesterError = state.fieldErrors?.semester_id?.[0];
+  const subjectTaskModeError =
+    errors.subject_task_mode?.message ??
+    state.fieldErrors?.subject_task_mode?.[0];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -308,6 +355,49 @@ export function EditClassDialog({
               <p className="text-sm text-destructive">{subjectError}</p>
             ) : null}
           </div>
+
+          {isSubjectChanged ? (
+            <fieldset
+              className="flex flex-col gap-2 rounded-lg border bg-muted/30 px-3 py-2.5"
+              disabled={isPending}
+              aria-invalid={!!subjectTaskModeError}
+            >
+              <legend className="px-1 text-sm font-medium">
+                Subject tasks <span className="text-destructive">*</span>
+              </legend>
+              {SUBJECT_TASK_MODE_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex cursor-pointer items-start gap-2.5 text-sm"
+                >
+                  <input
+                    type="radio"
+                    name="edit-class-subject-task-mode"
+                    value={option.value}
+                    checked={selectedSubjectTaskMode === option.value}
+                    onChange={() => {
+                      setValue("subject_task_mode", option.value, {
+                        shouldValidate: true,
+                      });
+                      clearErrors("subject_task_mode");
+                    }}
+                    className="mt-1 size-4 accent-primary"
+                  />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="font-medium">{option.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </span>
+                </label>
+              ))}
+              {subjectTaskModeError ? (
+                <p className="text-sm text-destructive">
+                  {subjectTaskModeError}
+                </p>
+              ) : null}
+            </fieldset>
+          ) : null}
 
           <div className="flex flex-col gap-2">
             <FieldLabel

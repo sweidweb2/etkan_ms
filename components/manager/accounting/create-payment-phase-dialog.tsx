@@ -217,7 +217,7 @@ export function CreatePaymentPhaseDialog({
               </div>
             ) : (
               <Select
-                value={selectedSemesterId || undefined}
+                value={selectedSemesterId ?? ""}
                 onValueChange={(value) =>
                   setValue("semester_id", value ?? "", {
                     shouldValidate: true,

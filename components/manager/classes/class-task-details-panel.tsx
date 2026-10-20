@@ -4,10 +4,13 @@ import { DetailField } from "@/components/manager/shared/detail-field";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
-import { PencilIcon, Trash2Icon } from "lucide-react";
-import { deleteSessionTaskAction } from "@/app/manager/classes/actions";
+import { PencilIcon, PlayIcon, SquareIcon, Trash2Icon } from "lucide-react";
+import {
+  deleteClassTaskAction,
+  setClassTaskStartedAction,
+} from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
-import { EditSessionTaskDialog } from "@/components/manager/classes/edit-session-task-dialog";
+import { EditClassTaskDialog } from "@/components/manager/classes/edit-class-task-dialog";
 import { SessionTaskStudentTasksSection } from "@/components/manager/classes/session-task-student-tasks-section";
 import { SessionTaskUploadsSection } from "@/components/manager/classes/session-task-uploads-section";
 import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
@@ -35,28 +38,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  getManagerClassDetailRoute,
-  getManagerClassSessionDetailRoute,
-  ROUTES,
-} from "@/lib/constants/routes";
+import { getManagerClassDetailRoute, ROUTES } from "@/lib/constants/routes";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
+import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
-import type { ManagerClassSessionRow } from "@/types/manager-class-session";
+import { cn } from "@/lib/utils";
 import type {
-  DeleteSessionTaskActionState,
-  ManagerSessionTaskRow,
+  DeleteClassTaskActionState,
+  ManagerClassTaskRow,
   ManagerStudentTaskRow,
   ManagerStudentTaskUploadRow,
+  SetClassTaskStartedActionState,
 } from "@/types/manager-class-session-detail";
 
-const initialDeleteState: DeleteSessionTaskActionState = {};
+const initialDeleteState: DeleteClassTaskActionState = {};
+const initialStartedState: SetClassTaskStartedActionState = {};
 
-type SessionTaskDetailsPanelProps = {
-  task: ManagerSessionTaskRow;
-  session: ManagerClassSessionRow;
+type ClassTaskDetailsPanelProps = {
+  task: ManagerClassTaskRow;
   classRow: {
     id: string;
     name: string;
@@ -67,7 +69,6 @@ type SessionTaskDetailsPanelProps = {
   hasComputedGrades?: boolean;
 };
 
-
 function formatDateTime(value: string | null) {
   if (!value) {
     return "—";
@@ -76,22 +77,22 @@ function formatDateTime(value: string | null) {
   return format(new Date(value), "MMM d, yyyy 'at' h:mm a");
 }
 
-export function SessionTaskDetailsPanel({
+export function ClassTaskDetailsPanel({
   task: initialTask,
-  session,
   classRow,
   initialStudentTasks,
   initialUploads = [],
   lockedUserIds = [],
   hasComputedGrades = false,
-}: SessionTaskDetailsPanelProps) {
+}: ClassTaskDetailsPanelProps) {
   const [task, setTask] = useState(initialTask);
+  const [prevInitialTask, setPrevInitialTask] = useState(initialTask);
   const [studentTasks, setStudentTasks] = useState(initialStudentTasks);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isTransitionPending, startTransition] = useTransition();
   const [deleteState, deleteAction, isDeletePending] = useActionState(
-    deleteSessionTaskAction,
+    deleteClassTaskAction,
     initialDeleteState
   );
   const isDeleteActionPending = isDeletePending || isTransitionPending;
@@ -99,16 +100,36 @@ export function SessionTaskDetailsPanel({
     isDeleteActionPending,
     setIsDeleteOpen
   );
+  const [startedState, startedAction, isStartedPending] = useFormActionState(
+    setClassTaskStartedAction,
+    initialStartedState
+  );
+
+  if (initialTask !== prevInitialTask) {
+    setPrevInitialTask(initialTask);
+    setTask(initialTask);
+  }
 
   useActionStateToast(deleteState, isDeleteActionPending);
+  useActionStateToast(startedState, isStartedPending);
 
-  const sessionLabel = `S${session.nb_order} · ${session.topic}`;
+  useActionStateSuccess(
+    startedState,
+    isStartedPending,
+    (nextState) => {
+      if (nextState.task) {
+        setTask(nextState.task);
+      }
+    },
+    (nextState) => Boolean(nextState.success && nextState.task)
+  );
+
   const structureLockedTitle = hasComputedGrades
     ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
     : undefined;
 
   function handleTaskUpdated(
-    nextTask: ManagerSessionTaskRow,
+    nextTask: ManagerClassTaskRow,
     options?: { gradesClamped?: boolean }
   ) {
     setTask(nextTask);
@@ -125,11 +146,18 @@ export function SessionTaskDetailsPanel({
     }
   }
 
+  function handleToggleStarted() {
+    const formData = new FormData();
+    formData.set("id", task.id);
+    formData.set("class_id", classRow.id);
+    formData.set("started", task.started ? "false" : "true");
+    startedAction(formData);
+  }
+
   function handleConfirmDelete() {
     const formData = new FormData();
     formData.set("id", task.id);
     formData.set("class_id", classRow.id);
-    formData.set("session_id", session.id);
     startTransition(() => {
       deleteAction(formData);
     });
@@ -152,14 +180,6 @@ export function SessionTaskDetailsPanel({
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink
-              href={getManagerClassSessionDetailRoute(classRow.id, session.id)}
-            >
-              {sessionLabel}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
             <BreadcrumbPage>{task.title}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
@@ -170,6 +190,23 @@ export function SessionTaskDetailsPanel({
           <CardTitle className="text-xl">{task.title}</CardTitle>
           <div className="flex items-center gap-1">
             <Can permission={PERMISSIONS.TASKS_UPDATE}>
+              <Button
+                type="button"
+                variant={task.started ? "outline" : "default"}
+                size="sm"
+                disabled={hasComputedGrades || isStartedPending}
+                title={structureLockedTitle}
+                onClick={handleToggleStarted}
+              >
+                {isStartedPending ? (
+                  <InlineSpinner />
+                ) : task.started ? (
+                  <SquareIcon data-icon="inline-start" />
+                ) : (
+                  <PlayIcon data-icon="inline-start" />
+                )}
+                {task.started ? "Unstart" : "Start"}
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
@@ -201,28 +238,50 @@ export function SessionTaskDetailsPanel({
           <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailField label="Title" value={task.title} />
             <DetailField label="Description" value={task.description ?? "—"} />
+            <DetailField label="Started">
+              <span
+                className={cn(
+                  "inline-flex w-fit rounded-md px-2 py-0.5 text-xs font-medium",
+                  task.started
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {task.started ? "Yes" : "No"}
+              </span>
+            </DetailField>
+            <DetailField
+              label="Period (days)"
+              value={String(task.period)}
+              className="tabular-nums"
+            />
+            <DetailField
+              label="Started at"
+              value={formatDateTime(task.started_at)}
+            />
             <DetailField label="Due date" value={formatDateTime(task.due_date)} />
             <DetailField
               label="Max grade"
               value={task.max_grade === null ? "—" : String(task.max_grade)}
               className="tabular-nums"
             />
-            <DetailField label="Session">
-              <Link
-                href={getManagerClassSessionDetailRoute(classRow.id, session.id)}
-                className="text-primary underline-offset-4 hover:underline"
-              >
-                {sessionLabel}
-              </Link>
-            </DetailField>
             <DetailField label="Class">
               <Link
                 href={getManagerClassDetailRoute(classRow.id)}
+                prefetch={false}
                 className="text-primary underline-offset-4 hover:underline"
               >
                 {classRow.name}
               </Link>
             </DetailField>
+            <DetailField
+              label="Source"
+              value={
+                task.source_subject_task_id
+                  ? "Imported from subject"
+                  : "Created on class"
+              }
+            />
             <DetailField
               label="Task ID"
               value={task.id}
@@ -251,13 +310,12 @@ export function SessionTaskDetailsPanel({
         maxGrade={task.max_grade}
       />
 
-      <EditSessionTaskDialog
+      <EditClassTaskDialog
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         task={task}
         classId={classRow.id}
-        sessionId={session.id}
-        sessionLabel={sessionLabel}
+        className={classRow.name}
         onTaskUpdated={handleTaskUpdated}
       />
 

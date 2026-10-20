@@ -3,6 +3,7 @@
 import type { KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
+import { SppCurrentBadge } from "@/components/manager/accounting/spp-current-badge";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -108,18 +109,21 @@ export function StudentOpenPaymentsPanel({
                       ) : null}
                     </TableCell>
                     <TableCell className="px-4">
-                      <SppStatusBadge
-                        status={resolveSppDisplayStatus(
-                          {
-                            status: row.status,
-                            totalPaid: row.total_paid,
-                          },
-                          {
-                            upfrontWindowActive: false,
-                            upfrontAmount: 0,
-                          }
-                        )}
-                      />
+                      <span className="inline-flex flex-wrap items-center gap-1.5">
+                        <SppStatusBadge
+                          status={resolveSppDisplayStatus(
+                            {
+                              status: row.status,
+                              totalPaid: row.total_paid,
+                            },
+                            {
+                              upfrontWindowActive: false,
+                              upfrontAmount: 0,
+                            }
+                          )}
+                        />
+                        <SppCurrentBadge clearance={row.current_clearance} />
+                      </span>
                     </TableCell>
                     <TableCell className="px-4 text-right tabular-nums">
                       {formatPaymentPhaseMoney(row.final_amount_due)}
