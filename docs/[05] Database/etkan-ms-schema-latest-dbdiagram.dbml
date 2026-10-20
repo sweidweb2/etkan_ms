@@ -762,7 +762,7 @@ Table student_payment_phase_clearances {
     created_at [name: 'idx_student_payment_phase_clearances_created_at']
   }
 
-  Note: 'Theoretical Current overlay per SPP. Hard-deleted on expiry. Does not affect money or status.'
+  Note: 'Theoretical Month paid overlay per SPP. Hard-deleted on expiry. Does not affect money or status.'
 }
 
 Table student_financial_adjustments {

@@ -1213,25 +1213,25 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.ACCOUNTING_CLEARANCES_VIEW,
     feature: "accounting",
-    label: "View SPP current clearances",
+    label: "View SPP month paid clearances",
     access: PERMISSION_ACCESS.READ,
   },
   {
     key: PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE,
     feature: "accounting",
-    label: "Create SPP current clearance",
+    label: "Create SPP month paid clearance",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
     key: PERMISSIONS.ACCOUNTING_CLEARANCES_UPDATE,
     feature: "accounting",
-    label: "Edit SPP current clearance",
+    label: "Edit SPP month paid clearance",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
     key: PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE,
     feature: "accounting",
-    label: "Delete SPP current clearance",
+    label: "Delete SPP month paid clearance",
     access: PERMISSION_ACCESS.WRITE,
   },
 

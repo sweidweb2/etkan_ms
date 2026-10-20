@@ -101,10 +101,11 @@ export function BulkCreateSppClearancesDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
-          <DialogTitle>Bulk set Current</DialogTitle>
+          <DialogTitle>Bulk set Month paid</DialogTitle>
           <DialogDescription>
-            Marks eligible unpaid students as Current for the chosen duration.
-            Skips paid, cancelled, and students who already have a marker.
+            Marks eligible unpaid students as Month paid for the chosen
+            duration. Skips paid, cancelled, and students who already have a
+            marker.
           </DialogDescription>
         </DialogHeader>
 
@@ -168,7 +169,7 @@ export function BulkCreateSppClearancesDialog({
             disabled={isPending}
           >
             {isPending ? <InlineSpinner /> : null}
-            Set Current
+            Set Month paid
           </Button>
         </DialogFooter>
       </DialogContent>

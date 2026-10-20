@@ -109,6 +109,21 @@ export async function deleteClearanceBySppId(client: Supabase, sppId: string) {
     .maybeSingle();
 }
 
+export async function deleteClearancesBySppIds(
+  client: Supabase,
+  sppIds: string[]
+) {
+  if (sppIds.length === 0) {
+    return { data: [] as StudentPaymentPhaseClearanceRecord[], error: null };
+  }
+
+  return client
+    .from("student_payment_phase_clearances")
+    .delete()
+    .in("student_payment_phase_id", sppIds)
+    .select(CLEARANCE_COLUMNS);
+}
+
 export async function insertClearancesBulk(
   client: Supabase,
   rows: Array<{

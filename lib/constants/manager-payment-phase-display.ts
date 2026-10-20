@@ -66,7 +66,7 @@ export const SPP_DISPLAY_STATUS_BADGE_CLASSES: Record<
 };
 
 /** Separate overlay badge — shown beside ledger / upfront badges. */
-export const SPP_CURRENT_CLEARANCE_LABEL = "Current";
+export const SPP_CURRENT_CLEARANCE_LABEL = "Month paid";
 export const SPP_CURRENT_CLEARANCE_BADGE_CLASS =
   "bg-cyan-500/15 text-cyan-800 dark:text-cyan-200";
 

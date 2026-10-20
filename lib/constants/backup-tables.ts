@@ -144,7 +144,7 @@ export const BACKUP_TABLE_LABELS: Record<BackupTableName, string> = {
   student_payment_phases: "Student payment phases",
   student_payments: "Student payments",
   student_payment_schedules: "Student payment schedules",
-  student_payment_phase_clearances: "SPP current clearances",
+  student_payment_phase_clearances: "SPP month paid clearances",
   student_financial_adjustments: "Student financial adjustments",
   student_financial_form_invites: "Student financial form invites",
   student_financial_forms: "Student financial forms",

@@ -90,7 +90,7 @@ export type ManagerSppRow = {
   remaining_amount: number;
   assigned_at: string;
   created_at: string;
-  /** Active Current overlay; null when missing or expired. */
+  /** Active Month paid overlay; null when missing or expired. */
   current_clearance: ManagerSppClearanceDto | null;
 };
 

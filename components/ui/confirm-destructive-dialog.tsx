@@ -49,7 +49,15 @@ export function ConfirmDestructiveDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <form action={formAction}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (isPending || !canConfirm) {
+              return;
+            }
+            formAction(new FormData(event.currentTarget));
+          }}
+        >
           {children}
           <DialogFooter className="sm:justify-end">
             <Button

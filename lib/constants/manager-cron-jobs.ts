@@ -80,7 +80,7 @@ export const MANAGER_CRON_JOBS: ManagerCronJobRow[] = [
     frequency: CRON_JOB_FREQUENCIES.DAILY,
     status: CRON_JOB_STATUSES.ACTIVE,
     summary:
-      "Hard-delete expired SPP Current clearance overlay rows.",
+      "Hard-delete expired SPP Month paid clearance overlay rows.",
     description:
       "Deletes student_payment_phase_clearances rows where created_at + duration_days has passed. Overlay is theoretical only and does not affect SPP money or status. UI also hides expired rows at read time if cron has not run yet.",
     function_name: "public.purge_expired_spp_clearances()",

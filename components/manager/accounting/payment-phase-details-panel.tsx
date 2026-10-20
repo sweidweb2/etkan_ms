@@ -15,6 +15,7 @@ import {
   BanIcon,
   BanknoteIcon,
   CalendarCheckIcon,
+  CalendarXIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
@@ -25,6 +26,7 @@ import {
 import { cancelPaymentPhaseAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
 import { BulkCreateSppClearancesDialog } from "@/components/manager/accounting/bulk-create-spp-clearances-dialog";
+import { BulkDeleteSppClearancesDialog } from "@/components/manager/accounting/bulk-delete-spp-clearances-dialog";
 import { CreateStudentPaymentDialog } from "@/components/manager/accounting/create-student-payment-dialog";
 import { EditPaymentPhaseDialog } from "@/components/manager/accounting/edit-payment-phase-dialog";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
@@ -228,6 +230,8 @@ export function PaymentPhaseDetailsPanel({
     null
   );
   const [isBulkClearanceOpen, setIsBulkClearanceOpen] = useState(false);
+  const [isBulkClearanceDeleteOpen, setIsBulkClearanceDeleteOpen] =
+    useState(false);
   const [clearanceTargetSpp, setClearanceTargetSpp] =
     useState<ManagerSppRow | null>(null);
   const [transferringSpp, setTransferringSpp] = useState<ManagerSppRow | null>(
@@ -270,6 +274,23 @@ export function PaymentPhaseDetailsPanel({
 
   const isCancelled = phase.status === PAYMENT_PHASE_STATUSES.CANCELLED;
   const canRecordPayments = !isCancelled;
+
+  const { canBulkSetMonthPaid, canBulkRemoveMonthPaid, monthPaidMarkerCount } =
+    useMemo(() => {
+      const eligibleForSet = spps.filter(
+        (spp) =>
+          spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.PAID &&
+          spp.status !== STUDENT_PAYMENT_PHASE_STATUSES.CANCELLED
+      );
+      const withMarker = spps.filter((spp) => spp.current_clearance);
+      return {
+        canBulkSetMonthPaid: eligibleForSet.some(
+          (spp) => !spp.current_clearance
+        ),
+        canBulkRemoveMonthPaid: withMarker.length > 0,
+        monthPaidMarkerCount: withMarker.length,
+      };
+    }, [spps]);
 
   const openRecordPayment = (sppId: string) => {
     setRecordPaymentSppId(sppId);
@@ -411,6 +432,23 @@ export function PaymentPhaseDetailsPanel({
           onOpenChange={setIsBulkClearanceOpen}
           paymentPhaseId={phase.id}
           onCreated={() => {
+            router.refresh();
+          }}
+        />
+
+        <BulkDeleteSppClearancesDialog
+          open={isBulkClearanceDeleteOpen}
+          onOpenChange={setIsBulkClearanceDeleteOpen}
+          paymentPhaseId={phase.id}
+          markerCount={monthPaidMarkerCount}
+          onDeleted={() => {
+            setSpps((current) =>
+              current.map((row) =>
+                row.current_clearance
+                  ? { ...row, current_clearance: null }
+                  : row
+              )
+            );
             router.refresh();
           }}
         />
@@ -573,16 +611,29 @@ export function PaymentPhaseDetailsPanel({
         <Card className="py-0">
           <CardHeader className="border-b py-3">
             <CardTitle>Student payment phases</CardTitle>
-            <CardAction>
+            <CardAction className="flex flex-wrap items-center gap-2">
               <Can permission={PERMISSIONS.ACCOUNTING_CLEARANCES_CREATE}>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
+                  disabled={!canBulkSetMonthPaid}
                   onClick={() => setIsBulkClearanceOpen(true)}
                 >
                   <CalendarCheckIcon data-icon="inline-start" />
-                  Bulk set Current
+                  Bulk set Month paid
+                </Button>
+              </Can>
+              <Can permission={PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!canBulkRemoveMonthPaid}
+                  onClick={() => setIsBulkClearanceDeleteOpen(true)}
+                >
+                  <CalendarXIcon data-icon="inline-start" />
+                  Bulk remove Month paid
                 </Button>
               </Can>
             </CardAction>
@@ -789,8 +840,8 @@ export function PaymentPhaseDetailsPanel({
                                         size="icon-sm"
                                         aria-label={
                                           spp.current_clearance
-                                            ? `Edit Current marker for ${spp.student_label}`
-                                            : `Set Current marker for ${spp.student_label}`
+                                            ? `Edit Month paid marker for ${spp.student_label}`
+                                            : `Set Month paid marker for ${spp.student_label}`
                                         }
                                         className="text-muted-foreground hover:text-foreground"
                                         onClick={() =>
@@ -803,8 +854,8 @@ export function PaymentPhaseDetailsPanel({
                                   </TooltipTrigger>
                                   <TooltipContent>
                                     {spp.current_clearance
-                                      ? "Edit Current"
-                                      : "Set Current"}
+                                      ? "Edit Month paid"
+                                      : "Set Month paid"}
                                   </TooltipContent>
                                 </Tooltip>
                               </Can>

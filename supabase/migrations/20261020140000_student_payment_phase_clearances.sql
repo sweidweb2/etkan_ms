@@ -1,4 +1,4 @@
--- Theoretical "Current" clearance overlay per student payment phase (SPP).
+-- Theoretical "Month paid" clearance overlay per student payment phase (SPP).
 -- Does not affect financial totals, SPP status, schedules, or analytics.
 
 create extension if not exists pg_cron with schema pg_catalog;
@@ -17,7 +17,7 @@ create table public.student_payment_phase_clearances (
 );
 
 comment on table public.student_payment_phase_clearances is
-  'Theoretical Current overlay per SPP. One row max; hard-deleted on expiry or manually. Does not affect money or SPP status.';
+  'Theoretical Month paid overlay per SPP. One row max; hard-deleted on expiry or manually. Does not affect money or SPP status.';
 comment on column public.student_payment_phase_clearances.student_payment_phase_id is
   'Parent student payment phase (unique — at most one clearance).';
 comment on column public.student_payment_phase_clearances.duration_days is
@@ -53,7 +53,7 @@ end;
 $$;
 
 comment on function public.delete_spp_clearance_on_cancel() is
-  'Removes the Current clearance overlay when an SPP is marked cancelled.';
+  'Removes the Month paid clearance overlay when an SPP is marked cancelled.';
 
 create trigger trg_delete_spp_clearance_on_cancel
   after update of status on public.student_payment_phases
@@ -63,10 +63,10 @@ create trigger trg_delete_spp_clearance_on_cancel
 -- Permissions ------------------------------------------------------------
 
 insert into public.permissions (key, label, feature_group, access) values
-  ('accounting.clearances.view', 'View SPP current clearances', 'accounting', 'read'),
-  ('accounting.clearances.create', 'Create SPP current clearance', 'accounting', 'write'),
-  ('accounting.clearances.update', 'Edit SPP current clearance', 'accounting', 'write'),
-  ('accounting.clearances.delete', 'Delete SPP current clearance', 'accounting', 'write')
+  ('accounting.clearances.view', 'View SPP month paid clearances', 'accounting', 'read'),
+  ('accounting.clearances.create', 'Create SPP month paid clearance', 'accounting', 'write'),
+  ('accounting.clearances.update', 'Edit SPP month paid clearance', 'accounting', 'write'),
+  ('accounting.clearances.delete', 'Delete SPP month paid clearance', 'accounting', 'write')
 on conflict (key) do nothing;
 
 insert into public.role_permissions (role, permission_key)
@@ -100,7 +100,7 @@ end;
 $$;
 
 comment on function public.purge_expired_spp_clearances() is
-  'Hard-deletes SPP Current clearance rows whose created_at + duration_days has passed.';
+  'Hard-deletes SPP Month paid clearance rows whose created_at + duration_days has passed.';
 
 select cron.schedule(
   'purge-expired-spp-clearances',

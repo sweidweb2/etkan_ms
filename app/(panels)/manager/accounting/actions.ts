@@ -27,6 +27,7 @@ import { parseDeleteStudentPaymentFormData } from "@/lib/validators/manager/dele
 import { parseDeleteStudentPaymentScheduleFormData } from "@/lib/validators/manager/delete-student-payment-schedule";
 import { parseDeleteSppClearanceFormData } from "@/lib/validators/manager/delete-spp-clearance";
 import { parseBulkCreateSppClearancesFormData } from "@/lib/validators/manager/bulk-create-spp-clearances";
+import { parseBulkDeleteSppClearancesFormData } from "@/lib/validators/manager/bulk-delete-spp-clearances";
 import {
   parseCreateSppClearanceFormData,
   parseUpdateSppClearanceFormData,
@@ -77,6 +78,7 @@ import {
 } from "@/services/accounting/student-payment-schedule.service";
 import {
   bulkCreateSppClearancesForManager,
+  bulkDeleteSppClearancesForManager,
   createSppClearanceForManager,
   deleteSppClearanceForManager,
   updateSppClearanceForManager,
@@ -114,6 +116,7 @@ import type {
 } from "@/types/manager-student-payment-schedule";
 import type {
   BulkCreateSppClearancesActionState,
+  BulkDeleteSppClearancesActionState,
   DeleteSppClearanceActionState,
   UpsertSppClearanceActionState,
 } from "@/types/manager-spp-clearance";
@@ -540,6 +543,27 @@ export async function bulkCreateSppClearancesAction(
       success: true,
       message: result.message,
       created_count: result.created_count,
+      payment_phase_id: result.payment_phase_id,
+    }),
+  });
+}
+
+export async function bulkDeleteSppClearancesAction(
+  _prevState: BulkDeleteSppClearancesActionState,
+  formData: FormData
+): Promise<BulkDeleteSppClearancesActionState> {
+  return runManagerAction({
+    formData,
+    parse: parseBulkDeleteSppClearancesFormData,
+    mutate: ({ adminClient, actor, data }) =>
+      bulkDeleteSppClearancesForManager(adminClient, actor.userId, actor, data),
+    revalidate: (result) => {
+      revalidateAccountingPhaseDetail(result.payment_phase_id);
+    },
+    mapSuccess: (result) => ({
+      success: true,
+      message: result.message,
+      deleted_count: result.deleted_count,
       payment_phase_id: result.payment_phase_id,
     }),
   });

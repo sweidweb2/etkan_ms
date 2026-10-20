@@ -22,6 +22,7 @@ vi.mock("@/repositories/student-payment-phase-clearance.repository", () => ({
   insertClearance: vi.fn(),
   updateClearance: vi.fn(),
   deleteClearanceById: vi.fn(),
+  deleteClearancesBySppIds: vi.fn(),
   insertClearancesBulk: vi.fn(),
 }));
 
@@ -31,6 +32,7 @@ import * as studentPaymentPhaseRepository from "@/repositories/student-payment-p
 import * as clearanceRepository from "@/repositories/student-payment-phase-clearance.repository";
 import {
   bulkCreateSppClearancesForManager,
+  bulkDeleteSppClearancesForManager,
   createSppClearanceForManager,
   mapClearanceRecordToDto,
 } from "@/services/accounting/spp-clearance.service";
@@ -147,7 +149,7 @@ describe("createSppClearanceForManager", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.clearance.duration_days).toBe(30);
-      expect(result.message).toMatch(/Current/i);
+      expect(result.message).toMatch(/Month paid/i);
     }
   });
 });
@@ -215,6 +217,73 @@ describe("bulkCreateSppClearancesForManager", () => {
           duration_days: 14,
         }),
       ]
+    );
+  });
+});
+
+describe("bulkDeleteSppClearancesForManager", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(authorizationService.getUnauthorizedError).mockResolvedValue(
+      null
+    );
+    vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(
+      undefined as never
+    );
+  });
+
+  it("removes clearances for SPPs that have them", async () => {
+    vi.mocked(
+      studentPaymentPhaseRepository.listSppsByPaymentPhaseId
+    ).mockResolvedValue({
+      data: [pendingSpp],
+      error: null,
+    } as never);
+    vi.mocked(clearanceRepository.findClearancesBySppIds).mockResolvedValue({
+      data: [
+        {
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          student_payment_phase_id: sppId,
+          duration_days: 14,
+          notes: null,
+          created_by: actor.userId,
+          updated_by: actor.userId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ],
+      error: null,
+    } as never);
+    vi.mocked(clearanceRepository.deleteClearancesBySppIds).mockResolvedValue({
+      data: [
+        {
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          student_payment_phase_id: sppId,
+          duration_days: 14,
+          notes: null,
+          created_by: actor.userId,
+          updated_by: actor.userId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ],
+      error: null,
+    } as never);
+
+    const result = await bulkDeleteSppClearancesForManager(
+      adminClient,
+      actor.userId,
+      actor,
+      { payment_phase_id: phaseId }
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.deleted_count).toBe(1);
+    }
+    expect(clearanceRepository.deleteClearancesBySppIds).toHaveBeenCalledWith(
+      adminClient,
+      [sppId]
     );
   });
 });

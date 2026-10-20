@@ -113,10 +113,10 @@ export function SppClearanceSection({
           showCloseButton={!isDeletePending}
         >
           <DialogHeader>
-            <DialogTitle>Remove Current marker</DialogTitle>
+            <DialogTitle>Remove Month paid marker</DialogTitle>
             <DialogDescription>
-              Remove the theoretical Current overlay for this student? Balances
-              are unchanged.
+              Remove the theoretical Month paid overlay for this student?
+              Balances are unchanged.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-end">
@@ -143,7 +143,7 @@ export function SppClearanceSection({
 
       <Card>
         <CardHeader>
-          <CardTitle>Current marker</CardTitle>
+          <CardTitle>Month paid marker</CardTitle>
           <CardAction className="flex flex-wrap items-center gap-2">
             <SppCurrentBadge clearance={clearance} />
             {!locked && !clearance ? (
@@ -155,7 +155,7 @@ export function SppClearanceSection({
                   onClick={() => setIsUpsertOpen(true)}
                 >
                   <PlusIcon />
-                  Set Current
+                  Set Month paid
                 </Button>
               </Can>
             ) : null}
@@ -191,8 +191,8 @@ export function SppClearanceSection({
           {locked ? (
             <p>
               {sppStatus === STUDENT_PAYMENT_PHASE_STATUSES.PAID
-                ? "Paid assignments cannot receive a Current marker."
-                : "Cancelled assignments cannot receive a Current marker."}
+                ? "Paid assignments cannot receive a Month paid marker."
+                : "Cancelled assignments cannot receive a Month paid marker."}
             </p>
           ) : clearance ? (
             <dl className="grid gap-2 sm:grid-cols-2">
@@ -218,8 +218,8 @@ export function SppClearanceSection({
             </dl>
           ) : (
             <p>
-              No Current marker. This overlay is theoretical and does not change
-              balances.
+              No Month paid marker. This overlay is theoretical and does not
+              change balances.
             </p>
           )}
         </CardContent>

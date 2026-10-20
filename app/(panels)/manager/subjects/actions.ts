@@ -169,9 +169,10 @@ export async function deleteSubjectTaskAction(
     revalidate: (_result, data) => {
       revalidatePath(getManagerSubjectDetailRoute(data.subjectId));
     },
-    mapSuccess: (result) => ({
+    mapSuccess: (result, data) => ({
       success: true,
       message: result.message,
+      taskId: data.id,
     }),
   });
 }

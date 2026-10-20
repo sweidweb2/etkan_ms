@@ -8,6 +8,7 @@ import { createSppClearanceSchema } from "@/lib/validators/manager/upsert-spp-cl
 import { updateSppClearanceSchema } from "@/lib/validators/manager/upsert-spp-clearance";
 import { deleteSppClearanceSchema } from "@/lib/validators/manager/delete-spp-clearance";
 import { bulkCreateSppClearancesSchema } from "@/lib/validators/manager/bulk-create-spp-clearances";
+import { bulkDeleteSppClearancesSchema } from "@/lib/validators/manager/bulk-delete-spp-clearances";
 import * as studentPaymentPhaseClearanceRepository from "@/repositories/student-payment-phase-clearance.repository";
 import type { StudentPaymentPhaseClearanceRecord } from "@/repositories/student-payment-phase-clearance.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
@@ -146,13 +147,22 @@ export type BulkCreateSppClearancesResult =
     }
   | ClearanceMutationFailure;
 
+export type BulkDeleteSppClearancesResult =
+  | {
+      success: true;
+      message: string;
+      deleted_count: number;
+      payment_phase_id: string;
+    }
+  | ClearanceMutationFailure;
+
 function mapUniqueViolation(message: string): string | null {
   if (
     message.includes("student_payment_phase_clearances_student_payment_phase_id") ||
     message.includes("duplicate key") ||
     message.includes("unique constraint")
   ) {
-    return "A Current marker already exists for this student.";
+    return "A Month paid marker already exists for this student.";
   }
   return null;
 }
@@ -201,8 +211,8 @@ export async function createSppClearanceForManager(
       success: false,
       error:
         sppRecord.status === STUDENT_PAYMENT_PHASE_STATUSES.PAID
-          ? "Cannot set Current on a paid assignment."
-          : "Cannot set Current on a cancelled assignment.",
+          ? "Cannot set Month paid on a paid assignment."
+          : "Cannot set Month paid on a cancelled assignment.",
     };
   }
 
@@ -215,7 +225,7 @@ export async function createSppClearanceForManager(
   if (existing && mapClearanceRecordToDto(existing as StudentPaymentPhaseClearanceRecord)) {
     return {
       success: false,
-      error: "A Current marker already exists for this student.",
+      error: "A Month paid marker already exists for this student.",
     };
   }
 
@@ -238,14 +248,14 @@ export async function createSppClearanceForManager(
     const unique = mapUniqueViolation(error.message);
     return {
       success: false,
-      error: unique ?? "Unable to create Current marker. Please try again.",
+      error: unique ?? "Unable to create Month paid marker. Please try again.",
     };
   }
 
   if (!created) {
     return {
       success: false,
-      error: "Unable to create Current marker. Please try again.",
+      error: "Unable to create Month paid marker. Please try again.",
     };
   }
 
@@ -254,7 +264,7 @@ export async function createSppClearanceForManager(
   if (!dto) {
     return {
       success: false,
-      error: "Unable to create Current marker. Please try again.",
+      error: "Unable to create Month paid marker. Please try again.",
     };
   }
 
@@ -268,13 +278,13 @@ export async function createSppClearanceForManager(
       duration_days: record.duration_days,
       notes: record.notes,
     },
-    metadata: { note: "SPP Current clearance created." },
+    metadata: { note: "SPP Month paid clearance created." },
   });
 
   return {
     success: true,
     clearance: dto,
-    message: "Current marker set.",
+    message: "Month paid marker set.",
     student_payment_phase_id: sppRecord.id,
     payment_phase_id: sppRecord.payment_phase_id,
   };
@@ -315,14 +325,14 @@ export async function updateSppClearanceForManager(
   }
 
   if (!existing) {
-    return { success: false, error: "Current marker not found." };
+    return { success: false, error: "Month paid marker not found." };
   }
 
   const previous = existing as StudentPaymentPhaseClearanceRecord;
   if (previous.student_payment_phase_id !== parsed.data.student_payment_phase_id) {
     return {
       success: false,
-      error: "Current marker does not belong to this student.",
+      error: "Month paid marker does not belong to this student.",
     };
   }
 
@@ -344,7 +354,7 @@ export async function updateSppClearanceForManager(
   if (!sppAllowsClearanceMutation(sppRecord.status)) {
     return {
       success: false,
-      error: "Cannot edit Current on a paid or cancelled assignment.",
+      error: "Cannot edit Month paid on a paid or cancelled assignment.",
     };
   }
 
@@ -362,7 +372,7 @@ export async function updateSppClearanceForManager(
   if (error || !updated) {
     return {
       success: false,
-      error: "Unable to update Current marker. Please try again.",
+      error: "Unable to update Month paid marker. Please try again.",
     };
   }
 
@@ -371,7 +381,7 @@ export async function updateSppClearanceForManager(
   if (!dto) {
     return {
       success: false,
-      error: "Unable to update Current marker. Please try again.",
+      error: "Unable to update Month paid marker. Please try again.",
     };
   }
 
@@ -388,13 +398,13 @@ export async function updateSppClearanceForManager(
       duration_days: record.duration_days,
       notes: record.notes,
     },
-    metadata: { note: "SPP Current clearance updated." },
+    metadata: { note: "SPP Month paid clearance updated." },
   });
 
   return {
     success: true,
     clearance: dto,
-    message: "Current marker updated.",
+    message: "Month paid marker updated.",
     student_payment_phase_id: sppRecord.id,
     payment_phase_id: sppRecord.payment_phase_id,
   };
@@ -435,14 +445,14 @@ export async function deleteSppClearanceForManager(
   }
 
   if (!existing) {
-    return { success: false, error: "Current marker not found." };
+    return { success: false, error: "Month paid marker not found." };
   }
 
   const previous = existing as StudentPaymentPhaseClearanceRecord;
   if (previous.student_payment_phase_id !== parsed.data.student_payment_phase_id) {
     return {
       success: false,
-      error: "Current marker does not belong to this student.",
+      error: "Month paid marker does not belong to this student.",
     };
   }
 
@@ -462,7 +472,7 @@ export async function deleteSppClearanceForManager(
   if (error) {
     return {
       success: false,
-      error: "Unable to remove Current marker. Please try again.",
+      error: "Unable to remove Month paid marker. Please try again.",
     };
   }
 
@@ -476,12 +486,12 @@ export async function deleteSppClearanceForManager(
       duration_days: previous.duration_days,
       notes: previous.notes,
     },
-    metadata: { note: "SPP Current clearance deleted." },
+    metadata: { note: "SPP Month paid clearance deleted." },
   });
 
   return {
     success: true,
-    message: "Current marker removed.",
+    message: "Month paid marker removed.",
     student_payment_phase_id: previous.student_payment_phase_id,
     payment_phase_id: paymentPhaseId,
   };
@@ -527,7 +537,7 @@ export async function bulkCreateSppClearancesForManager(
   if (eligible.length === 0) {
     return {
       success: true,
-      message: "No eligible students to mark Current.",
+      message: "No eligible students to mark Month paid.",
       created_count: 0,
       payment_phase_id: parsed.data.payment_phase_id,
     };
@@ -542,7 +552,7 @@ export async function bulkCreateSppClearancesForManager(
   if (toCreate.length === 0) {
     return {
       success: true,
-      message: "All eligible students already have a Current marker.",
+      message: "All eligible students already have a Month paid marker.",
       created_count: 0,
       payment_phase_id: parsed.data.payment_phase_id,
     };
@@ -564,7 +574,7 @@ export async function bulkCreateSppClearancesForManager(
     const unique = mapUniqueViolation(error.message);
     return {
       success: false,
-      error: unique ?? "Unable to set Current markers. Please try again.",
+      error: unique ?? "Unable to set Month paid markers. Please try again.",
     };
   }
 
@@ -580,16 +590,113 @@ export async function bulkCreateSppClearancesForManager(
       duration_days: parsed.data.duration_days,
       created_count: createdCount,
     },
-    metadata: { note: "Bulk SPP Current clearances created." },
+    metadata: { note: "Bulk SPP Month paid clearances created." },
   });
 
   return {
     success: true,
     message:
       createdCount === 1
-        ? "Current marker set for 1 student."
-        : `Current marker set for ${createdCount} students.`,
+        ? "Month paid marker set for 1 student."
+        : `Month paid marker set for ${createdCount} students.`,
     created_count: createdCount,
+    payment_phase_id: parsed.data.payment_phase_id,
+  };
+}
+
+export async function bulkDeleteSppClearancesForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  actor: AuditActor,
+  input: unknown
+): Promise<BulkDeleteSppClearancesResult> {
+  const unauthorized = await getUnauthorizedError(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.ACCOUNTING_CLEARANCES_DELETE
+  );
+  if (unauthorized) {
+    return { success: false, error: unauthorized };
+  }
+
+  const parsed = bulkDeleteSppClearancesSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { data: sppRows, error: sppError } =
+    await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+      adminClient,
+      parsed.data.payment_phase_id
+    );
+
+  if (sppError) {
+    return { success: false, error: sppError.message };
+  }
+
+  const records = (sppRows ?? []) as StudentPaymentPhaseRecord[];
+  if (records.length === 0) {
+    return {
+      success: true,
+      message: "No Month paid markers to remove.",
+      deleted_count: 0,
+      payment_phase_id: parsed.data.payment_phase_id,
+    };
+  }
+
+  const existingMap = await loadActiveClearanceDtosBySppIds(
+    adminClient,
+    records.map((row) => row.id)
+  );
+  const sppIdsWithClearance = [...existingMap.keys()];
+
+  if (sppIdsWithClearance.length === 0) {
+    return {
+      success: true,
+      message: "No Month paid markers to remove.",
+      deleted_count: 0,
+      payment_phase_id: parsed.data.payment_phase_id,
+    };
+  }
+
+  const { data: deleted, error } =
+    await studentPaymentPhaseClearanceRepository.deleteClearancesBySppIds(
+      adminClient,
+      sppIdsWithClearance
+    );
+
+  if (error) {
+    return {
+      success: false,
+      error: "Unable to remove Month paid markers. Please try again.",
+    };
+  }
+
+  const deletedCount = (deleted ?? []).length;
+
+  await recordManagerAuditLog(adminClient, actor, {
+    action: "delete",
+    severity: "warning",
+    table_name: "student_payment_phase_clearances",
+    record_id: parsed.data.payment_phase_id,
+    old_data: {
+      payment_phase_id: parsed.data.payment_phase_id,
+      deleted_count: deletedCount,
+    },
+    metadata: { note: "Bulk SPP Month paid clearances deleted." },
+  });
+
+  return {
+    success: true,
+    message:
+      deletedCount === 1
+        ? "Month paid marker removed for 1 student."
+        : `Month paid marker removed for ${deletedCount} students.`,
+    deleted_count: deletedCount,
     payment_phase_id: parsed.data.payment_phase_id,
   };
 }
@@ -641,7 +748,7 @@ export async function maybeDeleteClearanceAfterPaymentDelete(
       duration_days: previous.duration_days,
     },
     metadata: {
-      note: "SPP Current clearance removed with payment delete.",
+      note: "SPP Month paid clearance removed with payment delete.",
     },
   });
 }

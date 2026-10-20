@@ -299,10 +299,10 @@ Format: `key` — label — access
 | `accounting.adjustments.create` | Create financial adjustment | write |
 | `accounting.adjustments.update` | Edit financial adjustment | write |
 | `accounting.adjustments.delete` | Delete financial adjustment | write |
-| `accounting.clearances.view` | View SPP current clearances | read |
-| `accounting.clearances.create` | Create SPP current clearance | write |
-| `accounting.clearances.update` | Edit SPP current clearance | write |
-| `accounting.clearances.delete` | Delete SPP current clearance | write |
+| `accounting.clearances.view` | View SPP month paid clearances | read |
+| `accounting.clearances.create` | Create SPP month paid clearance | write |
+| `accounting.clearances.update` | Edit SPP month paid clearance | write |
+| `accounting.clearances.delete` | Delete SPP month paid clearance | write |
 
 ### Academic analysis
 

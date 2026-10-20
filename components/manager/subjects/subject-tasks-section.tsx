@@ -8,10 +8,7 @@ import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject
 import { SubjectTaskFormDialog } from "@/components/manager/subjects/subject-task-form-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDestructiveDialog } from "@/components/ui/confirm-destructive-dialog";
-import { useActionStateSuccess } from "@/hooks/use-action-state-success";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { useFormActionState } from "@/hooks/use-form-action-state";
-import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
+import { useMutationDialogForm } from "@/hooks/use-mutation-dialog-form";
 import { SESSION_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session-detail-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { truncateText } from "@/lib/utils/truncate-text";
@@ -54,33 +51,35 @@ export function SubjectTasksSection({
   );
   const [deletingTask, setDeletingTask] =
     useState<ManagerSubjectTaskRow | null>(null);
-  const [deleteState, deleteAction, isDeletePending] = useFormActionState(
-    deleteSubjectTaskAction,
-    initialDeleteState
-  );
-  const handleDeleteOpenChange = usePendingAwareOpenChange(
-    isDeletePending,
-    (open) => {
+  const {
+    formAction: deleteAction,
+    isPending: isDeletePending,
+    handleOpenChange: handleDeleteOpenChange,
+  } = useMutationDialogForm({
+    action: deleteSubjectTaskAction,
+    initialState: initialDeleteState,
+    open: deletingTask !== null,
+    onOpenChange: (open) => {
       if (!open) {
         setDeletingTask(null);
       }
-    }
-  );
+    },
+    onSuccess: (nextState) => {
+      const removedId =
+        typeof nextState.taskId === "string"
+          ? nextState.taskId
+          : deletingTask?.id;
+      if (removedId) {
+        setTasks((current) => current.filter((row) => row.id !== removedId));
+      }
+      setDeletingTask(null);
+    },
+  });
 
   if (initialTasks !== prevInitialTasks) {
     setPrevInitialTasks(initialTasks);
     setTasks(initialTasks);
   }
-
-  useActionStateToast(deleteState, isDeletePending);
-
-  useActionStateSuccess(deleteState, isDeletePending, () => {
-    if (deletingTask) {
-      const removedId = deletingTask.id;
-      setTasks((current) => current.filter((row) => row.id !== removedId));
-    }
-    setDeletingTask(null);
-  });
 
   const nextSortOrder =
     tasks.reduce((max, row) => Math.max(max, row.sort_order), -1) + 1;
@@ -128,16 +127,21 @@ export function SubjectTasksSection({
             : "Delete this task?"
         }
         isPending={isDeletePending}
+        canConfirm={Boolean(deletingTask)}
         formAction={deleteAction}
         confirmLabel="Delete"
       >
-        <input type="hidden" name="id" value={deletingTask?.id ?? ""} />
-        <input type="hidden" name="subject_id" value={subjectId} />
+        {deletingTask ? (
+          <>
+            <input type="hidden" name="id" value={deletingTask.id} />
+            <input type="hidden" name="subject_id" value={subjectId} />
+          </>
+        ) : null}
       </ConfirmDestructiveDialog>
 
       <SubjectCollapsibleSection
         title="Tasks"
-        description="Task templates copied onto classes of this subject."
+        description="Subject tasks that can be cloned onto classes of this subject."
         defaultOpen
       >
         <div className="flex flex-col gap-3">

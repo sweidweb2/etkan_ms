@@ -123,7 +123,7 @@ export function UpsertSppClearanceDialog({
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit Current marker" : "Set Current marker"}
+            {isEdit ? "Edit Month paid marker" : "Set Month paid marker"}
           </DialogTitle>
           <DialogDescription>
             Theoretical overlay only. Does not change payment balances or SPP
@@ -191,7 +191,7 @@ export function UpsertSppClearanceDialog({
             disabled={isPending}
           >
             {isPending ? <InlineSpinner /> : null}
-            {isEdit ? "Save" : "Set Current"}
+            {isEdit ? "Save" : "Set Month paid"}
           </Button>
         </DialogFooter>
       </DialogContent>

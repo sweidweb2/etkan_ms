@@ -667,10 +667,10 @@ export function SppDetailsPanel({
                     checked={alsoDeleteClearance}
                     onCheckedChange={setAlsoDeleteClearance}
                     disabled={isDeletePaymentActionPending}
-                    aria-label="Also remove Current marker"
+                    aria-label="Also remove Month paid marker"
                     className="mt-0.5"
                   />
-                  <span>Also remove the Current marker for this student</span>
+                  <span>Also remove the Month paid marker for this student</span>
                 </label>
               </Can>
             ) : null}

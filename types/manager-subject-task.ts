@@ -32,4 +32,5 @@ export type DeleteSubjectTaskActionState = {
   success?: boolean;
   error?: string;
   message?: string;
+  taskId?: string;
 };

@@ -1,6 +1,6 @@
 import type { FieldErrors } from "@/types/auth";
 
-/** Active Current clearance attached to an SPP payload (null when missing/expired). */
+/** Active Month paid clearance attached to an SPP payload (null when missing/expired). */
 export type ManagerSppClearanceDto = {
   id: string;
   duration_days: number;
@@ -35,5 +35,14 @@ export type BulkCreateSppClearancesActionState = {
   message?: string;
   fieldErrors?: FieldErrors;
   created_count?: number;
+  payment_phase_id?: string;
+};
+
+export type BulkDeleteSppClearancesActionState = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  fieldErrors?: FieldErrors;
+  deleted_count?: number;
   payment_phase_id?: string;
 };
