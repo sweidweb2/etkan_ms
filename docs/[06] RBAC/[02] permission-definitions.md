@@ -66,7 +66,7 @@ Format: `key` — label — access
 |-----|-------|--------|
 | `students.view` | View students | read |
 | `students.view_own` | View own student profile (student panel) | read |
-| `students.update_own` | Edit own username, name, birth date, and phone (student panel) | write |
+| `students.update_own` | Edit own username, name, birth date, phone, and password (student panel) | write |
 | `students.create` | Create student | write |
 | `students.update` | Edit student | write |
 | `students.change_status` | Activate / inactivate student (optional class leave + payment-free open SPP delete) | write |

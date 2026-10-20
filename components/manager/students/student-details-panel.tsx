@@ -4,9 +4,10 @@ import { DetailField } from "@/components/manager/shared/detail-field";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { FileTextIcon, PencilIcon } from "lucide-react";
+import { FileTextIcon, KeyRoundIcon, PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
+import { ChangeOwnPasswordDialog } from "@/components/student/change-own-password-dialog";
 import { EditOwnProfileDialog } from "@/components/student/edit-own-profile-dialog";
 import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
 import { StudentBorrowedEquipmentSection } from "@/components/manager/students/student-borrowed-equipment-section";
@@ -77,6 +78,7 @@ export function StudentDetailsPanel({
   const [prevStudent, setPrevStudent] =
     useState<ManagerStudentRow>(initialStudent);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const isSelf = variant === "self";
 
   if (initialStudent !== prevStudent) {
@@ -134,14 +136,20 @@ export function StudentDetailsPanel({
           }}
         />
       ) : (
-        <EditOwnProfileDialog
-          open={isEditOpen}
-          onOpenChange={setIsEditOpen}
-          student={student}
-          onStudentUpdated={(updatedStudent) => {
-            setStudent(updatedStudent);
-          }}
-        />
+        <>
+          <EditOwnProfileDialog
+            open={isEditOpen}
+            onOpenChange={setIsEditOpen}
+            student={student}
+            onStudentUpdated={(updatedStudent) => {
+              setStudent(updatedStudent);
+            }}
+          />
+          <ChangeOwnPasswordDialog
+            open={isPasswordOpen}
+            onOpenChange={setIsPasswordOpen}
+          />
+        </>
       )}
 
       <Card className="gap-0 py-0">
@@ -177,7 +185,7 @@ export function StudentDetailsPanel({
               </Can>
             </CardAction>
           ) : (
-            <CardAction className="self-center">
+            <CardAction className="flex items-center gap-2 self-center">
               <Button
                 type="button"
                 variant="outline"
@@ -186,6 +194,15 @@ export function StudentDetailsPanel({
                 onClick={() => setIsEditOpen(true)}
               >
                 <PencilIcon />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Change password"
+                onClick={() => setIsPasswordOpen(true)}
+              >
+                <KeyRoundIcon />
               </Button>
             </CardAction>
           )}
