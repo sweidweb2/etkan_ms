@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 type FieldLabelProps = {
   htmlFor: string;
   label: string;
-  hint: string;
+  hint?: string;
   className?: string;
 };
 
@@ -17,7 +17,9 @@ export function FieldLabel({ htmlFor, label, hint, className }: FieldLabelProps)
       )}
     >
       <Label htmlFor={htmlFor}>{label}</Label>
-      <span className="text-xs font-normal text-muted-foreground">{hint}</span>
+      {hint ? (
+        <span className="text-xs font-normal text-muted-foreground">{hint}</span>
+      ) : null}
     </div>
   );
 }

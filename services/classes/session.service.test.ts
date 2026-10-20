@@ -17,7 +17,6 @@ import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as classTaskRepository from "@/repositories/class-task.repository";
 import * as auditLogService from "@/services/ops/audit-log.service";
 import type { AuditActor } from "@/services/ops/audit-log.service";
-import * as studentTaskUploadService from "@/services/classes/student-task-upload.service";
 import {
   createSessionTaskForManager,
   deleteClassSessionForManager,

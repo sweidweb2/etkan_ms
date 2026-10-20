@@ -79,6 +79,7 @@ export function EditGalleryImageDialog({
   const selectedFile = watch("file");
   const { ref: nameRef, ...nameRegister } = register("name");
 
+  // Sync RHF + local file state when the dialog opens for a row (parent sets `open`).
   useEffect(() => {
     if (!open || !image) {
       return;
@@ -89,6 +90,7 @@ export function EditGalleryImageDialog({
       name: image.name,
       file: undefined,
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local UI when the edited image changes
     setClientFileError(null);
     setFileInputKey((key) => key + 1);
   }, [image, open, reset]);

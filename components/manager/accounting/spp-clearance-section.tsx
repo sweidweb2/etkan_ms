@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import { deleteSppClearanceAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
@@ -52,9 +52,12 @@ export function SppClearanceSection({
   onClearanceChange,
 }: SppClearanceSectionProps) {
   const [clearance, setClearance] = useState(initialClearance);
-  useEffect(() => {
+  const [prevInitialClearance, setPrevInitialClearance] =
+    useState(initialClearance);
+  if (initialClearance !== prevInitialClearance) {
+    setPrevInitialClearance(initialClearance);
     setClearance(initialClearance);
-  }, [initialClearance]);
+  }
 
   function updateClearance(next: ManagerSppClearanceDto | null) {
     setClearance(next);
