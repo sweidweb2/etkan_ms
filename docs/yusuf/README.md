@@ -1,13 +1,21 @@
-# Section 5 — From fragmented data into unified data
+# docs/yusuf
+
+## Teacher panel plan
+
+- [teacher-panel-plan.md](./teacher-panel-plan.md) — phased plan for the complete teacher academic panel (no schema changes).
+
+---
+
+## Section 5 — From fragmented data into unified data
 
 Copy this folder into the other app. The section has no images, icons, or API calls. The three drawings are drawn in the component.
 
-## Files
+### Files
 
 - `UnifiedSection.tsx` — the section, the heading, the three steps, the separators, and the drawings.
 - `unified-section.css` — the beige page, the text colors, the line color, and the teal used by the drawings.
 
-## Use
+### Use
 
 ```tsx
 import './unified-section.css'

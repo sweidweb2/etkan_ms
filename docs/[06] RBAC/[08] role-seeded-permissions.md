@@ -81,7 +81,7 @@ Native panel: `/crm` (redirects to guests). Day-to-day UI uses shared `/manager/
 
 ## Teacher
 
-Full **class tree** writes/reads (`TEACHER_SEED_PERMISSIONS` = `CLASS_TREE_SEED_PERMISSIONS`):
+**Class tree** plus subject link access (`TEACHER_SEED_PERMISSIONS` = `CLASS_TREE_SEED_PERMISSIONS` + `subjects.view` + `subjects.update`):
 
 ```
 classes.*
@@ -90,9 +90,11 @@ attendance.*
 tasks.*
 final_exams.*
 grades.*
+subjects.view
+subjects.update
 ```
 
-Same action surface as manager **inside** a class (sessions → tasks, attendance, grades, final exams, …). **Row scope** is assigned classes only (`class_teacher`) — enforced in services, not by fewer keys.  
+Teacher panel UI currently uses class reads, task CRUD, and subject **link** updates (not full subject create/delete). **Row scope** is assigned classes only (`class_teacher`); subject updates require teaching at least one class of that subject — enforced in services.  
 No workshop seed package (grant workshop keys on the role matrix when an instructor needs Manage workshops).
 
 ---

@@ -228,6 +228,21 @@ export async function findClassDetailById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function listClassDetailsByIds(
+  client: Supabase,
+  classIds: string[]
+) {
+  if (classIds.length === 0) {
+    return { data: [] as ClassDetailRecord[], error: null };
+  }
+
+  return client
+    .from("classes")
+    .select(CLASS_DETAIL_SELECT)
+    .in("id", classIds)
+    .order("created_at", { ascending: false });
+}
+
 export async function updateClass(
   client: Supabase,
   classId: string,

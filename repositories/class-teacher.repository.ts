@@ -46,6 +46,17 @@ export async function listClassTeachersByClassId(
     .order("assigned_at", { ascending: false });
 }
 
+export async function listClassTeachersByTeacherId(
+  client: Supabase,
+  teacherId: string
+) {
+  return client
+    .from("class_teacher")
+    .select(CLASS_TEACHER_COLUMNS)
+    .eq("teacher_id", teacherId)
+    .order("assigned_at", { ascending: false });
+}
+
 export async function findClassTeacherByTeacherAndClass(
   client: Supabase,
   teacherId: string,

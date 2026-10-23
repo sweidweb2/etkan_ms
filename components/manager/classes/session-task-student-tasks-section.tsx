@@ -30,11 +30,21 @@ import type {
   ManagerStudentTaskRow,
 } from "@/types/manager-class-session-detail";
 
+type UpdateStudentTaskFormAction = (
+  prevState: import("@/types/manager-class-session-detail").UpdateStudentTaskActionState,
+  formData: FormData
+) => Promise<
+  import("@/types/manager-class-session-detail").UpdateStudentTaskActionState
+>;
+
 type SessionTaskStudentTasksSectionProps = {
   task: ManagerSessionTaskRow;
   studentTasks: ManagerStudentTaskRow[];
   onStudentTasksChange: (studentTasks: ManagerStudentTaskRow[]) => void;
   lockedUserIds?: string[];
+  /** When false, hides manager student profile links (teacher panel). */
+  showStudentProfileLink?: boolean;
+  updateStudentTaskAction?: UpdateStudentTaskFormAction;
 };
 
 function TruncatedCell({
@@ -82,6 +92,8 @@ export function SessionTaskStudentTasksSection({
   studentTasks,
   onStudentTasksChange,
   lockedUserIds = [],
+  showStudentProfileLink = true,
+  updateStudentTaskAction,
 }: SessionTaskStudentTasksSectionProps) {
   const [selectedStudentTask, setSelectedStudentTask] =
     useState<ManagerStudentTaskRow | null>(null);
@@ -129,6 +141,7 @@ export function SessionTaskStudentTasksSection({
           dueDate={task.due_date}
           onUpdateStudentTask={handleUpdateStudentTask}
           readOnly={selectedTaskLocked}
+          action={updateStudentTaskAction}
         />
       ) : null}
 
@@ -206,7 +219,8 @@ export function SessionTaskStudentTasksSection({
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          {studentTask.student_profile_id ? (
+                          {showStudentProfileLink &&
+                          studentTask.student_profile_id ? (
                             <Link
                               href={getManagerStudentDetailRoute(
                                 studentTask.student_profile_id

@@ -32,6 +32,11 @@ import type {
 
 const initialState: UpdateSessionTaskActionState = {};
 
+type UpdateSessionTaskFormAction = (
+  prevState: UpdateSessionTaskActionState,
+  formData: FormData
+) => Promise<UpdateSessionTaskActionState>;
+
 type EditSessionTaskDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,6 +48,8 @@ type EditSessionTaskDialogProps = {
     task: ManagerSessionTaskRow,
     options?: { gradesClamped?: boolean }
   ) => void;
+  /** Defaults to manager update action; teacher panel passes its own. */
+  action?: UpdateSessionTaskFormAction;
 };
 
 export function EditSessionTaskDialog({
@@ -53,10 +60,11 @@ export function EditSessionTaskDialog({
   sessionId,
   sessionLabel,
   onTaskUpdated,
+  action = updateSessionTaskAction,
 }: EditSessionTaskDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
-    updateSessionTaskAction,
+    action,
     initialState
   );
   const isPending = isActionPending || isTransitionPending;

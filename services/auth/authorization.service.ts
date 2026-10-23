@@ -279,6 +279,37 @@ export async function assertStudentSelfAccess(
 }
 
 /**
+ * Teacher panel self-access: requires `classes.view`, or falls back to
+ * authenticated `teacher` role (covers stale role-permission cache after seed).
+ */
+export async function assertTeacherSelfAccess(
+  client: Supabase,
+  userId: string | null | undefined
+): Promise<string> {
+  if (!userId) {
+    throw new Error(UNAUTHORIZED_MESSAGE);
+  }
+
+  const allowed = await hasPermission(client, userId, PERMISSIONS.CLASSES_VIEW);
+  if (allowed) {
+    return userId;
+  }
+
+  const { data: profile, error } = await profileRepository.findProfileById(
+    client,
+    userId
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (profile?.role === ROLES.TEACHER) {
+    return userId;
+  }
+
+  throw new Error(UNAUTHORIZED_MESSAGE);
+}
+
+/**
  * For `{ success: false, error }` mutation paths. Returns error message or null when allowed.
  */
 export async function getUnauthorizedError(

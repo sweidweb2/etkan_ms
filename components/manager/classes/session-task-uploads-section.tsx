@@ -63,10 +63,27 @@ import type {
 const initialUploadState: UploadStudentTaskFileActionState = {};
 const initialDeleteState: DeleteStudentTaskUploadActionState = {};
 
+type UploadStudentTaskFileFormAction = (
+  prevState: UploadStudentTaskFileActionState,
+  formData: FormData
+) => Promise<UploadStudentTaskFileActionState>;
+
+type DeleteStudentTaskUploadFormAction = (
+  prevState: DeleteStudentTaskUploadActionState,
+  formData: FormData
+) => Promise<DeleteStudentTaskUploadActionState>;
+
+type GetStudentTaskUploadSignedUrlAction = (
+  formData: FormData
+) => Promise<{ success: boolean; signedUrl?: string; error?: string }>;
+
 type SessionTaskUploadsSectionProps = {
   studentTasks: ManagerStudentTaskRow[];
   initialUploads: ManagerStudentTaskUploadRow[];
   lockedUserIds?: string[];
+  uploadFileAction?: UploadStudentTaskFileFormAction;
+  deleteFileAction?: DeleteStudentTaskUploadFormAction;
+  getSignedUrlAction?: GetStudentTaskUploadSignedUrlAction;
 };
 
 function formatFileSize(bytes: number) {
@@ -83,6 +100,9 @@ export function SessionTaskUploadsSection({
   studentTasks,
   initialUploads,
   lockedUserIds = [],
+  uploadFileAction = uploadStudentTaskFileAction,
+  deleteFileAction = deleteStudentTaskUploadAction,
+  getSignedUrlAction = getStudentTaskUploadSignedUrlAction,
 }: SessionTaskUploadsSectionProps) {
   const [uploads, setUploads] = useState(initialUploads);
   const [prevUploads, setPrevUploads] = useState(initialUploads);
@@ -136,8 +156,8 @@ export function SessionTaskUploadsSection({
   const [uploadComplete, setUploadComplete] = useState(false);
 
   const [isUploadTransitionPending, startUploadTransition] = useTransition();
-  const [uploadState, uploadAction, isUploadActionPending] = useActionState(
-    uploadStudentTaskFileAction,
+  const [uploadState, uploadFormAction, isUploadActionPending] = useActionState(
+    uploadFileAction,
     initialUploadState
   );
   const isUploadPending = isUploadActionPending || isUploadTransitionPending;
@@ -202,8 +222,8 @@ export function SessionTaskUploadsSection({
   const [deletingUpload, setDeletingUpload] =
     useState<ManagerStudentTaskUploadRow | null>(null);
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
-  const [deleteState, deleteAction, isDeleteActionPending] = useActionState(
-    deleteStudentTaskUploadAction,
+  const [deleteState, deleteFormAction, isDeleteActionPending] = useActionState(
+    deleteFileAction,
     initialDeleteState
   );
   const isDeletePending = isDeleteActionPending || isDeleteTransitionPending;
@@ -259,7 +279,7 @@ export function SessionTaskUploadsSection({
     const formData = new FormData(event.currentTarget);
     formData.set("student_task_id", selectedStudentTaskId);
     startUploadTransition(() => {
-      uploadAction(formData);
+      uploadFormAction(formData);
     });
   }
 
@@ -270,7 +290,7 @@ export function SessionTaskUploadsSection({
     const formData = new FormData();
     formData.set("id", deletingUpload.id);
     startDeleteTransition(() => {
-      deleteAction(formData);
+      deleteFormAction(formData);
     });
   }
 
@@ -279,7 +299,7 @@ export function SessionTaskUploadsSection({
     try {
       const formData = new FormData();
       formData.set("id", upload.id);
-      const result = await getStudentTaskUploadSignedUrlAction(formData);
+      const result = await getSignedUrlAction(formData);
       if (!result.success || !result.signedUrl) {
         showErrorToast(result.error ?? "Unable to open file.");
         return;

@@ -43,6 +43,11 @@ import type {
 
 const initialState: UpdateStudentTaskActionState = {};
 
+type UpdateStudentTaskFormAction = (
+  prevState: UpdateStudentTaskActionState,
+  formData: FormData
+) => Promise<UpdateStudentTaskActionState>;
+
 type EditStudentTaskSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,6 +56,8 @@ type EditStudentTaskSheetProps = {
   dueDate?: string | null;
   readOnly?: boolean;
   onUpdateStudentTask: (studentTask: ManagerStudentTaskRow) => void;
+  /** Defaults to manager update action; teacher panel passes its own. */
+  action?: UpdateStudentTaskFormAction;
 };
 
 function toDatetimeLocalValue(value: string | Date) {
@@ -84,10 +91,11 @@ export function EditStudentTaskSheet({
   dueDate = null,
   readOnly = false,
   onUpdateStudentTask,
+  action = updateStudentTaskAction,
 }: EditStudentTaskSheetProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
-    updateStudentTaskAction,
+    action,
     initialState
   );
   const isPending = isActionPending || isTransitionPending;

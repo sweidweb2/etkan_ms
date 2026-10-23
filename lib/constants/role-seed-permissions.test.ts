@@ -113,8 +113,12 @@ describe("role-seed-permissions supervisor", () => {
 });
 
 describe("role-seed-permissions teacher", () => {
-  it("seeds the full class tree only", () => {
-    expect(TEACHER_SEED_PERMISSIONS).toEqual(CLASS_TREE_SEED_PERMISSIONS);
+  it("seeds the class tree plus subject view/update", () => {
+    expect(TEACHER_SEED_PERMISSIONS).toEqual([
+      ...CLASS_TREE_SEED_PERMISSIONS,
+      PERMISSIONS.SUBJECTS_VIEW,
+      PERMISSIONS.SUBJECTS_UPDATE,
+    ]);
     expect(ROLE_SEED_PERMISSIONS[ROLES.TEACHER]).toEqual(
       TEACHER_SEED_PERMISSIONS
     );
@@ -122,8 +126,11 @@ describe("role-seed-permissions teacher", () => {
     expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.SESSIONS_CREATE);
     expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.TASKS_UPDATE_STUDENT);
     expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.GRADES_COMPUTE);
+    expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.SUBJECTS_VIEW);
+    expect(TEACHER_SEED_PERMISSIONS).toContain(PERMISSIONS.SUBJECTS_UPDATE);
     expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.WORKSHOPS_VIEW);
     expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.STUDENTS_VIEW);
+    expect(TEACHER_SEED_PERMISSIONS).not.toContain(PERMISSIONS.SUBJECTS_CREATE);
   });
 });
 

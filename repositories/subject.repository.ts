@@ -51,6 +51,18 @@ export async function findSubjectById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export async function listSubjectsByIds(client: Supabase, subjectIds: string[]) {
+  if (subjectIds.length === 0) {
+    return { data: [] as SubjectRecord[], error: null };
+  }
+
+  return client
+    .from("subjects")
+    .select(SUBJECT_COLUMNS)
+    .in("id", subjectIds)
+    .order("name", { ascending: true });
+}
+
 export async function findSubjectByName(client: Supabase, name: string) {
   return client
     .from("subjects")

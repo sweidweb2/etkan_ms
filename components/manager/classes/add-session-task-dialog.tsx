@@ -31,6 +31,11 @@ import type {
 
 const initialState: CreateSessionTaskActionState = {};
 
+type CreateSessionTaskFormAction = (
+  prevState: CreateSessionTaskActionState,
+  formData: FormData
+) => Promise<CreateSessionTaskActionState>;
+
 type AddSessionTaskDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,6 +44,8 @@ type AddSessionTaskDialogProps = {
   sessionLabel: string;
   defaultDueDate?: string;
   onCreateTask: (task: ManagerSessionTaskRow) => void;
+  /** Defaults to manager create action; teacher panel passes its own. */
+  action?: CreateSessionTaskFormAction;
 };
 
 function toDatetimeLocalValue(date: Date) {
@@ -55,10 +62,11 @@ export function AddSessionTaskDialog({
   sessionLabel,
   defaultDueDate,
   onCreateTask,
+  action = createSessionTaskAction,
 }: AddSessionTaskDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
   const [state, formAction, isActionPending] = useActionState(
-    createSessionTaskAction,
+    action,
     initialState
   );
   const isPending = isActionPending || isTransitionPending;

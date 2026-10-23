@@ -265,10 +265,23 @@ export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation =
   MANAGER_PANEL_NAVIGATION;
 
 /**
- * Teacher panel: no dedicated teacher routes yet.
- * Only shared workshop links when instructor/mentor + workshops.view.
+ * Teacher panel: classes (read-only detail + roster). More routes land in
+ * later phases. Shared workshop links when instructor/mentor + workshops.view.
  */
-export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({ items: [] });
+export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({
+  items: [
+    {
+      title: "My classes",
+      href: ROUTES.TEACHER_CLASSES,
+      icon: "school",
+    },
+    {
+      title: "My subjects",
+      href: ROUTES.TEACHER_SUBJECTS,
+      icon: "library",
+    },
+  ],
+});
 
 /** Student panel: profile, classes, payments (+ workshops when instructor/mentor). */
 export const STUDENT_PANEL_NAVIGATION = withManageWorkshops({

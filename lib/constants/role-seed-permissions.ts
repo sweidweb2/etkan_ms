@@ -110,10 +110,15 @@ export const CLASS_TREE_SEED_PERMISSIONS = permissionKeysForFeatures(
 );
 
 /**
- * Teacher: full class-tree grants. List/detail scoping to assigned classes
- * is enforced in services (class_teacher), not by fewer keys.
+ * Teacher: class-tree grants plus subject link view/update for syllabus.
+ * List/detail/mutation scoping to assigned classes (and taught subjects) is
+ * enforced in services (`class_teacher`), not by fewer keys alone.
  */
-export const TEACHER_SEED_PERMISSIONS = CLASS_TREE_SEED_PERMISSIONS;
+export const TEACHER_SEED_PERMISSIONS = [
+  ...CLASS_TREE_SEED_PERMISSIONS,
+  PERMISSIONS.SUBJECTS_VIEW,
+  PERMISSIONS.SUBJECTS_UPDATE,
+] as const satisfies readonly PermissionKey[];
 
 /**
  * Supervisor allow-list feature groups (narrow operational catalog).
