@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * Compatibility shim: session-scoped `tasks` was replaced by `class_tasks`.
  * Prefer importing from `@/repositories/class-task.repository` directly.

@@ -1,9 +1,16 @@
+import "server-only";
+
 import { CLASS_STATUSES, type ClassStatusValue } from "@/lib/constants/manager-class-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  computeClassTaskGradeSummary,
+  type ClassTaskGradeSummary,
+} from "@/lib/manager/class-task-grade-summary";
 import * as classRepository from "@/repositories/class.repository";
 import * as classTaskRepository from "@/repositories/class-task.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as sessionRepository from "@/repositories/session.repository";
+import * as studentTaskRepository from "@/repositories/student-task.repository";
 import { assertPermission } from "@/services/auth/authorization.service";
 import {
   mapSessionRecord,
@@ -138,4 +145,67 @@ export async function getTeachingClassDetailForSelf(
     sessions: (sessionsResult.data ?? []).map(mapSessionRecord),
     tasks: (tasksResult.data ?? []).map(mapTaskRecord),
   };
+}
+
+/**
+ * Average of each student's total task grades vs sum of task max grades
+ * for a class the teacher is assigned to.
+ */
+export async function getTeachingClassTaskGradeSummaryForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<ClassTaskGradeSummary | null> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
+
+  if (!actorUserId) {
+    return null;
+  }
+
+  const assignment =
+    await classTeacherRepository.findClassTeacherByTeacherAndClass(
+      adminClient,
+      actorUserId,
+      classId
+    );
+
+  if (assignment.error) {
+    throw new Error(assignment.error.message);
+  }
+
+  if (!assignment.data) {
+    return null;
+  }
+
+  const tasksResult = await classTaskRepository.listClassTasksByClassId(
+    adminClient,
+    classId
+  );
+
+  if (tasksResult.error) {
+    throw new Error(tasksResult.error.message);
+  }
+
+  const tasks = tasksResult.data ?? [];
+  const taskIds = tasks.map((task) => task.id);
+  const studentTasksResult =
+    await studentTaskRepository.listStudentTasksByTaskIds(adminClient, taskIds);
+
+  if (studentTasksResult.error) {
+    throw new Error(studentTasksResult.error.message);
+  }
+
+  return computeClassTaskGradeSummary({
+    tasks: tasks.map((task) => ({
+      id: task.id,
+      max_grade: task.max_grade,
+    })),
+    studentTasks: (studentTasksResult.data ?? []).map((row) => ({
+      task_id: row.task_id,
+      student_id: row.student_id,
+      grade: row.grade,
+    })),
+  });
 }

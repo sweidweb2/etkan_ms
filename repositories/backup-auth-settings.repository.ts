@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getSupabaseProjectRef } from "@/lib/supabase/project-ref";
 
 type JsonRecord = Record<string, unknown>;

@@ -5,6 +5,7 @@ import {
 } from "@/lib/constants/backup-formats";
 import type { BackupTableName } from "@/lib/constants/backup-tables";
 import { SITE } from "@/lib/config/site";
+import { runWithBackupZipLimit } from "@/lib/concurrency/heavy-cpu";
 import type { BackupExportPayload } from "@/types/backup-export";
 
 export type SerializedBackupFile = {
@@ -258,7 +259,9 @@ async function serializePayloadToCsv(
     zip.file(`${tableName}.csv`, serializeTableRowsToCsv(rows));
   }
 
-  const body = await zip.generateAsync({ type: "uint8array" });
+  const body = await runWithBackupZipLimit(() =>
+    zip.generateAsync({ type: "uint8array" })
+  );
 
   return {
     body,

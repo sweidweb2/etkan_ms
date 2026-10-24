@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createCategorySchema } from "@/lib/validators/manager/create-category";
 import { updateCategorySchema } from "@/lib/validators/manager/update-category";

@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   GUEST_CURRENT_STATUSES,
   GUEST_EDUCATION_LEVEL_VALUES,

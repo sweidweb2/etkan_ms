@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { runWithSharpLimit } from "@/lib/concurrency/heavy-cpu";
 import {
   CLASS_COVER_INCOMING_MAX_BYTES,
   CLASS_COVER_MAX_EDGE,
@@ -40,29 +41,31 @@ export async function optimizeClassCoverForStorage(
 
   const input = Buffer.from(await file.arrayBuffer());
 
-  try {
-    const metadata = await sharp(input, { failOn: "error" }).metadata();
-    if (!metadata.format || !ALLOWED_FORMATS.has(metadata.format)) {
+  return runWithSharpLimit(async () => {
+    try {
+      const metadata = await sharp(input, { failOn: "error" }).metadata();
+      if (!metadata.format || !ALLOWED_FORMATS.has(metadata.format)) {
+        return { ok: false, error: "Upload a JPEG, PNG, or WebP image." };
+      }
+    } catch {
       return { ok: false, error: "Upload a JPEG, PNG, or WebP image." };
     }
-  } catch {
-    return { ok: false, error: "Upload a JPEG, PNG, or WebP image." };
-  }
 
-  let quality = 72;
-  let bytes = await encodeWebp(input, quality);
+    let quality = 72;
+    let bytes = await encodeWebp(input, quality);
 
-  while (bytes.length > CLASS_COVER_OUTPUT_MAX_BYTES && quality > 40) {
-    quality -= 8;
-    bytes = await encodeWebp(input, quality);
-  }
+    while (bytes.length > CLASS_COVER_OUTPUT_MAX_BYTES && quality > 40) {
+      quality -= 8;
+      bytes = await encodeWebp(input, quality);
+    }
 
-  if (bytes.length > CLASS_COVER_OUTPUT_MAX_BYTES) {
-    return {
-      ok: false,
-      error: "Image is still too large after optimization.",
-    };
-  }
+    if (bytes.length > CLASS_COVER_OUTPUT_MAX_BYTES) {
+      return {
+        ok: false,
+        error: "Image is still too large after optimization.",
+      };
+    }
 
-  return { ok: true, bytes };
+    return { ok: true, bytes };
+  });
 }

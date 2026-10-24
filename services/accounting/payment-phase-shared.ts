@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   PAYMENT_PHASE_STATUSES,
   STUDENT_PAYMENT_PHASE_STATUSES,

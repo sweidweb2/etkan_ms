@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GuestStatus } from "@/lib/constants/guest";
 import type { Database } from "@/types/supabase";

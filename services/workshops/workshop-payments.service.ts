@@ -1,3 +1,5 @@
+import "server-only";
+
 import { WORKSHOP_PAYMENT_TYPES } from "@/lib/constants/manager-workshop-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";

@@ -5,6 +5,12 @@ import type {
 
 export type AuditLogJsonValue = Record<string, unknown>;
 
+/** Keyset cursor for paged manager audit log lists. */
+export type AuditLogCursor = {
+  created_at: string;
+  id: string;
+};
+
 export interface ManagerAuditLogRow {
   id: string;
   user_id: string | null;

@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   WORKSHOP_INSTRUCTOR_ROLE_VALUES,
   WORKSHOP_OFFERING_TYPE_VALUES,

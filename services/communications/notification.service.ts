@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
@@ -8,7 +10,7 @@ import { createNotificationSchema } from "@/lib/validators/manager/create-notifi
 import { updateNotificationSchema } from "@/lib/validators/manager/update-notification";
 import { getManagerRegistrationDetailRoute } from "@/lib/constants/routes";
 import * as notificationRepository from "@/repositories/notification.repository";
-import type { NotificationRecord } from "@/repositories/notification.repository";
+import type { NotificationRecord } from "@/types/notification-record";
 import {
   recordManagerAuditLog,
   type AuditActor,

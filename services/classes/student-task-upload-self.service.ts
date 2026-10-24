@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { STUDENT_TASK_UPLOAD_MAX_FILES } from "@/lib/constants/manager-student-task-uploads";
 import { inspectStudentTaskUploadBytes } from "@/lib/manager/student-tasks/inspect-upload-bytes";

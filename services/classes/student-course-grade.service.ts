@@ -1,4 +1,6 @@
-export type { ComputedStudentGradeSheetBundle } from "@/services/classes/student-course-grade-queries.service";
+import "server-only";
+
+export type { ComputedStudentGradeSheetBundle } from "@/types/manager-student-course-grade";
 
 export {
   getStudentClassGradeDetailForManager,

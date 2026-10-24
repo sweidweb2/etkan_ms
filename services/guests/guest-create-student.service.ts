@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   canMutateGuestPipeline,
   GUEST_CREATE_STUDENT_PIPELINE_STATUSES,

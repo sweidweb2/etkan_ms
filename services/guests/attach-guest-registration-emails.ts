@@ -1,3 +1,5 @@
+import "server-only";
+
 import * as registrationRepository from "@/repositories/student-registration-application.repository";
 import type { ManagerGuestRow } from "@/types/manager-guest";
 import type { SupabaseClient } from "@supabase/supabase-js";

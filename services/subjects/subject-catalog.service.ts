@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { SubjectScope } from "@/lib/constants/subject-scope";
 import { saveSubjectCapabilitiesSchema } from "@/lib/validators/manager/save-subject-capabilities";
 import { saveCapabilitySubjectOrderSchema } from "@/lib/validators/manager/save-capability-subject-order";

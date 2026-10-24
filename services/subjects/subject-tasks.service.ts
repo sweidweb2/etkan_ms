@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createSubjectTaskSchema } from "@/lib/validators/manager/create-subject-task";
 import { updateSubjectTaskSchema } from "@/lib/validators/manager/update-subject-task";

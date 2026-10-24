@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TeamStatus } from "@/lib/constants/team";
 import type { Database } from "@/types/supabase";

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { unstable_cache } from "next/cache";
 import { clearCachedSessionShell } from "@/lib/auth/session-shell-cache";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";

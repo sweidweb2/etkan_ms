@@ -1,3 +1,5 @@
+import "server-only";
+
 import { GUEST_CURRENT_STATUSES, isGuestCurrentStatus } from "@/lib/constants/guest";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { isTeamStatus, TEAM_STATUS_LABELS, type TeamStatus } from "@/lib/constants/team";

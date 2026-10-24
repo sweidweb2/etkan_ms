@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { ScheduleAssistantRoute } from "@/lib/constants/schedule-assistant";
 import {
   listCapabilityMatrixCatalog,

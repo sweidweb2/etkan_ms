@@ -1,6 +1,29 @@
 "use client";
 
+import { useMemo, useRef, useState, useTransition } from "react";
 import { format } from "date-fns";
+import { RefreshCwIcon } from "lucide-react";
+import {
+  loadTeacherClassSessionDetailAction,
+  type TeacherClassSessionInlineDetail,
+} from "@/app/teacher/classes/actions";
+import { useTeacherTaskAnalytics } from "@/hooks/use-teacher-task-analytics";
+import {
+  Tabs,
+  TabsContent,
+  TabsContents,
+} from "@/components/animate-ui/components/animate/tabs";
+import {
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/animate-ui/primitives/animate/tabs";
+import { Can } from "@/components/auth/can";
+import { ChangeClassStatusDialog } from "@/components/manager/classes/change-class-status-dialog";
+import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
+import { ClassTasksSection } from "@/components/manager/classes/class-tasks-section";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { TeacherClassSessionDetailsPanel } from "@/components/teacher/teacher-class-session-details-panel";
+import { TeacherClassStudentsSection } from "@/components/teacher/teacher-class-students-section";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,48 +32,142 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SemiCircularGaugeCard } from "@/components/ui/semi-circular-gauge-card";
+import { showErrorToast } from "@/lib/toast";
+import type { ClassTaskGradeSummary } from "@/lib/manager/class-task-grade-summary";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
-import { ROUTES } from "@/lib/constants/routes";
+  CLASS_STATUS_BADGE_CLASSES,
+  CLASS_STATUS_LABELS,
+} from "@/lib/constants/manager-subject-display";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  getTeacherClassTaskDetailRoute,
+  ROUTES,
+} from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
 import {
   getSessionTimingLabel,
+  sortClassSessionsNewestFirst,
   type ManagerClassSessionRow,
 } from "@/types/manager-class-session";
 import type { ManagerClassTaskRow } from "@/types/manager-class-session-detail";
-import type { TeacherClassRow } from "@/types/teacher-class";
+import type { ManagerClassRow } from "@/types/manager-class-list";
+import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 
 type TeacherClassDetailsPanelProps = {
-  classRow: TeacherClassRow;
-  sessions: ManagerClassSessionRow[];
-  tasks: ManagerClassTaskRow[];
+  classRow: ManagerClassRow;
+  initialSessions: ManagerClassSessionRow[];
+  initialTasks: ManagerClassTaskRow[];
+  initialStudents?: ManagerClassStudentRow[];
+  hasComputedGrades?: boolean;
+  assignedAt: string | null;
+  taskGradeSummary?: ClassTaskGradeSummary | null;
 };
 
-const SESSION_TIMING_LABELS = {
-  upcoming: "Upcoming",
-  in_progress: "In progress",
-  completed: "Completed",
+const TABS = {
+  MAIN: "main",
+  SESSIONS: "sessions",
+  TASKS: "tasks",
 } as const;
 
-const SESSION_TIMING_CLASSES = {
-  upcoming: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
-  in_progress: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
-  completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-} as const;
+const CLASS_TABS = [
+  { value: TABS.MAIN, label: "Main" },
+  { value: TABS.SESSIONS, label: "Sessions" },
+  { value: TABS.TASKS, label: "Tasks" },
+] as const;
+
+const TAB_TRIGGER_CLASS =
+  "rounded-md px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-background data-[state=active]:text-foreground";
 
 export function TeacherClassDetailsPanel({
-  classRow,
-  sessions,
-  tasks,
+  classRow: initialClassRow,
+  initialSessions,
+  initialTasks,
+  initialStudents = [],
+  hasComputedGrades = false,
+  assignedAt,
+  taskGradeSummary = null,
 }: TeacherClassDetailsPanelProps) {
+  const [tab, setTab] = useState<string>(TABS.MAIN);
+  const [classRow, setClassRow] = useState(initialClassRow);
+  const [sessions, setSessions] = useState(() =>
+    sortClassSessionsNewestFirst(initialSessions)
+  );
+  const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
+    null
+  );
+  const [sessionDetail, setSessionDetail] =
+    useState<TeacherClassSessionInlineDetail | null>(null);
+  const [, startSessionDetailTransition] = useTransition();
+  const sessionLoadRequestRef = useRef(0);
+  const {
+    enabled: taskAnalyticsEnabled,
+    hasHydrated: taskAnalyticsHydrated,
+  } = useTeacherTaskAnalytics();
+
+  const completedSessions = useMemo(
+    () =>
+      sessions.filter(
+        (session) => getSessionTimingLabel(session) === "completed"
+      ).length,
+    [sessions]
+  );
+
+  const statusLabel = CLASS_STATUS_LABELS[classRow.status] ?? classRow.status;
+  const statusClassName =
+    CLASS_STATUS_BADGE_CLASSES[classRow.status] ??
+    "bg-muted text-muted-foreground";
+
+  function handleSessionSelect(sessionId: string) {
+    if (selectedSessionId === sessionId) {
+      sessionLoadRequestRef.current += 1;
+      setSelectedSessionId(null);
+      setSessionDetail(null);
+      return;
+    }
+
+    const requestId = sessionLoadRequestRef.current + 1;
+    sessionLoadRequestRef.current = requestId;
+    setSelectedSessionId(sessionId);
+    setSessionDetail(null);
+    startSessionDetailTransition(async () => {
+      const detail = await loadTeacherClassSessionDetailAction(
+        classRow.id,
+        sessionId
+      );
+      if (sessionLoadRequestRef.current !== requestId) {
+        return;
+      }
+      if (!detail) {
+        showErrorToast("Unable to load this session.");
+        setSelectedSessionId(null);
+        setSessionDetail(null);
+        return;
+      }
+      setSessionDetail(detail);
+    });
+  }
+
+  function handleCloseSessionDetail() {
+    sessionLoadRequestRef.current += 1;
+    setSelectedSessionId(null);
+    setSessionDetail(null);
+  }
+
+  function handleInlineSessionUpdated(session: ManagerClassSessionRow) {
+    setSessions((current) =>
+      sortClassSessionsNewestFirst(
+        current.map((row) => (row.id === session.id ? session : row))
+      )
+    );
+    setSessionDetail((current) =>
+      current ? { ...current, session } : current
+    );
+  }
+
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumb>
@@ -67,7 +184,16 @@ export function TeacherClassDetailsPanel({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      {isChangeStatusOpen ? (
+        <ChangeClassStatusDialog
+          open
+          onOpenChange={setIsChangeStatusOpen}
+          classRow={classRow}
+          onClassUpdated={setClassRow}
+        />
+      ) : null}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">
             {classRow.name}
@@ -76,122 +202,187 @@ export function TeacherClassDetailsPanel({
             {classRow.subject_name}
           </p>
         </div>
-        <span className="inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium">
-          {MANAGER_CLASS_STATUS_LABELS[classRow.class_status]}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium",
+              statusClassName
+            )}
+          >
+            {statusLabel}
+          </span>
+          <Can permission={PERMISSIONS.CLASSES_CHANGE_STATUS}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsChangeStatusOpen(true)}
+            >
+              <RefreshCwIcon data-icon="inline-start" />
+              Change status
+            </Button>
+          </Can>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Class</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Subject</span>
-              <span className="text-right">{classRow.subject_name}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Status</span>
-              <span className="text-right">
-                {MANAGER_CLASS_STATUS_LABELS[classRow.class_status]}
-              </span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Assigned</span>
-              <span className="text-right">
-                {classRow.assigned_at
-                  ? format(new Date(classRow.assigned_at), "MMM d, yyyy")
-                  : "—"}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs value={tab} onValueChange={setTab} className="gap-4">
+        <TabsListPrimitive className="grid w-full grid-cols-3 gap-1 self-start rounded-lg bg-muted p-1 sm:w-fit sm:min-w-[20rem]">
+          {CLASS_TABS.map((item) => (
+            <TabsTriggerPrimitive
+              key={item.value}
+              value={item.value}
+              className={TAB_TRIGGER_CLASS}
+            >
+              {item.label}
+            </TabsTriggerPrimitive>
+          ))}
+        </TabsListPrimitive>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Sessions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sessions yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-16">#</TableHead>
-                  <TableHead>Topic</TableHead>
-                  <TableHead>Starts</TableHead>
-                  <TableHead>Timing</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sessions.map((session) => {
-                  const timing = getSessionTimingLabel(session);
-                  return (
-                    <TableRow key={session.id}>
-                      <TableCell>{session.nb_order}</TableCell>
-                      <TableCell className="font-medium">
-                        {session.topic}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(session.starts_at), "MMM d, yyyy HH:mm")}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={cn(
-                            "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-                            SESSION_TIMING_CLASSES[timing]
-                          )}
-                        >
-                          {SESSION_TIMING_LABELS[timing]}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Tasks</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {tasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No tasks yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead className="w-24">Period</TableHead>
-                  <TableHead className="w-28">Started</TableHead>
-                  <TableHead>Due</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tasks.map((task) => (
-                  <TableRow key={task.id}>
-                    <TableCell className="font-medium">{task.title}</TableCell>
-                    <TableCell>{task.period}</TableCell>
-                    <TableCell>{task.started ? "Yes" : "No"}</TableCell>
-                    <TableCell>
-                      {task.due_date
-                        ? format(new Date(task.due_date), "MMM d, yyyy")
+        <TabsContents>
+          <TabsContent value={TABS.MAIN} className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Class</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Subject</span>
+                    <span className="text-right">{classRow.subject_name}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className="text-right">{statusLabel}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Assigned</span>
+                    <span className="text-right">
+                      {assignedAt
+                        ? format(new Date(assignedAt), "MMM d, yyyy")
                         : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Semester</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Linked semester</span>
+                    <span className="text-right font-medium">
+                      {classRow.semester_name ?? "Unlinked"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This class’s academic period for sessions and grades.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Overview</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Sessions</span>
+                    <span className="tabular-nums">{sessions.length}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Completed</span>
+                    <span className="tabular-nums">{completedSessions}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Tasks</span>
+                    <span className="tabular-nums">{initialTasks.length}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Students</span>
+                    <span className="tabular-nums">
+                      {initialStudents.length || classRow.enrollment_count}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <TeacherClassStudentsSection
+              className={classRow.name}
+              students={initialStudents}
+            />
+          </TabsContent>
+
+          <TabsContent value={TABS.SESSIONS} className="flex flex-col gap-4">
+            <ClassSessionsSection
+              classId={classRow.id}
+              className={classRow.name}
+              sessions={sessions}
+              onSessionsChange={setSessions}
+              onClassUpdated={setClassRow}
+              hasComputedGrades={hasComputedGrades}
+              selectedSessionId={selectedSessionId}
+              onSessionSelect={handleSessionSelect}
+            />
+
+            {selectedSessionId ? (
+              <div className="flex flex-col gap-3">
+                {sessionDetail &&
+                sessionDetail.session.id === selectedSessionId ? (
+                  <TeacherClassSessionDetailsPanel
+                    key={sessionDetail.session.id}
+                    session={sessionDetail.session}
+                    classRow={{ id: classRow.id, name: classRow.name }}
+                    initialAttendees={sessionDetail.attendees}
+                    hasComputedGrades={sessionDetail.hasComputedGrades}
+                    lockedUserIds={sessionDetail.lockedUserIds}
+                    embedded
+                    onClose={handleCloseSessionDetail}
+                    onSessionUpdated={handleInlineSessionUpdated}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center gap-2 rounded-2xl border border-border/80 bg-card px-4 py-10 text-sm text-muted-foreground">
+                    <InlineSpinner />
+                    Loading session…
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </TabsContent>
+
+          <TabsContent value={TABS.TASKS} className="flex flex-col gap-4">
+            {taskAnalyticsHydrated &&
+            taskAnalyticsEnabled &&
+            taskGradeSummary ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <SemiCircularGaugeCard
+                  title="Task grades"
+                  value={taskGradeSummary.averageEarned}
+                  total={taskGradeSummary.totalMax}
+                  progressPercent={taskGradeSummary.progressPercent}
+                  valueLabel="Average student total / task max total"
+                  legendAverageLabel="Average"
+                  legendTotalLabel="Total"
+                  className="sm:max-w-sm"
+                />
+              </div>
+            ) : null}
+
+            <ClassTasksSection
+              classId={classRow.id}
+              className={classRow.name}
+              tasks={initialTasks}
+              hasSubject={Boolean(classRow.subject_id)}
+              hasComputedGrades={hasComputedGrades}
+              getTaskDetailHref={(taskId) =>
+                getTeacherClassTaskDetailRoute(classRow.id, taskId)
+              }
+            />
+          </TabsContent>
+        </TabsContents>
+      </Tabs>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";

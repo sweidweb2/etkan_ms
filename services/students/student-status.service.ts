@@ -1,3 +1,5 @@
+import "server-only";
+
 import { CLASS_STATUSES } from "@/lib/constants/manager-class-status";
 import {
   STUDENT_STATUSES,

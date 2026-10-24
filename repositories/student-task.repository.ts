@@ -1,3 +1,5 @@
+import "server-only";
+
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";

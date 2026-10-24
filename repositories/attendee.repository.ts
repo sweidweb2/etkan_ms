@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AttendeeStatusValue } from "@/lib/constants/manager-attendee-status";
 import type { Database } from "@/types/supabase";

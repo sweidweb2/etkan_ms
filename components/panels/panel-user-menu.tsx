@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { Home, LogOut } from "lucide-react";
+import { Home, LogOut, Settings } from "lucide-react";
 import { logoutAction } from "@/app/(public)/auth/actions";
 import {
   DropdownMenu,
@@ -19,9 +19,15 @@ import { cn } from "@/lib/utils";
 type PanelUserMenuProps = {
   displayName: string;
   className?: string;
+  /** Optional settings link (e.g. teacher settings). */
+  settingsHref?: string;
 };
 
-export function PanelUserMenu({ displayName, className }: PanelUserMenuProps) {
+export function PanelUserMenu({
+  displayName,
+  className,
+  settingsHref,
+}: PanelUserMenuProps) {
   const [isPending, startTransition] = useTransition();
   const initials = getInitials(displayName);
 
@@ -45,6 +51,14 @@ export function PanelUserMenu({ displayName, className }: PanelUserMenuProps) {
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel className="truncate">{displayName}</DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {settingsHref ? (
+          <DropdownMenuItem asChild>
+            <Link href={settingsHref} prefetch={false}>
+              <Settings />
+              Settings
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem asChild>
           <Link href={ROUTES.HOME}>
             <Home />

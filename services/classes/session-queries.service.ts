@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { assertPermission } from "@/services/auth/authorization.service";
 import * as attendeeRepository from "@/repositories/attendee.repository";

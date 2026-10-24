@@ -68,6 +68,8 @@ type SessionDetailsTabsSectionProps = {
   initialTasks: ManagerSessionTaskRow[];
   initialAttendees: ManagerSessionAttendeeRow[];
   lockedUserIds?: string[];
+  /** `attendance` hides the tasks tab and shows only the attendee table. */
+  mode?: "full" | "attendance";
 };
 
 function TruncatedCell({
@@ -382,10 +384,42 @@ export function SessionDetailsTabsSection({
   initialTasks,
   initialAttendees,
   lockedUserIds = [],
+  mode = "full",
 }: SessionDetailsTabsSectionProps) {
   const [activeTab, setActiveTab] =
     useState<SessionDetailsTabValue>("attendee");
   const [attendees, setAttendees] = useState(initialAttendees);
+
+  const attendeesTable = (
+    <SessionAttendeesTable
+      classId={classId}
+      sessionId={sessionId}
+      attendees={attendees}
+      lockedUserIds={lockedUserIds}
+      onAttendeeUpdated={(attendee) => {
+        setAttendees((current) =>
+          current.map((row) => (row.id === attendee.id ? attendee : row))
+        );
+      }}
+    />
+  );
+
+  if (mode === "attendance") {
+    return (
+      <TooltipProvider>
+        <ClassTabCollapsibleSection
+          title="Attendance"
+          description={`Mark attendance for ${sessionLabel}.`}
+          storageKey={
+            COLLAPSIBLE_SECTION_STORAGE_KEYS.SESSION_DETAILS_TASKS_ATTENDEE
+          }
+          defaultOpen
+        >
+          {attendeesTable}
+        </ClassTabCollapsibleSection>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -436,19 +470,7 @@ export function SessionDetailsTabsSection({
               <SessionTasksTable classId={classId} tasks={initialTasks} />
             </TabsContentPrimitive>
             <TabsContentPrimitive value="attendee" className="px-0 py-0">
-              <SessionAttendeesTable
-                classId={classId}
-                sessionId={sessionId}
-                attendees={attendees}
-                lockedUserIds={lockedUserIds}
-                onAttendeeUpdated={(attendee) => {
-                  setAttendees((current) =>
-                    current.map((row) =>
-                      row.id === attendee.id ? attendee : row
-                    )
-                  );
-                }}
-              />
+              {attendeesTable}
             </TabsContentPrimitive>
           </TabsContentsPrimitive>
         </TabsPrimitive>

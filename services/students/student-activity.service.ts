@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getAuditLogChangeSummary } from "@/lib/manager/get-audit-log-change-summary";
 import * as attendeeRepository from "@/repositories/attendee.repository";

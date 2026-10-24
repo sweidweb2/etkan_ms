@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   EXERCISE_LEVEL_VALUES,
   type ExerciseLevelValue,

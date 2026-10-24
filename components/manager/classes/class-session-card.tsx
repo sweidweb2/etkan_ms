@@ -32,6 +32,11 @@ type ClassSessionCardProps = {
   session: ManagerClassSessionRow;
   classId: string;
   className?: string;
+  /** Override detail href (defaults to manager session detail). */
+  href?: string;
+  /** When set, card selects inline instead of navigating. */
+  onSelect?: (sessionId: string) => void;
+  selected?: boolean;
 };
 
 function TruncatedText({
@@ -67,6 +72,9 @@ export function ClassSessionCard({
   session,
   classId,
   className,
+  href,
+  onSelect,
+  selected = false,
 }: ClassSessionCardProps) {
   const timingLabel = getSessionTimingLabel(session);
   const timingText = SESSION_TIMING_LABELS[timingLabel];
@@ -77,20 +85,36 @@ export function ClassSessionCard({
   const endsAt = new Date(session.ends_at);
   const spansMultipleDays =
     format(startsAt, "yyyy-MM-dd") !== format(endsAt, "yyyy-MM-dd");
+  const detailHref =
+    href ?? getManagerClassSessionDetailRoute(classId, session.id);
+  const isSelectable = typeof onSelect === "function";
 
   return (
     <TooltipProvider>
       <Card
         className={cn(
           "group relative w-[17rem] shrink-0 gap-0 py-0 transition-shadow hover:border-emerald-400/45 hover:shadow-[0_12px_32px_rgba(16,185,129,0.18)]",
+          selected &&
+            "border-emerald-500/70 ring-2 ring-emerald-500/25 shadow-[0_12px_32px_rgba(16,185,129,0.2)]",
           className
         )}
       >
-        <Link
-          href={getManagerClassSessionDetailRoute(classId, session.id)}
-          aria-label={`View session S${session.nb_order}: ${session.topic}`}
-          className="absolute inset-0 z-0 rounded-xl"
-        />
+        {isSelectable ? (
+          <button
+            type="button"
+            aria-label={`View session S${session.nb_order}: ${session.topic}`}
+            aria-pressed={selected}
+            className="absolute inset-0 z-0 rounded-xl"
+            onClick={() => onSelect(session.id)}
+          />
+        ) : (
+          <Link
+            href={detailHref}
+            prefetch={false}
+            aria-label={`View session S${session.nb_order}: ${session.topic}`}
+            className="absolute inset-0 z-0 rounded-xl"
+          />
+        )}
         <CardHeader className="pointer-events-none relative z-10 gap-2 border-b bg-muted/20 py-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">

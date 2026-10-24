@@ -24,6 +24,7 @@ type StudentPanelNavbarProps = {
   homeLabel?: string;
   navLabel?: string;
   menuId?: string;
+  settingsHref?: string;
 };
 
 function matchesNavHref(pathname: string, href: string): boolean {
@@ -52,6 +53,7 @@ export function StudentPanelNavbar({
   homeLabel = "Student home",
   navLabel = "Student",
   menuId = "student-panel-menu",
+  settingsHref,
 }: StudentPanelNavbarProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -101,7 +103,10 @@ export function StudentPanelNavbar({
         <div className="relative z-10 ml-auto flex items-center gap-1">
           {canViewNotifications ? <PanelNotificationsBell /> : null}
           <ThemeToggle />
-          <PanelUserMenu displayName={displayName} />
+          <PanelUserMenu
+            displayName={displayName}
+            settingsHref={settingsHref}
+          />
           <Button
             type="button"
             variant="ghost"

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerCronJobsCatalog } from "@/lib/constants/manager-cron-jobs";
 import { assertPermission } from "@/services/auth/authorization.service";

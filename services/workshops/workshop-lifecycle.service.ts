@@ -1,3 +1,5 @@
+import "server-only";
+
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {

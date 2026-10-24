@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { PermissionKey } from "@/lib/constants/permissions";
 import {
   SUBJECT_SCOPES,

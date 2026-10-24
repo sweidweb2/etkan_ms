@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   FINANCIAL_ADJUSTMENT_TYPES,
   FINANCIAL_ADJUSTMENT_TYPE_VALUES,

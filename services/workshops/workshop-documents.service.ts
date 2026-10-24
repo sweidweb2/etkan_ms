@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import {

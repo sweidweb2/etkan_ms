@@ -513,11 +513,27 @@ export async function updateClassSessionAction(
   });
 }
 
+function resolveClassReturnPath(
+  returnTo: string,
+  classId: string,
+  fallback: (id: string) => string
+): string {
+  const trimmed = returnTo.trim();
+  if (
+    trimmed.startsWith("/teacher/classes/") ||
+    trimmed.startsWith("/manager/classes/")
+  ) {
+    return trimmed;
+  }
+  return fallback(classId);
+}
+
 export async function deleteClassSessionAction(
   _prevState: DeleteClassSessionActionState,
   formData: FormData
 ): Promise<DeleteClassSessionActionState> {
   const sessionId = String(formData.get("session_id") ?? "").trim();
+  const returnTo = String(formData.get("return_to") ?? "").trim();
 
   if (!sessionId) {
     return {
@@ -532,11 +548,16 @@ export async function deleteClassSessionAction(
       deleteClassSessionForManager(adminClient, actor.userId, actor, data),
     revalidate: (result) => {
       revalidatePath(getManagerClassDetailRoute(result.classId));
+      revalidatePath(`/teacher/classes/${result.classId}`);
     },
     mapSuccess: (result) => {
       redirect(
         appendQueryParam(
-          getManagerClassDetailRoute(result.classId),
+          resolveClassReturnPath(
+            returnTo,
+            result.classId,
+            getManagerClassDetailRoute
+          ),
           "toast",
           "session_deleted"
         )
@@ -596,6 +617,7 @@ export async function deleteClassTaskAction(
 ): Promise<DeleteClassTaskActionState> {
   const id = String(formData.get("id") ?? "").trim();
   const class_id = String(formData.get("class_id") ?? "").trim();
+  const returnTo = String(formData.get("return_to") ?? "").trim();
 
   if (!id || !class_id) {
     return {
@@ -610,12 +632,17 @@ export async function deleteClassTaskAction(
       deleteClassTaskForManager(adminClient, actor.userId, actor, data),
     revalidate: (result, data) => {
       revalidatePath(getManagerClassDetailRoute(result.classId));
+      revalidatePath(`/teacher/classes/${result.classId}`);
       revalidatePath(getManagerClassTaskDetailRoute(result.classId, data.id));
     },
     mapSuccess: (result) => {
       redirect(
         appendQueryParam(
-          getManagerClassDetailRoute(result.classId),
+          resolveClassReturnPath(
+            returnTo,
+            result.classId,
+            getManagerClassDetailRoute
+          ),
           "toast",
           "task_deleted"
         )

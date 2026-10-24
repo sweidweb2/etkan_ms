@@ -27,7 +27,7 @@ import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam"
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
-import type { ComputedStudentGradeSheetBundle } from "@/services/classes/student-course-grade.service";
+import type { ComputedStudentGradeSheetBundle } from "@/types/manager-student-course-grade";
 import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 

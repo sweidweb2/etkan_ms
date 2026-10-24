@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { runWithSharpLimit } from "@/lib/concurrency/heavy-cpu";
 import type { StudentTaskUploadAllowedMimeType } from "@/lib/constants/manager-student-task-uploads";
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff]);
@@ -48,12 +49,14 @@ async function assertDecodableImage(
   bytes: Buffer,
   format: "jpeg" | "png" | "webp" | "gif"
 ): Promise<boolean> {
-  try {
-    const metadata = await sharp(bytes, { failOn: "error" }).metadata();
-    return metadata.format === format;
-  } catch {
-    return false;
-  }
+  return runWithSharpLimit(async () => {
+    try {
+      const metadata = await sharp(bytes, { failOn: "error" }).metadata();
+      return metadata.format === format;
+    } catch {
+      return false;
+    }
+  });
 }
 
 /**

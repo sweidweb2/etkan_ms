@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   CLASS_COVERS_STORAGE_BUCKET,

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { isAttendeePresentForRate } from "@/lib/constants/manager-attendee-status";
 import { STUDENT_ATTENDANCE_STATUSES } from "@/lib/constants/manager-student-attendance-status";
 import { STUDENT_TASK_STATUSES } from "@/lib/constants/manager-student-task-status";

@@ -1,4 +1,6 @@
-﻿import {
+import "server-only";
+
+import {
   CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR,
   STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR,
 } from "@/lib/manager/class-grades-access";

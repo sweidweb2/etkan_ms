@@ -1,6 +1,12 @@
 import type { EmailLocale } from "@/lib/email/templates";
-import type { EmailDeliveryStatus } from "@/repositories/email-users.repository";
 import type { FieldErrors } from "@/types/auth";
+
+export type EmailDeliveryStatus = "pending" | "sent" | "failed" | "skipped";
+
+export type EmailingClassOption = {
+  id: string;
+  name: string;
+};
 
 export type SendManagerEmailActionState = {
   success?: boolean;

@@ -1,9 +1,12 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { EmailDeliveryStatus } from "@/types/manager-emailing";
 import type { Database } from "@/types/supabase";
 
-type Supabase = SupabaseClient<Database>;
+export type { EmailDeliveryStatus };
 
-export type EmailDeliveryStatus = "pending" | "sent" | "failed" | "skipped";
+type Supabase = SupabaseClient<Database>;
 
 export type EmailUserRecord = Database["public"]["Tables"]["email_users"]["Row"];
 

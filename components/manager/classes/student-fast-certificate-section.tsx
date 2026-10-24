@@ -21,7 +21,6 @@ import {
   validateTaskWeights,
   type FactorWeightsForm,
 } from "@/lib/compute/custom-compute-form-utils";
-import { downloadStudentGradeSheetPdf } from "@/lib/export/student-grade-sheet-export";
 import {
   areFastCertificateFactorWeightsEditable,
   computeFastCertificateEffectiveFactors,
@@ -188,7 +187,7 @@ export function StudentFastCertificateContent({
       ? "Not available"
       : `${formatCourseGradeValue(effective.previewTotal)} (preview)`;
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     if (!canExport || effective.previewTotal == null) {
       showErrorToast("Unable to export certificate with the current inputs.");
       return;
@@ -211,6 +210,9 @@ export function StudentFastCertificateContent({
         taskWeights,
       });
 
+      const { downloadStudentGradeSheetPdf } = await import(
+        "@/lib/export/student-grade-sheet-export"
+      );
       downloadStudentGradeSheetPdf(model, totalLabel, "horizontal");
       showSuccessToast("Certificate exported as PDF.");
     } catch {

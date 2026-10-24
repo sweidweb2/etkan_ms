@@ -33,7 +33,6 @@ import {
 } from "@/lib/compute/custom-compute-form-utils";
 import { DEFAULT_CLASS_GRADE_FACTOR_WEIGHTS } from "@/lib/constants/manager-class-grade-defaults";
 import { getManagerClassStudentGradesDetailRoute } from "@/lib/constants/routes";
-import { downloadComputedGradeCertificatesZip } from "@/lib/export/student-grade-certificates-zip-export";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type {
@@ -450,6 +449,9 @@ export function ClassStudentGradesSection({
         return;
       }
 
+      const { downloadComputedGradeCertificatesZip } = await import(
+        "@/lib/export/student-grade-certificates-zip-export"
+      );
       const count = await downloadComputedGradeCertificatesZip({
         classRow: result.classRow,
         bundles: result.bundles,

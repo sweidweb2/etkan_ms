@@ -1,3 +1,18 @@
+import type { ManagerClassFinalExamRow } from "@/types/manager-class-final-exam";
+import type { ManagerClassStudentGradeRow } from "@/types/manager-class-student-grade";
+import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type { ManagerClassTaskForGradesRow } from "@/types/manager-class-task-for-grades";
+import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
+
+/** Bundle used to render / export one student's computed grade sheet. */
+export type ComputedStudentGradeSheetBundle = {
+  student: ManagerClassStudentRow;
+  gradeRow: ManagerClassStudentGradeRow;
+  detail: ManagerStudentClassTabDetail;
+  classTasks: ManagerClassTaskForGradesRow[];
+  finalExam: ManagerClassFinalExamRow | null;
+};
+
 /** Weight rule row stored in student_course_grade.task_json_grade_weights. */
 export interface ManagerStudentTaskGradeWeightRow {
   key: string;

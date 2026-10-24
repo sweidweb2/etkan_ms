@@ -30,6 +30,11 @@ type ClassSessionsSectionProps = {
   onSessionsChange: (sessions: ManagerClassSessionRow[]) => void;
   onClassUpdated: (classRow: ManagerClassRow) => void;
   hasComputedGrades?: boolean;
+  /** Override session card detail links (defaults to manager routes). */
+  getSessionDetailHref?: (sessionId: string) => string;
+  /** When set, cards select inline instead of navigating. */
+  selectedSessionId?: string | null;
+  onSessionSelect?: (sessionId: string) => void;
 };
 
 export function ClassSessionsSection({
@@ -39,6 +44,9 @@ export function ClassSessionsSection({
   onSessionsChange,
   onClassUpdated,
   hasComputedGrades = false,
+  getSessionDetailHref,
+  selectedSessionId = null,
+  onSessionSelect,
 }: ClassSessionsSectionProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
 
@@ -135,6 +143,13 @@ export function ClassSessionsSection({
                       key={session.id}
                       classId={classId}
                       session={session}
+                      href={
+                        onSessionSelect
+                          ? undefined
+                          : getSessionDetailHref?.(session.id)
+                      }
+                      onSelect={onSessionSelect}
+                      selected={selectedSessionId === session.id}
                     />
                   ))}
                 </div>

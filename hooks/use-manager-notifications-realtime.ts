@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 import { getUnreadNotificationCountAction } from "@/app/(panels)/manager/notifications/actions";
 import { showInfoToastWithAction } from "@/lib/toast";
 import { getBrowserSupabaseClient } from "@/lib/supabase/client";
-import {
-  subscribeToNotificationChanges,
-  type NotificationRecord,
-} from "@/repositories/notification.repository";
+import { subscribeToNotificationChanges } from "@/lib/supabase/notification-realtime";
+import type { NotificationRecord } from "@/types/notification-record";
 
 function isManagerBroadcast(notification: NotificationRecord): boolean {
   return (

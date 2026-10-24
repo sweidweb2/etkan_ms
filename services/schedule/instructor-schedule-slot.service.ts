@@ -1,3 +1,5 @@
+import "server-only";
+
 import { format } from "date-fns";
 import { unstable_cache } from "next/cache";
 import {

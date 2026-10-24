@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import * as clearInstructorRelatedRepository from "@/repositories/clear-instructor-related.repository";
 import type { Database } from "@/types/supabase";

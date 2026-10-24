@@ -1,3 +1,5 @@
+import "server-only";
+
 import { unstable_cache } from "next/cache";
 import { loadPublicCachedData } from "@/lib/cache/load-public-cached-data";
 import { PUBLIC_CONTENT_CACHE_TAGS } from "@/lib/cache/public-content-cache";

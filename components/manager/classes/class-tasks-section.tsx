@@ -38,6 +38,8 @@ type ClassTasksSectionProps = {
   tasks: ManagerClassTaskRow[];
   hasSubject?: boolean;
   hasComputedGrades?: boolean;
+  /** Override task row detail links (defaults to manager routes). */
+  getTaskDetailHref?: (taskId: string) => string;
 };
 
 function TruncatedCell({
@@ -99,6 +101,7 @@ export function ClassTasksSection({
   tasks: initialTasks,
   hasSubject = true,
   hasComputedGrades = false,
+  getTaskDetailHref,
 }: ClassTasksSectionProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [prevInitialTasks, setPrevInitialTasks] = useState(initialTasks);
@@ -251,7 +254,10 @@ export function ClassTasksSection({
                   >
                     <td className="max-w-[12rem] px-4 py-3">
                       <Link
-                        href={getManagerClassTaskDetailRoute(classId, task.id)}
+                        href={
+                          getTaskDetailHref?.(task.id) ??
+                          getManagerClassTaskDetailRoute(classId, task.id)
+                        }
                         prefetch={false}
                         className="block font-medium text-primary underline-offset-4 hover:underline"
                         aria-label={`View task ${task.title}`}

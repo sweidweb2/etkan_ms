@@ -1,3 +1,5 @@
+import "server-only";
+
 import { randomBytes } from "crypto";
 import { unstable_cache } from "next/cache";
 import { PERMISSIONS } from "@/lib/constants/permissions";

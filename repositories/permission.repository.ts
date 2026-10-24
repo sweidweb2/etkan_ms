@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { PermissionAccess, PermissionKey } from "@/lib/constants/permissions";
 import type { RoleValue } from "@/lib/constants/roles";
 import type { SupabaseClient } from "@supabase/supabase-js";

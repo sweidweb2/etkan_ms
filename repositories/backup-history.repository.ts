@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { BackupHistoryEntry, BackupHistoryScope } from "@/types/backup-history";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";

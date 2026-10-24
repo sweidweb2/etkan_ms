@@ -85,6 +85,11 @@ export const ROUTES = {
   TEACHER_ROOT: "/teacher",
   TEACHER_CLASSES: "/teacher/classes",
   TEACHER_CLASS_DETAIL: "/teacher/classes/[id]",
+  TEACHER_CLASS_SESSION_DETAIL: "/teacher/classes/[id]/sessions/[sessionId]",
+  TEACHER_CLASS_TASK_DETAIL: "/teacher/classes/[id]/tasks/[taskId]",
+  TEACHER_SETTINGS: "/teacher/settings",
+  TEACHER_SETTINGS_MY_INFO: "/teacher/settings/my-info",
+  TEACHER_SETTINGS_LAYOUT: "/teacher/settings/layout",
   STUDENT_ROOT: "/student",
 
   STUDENT_CLASSES: "/student/classes",
@@ -110,8 +115,7 @@ const ROLE_HOME_ROUTES: Record<RoleValue, string> = {
   [ROLES.CEO]: ROUTES.MANAGER_INSTRUCTORS,
   [ROLES.SUPERVISOR]: ROUTES.MANAGER_STUDENTS,
   [ROLES.CRM]: ROUTES.MANAGER_GUESTS,
-  /** Teacher product routes are not built yet — stay on the placeholder home. */
-  [ROLES.TEACHER]: ROUTES.TEACHER_ROOT,
+  [ROLES.TEACHER]: ROUTES.TEACHER_CLASSES,
   [ROLES.STUDENT]: ROUTES.STUDENT_ROOT,
 };
 
@@ -234,6 +238,20 @@ export function getStudentClassDetailRoute(classId: string): string {
 
 export function getTeacherClassDetailRoute(classId: string): string {
   return `/teacher/classes/${classId}`;
+}
+
+export function getTeacherClassSessionDetailRoute(
+  classId: string,
+  sessionId: string
+): string {
+  return `/teacher/classes/${classId}/sessions/${sessionId}`;
+}
+
+export function getTeacherClassTaskDetailRoute(
+  classId: string,
+  taskId: string
+): string {
+  return `/teacher/classes/${classId}/tasks/${taskId}`;
 }
 
 export function getStudentClassTaskDetailRoute(

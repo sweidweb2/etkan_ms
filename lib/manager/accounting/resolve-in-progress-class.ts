@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { ClassRecord } from "@/repositories/class.repository";
 import * as classRepository from "@/repositories/class.repository";
 import type { SupabaseClient } from "@supabase/supabase-js";

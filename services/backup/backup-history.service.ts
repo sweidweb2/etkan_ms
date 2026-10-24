@@ -1,3 +1,5 @@
+import "server-only";
+
 import * as backupHistoryRepository from "@/repositories/backup-history.repository";
 import type { BackupHistoryEntry, BackupHistoryScope } from "@/types/backup-history";
 

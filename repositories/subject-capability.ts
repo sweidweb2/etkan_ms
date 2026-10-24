@@ -1,3 +1,5 @@
+import "server-only";
+
 /** Scope-neutral shape both capability repositories return. */
 export type SubjectCapabilityRecord = {
   id: string;

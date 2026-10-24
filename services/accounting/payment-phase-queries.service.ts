@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { resolveInProgressClassForSemester } from "@/lib/manager/accounting/resolve-in-progress-class";
 import {

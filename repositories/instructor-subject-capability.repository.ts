@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { PostgrestError } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SubjectCapabilityRecord } from "@/repositories/subject-capability";

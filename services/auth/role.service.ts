@@ -1,3 +1,5 @@
+import "server-only";
+
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
 import { roleSchema } from "@/lib/validators/role";
 import * as authRepository from "@/repositories/auth.repository";

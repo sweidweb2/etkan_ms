@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { optimizeClassCoverForStorage } from "@/lib/manager/classes/optimize-class-cover";
 import {

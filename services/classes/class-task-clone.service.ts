@@ -1,3 +1,5 @@
+import "server-only";
+
 import * as classTaskRepository from "@/repositories/class-task.repository";
 import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import * as subjectTaskRepository from "@/repositories/subject-task.repository";

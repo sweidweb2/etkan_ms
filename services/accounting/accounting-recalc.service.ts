@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   FINANCIAL_ADJUSTMENT_VALUE_TYPES,
   PAYMENT_PHASE_STATUSES,

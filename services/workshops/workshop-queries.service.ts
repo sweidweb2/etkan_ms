@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   WORKSHOP_OFFERING_TYPE_VALUES,
   WORKSHOP_PAYMENT_TYPES,

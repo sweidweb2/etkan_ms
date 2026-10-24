@@ -27,10 +27,6 @@ import {
   getManagerStudentCourseGradeTypeLabel,
 } from "@/lib/constants/manager-student-course-grade-display";
 import {
-  downloadStudentGradeSheetDoc,
-  downloadStudentGradeSheetPdf,
-} from "@/lib/export/student-grade-sheet-export";
-import {
   getGradeSheetAspectClass,
   getGradeSheetMaxWidthClass,
   isVerticalGradeSheetOrientation,
@@ -155,10 +151,13 @@ export function StudentClassGradeSheetDemo({
     });
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     setExportingFormat("pdf");
 
     try {
+      const { downloadStudentGradeSheetPdf } = await import(
+        "@/lib/export/student-grade-sheet-export"
+      );
       downloadStudentGradeSheetPdf(model, totalLabel, orientation);
       showSuccessToast("Grade sheet exported as PDF.");
     } catch {
@@ -168,10 +167,13 @@ export function StudentClassGradeSheetDemo({
     }
   }
 
-  function handleExportDoc() {
+  async function handleExportDoc() {
     setExportingFormat("doc");
 
     try {
+      const { downloadStudentGradeSheetDoc } = await import(
+        "@/lib/export/student-grade-sheet-export"
+      );
       downloadStudentGradeSheetDoc(model, totalLabel, orientation);
       showSuccessToast("Grade sheet exported as Word document.");
     } catch {

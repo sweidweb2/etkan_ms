@@ -7,7 +7,7 @@ import {
   listAuditLogsForManager,
   type ManagerAuditLogsPage,
 } from "@/services/ops/audit-log.service";
-import type { AuditLogCursor } from "@/repositories/audit-log.repository";
+import type { AuditLogCursor } from "@/types/manager-audit-log";
 import type { ManagerAuditLogRow } from "@/types/manager-audit-log";
 
 export async function fetchAuditLogDetailsAction(

@@ -51,7 +51,11 @@ function mockUnlockedComputedGrades() {
 }
 
 function makePdfFile(name = "homework.pdf", size = 1024) {
-  return new File([new Uint8Array(size)], name, {
+  const bytes = new Uint8Array(Math.max(size, 16));
+  // Content sniff requires a real PDF signature (MIME alone is ignored).
+  const header = new TextEncoder().encode("%PDF-1.4\n");
+  bytes.set(header, 0);
+  return new File([bytes], name, {
     type: "application/pdf",
   });
 }

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getBackupTableOrderColumns } from "@/lib/constants/backup-tables";
 import type { BackupTableName } from "@/lib/constants/backup-tables";
 import type { SupabaseClient } from "@supabase/supabase-js";

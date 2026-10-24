@@ -41,10 +41,6 @@ import {
 } from "@/lib/constants/password-reset-roles";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { downloadBlob } from "@/lib/export/download-blob";
-import {
-  buildPasswordResetXlsxBlob,
-  passwordResetXlsxFilename,
-} from "@/lib/export/password-reset-xlsx";
 
 const initialState: ResetPasswordsByRoleActionState = {};
 
@@ -70,6 +66,8 @@ export function ResetPasswordsByRoleSection() {
       return;
     }
 
+    const { buildPasswordResetXlsxBlob, passwordResetXlsxFilename } =
+      await import("@/lib/export/password-reset-xlsx");
     const blob = await buildPasswordResetXlsxBlob(next.rows);
     downloadBlob({
       blob,

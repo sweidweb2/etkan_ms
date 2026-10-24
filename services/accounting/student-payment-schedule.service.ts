@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   PAYMENT_SCHEDULE_STATUSES,
   PAYMENT_SCHEDULE_STATUS_VALUES,

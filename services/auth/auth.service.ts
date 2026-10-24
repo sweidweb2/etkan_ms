@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getAuthCallbackUrl } from "@/lib/config/site";
 import { getPostLoginRedirect } from "@/lib/auth/redirect";
 import { warmJwks } from "@/lib/auth/jwks-cache";

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import * as authRepository from "@/repositories/auth.repository";
 import {

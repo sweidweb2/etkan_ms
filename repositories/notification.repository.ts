@@ -1,26 +1,15 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
+import type { NotificationRecord } from "@/types/notification-record";
+
+export type { NotificationRecord };
 
 type Supabase = SupabaseClient<Database>;
 
 const NOTIFICATION_COLUMNS =
   "id, recipient_id, audience, category, priority, title, body, action_href, is_read, read_at, created_by, created_at, suppress_live_toast";
-
-export type NotificationRecord = {
-  id: string;
-  recipient_id: string | null;
-  audience: string;
-  category: string;
-  priority: string;
-  title: string;
-  body: string;
-  action_href: string | null;
-  is_read: boolean;
-  read_at: string | null;
-  created_by: string | null;
-  created_at: string;
-  suppress_live_toast: boolean;
-};
 
 export type CreateNotificationRecordInput = {
   recipient_id?: string | null;
@@ -208,57 +197,4 @@ export async function markAllNotificationsRead(client: Supabase) {
 
 export async function deleteNotificationById(client: Supabase, id: string) {
   return client.from("notifications").delete().eq("id", id);
-}
-
-export type NotificationRealtimeHandlers = {
-  onInsert?: (notification: NotificationRecord) => void;
-  onUpdate?: (notification: NotificationRecord) => void;
-  onStatus?: (status: string, err?: Error | null) => void;
-};
-
-/**
- * Browser Realtime subscription for notifications INSERT/UPDATE.
- * Callers must pass an authenticated browser Supabase client.
- */
-export function subscribeToNotificationChanges(
-  client: Supabase,
-  handlers: NotificationRealtimeHandlers
-) {
-  const channel = client
-    .channel(`manager-notifications:${crypto.randomUUID()}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "notifications",
-      },
-      (payload) => {
-        const row = payload.new as NotificationRecord | null;
-        if (row?.id) {
-          handlers.onInsert?.(row);
-        }
-      }
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "notifications",
-      },
-      (payload) => {
-        const row = payload.new as NotificationRecord | null;
-        if (row?.id) {
-          handlers.onUpdate?.(row);
-        }
-      }
-    )
-    .subscribe((status, err) => {
-      handlers.onStatus?.(status, err);
-    });
-
-  return () => {
-    void client.removeChannel(channel);
-  };
 }

@@ -67,6 +67,12 @@ type ClassTaskDetailsPanelProps = {
   initialUploads?: ManagerStudentTaskUploadRow[];
   lockedUserIds?: string[];
   hasComputedGrades?: boolean;
+  /** Panel navigation (defaults to manager class routes). */
+  navigation?: {
+    classesListHref: string;
+    classesListLabel: string;
+    classDetailHref: string;
+  };
 };
 
 function formatDateTime(value: string | null) {
@@ -84,7 +90,13 @@ export function ClassTaskDetailsPanel({
   initialUploads = [],
   lockedUserIds = [],
   hasComputedGrades = false,
+  navigation,
 }: ClassTaskDetailsPanelProps) {
+  const nav = navigation ?? {
+    classesListHref: ROUTES.MANAGER_CLASSES,
+    classesListLabel: "Manage classes",
+    classDetailHref: getManagerClassDetailRoute(classRow.id),
+  };
   const [task, setTask] = useState(initialTask);
   const [prevInitialTask, setPrevInitialTask] = useState(initialTask);
   const [studentTasks, setStudentTasks] = useState(initialStudentTasks);
@@ -158,6 +170,7 @@ export function ClassTaskDetailsPanel({
     const formData = new FormData();
     formData.set("id", task.id);
     formData.set("class_id", classRow.id);
+    formData.set("return_to", nav.classDetailHref);
     startTransition(() => {
       deleteAction(formData);
     });
@@ -168,13 +181,13 @@ export function ClassTaskDetailsPanel({
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_CLASSES}>
-              Manage classes
+            <BreadcrumbLink href={nav.classesListHref} prefetch={false}>
+              {nav.classesListLabel}
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href={getManagerClassDetailRoute(classRow.id)}>
+            <BreadcrumbLink href={nav.classDetailHref} prefetch={false}>
               {classRow.name}
             </BreadcrumbLink>
           </BreadcrumbItem>
@@ -267,7 +280,7 @@ export function ClassTaskDetailsPanel({
             />
             <DetailField label="Class">
               <Link
-                href={getManagerClassDetailRoute(classRow.id)}
+                href={nav.classDetailHref}
                 prefetch={false}
                 className="text-primary underline-offset-4 hover:underline"
               >

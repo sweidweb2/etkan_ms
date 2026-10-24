@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   GALLERY_MANAGER_PAGE_SIZE,
   GALLERY_MANAGER_PAGE_SIZE_OPTIONS,

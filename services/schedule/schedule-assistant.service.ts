@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   SCHEDULE_ASSISTANT_MAX_INSTRUCTORS,
   SCHEDULE_ASSISTANT_MAX_SLOTS,

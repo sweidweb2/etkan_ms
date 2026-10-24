@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   BORROW_EQUIPMENT_STATUSES,
   type BorrowEquipmentStatusValue,

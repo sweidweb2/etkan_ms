@@ -1,5 +1,10 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AuditLogCursor } from "@/types/manager-audit-log";
 import type { Database, Json } from "@/types/supabase";
+
+export type { AuditLogCursor };
 
 type Supabase = SupabaseClient<Database>;
 
@@ -82,11 +87,6 @@ export function buildStudentAuditLogsOrFilter(
 
   return parts.join(",");
 }
-
-export type AuditLogCursor = {
-  created_at: string;
-  id: string;
-};
 
 export type ListAuditLogsPageOptions = {
   limit?: number;

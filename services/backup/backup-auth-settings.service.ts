@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { createAuthSettingsBackupFilename } from "@/lib/export/backup-auth-serialize";
 import * as backupAuthSettingsRepository from "@/repositories/backup-auth-settings.repository";

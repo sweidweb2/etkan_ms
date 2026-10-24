@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { scheduleAfterResponse } from "@/lib/ops/schedule-after-response";
 import { assertPermission } from "@/services/auth/authorization.service";

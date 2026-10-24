@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createNavStepTimer } from "@/lib/debug/nav-timing";
 import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";

@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   STUDENT_SEMESTER_STATUSES,
   type StudentSemesterStatusValue,

@@ -48,7 +48,7 @@ import {
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import { loadAuditLogsPageAction } from "@/app/manager/logs/actions";
-import type { AuditLogCursor } from "@/repositories/audit-log.repository";
+import type { AuditLogCursor } from "@/types/manager-audit-log";
 import type { ManagerAuditLogRow } from "@/types/manager-audit-log";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;

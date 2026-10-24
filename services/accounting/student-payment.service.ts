@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   PAYMENT_METHODS,
   PAYMENT_METHOD_VALUES,

@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { runWithSharpLimit } from "@/lib/concurrency/heavy-cpu";
 import {
   GALLERY_IMAGE_MAX_BYTES,
   GALLERY_IMAGE_MAX_EDGE,
@@ -61,44 +62,46 @@ export async function optimizeGalleryImage(input: {
     ? input.bytes
     : Buffer.from(input.bytes);
 
-  try {
-    const metadata = await sharp(source, { failOn: "error" }).metadata();
-    if (!metadata.format || !ALLOWED_FORMATS.has(metadata.format)) {
+  return runWithSharpLimit(async () => {
+    try {
+      const metadata = await sharp(source, { failOn: "error" }).metadata();
+      if (!metadata.format || !ALLOWED_FORMATS.has(metadata.format)) {
+        return {
+          success: false,
+          error: "Image must be JPEG, PNG, WebP, or GIF.",
+        };
+      }
+
+      const buffer = await sharp(source, { failOn: "error" })
+        .rotate()
+        .resize({
+          width: GALLERY_IMAGE_MAX_EDGE,
+          height: GALLERY_IMAGE_MAX_EDGE,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .webp({ quality: GALLERY_IMAGE_WEBP_QUALITY })
+        .toBuffer();
+
+      const encoded = await sharp(buffer, { failOn: "error" }).metadata();
+      if (encoded.format !== "webp" || !encoded.width || !encoded.height) {
+        return {
+          success: false,
+          error: "Unable to process image. Use a valid JPEG, PNG, WebP, or GIF.",
+        };
+      }
+
       return {
-        success: false,
-        error: "Image must be JPEG, PNG, WebP, or GIF.",
+        success: true,
+        buffer,
+        contentType: "image/webp",
+        fileName: webpFileNameFromOriginal(input.originalFileName),
       };
-    }
-
-    const buffer = await sharp(source, { failOn: "error" })
-      .rotate()
-      .resize({
-        width: GALLERY_IMAGE_MAX_EDGE,
-        height: GALLERY_IMAGE_MAX_EDGE,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({ quality: GALLERY_IMAGE_WEBP_QUALITY })
-      .toBuffer();
-
-    const encoded = await sharp(buffer, { failOn: "error" }).metadata();
-    if (encoded.format !== "webp" || !encoded.width || !encoded.height) {
+    } catch {
       return {
         success: false,
         error: "Unable to process image. Use a valid JPEG, PNG, WebP, or GIF.",
       };
     }
-
-    return {
-      success: true,
-      buffer,
-      contentType: "image/webp",
-      fileName: webpFileNameFromOriginal(input.originalFileName),
-    };
-  } catch {
-    return {
-      success: false,
-      error: "Unable to process image. Use a valid JPEG, PNG, WebP, or GIF.",
-    };
-  }
+  });
 }

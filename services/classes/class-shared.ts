@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   CLASS_STATUSES,
   type ClassStatusValue,

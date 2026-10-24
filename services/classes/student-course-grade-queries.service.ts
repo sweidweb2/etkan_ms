@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
@@ -34,14 +36,9 @@ import type {
   ManagerStudentClassTabDetail,
 } from "@/types/manager-student-class-detail";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
+import type { ComputedStudentGradeSheetBundle } from "@/types/manager-student-course-grade";
 
-export type ComputedStudentGradeSheetBundle = {
-  student: ManagerClassStudentRow;
-  gradeRow: ManagerClassStudentGradeRow;
-  detail: ManagerStudentClassTabDetail;
-  classTasks: ManagerClassTaskForGradesRow[];
-  finalExam: ManagerClassFinalExamRow | null;
-};
+export type { ComputedStudentGradeSheetBundle };
 
 export async function getStudentClassGradeDetailForManager(
   adminClient: Supabase,

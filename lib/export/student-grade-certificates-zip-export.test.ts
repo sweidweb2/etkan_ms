@@ -4,7 +4,7 @@ import {
   buildComputedGradeCertificatesZipBlob,
   getGradeCertificatesZipFilename,
 } from "@/lib/export/student-grade-certificates-zip-export";
-import type { ComputedStudentGradeSheetBundle } from "@/services/classes/student-course-grade.service";
+import type { ComputedStudentGradeSheetBundle } from "@/types/manager-student-course-grade";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
 const classRow: ManagerClassRow = {

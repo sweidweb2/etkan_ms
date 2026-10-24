@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   STUDENT_TASK_UPLOADS_STORAGE_BUCKET,

@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   PERMISSION_DEFINITIONS,
   PERMISSION_FEATURES,

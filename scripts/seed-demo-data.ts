@@ -13,7 +13,14 @@ import {
   GUEST_INTERESTED_SERVICES,
   GUEST_PIPELINE_STATUSES,
 } from "@/lib/constants/guest";
-import { TEACHER_SEED_PERMISSIONS } from "@/lib/constants/role-seed-permissions";
+import {
+  PERMISSION_DEFINITIONS,
+  type PermissionKey,
+} from "@/lib/constants/permissions";
+import {
+  CLASS_TREE_SEED_FEATURES,
+  TEACHER_SEED_PERMISSIONS,
+} from "@/lib/constants/role-seed-permissions";
 import { WORKSHOP_OFFERING_TYPES, WORKSHOP_INSTRUCTOR_ROLES, WORKSHOP_SESSION_STATUSES, WORKSHOP_WAGE_TYPES } from "@/lib/constants/manager-workshop-display";
 import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
 import {
@@ -271,6 +278,44 @@ async function findOrCreateStaff(
   }
 }
 
+/**
+ * Ensure the teacher role has the full class-tree grants (sessions, tasks,
+ * attendance, grades, final exams, classes.*). Demo seed is often run without
+ * re-running seed:rbac; this keeps teachers able to manage assigned classes.
+ */
+async function ensureTeacherRolePermissions(client: Supabase): Promise<void> {
+  const featureSet = new Set(CLASS_TREE_SEED_FEATURES);
+  const catalogRows = PERMISSION_DEFINITIONS.filter((definition) =>
+    featureSet.has(definition.feature)
+  ).map((definition) => ({
+    key: definition.key as PermissionKey,
+    label: definition.label,
+    feature_group: definition.feature,
+    access: definition.access,
+  }));
+
+  const { error: upsertError } = await permissionRepository.upsertPermissions(
+    client,
+    catalogRows
+  );
+  if (upsertError) {
+    throw new Error(
+      `Unable to upsert class-tree permissions: ${upsertError.message}`
+    );
+  }
+
+  const { error } = await permissionRepository.replaceRolePermissions(
+    client,
+    ROLES.TEACHER,
+    [...TEACHER_SEED_PERMISSIONS]
+  );
+  if (error) {
+    throw new Error(
+      `Unable to seed teacher role permissions: ${error.message}`
+    );
+  }
+}
+
 async function findOrCreateTeacher(
   client: Supabase,
   input: SeedTeacher
@@ -285,12 +330,12 @@ async function findOrCreateTeacher(
       is_instructor: input.isInstructor ?? false,
       is_mentor: input.isMentor ?? false,
     };
-    if (flags.is_instructor || flags.is_mentor) {
-      await profileRepository.updateProfileById(client, existingProfile.data.id, {
-        username: input.username,
-        ...flags,
-      });
-    }
+    await profileRepository.updateProfileById(client, existingProfile.data.id, {
+      username: input.username,
+      role: ROLES.TEACHER,
+      ...flags,
+    });
+    await syncAuthUserRole(client, existingProfile.data.id, ROLES.TEACHER);
     return existingProfile.data.id;
   }
 
@@ -1235,6 +1280,9 @@ async function seedDemoData(): Promise<void> {
   const client = createSeedAdminClient();
   const receiverId = await resolveReceiverUserId(client);
 
+  // Class-tree RBAC for teachers (idempotent; safe if seed:rbac already ran).
+  await ensureTeacherRolePermissions(client);
+
   // --- Panel staff (beyond admin/manager scripts) ---
   await findOrCreateStaff(client, {
     username: "demo.ceo",
@@ -1427,6 +1475,9 @@ async function seedDemoData(): Promise<void> {
   console.log("Staff (password Demo123! unless overridden):");
   console.log("  demo.ceo / demo.supervisor / demo.crm / demo.comanager");
   console.log("  demo.teacher.math (instructor+mentor), demo.teacher.physics");
+  console.log(
+    `  Teacher role permissions: ${TEACHER_SEED_PERMISSIONS.length} class-tree keys`
+  );
   console.log("");
   console.log("Academic:");
   console.log(`  Semesters: ${DEMO_MARKER}, ${DEMO_SPRING}`);

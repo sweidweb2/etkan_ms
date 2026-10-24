@@ -1,3 +1,5 @@
+import "server-only";
+
 import JSZip from "jszip";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
@@ -7,6 +9,7 @@ import {
   isSafeStorageObjectPath,
   type BackupStorageBucket,
 } from "@/lib/constants/backup-storage";
+import { runWithBackupZipLimit } from "@/lib/concurrency/heavy-cpu";
 import * as backupStorageRepository from "@/repositories/backup-storage.repository";
 import { getUnauthorizedError } from "@/services/auth/authorization.service";
 import type {
@@ -240,7 +243,9 @@ export async function buildStorageFilesZipForBackup(
   }
 
   const buffer = Buffer.from(
-    await zip.generateAsync({ type: "arraybuffer" })
+    await runWithBackupZipLimit(() =>
+      zip.generateAsync({ type: "arraybuffer" })
+    )
   );
 
   return {

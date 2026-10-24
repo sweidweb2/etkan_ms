@@ -1,3 +1,5 @@
+import "server-only";
+
 import { SITE, getSiteUrl } from "@/lib/config/site";
 import { ROUTES } from "@/lib/constants/routes";
 import { PERMISSIONS } from "@/lib/constants/permissions";
@@ -33,12 +35,15 @@ import type { AuditActor } from "@/services/ops/audit-log.service";
 import type { SendEmailInput as SendManagerEmailInput } from "@/lib/validators/manager/send-email";
 import type { FieldErrors } from "@/types/auth";
 import type {
+  EmailingClassOption,
   ManagerEmailSentDetail,
   ManagerEmailSentListRow,
   ManagerEmailUserRow,
 } from "@/types/manager-emailing";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+export type { EmailingClassOption };
 
 type Supabase = SupabaseClient<Database>;
 
@@ -496,11 +501,6 @@ export async function sendEmailsForManager(
     return { success: false, error: message };
   }
 }
-
-export type EmailingClassOption = {
-  id: string;
-  name: string;
-};
 
 export type EmailingTableFilterData = {
   classes: EmailingClassOption[];

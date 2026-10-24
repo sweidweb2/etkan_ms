@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import * as cloudflareAiUsageRepository from "@/repositories/cloudflare-ai-usage.repository";
 import type { CreateCloudflareAiUsageInput } from "@/repositories/cloudflare-ai-usage.repository";

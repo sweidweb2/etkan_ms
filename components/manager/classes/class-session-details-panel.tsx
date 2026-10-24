@@ -72,6 +72,12 @@ type ClassSessionDetailsPanelProps = {
   initialAttendees: ManagerSessionAttendeeRow[];
   hasComputedGrades?: boolean;
   lockedUserIds?: string[];
+  /** Panel navigation (defaults to manager class routes). */
+  navigation?: {
+    classesListHref: string;
+    classesListLabel: string;
+    classDetailHref: string;
+  };
 };
 
 const initialDeleteState: DeleteClassSessionActionState = {};
@@ -129,6 +135,7 @@ export function ClassSessionDetailsPanel({
   initialAttendees,
   hasComputedGrades = false,
   lockedUserIds = [],
+  navigation,
 }: ClassSessionDetailsPanelProps) {
   const [session, setSession] = useState(initialSession);
   const [linkedPhase, setLinkedPhase] =
@@ -151,6 +158,12 @@ export function ClassSessionDetailsPanel({
   );
 
   useActionStateToast(deleteState, isDeleteActionPending);
+
+  const nav = navigation ?? {
+    classesListHref: ROUTES.MANAGER_CLASSES,
+    classesListLabel: "Manage classes",
+    classDetailHref: getManagerClassDetailRoute(classRow.id),
+  };
 
   const timingLabel = getSessionTimingLabel(session);
   const timingText = SESSION_TIMING_LABELS[timingLabel];
@@ -178,6 +191,7 @@ export function ClassSessionDetailsPanel({
   function handleConfirmDelete() {
     const formData = new FormData();
     formData.set("session_id", session.id);
+    formData.set("return_to", nav.classDetailHref);
     startTransition(() => {
       deleteAction(formData);
     });
@@ -188,13 +202,13 @@ export function ClassSessionDetailsPanel({
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href={ROUTES.MANAGER_CLASSES}>
-              Manage classes
+            <BreadcrumbLink href={nav.classesListHref} prefetch={false}>
+              {nav.classesListLabel}
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href={getManagerClassDetailRoute(classRow.id)}>
+            <BreadcrumbLink href={nav.classDetailHref} prefetch={false}>
               {classRow.name}
             </BreadcrumbLink>
           </BreadcrumbItem>
@@ -268,7 +282,8 @@ export function ClassSessionDetailsPanel({
             <DetailField label="Duration" value={durationText} />
             <DetailField label="Class">
               <Link
-                href={getManagerClassDetailRoute(classRow.id)}
+                href={nav.classDetailHref}
+                prefetch={false}
                 className="text-primary underline-offset-4 hover:underline"
               >
                 {classRow.name}

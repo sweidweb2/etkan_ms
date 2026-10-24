@@ -1,3 +1,5 @@
+import "server-only";
+
 import * as profileRepository from "@/repositories/profile.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import type { User } from "@supabase/supabase-js";

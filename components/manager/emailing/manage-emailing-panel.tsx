@@ -56,7 +56,7 @@ import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { EmailingClassOption } from "@/services/communications/email.service";
+import type { EmailingClassOption } from "@/types/manager-emailing";
 import type { ManagerUserRow } from "@/types/manager-user";
 
 type ManageEmailingPanelProps = {
