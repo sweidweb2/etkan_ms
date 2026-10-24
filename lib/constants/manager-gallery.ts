@@ -1,5 +1,10 @@
 export const GALLERY_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 
+/** Longest edge after server-side resize (covers / gallery match). */
+export const GALLERY_IMAGE_MAX_EDGE = 2048;
+
+export const GALLERY_IMAGE_WEBP_QUALITY = 82;
+
 export const GALLERY_IMAGE_ALLOWED_MIME_TYPES = [
   "image/jpeg",
   "image/png",

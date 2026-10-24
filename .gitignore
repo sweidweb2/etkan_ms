@@ -32,12 +32,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (including *.example) — never commit
+# env files — never commit secrets; keep *.example templates tracked
 .env*
-
-# local Next / Supabase config (ports can differ per machine)
-next.config.ts
-supabase/config.toml
+!.env.example
+!.env.*.example
 
 # vercel
 .vercel

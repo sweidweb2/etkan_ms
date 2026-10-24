@@ -3,7 +3,7 @@ import {
   GALLERY_MANAGER_PAGE_SIZE_OPTIONS,
 } from "@/lib/constants/manager-gallery";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { galleryImageContentType } from "@/lib/manager/gallery/validate-client-file";
+import { optimizeGalleryImage } from "@/lib/manager/gallery/optimize-image";
 import { mapGalleryImageRecordToRow } from "@/lib/manager/gallery/map-gallery-image";
 import {
   buildGalleryImageStoragePath,
@@ -109,14 +109,25 @@ async function uploadGalleryFile(
 ): Promise<
   { success: true; storagePath: string } | { success: false; error: string }
 > {
-  const storagePath = buildGalleryImageStoragePath(file.name);
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const optimized = await optimizeGalleryImage({
+    bytes,
+    originalFileName: file.name,
+    byteLength: file.size,
+  });
+
+  if (!optimized.success) {
+    return { success: false, error: optimized.error };
+  }
+
+  const storagePath = buildGalleryImageStoragePath(optimized.fileName);
   const { bucket, objectPath } = splitGalleryImageStoragePath(storagePath);
   const uploadResult = await uploadObject(
     adminClient,
     bucket,
     objectPath,
-    file,
-    galleryImageContentType(file)
+    optimized.buffer,
+    optimized.contentType
   );
 
   if (uploadResult.error) {
