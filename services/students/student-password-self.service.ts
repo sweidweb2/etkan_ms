@@ -11,7 +11,7 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import type { FieldErrors } from "@/types/auth";
-import { changeOwnPasswordSchema } from "@/lib/validators/student/change-own-password";
+import { changeOwnPasswordSchema } from "@/lib/validators/auth/change-own-password";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";

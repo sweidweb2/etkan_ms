@@ -5,8 +5,7 @@ import {
   changeOwnPasswordAction,
   type ChangeOwnPasswordActionState,
 } from "@/app/(panels)/student/actions";
-import { FieldLabel } from "@/components/auth/field-label";
-import { PasswordInput } from "@/components/auth/password-input";
+import { ChangeOwnPasswordFields } from "@/components/auth/change-own-password-fields";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,12 +21,10 @@ import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useZodForm } from "@/hooks/use-zod-form";
-import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
-import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import {
   changeOwnPasswordSchema,
   type ChangeOwnPasswordInput,
-} from "@/lib/validators/student/change-own-password";
+} from "@/lib/validators/auth/change-own-password";
 
 const initialState: ChangeOwnPasswordActionState = {};
 
@@ -82,13 +79,6 @@ export function ChangeOwnPasswordDialog({
     formAction(formData);
   }
 
-  const currentPasswordError =
-    errors.currentPassword?.message ?? state.fieldErrors?.currentPassword?.[0];
-  const newPasswordError =
-    errors.newPassword?.message ?? state.fieldErrors?.newPassword?.[0];
-  const confirmPasswordError =
-    errors.confirmPassword?.message ?? state.fieldErrors?.confirmPassword?.[0];
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
@@ -103,71 +93,30 @@ export function ChangeOwnPasswordDialog({
           noValidate
           onSubmit={handleSubmit(onSubmit)}
         >
-          <div className="flex flex-col gap-2">
-            <FieldLabel htmlFor="own-old-password" label="Old password" />
-            <PasswordInput
-              id="own-old-password"
-              placeholder="Enter your old password"
-              autoComplete="current-password"
-              maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!currentPasswordError}
-              disabled={isPending}
-              {...register("currentPassword")}
-            />
-            {currentPasswordError ? (
-              <p className="text-sm text-destructive">{currentPasswordError}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="own-new-password"
-              label="New password"
-              hint={AUTH_FIELD_HINTS.password}
-            />
-            <PasswordInput
-              id="own-new-password"
-              placeholder="Enter your new password"
-              autoComplete="new-password"
-              minLength={AUTH_LIMITS.password.min}
-              maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!newPasswordError}
-              disabled={isPending}
-              {...register("newPassword")}
-            />
-            {newPasswordError ? (
-              <p className="text-sm text-destructive">{newPasswordError}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="own-confirm-password"
-              label="Confirm password"
-              hint={AUTH_FIELD_HINTS.confirmPassword}
-            />
-            <PasswordInput
-              id="own-confirm-password"
-              placeholder="Confirm your new password"
-              autoComplete="new-password"
-              minLength={AUTH_LIMITS.password.min}
-              maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!confirmPasswordError}
-              disabled={isPending}
-              {...register("confirmPassword")}
-            />
-            {confirmPasswordError ? (
-              <p className="text-sm text-destructive">{confirmPasswordError}</p>
-            ) : null}
-            <p className="text-xs text-muted-foreground">
-              If you forgot your password, contact{" "}
-              <a
-                href="mailto:info@etkan.org"
-                className="font-medium text-foreground underline-offset-4 hover:underline"
-              >
-                info@etkan.org
-              </a>
-              .
-            </p>
-          </div>
+          <ChangeOwnPasswordFields
+            idPrefix="own"
+            disabled={isPending}
+            register={register}
+            errors={errors}
+            fieldErrors={state.fieldErrors}
+            currentPasswordLabel="Old password"
+            currentPasswordPlaceholder="Enter your old password"
+            newPasswordPlaceholder="Enter your new password"
+            confirmPasswordLabel="Confirm password"
+            confirmPasswordPlaceholder="Confirm your new password"
+            footerNote={
+              <p className="text-xs text-muted-foreground">
+                If you forgot your password, contact{" "}
+                <a
+                  href="mailto:info@etkan.org"
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  info@etkan.org
+                </a>
+                .
+              </p>
+            }
+          />
           <DialogFooter>
             <Button
               type="button"

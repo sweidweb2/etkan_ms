@@ -1,6 +1,7 @@
 "use client";
 
 import { DetailField } from "@/components/manager/shared/detail-field";
+import dynamic from "next/dynamic";
 import { useActionState, useState, useTransition } from "react";
 import { PencilIcon, PlayIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import {
@@ -14,6 +15,21 @@ import { SessionTaskUploadsSection } from "@/components/manager/classes/session-
 import { SessionTaskAnalyticsSection } from "@/components/manager/classes/session-task-analytics-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+
+const StudentTaskWorkspace = dynamic(
+  () =>
+    import("@/components/classes/student-task-workspace").then((mod) => ({
+      default: mod.StudentTaskWorkspace,
+    })),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center gap-2 rounded-2xl border border-border/80 bg-card px-4 py-16 text-sm text-muted-foreground">
+        <InlineSpinner />
+        Loading student tasks…
+      </div>
+    ),
+  }
+);
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -70,6 +86,13 @@ type ClassTaskDetailsPanelProps = {
     classesListLabel: string;
     classDetailHref: string;
   };
+  /** When false, hides the task analytics charts section. Defaults to true. */
+  showTaskAnalyticsSection?: boolean;
+  /**
+   * `sections` — separate uploads + student table (manager default).
+   * `workspace` — sidebar students + inline fields/uploads (lazy-loaded).
+   */
+  studentTasksLayout?: "sections" | "workspace";
 };
 
 export function ClassTaskDetailsPanel({
@@ -80,6 +103,8 @@ export function ClassTaskDetailsPanel({
   lockedUserIds = [],
   hasComputedGrades = false,
   navigation,
+  showTaskAnalyticsSection = true,
+  studentTasksLayout = "sections",
 }: ClassTaskDetailsPanelProps) {
   const nav = navigation ?? {
     classesListHref: ROUTES.MANAGER_CLASSES,
@@ -257,23 +282,37 @@ export function ClassTaskDetailsPanel({
         </CardContent>
       </Card>
 
-      <SessionTaskUploadsSection
-        studentTasks={studentTasks}
-        initialUploads={initialUploads}
-        lockedUserIds={lockedUserIds}
-      />
+      {studentTasksLayout === "workspace" ? (
+        <StudentTaskWorkspace
+          task={task}
+          studentTasks={studentTasks}
+          initialUploads={initialUploads}
+          onStudentTasksChange={setStudentTasks}
+          lockedUserIds={lockedUserIds}
+        />
+      ) : (
+        <>
+          <SessionTaskUploadsSection
+            studentTasks={studentTasks}
+            initialUploads={initialUploads}
+            lockedUserIds={lockedUserIds}
+          />
 
-      <SessionTaskStudentTasksSection
-        task={task}
-        studentTasks={studentTasks}
-        onStudentTasksChange={setStudentTasks}
-        lockedUserIds={lockedUserIds}
-      />
+          <SessionTaskStudentTasksSection
+            task={task}
+            studentTasks={studentTasks}
+            onStudentTasksChange={setStudentTasks}
+            lockedUserIds={lockedUserIds}
+          />
+        </>
+      )}
 
-      <SessionTaskAnalyticsSection
-        studentTasks={studentTasks}
-        maxGrade={task.max_grade}
-      />
+      {showTaskAnalyticsSection ? (
+        <SessionTaskAnalyticsSection
+          studentTasks={studentTasks}
+          maxGrade={task.max_grade}
+        />
+      ) : null}
 
       <EditClassTaskDialog
         open={isEditOpen}

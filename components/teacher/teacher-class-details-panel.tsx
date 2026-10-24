@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { RefreshCwIcon } from "lucide-react";
@@ -35,9 +42,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SemiCircularGaugeCard } from "@/components/ui/semi-circular-gauge-card";
 import { showErrorToast } from "@/lib/toast";
-import type { ClassTaskGradeSummary } from "@/lib/manager/class-task-grade-summary";
 import {
   CLASS_STATUS_BADGE_CLASSES,
   CLASS_STATUS_LABELS,
@@ -63,16 +68,19 @@ import {
 } from "@/types/manager-class-session";
 import type { ManagerClassTaskRow } from "@/types/manager-class-session-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
-import type { ManagerClassStudentRow } from "@/types/manager-class-student";
+import type { ClassStudentRow } from "@/types/class-student";
 
 type TeacherClassDetailsPanelProps = {
   classRow: ManagerClassRow;
   initialSessions: ManagerClassSessionRow[];
   initialTasks: ManagerClassTaskRow[];
-  initialStudents?: ManagerClassStudentRow[];
+  initialStudents?: ClassStudentRow[];
   hasComputedGrades?: boolean;
   assignedAt: string | null;
-  taskGradeSummary?: ClassTaskGradeSummary | null;
+  /** Deferred RSC grade-summary gauges for the Tasks tab (respects layout pref). */
+  tasksGradeSummarySlot?: ReactNode;
+  /** Deferred RSC grade-summary for the Analytics tab. */
+  analyticsGradeSummarySlot?: ReactNode;
   /** From `?tab=` on the server for first paint without flash. */
   initialTab?: TeacherClassDetailTab;
 };
@@ -87,7 +95,7 @@ const CLASS_TABS = [
 ] as const;
 
 const TAB_TRIGGER_CLASS =
-  "rounded-md px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-primary/20";
+  "rounded-md px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 hover:bg-primary/6 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-primary/20 data-[state=active]:hover:bg-primary/12 data-[state=active]:hover:text-primary";
 
 export function TeacherClassDetailsPanel({
   classRow: initialClassRow,
@@ -96,7 +104,8 @@ export function TeacherClassDetailsPanel({
   initialStudents = [],
   hasComputedGrades = false,
   assignedAt,
-  taskGradeSummary = null,
+  tasksGradeSummarySlot = null,
+  analyticsGradeSummarySlot = null,
   initialTab = TABS.MAIN,
 }: TeacherClassDetailsPanelProps) {
   const router = useRouter();
@@ -442,23 +451,9 @@ export function TeacherClassDetailsPanel({
           <TabsContent value={TABS.TASKS} className="flex flex-col gap-4">
             {visitedTabs.has(TABS.TASKS) ? (
               <>
-                {taskAnalyticsHydrated &&
-                taskAnalyticsEnabled &&
-                taskGradeSummary ? (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <SemiCircularGaugeCard
-                      title="Task grades"
-                      titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
-                      value={taskGradeSummary.averageEarned}
-                      total={taskGradeSummary.totalMax}
-                      progressPercent={taskGradeSummary.progressPercent}
-                      valueLabel="Average"
-                      legendAverageLabel="Average"
-                      legendTotalLabel="Total"
-                      className="sm:max-w-sm"
-                    />
-                  </div>
-                ) : null}
+                {taskAnalyticsHydrated && taskAnalyticsEnabled
+                  ? tasksGradeSummarySlot
+                  : null}
 
                 <ClassTasksSection
                   classId={classRow.id}
@@ -476,27 +471,7 @@ export function TeacherClassDetailsPanel({
           </TabsContent>
 
           <TabsContent value={TABS.ANALYTICS} className="flex flex-col gap-4">
-            {visitedTabs.has(TABS.ANALYTICS) ? (
-              taskGradeSummary ? (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <SemiCircularGaugeCard
-                    title="Task grades"
-                    titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
-                    value={taskGradeSummary.averageEarned}
-                    total={taskGradeSummary.totalMax}
-                    progressPercent={taskGradeSummary.progressPercent}
-                    valueLabel="Average"
-                    legendAverageLabel="Average"
-                    legendTotalLabel="Total"
-                    className="sm:max-w-sm"
-                  />
-                </div>
-              ) : (
-                <p className="rounded-2xl border border-border/70 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-                  No task grade analytics yet for this class.
-                </p>
-              )
-            ) : null}
+            {visitedTabs.has(TABS.ANALYTICS) ? analyticsGradeSummarySlot : null}
           </TabsContent>
         </TabsContents>
       </Tabs>

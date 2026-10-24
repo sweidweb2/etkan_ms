@@ -5,7 +5,7 @@ import { getSessionAuditActor } from "@/lib/auth/session";
 import { ROUTES } from "@/lib/constants/routes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerActionClient } from "@/lib/supabase/server";
-import { parseChangeOwnPasswordFormData } from "@/lib/validators/student/change-own-password";
+import { parseChangeOwnPasswordFormData } from "@/lib/validators/auth/change-own-password";
 import { parseUpdateOwnTeacherProfileFormData } from "@/lib/validators/teacher/update-own-profile";
 import {
   changeOwnTeacherPassword,

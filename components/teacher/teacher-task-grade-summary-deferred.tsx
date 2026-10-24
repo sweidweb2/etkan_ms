@@ -1,0 +1,73 @@
+import { Suspense } from "react";
+import { SemiCircularGaugeCard } from "@/components/ui/semi-circular-gauge-card";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getTeachingClassTaskGradeSummaryForSelf } from "@/services/classes/teacher-class-self.service";
+
+type TeacherTaskGradeSummaryDeferredProps = {
+  classId: string;
+  actorUserId: string | null;
+  /** When false, show empty-state copy instead of hiding (Analytics tab). */
+  showEmptyState?: boolean;
+};
+
+function TeacherTaskGradeSummaryFallback() {
+  return (
+    <div
+      className="min-h-[10rem] max-w-sm animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
+      aria-hidden
+    />
+  );
+}
+
+async function TeacherTaskGradeSummarySection({
+  classId,
+  actorUserId,
+  showEmptyState = false,
+}: TeacherTaskGradeSummaryDeferredProps) {
+  const adminClient = createSupabaseAdminClient();
+  const summary = await getTeachingClassTaskGradeSummaryForSelf(
+    adminClient,
+    actorUserId,
+    classId
+  );
+
+  if (!summary) {
+    if (!showEmptyState) {
+      return null;
+    }
+    return (
+      <p className="rounded-2xl border border-border/70 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+        No task grade analytics yet for this class.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <SemiCircularGaugeCard
+        title="Task grades"
+        titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
+        value={summary.averageEarned}
+        total={summary.totalMax}
+        progressPercent={summary.progressPercent}
+        valueLabel="Average"
+        legendAverageLabel="Average"
+        legendTotalLabel="Total"
+        className="sm:max-w-sm"
+      />
+    </div>
+  );
+}
+
+/**
+ * Streams task grade analytics after the class shell, like manager deferred analytics.
+ */
+export function TeacherTaskGradeSummaryDeferred(
+  props: TeacherTaskGradeSummaryDeferredProps
+) {
+  return (
+    <Suspense fallback={<TeacherTaskGradeSummaryFallback />}>
+      <TeacherTaskGradeSummarySection {...props} />
+    </Suspense>
+  );
+}

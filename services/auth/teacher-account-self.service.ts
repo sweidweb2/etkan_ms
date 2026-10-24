@@ -1,7 +1,7 @@
 import "server-only";
 
 import { ROLES } from "@/lib/constants/roles";
-import { changeOwnPasswordSchema } from "@/lib/validators/student/change-own-password";
+import { changeOwnPasswordSchema } from "@/lib/validators/auth/change-own-password";
 import { updateOwnTeacherProfileSchema } from "@/lib/validators/teacher/update-own-profile";
 import { zodFieldErrors } from "@/lib/validators/auth/parse-form";
 import * as authRepository from "@/repositories/auth.repository";

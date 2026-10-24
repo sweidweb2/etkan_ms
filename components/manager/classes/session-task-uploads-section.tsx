@@ -1,12 +1,10 @@
 "use client";
 
 import {
-  useActionState,
   useEffect,
   useMemo,
   useRef,
   useState,
-  useTransition,
   type FormEvent,
 } from "react";
 import { format } from "date-fns";
@@ -44,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
 import {
@@ -52,6 +51,7 @@ import {
   STUDENT_TASK_UPLOAD_MAX_FILES,
 } from "@/lib/constants/manager-student-task-uploads";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { formatUploadFileSize } from "@/lib/classes/student-task-upload-format";
 import { showErrorToast } from "@/lib/toast";
 import type {
   DeleteStudentTaskUploadActionState,
@@ -68,16 +68,6 @@ type SessionTaskUploadsSectionProps = {
   initialUploads: ManagerStudentTaskUploadRow[];
   lockedUserIds?: string[];
 };
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export function SessionTaskUploadsSection({
   studentTasks,
@@ -135,12 +125,10 @@ export function SessionTaskUploadsSection({
   const [selectProgressComplete, setSelectProgressComplete] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
 
-  const [isUploadTransitionPending, startUploadTransition] = useTransition();
-  const [uploadState, uploadAction, isUploadActionPending] = useActionState(
+  const [uploadState, uploadAction, isUploadPending] = useFormActionState(
     uploadStudentTaskFileAction,
     initialUploadState
   );
-  const isUploadPending = isUploadActionPending || isUploadTransitionPending;
 
   const selectProgress = useSimulatedProgressPercent(isSelectProgressActive);
   const uploadProgress = useSimulatedProgressPercent(
@@ -201,12 +189,10 @@ export function SessionTaskUploadsSection({
 
   const [deletingUpload, setDeletingUpload] =
     useState<ManagerStudentTaskUploadRow | null>(null);
-  const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
-  const [deleteState, deleteAction, isDeleteActionPending] = useActionState(
+  const [deleteState, deleteAction, isDeletePending] = useFormActionState(
     deleteStudentTaskUploadAction,
     initialDeleteState
   );
-  const isDeletePending = isDeleteActionPending || isDeleteTransitionPending;
   const handleDeleteOpenChange = usePendingAwareOpenChange(
     isDeletePending,
     (open) => {
@@ -258,9 +244,7 @@ export function SessionTaskUploadsSection({
     setUploadComplete(false);
     const formData = new FormData(event.currentTarget);
     formData.set("student_task_id", selectedStudentTaskId);
-    startUploadTransition(() => {
-      uploadAction(formData);
-    });
+    uploadAction(formData);
   }
 
   function handleConfirmDelete() {
@@ -269,9 +253,7 @@ export function SessionTaskUploadsSection({
     }
     const formData = new FormData();
     formData.set("id", deletingUpload.id);
-    startDeleteTransition(() => {
-      deleteAction(formData);
-    });
+    deleteAction(formData);
   }
 
   async function handleOpenUpload(upload: ManagerStudentTaskUploadRow) {
@@ -508,7 +490,7 @@ export function SessionTaskUploadsSection({
                             {upload.file_name}
                           </td>
                           <td className="py-3 pr-3 align-middle text-muted-foreground">
-                            {formatFileSize(upload.file_size)}
+                            {formatUploadFileSize(upload.file_size)}
                           </td>
                           <td className="py-3 pr-3 align-middle text-muted-foreground">
                             {format(

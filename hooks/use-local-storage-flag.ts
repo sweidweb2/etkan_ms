@@ -15,7 +15,7 @@ function readFlag(
   onValue: string,
   offValue: string
 ): boolean {
-  if (typeof window === "undefined") {
+  if (!key || typeof window === "undefined") {
     return defaultValue;
   }
 
@@ -40,6 +40,10 @@ function writeFlag(
   onValue: string,
   offValue: string
 ) {
+  if (!key) {
+    return;
+  }
+
   try {
     window.localStorage.setItem(key, enabled ? onValue : offValue);
   } catch {

@@ -5,8 +5,7 @@ import {
   changeOwnTeacherPasswordAction,
   type ChangeOwnTeacherPasswordActionState,
 } from "@/app/teacher/settings/actions";
-import { FieldLabel } from "@/components/auth/field-label";
-import { PasswordInput } from "@/components/auth/password-input";
+import { ChangeOwnPasswordFields } from "@/components/auth/change-own-password-fields";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,12 +18,10 @@ import {
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { useFormActionState } from "@/hooks/use-form-action-state";
 import { useZodForm } from "@/hooks/use-zod-form";
-import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
-import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
 import {
   changeOwnPasswordSchema,
   type ChangeOwnPasswordInput,
-} from "@/lib/validators/student/change-own-password";
+} from "@/lib/validators/auth/change-own-password";
 
 const initialState: ChangeOwnTeacherPasswordActionState = {};
 
@@ -59,15 +56,6 @@ export function TeacherSettingsPasswordForm() {
     }
   }, [state.success, reset]);
 
-  const currentPasswordError =
-    errors.currentPassword?.message ??
-    state.fieldErrors?.currentPassword?.[0];
-  const newPasswordError =
-    errors.newPassword?.message ?? state.fieldErrors?.newPassword?.[0];
-  const confirmPasswordError =
-    errors.confirmPassword?.message ??
-    state.fieldErrors?.confirmPassword?.[0];
-
   function onSubmit(values: ChangeOwnPasswordInput) {
     const formData = new FormData();
     formData.set("currentPassword", values.currentPassword);
@@ -90,66 +78,13 @@ export function TeacherSettingsPasswordForm() {
           className="flex flex-col gap-4"
           noValidate
         >
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="teacher-current-password"
-              label="Current password"
-            />
-            <PasswordInput
-              id="teacher-current-password"
-              autoComplete="current-password"
-              placeholder="Enter your current password"
-              maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!currentPasswordError}
-              disabled={isPending}
-              {...register("currentPassword")}
-            />
-            {currentPasswordError ? (
-              <p className="text-sm text-destructive">{currentPasswordError}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="teacher-new-password"
-              label="New password"
-              hint={AUTH_FIELD_HINTS.password}
-            />
-            <PasswordInput
-              id="teacher-new-password"
-              autoComplete="new-password"
-              placeholder="Choose a new password"
-              minLength={AUTH_LIMITS.password.min}
-              maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!newPasswordError}
-              disabled={isPending}
-              {...register("newPassword")}
-            />
-            {newPasswordError ? (
-              <p className="text-sm text-destructive">{newPasswordError}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="teacher-confirm-password"
-              label="Confirm new password"
-              hint={AUTH_FIELD_HINTS.confirmPassword}
-            />
-            <PasswordInput
-              id="teacher-confirm-password"
-              autoComplete="new-password"
-              placeholder="Confirm your new password"
-              minLength={AUTH_LIMITS.password.min}
-              maxLength={AUTH_LIMITS.password.max}
-              aria-invalid={!!confirmPasswordError}
-              disabled={isPending}
-              {...register("confirmPassword")}
-            />
-            {confirmPasswordError ? (
-              <p className="text-sm text-destructive">{confirmPasswordError}</p>
-            ) : null}
-          </div>
+          <ChangeOwnPasswordFields
+            idPrefix="teacher"
+            disabled={isPending}
+            register={register}
+            errors={errors}
+            fieldErrors={state.fieldErrors}
+          />
 
           <div className="flex justify-end pt-1">
             <Button type="submit" size="sm" disabled={isPending}>

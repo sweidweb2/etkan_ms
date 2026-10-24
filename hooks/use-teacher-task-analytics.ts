@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocalStorageFlag } from "@/hooks/use-local-storage-flag";
+import { useLocalStorageBoolean } from "@/hooks/use-local-storage-boolean";
 import {
   TEACHER_LAYOUT_DEFAULTS,
   TEACHER_LAYOUT_STORAGE_KEYS,
@@ -11,7 +11,7 @@ import {
  * Teacher layout preference: show task analytics cards on class Tasks tabs.
  */
 export function useTeacherTaskAnalytics() {
-  return useLocalStorageFlag(
+  return useLocalStorageBoolean(
     TEACHER_LAYOUT_STORAGE_KEYS.TASK_ANALYTICS,
     TEACHER_LAYOUT_DEFAULTS.taskAnalytics,
     {

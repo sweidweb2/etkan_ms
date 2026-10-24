@@ -37,7 +37,7 @@ import type {
   TeachingClassPageBundle,
   TeachingClassSessionInlineDetail,
   TeachingClassTaskPageBundle,
-} from "@/types/teacher-class";
+} from "@/types/class-teaching";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -275,13 +275,6 @@ export async function getTeachingClassPageBundleForSelf(
   }
 
   const tasks = (tasksResult.data ?? []).map(mapTaskRecord);
-  const taskGradeSummary = await buildTaskGradeSummaryForTasks(
-    adminClient,
-    tasks.map((task) => ({
-      id: task.id,
-      max_grade: task.max_grade,
-    }))
-  );
 
   return {
     classRow,
@@ -291,7 +284,6 @@ export async function getTeachingClassPageBundleForSelf(
     assignedAt: assignment.assignedAt,
     hasComputedGrades: gradeLock.hasComputedGrades,
     lockedUserIds: gradeLock.lockedUserIds,
-    taskGradeSummary,
   };
 }
 

@@ -1,30 +1,36 @@
 "use client";
 
-import { useActionState, useTransition, type FormEvent } from "react";
-import { Can } from "@/components/auth/can";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { FieldLabel } from "@/components/auth/field-label";
-import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { useActionStateToast } from "@/hooks/use-action-state-toast";
-import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
-import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
-import { PERMISSIONS } from "@/lib/constants/permissions";
+import type { FormEvent } from "react";
 import {
   updateSelfCredentialsAction,
   type ChangeSelfCredentialsActionState,
 } from "@/app/manager/settings/actions";
+import { Can } from "@/components/auth/can";
+import { FieldLabel } from "@/components/auth/field-label";
+import { PasswordInput } from "@/components/auth/password-input";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useFormActionState } from "@/hooks/use-form-action-state";
+import { AUTH_FIELD_HINTS } from "@/lib/constants/auth-field-hints";
+import { AUTH_LIMITS } from "@/lib/constants/auth-limits";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 const initialState: ChangeSelfCredentialsActionState = {};
 
 export function SelfCredentialsSection() {
-  const [isTransitionPending, startTransition] = useTransition();
-  const [state, formAction, isActionPending] = useActionState(
+  const [state, formAction, isPending] = useFormActionState(
     updateSelfCredentialsAction,
     initialState
   );
-  const isPending = isActionPending || isTransitionPending;
 
   useActionStateToast(state, isPending);
 
@@ -34,8 +40,7 @@ export function SelfCredentialsSection() {
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    startTransition(() => formAction(formData));
+    formAction(new FormData(e.currentTarget));
   }
 
   return (
@@ -67,6 +72,7 @@ export function SelfCredentialsSection() {
               placeholder="you@example.com"
               maxLength={AUTH_LIMITS.email.max}
               aria-invalid={!!newEmailError}
+              disabled={isPending}
             />
             {newEmailError ? (
               <p className="text-sm text-destructive">{newEmailError}</p>
@@ -79,14 +85,14 @@ export function SelfCredentialsSection() {
               label="New password"
               hint={AUTH_FIELD_HINTS.password}
             />
-            <Input
+            <PasswordInput
               id="newPassword"
               name="newPassword"
-              type="password"
               autoComplete="new-password"
               minLength={AUTH_LIMITS.password.min}
               maxLength={AUTH_LIMITS.password.max}
               aria-invalid={!!newPasswordError}
+              disabled={isPending}
             />
             {newPasswordError ? (
               <p className="text-sm text-destructive">{newPasswordError}</p>
@@ -99,14 +105,14 @@ export function SelfCredentialsSection() {
               label="Confirm password"
               hint={AUTH_FIELD_HINTS.confirmPassword}
             />
-            <Input
+            <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
               autoComplete="new-password"
               minLength={AUTH_LIMITS.password.min}
               maxLength={AUTH_LIMITS.password.max}
               aria-invalid={!!confirmPasswordError}
+              disabled={isPending}
             />
             {confirmPasswordError ? (
               <p className="text-sm text-destructive">

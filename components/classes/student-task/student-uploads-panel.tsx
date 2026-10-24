@@ -1,11 +1,9 @@
 ﻿"use client";
 
 import {
-  useActionState,
   useEffect,
   useRef,
   useState,
-  useTransition,
   type FormEvent,
 } from "react";
 import {
@@ -16,10 +14,10 @@ import {
   UploadIcon,
 } from "lucide-react";
 import {
-  deleteTeacherStudentTaskUploadAction,
-  getTeacherStudentTaskUploadSignedUrlAction,
-  uploadTeacherStudentTaskFileAction,
-} from "@/app/teacher/classes/actions";
+  deleteStudentTaskUploadAction,
+  getStudentTaskUploadSignedUrlAction,
+  uploadStudentTaskFileAction,
+} from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -36,6 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
+import { useFormActionState } from "@/hooks/use-form-action-state";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useSimulatedProgressPercent } from "@/hooks/use-simulated-progress-percent";
 import {
@@ -88,19 +87,15 @@ export function StudentUploadsPanel({
   const [deletingUpload, setDeletingUpload] =
     useState<ManagerStudentTaskUploadRow | null>(null);
 
-  const [isUploadTransitionPending, startUploadTransition] = useTransition();
-  const [uploadState, uploadAction, isUploadActionPending] = useActionState(
-    uploadTeacherStudentTaskFileAction,
+  const [uploadState, uploadAction, isUploadPending] = useFormActionState(
+    uploadStudentTaskFileAction,
     initialUploadState
   );
-  const isUploadPending = isUploadActionPending || isUploadTransitionPending;
 
-  const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
-  const [deleteState, deleteAction, isDeleteActionPending] = useActionState(
-    deleteTeacherStudentTaskUploadAction,
+  const [deleteState, deleteAction, isDeletePending] = useFormActionState(
+    deleteStudentTaskUploadAction,
     initialDeleteState
   );
-  const isDeletePending = isDeleteActionPending || isDeleteTransitionPending;
 
   function resetSelectedFile() {
     formRef.current?.reset();
@@ -186,9 +181,7 @@ export function StudentUploadsPanel({
     setUploadComplete(false);
     const formData = new FormData(event.currentTarget);
     formData.set("student_task_id", studentTaskId);
-    startUploadTransition(() => {
-      uploadAction(formData);
-    });
+    uploadAction(formData);
   }
 
   function handleConfirmDelete() {
@@ -197,15 +190,13 @@ export function StudentUploadsPanel({
     }
     const formData = new FormData();
     formData.set("id", deletingUpload.id);
-    startDeleteTransition(() => {
-      deleteAction(formData);
-    });
+    deleteAction(formData);
   }
 
   async function resolveUploadSignedUrl(uploadId: string) {
     const formData = new FormData();
     formData.set("id", uploadId);
-    return getTeacherStudentTaskUploadSignedUrlAction(formData);
+    return getStudentTaskUploadSignedUrlAction(formData);
   }
 
   async function handleOpenUpload(upload: ManagerStudentTaskUploadRow) {

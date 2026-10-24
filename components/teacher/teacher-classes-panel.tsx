@@ -24,7 +24,7 @@ import {
 } from "@/lib/constants/manager-class-status";
 import { getTeacherClassDetailRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-import type { TeacherClassRow } from "@/types/teacher-class";
+import type { TeacherClassRow } from "@/types/class-teaching";
 
 type TeacherClassesPanelProps = {
   rows: TeacherClassRow[];

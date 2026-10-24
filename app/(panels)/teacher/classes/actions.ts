@@ -26,8 +26,10 @@ import type {
   UpdateStudentTaskActionState,
   UploadStudentTaskFileActionState,
 } from "@/types/manager-class-session-detail";
-import type { TeachingClassSessionInlineDetail } from "@/types/teacher-class";
-import type { TeacherClassRow } from "@/types/teacher-class";
+import type {
+  TeacherClassRow,
+  TeachingClassSessionInlineDetail,
+} from "@/types/class-teaching";
 
 export async function deleteTeacherClassTaskAction(
   prevState: DeleteClassTaskActionState,
