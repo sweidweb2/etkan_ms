@@ -186,6 +186,7 @@ Format: `key` — label — access
 |-----|-------|--------|
 | `tasks.view` | View tasks and open student task upload signed URLs | read |
 | `tasks.manage_own_uploads` | Upload, open, and delete the signed-in student's own task files | write |
+| `tasks.export_uploads` | Export all student uploads for a class task as a ZIP | read |
 | `tasks.create` | Create task | write |
 | `tasks.update` | Edit task | write |
 | `tasks.update_student` | Edit student task (status, grade, notes, student report) and manage student task file uploads | write |
@@ -497,6 +498,7 @@ attendance.view
 attendance.update
 tasks.view
 tasks.manage_own_uploads
+tasks.export_uploads
 tasks.create
 tasks.update
 tasks.update_student

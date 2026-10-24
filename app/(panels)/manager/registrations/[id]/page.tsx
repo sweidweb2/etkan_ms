@@ -3,10 +3,7 @@ import { RegistrationDetailsPanel } from "@/components/manager/registrations/reg
 import { getSessionUser } from "@/lib/auth/session";
 import { parseRegistrationDetailFrom } from "@/lib/constants/registration-detail-from";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import {
-  getRegistrationApplicationDetailForManager,
-  getRegistrationDetailBreadcrumbForManager,
-} from "@/services/students/student-registration.service";
+import { getRegistrationApplicationDetailPageForManager } from "@/services/students/student-registration.service";
 
 type ManagerRegistrationDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -22,27 +19,22 @@ export default async function ManagerRegistrationDetailPage({
   const from = parseRegistrationDetailFrom(query.from);
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
-  const detail = await getRegistrationApplicationDetailForManager(
+  const detail = await getRegistrationApplicationDetailPageForManager(
     adminClient,
     user?.id ?? null,
-    id
+    id,
+    from
   );
 
   if (!detail) {
     notFound();
   }
 
-  const breadcrumbItems = await getRegistrationDetailBreadcrumbForManager(
-    adminClient,
-    from,
-    detail.application
-  );
-
   return (
     <RegistrationDetailsPanel
       application={detail.application}
       signedDocuments={detail.signedDocuments}
-      breadcrumbItems={breadcrumbItems}
+      breadcrumbItems={detail.breadcrumbItems}
     />
   );
 }

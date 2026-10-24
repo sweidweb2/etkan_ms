@@ -32,7 +32,10 @@ import {
 } from "@/services/auth/authorization.service";
 import { mapStudentTaskUploadForSelf } from "@/services/classes/student-task-upload-self.service";
 import { listStudentClassAcademicBundlesForSelf } from "@/services/classes/student-course-grade.service";
-import { listJoinedClassesForStudentSelf } from "@/services/students/student.service";
+import {
+  getJoinedClassForStudentSelf,
+  listJoinedClassesForStudentSelf,
+} from "@/services/students/student.service";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -194,12 +197,11 @@ export async function getStudentClassDetailForSelf(
 
   const userId = await assertStudentSelfAccess(adminClient, actorUserId);
 
-  // Enrollment check via joined list (avoids a separate membership round-trip).
-  const joinedClasses = await listJoinedClassesForStudentSelf(
+  const classRow = await getJoinedClassForStudentSelf(
     adminClient,
-    userId
+    userId,
+    classId
   );
-  const classRow = joinedClasses.find((row) => row.class_id === classId);
   if (!classRow) {
     return null;
   }
@@ -260,26 +262,16 @@ export async function getStudentClassTaskForSelf(
 
   const userId = await assertStudentSelfAccess(adminClient, actorUserId);
 
-  const isMember = await findStudentClassMembership(
-    adminClient,
-    userId,
-    classId
-  );
-  if (!isMember) {
-    return null;
-  }
+  const [classRow, taskResult] = await Promise.all([
+    getJoinedClassForStudentSelf(adminClient, userId, classId),
+    classTaskRepository.findClassTaskById(adminClient, taskId),
+  ]);
 
-  const joinedClasses = await listJoinedClassesForStudentSelf(
-    adminClient,
-    userId
-  );
-  const classRow = joinedClasses.find((row) => row.class_id === classId);
   if (!classRow) {
     return null;
   }
 
-  const { data: task, error: taskError } =
-    await classTaskRepository.findClassTaskById(adminClient, taskId);
+  const { data: task, error: taskError } = taskResult;
 
   if (taskError) {
     throw new Error(taskError.message);

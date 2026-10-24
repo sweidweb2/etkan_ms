@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ClassGradesLockedSection } from "@/components/manager/classes/class-grades-locked-section";
 import { ClassStudentGradesSection } from "@/components/manager/classes/class-student-grades-section";
@@ -15,6 +16,7 @@ import { isClassGradesUnlocked } from "@/lib/manager/class-grades-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClassForManager } from "@/services/classes/class.service";
 import { loadClassGradesPageData } from "@/services/classes/student-course-grade.service";
+import type { ManagerClassRow } from "@/types/manager-class-list";
 
 type ManagerClassGradesPageProps = {
   params: Promise<{ id: string }>;
@@ -59,7 +61,13 @@ export default async function ManagerClassGradesPage({
       </Breadcrumb>
 
       {gradesUnlocked ? (
-        <ManagerClassGradesContent classId={id} actorUserId={actorUserId} />
+        <Suspense fallback={<ClassGradesBodyFallback />}>
+          <ManagerClassGradesContent
+            classId={id}
+            actorUserId={actorUserId}
+            classRow={classRow}
+          />
+        </Suspense>
       ) : (
         <ClassGradesLockedSection status={classRow.status} />
       )}
@@ -67,18 +75,30 @@ export default async function ManagerClassGradesPage({
   );
 }
 
+function ClassGradesBodyFallback() {
+  return (
+    <div
+      className="min-h-[16rem] animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
+      aria-hidden
+    />
+  );
+}
+
 async function ManagerClassGradesContent({
   classId,
   actorUserId,
+  classRow,
 }: {
   classId: string;
   actorUserId: string | null;
+  classRow: ManagerClassRow;
 }) {
   const adminClient = createSupabaseAdminClient();
   const pageData = await loadClassGradesPageData(
     adminClient,
     actorUserId,
-    classId
+    classId,
+    { classRow }
   );
 
   return (

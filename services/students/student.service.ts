@@ -14,6 +14,7 @@ import {
 } from "@/services/auth/authorization.service";
 import { MANAGER_CACHE_TAGS } from "@/lib/cache/manager-list-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { isUuid } from "@/services/classes/class-shared";
 import {
   createStudentSchema,
   resolveCreateStudentInput,
@@ -35,6 +36,8 @@ import type { FieldErrors } from "@/types/auth";
 import type {
   ManagerStudentDetailStats,
   ManagerStudentRow,
+  ManagerStudentsListData,
+  ManagerStudentsListQuery,
   ManagerStudentWithoutActiveClassRow,
 } from "@/types/manager-student";
 import type { ManagerStudentClassRow } from "@/types/manager-student-class";
@@ -207,17 +210,22 @@ async function mapStudentProfileToManagerStudentRow(
   };
 }
 
-async function fetchStudentsForManager(
-  adminClient: Supabase
+type StudentProfileListRecord = {
+  id: string;
+  user_id: string;
+  full_name: string;
+  birth_date: string | null;
+  phone: string | null;
+  status: string | null;
+  created_at: string | null;
+};
+
+/** Hydrates student_profiles rows with profiles + auth emails (only for the given rows). */
+async function hydrateStudentRows(
+  adminClient: Supabase,
+  studentProfiles: StudentProfileListRecord[]
 ): Promise<ManagerStudentRow[]> {
-  const { data: studentProfiles, error } =
-    await studentProfileRepository.listStudentProfiles(adminClient);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!studentProfiles?.length) {
+  if (!studentProfiles.length) {
     return [];
   }
 
@@ -269,6 +277,19 @@ async function fetchStudentsForManager(
   return students;
 }
 
+async function fetchStudentsForManager(
+  adminClient: Supabase
+): Promise<ManagerStudentRow[]> {
+  const { data: studentProfiles, error } =
+    await studentProfileRepository.listStudentProfiles(adminClient);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return hydrateStudentRows(adminClient, studentProfiles ?? []);
+}
+
 const listStudentsForManagerCached = unstable_cache(
   async () => {
     const adminClient = createSupabaseAdminClient();
@@ -290,6 +311,94 @@ export async function listStudentsForManager(
 ): Promise<ManagerStudentRow[]> {
   await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
   return listStudentsForManagerCached();
+}
+
+const STUDENTS_PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+const STUDENTS_PAGE_SIZE_DEFAULT = 10;
+
+function clampStudentsPageSize(pageSize: number | undefined): number {
+  if (
+    pageSize !== undefined &&
+    (STUDENTS_PAGE_SIZE_OPTIONS as readonly number[]).includes(pageSize)
+  ) {
+    return pageSize;
+  }
+  return STUDENTS_PAGE_SIZE_DEFAULT;
+}
+
+/**
+ * Server-paged students list for the manager panel (never loads the full roster).
+ * Search matches student_profiles.full_name / phone (and user_id for a pasted UUID).
+ * Username/email are not searchable here: profileRepository has no username search
+ * helper and auth emails live outside Postgres tables.
+ */
+export async function listStudentsPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  query: ManagerStudentsListQuery = {}
+): Promise<ManagerStudentsListData> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.STUDENTS_VIEW);
+
+  const pageSize = clampStudentsPageSize(query.pageSize);
+  const requestedPage = Math.max(1, Math.floor(query.page ?? 1));
+  const status = query.status ?? null;
+  const search = query.search?.trim() ?? "";
+
+  const fetchPage = (page: number) =>
+    studentProfileRepository.listStudentProfilesPage(adminClient, {
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+      status,
+      search,
+    });
+
+  const [initialPageResult, countsResult] = await Promise.all([
+    fetchPage(requestedPage),
+    studentProfileRepository.countStudentProfilesByStatus(adminClient, [
+      STUDENT_STATUSES.ACTIVE,
+      STUDENT_STATUSES.INACTIVE,
+      STUDENT_STATUSES.SUSPENDED,
+    ]),
+  ]);
+
+  let pageResult = initialPageResult;
+  let page = requestedPage;
+
+  if (pageResult.error) {
+    throw new Error(pageResult.error.message);
+  }
+  if (countsResult.error) {
+    throw new Error(countsResult.error.message);
+  }
+
+  const totalCount = pageResult.count ?? 0;
+
+  // Requested page is past the end (e.g. rows were removed): fall back to the last page.
+  if (totalCount > 0 && (pageResult.data ?? []).length === 0) {
+    page = Math.max(1, Math.ceil(totalCount / pageSize));
+    pageResult = await fetchPage(page);
+    if (pageResult.error) {
+      throw new Error(pageResult.error.message);
+    }
+  }
+
+  const students = await hydrateStudentRows(
+    adminClient,
+    pageResult.data ?? []
+  );
+
+  return {
+    students,
+    totalCount,
+    page,
+    pageSize,
+    stats: {
+      total: countsResult.total,
+      active: countsResult.byStatus[STUDENT_STATUSES.ACTIVE] ?? 0,
+      inactive: countsResult.byStatus[STUDENT_STATUSES.INACTIVE] ?? 0,
+      suspended: countsResult.byStatus[STUDENT_STATUSES.SUSPENDED] ?? 0,
+    },
+  };
 }
 
 type StudentsWithoutActiveClassViewPermission =
@@ -687,6 +796,57 @@ export async function listJoinedClassesForStudentSelf(
       },
     ];
   });
+}
+
+/** Single enrolled class row for student self routes (avoids loading the full joined list). */
+export async function getJoinedClassForStudentSelf(
+  adminClient: Supabase,
+  userId: string,
+  classId: string
+): Promise<ManagerStudentClassRow | null> {
+  if (!isUuid(classId)) {
+    return null;
+  }
+
+  const enrollmentResult =
+    await studentClassRepository.findStudentClassByUserAndClass(
+      adminClient,
+      userId,
+      classId
+    );
+
+  if (enrollmentResult.error) {
+    throw new Error(enrollmentResult.error.message);
+  }
+
+  const enrollment = enrollmentResult.data;
+  if (!enrollment) {
+    return null;
+  }
+
+  const classesResult = await classRepository.listClassesWithSubjectByIds(
+    adminClient,
+    [classId]
+  );
+
+  if (classesResult.error) {
+    throw new Error(classesResult.error.message);
+  }
+
+  const classRow = (classesResult.data ?? [])[0];
+  if (!classRow) {
+    return null;
+  }
+
+  return {
+    id: enrollment.id,
+    class_id: enrollment.class_id,
+    name: classRow.name,
+    subject_name: classRow.subjects?.name ?? "—",
+    class_status: mapClassStatus(classRow.status),
+    image_url: classRow.image_url,
+    joined_at: enrollment.joined_at ?? "",
+  };
 }
 
 /** Classes the student is not currently a member of (for Assign class). */

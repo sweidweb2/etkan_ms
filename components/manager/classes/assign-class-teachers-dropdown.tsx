@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { ChevronDownIcon, UserPlusIcon } from "lucide-react";
 import {
   assignClassTeacherAction,
+  loadClassTeacherOptionsAction,
   unassignClassTeacherAction,
 } from "@/app/manager/classes/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -46,6 +47,8 @@ export function AssignClassTeachersDropdown({
   onClassUpdated,
 }: AssignClassTeachersDropdownProps) {
   const [isTransitionPending, startTransition] = useTransition();
+  const [isCatalogLoading, setIsCatalogLoading] = useState(false);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [assignState, assignAction, isAssignPending] = useActionState(
     assignClassTeacherAction,
     initialAssignState
@@ -59,7 +62,10 @@ export function AssignClassTeachersDropdown({
   const handledUnassignKeyRef = useRef<string | null>(null);
 
   const isPending =
-    isTransitionPending || isAssignPending || isUnassignPending;
+    isTransitionPending ||
+    isAssignPending ||
+    isUnassignPending ||
+    isCatalogLoading;
 
   useActionStateToast(assignState, isAssignPending || isTransitionPending);
   useActionStateToast(unassignState, isUnassignPending || isTransitionPending);
@@ -112,6 +118,22 @@ export function AssignClassTeachersDropdown({
 
   const assignedCount = teachers.filter((teacher) => teacher.assigned).length;
 
+  function handleOpenChange(open: boolean) {
+    if (!open || catalogLoaded || isCatalogLoading) {
+      return;
+    }
+
+    setIsCatalogLoading(true);
+    void loadClassTeacherOptionsAction(classId)
+      .then((rows) => {
+        onTeachersChange(rows);
+        setCatalogLoaded(true);
+      })
+      .finally(() => {
+        setIsCatalogLoading(false);
+      });
+  }
+
   function handleToggle(teacher: ManagerClassTeacherOption) {
     const formData = new FormData();
     formData.set("class_id", classId);
@@ -127,9 +149,9 @@ export function AssignClassTeachersDropdown({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
-        disabled={isPending}
+        disabled={isAssignPending || isUnassignPending || isTransitionPending}
         className={cn(
           buttonVariants({ variant: "outline" }),
           "outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -151,7 +173,12 @@ export function AssignClassTeachersDropdown({
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>Assign teachers</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {teachers.length === 0 ? (
+        {isCatalogLoading && !catalogLoaded ? (
+          <p className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+            <InlineSpinner />
+            Loading instructors…
+          </p>
+        ) : teachers.length === 0 ? (
           <p className="px-2 py-3 text-sm text-muted-foreground">
             No instructors available.
           </p>

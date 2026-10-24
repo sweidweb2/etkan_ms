@@ -8,9 +8,9 @@ import { hasPermissionInSet } from "@/services/auth/authorization.service";
 import {
   getClassFinalExamForManager,
   getClassForManager,
+  listAssignedClassTeachersForManager,
   listClassSessionsForManager,
   listClassStudentsForManager,
-  listClassTeacherOptionsForManager,
 } from "@/services/classes/class.service";
 import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
 import { listClassTasksForManager } from "@/services/classes/session.service";
@@ -77,7 +77,7 @@ export default async function ManagerClassDetailPage({
         : Promise.resolve({ finalExam: null, studentGrades: [] })
     ),
     timer.step("teachers", () =>
-      listClassTeacherOptionsForManager(adminClient, actorUserId, id)
+      listAssignedClassTeachersForManager(adminClient, actorUserId, id)
     ),
     timer.step("gradeLock", () =>
       canGrades

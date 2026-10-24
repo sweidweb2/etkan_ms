@@ -1,15 +1,14 @@
 import { notFound } from "next/navigation";
+import { StudentActivityDeferred } from "@/components/manager/students/student-activity-deferred-section";
+import { StudentBorrowsDeferred } from "@/components/manager/students/student-borrows-deferred-section";
 import { StudentDetailsPanel } from "@/components/manager/students/student-details-panel";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { listStudentActivityForManager } from "@/services/students/student-activity.service";
 import { listStudentClassAcademicBundlesForManager } from "@/services/classes/student-course-grade.service";
-import { listStudentBorrowsForManager } from "@/services/equipment/borrow-equipment.service";
 import { getLinkedRegistrationApplicationIdForStudentManager } from "@/services/students/student-registration.service";
 import {
   getStudentDetailStatsForManager,
   getStudentForManager,
-  listAssignableClassesForStudentManager,
   listJoinedClassesForStudentManager,
 } from "@/services/students/student.service";
 
@@ -23,69 +22,62 @@ export default async function ManagerStudentDetailPage({
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
+  const actorUserId = user?.id ?? null;
 
-  const student = await getStudentForManager(adminClient, user?.id ?? null, id);
+  const student = await getStudentForManager(adminClient, actorUserId, id);
 
   if (!student) {
     notFound();
   }
 
-  const [
-    stats,
-    joinedClasses,
-    availableClasses,
-    activityRows,
-    registrationApplicationId,
-    borrowRows,
-  ] = await Promise.all([
-      getStudentDetailStatsForManager(
-        adminClient,
-        user?.id ?? null,
-        student.user_id
-      ),
-      listJoinedClassesForStudentManager(
-        adminClient,
-        user?.id ?? null,
-        student.user_id
-      ),
-      listAssignableClassesForStudentManager(
-        adminClient,
-        user?.id ?? null,
-        student.user_id
-      ),
-      listStudentActivityForManager(
-        adminClient,
-        user?.id ?? null,
-        student.user_id
-      ),
-      getLinkedRegistrationApplicationIdForStudentManager(
-        adminClient,
-        user?.id ?? null,
-        student.user_id
-      ),
-      listStudentBorrowsForManager(
-        adminClient,
-        user?.id ?? null,
-        student.user_id
-      ),
-    ]);
-
-  const classBundles = await listStudentClassAcademicBundlesForManager(
+  // Start joined-classes immediately; chain academic bundles off that promise
+  // so they overlap with the other independent loads.
+  const joinedClassesPromise = listJoinedClassesForStudentManager(
     adminClient,
-    user?.id ?? null,
-    student.user_id,
-    joinedClasses
+    actorUserId,
+    student.user_id
   );
+  const classBundlesPromise = joinedClassesPromise.then((joinedClasses) =>
+    listStudentClassAcademicBundlesForManager(
+      adminClient,
+      actorUserId,
+      student.user_id,
+      joinedClasses
+    )
+  );
+
+  const [stats, registrationApplicationId, classBundles] = await Promise.all([
+    getStudentDetailStatsForManager(
+      adminClient,
+      actorUserId,
+      student.user_id
+    ),
+    getLinkedRegistrationApplicationIdForStudentManager(
+      adminClient,
+      actorUserId,
+      student.user_id
+    ),
+    classBundlesPromise,
+  ]);
 
   return (
     <StudentDetailsPanel
       student={student}
       stats={stats}
-      availableClasses={availableClasses}
       classBundles={classBundles}
-      activityRows={activityRows}
       registrationApplicationId={registrationApplicationId}
-      borrowRows={borrowRows}
+      borrowingSection={
+        <StudentBorrowsDeferred
+          actorUserId={actorUserId}
+          studentUserId={student.user_id}
+        />
+      }
+      activitySection={
+        <StudentActivityDeferred
+          actorUserId={actorUserId}
+          studentUserId={student.user_id}
+        />
+      }
     />
   );
 }

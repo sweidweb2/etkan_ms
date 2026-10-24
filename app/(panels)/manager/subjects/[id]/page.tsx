@@ -28,13 +28,8 @@ export default async function ManagerSubjectDetailPage({
     PERMISSIONS.SUBJECTS_TASKS_VIEW
   );
 
-  const detail = await getSubjectDetailForManager(adminClient, actorUserId, id);
-
-  if (!detail) {
-    notFound();
-  }
-
-  const [categories, exercises, links, tasks] = await Promise.all([
+  const [detail, categories, exercises, links, tasks] = await Promise.all([
+    getSubjectDetailForManager(adminClient, actorUserId, id),
     listCategoriesForManager(adminClient, actorUserId).catch(() => []),
     listExercisesForManager(adminClient, actorUserId).catch(() => []),
     listSubjectCatalogLinksForManager(adminClient, actorUserId, id),
@@ -44,6 +39,10 @@ export default async function ManagerSubjectDetailPage({
         )
       : Promise.resolve([]),
   ]);
+
+  if (!detail) {
+    notFound();
+  }
 
   return (
     <SubjectDetailsPanel

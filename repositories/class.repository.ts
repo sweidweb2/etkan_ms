@@ -291,6 +291,102 @@ export async function listClassDetails(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+export type ListClassDetailsPageInput = {
+  offset: number;
+  limit: number;
+  status?: string;
+  semesterId?: string;
+  /** Only classes without a semester (ignored when `semesterId` is set). */
+  unlinkedSemester?: boolean;
+  /** Matches class name or subject name (case-insensitive). */
+  search?: string;
+};
+
+function sanitizeClassSearch(search: string | undefined) {
+  return search?.trim().replace(/[%_,()\\]/g, "") ?? "";
+}
+
+/**
+ * One page of class detail rows (exact total count).
+ * Search matches class `name` and joined subject `name`.
+ */
+export async function listClassDetailsPage(
+  client: Supabase,
+  input: ListClassDetailsPageInput
+) {
+  const search = sanitizeClassSearch(input.search);
+
+  let subjectIds: string[] = [];
+  if (search) {
+    const subjectsResult = await client
+      .from("subjects")
+      .select("id")
+      .ilike("name", `%${search}%`);
+
+    if (subjectsResult.error) {
+      return {
+        data: null,
+        error: subjectsResult.error,
+        count: null,
+      };
+    }
+    subjectIds = (subjectsResult.data ?? []).map((row) => row.id);
+  }
+
+  let query = client
+    .from("classes")
+    .select(CLASS_DETAIL_SELECT, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (input.status) {
+    query = query.eq("status", input.status);
+  }
+  if (input.semesterId) {
+    query = query.eq("semester_id", input.semesterId);
+  } else if (input.unlinkedSemester) {
+    query = query.is("semester_id", null);
+  }
+  if (search) {
+    const filters = [`name.ilike.%${search}%`];
+    if (subjectIds.length > 0) {
+      filters.push(`subject_id.in.(${subjectIds.join(",")})`);
+    }
+    query = query.or(filters.join(","));
+  }
+
+  return query.range(input.offset, input.offset + input.limit - 1);
+}
+
+/** Head counts per status (global, unfiltered) for manage-classes stat cards. */
+export async function countClassesByStatuses(
+  client: Supabase,
+  statuses: readonly string[]
+) {
+  const results = await Promise.all(
+    statuses.map((status) =>
+      client
+        .from("classes")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status)
+    )
+  );
+
+  const counts: Record<string, number> = {};
+  for (let index = 0; index < statuses.length; index += 1) {
+    const result = results[index];
+    if (!result || result.error) {
+      return {
+        data: null,
+        error: result?.error ?? { message: "Unable to count classes." },
+      };
+    }
+    counts[statuses[index]!] = result.count ?? 0;
+  }
+
+  return { data: counts, error: null };
+}
+
 export async function createClass(
   client: Supabase,
   input: CreateClassRecordInput

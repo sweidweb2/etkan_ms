@@ -48,6 +48,81 @@ export async function listStudentProfiles(client: Supabase) {
     .order("created_at", { ascending: false });
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Strips characters that would break PostgREST `or()` filters / ilike wildcards. */
+function sanitizeSearchTerm(search: string) {
+  return search.replace(/[%_*,()\\]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * One page of student profiles (newest first) plus the exact filtered count.
+ * Search matches `full_name` / `phone` (and `user_id` when the term is a UUID).
+ */
+export async function listStudentProfilesPage(
+  client: Supabase,
+  options: {
+    offset: number;
+    limit: number;
+    status?: string | null;
+    search?: string | null;
+  }
+) {
+  let query = client
+    .from("student_profiles")
+    .select("id, user_id, full_name, birth_date, phone, status, created_at", {
+      count: "exact",
+    })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (options.status) {
+    query = query.eq("status", options.status);
+  }
+
+  const search = options.search ? sanitizeSearchTerm(options.search) : "";
+  if (search) {
+    const filters = [`full_name.ilike.%${search}%`, `phone.ilike.%${search}%`];
+    if (UUID_PATTERN.test(search)) {
+      filters.push(`user_id.eq.${search}`);
+    }
+    query = query.or(filters.join(","));
+  }
+
+  return query.range(options.offset, options.offset + options.limit - 1);
+}
+
+/** Global head counts for total + each requested status (no row data). */
+export async function countStudentProfilesByStatus(
+  client: Supabase,
+  statuses: readonly string[]
+) {
+  const [totalResult, ...statusResults] = await Promise.all([
+    client
+      .from("student_profiles")
+      .select("id", { count: "exact", head: true }),
+    ...statuses.map((status) =>
+      client
+        .from("student_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status)
+    ),
+  ]);
+
+  const error =
+    totalResult.error ??
+    statusResults.find((result) => result.error)?.error ??
+    null;
+
+  const byStatus: Record<string, number> = {};
+  statuses.forEach((status, index) => {
+    byStatus[status] = statusResults[index]?.count ?? 0;
+  });
+
+  return { total: totalResult.count ?? 0, byStatus, error };
+}
+
 /** Students not currently enrolled in any of the given user ids (slim columns). */
 export async function listStudentProfilesExcludingUserIds(
   client: Supabase,

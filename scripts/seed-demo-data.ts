@@ -15,6 +15,7 @@ import {
 } from "@/lib/constants/guest";
 import {
   PERMISSION_DEFINITIONS,
+  type PermissionFeature,
   type PermissionKey,
 } from "@/lib/constants/permissions";
 import {
@@ -284,7 +285,7 @@ async function findOrCreateStaff(
  * re-running seed:rbac; this keeps teachers able to manage assigned classes.
  */
 async function ensureTeacherRolePermissions(client: Supabase): Promise<void> {
-  const featureSet = new Set(CLASS_TREE_SEED_FEATURES);
+  const featureSet = new Set<PermissionFeature>(CLASS_TREE_SEED_FEATURES);
   const catalogRows = PERMISSION_DEFINITIONS.filter((definition) =>
     featureSet.has(definition.feature)
   ).map((definition) => ({
@@ -712,7 +713,7 @@ async function ensurePaymentPhaseWithPayments(
   );
   if (phases.error) throw new Error(phases.error.message);
 
-  let phase = (phases.data ?? []).find(
+  const phase = (phases.data ?? []).find(
     (row) => row.name.toLowerCase() === DEMO_PHASE_NAME.toLowerCase()
   );
 

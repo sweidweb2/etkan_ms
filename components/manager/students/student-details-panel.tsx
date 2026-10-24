@@ -1,7 +1,7 @@
 "use client";
 
 import { DetailField } from "@/components/manager/shared/detail-field";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { FileTextIcon, KeyRoundIcon, PencilIcon } from "lucide-react";
@@ -10,8 +10,6 @@ import { EditStudentDialog } from "@/components/manager/students/edit-student-di
 import { ChangeOwnPasswordDialog } from "@/components/student/change-own-password-dialog";
 import { EditOwnProfileDialog } from "@/components/student/edit-own-profile-dialog";
 import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
-import { StudentBorrowedEquipmentSection } from "@/components/manager/students/student-borrowed-equipment-section";
-import { StudentActivitySection } from "@/components/manager/students/student-activity-section";
 import { StudentJoinedClassesSection } from "@/components/manager/students/student-joined-classes-section";
 import { StudentDetailStatCard } from "@/components/manager/students/student-detail-stat-card";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
@@ -38,19 +36,16 @@ import type {
   ManagerStudentDetailStats,
   ManagerStudentRow,
 } from "@/types/manager-student";
-import type { ManagerStudentActivityRow } from "@/types/manager-student-activity";
-import type { ManagerClassOption } from "@/types/manager-class";
 import type { ManagerStudentClassAcademicBundle } from "@/types/manager-student-class-detail";
-import type { ManagerStudentBorrowEquipmentRow } from "@/types/manager-student-borrow-equipment";
 
 type StudentDetailsPanelProps = {
   student: ManagerStudentRow;
   stats?: ManagerStudentDetailStats;
-  availableClasses: ManagerClassOption[];
   classBundles: ManagerStudentClassAcademicBundle[];
-  activityRows: ManagerStudentActivityRow[];
   registrationApplicationId: string | null;
-  borrowRows: ManagerStudentBorrowEquipmentRow[];
+  /** Streamed secondary panels (manager only). */
+  borrowingSection?: ReactNode;
+  activitySection?: ReactNode;
   /** Student panel: same layout, mutations hidden (read-only). */
   variant?: "manager" | "self";
 };
@@ -98,11 +93,10 @@ function formatBirthDate(value: string | null) {
 export function StudentDetailsPanel({
   student: initialStudent,
   stats,
-  availableClasses,
   classBundles,
-  activityRows,
   registrationApplicationId,
-  borrowRows,
+  borrowingSection,
+  activitySection,
   variant = "manager",
 }: StudentDetailsPanelProps) {
   const [student, setStudent] = useState<ManagerStudentRow>(initialStudent);
@@ -277,8 +271,8 @@ export function StudentDetailsPanel({
         >
           <StudentJoinedClassesSection
             studentProfileId={student.student_profile_id}
+            studentUserId={student.user_id}
             initialClasses={classBundles.map((bundle) => bundle.classRow)}
-            availableClasses={availableClasses}
             classBundles={classBundles}
           />
         </div>
@@ -289,7 +283,7 @@ export function StudentDetailsPanel({
           id={STUDENT_DETAILS_SECTION_IDS.borrowing}
           className="scroll-mt-6"
         >
-          <StudentBorrowedEquipmentSection initialBorrows={borrowRows} />
+          {borrowingSection}
         </div>
       )}
 
@@ -298,7 +292,7 @@ export function StudentDetailsPanel({
           id={STUDENT_DETAILS_SECTION_IDS.activity}
           className="scroll-mt-6"
         >
-          <StudentActivitySection rows={activityRows} />
+          {activitySection}
         </div>
       ) : null}
     </div>

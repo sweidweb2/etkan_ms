@@ -50,6 +50,7 @@ type AssignStudentClassDialogProps = {
   onOpenChange: (open: boolean) => void;
   studentProfileId: string;
   availableClasses: ManagerClassOption[];
+  isLoadingOptions?: boolean;
   onAssigned: () => void;
 };
 
@@ -58,6 +59,7 @@ export function AssignStudentClassDialog({
   onOpenChange,
   studentProfileId,
   availableClasses,
+  isLoadingOptions = false,
   onAssigned,
 }: AssignStudentClassDialogProps) {
   const [isTransitionPending, startTransition] = useTransition();
@@ -89,6 +91,7 @@ export function AssignStudentClassDialog({
 
   const selectedClassId = watch("classId");
   const hasAvailableClasses = availableClasses.length > 0;
+  const showEmptyMessage = !isLoadingOptions && !hasAvailableClasses;
 
   useEffect(() => {
     if (open) {
@@ -162,7 +165,12 @@ export function AssignStudentClassDialog({
                 label="Class"
                 hint="Required"
               />
-              {hasAvailableClasses ? (
+              {isLoadingOptions ? (
+                <p className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                  <InlineSpinner />
+                  Loading classes…
+                </p>
+              ) : hasAvailableClasses ? (
                 <Select
                   value={selectedClassId || null}
                   onValueChange={(value) => {
@@ -192,11 +200,11 @@ export function AssignStudentClassDialog({
                     ))}
                   </SelectContent>
                 </Select>
-              ) : (
+              ) : showEmptyMessage ? (
                 <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
                   This student is already a member of every available class.
                 </p>
-              )}
+              ) : null}
               {classError ? (
                 <p className="text-sm text-destructive">{classError}</p>
               ) : null}
@@ -215,7 +223,7 @@ export function AssignStudentClassDialog({
             <Button
               type="submit"
               form="assign-student-class-form"
-              disabled={!hasAvailableClasses || isPending}
+              disabled={!hasAvailableClasses || isPending || isLoadingOptions}
             >
               {isPending ? (
                 <>

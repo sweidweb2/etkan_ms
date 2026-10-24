@@ -19,11 +19,8 @@ export default async function StudentPage() {
     <StudentDetailsPanel
       variant="self"
       student={student}
-      availableClasses={[]}
       classBundles={[]}
-      activityRows={[]}
       registrationApplicationId={null}
-      borrowRows={[]}
     />
   );
 }

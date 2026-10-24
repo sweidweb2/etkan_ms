@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { ExportStudentTaskUploadsButton } from "@/components/classes/student-task/export-student-task-uploads-button";
 import { InlineStudentTaskForm } from "@/components/classes/student-task/inline-student-task-form";
 import { StudentTaskList } from "@/components/classes/student-task/student-task-list";
 import { StudentUploadsPanel } from "@/components/classes/student-task/student-uploads-panel";
@@ -47,24 +48,21 @@ export function StudentTaskWorkspace({
     [lockedUserIds]
   );
 
-  useEffect(() => {
-    if (
-      selectedId &&
-      sortedStudentTasks.some((row) => row.id === selectedId)
-    ) {
-      return;
-    }
-    setSelectedId(sortedStudentTasks[0]?.id ?? null);
-  }, [selectedId, sortedStudentTasks]);
+  const resolvedSelectedId =
+    selectedId &&
+    sortedStudentTasks.some((row) => row.id === selectedId)
+      ? selectedId
+      : (sortedStudentTasks[0]?.id ?? null);
 
   const selectedStudentTask =
-    sortedStudentTasks.find((row) => row.id === selectedId) ?? null;
+    sortedStudentTasks.find((row) => row.id === resolvedSelectedId) ?? null;
   const selectedLocked = selectedStudentTask
     ? lockedUserIdSet.has(selectedStudentTask.student_id)
     : false;
   const selectedUploads = useMemo(
-    () => uploads.filter((upload) => upload.student_task_id === selectedId),
-    [selectedId, uploads]
+    () =>
+      uploads.filter((upload) => upload.student_task_id === resolvedSelectedId),
+    [resolvedSelectedId, uploads]
   );
 
   function handleUpdateStudentTask(updated: ManagerStudentTaskRow) {
@@ -90,11 +88,18 @@ export function StudentTaskWorkspace({
         <div className="flex min-h-[28rem] flex-col lg:flex-row">
           <StudentTaskList
             students={sortedStudentTasks}
-            selectedId={selectedId}
+            selectedId={resolvedSelectedId}
             onSelect={setSelectedId}
           />
 
           <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ExportStudentTaskUploadsButton
+                taskId={task.id}
+                taskTitle={task.title}
+              />
+            </div>
+
             {selectedStudentTask ? (
               <>
                 <div className="flex flex-wrap items-center gap-2">

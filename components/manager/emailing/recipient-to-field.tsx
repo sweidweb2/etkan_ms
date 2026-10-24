@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { XIcon } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Loader2Icon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { EMAIL_REGEX } from "@/lib/validators/auth/fields";
 import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ManagerUserRow } from "@/types/manager-user";
 
@@ -20,7 +21,10 @@ export type ComposeRecipient =
   | { kind: "external"; email: string };
 
 type RecipientToFieldProps = {
-  users: ManagerUserRow[];
+  /** Pre-loaded users. Omit and pass `loadUsers` to fetch on first interaction. */
+  users?: ManagerUserRow[];
+  /** Lazy loader — called once on first focus / bulk click. */
+  loadUsers?: () => Promise<ManagerUserRow[]>;
   recipients: ComposeRecipient[];
   onChange: (recipients: ComposeRecipient[]) => void;
   disabled?: boolean;
@@ -48,6 +52,8 @@ const BULK_OPTIONS: Array<{ id: string; label: string; roles?: RoleValue[] }> =
     { id: "all_crms", label: "All CRMs", roles: [ROLES.CRM] },
   ];
 
+const EMPTY_USERS: ManagerUserRow[] = [];
+
 function getUserDisplayName(user: ManagerUserRow) {
   return user.username ?? user.student_full_name ?? user.email;
 }
@@ -59,7 +65,8 @@ function recipientKey(recipient: ComposeRecipient) {
 }
 
 export function RecipientToField({
-  users,
+  users: usersProp,
+  loadUsers,
   recipients,
   onChange,
   disabled = false,
@@ -67,6 +74,35 @@ export function RecipientToField({
 }: RecipientToFieldProps) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [lazyUsers, setLazyUsers] = useState<ManagerUserRow[] | null>(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const loadPromiseRef = useRef<Promise<ManagerUserRow[]> | null>(null);
+  const users = usersProp ?? lazyUsers ?? EMPTY_USERS;
+
+  const ensureUsersLoaded = useCallback((): Promise<ManagerUserRow[]> => {
+    if (usersProp) {
+      return Promise.resolve(usersProp);
+    }
+    if (!loadUsers) {
+      return Promise.resolve(EMPTY_USERS);
+    }
+    if (!loadPromiseRef.current) {
+      setIsLoadingUsers(true);
+      loadPromiseRef.current = loadUsers()
+        .then((loaded) => {
+          setLazyUsers(loaded);
+          return loaded;
+        })
+        .catch(() => {
+          // Allow a retry on the next interaction.
+          loadPromiseRef.current = null;
+          showErrorToast("Unable to load recipients.");
+          return EMPTY_USERS;
+        })
+        .finally(() => setIsLoadingUsers(false));
+    }
+    return loadPromiseRef.current;
+  }, [loadUsers, usersProp]);
 
   const selectedKeys = useMemo(
     () => new Set(recipients.map(recipientKey)),
@@ -141,10 +177,12 @@ export function RecipientToField({
     setQuery("");
   };
 
-  const applyBulk = (roles?: RoleValue[]) => {
+  const applyBulk = async (roles?: RoleValue[]) => {
+    const loaded = await ensureUsersLoaded();
+    const loadedWithEmail = loaded.filter((user) => Boolean(user.email?.trim()));
     const pool = roles
-      ? usersWithEmail.filter((user) => roles.includes(user.role))
-      : usersWithEmail;
+      ? loadedWithEmail.filter((user) => roles.includes(user.role))
+      : loadedWithEmail;
 
     const next = [...recipients];
     const keys = new Set(next.map(recipientKey));
@@ -210,7 +248,10 @@ export function RecipientToField({
                 : "Add another…"
             }
             className="h-8 min-w-[10rem] flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
-            onFocus={() => setIsFocused(true)}
+            onFocus={() => {
+              setIsFocused(true);
+              void ensureUsersLoaded();
+            }}
             onBlur={() => {
               window.setTimeout(() => setIsFocused(false), 150);
             }}
@@ -295,15 +336,21 @@ export function RecipientToField({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {isLoadingUsers ? (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Loader2Icon className="size-3 animate-spin" aria-hidden />
+            Loading recipients…
+          </span>
+        ) : null}
         {BULK_OPTIONS.map((option) => (
           <Button
             key={option.id}
             type="button"
             size="sm"
             variant="outline"
-            disabled={disabled}
-            onClick={() => applyBulk(option.roles)}
+            disabled={disabled || isLoadingUsers}
+            onClick={() => void applyBulk(option.roles)}
           >
             {option.label}
           </Button>

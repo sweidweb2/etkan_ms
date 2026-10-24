@@ -78,7 +78,8 @@ export default async function ManagerClassStudentGradesDetailPage({
     adminClient,
     actorUserId,
     id,
-    studentId
+    studentId,
+    { classRow }
   );
 
   if (!pageData) {

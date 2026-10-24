@@ -4,7 +4,9 @@ import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseSendEmailFormData } from "@/lib/validators/manager/send-email";
 import { sendEmailsForManager, listEmailingClassMemberUserIdsForManager } from "@/services/communications/email.service";
+import { listUsersForManager } from "@/services/auth/user.service";
 import type { SendManagerEmailActionState } from "@/types/manager-emailing";
+import type { ManagerUserRow } from "@/types/manager-user";
 
 export async function sendManagerEmailAction(
   _prevState: SendManagerEmailActionState,
@@ -47,6 +49,16 @@ export async function sendManagerEmailAction(
     skippedCount: result.skippedCount,
     failedCount: result.failedCount,
   };
+}
+
+/**
+ * Recipient picker data for the compose route. Loaded on first interaction
+ * instead of on every compose visit (tag-cached list; authz checked per call).
+ */
+export async function loadEmailingRecipientsAction(): Promise<ManagerUserRow[]> {
+  const actor = await getSessionAuditActor();
+  const adminClient = createSupabaseAdminClient();
+  return listUsersForManager(adminClient, actor.userId);
 }
 
 export async function listEmailingClassMemberUserIdsAction(

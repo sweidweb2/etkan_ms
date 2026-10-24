@@ -19,6 +19,29 @@ export interface ManagerStudentRow {
   is_mentor?: boolean;
 }
 
+export type ManagerStudentsListQuery = {
+  page?: number;
+  pageSize?: number;
+  status?: StudentStatusValue | null;
+  search?: string;
+};
+
+export type ManagerStudentsListStats = {
+  total: number;
+  active: number;
+  inactive: number;
+  suspended: number;
+};
+
+export type ManagerStudentsListData = {
+  students: ManagerStudentRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  /** Global counts (not filtered by the current query). */
+  stats: ManagerStudentsListStats;
+};
+
 /** Student with no enrolled membership on any in_progress class. */
 export interface ManagerStudentWithoutActiveClassRow {
   user_id: string;

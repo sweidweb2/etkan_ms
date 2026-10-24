@@ -108,6 +108,7 @@ export function SemiCircularGaugeCard({
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (reduceMotion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- animation sync / reduced-motion jump
       setAnimatedProgress(targetProgress);
       return;
     }

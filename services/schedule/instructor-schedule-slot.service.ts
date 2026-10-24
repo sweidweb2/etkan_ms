@@ -385,31 +385,33 @@ export async function getInstructorSchedulesPageForManager(
       )
     );
 
-    const canCreate = await timer.step("canCreate", () =>
-      hasPermission(
-        adminClient,
-        actorUserId ?? "",
-        PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
-      )
-    );
-
-    const [instructors, workshops] = await timer.step("tabs", () =>
+    // Instructor tabs and the create-permission check are independent; the first
+    // instructor's calendar starts as soon as the tabs resolve (in parallel with
+    // the workshop picker) instead of waiting for every tab/picker query.
+    const [canCreate, instructors] = await timer.step("tabs", () =>
       Promise.all([
+        hasPermission(
+          adminClient,
+          actorUserId ?? "",
+          PERMISSIONS.INSTRUCTOR_SCHEDULES_CREATE
+        ),
         listScheduleInstructorTabsCached(),
-        canCreate
-          ? listEligibleWorkshopsForScheduleCached()
-          : Promise.resolve([] as ManagerScheduleWorkshopTab[]),
       ])
     );
 
     const firstInstructorId = instructors[0]?.id ?? null;
-    const sessions = await timer.step("sessions", () =>
-      firstInstructorId
-        ? loadCalendarSessionsForScope(adminClient, {
-            kind: "instructor",
-            recordId: firstInstructorId,
-          })
-        : Promise.resolve([] as ManagerInstructorScheduleSession[])
+    const [workshops, sessions] = await timer.step("workshops+sessions", () =>
+      Promise.all([
+        canCreate
+          ? listEligibleWorkshopsForScheduleCached()
+          : Promise.resolve([] as ManagerScheduleWorkshopTab[]),
+        firstInstructorId
+          ? loadCalendarSessionsForScope(adminClient, {
+              kind: "instructor",
+              recordId: firstInstructorId,
+            })
+          : Promise.resolve([] as ManagerInstructorScheduleSession[]),
+      ])
     );
 
     return {

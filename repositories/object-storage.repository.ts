@@ -85,3 +85,17 @@ export async function removeObjects(
 
   return { error: null };
 }
+
+export async function downloadObject(
+  client: Supabase,
+  bucket: string,
+  objectPath: string
+): Promise<{ data: Blob | null; error: { message: string } | null }> {
+  const { data, error } = await client.storage.from(bucket).download(objectPath);
+
+  if (error) {
+    return { data: null, error: { message: error.message } };
+  }
+
+  return { data, error: null };
+}

@@ -51,7 +51,9 @@ import {
   createFinalExamForManager,
   getClassCreateDialogDataForManager,
   listAvailableStudentsForClass,
-  listClassesForManager,
+  listClassesPageForManager,
+  listClassTeacherOptionsForManager,
+  listClassTransferOptionsForManager,
   transferStudentBetweenClassesForManager,
   unassignTeacherFromClassForManager,
   updateClassForManager,
@@ -95,10 +97,15 @@ import type {
   UnassignClassTeacherActionState,
   UpdateClassActionState,
   UpdateClassStatusActionState,
+  ManagerClassTeacherOption,
   RemoveStudentFromClassActionState,
   UpdateFinalExamActionState,
   UpdateStudentFinalExamGradeActionState,
 } from "@/types/manager-class-detail";
+import type {
+  ManagerClassesListData,
+  ManagerClassesListQuery,
+} from "@/types/manager-class-list";
 import type {
   ManagerStudentRow,
   ManagerStudentWithoutActiveClassRow,
@@ -117,6 +124,22 @@ import type {
   UpdateStudentTaskActionState,
   UploadStudentTaskFileActionState,
 } from "@/types/manager-class-session-detail";
+
+export async function loadClassesPageAction(
+  query: ManagerClassesListQuery
+): Promise<ManagerClassesListData | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listClassesPageForManager(adminClient, actor.userId, query);
+  } catch {
+    return null;
+  }
+}
 
 export async function loadAvailableStudentsForClassAction(
   classId: string
@@ -148,10 +171,31 @@ export async function loadTransferClassOptionsAction(
 
   const adminClient = createSupabaseAdminClient();
   try {
-    const classes = await listClassesForManager(adminClient, actor.userId);
-    return classes
-      .filter((row) => row.id !== excludeClassId)
-      .map((row) => ({ id: row.id, name: row.name }));
+    return await listClassTransferOptionsForManager(
+      adminClient,
+      actor.userId,
+      excludeClassId
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function loadClassTeacherOptionsAction(
+  classId: string
+): Promise<ManagerClassTeacherOption[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listClassTeacherOptionsForManager(
+      adminClient,
+      actor.userId,
+      classId
+    );
   } catch {
     return [];
   }

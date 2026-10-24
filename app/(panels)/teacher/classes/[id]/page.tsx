@@ -34,10 +34,12 @@ export default async function TeacherClassDetailPage({
     notFound();
   }
 
-  const gradeSummary = (
+  // One deferred RSC tree shared by Tasks + Analytics (avoids double fetch).
+  const gradeSummarySlot = (
     <TeacherTaskGradeSummaryDeferred
       classId={classId}
       actorUserId={actorUserId}
+      showEmptyState
     />
   );
 
@@ -50,14 +52,7 @@ export default async function TeacherClassDetailPage({
       hasComputedGrades={bundle.hasComputedGrades}
       assignedAt={bundle.assignedAt}
       initialTab={initialTab}
-      tasksGradeSummarySlot={gradeSummary}
-      analyticsGradeSummarySlot={
-        <TeacherTaskGradeSummaryDeferred
-          classId={classId}
-          actorUserId={actorUserId}
-          showEmptyState
-        />
-      }
+      gradeSummarySlot={gradeSummarySlot}
     />
   );
 }

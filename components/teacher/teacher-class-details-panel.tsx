@@ -77,9 +77,14 @@ type TeacherClassDetailsPanelProps = {
   initialStudents?: ClassStudentRow[];
   hasComputedGrades?: boolean;
   assignedAt: string | null;
-  /** Deferred RSC grade-summary gauges for the Tasks tab (respects layout pref). */
+  /**
+   * Deferred RSC grade-summary shared by Tasks + Analytics tabs.
+   * Pass one element from the page so the server fetches once.
+   */
+  gradeSummarySlot?: ReactNode;
+  /** @deprecated Prefer `gradeSummarySlot` (single shared tree). */
   tasksGradeSummarySlot?: ReactNode;
-  /** Deferred RSC grade-summary for the Analytics tab. */
+  /** @deprecated Prefer `gradeSummarySlot` (single shared tree). */
   analyticsGradeSummarySlot?: ReactNode;
   /** From `?tab=` on the server for first paint without flash. */
   initialTab?: TeacherClassDetailTab;
@@ -104,10 +109,13 @@ export function TeacherClassDetailsPanel({
   initialStudents = [],
   hasComputedGrades = false,
   assignedAt,
+  gradeSummarySlot = null,
   tasksGradeSummarySlot = null,
   analyticsGradeSummarySlot = null,
   initialTab = TABS.MAIN,
 }: TeacherClassDetailsPanelProps) {
+  const sharedGradeSummarySlot =
+    gradeSummarySlot ?? tasksGradeSummarySlot ?? analyticsGradeSummarySlot;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -118,16 +126,11 @@ export function TeacherClassDetailsPanel({
   );
   const [classRow, setClassRow] = useState(initialClassRow);
 
-  useEffect(() => {
-    setVisitedTabs((current) => {
-      if (current.has(tab)) {
-        return current;
-      }
-      const next = new Set(current);
-      next.add(tab);
-      return next;
-    });
-  }, [tab]);
+  if (!visitedTabs.has(tab)) {
+    const next = new Set(visitedTabs);
+    next.add(tab);
+    setVisitedTabs(next);
+  }
 
   function replaceTabInUrl(nextTab: TeacherClassDetailTab) {
     const params = new URLSearchParams(searchParams.toString());
@@ -451,8 +454,10 @@ export function TeacherClassDetailsPanel({
           <TabsContent value={TABS.TASKS} className="flex flex-col gap-4">
             {visitedTabs.has(TABS.TASKS) ? (
               <>
-                {taskAnalyticsHydrated && taskAnalyticsEnabled
-                  ? tasksGradeSummarySlot
+                {tab === TABS.TASKS &&
+                taskAnalyticsHydrated &&
+                taskAnalyticsEnabled
+                  ? sharedGradeSummarySlot
                   : null}
 
                 <ClassTasksSection
@@ -471,7 +476,9 @@ export function TeacherClassDetailsPanel({
           </TabsContent>
 
           <TabsContent value={TABS.ANALYTICS} className="flex flex-col gap-4">
-            {visitedTabs.has(TABS.ANALYTICS) ? analyticsGradeSummarySlot : null}
+            {visitedTabs.has(TABS.ANALYTICS) && tab === TABS.ANALYTICS
+              ? sharedGradeSummarySlot
+              : null}
           </TabsContent>
         </TabsContents>
       </Tabs>

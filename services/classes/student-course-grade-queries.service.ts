@@ -294,7 +294,8 @@ export async function listClassStudentGradesForManager(
 export async function loadClassGradesPageData(
   adminClient: Supabase,
   actorUserId: string | null,
-  classId: string
+  classId: string,
+  options?: { classRow?: ManagerClassRow }
 ): Promise<{
   classRow: ManagerClassRow;
   rows: ManagerClassStudentGradeRow[];
@@ -305,7 +306,8 @@ export async function loadClassGradesPageData(
   const guard = await assertClassGradesUnlockedForManager(
     adminClient,
     actorUserId,
-    classId
+    classId,
+    options
   );
 
   if (!guard.ok) {
@@ -344,7 +346,8 @@ export async function loadClassStudentGradeDetailPageData(
   adminClient: Supabase,
   actorUserId: string | null,
   classId: string,
-  studentProfileId: string
+  studentProfileId: string,
+  options?: { classRow?: ManagerClassRow }
 ): Promise<{
   classRow: ManagerClassRow;
   student: ManagerClassStudentRow;
@@ -356,7 +359,8 @@ export async function loadClassStudentGradeDetailPageData(
   const guard = await assertClassGradesUnlockedForManager(
     adminClient,
     actorUserId,
-    classId
+    classId,
+    options
   );
 
   if (!guard.ok) {

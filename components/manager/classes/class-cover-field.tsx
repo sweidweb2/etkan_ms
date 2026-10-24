@@ -78,10 +78,11 @@ export function ClassCoverField({
       return;
     }
     requestRef.current += 1;
+    // Reset only when the dialog closes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear local cover UI when dialog closes
     resetField();
     onChange({ file: null, removed: false, isOptimizing: false });
-    // Reset only when the dialog closes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on active close
   }, [active]);
 
   useEffect(() => {

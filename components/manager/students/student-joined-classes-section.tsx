@@ -5,6 +5,7 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { format } from "date-fns";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
+import { loadAssignableClassesForStudentAction } from "@/app/manager/students/actions";
 import { Can } from "@/components/auth/can";
 import {
   Tabs as TabsPrimitive,
@@ -48,8 +49,8 @@ const initialRemoveState: RemoveStudentFromClassActionState = {};
 
 type StudentJoinedClassesSectionProps = {
   studentProfileId: string;
+  studentUserId: string;
   initialClasses: ManagerStudentClassRow[];
-  availableClasses: ManagerClassOption[];
   classBundles: ManagerStudentClassAcademicBundle[];
 };
 
@@ -131,8 +132,8 @@ function ClassTabPanel({
 
 export function StudentJoinedClassesSection({
   studentProfileId,
+  studentUserId,
   initialClasses,
-  availableClasses,
   classBundles,
 }: StudentJoinedClassesSectionProps) {
   const router = useRouter();
@@ -152,10 +153,10 @@ export function StudentJoinedClassesSection({
     useState<ManagerStudentClassAcademicBundle[]>(classBundles);
   const [prevClassBundles, setPrevClassBundles] =
     useState<ManagerStudentClassAcademicBundle[]>(classBundles);
-  const [assignableClasses, setAssignableClasses] =
-    useState(availableClasses);
-  const [prevAvailableClasses, setPrevAvailableClasses] =
-    useState(availableClasses);
+  const [assignableClasses, setAssignableClasses] = useState<
+    ManagerClassOption[]
+  >([]);
+  const [isLoadingAssignable, setIsLoadingAssignable] = useState(false);
   const [isAssignClassOpen, setIsAssignClassOpen] = useState(false);
   const [removingClass, setRemovingClass] =
     useState<ManagerStudentClassRow | null>(null);
@@ -189,9 +190,23 @@ export function StudentJoinedClassesSection({
     setBundles(classBundles);
   }
 
-  if (availableClasses !== prevAvailableClasses) {
-    setPrevAvailableClasses(availableClasses);
-    setAssignableClasses(availableClasses);
+  function handleAssignOpenChange(open: boolean) {
+    setIsAssignClassOpen(open);
+    if (!open || isLoadingAssignable) {
+      return;
+    }
+    if (assignableClasses.length > 0) {
+      return;
+    }
+
+    setIsLoadingAssignable(true);
+    void loadAssignableClassesForStudentAction(studentUserId)
+      .then((rows) => {
+        setAssignableClasses(rows);
+      })
+      .finally(() => {
+        setIsLoadingAssignable(false);
+      });
   }
 
   useActionStateSuccess(
@@ -245,10 +260,12 @@ export function StudentJoinedClassesSection({
     <>
       <AssignStudentClassDialog
         open={isAssignClassOpen}
-        onOpenChange={setIsAssignClassOpen}
+        onOpenChange={handleAssignOpenChange}
         studentProfileId={studentProfileId}
         availableClasses={assignableClasses}
+        isLoadingOptions={isLoadingAssignable}
         onAssigned={() => {
+          setAssignableClasses([]);
           router.refresh();
         }}
       />
@@ -302,7 +319,10 @@ export function StudentJoinedClassesSection({
           </p>
           <CardAction className="self-center">
             <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
-              <Button type="button" onClick={() => setIsAssignClassOpen(true)}>
+              <Button
+                type="button"
+                onClick={() => handleAssignOpenChange(true)}
+              >
                 <PlusIcon data-icon="inline-start" />
                 Assign class
               </Button>

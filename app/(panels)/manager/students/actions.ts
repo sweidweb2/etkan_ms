@@ -7,7 +7,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseChangeStudentStatusFormData } from "@/lib/validators/manager/change-student-status";
 import { parseCreateStudentFormData } from "@/lib/validators/manager/create-student";
 import { parseUpdateStudentFormData } from "@/lib/validators/manager/update-student";
-import { createStudent, updateStudent } from "@/services/students/student.service";
+import {
+  createStudent,
+  listAssignableClassesForStudentManager,
+  listStudentsPageForManager,
+  updateStudent,
+} from "@/services/students/student.service";
+import type { ManagerClassOption } from "@/types/manager-class";
 import {
   changeStudentStatusForManager,
   getStudentStatusSideEffectsPreview,
@@ -15,9 +21,47 @@ import {
 import type {
   ChangeStudentStatusActionState,
   CreateStudentActionState,
+  ManagerStudentsListData,
+  ManagerStudentsListQuery,
   StudentStatusSideEffectsPreview,
   UpdateStudentActionState,
 } from "@/types/manager-student";
+
+export async function loadStudentsPageAction(
+  query: ManagerStudentsListQuery
+): Promise<ManagerStudentsListData | null> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return null;
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listStudentsPageForManager(adminClient, actor.userId, query);
+  } catch {
+    return null;
+  }
+}
+
+export async function loadAssignableClassesForStudentAction(
+  studentUserId: string
+): Promise<ManagerClassOption[]> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  try {
+    return await listAssignableClassesForStudentManager(
+      adminClient,
+      actor.userId,
+      studentUserId
+    );
+  } catch {
+    return [];
+  }
+}
 
 export async function createStudentAction(
   _prevState: CreateStudentActionState,

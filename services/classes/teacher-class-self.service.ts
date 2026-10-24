@@ -16,10 +16,9 @@ import {
   assertPermissions,
 } from "@/services/auth/authorization.service";
 import { getClassComputedGradeLockState } from "@/services/classes/class-computed-grade-lock.service";
-import {
-  getClassForManager,
-  listClassStudentsForManager,
-} from "@/services/classes/class.service";
+import { loadClassStudentRows } from "@/services/classes/class.service";
+import { mapClassDetailRecordToRow } from "@/services/classes/class-shared";
+import type { ClassDetailRecord } from "@/repositories/class.repository";
 import {
   mapSessionRecord,
   mapTaskRecord,
@@ -253,17 +252,35 @@ export async function getTeachingClassPageBundleForSelf(
     return null;
   }
 
-  const [classRow, sessionsResult, tasksResult, students, gradeLock] =
-    await Promise.all([
-      getClassForManager(adminClient, actorUserId, classId),
-      sessionRepository.listSessionsByClassId(adminClient, classId),
-      classTaskRepository.listClassTasksByClassId(adminClient, classId),
-      listClassStudentsForManager(adminClient, actorUserId, classId),
-      getClassComputedGradeLockState(adminClient, classId),
-    ]);
+  // Permissions + teaching assignment are already proven above, so skip the
+  // manager-path re-asserts and the extra count queries in `getClassForManager`
+  // (enrollment / session counts are derived from rows we already load).
+  const [
+    classDetailResult,
+    teacherCountResult,
+    sessionsResult,
+    tasksResult,
+    students,
+    gradeLock,
+  ] = await Promise.all([
+    classRepository.findClassDetailById(adminClient, classId),
+    classTeacherRepository.countClassTeachersByClassId(adminClient, classId),
+    sessionRepository.listSessionsByClassId(adminClient, classId),
+    classTaskRepository.listClassTasksByClassId(adminClient, classId),
+    loadClassStudentRows(adminClient, classId),
+    getClassComputedGradeLockState(adminClient, classId),
+  ]);
 
-  if (!classRow) {
+  if (classDetailResult.error) {
+    throw new Error(classDetailResult.error.message);
+  }
+
+  if (!classDetailResult.data) {
     return null;
+  }
+
+  if (teacherCountResult.error) {
+    throw new Error(teacherCountResult.error.message);
   }
 
   if (sessionsResult.error) {
@@ -273,6 +290,15 @@ export async function getTeachingClassPageBundleForSelf(
   if (tasksResult.error) {
     throw new Error(tasksResult.error.message);
   }
+
+  const classRow = mapClassDetailRecordToRow(
+    classDetailResult.data as ClassDetailRecord,
+    {
+      enrollment_count: students.length,
+      teacher_count: teacherCountResult.count ?? 0,
+      completed_sessions: sessionsResult.data?.length ?? 0,
+    }
+  );
 
   const tasks = (tasksResult.data ?? []).map(mapTaskRecord);
 

@@ -9,7 +9,10 @@ import {
   type FormEvent,
 } from "react";
 import { ArrowLeftIcon, SendIcon } from "lucide-react";
-import { sendManagerEmailAction } from "@/app/manager/emailing/actions";
+import {
+  loadEmailingRecipientsAction,
+  sendManagerEmailAction,
+} from "@/app/manager/emailing/actions";
 import { Can } from "@/components/auth/can";
 import {
   RecipientToField,
@@ -47,13 +50,7 @@ import {
   type SendEmailInput,
 } from "@/lib/validators/manager/send-email";
 import type { SendManagerEmailActionState } from "@/types/manager-emailing";
-import type { ManagerUserRow } from "@/types/manager-user";
-
 const initialState: SendManagerEmailActionState = {};
-
-type ComposeLetterPanelProps = {
-  initialUsers: ManagerUserRow[];
-};
 
 function emptyComposeValues(): SendEmailInput {
   return {
@@ -93,7 +90,7 @@ function fieldError(
   return errors[key]?.message ?? state.fieldErrors?.[key]?.[0];
 }
 
-export function ComposeLetterPanel({ initialUsers }: ComposeLetterPanelProps) {
+export function ComposeLetterPanel() {
   const [recipients, setRecipients] = useState<ComposeRecipient[]>([]);
   const [editorKey, setEditorKey] = useState(0);
 
@@ -248,7 +245,7 @@ export function ComposeLetterPanel({ initialUsers }: ComposeLetterPanelProps) {
             <div className="flex flex-col gap-2">
               <FieldLabel htmlFor="compose-to" label="To" hint="Required" />
               <RecipientToField
-                users={initialUsers}
+                loadUsers={loadEmailingRecipientsAction}
                 recipients={recipients}
                 onChange={onRecipientsChange}
                 disabled={isPending}

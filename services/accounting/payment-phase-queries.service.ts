@@ -176,38 +176,43 @@ export async function getAccountingExceptionsSnapshotForManager(
 
   const phaseIds = nonCancelledPhases.map((phase) => phase.id);
 
-  const [
-    { data: inProgressClasses, error: classesError },
-    sppResult,
-  ] = await Promise.all([
-    classRepository.listInProgressClassesWithSemester(adminClient),
+  // Start classes + SPPs together; start memberships as soon as class ids
+  // are known (do not wait for the SPP page loop to finish).
+  const classesPromise =
+    classRepository.listInProgressClassesWithSemester(adminClient);
+  const sppPromise =
     phaseIds.length === 0
       ? Promise.resolve({ data: [], error: null })
       : studentPaymentPhaseRepository.listSppsByPaymentPhaseIds(
           adminClient,
           phaseIds
-        ),
-  ]);
+        );
 
+  const { data: inProgressClasses, error: classesError } = await classesPromise;
   if (classesError) {
     throw new Error(classesError.message);
-  }
-  if (sppResult.error) {
-    throw new Error(sppResult.error.message);
   }
 
   const classes = inProgressClasses ?? [];
   const classIds = classes.map((row) => row.id);
   const phaseById = new Map(nonCancelledPhases.map((phase) => [phase.id, phase]));
 
-  const membershipsResult =
+  const [sppResult, membershipsResult] = await Promise.all([
+    sppPromise,
     classIds.length === 0
-      ? { data: [] as Array<{ user_id: string; class_id: string }>, error: null }
-      : await studentClassRepository.listMemberUserIdsByClassIds(
+      ? Promise.resolve({
+          data: [] as Array<{ user_id: string; class_id: string }>,
+          error: null,
+        })
+      : studentClassRepository.listMemberUserIdsByClassIds(
           adminClient,
           classIds
-        );
+        ),
+  ]);
 
+  if (sppResult.error) {
+    throw new Error(sppResult.error.message);
+  }
   if (membershipsResult.error) {
     throw new Error(membershipsResult.error.message);
   }

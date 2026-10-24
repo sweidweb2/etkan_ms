@@ -7,6 +7,7 @@ import {
 } from "@/lib/constants/manager-student-task-uploads";
 import { splitStudentTaskUploadStoragePath } from "@/lib/manager/student-tasks/storage-path";
 import {
+  downloadObject,
   removeObjects,
   uploadObject,
   type StorageObjectBody,
@@ -80,4 +81,20 @@ export async function createStudentTaskUploadSignedUrl(
   }
 
   return { data: { signedUrl: data.signedUrl }, error: null };
+}
+
+/**
+ * Download a student task upload object.
+ * `storagePath` is the DB value (`student-task-uploads/{studentTaskId}/{file}`).
+ */
+export async function downloadStudentTaskStorageObject(
+  client: Supabase,
+  storagePath: string
+): Promise<{ data: Blob | null; error: { message: string } | null }> {
+  const { objectPath } = splitStudentTaskUploadStoragePath(storagePath);
+  return downloadObject(
+    client,
+    STUDENT_TASK_UPLOADS_STORAGE_BUCKET,
+    objectPath
+  );
 }

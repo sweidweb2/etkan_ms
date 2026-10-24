@@ -1,7 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { IncomeStatementPanel } from "@/components/manager/accounting/income-statement-panel";
+import type { ReactNode } from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,48 +7,19 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ROUTES } from "@/lib/constants/routes";
-import type {
-  IncomeStatementMonthOption,
-  ManagerIncomeStatementData,
-} from "@/types/manager-income-statement";
 
 type IncomeStatementHistoryPanelProps = {
-  months: IncomeStatementMonthOption[];
-  selectedMonthKey: string | null;
-  data: ManagerIncomeStatementData | null;
-  periodLabel: string | null;
+  /** Month picker (streamed independently of the statement body). */
+  monthSelectSlot: ReactNode;
+  /** Read-only statement for the selected month (streamed). */
+  statementSlot: ReactNode;
 };
 
 export function IncomeStatementHistoryPanel({
-  months,
-  selectedMonthKey,
-  data,
-  periodLabel,
+  monthSelectSlot,
+  statementSlot,
 }: IncomeStatementHistoryPanelProps) {
-  const router = useRouter();
-
-  const monthItems = months.map((month) => ({
-    value: month.key,
-    label: month.label,
-  }));
-
-  function handleMonthChange(value: string | null) {
-    if (!value) {
-      return;
-    }
-    router.push(
-      `${ROUTES.MANAGER_INCOME_STATEMENT_HISTORY}?month=${encodeURIComponent(value)}`
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb>
@@ -85,47 +53,11 @@ export function IncomeStatementHistoryPanel({
           >
             Month
           </label>
-          {months.length === 0 ? (
-            <p className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-              No past months with data yet.
-            </p>
-          ) : (
-            <Select
-              value={selectedMonthKey ?? undefined}
-              items={monthItems}
-              onValueChange={handleMonthChange}
-            >
-              <SelectTrigger
-                id="income-statement-history-month"
-                className="w-full"
-                aria-label="Select month"
-              >
-                <SelectValue placeholder="Select a month" />
-              </SelectTrigger>
-              <SelectContent>
-                {months.map((month) => (
-                  <SelectItem key={month.key} value={month.key}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {monthSelectSlot}
         </div>
       </div>
 
-      {months.length === 0 ? null : data && periodLabel ? (
-        <IncomeStatementPanel
-          data={data}
-          periodLabel={periodLabel}
-          readOnly
-          hideAllTimePaymentsCard
-        />
-      ) : (
-        <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-          Select a month to view its income statement.
-        </p>
-      )}
+      {statementSlot}
     </div>
   );
 }

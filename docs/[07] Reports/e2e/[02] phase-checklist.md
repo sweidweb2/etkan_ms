@@ -1,9 +1,10 @@
 # E2E phase checklist
 
 Track progress against [`[01] e2e-testing-plan.md`](./[01]%20e2e-testing-plan.md).  
-Tick only when the phase **exit criteria** are met (specs green + Vitest/typecheck/lint green + no unsafe product hacks).
+Tick only when the phase **exit criteria** are met (specs green + Vitest/typecheck/lint green + no unsafe product hacks).  
+Also mark matching rows in the plan’s **§8 inventory** tables.
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-10-24
 
 ---
 
@@ -12,17 +13,21 @@ Tick only when the phase **exit criteria** are met (specs green + Vitest/typeche
 | Phase | Name | Status | Notes |
 |-------|------|--------|-------|
 | 0 | Foundation (Playwright + home smoke) | [ ] Not started | Integrate tooling first |
-| 1 | Auth & session | [ ] Not started | storageState for manager |
-| 2 | Manager nav smoke (read-only) | [ ] Not started | Core routes only |
-| 3 | Users + students CRUD | [ ] Not started | Unique emails per run |
-| 4 | Subjects / classes / enroll | [ ] Not started | Dedicated E2E class data |
-| 5 | Grades & class deep path | [ ] Not started | Smoke before mutations |
-| 6 | Accounting & workshops | [ ] Not started | Test DB only; `@money` tag |
-| 7 | Schedule / equipment / notifications / email | [ ] Not started | Gate real email send |
-| 8 | RBAC & cross-panel gates | [ ] Not started | Align with RBAC checklist B/E |
-| 9 | Public site & registration | [ ] Not started | Turnstile test keys / skip submit |
-| 10 | Teacher / student / admin | [ ] Not started | Skip unfinished shells |
-| 11 | CI hardening | [ ] Not started | PR smoke + nightly full |
+| 1 | Auth & session (all roles) | [ ] Not started | storageState per seeded role |
+| 2 | Public site & invite forms | [ ] Not started | Turnstile / token seeds |
+| 3 | Manager nav smoke (all list routes) | [ ] Not started | Full §8.3 |
+| 4 | Manager people CRUD | [ ] Not started | Users, students, registrations, guests |
+| 5 | Manager academics | [ ] Not started | Subjects, teams, classes, enroll |
+| 6 | Manager class deep path | [ ] Not started | Grades / sessions / tasks |
+| 7 | Equipment / instructors / schedules / workshops | [ ] Not started | |
+| 8 | Finance & analysis | [ ] Not started | `@money` gated |
+| 9 | Email / content / notifications | [ ] Not started | Gate real email send |
+| 10 | Manager system surfaces | [ ] Not started | Prefer read-only |
+| 11 | Teacher portal | [ ] Not started | |
+| 12 | Student portal | [ ] Not started | Needs seeded class/payment data |
+| 13 | Other staff portals | [ ] Not started | admin, co-manager, CEO, supervisor, CRM |
+| 14 | RBAC & cross-panel gates | [ ] Not started | Align with RBAC checklist B/E |
+| 15 | CI hardening | [ ] Not started | PR `@smoke` + nightly full |
 
 **Legend:** `[ ]` not started · `[~]` in progress · `[x]` done
 
@@ -43,69 +48,99 @@ Tick only when the phase **exit criteria** are met (specs green + Vitest/typeche
 - [ ] Manager login passes  
 - [ ] Invalid login shows error (no silent success)  
 - [ ] Logout works  
-- [ ] `storageState` saved for manager reuse  
-- [ ] Role redirect checked for at least one non-manager account (if seeded)  
+- [ ] `storageState` for manager (+ teacher/student when seeded)  
+- [ ] Role redirect checked for each seeded role  
+- [ ] Unauthed panel → login  
 
 ### Phase 2
 
-- [ ] Core manager routes open without error overlay  
-- [ ] Sidebar navigation covered for those routes  
+- [ ] Public marketing routes smoke (§8.1)  
+- [ ] Login (+ signup if enabled) render  
+- [ ] Registration submit gated/safe  
+- [ ] Guest token + `/f/[token]` smoke (with seeds)  
 
 ### Phase 3
+
+- [ ] All manager list/root routes in §8.3 open without error overlay  
+- [ ] Sidebar navigation covered for linked routes  
+
+### Phase 4
 
 - [ ] Create staff user happy path  
 - [ ] Create student happy path  
 - [ ] Edit path for at least one of user/student  
+- [ ] Registrations + guests list/detail (mutation if safe)  
 - [ ] Unique test data; no production DB  
-
-### Phase 4
-
-- [ ] Subject create (or stable seeded subject)  
-- [ ] Class create/open  
-- [ ] Enroll student happy path  
 
 ### Phase 5
 
-- [ ] Grades page + one student detail load  
-- [ ] Session deep link loads  
-- [ ] Optional `@mutation` attendance/task write  
+- [ ] Subject create (or stable seeded subject) + catalog open  
+- [ ] Semester/team create/open  
+- [ ] Class create/open  
+- [ ] Enroll student happy path  
 
 ### Phase 6
 
-- [ ] Accounting list + phase + SPP open  
-- [ ] Workshops list/detail open  
-- [ ] `@money` writes only on isolated rows (or skipped in default run)  
+- [ ] Categories + grades + student grade detail load  
+- [ ] Session + task deep links load  
+- [ ] Optional `@mutation` attendance/task write  
 
 ### Phase 7
 
-- [ ] One schedule mutation  
-- [ ] One equipment borrow/return (or create)  
-- [ ] Notifications create/read  
-- [ ] Email send skipped unless env allows  
+- [ ] Equipment create + borrow/return (or create + borrow page)  
+- [ ] Instructors list (+ mutation if stable)  
+- [ ] Instructor schedule one slot mutation  
+- [ ] Workshops list/detail + payments page  
 
 ### Phase 8
 
-- [ ] Restricted nav/route gate  
-- [ ] Teacher blocked from exclusive manager path  
-- [ ] Workshops instructor gate sample  
+- [ ] Accounting list + phase + SPP open  
+- [ ] Income statement + analytics + history open  
+- [ ] Academic analysis open  
+- [ ] `@money` writes only on isolated rows (or skipped in default run)  
 
 ### Phase 9
 
-- [ ] Public home in default suite  
-- [ ] Login page render  
-- [ ] Registration submit gated/safe  
+- [ ] Emailing + compose + sent detail open  
+- [ ] Email send skipped unless env allows  
+- [ ] Gallery / projects / blogs: list + one create sample  
+- [ ] Notifications create/read  
 
 ### Phase 10
 
-- [ ] Real teacher journeys only  
-- [ ] Real student journeys only  
-- [ ] Shell pages skipped or tagged `@wip`  
+- [ ] Backup / logs / RBAC / settings / cron-jobs / AI usage smoke  
+- [ ] No destructive backup/RBAC writes in default suite  
 
 ### Phase 11
 
-- [ ] PR CI: Phase 0–3 (or agreed smoke set)  
+- [ ] Teacher root + classes + settings smoke  
+- [ ] Class → task journey  
+- [ ] Workshops access sample if instructor/mentor  
+
+### Phase 12
+
+- [ ] Student profile / classes / payments / borrowings smoke  
+- [ ] Class + task + payment detail  
+- [ ] Seeded enrollment/payment data documented  
+
+### Phase 13
+
+- [ ] `/admin`, `/co-manager`, `/ceo`, `/supervisor`, `/crm` roots  
+- [ ] Each role’s nav targets from `panel-nav.ts` smoke  
+
+### Phase 14
+
+- [ ] Restricted nav/route gate  
+- [ ] Teacher/student blocked from exclusive manager paths  
+- [ ] CRM blocked from exclusive manager paths (sample)  
+- [ ] Workshops instructor gate sample  
+
+### Phase 15
+
+- [ ] PR CI: `@smoke` (Phase 0–3 + auth)  
 - [ ] Nightly: fuller suite + artifacts on failure  
 - [ ] Flake quarantine process documented  
+- [ ] §8 inventory fully marked for shipped pages  
 
 ---
 

@@ -16,3 +16,28 @@ export interface ManagerClassRow {
   teacher_count: number;
   created_at: string;
 }
+
+export type ManagerClassStatusCounts = Record<ClassStatusValue, number>;
+
+export type ManagerClassesListQuery = {
+  page?: number;
+  pageSize?: number;
+  status?: ClassStatusValue | null;
+  semesterId?: string | null;
+  /** Only classes with no semester (ignored when `semesterId` is set). */
+  unlinkedSemester?: boolean;
+  search?: string;
+};
+
+export type ManagerClassesListData = {
+  classes: ManagerClassRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  status: ClassStatusValue | null;
+  semesterId: string | null;
+  unlinkedSemester: boolean;
+  search: string;
+  /** Global per-status counts (not affected by filters). */
+  statusCounts: ManagerClassStatusCounts;
+};

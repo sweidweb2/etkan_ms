@@ -2,13 +2,18 @@ import "server-only";
 
 export {
   listClassesForManager,
+  listClassesPageForManager,
+  listClassSemesterFilterOptionsForManager,
   getClassCreateDialogDataForManager,
   getClassForManager,
   assertClassGradesUnlockedForManager,
   listTeacherOptionsForManager,
+  listAssignedClassTeachersForManager,
   listClassTeacherOptionsForManager,
+  listClassTransferOptionsForManager,
   listClassSessionsForManager,
   listClassStudentsForManager,
+  loadClassStudentRows,
   fetchClassStudentRowForManager,
   listAvailableStudentsForClass,
   getClassFinalExamForManager,

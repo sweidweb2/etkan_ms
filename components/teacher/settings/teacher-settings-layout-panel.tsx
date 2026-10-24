@@ -56,7 +56,7 @@ export function TeacherSettingsLayoutPanel() {
               Task details analytics
             </Label>
             <p className="text-xs text-muted-foreground">
-              Show the analytics charts section on a task's detail page.
+              Show the analytics charts section on a task detail page.
             </p>
           </div>
           <Switch

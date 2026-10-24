@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { loadStudentsWithoutActiveClassAction } from "@/app/manager/classes/actions";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  loadClassesPageAction,
+  loadStudentsWithoutActiveClassAction,
+} from "@/app/manager/classes/actions";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -23,11 +26,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CLASS_STATUSES, CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
+import {
+  CLASS_STATUSES,
+  CLASS_STATUS_VALUES,
+  type ClassStatusValue,
+} from "@/lib/constants/manager-class-status";
 import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
 import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import type { ManagerClassRow } from "@/types/manager-class-list";
+import { cn } from "@/lib/utils";
+import { showErrorToast } from "@/lib/toast";
+import type { ManagerClassSemesterOption } from "@/types/manager-class-detail";
+import type {
+  ManagerClassesListData,
+  ManagerClassesListQuery,
+  ManagerClassRow,
+  ManagerClassStatusCounts,
+} from "@/types/manager-class-list";
 import type { ManagerStudentWithoutActiveClassRow } from "@/types/manager-student";
 
 const PAGE_SIZE = 6;
@@ -63,33 +78,57 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function matchesSearch(classRow: ManagerClassRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
+function listQueryKey(query: {
+  status: string;
+  semester: string;
+  search: string;
+  page: number;
+}) {
+  return `${query.status}|${query.semester}|${query.search}|${query.page}`;
+}
 
-  const haystack = [
-    classRow.name,
-    classRow.id,
-    classRow.subject_name,
-    classRow.semester_name ?? "",
-    classRow.status,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(normalizedQuery);
+function buildListQuery(input: {
+  status: string;
+  semester: string;
+  search: string;
+  page: number;
+  pageSize: number;
+}): ManagerClassesListQuery {
+  return {
+    page: input.page,
+    pageSize: input.pageSize,
+    status:
+      input.status === STATUS_FILTER_ALL
+        ? null
+        : (input.status as ClassStatusValue),
+    semesterId:
+      input.semester === SEMESTER_FILTER_ALL ||
+      input.semester === SEMESTER_FILTER_UNLINKED
+        ? null
+        : input.semester,
+    unlinkedSemester: input.semester === SEMESTER_FILTER_UNLINKED,
+    search: input.search,
+  };
 }
 
 type ManageClassesPanelProps = {
-  initialClasses: ManagerClassRow[];
+  initialData: ManagerClassesListData;
+  semesterOptions: ManagerClassSemesterOption[];
 };
 
 export function ManageClassesPanel({
-  initialClasses,
+  initialData,
+  semesterOptions,
 }: ManageClassesPanelProps) {
-  const [classes, setClasses] = useState(initialClasses);
+  const [classes, setClasses] = useState<ManagerClassRow[]>(
+    initialData.classes
+  );
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const [statusCounts, setStatusCounts] = useState<ManagerClassStatusCounts>(
+    initialData.statusCounts
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const pageSize = initialData.pageSize || PAGE_SIZE;
   const [studentsWithoutActiveClass, setStudentsWithoutActiveClass] = useState<
     ManagerStudentWithoutActiveClassRow[]
   >([]);
@@ -116,62 +155,88 @@ export function ManageClassesPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTER_ALL);
   const [semesterFilter, setSemesterFilter] = useState(SEMESTER_FILTER_ALL);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(initialData.page);
+  const loadedKeyRef = useRef(
+    listQueryKey({
+      status: STATUS_FILTER_ALL,
+      semester: SEMESTER_FILTER_ALL,
+      search: "",
+      page: initialData.page,
+    })
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const key = listQueryKey({
+      status: statusFilter,
+      semester: semesterFilter,
+      search: debouncedSearch,
+      page: currentPage,
+    });
+    if (key === loadedKeyRef.current) {
+      return;
+    }
+    loadedKeyRef.current = key;
+    let cancelled = false;
+    setIsLoading(true);
+    void loadClassesPageAction(
+      buildListQuery({
+        status: statusFilter,
+        semester: semesterFilter,
+        search: debouncedSearch,
+        page: currentPage,
+        pageSize,
+      })
+    ).then((data) => {
+      if (cancelled) {
+        return;
+      }
+      setIsLoading(false);
+      if (!data) {
+        showErrorToast("Unable to load classes.");
+        return;
+      }
+      setClasses(data.classes);
+      setTotalCount(data.totalCount);
+      setStatusCounts(data.statusCounts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, debouncedSearch, pageSize, semesterFilter, statusFilter]);
 
   const stats = useMemo(
     () => ({
-      total: classes.length,
-      inProgress: classes.filter((row) => row.status === CLASS_STATUSES.IN_PROGRESS)
-        .length,
-      scheduled: classes.filter((row) => row.status === CLASS_STATUSES.SCHEDULED).length,
-      done: classes.filter((row) => row.status === CLASS_STATUSES.DONE).length,
-      onHold: classes.filter(
-        (row) =>
-          row.status === CLASS_STATUSES.PAUSED || row.status === CLASS_STATUSES.STOPPED
-      ).length,
+      total: CLASS_STATUS_VALUES.reduce(
+        (sum, status) => sum + (statusCounts[status] ?? 0),
+        0
+      ),
+      inProgress: statusCounts[CLASS_STATUSES.IN_PROGRESS] ?? 0,
+      scheduled: statusCounts[CLASS_STATUSES.SCHEDULED] ?? 0,
+      done: statusCounts[CLASS_STATUSES.DONE] ?? 0,
+      onHold:
+        (statusCounts[CLASS_STATUSES.PAUSED] ?? 0) +
+        (statusCounts[CLASS_STATUSES.STOPPED] ?? 0),
       studentsWithoutActiveClass: studentsWithoutActiveClassLoaded
         ? studentsWithoutActiveClass.length
         : null,
     }),
-    [classes, studentsWithoutActiveClass, studentsWithoutActiveClassLoaded]
+    [statusCounts, studentsWithoutActiveClass, studentsWithoutActiveClassLoaded]
   );
 
-  const semesterOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const classRow of classes) {
-      if (classRow.semester_id && classRow.semester_name) {
-        seen.set(classRow.semester_id, classRow.semester_name);
-      }
-    }
-    return [...seen.entries()].map(([id, name]) => ({ id, name }));
-  }, [classes]);
-
-  const filteredClasses = useMemo(() => {
-    return classes.filter((classRow) => {
-      const matchesStatus =
-        statusFilter === STATUS_FILTER_ALL || classRow.status === statusFilter;
-      const matchesSemester =
-        semesterFilter === SEMESTER_FILTER_ALL ||
-        (semesterFilter === SEMESTER_FILTER_UNLINKED &&
-          classRow.semester_id === null) ||
-        classRow.semester_id === semesterFilter;
-
-      return matchesStatus && matchesSemester && matchesSearch(classRow, searchQuery);
-    });
-  }, [classes, searchQuery, semesterFilter, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
-  const paginatedClasses = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
-    return filteredClasses.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredClasses, safeCurrentPage]);
-
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-  const rangeStart =
-    filteredClasses.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredClasses.length);
+  const rangeStart = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -188,15 +253,39 @@ export function ManageClassesPanel({
     setCurrentPage(1);
   };
 
-  const handleCreateClass = (classRow: ManagerClassRow) => {
-    setClasses((current) => {
-      if (current.some((row) => row.id === classRow.id)) {
-        return current;
-      }
-
-      return [classRow, ...current];
-    });
+  const handleCreateClass = () => {
+    // Reset filters and reload page 1 so the new class (newest first) and the
+    // global status counts come from the server.
+    setSearchQuery("");
+    setDebouncedSearch("");
+    setStatusFilter(STATUS_FILTER_ALL);
+    setSemesterFilter(SEMESTER_FILTER_ALL);
     setCurrentPage(1);
+    loadedKeyRef.current = listQueryKey({
+      status: STATUS_FILTER_ALL,
+      semester: SEMESTER_FILTER_ALL,
+      search: "",
+      page: 1,
+    });
+    setIsLoading(true);
+    void loadClassesPageAction(
+      buildListQuery({
+        status: STATUS_FILTER_ALL,
+        semester: SEMESTER_FILTER_ALL,
+        search: "",
+        page: 1,
+        pageSize,
+      })
+    ).then((data) => {
+      setIsLoading(false);
+      if (!data) {
+        showErrorToast("Unable to load classes.");
+        return;
+      }
+      setClasses(data.classes);
+      setTotalCount(data.totalCount);
+      setStatusCounts(data.statusCounts);
+    });
   };
 
   return (
@@ -272,7 +361,7 @@ export function ManageClassesPanel({
               <Input
                 value={searchQuery}
                 onChange={(event) => handleSearchChange(event.target.value)}
-                placeholder="Search class name, subject, semester, or status…"
+                placeholder="Search class name or subject…"
                 className="pl-8"
                 aria-label="Search classes"
               />
@@ -338,24 +427,29 @@ export function ManageClassesPanel({
             </Select>
           </div>
 
-          {paginatedClasses.length === 0 ? (
+          {classes.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              {classes.length === 0
+              {stats.total === 0
                 ? "No classes yet. Create one to get started."
                 : "No classes match your filters."}
             </p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {paginatedClasses.map((classRow) => (
+            <div
+              className={cn(
+                "grid gap-4 sm:grid-cols-2 xl:grid-cols-3",
+                isLoading && "opacity-60"
+              )}
+            >
+              {classes.map((classRow) => (
                 <ClassCard key={classRow.id} classRow={classRow} />
               ))}
             </div>
           )}
 
-          {filteredClasses.length > 0 ? (
+          {totalCount > 0 ? (
             <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {rangeStart}–{rangeEnd} of {filteredClasses.length}
+                Showing {rangeStart}–{rangeEnd} of {totalCount}
               </p>
 
               <div className="flex items-center gap-1">
@@ -363,7 +457,7 @@ export function ManageClassesPanel({
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  disabled={safeCurrentPage <= 1}
+                  disabled={isLoading || safeCurrentPage <= 1}
                   onClick={() => setCurrentPage((page) => page - 1)}
                   aria-label="Previous page"
                 >
@@ -382,6 +476,7 @@ export function ManageClassesPanel({
                     <Button
                       key={page}
                       type="button"
+                      disabled={isLoading}
                       variant={page === safeCurrentPage ? "default" : "outline"}
                       size="icon-sm"
                       className="min-w-7"
@@ -400,7 +495,7 @@ export function ManageClassesPanel({
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  disabled={safeCurrentPage >= totalPages}
+                  disabled={isLoading || safeCurrentPage >= totalPages}
                   onClick={() => setCurrentPage((page) => page + 1)}
                   aria-label="Next page"
                 >

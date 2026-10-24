@@ -173,6 +173,7 @@ export function ClassSessionDetailsPanel({
   useActionStateToast(deleteState, isDeleteActionPending);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync local editable copies when server props refresh
     setSession(initialSession);
     setAttendees(initialAttendees);
     setLinkedPhase(initialLinkedPhase);

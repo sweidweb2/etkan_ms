@@ -75,8 +75,8 @@ describe("requireManagerRoutePermission", () => {
 
     await expect(
       requireManagerRoutePermission(ROUTES.MANAGER_WORKSHOPS_PAYMENTS)
-    ).rejects.toThrow(`NEXT_REDIRECT:${ROUTES.TEACHER_ROOT}`);
-    expect(redirectMock).toHaveBeenCalledWith(ROUTES.TEACHER_ROOT);
+    ).rejects.toThrow(`NEXT_REDIRECT:${ROUTES.TEACHER_CLASSES}`);
+    expect(redirectMock).toHaveBeenCalledWith(ROUTES.TEACHER_CLASSES);
   });
 
   it("allows the manager root so it can bounce to manage students", async () => {

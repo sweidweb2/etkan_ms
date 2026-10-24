@@ -1,46 +1,29 @@
+import { Suspense } from "react";
 import { CronJobsSettingsSection } from "@/components/manager/settings/cron-jobs-settings-section";
 import { MaintenanceModeSection } from "@/components/manager/settings/maintenance-mode-section";
 import { ResetPasswordsByRoleSection } from "@/components/manager/settings/reset-passwords-by-role-section";
-import { ResetUserPasswordSection } from "@/components/manager/settings/reset-user-password-section";
+import {
+  ResetUserPasswordSectionDeferred,
+  ResetUserPasswordSectionFallback,
+} from "@/components/manager/settings/reset-user-password-section-deferred";
 import { SelfCredentialsSection } from "@/components/manager/settings/self-credentials-section";
 import { getSessionUser } from "@/lib/auth/session";
 import {
   navPageTimingBeacon,
   startNavPageTimer,
 } from "@/lib/debug/start-nav-page-timer";
-import { PERMISSIONS } from "@/lib/constants/permissions";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/server";
 import { getMaintenanceMode } from "@/repositories/app-settings.repository";
-import { getUnauthorizedError } from "@/services/auth/authorization.service";
-import { listPasswordResetUserOptions } from "@/services/auth/password-reset.service";
-import type { PasswordResetUserOption } from "@/types/password-reset";
 
 export default async function ManagerSettingsPage() {
   const pageTimer = await startNavPageTimer("manager/settings");
-  const adminClient = createSupabaseAdminClient();
 
   const [client, sessionUser] = await Promise.all([
     createSupabaseServerComponentClient(),
     getSessionUser(),
   ]);
 
-  const [maintenanceMode, resetUnauthorized] = await Promise.all([
-    getMaintenanceMode(client),
-    getUnauthorizedError(
-      adminClient,
-      sessionUser?.id ?? null,
-      PERMISSIONS.SETTINGS_RESET_PASSWORDS
-    ),
-  ]);
-
-  let passwordResetUsers: PasswordResetUserOption[] = [];
-  if (!resetUnauthorized) {
-    passwordResetUsers = await listPasswordResetUserOptions(
-      adminClient,
-      sessionUser?.id ?? null
-    );
-  }
+  const maintenanceMode = await getMaintenanceMode(client);
 
   pageTimer.end();
 
@@ -58,7 +41,11 @@ export default async function ManagerSettingsPage() {
         </div>
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <ResetPasswordsByRoleSection />
-          <ResetUserPasswordSection users={passwordResetUsers} />
+          <Suspense fallback={<ResetUserPasswordSectionFallback />}>
+            <ResetUserPasswordSectionDeferred
+              actorUserId={sessionUser?.id ?? null}
+            />
+          </Suspense>
         </div>
       </div>
     </>

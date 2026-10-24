@@ -3,7 +3,7 @@
 **Date:** 2026-10-24  
 **Scope:** Authenticated panel navigations, middleware, session/JWKS caches, Docker/VPS vs local `npm run dev`.  
 **Goal:** Separate *classic serverless cold start* from what Etkan MS actually experiences, with evidence, log examples, and suggested fixes.  
-**Related:** [`[01] five-assumption-server-performance-audit.md`](../performance%20audit/[01]%20five-assumption-server-performance-audit.md), [`[03] nav-timing-debugger.md`](./[03]%20nav-timing-debugger.md), [`[04] nav-debugger-findings-and-fix-tasks.md`](./[04]%20nav-debugger-findings-and-fix-tasks.md), `docs/[07] Reports/claims/`.
+**Related:** [`[01] five-assumption-server-performance-audit.md`](../performance%20audit/[01]%20five-assumption-server-performance-audit.md), [`[03] nav-timing-debugger.md`](./[03]%20nav-timing-debugger.md), [`[04] nav-debugger-findings-and-fix-tasks.md`](./[04]%20nav-debugger-findings-and-fix-tasks.md), [`[06] panel-page-data-loading-audit.md`](./[06]%20panel-page-data-loading-audit.md) (fix page `application-code` when auth is warm), `docs/[07] Reports/claims/`.
 
 ---
 

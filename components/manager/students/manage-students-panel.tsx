@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
   ChevronLeftIcon,
@@ -13,7 +13,9 @@ import {
   PowerIcon,
   SearchIcon,
 } from "lucide-react";
+import { loadStudentsPageAction } from "@/app/manager/students/actions";
 import { Can } from "@/components/auth/can";
+import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { ActivateInactivateStudentDialog } from "@/components/manager/students/activate-inactivate-student-dialog";
 import { AddStudentDialog } from "@/components/manager/students/add-student-dialog";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
@@ -45,10 +47,14 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerStudentDetailRoute } from "@/lib/constants/routes";
 import { ROLES } from "@/lib/constants/roles";
+import { showErrorToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { prependUniqueByKey } from "@/lib/utils/prepend-unique-by-id";
 import { truncateText } from "@/lib/utils/truncate-text";
-import type { ManagerStudentRow } from "@/types/manager-student";
+import type {
+  ManagerStudentRow,
+  ManagerStudentsListData,
+  ManagerStudentsListQuery,
+} from "@/types/manager-student";
 import type { ManagerUserRow } from "@/types/manager-user";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
@@ -60,6 +66,7 @@ const COLUMN_LIMITS = {
 } as const;
 
 const STATUS_FILTER_ALL = "all";
+const DEFAULT_PAGE_SIZE = 10;
 
 const STUDENT_ROW_CLASS =
   "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
@@ -124,23 +131,15 @@ function getPageNumbers(currentPage: number, totalPages: number) {
   return result;
 }
 
-function matchesSearch(student: ManagerStudentRow, query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
+type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
 
-  const fullName = student.full_name.toLowerCase();
-  const username = student.username?.toLowerCase() ?? "";
-  const email = student.email.toLowerCase();
-  const phone = student.phone?.toLowerCase() ?? "";
-
-  return (
-    fullName.includes(normalizedQuery) ||
-    username.includes(normalizedQuery) ||
-    email.includes(normalizedQuery) ||
-    phone.includes(normalizedQuery)
-  );
+function listQueryKey(query: {
+  status: string;
+  search: string;
+  page: number;
+  pageSize: number;
+}) {
+  return `${query.status}|${query.search}|${query.page}|${query.pageSize}`;
 }
 
 function formatBirthDate(value: string | null) {
@@ -253,13 +252,15 @@ function StudentStatusAction({
 }
 
 export function ManageStudentsPanel({
-  initialStudents,
+  initialData,
 }: {
-  initialStudents: ManagerStudentRow[];
+  initialData: ManagerStudentsListData;
 }) {
   const router = useRouter();
-  const [students, setStudents] = useState(initialStudents);
-  const [prevStudents, setPrevStudents] = useState(initialStudents);
+  const [students, setStudents] = useState(initialData.students);
+  const [totalCount, setTotalCount] = useState(initialData.totalCount);
+  const [stats, setStats] = useState(initialData.stats);
+  const [isLoading, startTransition] = useTransition();
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<ManagerStudentRow | null>(
     null
@@ -268,57 +269,120 @@ export function ManageStudentsPanel({
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
-    10
+  const [pageSize, setPageSize] = useState<PageSizeOption>(
+    (PAGE_SIZE_OPTIONS as readonly number[]).includes(initialData.pageSize)
+      ? (initialData.pageSize as PageSizeOption)
+      : DEFAULT_PAGE_SIZE
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialData.page);
 
-  if (initialStudents !== prevStudents) {
-    setPrevStudents(initialStudents);
-    setStudents(initialStudents);
-  }
-
-  const stats = useMemo(
-    () => ({
-      total: students.length,
-      active: students.filter(
-        (student) => student.status === STUDENT_STATUSES.ACTIVE
-      ).length,
-      inactive: students.filter(
-        (student) => student.status === STUDENT_STATUSES.INACTIVE
-      ).length,
-      suspended: students.filter(
-        (student) => student.status === STUDENT_STATUSES.SUSPENDED
-      ).length,
-    }),
-    [students]
+  const loadedKeyRef = useRef(
+    listQueryKey({
+      status: STATUS_FILTER_ALL,
+      search: "",
+      page: initialData.page,
+      pageSize: initialData.pageSize,
+    })
   );
+  const requestIdRef = useRef(0);
 
-  const filteredStudents = useMemo(() => {
-    return students.filter((student) => {
-      const matchesStatus =
-        statusFilter === STATUS_FILTER_ALL || student.status === statusFilter;
-      return matchesStatus && matchesSearch(student, searchQuery);
-    });
-  }, [searchQuery, statusFilter, students]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
-  const paginatedStudents = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredStudents.slice(startIndex, startIndex + pageSize);
-  }, [filteredStudents, pageSize, safeCurrentPage]);
-
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
-  const rangeStart =
-    filteredStudents.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safeCurrentPage * pageSize, filteredStudents.length);
+  const rangeStart = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safeCurrentPage * pageSize, totalCount);
+
+  const buildListQuery = (
+    overrides: Partial<{
+      status: string;
+      search: string;
+      page: number;
+      pageSize: number;
+    }> = {}
+  ): ManagerStudentsListQuery => {
+    const status = overrides.status ?? statusFilter;
+    return {
+      page: overrides.page ?? currentPage,
+      pageSize: overrides.pageSize ?? pageSize,
+      status: status === STATUS_FILTER_ALL ? null : (status as StudentStatusValue),
+      search: overrides.search ?? debouncedSearch,
+    };
+  };
+
+  const applyListData = (data: ManagerStudentsListData) => {
+    setStudents(data.students);
+    setTotalCount(data.totalCount);
+    setStats(data.stats);
+  };
+
+  const loadPage = (query: ManagerStudentsListQuery) => {
+    const requestId = ++requestIdRef.current;
+    startTransition(async () => {
+      const data = await loadStudentsPageAction(query);
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+      if (!data) {
+        showErrorToast("Unable to load students.");
+        return;
+      }
+      applyListData(data);
+      if (data.page !== query.page) {
+        // Server fell back to the last page; keep the page state in sync.
+        loadedKeyRef.current = listQueryKey({
+          status: query.status ?? STATUS_FILTER_ALL,
+          search: query.search ?? "",
+          page: data.page,
+          pageSize: data.pageSize,
+        });
+        setCurrentPage(data.page);
+      }
+    });
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = searchQuery.trim();
+      if (next !== debouncedSearch) {
+        setDebouncedSearch(next);
+        setCurrentPage(1);
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [debouncedSearch, searchQuery]);
+
+  useEffect(() => {
+    const key = listQueryKey({
+      status: statusFilter,
+      search: debouncedSearch,
+      page: currentPage,
+      pageSize,
+    });
+    if (key === loadedKeyRef.current) {
+      return;
+    }
+    loadedKeyRef.current = key;
+    loadPage({
+      page: currentPage,
+      pageSize,
+      status:
+        statusFilter === STATUS_FILTER_ALL
+          ? null
+          : (statusFilter as StudentStatusValue),
+      search: debouncedSearch,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, debouncedSearch, pageSize, statusFilter]);
+
+  const reloadCurrentPage = () => {
+    loadPage(buildListQuery());
+  };
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1);
   };
 
   const handleStatusFilterChange = (value: string | null) => {
@@ -331,15 +395,23 @@ export function ManageStudentsPanel({
       return;
     }
 
-    setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
+    setPageSize(Number(value) as PageSizeOption);
     setCurrentPage(1);
   };
 
-  const handleStudentCreated = (student: ManagerStudentRow) => {
-    setStudents((current) =>
-      prependUniqueByKey(current, student, (row) => row.user_id)
-    );
+  const handleStudentCreated = () => {
+    // Reset filters and reload page 1 so the new row and global stats are exact.
+    setSearchQuery("");
+    setDebouncedSearch("");
+    setStatusFilter(STATUS_FILTER_ALL);
     setCurrentPage(1);
+    loadedKeyRef.current = listQueryKey({
+      status: STATUS_FILTER_ALL,
+      search: "",
+      page: 1,
+      pageSize,
+    });
+    loadPage({ page: 1, pageSize, status: null, search: "" });
   };
 
   const handleUserUpdated = (user: ManagerUserRow) => {
@@ -350,6 +422,7 @@ export function ManageStudentsPanel({
           : student
       )
     );
+    reloadCurrentPage();
   };
 
   const openStudentDetails = (student: ManagerStudentRow) => {
@@ -439,6 +512,7 @@ export function ManageStudentsPanel({
                       : student
                   )
                 );
+                reloadCurrentPage();
               }
             }}
           />
@@ -463,7 +537,7 @@ export function ManageStudentsPanel({
                 <Input
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="Search name, username, email, or phone…"
+                  placeholder="Search name or phone…"
                   className="pl-8"
                   aria-label="Search students"
                 />
@@ -500,8 +574,8 @@ export function ManageStudentsPanel({
                     <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {paginatedStudents.length === 0 ? (
+                <tbody className={cn(isLoading && "opacity-60")}>
+                  {students.length === 0 ? (
                     <tr>
                       <td
                         colSpan={8}
@@ -511,7 +585,7 @@ export function ManageStudentsPanel({
                       </td>
                     </tr>
                   ) : (
-                    paginatedStudents.map((student) => (
+                    students.map((student) => (
                       <tr
                         key={student.student_profile_id}
                         className={STUDENT_ROW_CLASS}
@@ -592,8 +666,9 @@ export function ManageStudentsPanel({
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  Showing {rangeStart}–{rangeEnd} of {filteredStudents.length}
+                <span className="inline-flex items-center gap-2">
+                  Showing {rangeStart}–{rangeEnd} of {totalCount}
+                  {isLoading ? <InlineSpinner /> : null}
                 </span>
                 <span aria-hidden="true">·</span>
                 <div className="flex items-center gap-2">

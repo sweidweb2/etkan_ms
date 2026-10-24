@@ -33,7 +33,10 @@ export type ChangeOwnTeacherPasswordResult =
 async function assertTeacherSelf(
   adminClient: Supabase,
   actorUserId: string | null
-): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; userId: string; username: string }
+  | { ok: false; error: string }
+> {
   if (!actorUserId) {
     return { ok: false, error: "You must be signed in." };
   }
@@ -49,7 +52,11 @@ async function assertTeacherSelf(
     return { ok: false, error: "Only teachers can update this profile." };
   }
 
-  return { ok: true, userId: actorUserId };
+  return {
+    ok: true,
+    userId: actorUserId,
+    username: profile.data.username ?? "",
+  };
 }
 
 export async function getTeacherSelfProfile(
@@ -61,12 +68,12 @@ export async function getTeacherSelfProfile(
     return null;
   }
 
-  const [profile, authUser] = await Promise.all([
-    profileRepository.findProfileById(adminClient, access.userId),
-    authRepository.getAuthUserById(adminClient, access.userId),
-  ]);
+  const authUser = await authRepository.getAuthUserById(
+    adminClient,
+    access.userId
+  );
 
-  if (profile.error || !profile.data || authUser.error || !authUser.data.user) {
+  if (authUser.error || !authUser.data.user) {
     return null;
   }
 
@@ -77,7 +84,7 @@ export async function getTeacherSelfProfile(
 
   return {
     fullName,
-    username: profile.data.username ?? "",
+    username: access.username,
     email: authUser.data.user.email ?? "",
   };
 }

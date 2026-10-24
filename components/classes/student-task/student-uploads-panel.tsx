@@ -131,10 +131,10 @@ export function StudentUploadsPanel({
   const atMaxFiles = uploads.length >= STUDENT_TASK_UPLOAD_MAX_FILES;
 
   useEffect(() => {
+    // Reset picker when switching students.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local upload UI on student change
     setIsUploadFormOpen(false);
     resetSelectedFile();
-    // Reset picker when switching students.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional on student change
   }, [studentTaskId]);
 
   useActionStateToast(uploadState, isUploadPending);

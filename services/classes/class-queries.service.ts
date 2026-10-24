@@ -42,7 +42,13 @@ import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
 } from "@/types/manager-class-final-exam";
-import type { ManagerClassRow } from "@/types/manager-class-list";
+import { CLASS_STATUS_VALUES } from "@/lib/constants/manager-class-status";
+import type {
+  ManagerClassesListData,
+  ManagerClassesListQuery,
+  ManagerClassRow,
+  ManagerClassStatusCounts,
+} from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { ManagerClassStudentRow } from "@/types/manager-class-student";
 import type {
@@ -82,6 +88,91 @@ export async function listClassesForManager(
     adminClient,
     (data ?? []) as ClassDetailRecord[]
   );
+}
+
+const CLASSES_LIST_PAGE_SIZE = 6;
+const CLASSES_LIST_MAX_PAGE_SIZE = 48;
+
+/**
+ * One page of classes for the manager list. Enrollment/teacher/session counts
+ * are computed only for the rows on this page.
+ */
+export async function listClassesPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  query: ManagerClassesListQuery = {}
+): Promise<ManagerClassesListData> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+
+  const pageSize = Math.min(
+    CLASSES_LIST_MAX_PAGE_SIZE,
+    Math.max(1, query.pageSize ?? CLASSES_LIST_PAGE_SIZE)
+  );
+  const page = Math.max(1, query.page ?? 1);
+  const status = query.status ?? null;
+  const semesterId = query.semesterId ?? null;
+  const unlinkedSemester = !semesterId && (query.unlinkedSemester ?? false);
+  const search = query.search?.trim() ?? "";
+
+  const [pageResult, countsResult] = await Promise.all([
+    classRepository.listClassDetailsPage(adminClient, {
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+      status: status ?? undefined,
+      semesterId: semesterId ?? undefined,
+      unlinkedSemester,
+      search,
+    }),
+    classRepository.countClassesByStatuses(adminClient, CLASS_STATUS_VALUES),
+  ]);
+
+  if (pageResult.error) {
+    throw new Error(pageResult.error.message);
+  }
+  if (countsResult.error) {
+    throw new Error(countsResult.error.message);
+  }
+
+  const records = (pageResult.data ?? []) as unknown as ClassDetailRecord[];
+  const classes = await mapClassDetailRecordsToRows(adminClient, records);
+
+  const statusCounts = Object.fromEntries(
+    CLASS_STATUS_VALUES.map((value) => [
+      value,
+      countsResult.data?.[value] ?? 0,
+    ])
+  ) as ManagerClassStatusCounts;
+
+  return {
+    classes,
+    totalCount: pageResult.count ?? classes.length,
+    page,
+    pageSize,
+    status,
+    semesterId,
+    unlinkedSemester,
+    search,
+    statusCounts,
+  };
+}
+
+/** Semester filter options for the manage-classes panel (no class scan). */
+export async function listClassSemesterFilterOptionsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null
+): Promise<ManagerClassSemesterOption[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+
+  const { data, error } = await semesterRepository.listSemesters(adminClient);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((semester) => ({
+    id: semester.id,
+    name: semester.name,
+  }));
 }
 
 export type ManagerClassCreateDialogData = {
@@ -165,7 +256,8 @@ export async function getClassForManager(
 export async function assertClassGradesUnlockedForManager(
   adminClient: Supabase,
   actorUserId: string | null,
-  classId: string
+  classId: string,
+  options?: { classRow?: ManagerClassRow }
 ): Promise<
   | { ok: true; classRow: ManagerClassRow }
   | { ok: false; error: string }
@@ -174,6 +266,14 @@ export async function assertClassGradesUnlockedForManager(
 
   if (!isUuid(classId)) {
     return { ok: false, error: "Class not found." };
+  }
+
+  // Skip the second class detail fetch when the page already loaded the row.
+  if (options?.classRow && options.classRow.id === classId) {
+    if (!isClassGradesUnlocked(options.classRow.status)) {
+      return { ok: false, error: CLASS_GRADES_LOCKED_ERROR };
+    }
+    return { ok: true, classRow: options.classRow };
   }
 
   const [classResult, counts] = await Promise.all([
@@ -278,6 +378,86 @@ export async function listClassTeacherOptionsForManager(
   }));
 }
 
+/** Slim id/name options for transfer dialogs (no enrollment/teacher/session counts). */
+export async function listClassTransferOptionsForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  excludeClassId: string
+): Promise<Array<{ id: string; name: string }>> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+
+  const { data, error } =
+    await classRepository.listClassesWithSubjectForPicker(adminClient);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? [])
+    .filter((row) => row.id !== excludeClassId)
+    .map((row) => ({ id: row.id, name: row.name }));
+}
+
+/** Assigned teachers only — for class detail shell before the assign dropdown opens. */
+export async function listAssignedClassTeachersForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<ManagerClassTeacherOption[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+
+  if (!isUuid(classId)) {
+    return [];
+  }
+
+  const assignmentsResult =
+    await classTeacherRepository.listClassTeachersByClassId(
+      adminClient,
+      classId
+    );
+
+  if (assignmentsResult.error) {
+    throw new Error(assignmentsResult.error.message);
+  }
+
+  const assignments = assignmentsResult.data ?? [];
+  if (assignments.length === 0) {
+    return [];
+  }
+
+  const teacherIds = assignments.map((row) => row.teacher_id);
+  const profilesResult = await profileRepository.listProfileOptionsByIds(
+    adminClient,
+    teacherIds
+  );
+
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+
+  const profileById = new Map(
+    (profilesResult.data ?? []).map((row) => [row.id, row])
+  );
+  const assignmentByTeacherId = new Map(
+    assignments.map((row) => [row.teacher_id, row.id])
+  );
+
+  return teacherIds.flatMap((teacherId) => {
+    const profile = profileById.get(teacherId);
+    if (!profile) {
+      return [];
+    }
+    return [
+      {
+        id: profile.id,
+        username: profile.username,
+        assigned: true,
+        assignment_id: assignmentByTeacherId.get(teacherId) ?? null,
+      },
+    ];
+  });
+}
+
 export async function listClassSessionsForManager(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -302,12 +482,21 @@ export async function listClassStudentsForManager(
   actorUserId: string | null,
   classId: string
 ): Promise<ManagerClassStudentRow[]> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+  return loadClassStudentRows(adminClient, classId);
+}
+
+/**
+ * Same rows as `listClassStudentsForManager` without the permission check.
+ * Only for callers that already asserted `CLASSES_VIEW` (and class scope, e.g.
+ * teacher assignment) earlier in the same request.
+ */
+export async function loadClassStudentRows(
+  adminClient: Supabase,
+  classId: string
+): Promise<ManagerClassStudentRow[]> {
   const timer = createNavStepTimer("class_students");
   try {
-    await timer.step("auth", () =>
-      assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW)
-    );
-
     const { data: enrollments, error } = await timer.step("enrollments", () =>
       studentClassRepository.listStudentClassesByClassId(adminClient, classId)
     );

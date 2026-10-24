@@ -156,6 +156,7 @@ export const PERMISSIONS = {
 
   TASKS_VIEW: "tasks.view",
   TASKS_MANAGE_OWN_UPLOADS: "tasks.manage_own_uploads",
+  TASKS_EXPORT_UPLOADS: "tasks.export_uploads",
   TASKS_CREATE: "tasks.create",
   TASKS_UPDATE: "tasks.update",
   TASKS_UPDATE_STUDENT: "tasks.update_student",
@@ -676,6 +677,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     feature: "tasks",
     label: "Upload, open, and delete own task files",
     access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.TASKS_EXPORT_UPLOADS,
+    feature: "tasks",
+    label: "Export student task uploads as ZIP",
+    access: PERMISSION_ACCESS.READ,
   },
   {
     key: PERMISSIONS.TASKS_CREATE,

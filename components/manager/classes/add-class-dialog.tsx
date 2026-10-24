@@ -251,7 +251,9 @@ export function AddClassDialog({
 
         <form
           id="add-class-form"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={(event) => {
+            void handleSubmit(onSubmit)(event);
+          }}
           className="flex flex-col gap-4"
           noValidate
         >

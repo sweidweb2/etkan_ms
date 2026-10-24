@@ -580,6 +580,75 @@ export async function getRegistrationApplicationDetailForManager(
   };
 }
 
+/** Detail page loader: documents/signing overlaps breadcrumb guest/student lookup. */
+export async function getRegistrationApplicationDetailPageForManager(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  applicationId: string,
+  from: RegistrationDetailFrom
+): Promise<{
+  application: ManagerRegistrationApplicationRow;
+  signedDocuments: ManagerRegistrationDocumentSignedRow[];
+  breadcrumbItems: RegistrationDetailBreadcrumbItem[];
+} | null> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.REGISTRATIONS_VIEW
+  );
+
+  const existing =
+    await registrationRepository.findStudentRegistrationApplicationById(
+      adminClient,
+      applicationId
+    );
+
+  if (existing.error) {
+    throw new Error(existing.error.message);
+  }
+  if (!existing.data) {
+    return null;
+  }
+
+  const applicationRecord =
+    existing.data as StudentRegistrationApplicationRecord;
+  const breadcrumbSeed = {
+    full_name: applicationRecord.full_name,
+    guest_id: applicationRecord.guest_id,
+    user_id: applicationRecord.user_id,
+  };
+
+  const [docsResult, breadcrumbItems] = await Promise.all([
+    documentRepository.listStudentRegistrationDocumentsByApplicationId(
+      adminClient,
+      applicationId
+    ),
+    getRegistrationDetailBreadcrumbForManager(
+      adminClient,
+      from,
+      breadcrumbSeed
+    ),
+  ]);
+
+  if (docsResult.error) {
+    throw new Error(docsResult.error.message);
+  }
+
+  const documentRecords = (docsResult.data ??
+    []) as documentRepository.StudentRegistrationDocumentRecord[];
+  const documents = documentRecords.map((doc) => mapDocumentRecord(doc));
+  const signedDocuments = await createSignedUrlsForDocuments(
+    adminClient,
+    documentRecords
+  );
+
+  return {
+    application: mapApplicationRecord(applicationRecord, documents),
+    signedDocuments,
+    breadcrumbItems,
+  };
+}
+
 export async function getRegistrationDetailBreadcrumbForManager(
   adminClient: Supabase,
   from: RegistrationDetailFrom,
