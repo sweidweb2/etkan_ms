@@ -6,7 +6,7 @@
 **Role supervisor:** empty `/supervisor` panel; seeded allow-list: workshops + subjects (categories/exercises) + students + classes tree + instructor schedules + academic analysis (see `[08]`). Uses full manager nav filtered by grants — RBAC extras unlock UI/routes. No new permission keys.  
 **Role CRM:** empty `/crm` panel; seeded with all `guests.*` + all `teams.*` + full `registrations.*` for shared `/manager/guests*` and dossier/details (see `[08]`). No new permission keys.  
 **Role teacher:** class-tree grants only; own-class scoping in services (see `[08]`).  
-**Role student:** `students.view_own` + class/session/task reads + `accounting.view` / `accounting.clearances.view` / `payment_schedules.view` for own SPPs (see `[08]`).
+**Role student:** `students.view_own` + class/session/task reads + `accounting.view` / `accounting.clearances.view` / `payment_schedules.view` for own SPPs + `equipment.view_own_borrows` (see `[08]`).
 
 ---
 
@@ -229,6 +229,7 @@ Format: `key` — label — access
 | `equipment.create` | Create equipment | write |
 | `equipment.update` | Edit equipment | write |
 | `equipment.view_borrows` | View borrow history | read |
+| `equipment.view_own_borrows` | View own borrow history (student panel) | read |
 | `equipment.borrow_create` | Create borrow | write |
 | `equipment.borrow_update` | Edit borrow | write |
 | `equipment.borrow_return` | Mark borrow returned / not returned | write |
@@ -519,6 +520,7 @@ equipment.view
 equipment.create
 equipment.update
 equipment.view_borrows
+equipment.view_own_borrows
 equipment.borrow_create
 equipment.borrow_update
 equipment.borrow_return

@@ -142,9 +142,10 @@ final_exams.view
 accounting.view
 accounting.clearances.view
 payment_schedules.view
+equipment.view_own_borrows
 ```
 
-Login lands on `/student`. `students.update_own` lets the student edit username, name, birth date, phone, and password. Status stays staff-managed. `accounting.view` / `accounting.clearances.view` / `payment_schedules.view` power **My payments** for the student’s own open-phase SPPs only. Class keys power **My classes** (`/student/classes*` → sessions → tasks) for enrolled classes only (self-scoped services). **My borrowings** (`/student/borrowings`) lists that student’s own equipment borrows. No workshop seed package.
+Login lands on `/student`. `students.update_own` lets the student edit username, name, birth date, phone, and password. Status stays staff-managed. `accounting.view` / `accounting.clearances.view` / `payment_schedules.view` power **My payments** for the student’s own open-phase SPPs only. Class keys power **My classes** (`/student/classes*` → sessions → tasks) for enrolled classes only (self-scoped services). `equipment.view_own_borrows` powers **My borrowings** (`/student/borrowings`) for that student’s own equipment borrows. No workshop seed package.
 
 ---
 

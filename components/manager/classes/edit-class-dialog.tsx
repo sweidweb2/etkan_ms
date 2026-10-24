@@ -111,12 +111,16 @@ export function EditClassDialog({
     : semesterOptionsProp;
   const isLoadingOptions = open && needsFetch && fetchedOptions === null;
 
-  const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
-    if (!nextOpen) {
-      setFetchedOptions(null);
+  const isDialogBusy = isPending || isOptimizingCover;
+  const handleOpenChange = usePendingAwareOpenChange(
+    isDialogBusy,
+    (nextOpen) => {
+      if (!nextOpen) {
+        setFetchedOptions(null);
+      }
+      onOpenChange(nextOpen);
     }
-    onOpenChange(nextOpen);
-  });
+  );
 
   useActionStateToast(state, isPending);
 
@@ -280,7 +284,7 @@ export function EditClassDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isDialogBusy}>
         <DialogHeader>
           <DialogTitle>Edit class</DialogTitle>
           <DialogDescription>
@@ -500,7 +504,7 @@ export function EditClassDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending}
+            disabled={isDialogBusy}
             onClick={() => handleOpenChange(false)}
           >
             Cancel
@@ -508,12 +512,12 @@ export function EditClassDialog({
           <Button
             type="submit"
             form="edit-class-form"
-            disabled={!classRow || isPending || isLoadingOptions || isOptimizingCover}
+            disabled={!classRow || isDialogBusy || isLoadingOptions}
           >
-            {isPending ? (
+            {isPending || isOptimizingCover ? (
               <>
                 <InlineSpinner className="mr-2" />
-                Saving
+                {isOptimizingCover ? "Preparing cover" : "Saving"}
               </>
             ) : (
               "Save changes"

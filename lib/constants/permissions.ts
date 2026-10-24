@@ -183,6 +183,7 @@ export const PERMISSIONS = {
   EQUIPMENT_CREATE: "equipment.create",
   EQUIPMENT_UPDATE: "equipment.update",
   EQUIPMENT_VIEW_BORROWS: "equipment.view_borrows",
+  EQUIPMENT_VIEW_OWN_BORROWS: "equipment.view_own_borrows",
   EQUIPMENT_BORROW_CREATE: "equipment.borrow_create",
   EQUIPMENT_BORROW_UPDATE: "equipment.borrow_update",
   EQUIPMENT_BORROW_RETURN: "equipment.borrow_return",
@@ -816,6 +817,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.EQUIPMENT_VIEW_BORROWS,
     feature: "equipment",
     label: "View borrow history",
+    access: PERMISSION_ACCESS.READ,
+  },
+  {
+    key: PERMISSIONS.EQUIPMENT_VIEW_OWN_BORROWS,
+    feature: "equipment",
+    label: "View own borrow history",
     access: PERMISSION_ACCESS.READ,
   },
   {

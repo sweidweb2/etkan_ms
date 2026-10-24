@@ -129,15 +129,19 @@ Use this to confirm the stack works before cloning production.
 
 ```powershell
 npx supabase db reset
+npm run seed
+```
+
+That runs RBAC, admin, manager, full demo entities (`seed:demo`), and public projects.
+
+Or step-by-step:
+
+```powershell
 npm run seed:rbac
 npm run seed:admin
 npm run seed:manager
-```
-
-Optional demo rows:
-
-```powershell
 npm run seed:demo
+npm run seed:projects
 ```
 
 Then go to **Step 7**.

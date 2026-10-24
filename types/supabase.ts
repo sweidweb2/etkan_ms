@@ -452,6 +452,7 @@ export type Database = {
       }
       classes: {
         Row: {
+          card_gradient: string
           created_at: string | null
           id: string
           image_url: string | null
@@ -461,6 +462,7 @@ export type Database = {
           subject_id: string | null
         }
         Insert: {
+          card_gradient?: string
           created_at?: string | null
           id?: string
           image_url?: string | null
@@ -470,6 +472,7 @@ export type Database = {
           subject_id?: string | null
         }
         Update: {
+          card_gradient?: string
           created_at?: string | null
           id?: string
           image_url?: string | null

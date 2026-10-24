@@ -312,8 +312,6 @@ export const STUDENT_PANEL_NAVIGATION: PanelNavigation = {
       title: "My borrowings",
       href: ROUTES.STUDENT_BORROWINGS,
       icon: "package",
-      locked: true,
-      lockedMessage: "Coming soon",
     },
   ],
 };

@@ -5,7 +5,7 @@ import {
 import { getClaimsWithSharedJwks } from "@/lib/auth/get-claims";
 import { withClaimsTiming } from "@/lib/debug/claims-timing";
 import type { RoleValue } from "@/lib/constants/roles";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
@@ -16,6 +16,47 @@ export async function signInWithPassword(
   password: string
 ) {
   return client.auth.signInWithPassword({ email, password });
+}
+
+/**
+ * Verifies email/password without touching the caller's cookie session.
+ * Uses an ephemeral anon client (no persist / refresh / URL detection).
+ */
+export async function verifyPassword(
+  email: string,
+  password: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    return { ok: false, error: "Unable to verify password." };
+  }
+
+  const ephemeral = createClient<Database>(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storage: {
+        getItem: () => null,
+        setItem: () => undefined,
+        removeItem: () => undefined,
+      },
+    },
+  });
+
+  const { error } = await ephemeral.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    return { ok: false, error: error.message || "Invalid password." };
+  }
+
+  await ephemeral.auth.signOut({ scope: "local" });
+  return { ok: true };
 }
 
 export async function signOut(client: Supabase) {

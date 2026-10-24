@@ -1,5 +1,6 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { STUDENT_TASK_UPLOAD_MAX_FILES } from "@/lib/constants/manager-student-task-uploads";
+import { inspectStudentTaskUploadBytes } from "@/lib/manager/student-tasks/inspect-upload-bytes";
 import { buildStudentTaskUploadStoragePath } from "@/lib/manager/student-tasks/storage-path";
 import {
   deleteStudentTaskUploadSchema,
@@ -12,7 +13,6 @@ import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as studentTaskStorageRepository from "@/repositories/student-task-storage.repository";
 import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
 import type { StudentTaskUploadRecord } from "@/repositories/student-task-upload.repository";
-import * as classTaskRepository from "@/repositories/class-task.repository";
 import {
   assertStudentSelfAccess,
   getUnauthorizedError,
@@ -73,44 +73,28 @@ async function resolveOwnStudentTask(
 
   const userId = await assertStudentSelfAccess(adminClient, actorUserId);
 
-  const studentTaskResult = await studentTaskRepository.findStudentTaskById(
-    adminClient,
-    studentTaskId
-  );
+  const ownedTask =
+    await studentTaskRepository.findOwnedStudentTaskClassContext(
+      adminClient,
+      studentTaskId,
+      userId
+    );
 
-  if (studentTaskResult.error) {
+  if (ownedTask.error) {
     return {
       ok: false,
-      error: studentTaskResult.error.message || "Unable to open this task.",
+      error: ownedTask.error.message || "Unable to open this task.",
     };
   }
 
-  if (!studentTaskResult.data || studentTaskResult.data.student_id !== userId) {
+  if (!ownedTask.data) {
     return { ok: false, error: "Task not found." };
   }
-
-  const taskResult = await classTaskRepository.findClassTaskById(
-    adminClient,
-    studentTaskResult.data.task_id
-  );
-
-  if (taskResult.error) {
-    return {
-      ok: false,
-      error: taskResult.error.message || "Unable to open this task.",
-    };
-  }
-
-  if (!taskResult.data) {
-    return { ok: false, error: "Task not found." };
-  }
-
-  const classId = taskResult.data.class_id;
 
   const membership = await studentClassRepository.findStudentClassByUserAndClass(
     adminClient,
     userId,
-    classId
+    ownedTask.data.class_id
   );
   if (membership.error) {
     return {
@@ -122,15 +106,15 @@ async function resolveOwnStudentTask(
     return { ok: false, error: "Task not found." };
   }
 
-  if (options?.requireStarted && !taskResult.data.started) {
+  if (options?.requireStarted && !ownedTask.data.task_started) {
     return { ok: false, error: "This task has not started yet." };
   }
 
   return {
     ok: true,
     userId,
-    classId,
-    taskId: studentTaskResult.data.task_id,
+    classId: ownedTask.data.class_id,
+    taskId: ownedTask.data.task_id,
   };
 }
 
@@ -195,8 +179,18 @@ export async function uploadStudentTaskFileForSelf(
     parsed.data.student_task_id,
     parsed.data.file.name
   );
-  const contentType = parsed.data.file.type.trim();
-  const fileBytes = await parsed.data.file.arrayBuffer();
+  const fileBytes = Buffer.from(await parsed.data.file.arrayBuffer());
+  const inspected = await inspectStudentTaskUploadBytes(fileBytes);
+
+  if (!inspected.ok) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { file: [inspected.error] },
+    };
+  }
+
+  const contentType = inspected.mime;
 
   const uploadResult =
     await studentTaskStorageRepository.uploadStudentTaskStorageObject(

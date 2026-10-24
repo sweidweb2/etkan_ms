@@ -84,6 +84,7 @@ export const ROUTES = {
   CRM_ROOT: "/crm",
   TEACHER_ROOT: "/teacher",
   TEACHER_CLASSES: "/teacher/classes",
+  TEACHER_CLASS_DETAIL: "/teacher/classes/[id]",
   STUDENT_ROOT: "/student",
 
   STUDENT_CLASSES: "/student/classes",
@@ -229,6 +230,10 @@ export function getStudentPaymentDetailRoute(sppId: string): string {
 
 export function getStudentClassDetailRoute(classId: string): string {
   return `/student/classes/${classId}`;
+}
+
+export function getTeacherClassDetailRoute(classId: string): string {
+  return `/teacher/classes/${classId}`;
 }
 
 export function getStudentClassTaskDetailRoute(

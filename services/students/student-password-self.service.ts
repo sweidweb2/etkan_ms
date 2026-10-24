@@ -53,13 +53,12 @@ export async function changeOwnStudentPassword(
     return { success: false, error: "Unable to change password." };
   }
 
-  const signIn = await authRepository.signInWithPassword(
-    sessionClient,
+  const verified = await authRepository.verifyPassword(
     email,
     parsed.data.currentPassword
   );
 
-  if (signIn.error) {
+  if (!verified.ok) {
     return {
       success: false,
       error: "Please fix the errors below.",

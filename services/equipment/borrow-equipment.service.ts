@@ -552,6 +552,11 @@ export async function listStudentBorrowsForSelf(
   adminClient: Supabase,
   actorUserId: string | null
 ): Promise<ManagerStudentBorrowEquipmentRow[]> {
+  await assertPermission(
+    adminClient,
+    actorUserId,
+    PERMISSIONS.EQUIPMENT_VIEW_OWN_BORROWS
+  );
   const userId = await assertStudentSelfAccess(adminClient, actorUserId);
   return listStudentBorrowsUnchecked(adminClient, userId);
 }

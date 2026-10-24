@@ -24,6 +24,42 @@ export type UpdateOwnStudentProfileResult =
   | { success: true; student: ManagerStudentRow; message: string }
   | { success: false; error: string; fieldErrors?: FieldErrors };
 
+async function rollbackOwnProfileUpdate(
+  adminClient: Supabase,
+  userId: string,
+  studentProfileId: string,
+  previous: {
+    username: string;
+    fullName: string;
+    birthDate: string | null;
+    phone: string | null;
+  },
+  stages: { profile: boolean; auth: boolean }
+): Promise<void> {
+  if (stages.auth) {
+    await authRepository.updateAuthUserByAdmin(adminClient, userId, {
+      fullName: previous.fullName,
+      username: previous.username,
+    });
+  }
+
+  if (stages.profile) {
+    await profileRepository.updateProfileById(adminClient, userId, {
+      username: previous.username,
+    });
+  }
+
+  await studentProfileRepository.updateStudentProfileDetailsById(
+    adminClient,
+    studentProfileId,
+    {
+      full_name: previous.fullName,
+      birth_date: previous.birthDate,
+      phone: previous.phone,
+    }
+  );
+}
+
 export async function updateOwnStudentProfile(
   adminClient: Supabase,
   actorUserId: string | null,
@@ -70,6 +106,12 @@ export async function updateOwnStudentProfile(
   const fullName = parsed.data.fullName.trim();
   const username = parsed.data.username.trim();
   const previousUsername = existingProfile.data.username ?? "";
+  const previous = {
+    username: previousUsername,
+    fullName: existing.data.full_name,
+    birthDate: existing.data.birth_date,
+    phone: existing.data.phone,
+  };
 
   if (username !== previousUsername) {
     const taken = await profileRepository.findProfileByUsername(
@@ -91,6 +133,8 @@ export async function updateOwnStudentProfile(
     }
   }
 
+  const stages = { profile: false, auth: false };
+
   const profileUpdate = await profileRepository.updateProfileById(
     adminClient,
     userId,
@@ -103,6 +147,7 @@ export async function updateOwnStudentProfile(
       error: profileUpdate.error?.message || "Unable to update username.",
     };
   }
+  stages.profile = true;
 
   const { error: authError } = await authRepository.updateAuthUserByAdmin(
     adminClient,
@@ -111,11 +156,19 @@ export async function updateOwnStudentProfile(
   );
 
   if (authError) {
+    await rollbackOwnProfileUpdate(
+      adminClient,
+      userId,
+      existing.data.id,
+      previous,
+      stages
+    );
     return {
       success: false,
       error: authError.message || "Unable to update username.",
     };
   }
+  stages.auth = true;
 
   const updated = await studentProfileRepository.updateStudentProfileDetailsById(
     adminClient,
@@ -128,6 +181,13 @@ export async function updateOwnStudentProfile(
   );
 
   if (updated.error || !updated.data) {
+    await rollbackOwnProfileUpdate(
+      adminClient,
+      userId,
+      existing.data.id,
+      previous,
+      stages
+    );
     return {
       success: false,
       error: updated.error?.message || "Unable to update profile.",

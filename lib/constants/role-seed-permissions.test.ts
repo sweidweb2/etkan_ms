@@ -151,6 +151,9 @@ describe("role-seed-permissions student", () => {
     expect(STUDENT_SEED_PERMISSIONS).toContain(
       PERMISSIONS.PAYMENT_SCHEDULES_VIEW
     );
+    expect(STUDENT_SEED_PERMISSIONS).toContain(
+      PERMISSIONS.EQUIPMENT_VIEW_OWN_BORROWS
+    );
     expect(STUDENT_SEED_PERMISSIONS).not.toContain(PERMISSIONS.WORKSHOPS_VIEW);
     expect(STUDENT_SEED_PERMISSIONS).not.toContain(PERMISSIONS.CLASSES_CREATE);
   });

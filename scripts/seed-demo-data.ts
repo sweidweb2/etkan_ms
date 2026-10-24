@@ -1,14 +1,74 @@
-import { ROLES } from "@/lib/constants/roles";
+/**
+ * Full local demo graph for Etkan MS panels + public surfaces.
+ *
+ * Idempotent: safe to re-run. Prefer enroll / payment / task RPCs so sync
+ * side-effects match production logic.
+ *
+ * Prerequisites: migrations applied, then usually:
+ *   npm run seed:rbac && npm run seed:admin && npm run seed:manager
+ */
+import { pickClassCardGradientKey } from "@/lib/constants/class-card-gradients";
+import {
+  GUEST_CURRENT_STATUSES,
+  GUEST_INTERESTED_SERVICES,
+  GUEST_PIPELINE_STATUSES,
+} from "@/lib/constants/guest";
+import { TEACHER_SEED_PERMISSIONS } from "@/lib/constants/role-seed-permissions";
+import { WORKSHOP_OFFERING_TYPES, WORKSHOP_INSTRUCTOR_ROLES, WORKSHOP_SESSION_STATUSES, WORKSHOP_WAGE_TYPES } from "@/lib/constants/manager-workshop-display";
+import { WORKSHOP_STATUSES } from "@/lib/constants/manager-workshop-status";
+import {
+  REGISTRATION_EDUCATION_LEVELS,
+  REGISTRATION_REFERRAL_SOURCES,
+} from "@/lib/constants/public-registration";
+import { ROLES, type RoleValue } from "@/lib/constants/roles";
+import { TEAM_STATUSES } from "@/lib/constants/team";
+import {
+  FINANCIAL_ADJUSTMENT_TYPES,
+  FINANCIAL_ADJUSTMENT_VALUE_TYPES,
+  PAYMENT_METHODS,
+  TRANSACTION_TYPES,
+} from "@/lib/manager/accounting/constants";
 import { generateSemesterCode } from "@/lib/manager/generate-semester-code";
+import {
+  ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+  ENTITY_SCHEDULE_TYPE_WORKSHOP,
+} from "@/lib/validators/manager/instructor-schedule-slot";
+import * as attendeeRepository from "@/repositories/attendee.repository";
 import * as authRepository from "@/repositories/auth.repository";
+import * as blogRepository from "@/repositories/blog.repository";
+import * as borrowEquipmentRepository from "@/repositories/borrow-equipment.repository";
 import * as classRepository from "@/repositories/class.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
+import * as equipmentRepository from "@/repositories/equipment.repository";
+import * as finalExamRepository from "@/repositories/final-exam.repository";
+import * as guestRepository from "@/repositories/guest.repository";
+import * as guestStatusEventRepository from "@/repositories/guest-status-event.repository";
+import * as instructorScheduleSlotRepository from "@/repositories/instructor-schedule-slot.repository";
+import * as instructorSubjectCapabilityRepository from "@/repositories/instructor-subject-capability.repository";
+import * as instructorSubjectRepository from "@/repositories/instructor-subject.repository";
+import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
+import * as permissionRepository from "@/repositories/permission.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as publicProjectRepository from "@/repositories/public-project.repository";
 import * as semesterRepository from "@/repositories/semester.repository";
+import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
+import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
+import * as studentPaymentRepository from "@/repositories/student-payment.repository";
+import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
+import * as studentPaymentPhaseClearanceRepository from "@/repositories/student-payment-phase-clearance.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
+import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as subjectRepository from "@/repositories/subject.repository";
+import * as subjectTaskRepository from "@/repositories/subject-task.repository";
+import * as teamRepository from "@/repositories/team.repository";
+import * as transactionRepository from "@/repositories/transaction.repository";
+import * as workshopRepository from "@/repositories/workshop.repository";
+import * as workshopInstructorRepository from "@/repositories/workshop-instructor.repository";
+import * as workshopPaymentRepository from "@/repositories/workshop-payment.repository";
+import * as workshopSessionRepository from "@/repositories/workshop-session.repository";
 import { createSeedAdminClient } from "@/scripts/lib/create-seed-admin-client";
 import { ensureStudentRegistration } from "@/services/auth/profile.service";
 import { syncAuthUserRole } from "@/services/auth/role.service";
@@ -18,15 +78,42 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const DEMO_MARKER = "Demo Fall 2026";
+const DEMO_SPRING = "Demo Spring 2027";
+const DEMO_PHASE_NAME = "Demo Fall Tuition";
+const DEMO_WORKSHOP_NAME = "Demo Intro to Robotics";
+const DEMO_TEAM_NAME = "Demo Cohort A";
 
 function getDefaultPassword(): string {
   return process.env.SEED_DEMO_PASSWORD ?? "Demo123!";
 }
 
+function isoDate(daysFromToday: number): string {
+  const d = new Date();
+  d.setUTCHours(12, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + daysFromToday);
+  return d.toISOString().slice(0, 10);
+}
+
+function isoDateTime(daysFromToday: number, hourUtc = 9): string {
+  const d = new Date();
+  d.setUTCHours(hourUtc, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + daysFromToday);
+  return d.toISOString();
+}
+
+type SeedStaff = {
+  username: string;
+  email: string;
+  fullName: string;
+  role: RoleValue;
+};
+
 type SeedTeacher = {
   username: string;
   email: string;
   fullName: string;
+  isInstructor?: boolean;
+  isMentor?: boolean;
 };
 
 type SeedStudent = {
@@ -39,10 +126,20 @@ type SeedStudent = {
 async function findOrCreateSemester(
   client: Supabase,
   input: { name: string }
-) {
+): Promise<{ id: string; semester_code: string }> {
   const existing = await semesterRepository.findSemesterByName(client, input.name);
   if (existing.error) throw new Error(existing.error.message);
-  if (existing.data) return existing.data.id;
+  if (existing.data) {
+    const full = await semesterRepository.findSemesterById(
+      client,
+      existing.data.id
+    );
+    if (full.error) throw new Error(full.error.message);
+    if (!full.data) {
+      throw new Error(`Semester "${input.name}" vanished after lookup.`);
+    }
+    return { id: full.data.id, semester_code: full.data.semester_code };
+  }
 
   let semesterCode = generateSemesterCode();
   for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -64,7 +161,7 @@ async function findOrCreateSemester(
     throw new Error(error?.message ?? `Unable to create semester "${input.name}".`);
   }
 
-  return data.id;
+  return { id: data.id, semester_code: data.semester_code };
 }
 
 async function findOrCreateSubject(
@@ -113,6 +210,9 @@ async function findOrCreateClass(
     subject_id: input.subjectId,
     semester_id: input.semesterId,
     status: input.status,
+    card_gradient: pickClassCardGradientKey(
+      `${input.name}:${input.subjectId}:${input.semesterId}`
+    ),
   });
 
   if (created.error || !created.data) {
@@ -120,6 +220,55 @@ async function findOrCreateClass(
   }
 
   return created.data.id;
+}
+
+async function findOrCreateStaff(
+  client: Supabase,
+  input: SeedStaff
+): Promise<string> {
+  const existingProfile = await profileRepository.findProfileByUsername(
+    client,
+    input.username
+  );
+  if (existingProfile.data) return existingProfile.data.id;
+
+  const existingEmail = await authRepository.findAuthUserByEmail(
+    client,
+    input.email
+  );
+  if (existingEmail.error) throw new Error(existingEmail.error.message);
+  if (existingEmail.data?.user) return existingEmail.data.user.id;
+
+  const { data: authData, error: authError } = await authRepository.createAuthUser(
+    client,
+    {
+      email: input.email,
+      password: getDefaultPassword(),
+      username: input.username,
+      fullName: input.fullName,
+      role: input.role,
+    }
+  );
+
+  if (authError || !authData.user) {
+    throw new Error(authError?.message ?? `Unable to create staff ${input.username}.`);
+  }
+
+  const authUserId = authData.user.id;
+
+  try {
+    const { error: profileError } = await profileRepository.createProfile(client, {
+      id: authUserId,
+      username: input.username,
+      role: input.role,
+    });
+    if (profileError) throw new Error(profileError.message);
+    await syncAuthUserRole(client, authUserId, input.role);
+    return authUserId;
+  } catch (error) {
+    await authRepository.deleteAuthUser(client, authUserId);
+    throw error;
+  }
 }
 
 async function findOrCreateTeacher(
@@ -132,6 +281,16 @@ async function findOrCreateTeacher(
   );
 
   if (existingProfile.data) {
+    const flags = {
+      is_instructor: input.isInstructor ?? false,
+      is_mentor: input.isMentor ?? false,
+    };
+    if (flags.is_instructor || flags.is_mentor) {
+      await profileRepository.updateProfileById(client, existingProfile.data.id, {
+        username: input.username,
+        ...flags,
+      });
+    }
     return existingProfile.data.id;
   }
 
@@ -166,6 +325,8 @@ async function findOrCreateTeacher(
       id: authUserId,
       username: input.username,
       role: ROLES.TEACHER,
+      is_instructor: input.isInstructor ?? false,
+      is_mentor: input.isMentor ?? false,
     });
 
     if (profileError) throw new Error(profileError.message);
@@ -327,68 +488,819 @@ async function ensureStudentSemesterEnrollment(
   if (error) throw new Error(error.message);
 }
 
-async function ensureStudentClassEnrollment(
+async function ensureStudentsEnrolledInClass(
   client: Supabase,
-  userId: string,
-  classId: string
+  classId: string,
+  userIds: string[]
 ) {
-  const existing = await studentClassRepository.findStudentClassByUserAndClass(
+  const { error } = await studentClassRepository.enrollStudentsInClass(
     client,
-    userId,
+    classId,
+    userIds
+  );
+  if (error) throw new Error(error.message);
+}
+
+async function findOrCreateSubjectTask(
+  client: Supabase,
+  input: {
+    subjectId: string;
+    title: string;
+    description: string;
+    period: number;
+    maxGrade: number;
+    sortOrder: number;
+  }
+) {
+  const listed = await subjectTaskRepository.listSubjectTasksBySubjectId(
+    client,
+    input.subjectId
+  );
+  if (listed.error) throw new Error(listed.error.message);
+  const existing = (listed.data ?? []).find(
+    (row) => row.title.toLowerCase() === input.title.toLowerCase()
+  );
+  if (existing) return existing;
+
+  const created = await subjectTaskRepository.createSubjectTask(client, {
+    subject_id: input.subjectId,
+    title: input.title,
+    description: input.description,
+    period: input.period,
+    max_grade: input.maxGrade,
+    sort_order: input.sortOrder,
+  });
+  if (created.error || !created.data) {
+    throw new Error(created.error?.message ?? `Unable to create subject task "${input.title}".`);
+  }
+  return created.data;
+}
+
+async function ensureClassTasksFromSubject(
+  client: Supabase,
+  classId: string,
+  subjectTasks: Awaited<ReturnType<typeof findOrCreateSubjectTask>>[],
+  options: { startFirst: boolean }
+) {
+  const existing = await classTaskRepository.listClassTasksByClassId(
+    client,
     classId
   );
-
   if (existing.error) throw new Error(existing.error.message);
-  if (existing.data) return;
-
-  const { error } = await studentClassRepository.createStudentClassEnrollment(
-    client,
-    {
-      user_id: userId,
-      class_id: classId,
-    }
+  const bySource = new Map(
+    (existing.data ?? [])
+      .filter((row) => row.source_subject_task_id)
+      .map((row) => [row.source_subject_task_id as string, row])
   );
 
-  if (error) throw new Error(error.message);
+  const startedAt = isoDateTime(-3);
+  const dueDate = isoDateTime(4);
+
+  for (const [index, subjectTask] of subjectTasks.entries()) {
+    let classTask = bySource.get(subjectTask.id);
+    if (!classTask) {
+      const start = options.startFirst && index === 0;
+      const created = await classTaskRepository.createClassTask(client, {
+        class_id: classId,
+        source_subject_task_id: subjectTask.id,
+        title: subjectTask.title,
+        description: subjectTask.description,
+        period: subjectTask.period,
+        max_grade: subjectTask.max_grade,
+        sort_order: subjectTask.sort_order,
+        started: start,
+        started_at: start ? startedAt : null,
+        due_date: start ? dueDate : null,
+      });
+      if (created.error || !created.data) {
+        throw new Error(
+          created.error?.message ?? `Unable to clone class task "${subjectTask.title}".`
+        );
+      }
+      classTask = created.data;
+      if (start) {
+        const seeded = await studentTaskRepository.seedStudentTasksForNewTask(
+          client,
+          classTask.id
+        );
+        if (seeded.error) throw new Error(seeded.error.message);
+      }
+    }
+  }
+}
+
+async function ensureSessionsForClass(
+  client: Supabase,
+  classId: string,
+  semesterId: string
+) {
+  const listed = await sessionRepository.listSessionsByClassId(client, classId);
+  if (listed.error) throw new Error(listed.error.message);
+  if ((listed.data ?? []).length > 0) {
+    for (const session of listed.data ?? []) {
+      const ensured = await attendeeRepository.ensureSessionAttendeesForMembers(
+        client,
+        session.id,
+        classId
+      );
+      if (ensured.error) throw new Error(ensured.error.message);
+    }
+    return;
+  }
+
+  for (const [index, dayOffset] of [-7, 0].entries()) {
+    const startsAt = isoDateTime(dayOffset, 14);
+    const endsAt = isoDateTime(dayOffset, 16);
+    const created = await sessionRepository.createSession(client, {
+      class_id: classId,
+      nb_order: index + 1,
+      topic: `Demo session ${index + 1}`,
+      session_report: null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      semester_id: semesterId,
+      group_grade_level: null,
+    });
+    if (created.error || !created.data) {
+      throw new Error(created.error?.message ?? "Unable to create demo session.");
+    }
+    const ensured = await attendeeRepository.ensureSessionAttendeesForMembers(
+      client,
+      created.data.id,
+      classId
+    );
+    if (ensured.error) throw new Error(ensured.error.message);
+  }
+}
+
+async function ensureFinalExam(client: Supabase, classId: string) {
+  const existing = await finalExamRepository.findFinalExamByClassId(
+    client,
+    classId
+  );
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) return existing.data.id;
+
+  const created = await finalExamRepository.createFinalExam(client, {
+    class_id: classId,
+    title: "Demo Midterm / Final",
+    description: "Demo exam for local testing.",
+    due_date: isoDate(30),
+    max_grade: 100,
+  });
+  if (created.error || !created.data) {
+    throw new Error(created.error?.message ?? "Unable to create final exam.");
+  }
+  return created.data.id;
+}
+
+async function ensurePaymentPhaseWithPayments(
+  client: Supabase,
+  input: {
+    semesterId: string;
+    receivedByUserId: string;
+  }
+) {
+  const phases = await paymentPhaseRepository.listPaymentPhasesBySemesterId(
+    client,
+    input.semesterId
+  );
+  if (phases.error) throw new Error(phases.error.message);
+
+  let phase = (phases.data ?? []).find(
+    (row) => row.name.toLowerCase() === DEMO_PHASE_NAME.toLowerCase()
+  );
+
+  let phaseId = phase?.id ?? null;
+
+  if (!phaseId) {
+    const created = await paymentPhaseRepository.createPaymentPhaseWithSpps(
+      client,
+      {
+        name: DEMO_PHASE_NAME,
+        semester_id: input.semesterId,
+        amount: 1200,
+        upfront_amount: 300,
+        duration_months: 4,
+        start_date: isoDate(-14),
+        end_date: isoDate(100),
+      }
+    );
+    if (created.error || !created.data?.phase) {
+      throw new Error(
+        created.error?.message ?? "Unable to create demo payment phase with SPPs."
+      );
+    }
+    phaseId = created.data.phase.id;
+  }
+
+  const spps = await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+    client,
+    phaseId
+  );
+  if (spps.error) throw new Error(spps.error.message);
+  const sppRows = spps.data ?? [];
+
+  if (sppRows.length > 0) {
+    const first = sppRows[0]!;
+    const existingPayments = await studentPaymentRepository.listPaymentsBySppId(
+      client,
+      first.id
+    );
+    if (existingPayments.error) throw new Error(existingPayments.error.message);
+
+    if ((existingPayments.data ?? []).length === 0) {
+      const paid = await studentPaymentRepository.createStudentPaymentWithRecalc(
+        client,
+        {
+          student_payment_phase_id: first.id,
+          payment_date: isoDate(-7),
+          amount: 300,
+          payment_method: PAYMENT_METHODS.CASH,
+          received_by: input.receivedByUserId,
+          received_by_management: true,
+          notes: "Demo upfront payment",
+        }
+      );
+      if (paid.error) throw new Error(paid.error.message);
+    }
+
+    if (sppRows.length > 1) {
+      const second = sppRows[1]!;
+      const adjExisting = await client
+        .from("student_financial_adjustments")
+        .select("id")
+        .eq("student_payment_phase_id", second.id)
+        .maybeSingle();
+      if (adjExisting.error) throw new Error(adjExisting.error.message);
+      if (!adjExisting.data) {
+        const adj =
+          await studentFinancialAdjustmentRepository.createAdjustmentWithRecalc(
+            client,
+            {
+              student_payment_phase_id: second.id,
+              type: FINANCIAL_ADJUSTMENT_TYPES.SCHOLARSHIP,
+              value_type: FINANCIAL_ADJUSTMENT_VALUE_TYPES.FIXED,
+              value: 100,
+              reason: "Demo scholarship",
+              effective_date: isoDate(-5),
+            }
+          );
+        if (adj.error) throw new Error(adj.error.message);
+      }
+
+      const clearanceExisting = await client
+        .from("student_payment_phase_clearances")
+        .select("id")
+        .eq("student_payment_phase_id", second.id)
+        .limit(1);
+      if (clearanceExisting.error) throw new Error(clearanceExisting.error.message);
+      if ((clearanceExisting.data ?? []).length === 0) {
+        const clearance =
+          await studentPaymentPhaseClearanceRepository.insertClearance(client, {
+            student_payment_phase_id: second.id,
+            duration_days: 30,
+            notes: "Demo month clearance",
+            created_by: input.receivedByUserId,
+          });
+        if (clearance.error) throw new Error(clearance.error.message);
+      }
+    }
+  }
+
+  return phaseId;
+}
+
+async function ensureWorkshopBundle(
+  client: Supabase,
+  input: { instructorId: string; createdBy: string | null }
+) {
+  const listed = await workshopRepository.listWorkshopsForScheduleTabs(client);
+  if (listed.error) throw new Error(listed.error.message);
+  let workshopId =
+    (listed.data ?? []).find(
+      (row) => row.name.toLowerCase() === DEMO_WORKSHOP_NAME.toLowerCase()
+    )?.id ?? null;
+
+  if (!workshopId) {
+    const created = await workshopRepository.createWorkshop(client, {
+      name: DEMO_WORKSHOP_NAME,
+      subject: "Robotics",
+      status: WORKSHOP_STATUSES.SCHEDULED,
+      type: WORKSHOP_OFFERING_TYPES.WORKSHOP,
+      phone: "+1-555-0200",
+      target_audience: "High school",
+      nb_participants: 12,
+      proposal_notes: "Demo workshop for local seed.",
+      number_of_sessions: 4,
+      price: 150,
+      start_date: isoDate(7),
+      end_date: isoDate(35),
+      delivery_place: "Etkan lab",
+      created_by: input.createdBy,
+    });
+    if (created.error || !created.data) {
+      throw new Error(created.error?.message ?? "Unable to create demo workshop.");
+    }
+    workshopId = created.data.id;
+  }
+
+  const instructors =
+    await workshopInstructorRepository.listWorkshopInstructorsByWorkshopId(
+      client,
+      workshopId
+    );
+  if (instructors.error) throw new Error(instructors.error.message);
+  const hasInstructor = (instructors.data ?? []).some(
+    (row) => row.user_id === input.instructorId
+  );
+  if (!hasInstructor) {
+    const createdWi = await workshopInstructorRepository.createWorkshopInstructor(
+      client,
+      {
+        workshop_id: workshopId,
+        user_id: input.instructorId,
+        role: WORKSHOP_INSTRUCTOR_ROLES.LEAD,
+        wage_type: WORKSHOP_WAGE_TYPES.FIXED,
+        wage_amount: 400,
+        notes: "Demo lead instructor",
+      }
+    );
+    if (createdWi.error) throw new Error(createdWi.error.message);
+  }
+
+  const sessions = await client
+    .from("workshop_sessions")
+    .select("id")
+    .eq("workshop_id", workshopId)
+    .limit(1);
+  if (sessions.error) throw new Error(sessions.error.message);
+  if ((sessions.data ?? []).length === 0) {
+    const createdSession = await workshopSessionRepository.createWorkshopSession(
+      client,
+      {
+        workshop_id: workshopId,
+        nb_order: 1,
+        session_date: isoDate(7),
+        start_time: "10:00:00",
+        end_time: "12:00:00",
+        nb_hours: 2,
+        topic: "Intro & safety",
+        notes: null,
+        suggestions: null,
+        status: WORKSHOP_SESSION_STATUSES.PLANNED,
+        participants_eval: null,
+        session_eval: null,
+      }
+    );
+    if (createdSession.error) throw new Error(createdSession.error.message);
+  }
+
+  const payments = await client
+    .from("workshop_payments")
+    .select("id")
+    .eq("workshop_id", workshopId)
+    .limit(1);
+  if (payments.error) throw new Error(payments.error.message);
+  if ((payments.data ?? []).length === 0) {
+    const createdPay = await workshopPaymentRepository.createWorkshopPayment(
+      client,
+      {
+        workshop_id: workshopId,
+        amount: 150,
+        type: TRANSACTION_TYPES.CREDIT,
+        payment_date: isoDate(-1),
+        payment_method: PAYMENT_METHODS.CASH,
+        notes: "Demo deposit",
+        created_by: input.createdBy,
+        transaction_id: null,
+      }
+    );
+    if (createdPay.error) throw new Error(createdPay.error.message);
+  }
+
+  const slotExisting = await client
+    .from("instructor_schedule_slots")
+    .select("id")
+    .eq("entity_type", ENTITY_SCHEDULE_TYPE_WORKSHOP)
+    .eq("record_id", workshopId)
+    .limit(1);
+  if (slotExisting.error) throw new Error(slotExisting.error.message);
+  if ((slotExisting.data ?? []).length === 0) {
+    const slot =
+      await instructorScheduleSlotRepository.createInstructorScheduleSlot(
+        client,
+        {
+          entity_type: ENTITY_SCHEDULE_TYPE_WORKSHOP,
+          record_id: workshopId,
+          name: `${DEMO_WORKSHOP_NAME} block`,
+          type: "busy",
+          slot_date: isoDate(7),
+          day_of_week: new Date(`${isoDate(7)}T12:00:00Z`).getUTCDay(),
+          start_time: "10:00:00",
+          end_time: "12:00:00",
+          source_workshop_id: workshopId,
+        }
+      );
+    if (slot.error) throw new Error(slot.error.message);
+  }
+
+  return workshopId;
+}
+
+async function ensureInstructorCatalog(
+  client: Supabase,
+  instructorId: string
+) {
+  let subjectId: string | null = null;
+  const listed = await instructorSubjectRepository.findInstructorSubjectByName(
+    client,
+    "Demo Robotics"
+  );
+  if (listed.error) throw new Error(listed.error.message);
+
+  if (listed.data) {
+    subjectId = listed.data.id;
+  } else {
+    const maxOrder =
+      await instructorSubjectRepository.getMaxInstructorSubjectSortOrder(client);
+    if (maxOrder.error) throw new Error(maxOrder.error.message);
+    const sortOrder =
+      typeof maxOrder.data?.sort_order === "number"
+        ? maxOrder.data.sort_order + 1
+        : 1;
+    const created = await instructorSubjectRepository.createInstructorSubject(
+      client,
+      { name: "Demo Robotics", sort_order: sortOrder }
+    );
+    if (created.error || !created.data) {
+      throw new Error(created.error?.message ?? "Unable to create instructor subject.");
+    }
+    subjectId = created.data.id;
+  }
+
+  const cap = await client
+    .from("instructor_subject_capability")
+    .select("user_id")
+    .eq("user_id", instructorId)
+    .eq("instructor_subject_id", subjectId)
+    .maybeSingle();
+  if (cap.error) throw new Error(cap.error.message);
+  if (!cap.data) {
+    const inserted = await instructorSubjectCapabilityRepository.insertCapabilities(
+      client,
+      [{ user_id: instructorId, subject_id: subjectId }]
+    );
+    if (inserted.error) throw new Error(inserted.error.message);
+  }
+
+  const freeSlot = await client
+    .from("instructor_schedule_slots")
+    .select("id")
+    .eq("entity_type", ENTITY_SCHEDULE_TYPE_INSTRUCTOR)
+    .eq("record_id", instructorId)
+    .limit(1);
+  if (freeSlot.error) throw new Error(freeSlot.error.message);
+  if ((freeSlot.data ?? []).length === 0) {
+    const created =
+      await instructorScheduleSlotRepository.createInstructorScheduleSlot(
+        client,
+        {
+          entity_type: ENTITY_SCHEDULE_TYPE_INSTRUCTOR,
+          record_id: instructorId,
+          name: "Demo free window",
+          type: "free",
+          slot_date: isoDate(1),
+          day_of_week: new Date(`${isoDate(1)}T12:00:00Z`).getUTCDay(),
+          start_time: "09:00:00",
+          end_time: "11:00:00",
+        }
+      );
+    if (created.error) throw new Error(created.error.message);
+  }
+}
+
+async function ensureGuestsAndTeam(
+  client: Supabase,
+  createdBy: string | null
+) {
+  const guests = await guestRepository.listGuests(client);
+  if (guests.error) throw new Error(guests.error.message);
+
+  const guestSpecs = [
+    {
+      full_name: "Demo Guest Nora",
+      phone: "+1-555-0301",
+      status: GUEST_CURRENT_STATUSES.PENDING,
+      pipeline: [
+        GUEST_PIPELINE_STATUSES.STARTED,
+        GUEST_PIPELINE_STATUSES.FINISHED_MEETING,
+      ] as const,
+    },
+    {
+      full_name: "Demo Guest Omar",
+      phone: "+1-555-0302",
+      status: GUEST_CURRENT_STATUSES.SCHEDULED,
+      pipeline: [] as const,
+    },
+  ];
+
+  const guestIds: string[] = [];
+
+  for (const spec of guestSpecs) {
+    const existing = (guests.data ?? []).find((row) => row.phone === spec.phone);
+    if (existing) {
+      guestIds.push(existing.id);
+      continue;
+    }
+
+    const created = await guestRepository.createGuest(client, {
+      full_name: spec.full_name,
+      phone: spec.phone,
+      age: 17,
+      school_or_university: "Demo High School",
+      education_level: REGISTRATION_EDUCATION_LEVELS.SCHOOL,
+      interested_service: GUEST_INTERESTED_SERVICES.ETKAN_ROADMAP,
+      referred_from: REGISTRATION_REFERRAL_SOURCES.FRIEND,
+      referred_from_other: null,
+      status: spec.status,
+      notes: "Demo CRM guest",
+      created_by: createdBy,
+    });
+    if (created.error || !created.data) {
+      throw new Error(created.error?.message ?? `Unable to create guest ${spec.full_name}.`);
+    }
+    guestIds.push(created.data.id);
+
+    if (spec.pipeline.length > 0) {
+      const events = await guestStatusEventRepository.createGuestStatusEvents(
+        client,
+        spec.pipeline.map((status) => ({
+          guest_id: created.data!.id,
+          status,
+          note: null,
+          created_by: createdBy,
+        }))
+      );
+      if (events.error) throw new Error(events.error.message);
+    }
+  }
+
+  const teams = await client
+    .from("teams")
+    .select("id, name")
+    .ilike("name", DEMO_TEAM_NAME)
+    .maybeSingle();
+  if (teams.error) throw new Error(teams.error.message);
+
+  let teamId = teams.data?.id ?? null;
+  if (!teamId) {
+    const created = await teamRepository.createTeam(client, {
+      name: DEMO_TEAM_NAME,
+      expected_start_date: isoDate(21),
+      status: TEAM_STATUSES.SCHEDULED,
+      created_by: createdBy,
+    });
+    if (created.error || !created.data) {
+      throw new Error(created.error?.message ?? "Unable to create demo team.");
+    }
+    teamId = created.data.id;
+  }
+
+  if (guestIds[0]) {
+    const assigned = await teamRepository.assignGuestToTeam(client, {
+      teamId,
+      guestId: guestIds[0],
+      createdBy,
+    });
+    if (assigned.error) throw new Error(assigned.error.message);
+  }
+}
+
+async function ensureEquipment(
+  client: Supabase,
+  borrowerUserId: string
+) {
+  const listed = await equipmentRepository.listEquipments(client);
+  if (listed.error) throw new Error(listed.error.message);
+
+  let equipment = (listed.data ?? []).find(
+    (row) => row.name.toLowerCase() === "demo 3d printer"
+  );
+
+  if (!equipment) {
+    const created = await equipmentRepository.createEquipment(client, {
+      name: "Demo 3D Printer",
+      description: "Shared lab printer for demos.",
+      quantity: 2,
+      unit_price: 800,
+    });
+    if (created.error || !created.data) {
+      throw new Error(created.error?.message ?? "Unable to create equipment.");
+    }
+    equipment = created.data;
+  }
+
+  const borrows = await client
+    .from("borrow_equipment")
+    .select("id")
+    .eq("equipment_id", equipment.id)
+    .eq("user_id", borrowerUserId)
+    .limit(1);
+  if (borrows.error) throw new Error(borrows.error.message);
+  if ((borrows.data ?? []).length === 0) {
+    const created = await borrowEquipmentRepository.createBorrows(client, [
+      {
+        equipment_id: equipment.id,
+        user_id: borrowerUserId,
+        quantity: 1,
+      },
+    ]);
+    if (created.error) throw new Error(created.error.message);
+  }
+}
+
+async function ensurePublicContent(client: Supabase) {
+  const blogSlug = "demo-welcome-to-etkan";
+  const existingBlog = await blogRepository.findBlogBySlug(client, blogSlug);
+  if (existingBlog.error) throw new Error(existingBlog.error.message);
+  if (!existingBlog.data) {
+    const created = await blogRepository.createBlog(client, {
+      slug: blogSlug,
+      title: "Welcome to Etkan (demo)",
+      summary: "A short demo post so the public Life / blogs surface has content.",
+      body_html:
+        "<p>This is seed content for local development. Edit or delete freely.</p>",
+      categories: ["community", "students"],
+      thumbnail_url:
+        "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=900&auto=format&fit=crop",
+      author_name: "Etkan Demo",
+      author_avatar_url: null,
+      status: "published",
+      is_featured: true,
+      reading_time_minutes: 2,
+      published_at: isoDateTime(-2),
+      sources: [],
+      meta_title: "Welcome to Etkan (demo)",
+      meta_description: "Demo blog post for local seed data.",
+    });
+    if (created.error) throw new Error(created.error.message);
+  }
+
+  const projects = await publicProjectRepository.listPublicProjects(client);
+  if (projects.error) throw new Error(projects.error.message);
+  const titles = new Set(
+    (projects.data ?? []).map((row) => row.title.trim().toLowerCase())
+  );
+
+  const seedProjects = [
+    {
+      classification: "students" as const,
+      category: "Hardware",
+      title: "Demo Student Robot Arm",
+      body: "A classroom robotics project seeded for the public projects page.",
+      author: "Demo Math 101",
+      image_url:
+        "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=900&auto=format&fit=crop",
+      href: "/",
+    },
+    {
+      classification: "teachers" as const,
+      category: "Web app",
+      title: "Demo Teacher Toolkit",
+      body: "Internal tooling showcase entry for the projects directory.",
+      author: "Demo Math Teacher",
+      image_url:
+        "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=900&auto=format&fit=crop",
+      href: "/",
+    },
+  ];
+
+  for (const project of seedProjects) {
+    if (titles.has(project.title.trim().toLowerCase())) continue;
+    const { error } = await publicProjectRepository.createPublicProject(
+      client,
+      project
+    );
+    if (error) throw new Error(error.message);
+  }
+}
+
+async function ensureTransactions(
+  client: Supabase,
+  recordedBy: string
+) {
+  const existing = await client
+    .from("transactions")
+    .select("id")
+    .eq("description", "Demo office supplies")
+    .limit(1);
+  if (existing.error) throw new Error(existing.error.message);
+  if ((existing.data ?? []).length > 0) return;
+
+  const created = await transactionRepository.createTransaction(client, {
+    transaction_date: isoDate(-3),
+    type: TRANSACTION_TYPES.DEBIT,
+    amount: 75,
+    description: "Demo office supplies",
+    category: "operations",
+    payment_method: PAYMENT_METHODS.CASH,
+    recorded_by: recordedBy,
+    notes: "Seed expense",
+  });
+  if (created.error) throw new Error(created.error.message);
+}
+
+async function resolveReceiverUserId(client: Supabase): Promise<string> {
+  const managerUsername = process.env.SEED_MANAGER_USERNAME ?? "asweid";
+  const manager = await profileRepository.findProfileByUsername(
+    client,
+    managerUsername
+  );
+  if (manager.data) return manager.data.id;
+
+  const adminUsername = process.env.SEED_ADMIN_USERNAME ?? "admin";
+  const admin = await profileRepository.findProfileByUsername(
+    client,
+    adminUsername
+  );
+  if (admin.data) return admin.data.id;
+
+  throw new Error(
+    "No manager/admin profile found. Run seed:admin and seed:manager first."
+  );
 }
 
 async function seedDemoData(): Promise<void> {
   const client = createSeedAdminClient();
+  const receiverId = await resolveReceiverUserId(client);
 
-  const marker = await semesterRepository.findSemesterByName(client, DEMO_MARKER);
-  if (marker.error) throw new Error(marker.error.message);
-
-  const fallSemesterId = marker.data
-    ? marker.data.id
-    : await findOrCreateSemester(client, {
-        name: DEMO_MARKER,
-      });
-
-  const springSemesterId = await findOrCreateSemester(client, {
-    name: "Demo Spring 2027",
+  // --- Panel staff (beyond admin/manager scripts) ---
+  await findOrCreateStaff(client, {
+    username: "demo.ceo",
+    email: "demo.ceo@example.com",
+    fullName: "Demo CEO",
+    role: ROLES.CEO,
   });
+  await findOrCreateStaff(client, {
+    username: "demo.supervisor",
+    email: "demo.supervisor@example.com",
+    fullName: "Demo Supervisor",
+    role: ROLES.SUPERVISOR,
+  });
+  await findOrCreateStaff(client, {
+    username: "demo.crm",
+    email: "demo.crm@example.com",
+    fullName: "Demo CRM",
+    role: ROLES.CRM,
+  });
+  await findOrCreateStaff(client, {
+    username: "demo.comanager",
+    email: "demo.comanager@example.com",
+    fullName: "Demo Co-Manager",
+    role: ROLES.CO_MANAGER,
+  });
+
+  // --- Academic core ---
+  const fall = await findOrCreateSemester(client, { name: DEMO_MARKER });
+  const spring = await findOrCreateSemester(client, { name: DEMO_SPRING });
 
   const mathSubjectId = await findOrCreateSubject(client, {
     name: "Demo Mathematics",
     nbSessions: 12,
   });
-
   const physicsSubjectId = await findOrCreateSubject(client, {
     name: "Demo Physics",
     nbSessions: 10,
   });
 
+  const mathHomework = await findOrCreateSubjectTask(client, {
+    subjectId: mathSubjectId,
+    title: "Demo Algebra worksheet",
+    description: "Practice linear equations.",
+    period: 7,
+    maxGrade: 20,
+    sortOrder: 0,
+  });
+  const mathProject = await findOrCreateSubjectTask(client, {
+    subjectId: mathSubjectId,
+    title: "Demo Math project",
+    description: "Short applied project.",
+    period: 14,
+    maxGrade: 30,
+    sortOrder: 1,
+  });
+
   const mathClassId = await findOrCreateClass(client, {
     name: "Demo Math 101",
     subjectId: mathSubjectId,
-    semesterId: fallSemesterId,
+    semesterId: fall.id,
     status: "in_progress",
   });
-
   const physicsClassId = await findOrCreateClass(client, {
     name: "Demo Physics 101",
     subjectId: physicsSubjectId,
-    semesterId: springSemesterId,
+    semesterId: spring.id,
     status: "scheduled",
   });
 
@@ -396,12 +1308,14 @@ async function seedDemoData(): Promise<void> {
     username: "demo.teacher.math",
     email: "demo.teacher.math@example.com",
     fullName: "Demo Math Teacher",
+    isInstructor: true,
+    isMentor: true,
   });
-
   const physicsTeacherId = await findOrCreateTeacher(client, {
     username: "demo.teacher.physics",
     email: "demo.teacher.physics@example.com",
     fullName: "Demo Physics Teacher",
+    isInstructor: true,
   });
 
   await ensureTeacherAssignedToClass(client, mathTeacherId, mathClassId);
@@ -455,38 +1369,78 @@ async function seedDemoData(): Promise<void> {
     },
   ];
 
+  const mathUserIds: string[] = [];
   for (const student of mathStudents) {
     const created = await findOrCreateStudent(client, student);
     await ensureStudentSemesterEnrollment(
       client,
       created.studentProfileId,
-      fallSemesterId
+      fall.id
     );
-    await ensureStudentClassEnrollment(client, created.userId, mathClassId);
+    mathUserIds.push(created.userId);
   }
+  await ensureStudentsEnrolledInClass(client, mathClassId, mathUserIds);
 
+  const physicsUserIds: string[] = [];
   for (const student of physicsStudents) {
     const created = await findOrCreateStudent(client, student);
     await ensureStudentSemesterEnrollment(
       client,
       created.studentProfileId,
-      springSemesterId
+      spring.id
     );
-    await ensureStudentClassEnrollment(client, created.userId, physicsClassId);
+    physicsUserIds.push(created.userId);
   }
+  await ensureStudentsEnrolledInClass(client, physicsClassId, physicsUserIds);
 
-  console.log("Demo seed data ready.");
+  // --- Tasks / sessions / exam (math = live class) ---
+  await ensureClassTasksFromSubject(
+    client,
+    mathClassId,
+    [mathHomework, mathProject],
+    { startFirst: true }
+  );
+  await ensureSessionsForClass(client, mathClassId, fall.id);
+  await ensureFinalExam(client, mathClassId);
+
+  // --- Accounting (after enroll so SPPs attach to members) ---
+  await ensurePaymentPhaseWithPayments(client, {
+    semesterId: fall.id,
+    receivedByUserId: receiverId,
+  });
+
+  // --- Workshops / instructor schedule ---
+  await ensureInstructorCatalog(client, mathTeacherId);
+  await ensureWorkshopBundle(client, {
+    instructorId: mathTeacherId,
+    createdBy: receiverId,
+  });
+
+  // --- Guests / teams / equipment / CMS / ledger ---
+  await ensureGuestsAndTeam(client, receiverId);
+  await ensureEquipment(client, mathTeacherId);
+  await ensurePublicContent(client);
+  await ensureTransactions(client, receiverId);
+
+  console.log("Full demo seed ready.");
   console.log("");
-  console.log("Semesters:");
-  console.log(`  - ${DEMO_MARKER}`);
-  console.log("  - Demo Spring 2027");
+  console.log("Staff (password Demo123! unless overridden):");
+  console.log("  demo.ceo / demo.supervisor / demo.crm / demo.comanager");
+  console.log("  demo.teacher.math (instructor+mentor), demo.teacher.physics");
   console.log("");
-  console.log("Classes:");
-  console.log("  - Demo Math 101 (Fall, 4 students, demo.teacher.math)");
-  console.log("  - Demo Physics 101 (Spring, 3 students, demo.teacher.physics)");
+  console.log("Academic:");
+  console.log(`  Semesters: ${DEMO_MARKER}, ${DEMO_SPRING}`);
+  console.log("  Classes: Demo Math 101 (in_progress, 4 students), Demo Physics 101 (scheduled, 3)");
+  console.log("  Math: subject_tasks → class_tasks (1 started), sessions+attendees, final exam");
   console.log("");
-  console.log(`Default password for all demo users: ${getDefaultPassword()}`);
-  console.log("Run `npx tsx scripts/seed-admin.ts` first if you need the admin user.");
+  console.log("Accounting:");
+  console.log(`  Phase "${DEMO_PHASE_NAME}" + SPPs; sample payment, scholarship, clearance`);
+  console.log("");
+  console.log("Also seeded: workshop, instructor schedule, guests/team, equipment borrow,");
+  console.log("  blog + public projects, sample expense transaction.");
+  console.log("");
+  console.log(`Default password for demo.* users: ${getDefaultPassword()}`);
+  console.log("Also run seed:projects if you want the three branded showcase projects.");
 }
 
 seedDemoData().catch((error: unknown) => {

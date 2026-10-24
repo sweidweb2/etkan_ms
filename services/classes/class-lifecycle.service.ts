@@ -10,6 +10,7 @@ import {
   CLASS_STATUSES,
 } from "@/lib/constants/manager-class-status";
 import { updateClassSchema } from "@/lib/validators/manager/update-class";
+import { pickClassCardGradientKey } from "@/lib/constants/class-card-gradients";
 import { createClassSchema } from "@/lib/validators/manager/create-class";
 import { createClassSessionSchema } from "@/lib/validators/manager/create-class-session";
 import * as classRepository from "@/repositories/class.repository";
@@ -225,11 +226,16 @@ export async function createClassForManager(
     }
   }
 
+  const cardGradient = pickClassCardGradientKey(
+    `${parsed.data.name.trim()}:${parsed.data.subject_id}:${crypto.randomUUID()}`
+  );
+
   const { data, error } = await classRepository.createClass(adminClient, {
     name: parsed.data.name.trim(),
     subject_id: parsed.data.subject_id,
     status: parsed.data.status,
     semester_id: nextSemesterId,
+    card_gradient: cardGradient,
   });
 
   if (error || !data) {

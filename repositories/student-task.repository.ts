@@ -219,6 +219,63 @@ export async function findStudentTaskById(client: Supabase, id: string) {
     .maybeSingle();
 }
 
+export type OwnedStudentTaskClassContext = {
+  id: string;
+  student_id: string;
+  task_id: string;
+  class_id: string;
+  task_started: boolean;
+};
+
+/**
+ * One round-trip: student task owned by `studentId`, with class_tasks.class_id
+ * and started flag via inner join.
+ */
+export async function findOwnedStudentTaskClassContext(
+  client: Supabase,
+  studentTaskId: string,
+  studentId: string
+): Promise<{
+  data: OwnedStudentTaskClassContext | null;
+  error: Error | null;
+}> {
+  const { data, error } = await client
+    .from("student_tasks")
+    .select("id, student_id, task_id, class_tasks!inner(id, class_id, started)")
+    .eq("id", studentTaskId)
+    .eq("student_id", studentId)
+    .maybeSingle();
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (!data) {
+    return { data: null, error: null };
+  }
+
+  const classTask = data.class_tasks as unknown as {
+    id: string;
+    class_id: string;
+    started: boolean;
+  } | null;
+
+  if (!classTask) {
+    return { data: null, error: null };
+  }
+
+  return {
+    data: {
+      id: data.id,
+      student_id: data.student_id,
+      task_id: data.task_id,
+      class_id: classTask.class_id,
+      task_started: classTask.started,
+    },
+    error: null,
+  };
+}
+
 export async function seedLateJoinStudentTasks(
   client: Supabase,
   classId: string,

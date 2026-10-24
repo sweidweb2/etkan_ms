@@ -4,7 +4,7 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const CLASS_COLUMNS =
-  "id, subject_id, name, status, semester_id, image_url, created_at";
+  "id, subject_id, name, status, semester_id, image_url, card_gradient, created_at";
 
 export type ClassRecord = {
   id: string;
@@ -13,6 +13,7 @@ export type ClassRecord = {
   status: string | null;
   semester_id: string | null;
   image_url: string | null;
+  card_gradient: string;
   created_at: string | null;
 };
 
@@ -103,7 +104,7 @@ export async function countClassesBySemesterId(client: Supabase, semesterId: str
 }
 
 const CLASS_WITH_SUBJECT_SELECT =
-  "id, subject_id, name, status, semester_id, image_url, created_at, subjects ( name, nb_sessions )";
+  "id, subject_id, name, status, semester_id, image_url, card_gradient, created_at, subjects ( name, nb_sessions )";
 
 export type ClassWithSubjectRecord = ClassRecord & {
   subjects: { name: string; nb_sessions: number } | null;
@@ -207,7 +208,7 @@ export async function updateClassSemesterId(
 }
 
 const CLASS_DETAIL_SELECT =
-  "id, subject_id, name, status, semester_id, image_url, created_at, subjects ( name, nb_sessions ), semesters ( name )";
+  "id, subject_id, name, status, semester_id, image_url, card_gradient, created_at, subjects ( name, nb_sessions ), semesters ( name )";
 
 export type ClassDetailRecord = ClassRecord & {
   subjects: { name: string; nb_sessions: number } | null;
@@ -278,6 +279,7 @@ export type CreateClassRecordInput = {
   subject_id: string;
   status: string;
   semester_id: string | null;
+  card_gradient: string;
 };
 
 export async function listClassDetails(client: Supabase) {
@@ -298,6 +300,7 @@ export async function createClass(
       subject_id: input.subject_id,
       status: input.status,
       semester_id: input.semester_id,
+      card_gradient: input.card_gradient,
     })
     .select(CLASS_DETAIL_SELECT)
     .single();

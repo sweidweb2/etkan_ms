@@ -1,9 +1,18 @@
 import { CLASS_STATUSES, type ClassStatusValue } from "@/lib/constants/manager-class-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import * as classRepository from "@/repositories/class.repository";
+import * as classTaskRepository from "@/repositories/class-task.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
+import * as sessionRepository from "@/repositories/session.repository";
 import { assertPermission } from "@/services/auth/authorization.service";
-import type { TeacherClassRow } from "@/types/teacher-class";
+import {
+  mapSessionRecord,
+  mapTaskRecord,
+} from "@/services/classes/session-shared";
+import type {
+  TeacherClassDetail,
+  TeacherClassRow,
+} from "@/types/teacher-class";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -61,7 +70,72 @@ export async function listTeachingClassesForSelf(
       subject_name: classRow.subjects?.name ?? "Subject",
       class_status: mapClassStatus(classRow.status),
       image_url: classRow.image_url,
+      card_gradient: classRow.card_gradient,
       assigned_at: assignedAtByClassId.get(classRow.id) ?? null,
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function getTeachingClassDetailForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<TeacherClassDetail | null> {
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SESSIONS_VIEW);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
+
+  if (!actorUserId) {
+    return null;
+  }
+
+  const assignment =
+    await classTeacherRepository.findClassTeacherByTeacherAndClass(
+      adminClient,
+      actorUserId,
+      classId
+    );
+
+  if (assignment.error) {
+    throw new Error(assignment.error.message);
+  }
+
+  if (!assignment.data) {
+    return null;
+  }
+
+  const [classes, sessionsResult, tasksResult] = await Promise.all([
+    classRepository.listClassesWithSubjectByIds(adminClient, [classId]),
+    sessionRepository.listSessionsByClassId(adminClient, classId),
+    classTaskRepository.listClassTasksByClassId(adminClient, classId),
+  ]);
+
+  if (classes.error) {
+    throw new Error(classes.error.message);
+  }
+  if (sessionsResult.error) {
+    throw new Error(sessionsResult.error.message);
+  }
+  if (tasksResult.error) {
+    throw new Error(tasksResult.error.message);
+  }
+
+  const classRow = classes.data?.[0];
+  if (!classRow) {
+    return null;
+  }
+
+  return {
+    classRow: {
+      id: classRow.id,
+      name: classRow.name,
+      subject_name: classRow.subjects?.name ?? "Subject",
+      class_status: mapClassStatus(classRow.status),
+      image_url: classRow.image_url,
+      card_gradient: classRow.card_gradient,
+      assigned_at: assignment.data.assigned_at,
+    },
+    sessions: (sessionsResult.data ?? []).map(mapSessionRecord),
+    tasks: (tasksResult.data ?? []).map(mapTaskRecord),
+  };
 }

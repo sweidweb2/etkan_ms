@@ -1,5 +1,6 @@
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { STUDENT_TASK_UPLOAD_MAX_FILES } from "@/lib/constants/manager-student-task-uploads";
+import { inspectStudentTaskUploadBytes } from "@/lib/manager/student-tasks/inspect-upload-bytes";
 import { buildStudentTaskUploadStoragePath } from "@/lib/manager/student-tasks/storage-path";
 import {
   deleteStudentTaskUploadSchema,
@@ -172,8 +173,18 @@ export async function uploadStudentTaskFileForManager(
     dataInput.student_task_id,
     dataInput.file.name
   );
-  const contentType = dataInput.file.type.trim();
-  const fileBytes = await dataInput.file.arrayBuffer();
+  const fileBytes = Buffer.from(await dataInput.file.arrayBuffer());
+  const inspected = await inspectStudentTaskUploadBytes(fileBytes);
+
+  if (!inspected.ok) {
+    return {
+      success: false,
+      error: "Please fix the errors below.",
+      fieldErrors: { file: [inspected.error] },
+    };
+  }
+
+  const contentType = inspected.mime;
 
   const uploadResult =
     await studentTaskStorageRepository.uploadStudentTaskStorageObject(

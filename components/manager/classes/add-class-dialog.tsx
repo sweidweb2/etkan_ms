@@ -83,7 +83,11 @@ export function AddClassDialog({
   const [uploadComplete, setUploadComplete] = useState(false);
   const coverFileRef = useRef<File | null>(null);
 
-  const handleOpenChange = usePendingAwareOpenChange(isPending, onOpenChange);
+  const isDialogBusy = isPending || isOptimizingCover;
+  const handleOpenChange = usePendingAwareOpenChange(
+    isDialogBusy,
+    onOpenChange
+  );
 
   useEffect(() => {
     if (!open || optionsLoaded) {
@@ -236,7 +240,7 @@ export function AddClassDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!isDialogBusy}>
         <DialogHeader>
           <DialogTitle>Add class</DialogTitle>
           <DialogDescription>
@@ -457,16 +461,24 @@ export function AddClassDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isPending}
+            disabled={isDialogBusy}
             onClick={() => handleOpenChange(false)}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-class-form" disabled={isPending || !optionsLoaded || isOptimizingCover}>
-            {isPending || !optionsLoaded ? (
+          <Button
+            type="submit"
+            form="add-class-form"
+            disabled={isDialogBusy || !optionsLoaded}
+          >
+            {isDialogBusy || !optionsLoaded ? (
               <>
                 <InlineSpinner className="mr-2" />
-                {optionsLoaded ? "Creating class" : "Loading options"}
+                {isOptimizingCover
+                  ? "Preparing cover"
+                  : optionsLoaded
+                    ? "Creating class"
+                    : "Loading options"}
               </>
             ) : (
               "Create class"
