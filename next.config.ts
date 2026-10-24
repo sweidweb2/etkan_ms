@@ -49,6 +49,8 @@ const nextConfig: NextConfig = {
     const marketingPaths = [
       "/",
       "/about",
+      "/blogs",
+      "/blogs/:path*",
       "/careers",
       "/careers/:path*",
       "/gallery",

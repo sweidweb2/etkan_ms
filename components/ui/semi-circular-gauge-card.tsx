@@ -1,11 +1,19 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { ArrowUpRightIcon } from "lucide-react";
+import { ArrowUpRightIcon, CircleHelpIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 type SemiCircularGaugeCardProps = {
   title: string;
+  /** Explains the metric next to the title. */
+  titleTooltip?: string;
   /** Primary center value (e.g. average earned). */
   value: number;
   /** Denominator shown in label / legend (e.g. total max). */
@@ -73,10 +81,11 @@ function defaultFormat(value: number) {
  */
 export function SemiCircularGaugeCard({
   title,
+  titleTooltip,
   value,
   total,
   progressPercent,
-  valueLabel = "Average of total",
+  valueLabel = "Average",
   legendAverageLabel = "Average",
   legendTotalLabel = "Total",
   className,
@@ -115,7 +124,29 @@ export function SemiCircularGaugeCard({
       )}
     >
       <header className="flex items-center justify-between gap-3 px-5 pt-4 pb-1">
-        <h3 className="text-sm font-medium tracking-tight">{title}</h3>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <h3 className="text-sm font-medium tracking-tight">{title}</h3>
+          {titleTooltip ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      aria-label={`About ${title}`}
+                    />
+                  }
+                >
+                  <CircleHelpIcon className="size-3.5" aria-hidden />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs leading-snug">
+                  {titleTooltip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : null}
+        </div>
         <span
           className="inline-flex size-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground"
           aria-hidden

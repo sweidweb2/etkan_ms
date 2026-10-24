@@ -246,6 +246,27 @@ export async function assertPermission(
 }
 
 /**
+ * One permissions load + all-of check. Prefer this over sequential
+ * `assertPermission` calls for independent required keys.
+ */
+export async function assertPermissions(
+  client: Supabase,
+  userId: string | null | undefined,
+  permissions: readonly PermissionKey[]
+): Promise<void> {
+  if (!userId) {
+    throw new Error(UNAUTHORIZED_MESSAGE);
+  }
+  if (permissions.length === 0) {
+    return;
+  }
+  const allowed = await hasAllPermissions(client, userId, permissions);
+  if (!allowed) {
+    throw new Error(UNAUTHORIZED_MESSAGE);
+  }
+}
+
+/**
  * Student panel self-access: requires `students.view_own`, or falls back to
  * authenticated `student` role (covers stale role-permission cache after seed).
  */

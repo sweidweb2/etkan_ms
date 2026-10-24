@@ -19,6 +19,7 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   // Signed-in visitors are redirected in middleware. Do not load the session
   // pack here — that call was holding this page for many seconds.
+  // searchParams + getPublicLocale keep this page dynamic (auth layout).
   const params = await searchParams;
   const locale = await getPublicLocale();
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);

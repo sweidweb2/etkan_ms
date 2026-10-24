@@ -19,6 +19,8 @@ import {
  *
  * Panels read session cookies and admin-only data. They must stay
  * request-time so `next build` does not prerender them without secrets.
+ * Keep this even if a future refactor temporarily drops a cookies() call
+ * from this layout — panels are never marketing-ISR candidates.
  */
 export const dynamic = "force-dynamic";
 

@@ -1,5 +1,6 @@
-import { TeacherSettingsLayoutPanel } from "@/components/teacher/settings/teacher-settings-layout-panel";
+import { redirect } from "next/navigation";
+import { ROUTES } from "@/lib/constants/routes";
 
-export default function TeacherSettingsLayoutPage() {
-  return <TeacherSettingsLayoutPanel />;
+export default function TeacherSettingsLayoutRedirectPage() {
+  redirect(ROUTES.TEACHER_SETTINGS);
 }

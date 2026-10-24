@@ -79,7 +79,7 @@ const CLASS_TABS = [
 ] as const;
 
 const TAB_TRIGGER_CLASS =
-  "rounded-md px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-background data-[state=active]:text-foreground";
+  "rounded-md px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-primary/20";
 
 export function TeacherClassDetailsPanel({
   classRow: initialClassRow,
@@ -226,7 +226,7 @@ export function TeacherClassDetailsPanel({
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="gap-4">
-        <TabsListPrimitive className="grid w-full grid-cols-3 gap-1 self-start rounded-lg bg-muted p-1 sm:w-fit sm:min-w-[20rem]">
+        <TabsListPrimitive className="grid w-full grid-cols-3 gap-1 self-start rounded-lg border border-border/70 bg-secondary/80 p-1 sm:w-fit sm:min-w-[20rem]">
           {CLASS_TABS.map((item) => (
             <TabsTriggerPrimitive
               key={item.value}
@@ -241,11 +241,11 @@ export function TeacherClassDetailsPanel({
         <TabsContents>
           <TabsContent value={TABS.MAIN} className="flex flex-col gap-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
+              <Card className="border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
+                <CardHeader className="border-b border-border/50 bg-muted/25 pb-3">
                   <CardTitle className="text-base">Class</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+                <CardContent className="space-y-2 pt-4 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Subject</span>
                     <span className="text-right">{classRow.subject_name}</span>
@@ -265,11 +265,11 @@ export function TeacherClassDetailsPanel({
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
+              <Card className="border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
+                <CardHeader className="border-b border-border/50 bg-muted/25 pb-3">
                   <CardTitle className="text-base">Semester</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+                <CardContent className="space-y-2 pt-4 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Linked semester</span>
                     <span className="text-right font-medium">
@@ -282,11 +282,11 @@ export function TeacherClassDetailsPanel({
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
+              <Card className="border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
+                <CardHeader className="border-b border-border/50 bg-muted/25 pb-3">
                   <CardTitle className="text-base">Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+                <CardContent className="space-y-2 pt-4 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Sessions</span>
                     <span className="tabular-nums">{sessions.length}</span>
@@ -359,10 +359,11 @@ export function TeacherClassDetailsPanel({
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <SemiCircularGaugeCard
                   title="Task grades"
+                  titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
                   value={taskGradeSummary.averageEarned}
                   total={taskGradeSummary.totalMax}
                   progressPercent={taskGradeSummary.progressPercent}
-                  valueLabel="Average student total / task max total"
+                  valueLabel="Average"
                   legendAverageLabel="Average"
                   legendTotalLabel="Total"
                   className="sm:max-w-sm"

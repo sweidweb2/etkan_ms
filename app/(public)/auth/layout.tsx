@@ -3,7 +3,10 @@ import { AppLogo } from "@/components/brand/app-logo";
 import { SITE } from "@/lib/config/site";
 import { ROUTES } from "@/lib/constants/routes";
 
-/** Auth routes need session checks — keep them dynamic under the static public shell. */
+/**
+ * Overrides parent `(public)` force-static. Login uses searchParams + locale
+ * cookies; signup may use session. Never remove while those stay server-side.
+ */
 export const dynamic = "force-dynamic";
 
 export default function AuthLayout({

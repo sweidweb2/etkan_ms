@@ -62,8 +62,8 @@ export function TeacherClassStudentsSection({
   }, [query, students]);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_10px_28px_-24px_rgba(15,23,42,0.35)]">
-      <div className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
+      <div className="flex flex-col gap-3 border-b border-border/50 bg-muted/25 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold tracking-tight">Students</h2>
           <p className="text-sm text-muted-foreground">

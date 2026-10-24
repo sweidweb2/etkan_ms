@@ -265,22 +265,11 @@ export const SUPERVISOR_PANEL_NAVIGATION: PanelNavigation =
   MANAGER_PANEL_NAVIGATION;
 
 /**
- * Teacher app bar: My profile, then My classes (same order as the student bar).
- * Manage workshops follows when instructor/mentor + workshops.view.
+ * Teacher app bar: no fixed landing links (center search replaces them).
+ * Manage workshops still follows when instructor/mentor + workshops.view.
  */
 export const TEACHER_PANEL_NAVIGATION = withManageWorkshops({
-  items: [
-    {
-      title: "My profile",
-      href: ROUTES.TEACHER_ROOT,
-      icon: "book-open",
-    },
-    {
-      title: "My classes",
-      href: ROUTES.TEACHER_CLASSES,
-      icon: "school",
-    },
-  ],
+  items: [],
 });
 
 /** Student panel: profile, classes, payments, then locked borrowings last. */

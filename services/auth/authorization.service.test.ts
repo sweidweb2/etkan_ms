@@ -6,6 +6,7 @@ import * as profileRepository from "@/repositories/profile.repository";
 import {
   UNAUTHORIZED_MESSAGE,
   assertPermission,
+  assertPermissions,
   getUserPermissions,
   hasAllPermissions,
   hasAnyPermission,
@@ -178,6 +179,25 @@ describe("authorization.service", () => {
     await expect(
       assertPermission(client, managerId, PERMISSIONS.SUBJECTS_CREATE)
     ).resolves.toBeUndefined();
+  });
+
+  it("assertPermissions allows all granted keys in one check", async () => {
+    const managerId = "11111111-1111-4111-8111-111111111105";
+    mockManagerGrants();
+
+    await expect(
+      assertPermissions(client, managerId, [
+        PERMISSIONS.SUBJECTS_VIEW,
+        PERMISSIONS.SUBJECTS_CREATE,
+      ])
+    ).resolves.toBeUndefined();
+
+    await expect(
+      assertPermissions(client, managerId, [
+        PERMISSIONS.SUBJECTS_VIEW,
+        PERMISSIONS.SUBJECTS_UPDATE,
+      ])
+    ).rejects.toThrow(UNAUTHORIZED_MESSAGE);
   });
 
   it("set helpers mirror async checks without extra DB calls", () => {

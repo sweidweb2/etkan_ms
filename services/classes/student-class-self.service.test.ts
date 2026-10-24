@@ -8,6 +8,7 @@ import * as studentTaskUploadRepository from "@/repositories/student-task-upload
 import * as classTaskRepository from "@/repositories/class-task.repository";
 import {
   assertPermission,
+  assertPermissions,
   assertStudentSelfAccess,
 } from "@/services/auth/authorization.service";
 import {
@@ -42,6 +43,9 @@ vi.mock("next/cache", () => ({
 vi.mock("@/services/auth/authorization.service", () => ({
   UNAUTHORIZED_MESSAGE: "Unauthorized.",
   assertPermission: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
+  assertPermissions: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
   }),
   assertStudentSelfAccess: vi.fn(async (_c, userId) => {
@@ -127,7 +131,7 @@ describe("listJoinedClassesForSelf", () => {
 describe("getStudentClassDetailForSelf", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(assertPermission).mockImplementation(async (_c, userId) => {
+    vi.mocked(assertPermissions).mockImplementation(async (_c, userId) => {
       if (!userId) throw new Error("Unauthorized.");
     });
     vi.mocked(assertStudentSelfAccess).mockImplementation(async (_c, userId) => {
@@ -137,9 +141,9 @@ describe("getStudentClassDetailForSelf", () => {
   });
 
   it("returns null when not a class member", async () => {
-    vi.mocked(
-      studentClassRepository.findStudentClassByUserAndClass
-    ).mockResolvedValue({ data: null, error: null } as never);
+    vi.mocked(studentService.listJoinedClassesForStudentSelf).mockResolvedValue(
+      []
+    );
 
     const detail = await getStudentClassDetailForSelf(
       adminClient,
@@ -151,12 +155,6 @@ describe("getStudentClassDetailForSelf", () => {
   });
 
   it("returns class detail with classmates excluding self", async () => {
-    vi.mocked(
-      studentClassRepository.findStudentClassByUserAndClass
-    ).mockResolvedValue({
-      data: { id: "e1", user_id: studentUserId, class_id: classId },
-      error: null,
-    } as never);
     vi.mocked(studentService.listJoinedClassesForStudentSelf).mockResolvedValue(
       [classRow]
     );
@@ -259,7 +257,7 @@ describe("getStudentClassDetailForSelf", () => {
 describe("getStudentClassTaskForSelf", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(assertPermission).mockImplementation(async (_c, userId) => {
+    vi.mocked(assertPermissions).mockImplementation(async (_c, userId) => {
       if (!userId) throw new Error("Unauthorized.");
     });
     vi.mocked(assertStudentSelfAccess).mockImplementation(async (_c, userId) => {

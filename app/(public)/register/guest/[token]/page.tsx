@@ -15,6 +15,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getGuestRegistrationContextByToken } from "@/services/guests/guest-registration.service";
 import { submitGuestRegistrationByTokenAction } from "./actions";
 
+/** Per-invite; must not inherit parent marketing force-static / ISR. */
 export const dynamic = "force-dynamic";
 
 type RegisterGuestPageProps = {

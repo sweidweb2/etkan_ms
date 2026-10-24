@@ -5,11 +5,18 @@ import { SITE } from "@/lib/config/site";
 import {
   getPublishedBlogBySlugForPublic,
   getSuggestedPublishedBlogs,
+  listPublishedBlogsForPublic,
 } from "@/services/public/blog.service";
 
 type BlogDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+/** Warm published slugs at build; on-demand ISR still fills new posts. */
+export async function generateStaticParams() {
+  const posts = await listPublishedBlogsForPublic();
+  return posts.map((post) => ({ slug: post.slug }));
+}
 
 export async function generateMetadata({
   params,

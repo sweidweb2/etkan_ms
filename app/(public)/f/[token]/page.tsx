@@ -5,6 +5,7 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getInviteFormContextByToken } from "@/services/accounting/student-financial-adjustment.service";
 
+/** Per-invite financial form; must not inherit parent marketing force-static. */
 export const dynamic = "force-dynamic";
 
 type PublicFinancialFormPageProps = {

@@ -4,9 +4,13 @@ import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
 import { getSessionDetailForManager } from "@/services/classes/session.service";
-import { getTeachingClassDetailForSelf } from "@/services/classes/teacher-class-self.service";
+import {
+  getTeachingClassDetailForSelf,
+  listTeachingClassesForSelf,
+} from "@/services/classes/teacher-class-self.service";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { ManagerSessionAttendeeRow } from "@/types/manager-class-session-detail";
+import type { TeacherClassRow } from "@/types/teacher-class";
 
 export type TeacherClassSessionInlineDetail = {
   session: ManagerClassSessionRow;
@@ -14,6 +18,29 @@ export type TeacherClassSessionInlineDetail = {
   lockedUserIds: string[];
   hasComputedGrades: boolean;
 };
+
+/** Lightweight class list for the teacher navbar search suggestions. */
+export async function loadTeacherSearchClassesAction(): Promise<
+  Array<Pick<TeacherClassRow, "id" | "name" | "subject_name">>
+> {
+  const actor = await getSessionAuditActor();
+  if (!actor.userId) {
+    return [];
+  }
+
+  const adminClient = createSupabaseAdminClient();
+
+  try {
+    const rows = await listTeachingClassesForSelf(adminClient, actor.userId);
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      subject_name: row.subject_name,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 /** Load attendance-ready session detail for the teacher class Sessions tab. */
 export async function loadTeacherClassSessionDetailAction(

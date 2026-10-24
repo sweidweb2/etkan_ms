@@ -52,11 +52,12 @@ export function PanelShell({
             navigation={navigation}
             displayName={displayName}
             permissions={permissions}
-            homeHref={isTeacher ? ROUTES.TEACHER_ROOT : ROUTES.STUDENT_ROOT}
+            homeHref={isTeacher ? ROUTES.TEACHER_CLASSES : ROUTES.STUDENT_ROOT}
             homeLabel={isTeacher ? "Teacher home" : "Student home"}
             navLabel={isTeacher ? "Teacher" : "Student"}
             menuId={isTeacher ? "teacher-panel-menu" : "student-panel-menu"}
             settingsHref={isTeacher ? ROUTES.TEACHER_SETTINGS : undefined}
+            showTeacherSearch={isTeacher}
           />
           <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
             <div className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-4 p-4 md:p-6">

@@ -3,16 +3,13 @@ import { LifeBlogDetailSection } from "@/components/public/life-blog-detail-sect
 import {
   getLifeBlogById,
   isLifeBlogId,
-  LIFE_BLOG_IDS,
 } from "@/lib/constants/public-life-blogs";
 
 type LifeBlogDetailPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export function generateStaticParams() {
-  return LIFE_BLOG_IDS.map((id) => ({ id }));
-}
+/** Parent `life/layout` is force-dynamic (requireAdmin) — no static params. */
 
 export default async function LifeBlogDetailPage({
   params,

@@ -1,6 +1,17 @@
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/constants/routes";
+import { notFound } from "next/navigation";
+import { TeacherSettingsPanel } from "@/components/teacher/settings/teacher-settings-panel";
+import { getSessionUser } from "@/lib/auth/session";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getTeacherSelfProfile } from "@/services/auth/teacher-account-self.service";
 
-export default function TeacherSettingsIndexPage() {
-  redirect(ROUTES.TEACHER_SETTINGS_MY_INFO);
+export default async function TeacherSettingsPage() {
+  const adminClient = createSupabaseAdminClient();
+  const user = await getSessionUser();
+  const profile = await getTeacherSelfProfile(adminClient, user?.id ?? null);
+
+  if (!profile) {
+    notFound();
+  }
+
+  return <TeacherSettingsPanel profile={profile} />;
 }

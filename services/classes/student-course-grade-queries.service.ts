@@ -3,6 +3,7 @@ import "server-only";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   assertPermission,
+  assertPermissions,
   assertStudentSelfAccess,
 } from "@/services/auth/authorization.service";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -166,8 +167,10 @@ export async function listStudentClassAcademicBundlesForManager(
   studentUserId: string,
   joinedClasses: ManagerStudentClassRow[]
 ): Promise<ManagerStudentClassAcademicBundle[]> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_VIEW);
+  await assertPermissions(adminClient, actorUserId, [
+    PERMISSIONS.GRADES_VIEW,
+    PERMISSIONS.FINAL_EXAMS_VIEW,
+  ]);
   return listStudentClassAcademicBundlesUnchecked(
     adminClient,
     studentUserId,

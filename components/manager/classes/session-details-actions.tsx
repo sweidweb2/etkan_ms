@@ -46,6 +46,8 @@ type SessionDetailsActionsProps = {
   groupGradeLevel: SessionGroupGradeLevelValue | null;
   sessionReport?: string | null;
   hasComputedGrades?: boolean;
+  /** Hide phase linking (e.g. teacher session surface). */
+  hidePhase?: boolean;
   onSettingsUpdated: (
     session: ManagerClassSessionRow,
     linkedPhase?: ManagerSessionPhaseLink | null
@@ -81,6 +83,7 @@ export function SessionDetailsActions({
   groupGradeLevel,
   sessionReport = null,
   hasComputedGrades = false,
+  hidePhase = false,
   onSettingsUpdated,
   className,
 }: SessionDetailsActionsProps) {
@@ -210,77 +213,89 @@ export function SessionDetailsActions({
   return (
     <ClassTabCollapsibleSection
       title="Session settings"
-      description="Link this session to a phase, set the group grade level, and write the session report."
+      description={
+        hidePhase
+          ? "Set the group grade level and write the session report."
+          : "Link this session to a phase, set the group grade level, and write the session report."
+      }
       storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.SESSION_DETAILS_SETTINGS}
       defaultOpen
     >
-      <div className={cn("grid gap-6 px-4 pt-2 pb-3 lg:grid-cols-3", className)}>
-        <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 ring-1 ring-foreground/8">
-          <div className="flex items-center gap-2">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
-              <LayersIcon className="size-4" />
+      <div
+        className={cn(
+          "grid gap-6 px-4 pt-2 pb-3",
+          hidePhase ? "lg:grid-cols-2" : "lg:grid-cols-3",
+          className
+        )}
+      >
+        {hidePhase ? null : (
+          <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 ring-1 ring-foreground/8">
+            <div className="flex items-center gap-2">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                <LayersIcon className="size-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Add to phase</h3>
+                <p className="text-xs text-muted-foreground">
+                  {linkedPhase
+                    ? `Linked to ${linkedPhase.phase_name}.`
+                    : "Link this session to a semester phase (sessions.semester_id)."}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-medium">Add to phase</h3>
-              <p className="text-xs text-muted-foreground">
-                {linkedPhase
-                  ? `Linked to ${linkedPhase.phase_name}.`
-                  : "Link this session to a semester phase (sessions.semester_id)."}
-              </p>
-            </div>
-          </div>
 
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="session-phase-select"
-              label="Phase"
-              hint={linkedPhase ? "Linked" : "Required to save"}
-            />
-            <Select
-              value={selectedPhaseId || null}
-              items={phaseSelectItems}
-              disabled={isPending || hasComputedGrades}
-              onValueChange={(value) => {
-                if (value) {
-                  setSelectedPhaseId(value);
+            <div className="flex flex-col gap-2">
+              <FieldLabel
+                htmlFor="session-phase-select"
+                label="Phase"
+                hint={linkedPhase ? "Linked" : "Required to save"}
+              />
+              <Select
+                value={selectedPhaseId || null}
+                items={phaseSelectItems}
+                disabled={isPending || hasComputedGrades}
+                onValueChange={(value) => {
+                  if (value) {
+                    setSelectedPhaseId(value);
+                  }
+                }}
+              >
+                <SelectTrigger id="session-phase-select" className="w-full">
+                  <SelectValue placeholder="Select a phase" />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {phaseOptions.map((phase) => (
+                    <SelectItem key={phase.phase_id} value={phase.phase_id}>
+                      {phase.phase_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Can permission={PERMISSIONS.SESSIONS_UPDATE_SETTINGS}>
+              <Button
+                type="button"
+                className="self-start"
+                disabled={isPending || !selectedPhaseId || hasComputedGrades}
+                onClick={handleSavePhase}
+                title={
+                  hasComputedGrades
+                    ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+                    : undefined
                 }
-              }}
-            >
-              <SelectTrigger id="session-phase-select" className="w-full">
-                <SelectValue placeholder="Select a phase" />
-              </SelectTrigger>
-              <SelectContent align="start">
-                {phaseOptions.map((phase) => (
-                  <SelectItem key={phase.phase_id} value={phase.phase_id}>
-                    {phase.phase_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              >
+                {isPhasePending ? <InlineSpinner /> : null}
+                Save phase link
+              </Button>
+            </Can>
+            {hasComputedGrades ? (
+              <p className="text-xs text-muted-foreground">
+                {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+              </p>
+            ) : null}
           </div>
-
-          <Can permission={PERMISSIONS.SESSIONS_UPDATE_SETTINGS}>
-            <Button
-              type="button"
-              className="self-start"
-              disabled={isPending || !selectedPhaseId || hasComputedGrades}
-              onClick={handleSavePhase}
-              title={
-                hasComputedGrades
-                  ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
-                  : undefined
-              }
-            >
-              {isPhasePending ? <InlineSpinner /> : null}
-              Save phase link
-            </Button>
-          </Can>
-          {hasComputedGrades ? (
-            <p className="text-xs text-muted-foreground">
-              {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-            </p>
-          ) : null}
-        </div>
+        )}
 
         <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 ring-1 ring-foreground/8">
           <div className="flex items-center gap-2">

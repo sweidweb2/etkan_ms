@@ -30,9 +30,9 @@
 | # | Assumption | Verdict | Priority |
 |---|------------|---------|----------|
 | 1 | Serverless cold starts & DB connection pool exhaustion | **Mostly not found** | Low |
-| 2 | Cascading server network waterfalls | **Partial** | Medium |
+| 2 | Cascading server network waterfalls | **Addressed** (hot paths, 2026-10-24) | Medium |
 | 3 | Heavy server work blocking Node | **Found** | High |
-| 4 | Accidentally opting into dynamic rendering | **Found, mostly intentional** | Low |
+| 4 | Accidentally opting into dynamic rendering | **Addressed** (2026-10-24) | Low |
 | 5 | Massive bundles from server code leaking to client | **Addressed** (2026-10-24) | Medium |
 
 ---
@@ -79,21 +79,22 @@ Sequential `await` in RSC/layouts makes TTFB = sum of all fetches. Fix: `Promise
 - Session pack is React `cache()`’d — layout → page does not fully re-fetch
 - Some analytics sections use deferred Suspense streaming
 
-**Still sequential / stacked**
+### Mitigation applied (2026-10-24)
 
-- Manager settings: client → session → maintenance → authz → optional user list (`app/(panels)/manager/settings/page.tsx`)
-- Teacher class detail: multiple `await assertPermission(...)` before data (`services/classes/teacher-class-self.service.ts`)
-- Some detail pages: parent row, then a second dependent fetch wave (e.g. student academic bundles)
+1. **`assertPermissions`** — one grants load + all-of check (`services/auth/authorization.service.ts`); used on teacher/student class detail + grade bundle paths instead of sequential `assertPermission`.
+2. **Manager settings** — `Promise.all` for server client + session, then maintenance + reset-authz; password-reset user list still depends on authz.
+3. **Equipment detail** — equipment row + borrows load in parallel (404 after).
+4. **Student class detail** — enrollment via joined-classes list (drops a separate membership round-trip).
 
-### Verdict
+### Still sequential (by dependency — leave alone)
 
-**Partial.** Hot paths already parallelize; remaining stacks are medium priority.
+- Student detail academic bundles need `joinedClasses` first
+- Registration breadcrumb needs application detail first
+- Task grade summary needs task ids before student-task rows
 
-### Recommended actions
+### Verdict after fix
 
-1. Parallelize independent page fetches with `Promise.all`.
-2. Collapse multi-`assertPermission` into one permission-set check where safe.
-3. Keep Suspense for heavy secondary panels.
+**Addressed on the flagged independent stacks.** Remaining waterfalls are data-dependent, not accidental sequential awaits.
 
 ---
 
@@ -145,25 +146,39 @@ Without changing UX (still synchronous dialogs/downloads):
 
 ### Thread claim
 
-Reading `cookies()` / `headers()` / `searchParams` high in the tree disables static caching for the whole app.
+Reading `cookies()` / `headers()` / `searchParams` high in the tree disables static caching for the whole app. Fix: isolate dynamic APIs to the routes that need them.
 
 ### In this app
 
 | Area | Behavior |
 |------|----------|
-| Panels | Explicit `export const dynamic = "force-dynamic"` — `app/(panels)/layout.tsx` |
-| Public marketing | `force-static` + `revalidate = 600` — `app/(public)/layout.tsx` |
 | Root layout | No `cookies()` / `headers()` — does **not** dynamize the whole tree |
-| Auth / life / token pages | Intentionally dynamic |
+| Public marketing | `force-static` + `revalidate = 600` — `app/(public)/layout.tsx`; SSR locale = `DEFAULT_LOCALE` |
+| Auth / life / token | Child `force-dynamic` under the static public shell |
+| Panels | Explicit `force-dynamic` + session `cookies()` — intentional |
 
-### Verdict
+### Mitigation applied (2026-10-24)
 
-**Found for panels, by design.** Not the “accidental whole-app dynamic” bug from the thread. Marketing stays static.
+1. **Blogs HTTP cache** — `/blogs` and `/blogs/:path*` added to `next.config.ts` marketing `Cache-Control` (same `s-maxage=600` as other ISR pages).
+2. **Auth loading isolation** — `app/(public)/auth/loading.tsx` no longer calls `getPublicLocale()` / `cookies()` (loaders stay fetch-free; label uses `DEFAULT_LOCALE`).
+3. **Blog slug warm path** — `generateStaticParams` on `blogs/[slug]` from published posts (safe empty fallback via `loadPublicCachedData`).
+4. **Dead static params removed** from `/life/[id]` (parent is admin `force-dynamic`).
+5. **Guardrails documented** on public layout, auth/life layouts, panels layout, and `getPublicLocale()` — marketing must not import locale cookies.
 
-### Recommended actions
+### Intentional dynamic (do not “fix”)
 
-1. Do not add `cookies()` / `headers()` to `app/layout.tsx` or the static public shell.
-2. Keep locale cookie helpers off the marketing static path (public layout already defaults locale statically).
+- Panels / manager `headers()` for `x-pathname` RBAC
+- Auth login `searchParams` + locale cookies for first paint
+- `/life` `requireAdmin()`, guest/financial token pages
+
+### Verdict after fix
+
+**Addressed** for accidental/static-path hygiene. Remaining dynamic segments are deliberate. Not the whole-app accidental-dynamic failure mode from the thread.
+
+### Follow-ups
+
+1. Never add `cookies()` / `headers()` / `getPublicLocale()` to `app/layout.tsx` or `app/(public)/layout.tsx`.
+2. Keep new marketing pages free of session clients; use admin + `unstable_cache` like blogs/gallery/projects.
 
 ---
 

@@ -8,6 +8,7 @@ import { AppLogo } from "@/components/brand/app-logo";
 import { PANEL_ICONS } from "@/components/panels/panel-icons";
 import { PanelNotificationsBell } from "@/components/panels/panel-notifications-bell";
 import { PanelUserMenu } from "@/components/panels/panel-user-menu";
+import { TeacherPanelSearch } from "@/components/panels/teacher-panel-search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { PERMISSIONS, type PermissionKey } from "@/lib/constants/permissions";
@@ -25,6 +26,8 @@ type StudentPanelNavbarProps = {
   navLabel?: string;
   menuId?: string;
   settingsHref?: string;
+  /** Replace center nav links with teacher page/class search. */
+  showTeacherSearch?: boolean;
 };
 
 function matchesNavHref(pathname: string, href: string): boolean {
@@ -54,6 +57,7 @@ export function StudentPanelNavbar({
   navLabel = "Student",
   menuId = "student-panel-menu",
   settingsHref,
+  showTeacherSearch = false,
 }: StudentPanelNavbarProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,6 +69,7 @@ export function StudentPanelNavbar({
   const canViewNotifications = permissions.includes(
     PERMISSIONS.NOTIFICATIONS_VIEW
   );
+  const showLinkNav = items.length > 0;
 
   function closeMenu() {
     setMenuOpen(false);
@@ -83,22 +88,46 @@ export function StudentPanelNavbar({
           <AppLogo tone="auto" height={22} priority />
         </Link>
 
-        <nav
-          aria-label={navLabel}
-          className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex"
-        >
-          {items.map((item) => (
-            <StudentNavLink
-              key={item.href}
-              href={item.href}
-              title={item.title}
-              icon={item.icon}
-              isActive={item.href === activeHref}
-              locked={item.locked}
-              lockedMessage={item.lockedMessage}
-            />
-          ))}
-        </nav>
+        {showTeacherSearch ? (
+          <div className="absolute left-1/2 hidden w-[min(100%,28rem)] -translate-x-1/2 items-center gap-2 px-2 md:flex">
+            {showLinkNav ? (
+              <nav
+                aria-label={navLabel}
+                className="hidden shrink-0 items-center gap-1 lg:flex"
+              >
+                {items.map((item) => (
+                  <StudentNavLink
+                    key={item.href}
+                    href={item.href}
+                    title={item.title}
+                    icon={item.icon}
+                    isActive={item.href === activeHref}
+                    locked={item.locked}
+                    lockedMessage={item.lockedMessage}
+                  />
+                ))}
+              </nav>
+            ) : null}
+            <TeacherPanelSearch className="min-w-0 flex-1" />
+          </div>
+        ) : showLinkNav ? (
+          <nav
+            aria-label={navLabel}
+            className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex"
+          >
+            {items.map((item) => (
+              <StudentNavLink
+                key={item.href}
+                href={item.href}
+                title={item.title}
+                icon={item.icon}
+                isActive={item.href === activeHref}
+                locked={item.locked}
+                lockedMessage={item.lockedMessage}
+              />
+            ))}
+          </nav>
+        ) : null}
 
         <div className="relative z-10 ml-auto flex items-center gap-1">
           {canViewNotifications ? <PanelNotificationsBell /> : null}
@@ -107,40 +136,46 @@ export function StudentPanelNavbar({
             displayName={displayName}
             settingsHref={settingsHref}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-expanded={menuOpen}
-            aria-controls={menuId}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            {menuOpen ? <X /> : <Menu />}
-          </Button>
+          {showLinkNav || showTeacherSearch ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-expanded={menuOpen}
+              aria-controls={menuId}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {menuOpen ? <X /> : <Menu />}
+            </Button>
+          ) : null}
         </div>
       </div>
 
-      {menuOpen ? (
-        <nav
+      {menuOpen && (showTeacherSearch || showLinkNav) ? (
+        <div
           id={menuId}
-          aria-label={navLabel}
-          className="flex w-full flex-col gap-1 border-t border-border px-3 py-2 md:hidden"
+          className="flex w-full flex-col gap-2 border-t border-border px-3 py-2 md:hidden"
         >
-          {items.map((item) => (
-            <StudentNavLink
-              key={item.href}
-              href={item.href}
-              title={item.title}
-              icon={item.icon}
-              isActive={item.href === activeHref}
-              locked={item.locked}
-              lockedMessage={item.lockedMessage}
-              onNavigate={closeMenu}
-            />
-          ))}
-        </nav>
+          {showTeacherSearch ? <TeacherPanelSearch /> : null}
+          {showLinkNav ? (
+            <nav aria-label={navLabel} className="flex flex-col gap-1">
+              {items.map((item) => (
+                <StudentNavLink
+                  key={item.href}
+                  href={item.href}
+                  title={item.title}
+                  icon={item.icon}
+                  isActive={item.href === activeHref}
+                  locked={item.locked}
+                  lockedMessage={item.lockedMessage}
+                  onNavigate={closeMenu}
+                />
+              ))}
+            </nav>
+          ) : null}
+        </div>
       ) : null}
     </header>
   );

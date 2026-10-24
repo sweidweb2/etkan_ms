@@ -18,17 +18,23 @@ import type { PasswordResetUserOption } from "@/types/password-reset";
 
 export default async function ManagerSettingsPage() {
   const pageTimer = await startNavPageTimer("manager/settings");
-  const client = await createSupabaseServerComponentClient();
   const adminClient = createSupabaseAdminClient();
-  const sessionUser = await getSessionUser();
-  const maintenanceMode = await getMaintenanceMode(client);
+
+  const [client, sessionUser] = await Promise.all([
+    createSupabaseServerComponentClient(),
+    getSessionUser(),
+  ]);
+
+  const [maintenanceMode, resetUnauthorized] = await Promise.all([
+    getMaintenanceMode(client),
+    getUnauthorizedError(
+      adminClient,
+      sessionUser?.id ?? null,
+      PERMISSIONS.SETTINGS_RESET_PASSWORDS
+    ),
+  ]);
 
   let passwordResetUsers: PasswordResetUserOption[] = [];
-  const resetUnauthorized = await getUnauthorizedError(
-    adminClient,
-    sessionUser?.id ?? null,
-    PERMISSIONS.SETTINGS_RESET_PASSWORDS
-  );
   if (!resetUnauthorized) {
     passwordResetUsers = await listPasswordResetUserOptions(
       adminClient,

@@ -32,6 +32,9 @@ vi.mock("@/services/auth/authorization.service", () => ({
   assertPermission: vi.fn(async (_c, userId) => {
     if (!userId) throw new Error("Unauthorized.");
   }),
+  assertPermissions: vi.fn(async (_c, userId) => {
+    if (!userId) throw new Error("Unauthorized.");
+  }),
   getUnauthorizedError: vi.fn(async (_c, userId) =>
     userId ? null : "Unauthorized."
   ),

@@ -11,7 +11,10 @@ import * as classTaskRepository from "@/repositories/class-task.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
-import { assertPermission } from "@/services/auth/authorization.service";
+import {
+  assertPermission,
+  assertPermissions,
+} from "@/services/auth/authorization.service";
 import {
   mapSessionRecord,
   mapTaskRecord,
@@ -88,9 +91,11 @@ export async function getTeachingClassDetailForSelf(
   actorUserId: string | null,
   classId: string
 ): Promise<TeacherClassDetail | null> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.SESSIONS_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
+  await assertPermissions(adminClient, actorUserId, [
+    PERMISSIONS.CLASSES_VIEW,
+    PERMISSIONS.SESSIONS_VIEW,
+    PERMISSIONS.TASKS_VIEW,
+  ]);
 
   if (!actorUserId) {
     return null;
@@ -156,9 +161,11 @@ export async function getTeachingClassTaskGradeSummaryForSelf(
   actorUserId: string | null,
   classId: string
 ): Promise<ClassTaskGradeSummary | null> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
+  await assertPermissions(adminClient, actorUserId, [
+    PERMISSIONS.CLASSES_VIEW,
+    PERMISSIONS.TASKS_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+  ]);
 
   if (!actorUserId) {
     return null;

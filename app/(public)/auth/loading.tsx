@@ -1,13 +1,17 @@
 import { RouteLoading } from "@/components/loaders/route-loading";
-import { getPublicLocale } from "@/lib/i18n/get-public-locale";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { translate } from "@/lib/i18n/messages";
 
-export default async function AuthLoading() {
-  const locale = await getPublicLocale();
+/**
+ * No cookies()/getPublicLocale here — loading.tsx must stay fetch-free.
+ * Auth segment is already force-dynamic; marketing SSR uses DEFAULT_LOCALE
+ * until the client PublicI18nProvider reads the locale cookie.
+ */
+export default function AuthLoading() {
   return (
     <RouteLoading
       variant="full-page"
-      label={translate(locale, "auth.loading")}
+      label={translate(DEFAULT_LOCALE, "auth.loading")}
     />
   );
 }

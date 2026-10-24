@@ -15,16 +15,16 @@ export default async function ManagerEquipmentDetailPage({
   const { id } = await params;
   const adminClient = createSupabaseAdminClient();
   const user = await getSessionUser();
-  const equipment = await getEquipmentForManager(adminClient, user?.id ?? null, id);
+  const actorUserId = user?.id ?? null;
+
+  const [equipment, borrows] = await Promise.all([
+    getEquipmentForManager(adminClient, actorUserId, id),
+    listEquipmentBorrowsForManager(adminClient, actorUserId, id),
+  ]);
 
   if (!equipment) {
     notFound();
   }
-
-  const borrows = await listEquipmentBorrowsForManager(
-    adminClient, user?.id ?? null,
-    id
-  );
 
   return (
     <EquipmentDetailsPanel equipment={equipment} initialBorrows={borrows} />

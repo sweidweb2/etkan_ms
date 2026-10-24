@@ -27,6 +27,7 @@ import * as classTaskRepository from "@/repositories/class-task.repository";
 import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import {
   assertPermission,
+  assertPermissions,
   assertStudentSelfAccess,
 } from "@/services/auth/authorization.service";
 import { mapStudentTaskUploadForSelf } from "@/services/classes/student-task-upload-self.service";
@@ -182,24 +183,18 @@ export async function getStudentClassDetailForSelf(
   actorUserId: string | null,
   classId: string
 ): Promise<StudentClassDetailForSelf | null> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.SESSIONS_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.ATTENDANCE_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_VIEW);
+  await assertPermissions(adminClient, actorUserId, [
+    PERMISSIONS.CLASSES_VIEW,
+    PERMISSIONS.SESSIONS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+    PERMISSIONS.TASKS_VIEW,
+    PERMISSIONS.FINAL_EXAMS_VIEW,
+  ]);
 
   const userId = await assertStudentSelfAccess(adminClient, actorUserId);
 
-  const isMember = await findStudentClassMembership(
-    adminClient,
-    userId,
-    classId
-  );
-  if (!isMember) {
-    return null;
-  }
-
+  // Enrollment check via joined list (avoids a separate membership round-trip).
   const joinedClasses = await listJoinedClassesForStudentSelf(
     adminClient,
     userId
@@ -258,8 +253,10 @@ export async function getStudentClassTaskForSelf(
   classId: string,
   taskId: string
 ): Promise<StudentClassTaskDetailForSelf | null> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.TASKS_VIEW);
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.GRADES_VIEW);
+  await assertPermissions(adminClient, actorUserId, [
+    PERMISSIONS.TASKS_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+  ]);
 
   const userId = await assertStudentSelfAccess(adminClient, actorUserId);
 
