@@ -1,6 +1,11 @@
 import { PublicShell } from "@/components/layout/public-shell";
+import { JsonLd } from "@/components/seo/json-ld";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { PublicI18nProvider } from "@/lib/i18n/public-i18n-provider";
+import {
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+} from "@/lib/seo/json-ld";
 
 /**
  * Marketing ISR shell. Do not call cookies()/headers()/getPublicLocale here —
@@ -18,6 +23,7 @@ export default function PublicLayout({
 }) {
   return (
     <PublicI18nProvider locale={DEFAULT_LOCALE}>
+      <JsonLd data={[buildOrganizationJsonLd(), buildWebSiteJsonLd()]} />
       <PublicShell>{children}</PublicShell>
     </PublicI18nProvider>
   );

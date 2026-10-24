@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BlogDetailSection } from "@/components/public/blogs/blog-detail-section";
-import { SITE } from "@/lib/config/site";
+import { JsonLd } from "@/components/seo/json-ld";
+import {
+  buildBlogPostingJsonLd,
+  buildBreadcrumbJsonLd,
+} from "@/lib/seo/json-ld";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+import { PAGE_SEO } from "@/lib/seo/page-seo";
 import {
   getPublishedBlogBySlugForPublic,
   getSuggestedPublishedBlogs,
@@ -26,22 +32,26 @@ export async function generateMetadata({
 
   if (!post) {
     return {
-      title: `Blog | ${SITE.name}`,
+      title: PAGE_SEO.blogs.title,
     };
   }
 
   const title = post.meta_title?.trim() || post.title;
-  const description = post.meta_description?.trim() || post.summary;
+  const description =
+    post.meta_description?.trim() || post.summary || PAGE_SEO.blogs.description;
+  const path = `/blogs/${post.slug}`;
+  const publishedTime = post.published_at ?? undefined;
 
-  return {
-    title: `${title} | ${SITE.name}`,
+  return buildPageMetadata({
+    title,
     description,
-    openGraph: {
-      title,
-      description,
-      images: post.thumbnail_url ? [{ url: post.thumbnail_url }] : undefined,
-    },
-  };
+    path,
+    type: "article",
+    publishedTime,
+    modifiedTime: publishedTime,
+    authors: post.author_name ? [post.author_name] : undefined,
+    images: post.thumbnail_url ? [{ url: post.thumbnail_url }] : undefined,
+  });
 }
 
 export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
@@ -53,6 +63,32 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
   }
 
   const suggested = await getSuggestedPublishedBlogs(post.slug, 4);
+  const title = post.meta_title?.trim() || post.title;
+  const description =
+    post.meta_description?.trim() || post.summary || PAGE_SEO.blogs.description;
+  const path = `/blogs/${post.slug}`;
 
-  return <BlogDetailSection post={post} suggested={suggested} />;
+  return (
+    <>
+      <JsonLd
+        data={[
+          buildBreadcrumbJsonLd([
+            { name: "Home", path: PAGE_SEO.home.path },
+            { name: PAGE_SEO.blogs.title, path: PAGE_SEO.blogs.path },
+            { name: title, path },
+          ]),
+          buildBlogPostingJsonLd({
+            title,
+            description,
+            path,
+            imageUrl: post.thumbnail_url,
+            authorName: post.author_name,
+            datePublished: post.published_at,
+            dateModified: post.published_at,
+          }),
+        ]}
+      />
+      <BlogDetailSection post={post} suggested={suggested} />
+    </>
+  );
 }

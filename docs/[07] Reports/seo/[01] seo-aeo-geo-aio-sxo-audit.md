@@ -74,16 +74,16 @@ They share infrastructure (metadata, schema, content quality, Core Web Vitals). 
 
 | Capability | Status |
 |------------|--------|
-| `app/sitemap.ts` / `sitemap.xml` | Absent |
-| `app/robots.ts` / `robots.txt` | Absent |
-| JSON-LD / schema.org | Absent |
-| `alternates.canonical` / hreflang | Absent |
-| Per-page metadata (home, about, careers, projects, gallery, register, blogs index) | Absent (inherit root) |
-| Panel / private URL `robots: noindex` | Absent |
-| `manifest.webmanifest` | Absent |
-| `llms.txt` / AI crawler guidance | Absent |
-| Search Console / Bing / analytics wiring in app | Not found |
-| FAQ / HowTo / Course / Breadcrumb structured data | Absent |
+| `app/sitemap.ts` / `sitemap.xml` | ✅ Done (`app/sitemap.ts`) |
+| `app/robots.ts` / `robots.txt` | ✅ Done (`app/robots.ts` + AI bot rules) |
+| JSON-LD / schema.org | ✅ Done (Organization, WebSite, BlogPosting, BreadcrumbList) |
+| `alternates.canonical` / hreflang | ✅ Canonical done via `buildPageMetadata`; hreflang skipped (no path locales) |
+| Per-page metadata (home, about, careers, projects, gallery, register, blogs index) | ✅ Done (+ careers roadmap + blog detail) |
+| Panel / private URL `robots: noindex` | ✅ Done (panels, auth, life, maintenance, guest invite, `/f/[token]`) |
+| `manifest.webmanifest` | ✅ Done (`app/manifest.ts`) |
+| `llms.txt` / AI crawler guidance | ✅ Done (`public/llms.txt` + AI agents in `robots.ts`) |
+| Search Console / Bing / analytics wiring in app | ⏭️ Skipped (external accounts / ops — not in-app code) |
+| FAQ / HowTo / Course / Breadcrumb structured data | ✅ BreadcrumbList done; FAQ / HowTo / Course skipped (would need new public FAQ/content pages) |
 
 ### 3.3 Indexable vs non-indexable surfaces
 

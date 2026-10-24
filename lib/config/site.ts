@@ -5,7 +5,14 @@ export const SITE = {
   name: "Etkan",
   /** Management System brand for role panels and internal tooling. */
   systemName: "Etkan MS",
+  /** Short label for internal/MS contexts. */
   description: "School management system",
+  /**
+   * Public marketing description for root metadata, OG, and JSON-LD.
+   * Prefer this over `description` on indexable marketing pages.
+   */
+  seoDescription:
+    "Etkan is a hands-on educational learning path—workshops, projects, and career tracks that build real technology skills.",
   tagline: "Administration and student management.",
 } as const;
 

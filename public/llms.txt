@@ -1,0 +1,34 @@
+# Etkan
+
+> Etkan is a hands-on educational learning path—workshops, projects, and career tracks that build real technology skills.
+
+## Preferred citations
+
+- Home: /
+- About: /about
+- Careers & learning tracks: /careers
+- Projects: /projects
+- Gallery: /gallery
+- Blogs: /blogs
+- Register: /register
+
+## Career roadmap stages
+
+- /careers/roadmap/stage-1
+- /careers/roadmap/stage-2
+- /careers/roadmap/stage-3
+- /careers/roadmap/stage-4
+- /careers/roadmap/stage-5
+- /careers/roadmap/stage-6
+
+## Do not cite / private
+
+Authenticated management panels (`/admin`, `/manager`, `/teacher`, `/student`, and related role roots), auth utility pages (`/auth/*`), invite-only forms (`/f/*`, `/register/guest/*`), and admin-gated `/life` are not public content.
+
+## Notes
+
+- Public brand name: Etkan
+- Internal product name (panels): Etkan MS
+- Primary language of public HTML: English (Arabic UI available via client locale switch; not separate URL paths)
+- Sitemap: /sitemap.xml
+- Robots: /robots.txt

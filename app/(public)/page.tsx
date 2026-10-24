@@ -1,6 +1,17 @@
+import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { HomeHero } from "@/components/public/home-hero";
 import { HomeLearningPathSection } from "@/components/public/home-learning-path-section";
+import { SITE } from "@/lib/config/site";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+import { PAGE_SEO } from "@/lib/seo/page-seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: `${SITE.name} — Hands-on tech learning`,
+  description: PAGE_SEO.home.description,
+  path: PAGE_SEO.home.path,
+  absoluteTitle: true,
+});
 
 const HomeCareerStagesSection = dynamic(
   () =>

@@ -36,18 +36,18 @@ export const metadata: Metadata = {
     default: SITE.name,
     template: `%s | ${SITE.name}`,
   },
-  description: SITE.description,
+  description: SITE.seoDescription,
   applicationName: SITE.name,
   openGraph: {
     type: "website",
     siteName: SITE.name,
     title: SITE.name,
-    description: SITE.description,
+    description: SITE.seoDescription,
   },
   twitter: {
     card: "summary_large_image",
     title: SITE.name,
-    description: SITE.description,
+    description: SITE.seoDescription,
   },
 };
 
