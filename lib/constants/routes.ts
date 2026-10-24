@@ -236,8 +236,15 @@ export function getStudentClassDetailRoute(classId: string): string {
   return `/student/classes/${classId}`;
 }
 
-export function getTeacherClassDetailRoute(classId: string): string {
-  return `/teacher/classes/${classId}`;
+export function getTeacherClassDetailRoute(
+  classId: string,
+  tab?: "main" | "sessions" | "tasks" | "analytics"
+): string {
+  const base = `/teacher/classes/${classId}`;
+  if (!tab || tab === "main") {
+    return base;
+  }
+  return `${base}?tab=${tab}`;
 }
 
 export function getTeacherClassSessionDetailRoute(

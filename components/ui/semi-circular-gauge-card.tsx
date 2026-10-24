@@ -36,6 +36,11 @@ const RADIUS = 78;
 const CX = 100;
 const CY = 100;
 
+/** Fixed precision so Node vs browser trig doesn't hydrate-mismatch. */
+function coord(n: number) {
+  return (Math.round(n * 1e3) / 1e3).toFixed(3);
+}
+
 /**
  * Convert gauge angle to SVG coords.
  * -180 = left, -90 = top, 0 = right (top semicircle).
@@ -64,10 +69,10 @@ function segmentPath(index: number) {
 
   // Outer arc travels left→top→right (CCW in SVG). Inner returns CW.
   return [
-    `M ${p1.x} ${p1.y}`,
-    `A ${outer} ${outer} 0 ${largeArc} 0 ${p2.x} ${p2.y}`,
-    `L ${p3.x} ${p3.y}`,
-    `A ${inner} ${inner} 0 ${largeArc} 1 ${p4.x} ${p4.y}`,
+    `M ${coord(p1.x)} ${coord(p1.y)}`,
+    `A ${outer} ${outer} 0 ${largeArc} 0 ${coord(p2.x)} ${coord(p2.y)}`,
+    `L ${coord(p3.x)} ${coord(p3.y)}`,
+    `A ${inner} ${inner} 0 ${largeArc} 1 ${coord(p4.x)} ${coord(p4.y)}`,
     "Z",
   ].join(" ");
 }

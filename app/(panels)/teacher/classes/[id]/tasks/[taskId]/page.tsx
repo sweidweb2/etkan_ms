@@ -51,7 +51,7 @@ export default async function TeacherClassTaskDetailPage({
       navigation={{
         classesListHref: ROUTES.TEACHER_CLASSES,
         classesListLabel: "My classes",
-        classDetailHref: getTeacherClassDetailRoute(id),
+        classDetailHref: getTeacherClassDetailRoute(id, "tasks"),
       }}
     />
   );

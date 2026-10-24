@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { RefreshCwIcon } from "lucide-react";
 import {
@@ -46,6 +47,13 @@ import {
   getTeacherClassTaskDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
+import {
+  parseTeacherClassDetailTab,
+  readTeacherClassDetailTab,
+  TEACHER_CLASS_DETAIL_TABS,
+  writeTeacherClassDetailTab,
+  type TeacherClassDetailTab,
+} from "@/lib/constants/teacher-class-detail-tabs";
 import { cn } from "@/lib/utils";
 import {
   getSessionTimingLabel,
@@ -64,18 +72,17 @@ type TeacherClassDetailsPanelProps = {
   hasComputedGrades?: boolean;
   assignedAt: string | null;
   taskGradeSummary?: ClassTaskGradeSummary | null;
+  /** From `?tab=` on the server for first paint without flash. */
+  initialTab?: TeacherClassDetailTab;
 };
 
-const TABS = {
-  MAIN: "main",
-  SESSIONS: "sessions",
-  TASKS: "tasks",
-} as const;
+const TABS = TEACHER_CLASS_DETAIL_TABS;
 
 const CLASS_TABS = [
   { value: TABS.MAIN, label: "Main" },
   { value: TABS.SESSIONS, label: "Sessions" },
   { value: TABS.TASKS, label: "Tasks" },
+  { value: TABS.ANALYTICS, label: "Analytics" },
 ] as const;
 
 const TAB_TRIGGER_CLASS =
@@ -89,9 +96,50 @@ export function TeacherClassDetailsPanel({
   hasComputedGrades = false,
   assignedAt,
   taskGradeSummary = null,
+  initialTab = TABS.MAIN,
 }: TeacherClassDetailsPanelProps) {
-  const [tab, setTab] = useState<string>(TABS.MAIN);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabFromUrl = parseTeacherClassDetailTab(searchParams.get("tab"));
+  const tab = tabFromUrl ?? initialTab;
   const [classRow, setClassRow] = useState(initialClassRow);
+
+  function replaceTabInUrl(nextTab: TeacherClassDetailTab) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextTab === TABS.MAIN) {
+      params.delete("tab");
+    } else {
+      params.set("tab", nextTab);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }
+
+  // Persist ?tab=; restore from localStorage when the URL is clean (e.g. nested back).
+  useEffect(() => {
+    if (tabFromUrl) {
+      writeTeacherClassDetailTab(classRow.id, tabFromUrl);
+      return;
+    }
+
+    const stored = readTeacherClassDetailTab(classRow.id);
+    if (!stored || stored === TABS.MAIN) {
+      writeTeacherClassDetailTab(classRow.id, TABS.MAIN);
+      return;
+    }
+
+    writeTeacherClassDetailTab(classRow.id, stored);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", stored);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync once per clean URL / class
+  }, [classRow.id, tabFromUrl]);
   const [sessions, setSessions] = useState(() =>
     sortClassSessionsNewestFirst(initialSessions)
   );
@@ -155,6 +203,12 @@ export function TeacherClassDetailsPanel({
     sessionLoadRequestRef.current += 1;
     setSelectedSessionId(null);
     setSessionDetail(null);
+  }
+
+  function handleTabChange(nextTab: string) {
+    const parsed = parseTeacherClassDetailTab(nextTab) ?? TABS.MAIN;
+    writeTeacherClassDetailTab(classRow.id, parsed);
+    replaceTabInUrl(parsed);
   }
 
   function handleInlineSessionUpdated(session: ManagerClassSessionRow) {
@@ -225,8 +279,8 @@ export function TeacherClassDetailsPanel({
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab} className="gap-4">
-        <TabsListPrimitive className="grid w-full grid-cols-3 gap-1 self-start rounded-lg border border-border/70 bg-secondary/80 p-1 sm:w-fit sm:min-w-[20rem]">
+      <Tabs value={tab} onValueChange={handleTabChange} className="gap-4">
+        <TabsListPrimitive className="grid w-full grid-cols-4 gap-1 self-start rounded-lg border border-border/70 bg-secondary/80 p-1 sm:w-fit sm:min-w-[24rem]">
           {CLASS_TABS.map((item) => (
             <TabsTriggerPrimitive
               key={item.value}
@@ -377,10 +431,33 @@ export function TeacherClassDetailsPanel({
               tasks={initialTasks}
               hasSubject={Boolean(classRow.subject_id)}
               hasComputedGrades={hasComputedGrades}
+              layout="cards"
               getTaskDetailHref={(taskId) =>
                 getTeacherClassTaskDetailRoute(classRow.id, taskId)
               }
             />
+          </TabsContent>
+
+          <TabsContent value={TABS.ANALYTICS} className="flex flex-col gap-4">
+            {taskGradeSummary ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <SemiCircularGaugeCard
+                  title="Task grades"
+                  titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
+                  value={taskGradeSummary.averageEarned}
+                  total={taskGradeSummary.totalMax}
+                  progressPercent={taskGradeSummary.progressPercent}
+                  valueLabel="Average"
+                  legendAverageLabel="Average"
+                  legendTotalLabel="Total"
+                  className="sm:max-w-sm"
+                />
+              </div>
+            ) : (
+              <p className="rounded-2xl border border-border/70 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+                No task grade analytics yet for this class.
+              </p>
+            )}
           </TabsContent>
         </TabsContents>
       </Tabs>

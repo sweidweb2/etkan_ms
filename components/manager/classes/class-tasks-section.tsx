@@ -1,15 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { format } from "date-fns";
-import { DownloadIcon, PlusIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import { format, isToday, isYesterday } from "date-fns";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ClipboardListIcon,
+  DownloadIcon,
+  PlusIcon,
+  SparklesIcon,
+} from "lucide-react";
 import { importSubjectTasksForClassAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { AddClassTaskDialog } from "@/components/manager/classes/add-class-task-dialog";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
+import { LibraryCard } from "@/components/ui/library-card";
 import {
   Tooltip,
   TooltipContent,
@@ -23,12 +31,16 @@ import { SESSION_TASK_TABLE_LIMITS } from "@/lib/constants/manager-class-session
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerClassTaskDetailRoute } from "@/lib/constants/routes";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
+import { getPageNumbers } from "@/lib/pagination/page-numbers";
 import { cn } from "@/lib/utils";
 import { truncateText } from "@/lib/utils/truncate-text";
 import type {
   ImportSubjectTasksActionState,
   ManagerClassTaskRow,
 } from "@/types/manager-class-session-detail";
+
+const TASK_CARDS_PAGE_SIZE = 15;
+const TASK_CARDS_MAX_PAGES = 50;
 
 const initialImportState: ImportSubjectTasksActionState = {};
 
@@ -40,7 +52,39 @@ type ClassTasksSectionProps = {
   hasComputedGrades?: boolean;
   /** Override task row detail links (defaults to manager routes). */
   getTaskDetailHref?: (taskId: string) => string;
+  /** `cards` = library-style grid (teacher); `table` = manager default. */
+  layout?: "table" | "cards";
 };
+
+function formatTaskEyebrow(task: ManagerClassTaskRow) {
+  const dateValue = task.due_date ?? task.started_at ?? task.created_at;
+  const date = new Date(dateValue);
+
+  if (task.due_date) {
+    if (isToday(date)) {
+      return "Due today";
+    }
+    if (isYesterday(date)) {
+      return "Due yesterday";
+    }
+    return `Due ${format(date, "MMM d")}`;
+  }
+
+  if (task.started_at) {
+    if (isToday(date)) {
+      return "Started today";
+    }
+    return `Started ${format(date, "MMM d")}`;
+  }
+
+  if (isToday(date)) {
+    return "Created today";
+  }
+
+  return format(date, "MMM d");
+}
+
+const CARD_GLOWS = ["lavender", "blue", "mint"] as const;
 
 function TruncatedCell({
   value,
@@ -95,6 +139,24 @@ function sortTasks(tasks: ManagerClassTaskRow[]) {
   });
 }
 
+/** Cards: pin started tasks first, then normal order within each group. */
+function sortTasksForCards(tasks: ManagerClassTaskRow[]) {
+  return [...tasks].sort((left, right) => {
+    if (left.started !== right.started) {
+      return left.started ? -1 : 1;
+    }
+
+    const orderCompare = left.sort_order - right.sort_order;
+    if (orderCompare !== 0) {
+      return orderCompare;
+    }
+
+    return (
+      new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+    );
+  });
+}
+
 export function ClassTasksSection({
   classId,
   className,
@@ -102,10 +164,12 @@ export function ClassTasksSection({
   hasSubject = true,
   hasComputedGrades = false,
   getTaskDetailHref,
+  layout = "table",
 }: ClassTasksSectionProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [prevInitialTasks, setPrevInitialTasks] = useState(initialTasks);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [importState, importAction, isImportPending] = useFormActionState(
     importSubjectTasksForClassAction,
     initialImportState
@@ -114,6 +178,7 @@ export function ClassTasksSection({
   if (initialTasks !== prevInitialTasks) {
     setPrevInitialTasks(initialTasks);
     setTasks(initialTasks);
+    setCurrentPage(1);
   }
 
   useActionStateToast(importState, isImportPending);
@@ -134,8 +199,43 @@ export function ClassTasksSection({
           ...imported.filter((row) => !existingIds.has(row.id)),
         ]);
       });
+      setCurrentPage(1);
     },
     (nextState) => Boolean(nextState.success)
+  );
+
+  const sortedTasks = useMemo(
+    () =>
+      layout === "cards" ? sortTasksForCards(tasks) : sortTasks(tasks),
+    [layout, tasks]
+  );
+  const cappedTasks = useMemo(
+    () => sortedTasks.slice(0, TASK_CARDS_PAGE_SIZE * TASK_CARDS_MAX_PAGES),
+    [sortedTasks]
+  );
+  const totalPages = Math.max(
+    1,
+    Math.min(
+      TASK_CARDS_MAX_PAGES,
+      Math.ceil(cappedTasks.length / TASK_CARDS_PAGE_SIZE)
+    )
+  );
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageTasks = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * TASK_CARDS_PAGE_SIZE;
+    return cappedTasks.slice(startIndex, startIndex + TASK_CARDS_PAGE_SIZE);
+  }, [cappedTasks, safeCurrentPage]);
+  const pageNumbers = useMemo(
+    () => getPageNumbers(safeCurrentPage, totalPages),
+    [safeCurrentPage, totalPages]
+  );
+  const rangeStart =
+    cappedTasks.length === 0
+      ? 0
+      : (safeCurrentPage - 1) * TASK_CARDS_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(
+    safeCurrentPage * TASK_CARDS_PAGE_SIZE,
+    cappedTasks.length
   );
 
   function handleImport() {
@@ -150,6 +250,61 @@ export function ClassTasksSection({
       ? "This class has no subject to import tasks from."
       : undefined;
 
+  const createActions = (
+    <Can permission={PERMISSIONS.TASKS_CREATE}>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {importDisabledReason ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={<span className="inline-flex" tabIndex={0} />}
+            >
+              <Button type="button" variant="outline" disabled>
+                <DownloadIcon data-icon="inline-start" />
+                Import from subject
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{importDisabledReason}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isImportPending}
+            onClick={handleImport}
+          >
+            {isImportPending ? (
+              <InlineSpinner />
+            ) : (
+              <DownloadIcon data-icon="inline-start" />
+            )}
+            Import from subject
+          </Button>
+        )}
+
+        {hasComputedGrades ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={<span className="inline-flex" tabIndex={0} />}
+            >
+              <Button type="button" disabled>
+                <PlusIcon data-icon="inline-start" />
+                Create task
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button type="button" onClick={() => setIsAddOpen(true)}>
+            <PlusIcon data-icon="inline-start" />
+            Create task
+          </Button>
+        )}
+      </div>
+    </Can>
+  );
+
   return (
     <>
       <AddClassTaskDialog
@@ -161,147 +316,212 @@ export function ClassTasksSection({
           setTasks((current) =>
             sortTasks([task, ...current.filter((row) => row.id !== task.id)])
           );
+          setCurrentPage(1);
         }}
       />
 
-      <ClassTabCollapsibleSection
-        title="Tasks"
-        description={`All tasks for ${className}.`}
-        storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_TASKS}
-        defaultOpen
-        action={
-          <Can permission={PERMISSIONS.TASKS_CREATE}>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {importDisabledReason ? (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<span className="inline-flex" tabIndex={0} />}
-                  >
-                    <Button type="button" variant="outline" disabled>
-                      <DownloadIcon data-icon="inline-start" />
-                      Import from subject
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{importDisabledReason}</TooltipContent>
-                </Tooltip>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isImportPending}
-                  onClick={handleImport}
-                >
-                  {isImportPending ? (
-                    <InlineSpinner />
-                  ) : (
-                    <DownloadIcon data-icon="inline-start" />
-                  )}
-                  Import from subject
-                </Button>
-              )}
-
-              {hasComputedGrades ? (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<span className="inline-flex" tabIndex={0} />}
-                  >
-                    <Button type="button" disabled>
-                      <PlusIcon data-icon="inline-start" />
-                      Create task
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Button type="button" onClick={() => setIsAddOpen(true)}>
-                  <PlusIcon data-icon="inline-start" />
-                  Create task
-                </Button>
-              )}
+      {layout === "cards" ? (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight">Tasks</h2>
+              <p className="text-sm text-muted-foreground">
+                All tasks for {className}.
+              </p>
             </div>
-          </Can>
-        }
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left">
-                <th className="px-4 py-3 font-medium">Title</th>
-                <th className="px-4 py-3 font-medium">Period (days)</th>
-                <th className="px-4 py-3 font-medium">Description</th>
-                <th className="px-4 py-3 font-medium">Started</th>
-                <th className="px-4 py-3 font-medium">Due date</th>
-                <th className="px-4 py-3 font-medium">Max grade</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-10 text-center text-muted-foreground"
-                  >
-                    No tasks linked to this class yet.
-                  </td>
+            {createActions}
+          </div>
+
+          {cappedTasks.length === 0 ? (
+            <p className="rounded-xl border border-border/70 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+              No tasks linked to this class yet.
+            </p>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {pageTasks.map((task, index) => {
+                  const href =
+                    getTaskDetailHref?.(task.id) ??
+                    getManagerClassTaskDetailRoute(classId, task.id);
+                  const glowIndex =
+                    (safeCurrentPage - 1) * TASK_CARDS_PAGE_SIZE + index;
+
+                  return (
+                    <LibraryCard
+                      key={task.id}
+                      href={href}
+                      eyebrow={formatTaskEyebrow(task)}
+                      title={task.title}
+                      badge={task.started ? "Started" : "Not started"}
+                      coverBadge={task.started ? "Started" : undefined}
+                      meta={{
+                        icon: SparklesIcon,
+                        label:
+                          task.max_grade != null
+                            ? `${task.max_grade} max · ${task.period}d`
+                            : `${task.period} day period`,
+                      }}
+                      previewIcon={ClipboardListIcon}
+                      glow={
+                        task.started
+                          ? "mint"
+                          : CARD_GLOWS[glowIndex % CARD_GLOWS.length]
+                      }
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {rangeStart}–{rangeEnd} of {cappedTasks.length}
+                  {sortedTasks.length > cappedTasks.length
+                    ? ` (capped at ${TASK_CARDS_PAGE_SIZE * TASK_CARDS_MAX_PAGES})`
+                    : null}
+                </p>
+                {totalPages > 1 ? (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={safeCurrentPage <= 1}
+                      onClick={() =>
+                        setCurrentPage((page) => Math.max(1, page - 1))
+                      }
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeftIcon />
+                    </Button>
+                    {pageNumbers.map((page, index) =>
+                      page === "ellipsis" ? (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="px-1 text-muted-foreground"
+                        >
+                          …
+                        </span>
+                      ) : (
+                        <Button
+                          key={page}
+                          type="button"
+                          variant={
+                            page === safeCurrentPage ? "default" : "outline"
+                          }
+                          size="icon-sm"
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={safeCurrentPage >= totalPages}
+                      onClick={() =>
+                        setCurrentPage((page) =>
+                          Math.min(totalPages, page + 1)
+                        )
+                      }
+                      aria-label="Next page"
+                    >
+                      <ChevronRightIcon />
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
+        </section>
+      ) : (
+        <ClassTabCollapsibleSection
+          title="Tasks"
+          description={`All tasks for ${className}.`}
+          storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_TASKS}
+          defaultOpen
+          action={createActions}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-left">
+                  <th className="px-4 py-3 font-medium">Title</th>
+                  <th className="px-4 py-3 font-medium">Period (days)</th>
+                  <th className="px-4 py-3 font-medium">Description</th>
+                  <th className="px-4 py-3 font-medium">Started</th>
+                  <th className="px-4 py-3 font-medium">Due date</th>
+                  <th className="px-4 py-3 font-medium">Max grade</th>
                 </tr>
-              ) : (
-                tasks.map((task) => (
-                  <tr
-                    key={task.id}
-                    className="border-b last:border-b-0 transition-colors duration-150 hover:bg-primary/8"
-                  >
-                    <td className="max-w-[12rem] px-4 py-3">
-                      <Link
-                        href={
-                          getTaskDetailHref?.(task.id) ??
-                          getManagerClassTaskDetailRoute(classId, task.id)
-                        }
-                        prefetch={false}
-                        className="block font-medium text-primary underline-offset-4 hover:underline"
-                        aria-label={`View task ${task.title}`}
-                      >
-                        <TruncatedCell
-                          value={task.title}
-                          maxLength={SESSION_TASK_TABLE_LIMITS.title}
-                        />
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {task.period}
-                    </td>
-                    <td className="max-w-[16rem] px-4 py-3 text-muted-foreground">
-                      <TruncatedCell
-                        value={task.description ?? "—"}
-                        maxLength={SESSION_TASK_TABLE_LIMITS.description}
-                      />
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex w-fit rounded-md px-2 py-0.5 text-xs font-medium",
-                          task.started
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {task.started ? "Yes" : "No"}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                      {formatDateCell(task.due_date)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                      {task.max_grade ?? "—"}
+              </thead>
+              <tbody>
+                {tasks.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-4 py-10 text-center text-muted-foreground"
+                    >
+                      No tasks linked to this class yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </ClassTabCollapsibleSection>
+                ) : (
+                  tasks.map((task) => (
+                    <tr
+                      key={task.id}
+                      className="border-b last:border-b-0 transition-colors duration-150 hover:bg-primary/8"
+                    >
+                      <td className="max-w-[12rem] px-4 py-3">
+                        <Link
+                          href={
+                            getTaskDetailHref?.(task.id) ??
+                            getManagerClassTaskDetailRoute(classId, task.id)
+                          }
+                          prefetch={false}
+                          className="block font-medium text-primary underline-offset-4 hover:underline"
+                          aria-label={`View task ${task.title}`}
+                        >
+                          <TruncatedCell
+                            value={task.title}
+                            maxLength={SESSION_TASK_TABLE_LIMITS.title}
+                          />
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                        {task.period}
+                      </td>
+                      <td className="max-w-[16rem] px-4 py-3 text-muted-foreground">
+                        <TruncatedCell
+                          value={task.description ?? "—"}
+                          maxLength={SESSION_TASK_TABLE_LIMITS.description}
+                        />
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span
+                          className={cn(
+                            "inline-flex w-fit rounded-md px-2 py-0.5 text-xs font-medium",
+                            task.started
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {task.started ? "Yes" : "No"}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                        {formatDateCell(task.due_date)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums">
+                        {task.max_grade ?? "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </ClassTabCollapsibleSection>
+      )}
     </>
   );
 }

@@ -62,6 +62,9 @@ Serverless spins cold containers; each request opens a new Postgres connection a
 2. If first-hit-after-idle is slow, inspect Docker/proxy/Supabase stack wake — not Next connection pooling.
 3. Optional: cache one admin `createClient` on `globalThis` for the Node process.
 
+**Detailed cold-start / first-hop report (JWKS, `session_pack`, live log examples):**  
+[`../Slowliness/[05] cold-start-and-first-hop-bottlenecks.md`](../Slowliness/[05]%20cold-start-and-first-hop-bottlenecks.md)
+
 ---
 
 ## 2. Cascading network waterfalls on the server

@@ -2,9 +2,9 @@
 
 import { useEffect, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
+import { CheckIcon } from "lucide-react";
 import { z } from "zod";
 import { updateClassStatusAction } from "@/app/manager/classes/actions";
-import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,21 +15,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useZodForm } from "@/hooks/use-zod-form";
 import {
+  MANAGER_CLASS_STATUS_DOT_CLASSES,
+  MANAGER_CLASS_STATUS_LABELS,
+  MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES,
+} from "@/lib/constants/manager-class-display";
+import {
   CLASS_STATUS_VALUES,
+  type ClassStatusValue,
 } from "@/lib/constants/manager-class-status";
-import { MANAGER_CLASS_STATUS_LABELS } from "@/lib/constants/manager-class-display";
+import { cn } from "@/lib/utils";
 import type { UpdateClassStatusActionState } from "@/types/manager-class-detail";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 
@@ -42,6 +41,14 @@ const changeClassStatusSchema = z.object({
 type ChangeClassStatusInput = z.infer<typeof changeClassStatusSchema>;
 
 const initialState: UpdateClassStatusActionState = {};
+
+const STATUS_HINTS: Record<ClassStatusValue, string> = {
+  scheduled: "Queued to begin",
+  in_progress: "Actively running",
+  done: "Completed",
+  paused: "Temporarily held",
+  stopped: "Ended early",
+};
 
 type ChangeClassStatusDialogProps = {
   open: boolean;
@@ -80,7 +87,8 @@ export function ChangeClassStatusDialog({
     },
   });
 
-  const selectedStatus = watch("status");
+  const selectedStatus = watch("status") as ClassStatusValue;
+  const currentStatus = classRow?.status;
 
   useEffect(() => {
     if (!open || !classRow) {
@@ -121,14 +129,17 @@ export function ChangeClassStatusDialog({
   }
 
   const statusError = errors.status?.message ?? state.fieldErrors?.status?.[0];
+  const hasChanges = Boolean(
+    currentStatus && selectedStatus && selectedStatus !== currentStatus
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={!isPending}>
+      <DialogContent className="sm:max-w-lg" showCloseButton={!isPending}>
         <DialogHeader>
           <DialogTitle>Change class status</DialogTitle>
           <DialogDescription>
-            Update the lifecycle status for {classRow?.name ?? "this class"}.
+            Pick a status for {classRow?.name ?? "this class"}, then save.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,44 +149,76 @@ export function ChangeClassStatusDialog({
           className="flex flex-col gap-4"
           noValidate
         >
-          <div className="flex flex-col gap-2">
-            <FieldLabel
-              htmlFor="change-class-status"
-              label="Status"
-              hint="Required"
-            />
-            <Select
-              value={selectedStatus || null}
-              onValueChange={(value) => {
-                if (!value) {
-                  return;
-                }
+          <div
+            role="radiogroup"
+            aria-label="Class status"
+            className="grid gap-2.5 sm:grid-cols-2"
+          >
+            {CLASS_STATUS_VALUES.map((status) => {
+              const isSelected = selectedStatus === status;
+              const isCurrent = currentStatus === status;
 
-                setValue("status", value as ChangeClassStatusInput["status"], {
-                  shouldValidate: true,
-                });
-              }}
-              disabled={isPending}
-            >
-              <SelectTrigger
-                id="change-class-status"
-                className="w-full"
-                aria-invalid={!!statusError}
-              >
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent align="start">
-                {CLASS_STATUS_VALUES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {MANAGER_CLASS_STATUS_LABELS[status]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {statusError ? (
-              <p className="text-sm text-destructive">{statusError}</p>
-            ) : null}
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  disabled={isPending}
+                  onClick={() =>
+                    setValue("status", status, { shouldValidate: true })
+                  }
+                  className={cn(
+                    "relative flex min-h-[4.75rem] flex-col items-start gap-1.5 rounded-xl border px-3.5 py-3 text-left transition-all",
+                    "outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                    "disabled:pointer-events-none disabled:opacity-60",
+                    MANAGER_CLASS_STATUS_SECONDARY_BUTTON_CLASSES[status],
+                    isSelected
+                      ? "ring-2 ring-offset-2 ring-offset-background shadow-sm"
+                      : "opacity-90 hover:opacity-100",
+                    isSelected &&
+                      status === "scheduled" &&
+                      "ring-violet-500/50",
+                    isSelected &&
+                      status === "in_progress" &&
+                      "ring-sky-500/50",
+                    isSelected && status === "done" && "ring-emerald-500/50",
+                    isSelected && status === "paused" && "ring-amber-500/50",
+                    isSelected && status === "stopped" && "ring-rose-500/50"
+                  )}
+                >
+                  <span className="flex w-full items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "size-2.5 shrink-0 rounded-full",
+                          MANAGER_CLASS_STATUS_DOT_CLASSES[status]
+                        )}
+                        aria-hidden
+                      />
+                      <span className="text-sm font-semibold">
+                        {MANAGER_CLASS_STATUS_LABELS[status]}
+                      </span>
+                    </span>
+                    {isSelected ? (
+                      <span className="inline-flex size-5 items-center justify-center rounded-full bg-background/80 text-foreground">
+                        <CheckIcon className="size-3" aria-hidden />
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-xs opacity-80">{STATUS_HINTS[status]}</span>
+                  {isCurrent ? (
+                    <span className="mt-0.5 text-[10px] font-medium tracking-wide uppercase opacity-70">
+                      Current
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
+          {statusError ? (
+            <p className="text-sm text-destructive">{statusError}</p>
+          ) : null}
         </form>
 
         <DialogFooter className="mt-2 sm:justify-end">
@@ -190,7 +233,7 @@ export function ChangeClassStatusDialog({
           <Button
             type="submit"
             form="change-class-status-form"
-            disabled={!classRow || isPending}
+            disabled={!classRow || isPending || !hasChanges}
           >
             {isPending ? (
               <>

@@ -106,7 +106,7 @@ export function TeacherClassSessionDetailsPanel({
     setAttendees(initialAttendees);
   }, [initialSession, initialAttendees]);
 
-  const classDetailHref = getTeacherClassDetailRoute(classRow.id);
+  const classDetailHref = getTeacherClassDetailRoute(classRow.id, "sessions");
   const timingLabel = getSessionTimingLabel(session);
   const timingText = SESSION_TIMING_LABELS[timingLabel];
   const timingClassName =

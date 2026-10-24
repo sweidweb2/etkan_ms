@@ -89,7 +89,7 @@ export function StudentPanelNavbar({
         </Link>
 
         {showTeacherSearch ? (
-          <div className="absolute left-1/2 hidden w-[min(100%,28rem)] -translate-x-1/2 items-center gap-2 px-2 md:flex">
+          <div className="absolute left-1/2 hidden w-[min(100%,24rem)] -translate-x-1/2 items-center gap-2 px-2 md:flex">
             {showLinkNav ? (
               <nav
                 aria-label={navLabel}

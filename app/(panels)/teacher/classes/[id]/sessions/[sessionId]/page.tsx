@@ -10,5 +10,5 @@ export default async function TeacherClassSessionDetailPage({
   params,
 }: TeacherClassSessionDetailPageProps) {
   const { id } = await params;
-  redirect(getTeacherClassDetailRoute(id));
+  redirect(getTeacherClassDetailRoute(id, "sessions"));
 }
