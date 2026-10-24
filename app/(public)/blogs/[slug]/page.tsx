@@ -50,7 +50,7 @@ export async function generateMetadata({
     publishedTime,
     modifiedTime: publishedTime,
     authors: post.author_name ? [post.author_name] : undefined,
-    images: post.thumbnail_url ? [{ url: post.thumbnail_url }] : undefined,
+    images: post.thumbnail_url ? [post.thumbnail_url] : undefined,
   });
 }
 

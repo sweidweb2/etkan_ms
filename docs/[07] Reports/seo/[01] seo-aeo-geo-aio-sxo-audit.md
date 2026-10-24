@@ -416,23 +416,23 @@ Keep panel brand (`Etkan MS`) out of public meta. Public brand remains **Etkan**
 
 ### P0 — Foundation (do first)
 
-- [ ] **P0.1** `app/robots.ts` — allow public marketing; disallow `/admin`, `/manager`, `/co-manager`, `/ceo`, `/supervisor`, `/crm`, `/teacher`, `/student`, `/auth`, `/f/`, `/register/guest`, `/life`, `/api`
-- [ ] **P0.2** `app/sitemap.ts` — `/`, `/about`, `/careers`, roadmap IDs, `/projects`, `/gallery`, `/blogs`, published blog slugs, `/register`
-- [ ] **P0.3** Panel + private `robots: { index: false, follow: false }`
-- [ ] **P0.4** `lib/seo/metadata.ts` + page-level metadata for all indexable routes
-- [ ] **P0.5** Fix blog metadata (canonical, article, dates, no double title suffix)
-- [ ] **P0.6** Rewrite public `SITE` / home description for Etkan brand (not only “School management system”)
-- [ ] **P0.7** Remove or noindex `/life` footer entry
-- [ ] **P0.8** Verify `NEXT_PUBLIC_SITE_URL` in prod; submit sitemap to GSC/Bing
+- [x] ✅ **P0.1** `app/robots.ts` — allow public marketing; disallow `/admin`, `/manager`, `/co-manager`, `/ceo`, `/supervisor`, `/crm`, `/teacher`, `/student`, `/auth`, `/f/`, `/register/guest`, `/life`, `/api`
+- [x] ✅ **P0.2** `app/sitemap.ts` — `/`, `/about`, `/careers`, roadmap IDs, `/projects`, `/gallery`, `/blogs`, published blog slugs, `/register`
+- [x] ✅ **P0.3** Panel + private `robots: { index: false, follow: false }`
+- [x] ✅ **P0.4** `lib/seo/metadata.ts` + page-level metadata for all indexable routes
+- [x] ✅ **P0.5** Fix blog metadata (canonical, article, dates, no double title suffix)
+- [x] ✅ **P0.6** Rewrite public `SITE` / home description for Etkan brand (not only “School management system”)
+- [x] ✅ **P0.7** noindex `/life` (footer link left as-is; metadata + robots disallow)
+- [ ] ⏭️ **P0.8** Verify `NEXT_PUBLIC_SITE_URL` in prod; submit sitemap to GSC/Bing — ops / skipped in code
 
 ### P1 — Answers, entities, AI readiness
 
-- [ ] **P1.1** JSON-LD: Organization, WebSite, BlogPosting, BreadcrumbList
-- [ ] **P1.2** FAQ sections + FAQPage schema on about, careers, register
-- [ ] **P1.3** `public/llms.txt`
-- [ ] **P1.4** Register HowTo summary + schema
+- [x] ✅ **P1.1** JSON-LD: Organization, WebSite, BlogPosting, BreadcrumbList
+- [ ] ⏭️ **P1.2** FAQ sections + FAQPage schema on about, careers, register — skipped (new public FAQ content)
+- [x] ✅ **P1.3** `public/llms.txt`
+- [ ] ⏭️ **P1.4** Register HowTo summary + schema — skipped (new public HowTo content)
 - [ ] **P1.5** Blog TL;DR pattern + publish SEO checklist for managers
-- [ ] **P1.6** Explicit AI crawler allow/deny policy in robots (product decision)
+- [x] ✅ **P1.6** Explicit AI crawler allow/deny policy in robots (allowed with same private disallow)
 - [ ] **P1.7** Align CTAs with register vs disabled public signup
 
 ### P2 — Depth & multilingual
@@ -440,8 +440,8 @@ Keep panel brand (`Etkan MS`) out of public meta. Public brand remains **Etkan**
 - [ ] **P2.1** Locale architecture decision (cookie vs path) + optional hreflang
 - [ ] **P2.2** Server-driven `html lang` / `dir`
 - [ ] **P2.3** Per-page OG images for home/about/careers
-- [ ] **P2.4** Optional Course/EducationalOrganization schema (only if accurate)
-- [ ] **P2.5** Web manifest + richer brand icons if PWA/share targets matter
+- [ ] ⏭️ **P2.4** Optional Course/EducationalOrganization schema — skipped (no new Course pages / claims)
+- [x] ✅ **P2.5** Web manifest (`app/manifest.ts`)
 - [ ] **P2.6** Off-site entity consistency (social sameAs, business profiles)
 - [ ] **P2.7** CWV pass on home/blog/register (fonts, LCP images)
 
@@ -506,3 +506,4 @@ You can consider the five pillars “covered” when all of the following are tr
 | Date | Change |
 |------|--------|
 | 2026-10-24 | Initial full SEO / AEO / GEO / AIO / SXO audit for Etkan public surface |
+| 2026-10-24 | Implemented §3.2 crawl/metadata/JSON-LD/manifest/llms (skipped FAQ/HowTo/Course pages + GSC/analytics ops); marked ✅ in §3.2 + backlog |
