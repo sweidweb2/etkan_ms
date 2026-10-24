@@ -313,5 +313,6 @@ export async function getSessionAuditActor(): Promise<AuditActor> {
   return {
     userId: pack.user?.id ?? null,
     userLabel: pack.displayName || "System",
+    role: pack.role,
   };
 }

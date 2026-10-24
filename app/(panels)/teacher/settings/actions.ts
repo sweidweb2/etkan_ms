@@ -60,7 +60,6 @@ export async function updateOwnTeacherProfileAction(
   }
 
   revalidatePath(ROUTES.TEACHER_SETTINGS);
-  revalidatePath(ROUTES.TEACHER_SETTINGS_MY_INFO);
 
   return {
     success: true,

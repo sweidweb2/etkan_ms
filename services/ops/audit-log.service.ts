@@ -15,6 +15,7 @@ import type {
   AuditLogJsonValue,
   ManagerAuditLogRow,
 } from "@/types/manager-audit-log";
+import type { RoleValue } from "@/lib/constants/roles";
 import type { Database, Json } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -23,6 +24,8 @@ type Supabase = SupabaseClient<Database>;
 export type AuditActor = {
   userId: string | null;
   userLabel: string;
+  /** Present for session-backed actors; omitted in tests / system callers. */
+  role?: RoleValue | null;
 };
 
 export type AuditLogEntry = {

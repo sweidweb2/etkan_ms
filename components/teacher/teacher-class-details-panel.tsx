@@ -23,7 +23,7 @@ import { ChangeClassStatusDialog } from "@/components/manager/classes/change-cla
 import { ClassSessionsSection } from "@/components/manager/classes/class-sessions-section";
 import { ClassTasksSection } from "@/components/manager/classes/class-tasks-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
-import { TeacherClassSessionDetailsPanel } from "@/components/teacher/teacher-class-session-details-panel";
+import { ClassSessionDetailsPanel } from "@/components/manager/classes/class-session-details-panel";
 import { TeacherClassStudentsSection } from "@/components/teacher/teacher-class-students-section";
 import {
   Breadcrumb,
@@ -44,6 +44,7 @@ import {
 } from "@/lib/constants/manager-subject-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
+  getTeacherClassDetailRoute,
   getTeacherClassTaskDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
@@ -103,7 +104,21 @@ export function TeacherClassDetailsPanel({
   const searchParams = useSearchParams();
   const tabFromUrl = parseTeacherClassDetailTab(searchParams.get("tab"));
   const tab = tabFromUrl ?? initialTab;
+  const [visitedTabs, setVisitedTabs] = useState(
+    () => new Set<TeacherClassDetailTab>([tab])
+  );
   const [classRow, setClassRow] = useState(initialClassRow);
+
+  useEffect(() => {
+    setVisitedTabs((current) => {
+      if (current.has(tab)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.add(tab);
+      return next;
+    });
+  }, [tab]);
 
   function replaceTabInUrl(nextTab: TeacherClassDetailTab) {
     const params = new URLSearchParams(searchParams.toString());
@@ -294,12 +309,14 @@ export function TeacherClassDetailsPanel({
 
         <TabsContents>
           <TabsContent value={TABS.MAIN} className="flex flex-col gap-4">
+            {visitedTabs.has(TABS.MAIN) ? (
+              <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Card className="border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 pb-3">
+              <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
+                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
                   <CardTitle className="text-base">Class</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 pt-4 text-sm">
+                <CardContent className="space-y-2 py-4 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Subject</span>
                     <span className="text-right">{classRow.subject_name}</span>
@@ -319,11 +336,11 @@ export function TeacherClassDetailsPanel({
                 </CardContent>
               </Card>
 
-              <Card className="border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 pb-3">
+              <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
+                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
                   <CardTitle className="text-base">Semester</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 pt-4 text-sm">
+                <CardContent className="space-y-2 py-4 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Linked semester</span>
                     <span className="text-right font-medium">
@@ -336,11 +353,11 @@ export function TeacherClassDetailsPanel({
                 </CardContent>
               </Card>
 
-              <Card className="border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 pb-3">
+              <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
+                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
                   <CardTitle className="text-base">Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 pt-4 text-sm">
+                <CardContent className="space-y-2 py-4 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Sessions</span>
                     <span className="tabular-nums">{sessions.length}</span>
@@ -367,97 +384,119 @@ export function TeacherClassDetailsPanel({
               className={classRow.name}
               students={initialStudents}
             />
+              </>
+            ) : null}
           </TabsContent>
 
           <TabsContent value={TABS.SESSIONS} className="flex flex-col gap-4">
-            <ClassSessionsSection
-              classId={classRow.id}
-              className={classRow.name}
-              sessions={sessions}
-              onSessionsChange={setSessions}
-              onClassUpdated={setClassRow}
-              hasComputedGrades={hasComputedGrades}
-              selectedSessionId={selectedSessionId}
-              onSessionSelect={handleSessionSelect}
-            />
+            {visitedTabs.has(TABS.SESSIONS) ? (
+              <>
+                <ClassSessionsSection
+                  classId={classRow.id}
+                  className={classRow.name}
+                  sessions={sessions}
+                  onSessionsChange={setSessions}
+                  onClassUpdated={setClassRow}
+                  hasComputedGrades={hasComputedGrades}
+                  selectedSessionId={selectedSessionId}
+                  onSessionSelect={handleSessionSelect}
+                />
 
-            {selectedSessionId ? (
-              <div className="flex flex-col gap-3">
-                {sessionDetail &&
-                sessionDetail.session.id === selectedSessionId ? (
-                  <TeacherClassSessionDetailsPanel
-                    key={sessionDetail.session.id}
-                    session={sessionDetail.session}
-                    classRow={{ id: classRow.id, name: classRow.name }}
-                    initialAttendees={sessionDetail.attendees}
-                    hasComputedGrades={sessionDetail.hasComputedGrades}
-                    lockedUserIds={sessionDetail.lockedUserIds}
-                    embedded
-                    onClose={handleCloseSessionDetail}
-                    onSessionUpdated={handleInlineSessionUpdated}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center gap-2 rounded-2xl border border-border/80 bg-card px-4 py-10 text-sm text-muted-foreground">
-                    <InlineSpinner />
-                    Loading session…
+                {selectedSessionId ? (
+                  <div className="flex flex-col gap-3">
+                    {sessionDetail &&
+                    sessionDetail.session.id === selectedSessionId ? (
+                      <ClassSessionDetailsPanel
+                        key={sessionDetail.session.id}
+                        session={sessionDetail.session}
+                        classRow={{ id: classRow.id, name: classRow.name }}
+                        initialAttendees={sessionDetail.attendees}
+                        hasComputedGrades={sessionDetail.hasComputedGrades}
+                        lockedUserIds={sessionDetail.lockedUserIds}
+                        navigation={{
+                          classesListHref: ROUTES.TEACHER_CLASSES,
+                          classesListLabel: "My classes",
+                          classDetailHref: getTeacherClassDetailRoute(
+                            classRow.id,
+                            "sessions"
+                          ),
+                        }}
+                        embedded
+                        hidePhase
+                        tabsMode="attendance"
+                        onClose={handleCloseSessionDetail}
+                        onSessionUpdated={handleInlineSessionUpdated}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center gap-2 rounded-2xl border border-border/80 bg-card px-4 py-10 text-sm text-muted-foreground">
+                        <InlineSpinner />
+                        Loading session…
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                ) : null}
+              </>
             ) : null}
           </TabsContent>
 
           <TabsContent value={TABS.TASKS} className="flex flex-col gap-4">
-            {taskAnalyticsHydrated &&
-            taskAnalyticsEnabled &&
-            taskGradeSummary ? (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <SemiCircularGaugeCard
-                  title="Task grades"
-                  titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
-                  value={taskGradeSummary.averageEarned}
-                  total={taskGradeSummary.totalMax}
-                  progressPercent={taskGradeSummary.progressPercent}
-                  valueLabel="Average"
-                  legendAverageLabel="Average"
-                  legendTotalLabel="Total"
-                  className="sm:max-w-sm"
-                />
-              </div>
-            ) : null}
+            {visitedTabs.has(TABS.TASKS) ? (
+              <>
+                {taskAnalyticsHydrated &&
+                taskAnalyticsEnabled &&
+                taskGradeSummary ? (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <SemiCircularGaugeCard
+                      title="Task grades"
+                      titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
+                      value={taskGradeSummary.averageEarned}
+                      total={taskGradeSummary.totalMax}
+                      progressPercent={taskGradeSummary.progressPercent}
+                      valueLabel="Average"
+                      legendAverageLabel="Average"
+                      legendTotalLabel="Total"
+                      className="sm:max-w-sm"
+                    />
+                  </div>
+                ) : null}
 
-            <ClassTasksSection
-              classId={classRow.id}
-              className={classRow.name}
-              tasks={initialTasks}
-              hasSubject={Boolean(classRow.subject_id)}
-              hasComputedGrades={hasComputedGrades}
-              layout="cards"
-              getTaskDetailHref={(taskId) =>
-                getTeacherClassTaskDetailRoute(classRow.id, taskId)
-              }
-            />
+                <ClassTasksSection
+                  classId={classRow.id}
+                  className={classRow.name}
+                  tasks={initialTasks}
+                  hasSubject={Boolean(classRow.subject_id)}
+                  hasComputedGrades={hasComputedGrades}
+                  layout="cards"
+                  getTaskDetailHref={(taskId) =>
+                    getTeacherClassTaskDetailRoute(classRow.id, taskId)
+                  }
+                />
+              </>
+            ) : null}
           </TabsContent>
 
           <TabsContent value={TABS.ANALYTICS} className="flex flex-col gap-4">
-            {taskGradeSummary ? (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <SemiCircularGaugeCard
-                  title="Task grades"
-                  titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
-                  value={taskGradeSummary.averageEarned}
-                  total={taskGradeSummary.totalMax}
-                  progressPercent={taskGradeSummary.progressPercent}
-                  valueLabel="Average"
-                  legendAverageLabel="Average"
-                  legendTotalLabel="Total"
-                  className="sm:max-w-sm"
-                />
-              </div>
-            ) : (
-              <p className="rounded-2xl border border-border/70 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-                No task grade analytics yet for this class.
-              </p>
-            )}
+            {visitedTabs.has(TABS.ANALYTICS) ? (
+              taskGradeSummary ? (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <SemiCircularGaugeCard
+                    title="Task grades"
+                    titleTooltip="Class average of each student's combined task scores, compared with the maximum points across all tasks."
+                    value={taskGradeSummary.averageEarned}
+                    total={taskGradeSummary.totalMax}
+                    progressPercent={taskGradeSummary.progressPercent}
+                    valueLabel="Average"
+                    legendAverageLabel="Average"
+                    legendTotalLabel="Total"
+                    className="sm:max-w-sm"
+                  />
+                </div>
+              ) : (
+                <p className="rounded-2xl border border-border/70 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+                  No task grade analytics yet for this class.
+                </p>
+              )
+            ) : null}
           </TabsContent>
         </TabsContents>
       </Tabs>

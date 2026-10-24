@@ -1,23 +1,76 @@
 "use server";
 
+/**
+ * Teacher panel class actions.
+ * Task mutations are thin wrappers over shared class actions so teacher UI
+ * does not import `@/app/manager/...` routes directly.
+ */
+import {
+  deleteClassTaskAction,
+  deleteStudentTaskUploadAction,
+  getStudentTaskUploadSignedUrlAction,
+  setClassTaskStartedAction,
+  updateStudentTaskAction,
+  uploadStudentTaskFileAction,
+} from "@/app/manager/classes/actions";
 import { getSessionAuditActor } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
-import { getSessionDetailForManager } from "@/services/classes/session.service";
 import {
-  getTeachingClassDetailForSelf,
+  getTeachingClassSessionInlineDetailForSelf,
   listTeachingClassesForSelf,
 } from "@/services/classes/teacher-class-self.service";
-import type { ManagerClassSessionRow } from "@/types/manager-class-session";
-import type { ManagerSessionAttendeeRow } from "@/types/manager-class-session-detail";
+import type {
+  DeleteClassTaskActionState,
+  DeleteStudentTaskUploadActionState,
+  SetClassTaskStartedActionState,
+  UpdateStudentTaskActionState,
+  UploadStudentTaskFileActionState,
+} from "@/types/manager-class-session-detail";
+import type { TeachingClassSessionInlineDetail } from "@/types/teacher-class";
 import type { TeacherClassRow } from "@/types/teacher-class";
 
-export type TeacherClassSessionInlineDetail = {
-  session: ManagerClassSessionRow;
-  attendees: ManagerSessionAttendeeRow[];
-  lockedUserIds: string[];
-  hasComputedGrades: boolean;
-};
+export async function deleteTeacherClassTaskAction(
+  prevState: DeleteClassTaskActionState,
+  formData: FormData
+): Promise<DeleteClassTaskActionState> {
+  return deleteClassTaskAction(prevState, formData);
+}
+
+export async function setTeacherClassTaskStartedAction(
+  prevState: SetClassTaskStartedActionState,
+  formData: FormData
+): Promise<SetClassTaskStartedActionState> {
+  return setClassTaskStartedAction(prevState, formData);
+}
+
+export async function updateTeacherStudentTaskAction(
+  prevState: UpdateStudentTaskActionState,
+  formData: FormData
+): Promise<UpdateStudentTaskActionState> {
+  return updateStudentTaskAction(prevState, formData);
+}
+
+export async function uploadTeacherStudentTaskFileAction(
+  prevState: UploadStudentTaskFileActionState,
+  formData: FormData
+): Promise<UploadStudentTaskFileActionState> {
+  return uploadStudentTaskFileAction(prevState, formData);
+}
+
+export async function deleteTeacherStudentTaskUploadAction(
+  prevState: DeleteStudentTaskUploadActionState,
+  formData: FormData
+): Promise<DeleteStudentTaskUploadActionState> {
+  return deleteStudentTaskUploadAction(prevState, formData);
+}
+
+export async function getTeacherStudentTaskUploadSignedUrlAction(
+  formData: FormData
+): Promise<{ success: boolean; signedUrl?: string; error?: string }> {
+  return getStudentTaskUploadSignedUrlAction(formData);
+}
+
+export type TeacherClassSessionInlineDetail = TeachingClassSessionInlineDetail;
 
 /** Lightweight class list for the teacher navbar search suggestions. */
 export async function loadTeacherSearchClassesAction(): Promise<
@@ -55,34 +108,12 @@ export async function loadTeacherClassSessionDetailAction(
   const adminClient = createSupabaseAdminClient();
 
   try {
-    const teaching = await getTeachingClassDetailForSelf(
+    return await getTeachingClassSessionInlineDetailForSelf(
       adminClient,
       actor.userId,
-      classId
+      classId,
+      sessionId
     );
-    if (!teaching) {
-      return null;
-    }
-
-    const [detail, computedGradeLock] = await Promise.all([
-      getSessionDetailForManager(adminClient, actor.userId, classId, sessionId),
-      getClassComputedGradeLockStateForManager(
-        adminClient,
-        actor.userId,
-        classId
-      ),
-    ]);
-
-    if (!detail) {
-      return null;
-    }
-
-    return {
-      session: detail.session,
-      attendees: detail.attendees,
-      lockedUserIds: computedGradeLock.lockedUserIds,
-      hasComputedGrades: computedGradeLock.hasComputedGrades,
-    };
   } catch {
     return null;
   }

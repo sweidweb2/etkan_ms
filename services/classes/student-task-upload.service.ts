@@ -19,6 +19,7 @@ import {
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { assertStudentGradeInputsUnlockedForComputedGrade } from "@/services/classes/class-computed-grade-lock.service";
+import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -140,6 +141,15 @@ export async function uploadStudentTaskFileForManager(
   }
 
   if (context.classId) {
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      context.classId
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
+
     const studentGuard = await assertStudentGradeInputsUnlockedForComputedGrade(
       adminClient,
       context.classId,
@@ -327,6 +337,15 @@ export async function deleteStudentTaskUploadForManager(
   }
 
   if (context.classId) {
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      context.classId
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
+
     const studentGuard = await assertStudentGradeInputsUnlockedForComputedGrade(
       adminClient,
       context.classId,

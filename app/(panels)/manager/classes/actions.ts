@@ -11,6 +11,8 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerClassDetailRoute,
   getManagerClassTaskDetailRoute,
+  getTeacherClassDetailRoute,
+  getTeacherClassTaskDetailRoute,
 } from "@/lib/constants/routes";
 import { appendQueryParam } from "@/lib/url/append-query-param";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -548,7 +550,7 @@ export async function deleteClassSessionAction(
       deleteClassSessionForManager(adminClient, actor.userId, actor, data),
     revalidate: (result) => {
       revalidatePath(getManagerClassDetailRoute(result.classId));
-      revalidatePath(`/teacher/classes/${result.classId}`);
+      revalidatePath(getTeacherClassDetailRoute(result.classId));
     },
     mapSuccess: (result) => {
       redirect(
@@ -751,18 +753,15 @@ export async function updateStudentTaskAction(
     mutate: ({ adminClient, actor, data }) =>
       updateStudentTaskForManager(adminClient, actor.userId, actor, data),
     revalidate: (result) => {
-      if (result.classId) {
-        revalidatePath(getManagerClassDetailRoute(result.classId));
+      if (!result.classId) {
+        return;
       }
 
-      if (result.classId) {
-        revalidatePath(
-          getManagerClassTaskDetailRoute(
-            result.classId,
-            result.studentTask.task_id
-          )
-        );
-      }
+      const taskId = result.studentTask.task_id;
+      revalidatePath(getManagerClassDetailRoute(result.classId));
+      revalidatePath(getManagerClassTaskDetailRoute(result.classId, taskId));
+      revalidatePath(getTeacherClassDetailRoute(result.classId));
+      revalidatePath(getTeacherClassTaskDetailRoute(result.classId, taskId));
     },
     mapSuccess: (result) => ({
       success: true,
@@ -782,15 +781,18 @@ export async function uploadStudentTaskFileAction(
     mutate: ({ adminClient, actor, data }) =>
       uploadStudentTaskFileForManager(adminClient, actor.userId, actor, data),
     revalidate: (result) => {
-      if (result.classId) {
-        revalidatePath(getManagerClassDetailRoute(result.classId));
+      if (!result.classId) {
+        return;
       }
 
-      if (result.classId) {
-        revalidatePath(
-          getManagerClassTaskDetailRoute(result.classId, result.taskId)
-        );
-      }
+      revalidatePath(getManagerClassDetailRoute(result.classId));
+      revalidatePath(
+        getManagerClassTaskDetailRoute(result.classId, result.taskId)
+      );
+      revalidatePath(getTeacherClassDetailRoute(result.classId));
+      revalidatePath(
+        getTeacherClassTaskDetailRoute(result.classId, result.taskId)
+      );
     },
     mapSuccess: (result) => ({
       success: true,
@@ -810,15 +812,18 @@ export async function deleteStudentTaskUploadAction(
     mutate: ({ adminClient, actor, data }) =>
       deleteStudentTaskUploadForManager(adminClient, actor.userId, actor, data),
     revalidate: (result) => {
-      if (result.classId) {
-        revalidatePath(getManagerClassDetailRoute(result.classId));
+      if (!result.classId) {
+        return;
       }
 
-      if (result.classId) {
-        revalidatePath(
-          getManagerClassTaskDetailRoute(result.classId, result.taskId)
-        );
-      }
+      revalidatePath(getManagerClassDetailRoute(result.classId));
+      revalidatePath(
+        getManagerClassTaskDetailRoute(result.classId, result.taskId)
+      );
+      revalidatePath(getTeacherClassDetailRoute(result.classId));
+      revalidatePath(
+        getTeacherClassTaskDetailRoute(result.classId, result.taskId)
+      );
     },
     mapSuccess: (result) => ({
       success: true,

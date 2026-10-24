@@ -27,6 +27,7 @@ import {
   importMissingSubjectTasksToClass,
 } from "@/services/classes/class-task-clone.service";
 import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
+import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
   buildStudentDisplayByUserId,
   didTaskMaxGradeDecrease,
@@ -734,6 +735,14 @@ export async function updateStudentTaskForManager(
   }
 
   const classId = taskResult.data.class_id;
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    classId
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
   const studentGuard = await assertStudentGradeInputsUnlockedForComputedGrade(
     adminClient,
     classId,

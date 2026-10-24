@@ -15,16 +15,36 @@ import {
   assertPermission,
   assertPermissions,
 } from "@/services/auth/authorization.service";
+import { getClassComputedGradeLockState } from "@/services/classes/class-computed-grade-lock.service";
+import {
+  getClassForManager,
+  listClassStudentsForManager,
+} from "@/services/classes/class.service";
 import {
   mapSessionRecord,
   mapTaskRecord,
 } from "@/services/classes/session-shared";
+import {
+  getClassTaskDetailForManager,
+  getSessionDetailForManager,
+} from "@/services/classes/session-queries.service";
+import {
+  assertTeachingAssignment,
+} from "@/services/classes/teacher-class-scope.service";
 import type {
   TeacherClassDetail,
   TeacherClassRow,
+  TeachingClassPageBundle,
+  TeachingClassSessionInlineDetail,
+  TeachingClassTaskPageBundle,
 } from "@/types/teacher-class";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
+
+export {
+  assertAssignedTeacherForClassMutation,
+  assertTeachingAssignment,
+} from "@/services/classes/teacher-class-scope.service";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -97,22 +117,13 @@ export async function getTeachingClassDetailForSelf(
     PERMISSIONS.TASKS_VIEW,
   ]);
 
-  if (!actorUserId) {
-    return null;
-  }
+  const assignment = await assertTeachingAssignment(
+    adminClient,
+    actorUserId,
+    classId
+  );
 
-  const assignment =
-    await classTeacherRepository.findClassTeacherByTeacherAndClass(
-      adminClient,
-      actorUserId,
-      classId
-    );
-
-  if (assignment.error) {
-    throw new Error(assignment.error.message);
-  }
-
-  if (!assignment.data) {
+  if (!assignment.ok) {
     return null;
   }
 
@@ -145,11 +156,33 @@ export async function getTeachingClassDetailForSelf(
       class_status: mapClassStatus(classRow.status),
       image_url: classRow.image_url,
       card_gradient: classRow.card_gradient,
-      assigned_at: assignment.data.assigned_at,
+      assigned_at: assignment.assignedAt,
     },
     sessions: (sessionsResult.data ?? []).map(mapSessionRecord),
     tasks: (tasksResult.data ?? []).map(mapTaskRecord),
   };
+}
+
+async function buildTaskGradeSummaryForTasks(
+  adminClient: Supabase,
+  tasks: Array<{ id: string; max_grade: number | null }>
+): Promise<ClassTaskGradeSummary> {
+  const taskIds = tasks.map((task) => task.id);
+  const studentTasksResult =
+    await studentTaskRepository.listStudentTasksByTaskIds(adminClient, taskIds);
+
+  if (studentTasksResult.error) {
+    throw new Error(studentTasksResult.error.message);
+  }
+
+  return computeClassTaskGradeSummary({
+    tasks,
+    studentTasks: (studentTasksResult.data ?? []).map((row) => ({
+      task_id: row.task_id,
+      student_id: row.student_id,
+      grade: row.grade,
+    })),
+  });
 }
 
 /**
@@ -167,22 +200,13 @@ export async function getTeachingClassTaskGradeSummaryForSelf(
     PERMISSIONS.GRADES_VIEW,
   ]);
 
-  if (!actorUserId) {
-    return null;
-  }
+  const assignment = await assertTeachingAssignment(
+    adminClient,
+    actorUserId,
+    classId
+  );
 
-  const assignment =
-    await classTeacherRepository.findClassTeacherByTeacherAndClass(
-      adminClient,
-      actorUserId,
-      classId
-    );
-
-  if (assignment.error) {
-    throw new Error(assignment.error.message);
-  }
-
-  if (!assignment.data) {
+  if (!assignment.ok) {
     return null;
   }
 
@@ -195,24 +219,162 @@ export async function getTeachingClassTaskGradeSummaryForSelf(
     throw new Error(tasksResult.error.message);
   }
 
-  const tasks = tasksResult.data ?? [];
-  const taskIds = tasks.map((task) => task.id);
-  const studentTasksResult =
-    await studentTaskRepository.listStudentTasksByTaskIds(adminClient, taskIds);
-
-  if (studentTasksResult.error) {
-    throw new Error(studentTasksResult.error.message);
-  }
-
-  return computeClassTaskGradeSummary({
-    tasks: tasks.map((task) => ({
+  return buildTaskGradeSummaryForTasks(
+    adminClient,
+    (tasksResult.data ?? []).map((task) => ({
       id: task.id,
       max_grade: task.max_grade,
-    })),
-    studentTasks: (studentTasksResult.data ?? []).map((row) => ({
-      task_id: row.task_id,
-      student_id: row.student_id,
-      grade: row.grade,
-    })),
-  });
+    }))
+  );
+}
+
+/**
+ * One assignment check + one parallel wave for the teacher class detail page.
+ */
+export async function getTeachingClassPageBundleForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string
+): Promise<TeachingClassPageBundle | null> {
+  await assertPermissions(adminClient, actorUserId, [
+    PERMISSIONS.CLASSES_VIEW,
+    PERMISSIONS.SESSIONS_VIEW,
+    PERMISSIONS.TASKS_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+  ]);
+
+  const assignment = await assertTeachingAssignment(
+    adminClient,
+    actorUserId,
+    classId
+  );
+
+  if (!assignment.ok) {
+    return null;
+  }
+
+  const [classRow, sessionsResult, tasksResult, students, gradeLock] =
+    await Promise.all([
+      getClassForManager(adminClient, actorUserId, classId),
+      sessionRepository.listSessionsByClassId(adminClient, classId),
+      classTaskRepository.listClassTasksByClassId(adminClient, classId),
+      listClassStudentsForManager(adminClient, actorUserId, classId),
+      getClassComputedGradeLockState(adminClient, classId),
+    ]);
+
+  if (!classRow) {
+    return null;
+  }
+
+  if (sessionsResult.error) {
+    throw new Error(sessionsResult.error.message);
+  }
+
+  if (tasksResult.error) {
+    throw new Error(tasksResult.error.message);
+  }
+
+  const tasks = (tasksResult.data ?? []).map(mapTaskRecord);
+  const taskGradeSummary = await buildTaskGradeSummaryForTasks(
+    adminClient,
+    tasks.map((task) => ({
+      id: task.id,
+      max_grade: task.max_grade,
+    }))
+  );
+
+  return {
+    classRow,
+    sessions: (sessionsResult.data ?? []).map(mapSessionRecord),
+    tasks,
+    students,
+    assignedAt: assignment.assignedAt,
+    hasComputedGrades: gradeLock.hasComputedGrades,
+    lockedUserIds: gradeLock.lockedUserIds,
+    taskGradeSummary,
+  };
+}
+
+/**
+ * Lightweight assignment + task detail for the teacher task page.
+ */
+export async function getTeachingClassTaskPageBundleForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string,
+  taskId: string
+): Promise<TeachingClassTaskPageBundle | null> {
+  await assertPermissions(adminClient, actorUserId, [
+    PERMISSIONS.TASKS_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+  ]);
+
+  const assignment = await assertTeachingAssignment(
+    adminClient,
+    actorUserId,
+    classId
+  );
+
+  if (!assignment.ok) {
+    return null;
+  }
+
+  const [detail, gradeLock] = await Promise.all([
+    getClassTaskDetailForManager(adminClient, actorUserId, classId, taskId),
+    getClassComputedGradeLockState(adminClient, classId),
+  ]);
+
+  if (!detail) {
+    return null;
+  }
+
+  return {
+    task: detail.task,
+    classRow: detail.classRow,
+    studentTasks: detail.studentTasks,
+    uploads: detail.uploads,
+    hasComputedGrades: gradeLock.hasComputedGrades,
+    lockedUserIds: gradeLock.lockedUserIds,
+  };
+}
+
+/**
+ * Lightweight assignment + session detail for the teacher Sessions tab.
+ */
+export async function getTeachingClassSessionInlineDetailForSelf(
+  adminClient: Supabase,
+  actorUserId: string | null,
+  classId: string,
+  sessionId: string
+): Promise<TeachingClassSessionInlineDetail | null> {
+  await assertPermissions(adminClient, actorUserId, [
+    PERMISSIONS.SESSIONS_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+  ]);
+
+  const assignment = await assertTeachingAssignment(
+    adminClient,
+    actorUserId,
+    classId
+  );
+
+  if (!assignment.ok) {
+    return null;
+  }
+
+  const [detail, gradeLock] = await Promise.all([
+    getSessionDetailForManager(adminClient, actorUserId, classId, sessionId),
+    getClassComputedGradeLockState(adminClient, classId),
+  ]);
+
+  if (!detail) {
+    return null;
+  }
+
+  return {
+    session: detail.session,
+    attendees: detail.attendees,
+    lockedUserIds: gradeLock.lockedUserIds,
+    hasComputedGrades: gradeLock.hasComputedGrades,
+  };
 }

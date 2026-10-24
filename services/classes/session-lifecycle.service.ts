@@ -20,6 +20,7 @@ import {
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/session-shared";
+import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
@@ -370,6 +371,15 @@ export async function deleteClassSessionForManager(
   }
 
   const session = existing.data;
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    session.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
 
   const structureGuard = await assertClassStructureUnlockedForComputedGrades(
     adminClient,

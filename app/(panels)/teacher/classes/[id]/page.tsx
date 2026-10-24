@@ -5,15 +5,7 @@ import { PanelRouteLoading } from "@/components/loaders/panel-route-loading";
 import { getSessionUser } from "@/lib/auth/session";
 import { parseTeacherClassDetailTab } from "@/lib/constants/teacher-class-detail-tabs";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getClassComputedGradeLockStateForManager } from "@/services/classes/class-computed-grade-lock.service";
-import {
-  getClassForManager,
-  listClassStudentsForManager,
-} from "@/services/classes/class.service";
-import {
-  getTeachingClassDetailForSelf,
-  getTeachingClassTaskGradeSummaryForSelf,
-} from "@/services/classes/teacher-class-self.service";
+import { getTeachingClassPageBundleForSelf } from "@/services/classes/teacher-class-self.service";
 
 type TeacherClassDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -33,38 +25,26 @@ export default async function TeacherClassDetailPage({
   const user = await getSessionUser();
   const actorUserId = user?.id ?? null;
 
-  const teachingDetail = await getTeachingClassDetailForSelf(
+  const bundle = await getTeachingClassPageBundleForSelf(
     adminClient,
     actorUserId,
     classId
   );
 
-  if (!teachingDetail) {
-    notFound();
-  }
-
-  const [classRow, computedGradeLock, taskGradeSummary, students] =
-    await Promise.all([
-      getClassForManager(adminClient, actorUserId, classId),
-      getClassComputedGradeLockStateForManager(adminClient, actorUserId, classId),
-      getTeachingClassTaskGradeSummaryForSelf(adminClient, actorUserId, classId),
-      listClassStudentsForManager(adminClient, actorUserId, classId),
-    ]);
-
-  if (!classRow) {
+  if (!bundle) {
     notFound();
   }
 
   return (
     <Suspense fallback={<PanelRouteLoading />}>
       <TeacherClassDetailsPanel
-        classRow={classRow}
-        initialSessions={teachingDetail.sessions}
-        initialTasks={teachingDetail.tasks}
-        initialStudents={students}
-        hasComputedGrades={computedGradeLock.hasComputedGrades}
-        assignedAt={teachingDetail.classRow.assigned_at}
-        taskGradeSummary={taskGradeSummary}
+        classRow={bundle.classRow}
+        initialSessions={bundle.sessions}
+        initialTasks={bundle.tasks}
+        initialStudents={bundle.students}
+        hasComputedGrades={bundle.hasComputedGrades}
+        assignedAt={bundle.assignedAt}
+        taskGradeSummary={bundle.taskGradeSummary}
         initialTab={initialTab}
       />
     </Suspense>

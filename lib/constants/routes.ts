@@ -88,8 +88,6 @@ export const ROUTES = {
   TEACHER_CLASS_SESSION_DETAIL: "/teacher/classes/[id]/sessions/[sessionId]",
   TEACHER_CLASS_TASK_DETAIL: "/teacher/classes/[id]/tasks/[taskId]",
   TEACHER_SETTINGS: "/teacher/settings",
-  TEACHER_SETTINGS_MY_INFO: "/teacher/settings/my-info",
-  TEACHER_SETTINGS_LAYOUT: "/teacher/settings/layout",
   STUDENT_ROOT: "/student",
 
   STUDENT_CLASSES: "/student/classes",
@@ -245,13 +243,6 @@ export function getTeacherClassDetailRoute(
     return base;
   }
   return `${base}?tab=${tab}`;
-}
-
-export function getTeacherClassSessionDetailRoute(
-  classId: string,
-  sessionId: string
-): string {
-  return `/teacher/classes/${classId}/sessions/${sessionId}`;
 }
 
 export function getTeacherClassTaskDetailRoute(
