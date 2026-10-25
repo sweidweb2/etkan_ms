@@ -142,6 +142,7 @@ export const PERMISSIONS = {
   CLASSES_ASSIGN_TEACHER: "classes.assign_teacher",
   CLASSES_UNASSIGN_TEACHER: "classes.unassign_teacher",
   CLASSES_ADD_STUDENT: "classes.add_student",
+  CLASSES_COPY_STUDENTS_FROM_CLASS: "classes.copy_students_from_class",
   CLASSES_REMOVE_STUDENT: "classes.remove_student",
   CLASSES_VIEW_ANALYTICS: "classes.view_analytics",
 
@@ -607,6 +608,12 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     key: PERMISSIONS.CLASSES_ADD_STUDENT,
     feature: "classes",
     label: "Add student to class",
+    access: PERMISSION_ACCESS.WRITE,
+  },
+  {
+    key: PERMISSIONS.CLASSES_COPY_STUDENTS_FROM_CLASS,
+    feature: "classes",
+    label: "Copy students from another class",
     access: PERMISSION_ACCESS.WRITE,
   },
   {

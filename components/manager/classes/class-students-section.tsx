@@ -8,6 +8,7 @@ import {
   ArrowRightLeftIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CopyIcon,
   EyeIcon,
   PlusIcon,
   SearchIcon,
@@ -16,6 +17,7 @@ import {
 import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { AddStudentToClassDialog } from "@/components/manager/classes/add-student-to-class-dialog";
+import { CopyStudentsFromClassDialog } from "@/components/manager/classes/copy-students-from-class-dialog";
 import {
   TransferStudentBetweenClassesDialog,
   type ClassTransferOption,
@@ -59,6 +61,7 @@ const initialRemoveState: RemoveStudentFromClassActionState = {};
 type ClassStudentsSectionProps = {
   classId: string;
   className: string;
+  semesterId: string | null;
   initialStudents: ManagerClassStudentRow[];
   availableStudents: ManagerStudentRow[];
   transferClassOptions: ClassTransferOption[];
@@ -149,6 +152,7 @@ function matchesSearch(student: ManagerClassStudentRow, query: string) {
 export function ClassStudentsSection({
   classId,
   className,
+  semesterId,
   initialStudents,
   availableStudents,
   transferClassOptions,
@@ -169,6 +173,7 @@ export function ClassStudentsSection({
 
   const [students, setStudents] = useState(initialStudents);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isCopyOpen, setIsCopyOpen] = useState(false);
   const [transferringStudent, setTransferringStudent] =
     useState<ManagerClassStudentRow | null>(null);
   const [removingStudent, setRemovingStudent] =
@@ -285,6 +290,16 @@ export function ClassStudentsSection({
         />
       ) : null}
 
+      {isCopyOpen ? (
+        <CopyStudentsFromClassDialog
+          open
+          onOpenChange={setIsCopyOpen}
+          classId={classId}
+          className={className}
+          onStudentsAdded={handleStudentsAdded}
+        />
+      ) : null}
+
       <TransferStudentBetweenClassesDialog
         open={transferringStudent !== null}
         onOpenChange={(open) => {
@@ -346,12 +361,26 @@ export function ClassStudentsSection({
         storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.CLASS_DETAILS_STUDENTS}
         defaultOpen
         action={
-          <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
-            <Button type="button" onClick={() => setIsAddOpen(true)}>
-              <PlusIcon data-icon="inline-start" />
-              Add student
-            </Button>
-          </Can>
+          <div className="flex flex-wrap items-center gap-2">
+            {semesterId ? (
+              <Can permission={PERMISSIONS.CLASSES_COPY_STUDENTS_FROM_CLASS}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCopyOpen(true)}
+                >
+                  <CopyIcon data-icon="inline-start" />
+                  Copy from class
+                </Button>
+              </Can>
+            ) : null}
+            <Can permission={PERMISSIONS.CLASSES_ADD_STUDENT}>
+              <Button type="button" onClick={() => setIsAddOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add student
+              </Button>
+            </Can>
+          </div>
         }
       >
           <div className="flex flex-col gap-3 border-b px-4 pt-2 pb-3 sm:flex-row sm:items-center">

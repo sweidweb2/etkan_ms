@@ -160,6 +160,7 @@ Format: `key` — label — access
 | `classes.assign_teacher` | Assign teacher | write |
 | `classes.unassign_teacher` | Unassign teacher | write |
 | `classes.add_student` | Add student to class | write |
+| `classes.copy_students_from_class` | Copy students from another class | write |
 | `classes.remove_student` | Remove student from class | write |
 | `classes.view_analytics` | View class analytics | read |
 
@@ -487,6 +488,7 @@ classes.change_status
 classes.assign_teacher
 classes.unassign_teacher
 classes.add_student
+classes.copy_students_from_class
 classes.remove_student
 classes.view_analytics
 sessions.view
