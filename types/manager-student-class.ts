@@ -8,5 +8,7 @@ export interface ManagerStudentClassRow {
   subject_name: string;
   class_status: ClassStatusValue;
   image_url: string | null;
+  /** Key into `CLASS_CARD_GRADIENTS` directory. */
+  card_gradient: string;
   joined_at: string;
 }

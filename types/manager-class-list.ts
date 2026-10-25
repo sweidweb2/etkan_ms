@@ -12,6 +12,8 @@ export interface ManagerClassRow {
   semester_id: string | null;
   semester_name: string | null;
   image_url: string | null;
+  /** Key from `CLASS_CARD_GRADIENTS` (`classes.card_gradient`). */
+  card_gradient: string;
   enrollment_count: number;
   teacher_count: number;
   created_at: string;

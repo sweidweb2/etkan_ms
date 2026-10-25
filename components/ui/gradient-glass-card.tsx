@@ -15,6 +15,8 @@ type GradientGlassCardProps = {
   meta?: ReactNode;
   /** Chip in the content area (e.g. status), beside title/meta. */
   badge?: ReactNode;
+  /** Extra content below meta (progress, actions). */
+  children?: ReactNode;
   className?: string;
   style?: CSSProperties;
 };
@@ -31,6 +33,7 @@ export function GradientGlassCard({
   glassLabel,
   meta,
   badge,
+  children,
   className,
   style,
 }: GradientGlassCardProps) {
@@ -106,6 +109,7 @@ export function GradientGlassCard({
         {meta ? (
           <div className="mt-auto pt-3 text-xs text-muted-foreground">{meta}</div>
         ) : null}
+        {children}
       </div>
     </article>
   );
