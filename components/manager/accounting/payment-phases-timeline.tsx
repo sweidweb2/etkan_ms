@@ -113,7 +113,7 @@ export function PaymentPhasesTimeline({ phases }: PaymentPhasesTimelineProps) {
 
   if (openPhases.length === 0) {
     return (
-      <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+      <div className="py-10 text-center text-sm text-muted-foreground">
         <div className="rounded-lg border border-dashed px-4 py-8">
           No opened payment phases to show.
         </div>
@@ -130,7 +130,7 @@ export function PaymentPhasesTimeline({ phases }: PaymentPhasesTimelineProps) {
 
   return (
     <TooltipProvider>
-      <div className="overflow-x-auto px-4 pt-3 pb-4">
+      <div className="overflow-x-auto pt-1 pb-2">
         <div
           className="min-w-full"
           style={{ minWidth: `${trackMinWidthRem + 11}rem` }}
