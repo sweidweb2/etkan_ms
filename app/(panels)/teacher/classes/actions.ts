@@ -2,8 +2,13 @@
 
 /**
  * Teacher panel class actions.
- * Task mutations are thin wrappers over shared class actions so teacher UI
- * does not import `@/app/manager/...` routes directly.
+ *
+ * Security for assigned-class writes lives in class services via
+ * `assertAssignedTeacherForClassMutation` — not in these wrappers.
+ * Shared teaching UI under `components/manager/classes` and
+ * `components/classes` may call `@/app/manager/classes/actions` directly;
+ * that is fine because the service layer enforces `class_teacher` scope.
+ * Wrappers here remain for teacher-only call sites (search, inline session).
  */
 import {
   deleteClassTaskAction,

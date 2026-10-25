@@ -6,6 +6,8 @@ import { getTeachingClassTaskGradeSummaryForSelf } from "@/services/classes/teac
 type TeacherTaskGradeSummaryDeferredProps = {
   classId: string;
   actorUserId: string | null;
+  /** From the class page bundle — avoids re-listing tasks in this deferred tree. */
+  tasks: Array<{ id: string; max_grade: number | null }>;
   /** When false, show empty-state copy instead of hiding (Analytics tab). */
   showEmptyState?: boolean;
 };
@@ -22,13 +24,15 @@ function TeacherTaskGradeSummaryFallback() {
 async function TeacherTaskGradeSummarySection({
   classId,
   actorUserId,
+  tasks,
   showEmptyState = false,
 }: TeacherTaskGradeSummaryDeferredProps) {
   const adminClient = createSupabaseAdminClient();
   const summary = await getTeachingClassTaskGradeSummaryForSelf(
     adminClient,
     actorUserId,
-    classId
+    classId,
+    tasks
   );
 
   if (!summary) {

@@ -29,6 +29,8 @@ Authenticated management panels (`/admin`, `/manager`, `/teacher`, `/student`, a
 
 - Public brand name: Etkan
 - Internal product name (panels): Etkan MS
-- Primary language of public HTML: English (Arabic UI available via client locale switch; not separate URL paths)
+- Primary language of public HTML: English (Arabic UI via client locale cookie only — not separate URL paths; no hreflang)
+- Contact: WhatsApp +961 76 722 832 (https://wa.me/96176722832)
 - Sitemap: /sitemap.xml
 - Robots: /robots.txt
+- Locale decision: docs/[07] Reports/seo/[02] locale-seo-decision.md

@@ -874,7 +874,7 @@ export async function updateStudentTaskAction(
       const taskId = result.studentTask.task_id;
       revalidatePath(getManagerClassDetailRoute(result.classId));
       revalidatePath(getManagerClassTaskDetailRoute(result.classId, taskId));
-      revalidatePath(getTeacherClassDetailRoute(result.classId));
+      // Teacher grades on the task page; skip full class-detail RSC reload.
       revalidatePath(getTeacherClassTaskDetailRoute(result.classId, taskId));
     },
     mapSuccess: (result) => ({
@@ -954,7 +954,12 @@ export async function getStudentTaskUploadSignedUrlAction(
     formData,
     parse: parseStudentTaskUploadSignedUrlFormData,
     mutate: ({ adminClient, actor, data }) =>
-      getStudentTaskUploadSignedUrlForManager(adminClient, actor.userId, data),
+      getStudentTaskUploadSignedUrlForManager(
+        adminClient,
+        actor.userId,
+        actor,
+        data
+      ),
     mapSuccess: (result) => ({
       success: true,
       signedUrl: result.signedUrl,

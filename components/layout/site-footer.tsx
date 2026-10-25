@@ -12,7 +12,7 @@ const FOOTER_LINKS = [
   { href: ROUTES.PROJECTS, labelKey: "nav.projects" as const },
   { href: ROUTES.GALLERY, labelKey: "nav.gallery" as const },
   { href: ROUTES.BLOGS, labelKey: "nav.blogs" as const },
-  { href: ROUTES.LIFE, labelKey: "nav.life" as const },
+  // `/life` is admin-gated — do not link it from public chrome (SXO / crawl honesty).
   { href: ROUTES.REGISTER, labelKey: "nav.register" as const },
 ];
 

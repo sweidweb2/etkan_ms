@@ -14,6 +14,7 @@ import {
   getUnauthorizedError,
 } from "@/services/auth/authorization.service";
 import { getClassForManager } from "@/services/classes/class.service";
+import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
   recordManagerAuditLog,
   type AuditActor,
@@ -97,6 +98,15 @@ export async function saveClassFollowUpForManager(
       error: "Please fix the errors below.",
       fieldErrors: zodFieldErrors(parsed.error.flatten().fieldErrors),
     };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    parsed.data.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const classRow = await getClassForManager(

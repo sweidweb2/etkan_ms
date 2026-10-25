@@ -50,10 +50,17 @@ const STATUS_HINTS: Record<ClassStatusValue, string> = {
   stopped: "Ended early",
 };
 
+/** Minimal class fields for status changes (teacher + manager). */
+export type ChangeClassStatusClassRow = Pick<
+  ManagerClassRow,
+  "id" | "name" | "status"
+>;
+
 type ChangeClassStatusDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  classRow: ManagerClassRow | null;
+  classRow: ChangeClassStatusClassRow | null;
+  /** Action returns a full manager row; teachers merge status into a slim DTO. */
   onClassUpdated: (classRow: ManagerClassRow) => void;
 };
 

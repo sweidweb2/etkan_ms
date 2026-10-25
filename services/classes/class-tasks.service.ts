@@ -102,6 +102,15 @@ export async function createClassTaskForManager(
       return { success: false, error: "Class not found." };
     }
 
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      input.class_id
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
+
     const classResult = await timer.step("class", () =>
       classRepository.findClassDetailById(adminClient, input.class_id)
     );
@@ -272,6 +281,15 @@ export async function updateClassTaskForManager(
     return { success: false, error: "Task not found." };
   }
 
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
+
   const structureGuard = await assertClassStructureUnlockedForComputedGrades(
     adminClient,
     input.class_id
@@ -390,6 +408,15 @@ export async function deleteClassTaskForManager(
     return { success: false, error: "Task not found." };
   }
 
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
+
   const structureGuard = await assertClassStructureUnlockedForComputedGrades(
     adminClient,
     input.class_id
@@ -497,6 +524,15 @@ export async function setClassTaskStartedForManager(
   const existingTask = existingTaskResult.data;
   if (!existingTask || existingTask.class_id !== input.class_id) {
     return { success: false, error: "Task not found." };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   if (existingTask.started === input.started) {
@@ -612,6 +648,15 @@ export async function importSubjectTasksForClassForManager(
 
   if (!isUuid(input.class_id)) {
     return { success: false, error: "Class not found." };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const classResult = await classRepository.findClassDetailById(

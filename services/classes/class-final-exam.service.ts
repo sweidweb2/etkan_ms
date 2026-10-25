@@ -20,6 +20,7 @@ import {
   type AuditActor,
 } from "@/services/ops/audit-log.service";
 import { assertClassStructureUnlockedForComputedGrades, assertStudentGradeInputsUnlockedForComputedGrade } from "@/services/classes/class-computed-grade-lock.service";
+import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
@@ -59,6 +60,15 @@ export async function createFinalExamForManager(
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.FINAL_EXAMS_CREATE);
   if (unauthorized) {
     return { success: false, error: unauthorized };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const parsed = createFinalExamSchema.safeParse({
@@ -257,6 +267,15 @@ export async function updateFinalExamForManager(
     return { success: false, error: "Final exam not found." };
   }
 
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    existing.data.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
+
   const structureGuard = await assertClassStructureUnlockedForComputedGrades(
     adminClient,
     existing.data.class_id
@@ -367,6 +386,15 @@ export async function updateStudentFinalExamGradeForManager(
 
   if (!finalExamResult.data) {
     return { success: false, error: "Final exam not found." };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    finalExamResult.data.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const studentGuard = await assertStudentGradeInputsUnlockedForComputedGrade(

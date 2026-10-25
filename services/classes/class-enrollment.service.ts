@@ -58,6 +58,10 @@ import {
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/class-shared";
+import {
+  assertAssignedTeacherForClassIds,
+  assertAssignedTeacherForClassMutation,
+} from "@/services/classes/teacher-class-scope.service";
 
 export type AddStudentToClassResult =
   | {
@@ -94,6 +98,15 @@ export async function addStudentToClassForManager(
     );
     if (unauthorized) {
       return { success: false, error: unauthorized };
+    }
+
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      input.class_id
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
     }
 
     const parsed = addStudentToClassSchema.safeParse({
@@ -746,6 +759,15 @@ export async function addStudentsToClassForManager(
       return { success: false, error: unauthorized };
     }
 
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      input.class_id
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
+
     const parsed = addStudentsToClassSchema.safeParse({
       studentProfileIds: input.studentProfileIds,
     });
@@ -921,6 +943,14 @@ export async function copyStudentsFromClassForManager(
       return { success: false, error: unauthorized };
     }
 
+    const scope = await assertAssignedTeacherForClassIds(adminClient, actor, [
+      input.class_id,
+      input.source_class_id,
+    ]);
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
+
     const parsed = copyStudentsFromClassSchema.safeParse({
       source_class_id: input.source_class_id,
       studentProfileIds: input.studentProfileIds,
@@ -1011,6 +1041,15 @@ export async function removeStudentFromClassForManager(
     );
     if (unauthorized) {
       return { success: false, error: unauthorized };
+    }
+
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      input.class_id
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
     }
 
     const parsed = removeStudentFromClassSchema.safeParse(input);
@@ -1146,6 +1185,14 @@ export async function transferStudentBetweenClassesForManager(
     }
 
     const { student_profile_id, from_class_id, to_class_id } = parsed.data;
+
+    const scope = await assertAssignedTeacherForClassIds(adminClient, actor, [
+      from_class_id,
+      to_class_id,
+    ]);
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
 
     const [fromClassResult, toClassResult, studentProfileResult] =
       await timer.step("lookups", () =>

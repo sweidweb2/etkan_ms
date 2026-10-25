@@ -145,13 +145,15 @@ export function mapAttendeeStatus(status: string): AttendeeStatusValue {
 
 export async function buildStudentDisplayByUserId(
   adminClient: Supabase,
-  userIds: string[]
+  userIds: string[],
+  options?: { includeAuthEmails?: boolean }
 ): Promise<
   Map<
     string,
     { full_name: string; email: string; student_profile_id: string | null }
   >
 > {
+  const includeAuthEmails = options?.includeAuthEmails !== false;
   const uniqueIds = [...new Set(userIds.filter(Boolean))];
   const map = new Map<
     string,
@@ -162,12 +164,17 @@ export async function buildStudentDisplayByUserId(
     return map;
   }
 
+  const profilesPromise = studentProfileRepository.listStudentProfilesByUserIds(
+    adminClient,
+    uniqueIds
+  );
+  const emailPromise = includeAuthEmails
+    ? authRepository.listAuthEmailsByIds(adminClient, uniqueIds)
+    : Promise.resolve({ data: new Map<string, string>(), error: null });
+
   const [profilesResult, emailResult] = await Promise.all([
-    studentProfileRepository.listStudentProfilesByUserIds(
-      adminClient,
-      uniqueIds
-    ),
-    authRepository.listAuthEmailsByIds(adminClient, uniqueIds),
+    profilesPromise,
+    emailPromise,
   ]);
 
   if (profilesResult.error) {

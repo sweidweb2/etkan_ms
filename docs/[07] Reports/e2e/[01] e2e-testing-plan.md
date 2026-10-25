@@ -43,7 +43,7 @@ Do **not** E2E every validator edge case — Vitest already covers most of that.
 | Layer | Status |
 |-------|--------|
 | Vitest unit/service tests | Strong (keep growing) |
-| Playwright / Cypress | **Not installed** |
+| Playwright / Cypress | **Installed** (Phase 0: Chromium + home smoke) |
 | CI for E2E | None yet |
 | Seed scripts | `seed`, `seed:admin`, `seed:manager`, `seed:demo`, `seed:rbac`, etc. |
 | Auth | Supabase email/password + cookies |
@@ -185,6 +185,7 @@ npm run test:e2e:smoke    # grep @smoke
 
 ```bash
 E2E_BASE_URL=http://127.0.0.1:3000
+E2E_SKIP_WEBSERVER=1              # set when Next already runs (Docker or manual)
 E2E_MANAGER_EMAIL=...
 E2E_MANAGER_PASSWORD=...
 E2E_TEACHER_EMAIL=...
@@ -200,6 +201,8 @@ E2E_RESTRICTED_EMAIL=...          # manager-like user with reduced grants
 E2E_ALLOW_EMAIL=0                 # set 1 only with Mailtrap
 E2E_ALLOW_MONEY=0                 # set 1 for @money writes
 ```
+
+**Docker:** Playwright runs on the **host** by default and hits `:3000` whether Next is `npm run dev` or `etkan-local-web`. Local Supabase stays in Docker (`npx supabase start`). See `[03] local-setup.md`.
 
 ---
 
@@ -260,11 +263,11 @@ Coverage columns: leave blank until implemented. Use `S` = smoke (loads), `M` = 
 
 | Journey | Coverage |
 |---------|----------|
-| Valid login → role home redirect | |
-| Invalid password → error, stay on login | |
-| Logout → public/login | |
-| Unauthenticated access to panel → login redirect | |
-| Authenticated guest-only routes → panel redirect | |
+| Valid login → role home redirect | S (Phase 1) |
+| Invalid password → error, stay on login | S (Phase 1) |
+| Logout → public/login | S (Phase 1) |
+| Unauthenticated access to panel → login redirect | S (Phase 1) |
+| Authenticated guest-only routes → panel redirect | S (Phase 1) |
 
 ### 8.3 Manager panel — list / root routes
 

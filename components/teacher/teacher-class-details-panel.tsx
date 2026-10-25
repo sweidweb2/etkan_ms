@@ -8,7 +8,6 @@ import {
   useTransition,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -74,15 +73,16 @@ import {
   type ManagerClassSessionRow,
 } from "@/types/manager-class-session";
 import type { ManagerClassTaskRow } from "@/types/manager-class-session-detail";
-import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ClassStudentRow } from "@/types/class-student";
+import type { TeacherClassDetailRow } from "@/types/class-teaching";
 
 type TeacherClassDetailsPanelProps = {
-  classRow: ManagerClassRow;
+  classRow: TeacherClassDetailRow;
   initialSessions: ManagerClassSessionRow[];
   initialTasks: ManagerClassTaskRow[];
   initialStudents?: ClassStudentRow[];
   hasComputedGrades?: boolean;
+  lockedUserIds?: string[];
   assignedAt: string | null;
   /**
    * Deferred RSC grade-summary shared by Tasks + Analytics tabs.
@@ -93,8 +93,6 @@ type TeacherClassDetailsPanelProps = {
   tasksGradeSummarySlot?: ReactNode;
   /** @deprecated Prefer `gradeSummarySlot` (single shared tree). */
   analyticsGradeSummarySlot?: ReactNode;
-  /** From `?tab=` on the server for first paint without flash. */
-  initialTab?: TeacherClassDetailTab;
 };
 
 const TABS = TEACHER_CLASS_DETAIL_TABS;
@@ -115,23 +113,48 @@ export function TeacherClassDetailsPanel({
   initialTasks,
   initialStudents = [],
   hasComputedGrades = false,
+  lockedUserIds = [],
   assignedAt,
   gradeSummarySlot = null,
   tasksGradeSummarySlot = null,
   analyticsGradeSummarySlot = null,
-  initialTab = TABS.MAIN,
 }: TeacherClassDetailsPanelProps) {
   const sharedGradeSummarySlot =
     gradeSummarySlot ?? tasksGradeSummarySlot ?? analyticsGradeSummarySlot;
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const tabFromUrl = parseTeacherClassDetailTab(searchParams.get("tab"));
-  const tab = tabFromUrl ?? initialTab;
+  // Client-only tabs (localStorage). Avoid `?tab=` / router.replace — that
+  // re-runs the full class RSC on every switch.
+  const [tab, setTab] = useState<TeacherClassDetailTab>(TABS.MAIN);
   const [visitedTabs, setVisitedTabs] = useState(
-    () => new Set<TeacherClassDetailTab>([tab])
+    () => new Set<TeacherClassDetailTab>([TABS.MAIN])
   );
   const [classRow, setClassRow] = useState(initialClassRow);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fromLegacyUrl = parseTeacherClassDetailTab(params.get("tab"));
+    const stored = readTeacherClassDetailTab(classRow.id);
+    const next = fromLegacyUrl ?? stored ?? TABS.MAIN;
+    writeTeacherClassDetailTab(classRow.id, next);
+    setTab(next);
+    setVisitedTabs((current) => {
+      if (current.has(next)) {
+        return current;
+      }
+      const updated = new Set(current);
+      updated.add(next);
+      return updated;
+    });
+
+    // Drop stale `?tab=` bookmarks without triggering App Router navigation.
+    if (fromLegacyUrl && params.has("tab")) {
+      params.delete("tab");
+      const query = params.toString();
+      const nextUrl = query
+        ? `${window.location.pathname}?${query}`
+        : window.location.pathname;
+      window.history.replaceState(window.history.state, "", nextUrl);
+    }
+  }, [classRow.id]);
 
   if (!visitedTabs.has(tab)) {
     const next = new Set(visitedTabs);
@@ -139,41 +162,6 @@ export function TeacherClassDetailsPanel({
     setVisitedTabs(next);
   }
 
-  function replaceTabInUrl(nextTab: TeacherClassDetailTab) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (nextTab === TABS.MAIN) {
-      params.delete("tab");
-    } else {
-      params.set("tab", nextTab);
-    }
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-  }
-
-  // Persist ?tab=; restore from localStorage when the URL is clean (e.g. nested back).
-  useEffect(() => {
-    if (tabFromUrl) {
-      writeTeacherClassDetailTab(classRow.id, tabFromUrl);
-      return;
-    }
-
-    const stored = readTeacherClassDetailTab(classRow.id);
-    if (!stored || stored === TABS.MAIN) {
-      writeTeacherClassDetailTab(classRow.id, TABS.MAIN);
-      return;
-    }
-
-    writeTeacherClassDetailTab(classRow.id, stored);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", stored);
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync once per clean URL / class
-  }, [classRow.id, tabFromUrl]);
   const [sessions, setSessions] = useState(() =>
     sortClassSessionsNewestFirst(initialSessions)
   );
@@ -242,7 +230,7 @@ export function TeacherClassDetailsPanel({
   function handleTabChange(nextTab: string) {
     const parsed = parseTeacherClassDetailTab(nextTab) ?? TABS.MAIN;
     writeTeacherClassDetailTab(classRow.id, parsed);
-    replaceTabInUrl(parsed);
+    setTab(parsed);
   }
 
   function handleInlineSessionUpdated(session: ManagerClassSessionRow) {
@@ -277,7 +265,19 @@ export function TeacherClassDetailsPanel({
           open
           onOpenChange={setIsChangeStatusOpen}
           classRow={classRow}
-          onClassUpdated={setClassRow}
+          onClassUpdated={(updated) =>
+            setClassRow((prev) => ({
+              ...prev,
+              id: updated.id,
+              name: updated.name,
+              status: updated.status,
+              subject_name: updated.subject_name || prev.subject_name,
+              semester_name: updated.semester_name ?? prev.semester_name,
+              enrollment_count: updated.enrollment_count,
+              image_url: updated.image_url,
+              card_gradient: updated.card_gradient || prev.card_gradient,
+            }))
+          }
         />
       ) : null}
 
@@ -419,7 +419,10 @@ export function TeacherClassDetailsPanel({
                   className={classRow.name}
                   sessions={sessions}
                   onSessionsChange={setSessions}
-                  onClassUpdated={setClassRow}
+                  onClassUpdated={() => {
+                    // Manager path refreshes list counts; teacher derives
+                    // counts from local sessions/tasks state.
+                  }}
                   hasComputedGrades={hasComputedGrades}
                   selectedSessionId={selectedSessionId}
                   onSessionSelect={handleSessionSelect}
@@ -435,8 +438,8 @@ export function TeacherClassDetailsPanel({
                         session={sessionDetail.session}
                         classRow={{ id: classRow.id, name: classRow.name }}
                         initialAttendees={sessionDetail.attendees}
-                        hasComputedGrades={sessionDetail.hasComputedGrades}
-                        lockedUserIds={sessionDetail.lockedUserIds}
+                        hasComputedGrades={hasComputedGrades}
+                        lockedUserIds={lockedUserIds}
                         navigation={{
                           classesListHref: ROUTES.TEACHER_CLASSES,
                           classesListLabel: "My classes",
@@ -494,7 +497,7 @@ export function TeacherClassDetailsPanel({
                   classId={classRow.id}
                   className={classRow.name}
                   tasks={initialTasks}
-                  hasSubject={Boolean(classRow.subject_id)}
+                  hasSubject={classRow.has_subject}
                   hasComputedGrades={hasComputedGrades}
                   layout="cards"
                   getTaskDetailHref={(taskId) =>

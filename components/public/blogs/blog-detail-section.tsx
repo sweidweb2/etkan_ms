@@ -53,9 +53,19 @@ export function BlogDetailSection({
           {post.title}
         </h1>
 
-        <p className="mt-4 text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg">
-          {post.summary}
-        </p>
+        {post.summary.trim() ? (
+          <aside
+            className="mt-6 rounded-xl border border-border/80 bg-muted/40 px-4 py-3 sm:px-5 sm:py-4"
+            aria-label={t("blogs.detail.tldr")}
+          >
+            <p className="text-[0.65rem] font-semibold tracking-[0.14em] text-primary uppercase">
+              {t("blogs.detail.tldr")}
+            </p>
+            <p className="mt-1.5 text-base leading-relaxed text-foreground text-pretty sm:text-lg">
+              {post.summary}
+            </p>
+          </aside>
+        ) : null}
 
         <div className="mt-6 flex flex-wrap items-center gap-6 sm:gap-8">
           <div className="flex items-center gap-2.5">

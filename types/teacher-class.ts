@@ -1,7 +1,7 @@
 /** @deprecated Prefer `@/types/class-teaching`. */
 export type {
   TeacherClassRow,
-  TeacherClassDetail,
+  TeacherClassDetailRow,
   TeachingClassPageBundle,
   TeachingClassTaskPageBundle,
   TeachingClassSessionInlineDetail,

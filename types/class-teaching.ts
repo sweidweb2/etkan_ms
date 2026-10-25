@@ -1,7 +1,6 @@
 import type { ClassTaskGradeSummary } from "@/lib/manager/class-task-grade-summary";
 import type { ClassStatusValue } from "@/lib/constants/manager-class-status";
 import type { ClassStudentRow } from "@/types/class-student";
-import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
   ManagerClassTaskRow,
@@ -22,16 +21,26 @@ export type TeacherClassRow = {
   assigned_at: string | null;
 };
 
-/** Teaching-class detail for the teacher panel. */
-export type TeacherClassDetail = {
-  classRow: TeacherClassRow;
-  sessions: ManagerClassSessionRow[];
-  tasks: ManagerClassTaskRow[];
+/**
+ * Slim class header for the teacher detail page (no teacher_count /
+ * subject_nb_sessions / unused manager list fields).
+ */
+export type TeacherClassDetailRow = {
+  id: string;
+  name: string;
+  subject_name: string;
+  /** True when the class is linked to a subject (enables import-subject-tasks). */
+  has_subject: boolean;
+  status: ClassStatusValue;
+  semester_name: string | null;
+  enrollment_count: number;
+  image_url: string | null;
+  card_gradient: string;
 };
 
 /** Single parallel load for the teacher class detail page (no grade summary). */
 export type TeachingClassPageBundle = {
-  classRow: ManagerClassRow;
+  classRow: TeacherClassDetailRow;
   sessions: ManagerClassSessionRow[];
   tasks: ManagerClassTaskRow[];
   students: ClassStudentRow[];
@@ -48,17 +57,18 @@ export type TeachingClassPageBundleWithSummary = TeachingClassPageBundle & {
 /** Single parallel load for the teacher class task detail page. */
 export type TeachingClassTaskPageBundle = {
   task: ManagerClassTaskRow;
-  classRow: Pick<ManagerClassRow, "id" | "name">;
+  classRow: { id: string; name: string };
   studentTasks: ManagerStudentTaskRow[];
   uploads: ManagerStudentTaskUploadRow[];
   hasComputedGrades: boolean;
   lockedUserIds: string[];
 };
 
-/** Inline session detail under the teacher class Sessions tab. */
+/**
+ * Inline session detail under the teacher class Sessions tab.
+ * Grade locks come from the page bundle — not re-fetched per session open.
+ */
 export type TeachingClassSessionInlineDetail = {
   session: ManagerClassSessionRow;
   attendees: ManagerSessionAttendeeRow[];
-  lockedUserIds: string[];
-  hasComputedGrades: boolean;
 };

@@ -77,6 +77,15 @@ export async function updateSessionSettingsForManager(
     return { success: false, error: "Session not found." };
   }
 
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
+
   const patch: {
     semester_id?: string | null;
     group_grade_level?: string | null;
@@ -269,6 +278,15 @@ export async function updateClassSessionForManager(
 
   if (!structureGuard.ok) {
     return { success: false, error: structureGuard.error };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const startsAt = toIsoOrNull(parsed.data.starts_at);

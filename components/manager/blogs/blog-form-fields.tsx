@@ -277,36 +277,57 @@ export function BlogFormFields({
         <FieldError message={errors.sources} />
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor={`${idPrefix}-meta-title`}>Meta title (optional)</Label>
-        <Input
-          id={`${idPrefix}-meta-title`}
-          value={values.meta_title}
-          onChange={(event) => onChange("meta_title", event.target.value)}
-          disabled={isPending}
-        />
-        <FieldError message={errors.meta_title} />
-      </div>
+      <div className="grid gap-3 rounded-xl border border-border/80 bg-muted/30 p-3 sm:p-4">
+        <div>
+          <p className="text-sm font-semibold">SEO checklist (before publish)</p>
+          <ul className="mt-1.5 list-disc space-y-1 ps-4 text-xs text-muted-foreground">
+            <li>Unique meta title (~50–60 chars) — do not repeat the brand suffix.</li>
+            <li>Meta description (~120–155 chars) that answers the reader’s intent.</li>
+            <li>Summary doubles as the public “Key takeaway” — keep it direct.</li>
+            <li>One clear H1 in the title; use H2s in the body; add image alts.</li>
+            <li>Link to a related careers, projects, or register page when relevant.</li>
+          </ul>
+        </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor={`${idPrefix}-meta-description`}>
-          Meta description (optional)
-        </Label>
-        <textarea
-          id={`${idPrefix}-meta-description`}
-          value={values.meta_description}
-          onChange={(event) =>
-            onChange("meta_description", event.target.value)
-          }
-          disabled={isPending}
-          rows={2}
-          className={cn(
-            "min-h-[60px] w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none",
-            "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-            errors.meta_description && "border-destructive"
-          )}
-        />
-        <FieldError message={errors.meta_description} />
+        <div className="grid gap-2">
+          <Label htmlFor={`${idPrefix}-meta-title`}>Meta title (optional)</Label>
+          <Input
+            id={`${idPrefix}-meta-title`}
+            value={values.meta_title}
+            onChange={(event) => onChange("meta_title", event.target.value)}
+            disabled={isPending}
+            placeholder="e.g. How Etkan workshops build real skills"
+          />
+          <p className="text-xs text-muted-foreground">
+            {values.meta_title.trim().length}/120 characters
+          </p>
+          <FieldError message={errors.meta_title} />
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor={`${idPrefix}-meta-description`}>
+            Meta description (optional)
+          </Label>
+          <textarea
+            id={`${idPrefix}-meta-description`}
+            value={values.meta_description}
+            onChange={(event) =>
+              onChange("meta_description", event.target.value)
+            }
+            disabled={isPending}
+            rows={2}
+            placeholder="One or two sentences that earn the click from search."
+            className={cn(
+              "min-h-[60px] w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none",
+              "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+              errors.meta_description && "border-destructive"
+            )}
+          />
+          <p className="text-xs text-muted-foreground">
+            {values.meta_description.trim().length}/300 characters
+          </p>
+          <FieldError message={errors.meta_description} />
+        </div>
       </div>
     </div>
   );
