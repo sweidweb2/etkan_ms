@@ -34,6 +34,7 @@ import {
   FINANCIAL_ADJUSTMENT_TYPES,
   FINANCIAL_ADJUSTMENT_VALUE_TYPES,
   PAYMENT_METHODS,
+  PAYMENT_SCHEDULE_STATUSES,
   TRANSACTION_TYPES,
 } from "@/lib/manager/accounting/constants";
 import { generateSemesterCode } from "@/lib/manager/generate-semester-code";
@@ -66,6 +67,7 @@ import * as studentFinancialAdjustmentRepository from "@/repositories/student-fi
 import * as studentPaymentRepository from "@/repositories/student-payment.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentPaymentPhaseClearanceRepository from "@/repositories/student-payment-phase-clearance.repository";
+import * as studentPaymentScheduleRepository from "@/repositories/student-payment-schedule.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentSemesterRepository from "@/repositories/student-semester.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
@@ -88,8 +90,16 @@ type Supabase = SupabaseClient<Database>;
 const DEMO_MARKER = "Demo Fall 2026";
 const DEMO_SPRING = "Demo Spring 2027";
 const DEMO_PHASE_NAME = "Demo Fall Tuition";
+const DEMO_LAB_PHASE_NAME = "Demo Fall Lab Fee";
+const DEMO_SPRING_PHASE_NAME = "Demo Spring Tuition";
 const DEMO_WORKSHOP_NAME = "Demo Intro to Robotics";
 const DEMO_TEAM_NAME = "Demo Cohort A";
+
+const FALL_TUITION_AMOUNT = 1200;
+const FALL_UPFRONT_AMOUNT = 300;
+const FALL_LAB_FEE_AMOUNT = 50;
+const SPRING_TUITION_AMOUNT = 1100;
+const SPRING_UPFRONT_AMOUNT = 250;
 
 function getDefaultPassword(): string {
   return process.env.SEED_DEMO_PASSWORD ?? "Demo123!";
@@ -211,7 +221,17 @@ async function findOrCreateClass(
   const existing = (classes ?? []).find(
     (row) => row.name.toLowerCase() === input.name.toLowerCase()
   );
-  if (existing) return existing.id;
+  if (existing) {
+    if (existing.status !== input.status) {
+      const updated = await classRepository.updateClassStatus(
+        client,
+        existing.id,
+        input.status
+      );
+      if (updated.error) throw new Error(updated.error.message);
+    }
+    return existing.id;
+  }
 
   const created = await classRepository.createClass(client, {
     name: input.name,
@@ -700,11 +720,76 @@ async function ensureFinalExam(client: Supabase, classId: string) {
   return created.data.id;
 }
 
-async function ensurePaymentPhaseWithPayments(
+/**
+ * Billing class for a semester is the in-progress class (oldest if several).
+ * Demo seed needs a predictable OG: demote other in-progress classes first.
+ */
+async function ensureSoleInProgressBillingClass(
+  client: Supabase,
+  semesterId: string,
+  billingClassId: string
+) {
+  const listed = await classRepository.listClassesBySemesterId(
+    client,
+    semesterId
+  );
+  if (listed.error) throw new Error(listed.error.message);
+
+  const rows = listed.data ?? [];
+
+  // Demote extras first — DB allows at most one in_progress class per semester.
+  for (const row of rows) {
+    if (row.id !== billingClassId && row.status === "in_progress") {
+      const demoted = await classRepository.updateClassStatus(
+        client,
+        row.id,
+        "scheduled"
+      );
+      if (demoted.error) throw new Error(demoted.error.message);
+    }
+  }
+
+  const billing = rows.find((row) => row.id === billingClassId);
+  if (!billing) {
+    throw new Error(`Billing class ${billingClassId} not found on semester.`);
+  }
+  if (billing.status !== "in_progress") {
+    const updated = await classRepository.updateClassStatus(
+      client,
+      billingClassId,
+      "in_progress"
+    );
+    if (updated.error) throw new Error(updated.error.message);
+  }
+}
+
+async function ensureSppsForStudentsOnPhase(
+  client: Supabase,
+  phaseId: string,
+  studentUserIds: string[]
+) {
+  for (const studentId of studentUserIds) {
+    const ensured =
+      await studentPaymentPhaseRepository.ensureSppForStudentOnPhase(
+        client,
+        studentId,
+        phaseId,
+        isoDate(0)
+      );
+    if (ensured.error) throw new Error(ensured.error.message);
+  }
+}
+
+async function ensurePaymentPhaseByName(
   client: Supabase,
   input: {
+    name: string;
     semesterId: string;
-    receivedByUserId: string;
+    amount: number;
+    upfrontAmount: number;
+    durationMonths: number;
+    startDate: string;
+    endDate: string;
   }
 ) {
   const phases = await paymentPhaseRepository.listPaymentPhasesBySemesterId(
@@ -713,108 +798,431 @@ async function ensurePaymentPhaseWithPayments(
   );
   if (phases.error) throw new Error(phases.error.message);
 
-  const phase = (phases.data ?? []).find(
-    (row) => row.name.toLowerCase() === DEMO_PHASE_NAME.toLowerCase()
+  const existing = (phases.data ?? []).find(
+    (row) => row.name.toLowerCase() === input.name.toLowerCase()
   );
+  if (existing) return existing.id;
 
-  let phaseId = phase?.id ?? null;
+  const created = await paymentPhaseRepository.createPaymentPhaseWithSpps(
+    client,
+    {
+      name: input.name,
+      semester_id: input.semesterId,
+      amount: input.amount,
+      upfront_amount: input.upfrontAmount,
+      duration_months: input.durationMonths,
+      start_date: input.startDate,
+      end_date: input.endDate,
+    }
+  );
+  if (created.error || !created.data?.phase) {
+    throw new Error(
+      created.error?.message ??
+        `Unable to create demo payment phase "${input.name}" with SPPs.`
+    );
+  }
+  return created.data.phase.id;
+}
 
-  if (!phaseId) {
-    const created = await paymentPhaseRepository.createPaymentPhaseWithSpps(
+/** Wipe money/overlay children so demo scenarios re-apply deterministically. */
+async function resetSppDemoChildren(client: Supabase, sppId: string) {
+  const payments = await client
+    .from("student_payments")
+    .delete()
+    .eq("student_payment_phase_id", sppId);
+  if (payments.error) throw new Error(payments.error.message);
+
+  const adjustments = await client
+    .from("student_financial_adjustments")
+    .delete()
+    .eq("student_payment_phase_id", sppId);
+  if (adjustments.error) throw new Error(adjustments.error.message);
+
+  const clearances = await client
+    .from("student_payment_phase_clearances")
+    .delete()
+    .eq("student_payment_phase_id", sppId);
+  if (clearances.error) throw new Error(clearances.error.message);
+
+  const schedules = await client
+    .from("student_payment_schedules")
+    .delete()
+    .eq("student_payment_phase_id", sppId);
+  if (schedules.error) throw new Error(schedules.error.message);
+
+  const recalc = await studentPaymentPhaseRepository.recalcSppAndPhaseStatus(
+    client,
+    sppId
+  );
+  if (recalc.error) throw new Error(recalc.error.message);
+}
+
+async function createPaymentOnSpp(
+  client: Supabase,
+  input: {
+    sppId: string;
+    amount: number;
+    paymentDate: string;
+    paymentMethod: string;
+    receivedByUserId: string;
+    notes: string;
+  }
+) {
+  const paid = await studentPaymentRepository.createStudentPaymentWithRecalc(
+    client,
+    {
+      student_payment_phase_id: input.sppId,
+      payment_date: input.paymentDate,
+      amount: input.amount,
+      payment_method: input.paymentMethod,
+      received_by: input.receivedByUserId,
+      received_by_management: true,
+      notes: input.notes,
+    }
+  );
+  if (paid.error) throw new Error(paid.error.message);
+}
+
+async function createScholarshipOnSpp(
+  client: Supabase,
+  input: {
+    sppId: string;
+    value: number;
+    reason: string;
+    effectiveDate: string;
+  }
+) {
+  const adj =
+    await studentFinancialAdjustmentRepository.createAdjustmentWithRecalc(
       client,
       {
-        name: DEMO_PHASE_NAME,
-        semester_id: input.semesterId,
-        amount: 1200,
-        upfront_amount: 300,
-        duration_months: 4,
-        start_date: isoDate(-14),
-        end_date: isoDate(100),
+        student_payment_phase_id: input.sppId,
+        type: FINANCIAL_ADJUSTMENT_TYPES.SCHOLARSHIP,
+        value_type: FINANCIAL_ADJUSTMENT_VALUE_TYPES.FIXED,
+        value: input.value,
+        reason: input.reason,
+        effective_date: input.effectiveDate,
       }
     );
-    if (created.error || !created.data?.phase) {
-      throw new Error(
-        created.error?.message ?? "Unable to create demo payment phase with SPPs."
-      );
-    }
-    phaseId = created.data.phase.id;
+  if (adj.error) throw new Error(adj.error.message);
+}
+
+async function createClearanceOnSpp(
+  client: Supabase,
+  input: {
+    sppId: string;
+    durationDays: number;
+    notes: string;
+    createdBy: string;
   }
-
-  const spps = await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+) {
+  const clearance = await studentPaymentPhaseClearanceRepository.insertClearance(
     client,
-    phaseId
+    {
+      student_payment_phase_id: input.sppId,
+      duration_days: input.durationDays,
+      notes: input.notes,
+      created_by: input.createdBy,
+    }
   );
-  if (spps.error) throw new Error(spps.error.message);
-  const sppRows = spps.data ?? [];
+  if (clearance.error) throw new Error(clearance.error.message);
+}
 
-  if (sppRows.length > 0) {
-    const first = sppRows[0]!;
-    const existingPayments = await studentPaymentRepository.listPaymentsBySppId(
-      client,
-      first.id
-    );
-    if (existingPayments.error) throw new Error(existingPayments.error.message);
-
-    if ((existingPayments.data ?? []).length === 0) {
-      const paid = await studentPaymentRepository.createStudentPaymentWithRecalc(
+async function createInstallmentScheduleOnSpp(
+  client: Supabase,
+  input: {
+    sppId: string;
+    createdBy: string;
+    rows: Array<{
+      dueDate: string;
+      amount: number;
+      label: string;
+      status: string;
+      notes: string | null;
+    }>;
+  }
+) {
+  for (const row of input.rows) {
+    const created =
+      await studentPaymentScheduleRepository.createStudentPaymentScheduleWithRpc(
         client,
         {
-          student_payment_phase_id: first.id,
-          payment_date: isoDate(-7),
-          amount: 300,
-          payment_method: PAYMENT_METHODS.CASH,
-          received_by: input.receivedByUserId,
-          received_by_management: true,
-          notes: "Demo upfront payment",
+          student_payment_phase_id: input.sppId,
+          due_date: row.dueDate,
+          amount: row.amount,
+          label: row.label,
+          status: row.status,
+          notes: row.notes,
+          created_by: input.createdBy,
         }
       );
-      if (paid.error) throw new Error(paid.error.message);
-    }
+    if (created.error) throw new Error(created.error.message);
+  }
+}
 
-    if (sppRows.length > 1) {
-      const second = sppRows[1]!;
-      const adjExisting = await client
-        .from("student_financial_adjustments")
-        .select("id")
-        .eq("student_payment_phase_id", second.id)
-        .maybeSingle();
-      if (adjExisting.error) throw new Error(adjExisting.error.message);
-      if (!adjExisting.data) {
-        const adj =
-          await studentFinancialAdjustmentRepository.createAdjustmentWithRecalc(
-            client,
-            {
-              student_payment_phase_id: second.id,
-              type: FINANCIAL_ADJUSTMENT_TYPES.SCHOLARSHIP,
-              value_type: FINANCIAL_ADJUSTMENT_VALUE_TYPES.FIXED,
-              value: 100,
-              reason: "Demo scholarship",
-              effective_date: isoDate(-5),
-            }
-          );
-        if (adj.error) throw new Error(adj.error.message);
-      }
+function sppByStudentId(
+  rows: Array<{ id: string; student_id: string }>,
+  studentId: string
+) {
+  return rows.find((row) => row.student_id === studentId) ?? null;
+}
 
-      const clearanceExisting = await client
-        .from("student_payment_phase_clearances")
-        .select("id")
-        .eq("student_payment_phase_id", second.id)
-        .limit(1);
-      if (clearanceExisting.error) throw new Error(clearanceExisting.error.message);
-      if ((clearanceExisting.data ?? []).length === 0) {
-        const clearance =
-          await studentPaymentPhaseClearanceRepository.insertClearance(client, {
-            student_payment_phase_id: second.id,
-            duration_days: 30,
-            notes: "Demo month clearance",
-            created_by: input.receivedByUserId,
-          });
-        if (clearance.error) throw new Error(clearance.error.message);
-      }
-    }
+/**
+ * Fall tuition (opened): Alice partial/upfront, Bob scholarship+clearance,
+ * Carol fully paid, David pending + installment schedule.
+ * Fall lab fee: all SPPs paid → phase closes via recalc.
+ */
+async function ensureFallAccountingSeed(
+  client: Supabase,
+  input: {
+    semesterId: string;
+    billingClassId: string;
+    studentUserIds: string[];
+    receivedByUserId: string;
+  }
+) {
+  const [aliceId, bobId, carolId, davidId] = input.studentUserIds;
+  if (!aliceId || !bobId || !carolId || !davidId) {
+    throw new Error("Fall accounting seed expects 4 math student user ids.");
   }
 
-  return phaseId;
+  await ensureSoleInProgressBillingClass(
+    client,
+    input.semesterId,
+    input.billingClassId
+  );
+
+  const tuitionPhaseId = await ensurePaymentPhaseByName(client, {
+    name: DEMO_PHASE_NAME,
+    semesterId: input.semesterId,
+    amount: FALL_TUITION_AMOUNT,
+    upfrontAmount: FALL_UPFRONT_AMOUNT,
+    durationMonths: 4,
+    startDate: isoDate(-14),
+    endDate: isoDate(100),
+  });
+
+  await ensureSppsForStudentsOnPhase(
+    client,
+    tuitionPhaseId,
+    input.studentUserIds
+  );
+
+  const tuitionSpps =
+    await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+      client,
+      tuitionPhaseId
+    );
+  if (tuitionSpps.error) throw new Error(tuitionSpps.error.message);
+  const tuitionRows = tuitionSpps.data ?? [];
+
+  const aliceSpp = sppByStudentId(tuitionRows, aliceId);
+  const bobSpp = sppByStudentId(tuitionRows, bobId);
+  const carolSpp = sppByStudentId(tuitionRows, carolId);
+  const davidSpp = sppByStudentId(tuitionRows, davidId);
+
+  if (!aliceSpp || !bobSpp || !carolSpp || !davidSpp) {
+    const found = tuitionRows.map((row) => row.student_id).join(", ");
+    throw new Error(
+      `Fall tuition SPPs missing expected Math students (got ${tuitionRows.length}: ${found}).`
+    );
+  }
+
+  for (const spp of [aliceSpp, bobSpp, carolSpp, davidSpp]) {
+    await resetSppDemoChildren(client, spp.id);
+  }
+
+  // Alice — upfront only → partially_paid (+ upfront-paid display in window)
+  await createPaymentOnSpp(client, {
+    sppId: aliceSpp.id,
+    amount: FALL_UPFRONT_AMOUNT,
+    paymentDate: isoDate(-7),
+    paymentMethod: PAYMENT_METHODS.CASH,
+    receivedByUserId: input.receivedByUserId,
+    notes: "Demo upfront payment",
+  });
+
+  // Bob — scholarship + month clearance + partial
+  await createScholarshipOnSpp(client, {
+    sppId: bobSpp.id,
+    value: 100,
+    reason: "Demo scholarship",
+    effectiveDate: isoDate(-5),
+  });
+  await createClearanceOnSpp(client, {
+    sppId: bobSpp.id,
+    durationDays: 30,
+    notes: "Demo month clearance",
+    createdBy: input.receivedByUserId,
+  });
+  await createPaymentOnSpp(client, {
+    sppId: bobSpp.id,
+    amount: 200,
+    paymentDate: isoDate(-3),
+    paymentMethod: PAYMENT_METHODS.OMT,
+    receivedByUserId: input.receivedByUserId,
+    notes: "Demo partial after scholarship",
+  });
+
+  // Carol — fully paid
+  await createPaymentOnSpp(client, {
+    sppId: carolSpp.id,
+    amount: FALL_TUITION_AMOUNT,
+    paymentDate: isoDate(-2),
+    paymentMethod: PAYMENT_METHODS.BANK_TRANSFER,
+    receivedByUserId: input.receivedByUserId,
+    notes: "Demo full tuition payment",
+  });
+
+  // David — pending with informational installment plan
+  await createInstallmentScheduleOnSpp(client, {
+    sppId: davidSpp.id,
+    createdBy: input.receivedByUserId,
+    rows: [
+      {
+        dueDate: isoDate(7),
+        amount: 400,
+        label: "Installment 1",
+        status: PAYMENT_SCHEDULE_STATUSES.PLANNED,
+        notes: "Demo schedule",
+      },
+      {
+        dueDate: isoDate(37),
+        amount: 400,
+        label: "Installment 2",
+        status: PAYMENT_SCHEDULE_STATUSES.PLANNED,
+        notes: null,
+      },
+      {
+        dueDate: isoDate(67),
+        amount: 400,
+        label: "Installment 3",
+        status: PAYMENT_SCHEDULE_STATUSES.PLANNED,
+        notes: null,
+      },
+    ],
+  });
+
+  // Lab fee phase — pay demo Math SPPs so status derives to closed
+  const labPhaseId = await ensurePaymentPhaseByName(client, {
+    name: DEMO_LAB_PHASE_NAME,
+    semesterId: input.semesterId,
+    amount: FALL_LAB_FEE_AMOUNT,
+    upfrontAmount: 0,
+    durationMonths: 1,
+    startDate: isoDate(-30),
+    endDate: isoDate(-1),
+  });
+
+  await ensureSppsForStudentsOnPhase(client, labPhaseId, input.studentUserIds);
+
+  const labSpps = await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+    client,
+    labPhaseId
+  );
+  if (labSpps.error) throw new Error(labSpps.error.message);
+
+  for (const studentId of input.studentUserIds) {
+    const spp = sppByStudentId(labSpps.data ?? [], studentId);
+    if (!spp) {
+      throw new Error(`Lab fee SPP missing for student ${studentId}.`);
+    }
+    await resetSppDemoChildren(client, spp.id);
+    await createPaymentOnSpp(client, {
+      sppId: spp.id,
+      amount: FALL_LAB_FEE_AMOUNT,
+      paymentDate: isoDate(-10),
+      paymentMethod: PAYMENT_METHODS.CASH,
+      receivedByUserId: input.receivedByUserId,
+      notes: "Demo lab fee paid in full",
+    });
+  }
+
+  return { tuitionPhaseId, labPhaseId };
+}
+
+/**
+ * Spring tuition on in-progress Physics class:
+ * Eve partial, Frank paid, Grace pending.
+ */
+async function ensureSpringAccountingSeed(
+  client: Supabase,
+  input: {
+    semesterId: string;
+    billingClassId: string;
+    studentUserIds: string[];
+    receivedByUserId: string;
+  }
+) {
+  const [eveId, frankId, graceId] = input.studentUserIds;
+  if (!eveId || !frankId || !graceId) {
+    throw new Error("Spring accounting seed expects 3 physics student user ids.");
+  }
+
+  await ensureSoleInProgressBillingClass(
+    client,
+    input.semesterId,
+    input.billingClassId
+  );
+
+  const springPhaseId = await ensurePaymentPhaseByName(client, {
+    name: DEMO_SPRING_PHASE_NAME,
+    semesterId: input.semesterId,
+    amount: SPRING_TUITION_AMOUNT,
+    upfrontAmount: SPRING_UPFRONT_AMOUNT,
+    durationMonths: 4,
+    startDate: isoDate(0),
+    endDate: isoDate(120),
+  });
+
+  await ensureSppsForStudentsOnPhase(
+    client,
+    springPhaseId,
+    input.studentUserIds
+  );
+
+  const springSpps =
+    await studentPaymentPhaseRepository.listSppsByPaymentPhaseId(
+      client,
+      springPhaseId
+    );
+  if (springSpps.error) throw new Error(springSpps.error.message);
+  const springRows = springSpps.data ?? [];
+
+  const eveSpp = sppByStudentId(springRows, eveId);
+  const frankSpp = sppByStudentId(springRows, frankId);
+  const graceSpp = sppByStudentId(springRows, graceId);
+
+  if (!eveSpp || !frankSpp || !graceSpp) {
+    const found = springRows.map((row) => row.student_id).join(", ");
+    throw new Error(
+      `Spring tuition SPPs missing expected Physics students (got ${springRows.length}: ${found}).`
+    );
+  }
+
+  for (const spp of [eveSpp, frankSpp, graceSpp]) {
+    await resetSppDemoChildren(client, spp.id);
+  }
+
+  await createPaymentOnSpp(client, {
+    sppId: eveSpp.id,
+    amount: SPRING_UPFRONT_AMOUNT,
+    paymentDate: isoDate(0),
+    paymentMethod: PAYMENT_METHODS.WHISH,
+    receivedByUserId: input.receivedByUserId,
+    notes: "Demo spring upfront",
+  });
+
+  await createPaymentOnSpp(client, {
+    sppId: frankSpp.id,
+    amount: SPRING_TUITION_AMOUNT,
+    paymentDate: isoDate(1),
+    paymentMethod: PAYMENT_METHODS.CARD,
+    receivedByUserId: input.receivedByUserId,
+    notes: "Demo spring paid in full",
+  });
+
+  return springPhaseId;
 }
 
 async function ensureWorkshopBundle(
@@ -1350,7 +1758,8 @@ async function seedDemoData(): Promise<void> {
     name: "Demo Physics 101",
     subjectId: physicsSubjectId,
     semesterId: spring.id,
-    status: "scheduled",
+    // Billing class for Spring payment phases (SPPs attach to in-progress members).
+    status: "in_progress",
   });
 
   const mathTeacherId = await findOrCreateTeacher(client, {
@@ -1452,9 +1861,17 @@ async function seedDemoData(): Promise<void> {
   await ensureSessionsForClass(client, mathClassId, fall.id);
   await ensureFinalExam(client, mathClassId);
 
-  // --- Accounting (after enroll so SPPs attach to members) ---
-  await ensurePaymentPhaseWithPayments(client, {
+  // --- Accounting (after enroll; OG = sole in-progress billing class per semester) ---
+  await ensureFallAccountingSeed(client, {
     semesterId: fall.id,
+    billingClassId: mathClassId,
+    studentUserIds: mathUserIds,
+    receivedByUserId: receiverId,
+  });
+  await ensureSpringAccountingSeed(client, {
+    semesterId: spring.id,
+    billingClassId: physicsClassId,
+    studentUserIds: physicsUserIds,
     receivedByUserId: receiverId,
   });
 
@@ -1482,11 +1899,22 @@ async function seedDemoData(): Promise<void> {
   console.log("");
   console.log("Academic:");
   console.log(`  Semesters: ${DEMO_MARKER}, ${DEMO_SPRING}`);
-  console.log("  Classes: Demo Math 101 (in_progress, 4 students), Demo Physics 101 (scheduled, 3)");
+  console.log(
+    "  Classes: Demo Math 101 (in_progress, 4), Demo Physics 101 (in_progress, 3)"
+  );
   console.log("  Math: subject_tasks → class_tasks (1 started), sessions+attendees, final exam");
   console.log("");
-  console.log("Accounting:");
-  console.log(`  Phase "${DEMO_PHASE_NAME}" + SPPs; sample payment, scholarship, clearance`);
+  console.log("Accounting (statuses via payment/adjustment RPCs + recalc):");
+  console.log(
+    `  "${DEMO_PHASE_NAME}" (opened): Alice partial/upfront, Bob scholarship+clearance+partial,`
+  );
+  console.log("    Carol paid, David pending + 3 installment schedule rows");
+  console.log(
+    `  "${DEMO_LAB_PHASE_NAME}" (closed): all 4 SPPs paid @ $${FALL_LAB_FEE_AMOUNT}`
+  );
+  console.log(
+    `  "${DEMO_SPRING_PHASE_NAME}" (opened): Eve partial, Frank paid, Grace pending`
+  );
   console.log("");
   console.log("Also seeded: workshop, instructor schedule, guests/team, equipment borrow,");
   console.log("  blog + public projects, sample expense transaction.");

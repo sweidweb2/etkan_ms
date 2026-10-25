@@ -93,58 +93,47 @@ export function AccountingExceptionTabs({
     useState<AccountingExceptionTabValue>("billed-no-class");
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl ring-1 ring-foreground/10">
-      <TabsPrimitive
-        value={activeTab}
-        onValueChange={(value) =>
-          setActiveTab(value as AccountingExceptionTabValue)
-        }
-        className="flex flex-col gap-0"
-      >
-        <div className="border-b bg-muted/40 px-3 py-3 sm:px-4">
-          <div className="mb-2">
-            <h3 className="text-sm font-semibold">Exceptions</h3>
-            <p className="text-xs text-muted-foreground">
-              Class vs billing gaps. Active SPPs and opened/closed phases only;
-              cancelled rows are ignored. “In class” means an in-progress class
-              membership.
-            </p>
-          </div>
-          <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8">
-            <TabsTriggerPrimitive
-              value="billed-no-class"
-              className={TAB_TRIGGER_CLASS}
-            >
-              Billed, no class
-              <CountBadge count={billedWithoutClass.length} />
-            </TabsTriggerPrimitive>
-            <TabsTriggerPrimitive
-              value="no-class-no-phase"
-              className={TAB_TRIGGER_CLASS}
-            >
-              No class, no phase
-              <CountBadge count={withoutClassOrPhase.length} />
-            </TabsTriggerPrimitive>
-            <TabsTriggerPrimitive
-              value="semester-mismatch"
-              className={TAB_TRIGGER_CLASS}
-            >
-              Semester mismatch
-              <CountBadge count={semesterMismatches.length} />
-            </TabsTriggerPrimitive>
-            <TabsTriggerPrimitive
-              value="in-class-no-phase"
-              className={TAB_TRIGGER_CLASS}
-            >
-              In class, no phase
-              <CountBadge count={missingSpp.length} />
-            </TabsTriggerPrimitive>
-          </TabsListPrimitive>
-        </div>
+    <TabsPrimitive
+      value={activeTab}
+      onValueChange={(value) =>
+        setActiveTab(value as AccountingExceptionTabValue)
+      }
+      className="flex flex-col gap-4"
+    >
+      <TabsListPrimitive className="flex h-auto w-full flex-wrap items-center gap-2 rounded-full bg-muted/60 p-1 ring-1 ring-foreground/8 sm:w-fit">
+        <TabsTriggerPrimitive
+          value="billed-no-class"
+          className={TAB_TRIGGER_CLASS}
+        >
+          Billed, no class
+          <CountBadge count={billedWithoutClass.length} />
+        </TabsTriggerPrimitive>
+        <TabsTriggerPrimitive
+          value="no-class-no-phase"
+          className={TAB_TRIGGER_CLASS}
+        >
+          No class, no phase
+          <CountBadge count={withoutClassOrPhase.length} />
+        </TabsTriggerPrimitive>
+        <TabsTriggerPrimitive
+          value="semester-mismatch"
+          className={TAB_TRIGGER_CLASS}
+        >
+          Semester mismatch
+          <CountBadge count={semesterMismatches.length} />
+        </TabsTriggerPrimitive>
+        <TabsTriggerPrimitive
+          value="in-class-no-phase"
+          className={TAB_TRIGGER_CLASS}
+        >
+          In class, no phase
+          <CountBadge count={missingSpp.length} />
+        </TabsTriggerPrimitive>
+      </TabsListPrimitive>
 
-        <TabsContentsPrimitive>
+      <TabsContentsPrimitive>
           <TabsContentPrimitive value="billed-no-class" className="px-0 py-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-hidden rounded-xl border">
               <table className="w-full min-w-[800px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
@@ -263,7 +252,7 @@ export function AccountingExceptionTabs({
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="no-class-no-phase" className="px-0 py-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-hidden rounded-xl border">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
@@ -330,7 +319,7 @@ export function AccountingExceptionTabs({
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="semester-mismatch" className="px-0 py-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-hidden rounded-xl border">
               <table className="w-full min-w-[800px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
@@ -464,7 +453,7 @@ export function AccountingExceptionTabs({
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="in-class-no-phase" className="px-0 py-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-hidden rounded-xl border">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
@@ -541,8 +530,7 @@ export function AccountingExceptionTabs({
               </table>
             </div>
           </TabsContentPrimitive>
-        </TabsContentsPrimitive>
-      </TabsPrimitive>
-    </section>
+      </TabsContentsPrimitive>
+    </TabsPrimitive>
   );
 }

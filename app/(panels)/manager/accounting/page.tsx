@@ -24,23 +24,25 @@ export default async function ManagerAccountingPage() {
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <ManageAccountingPanel
-        initialPhases={phases}
-        paidThisMonthTotal={paidThisMonthTotal}
-      />
-      <Suspense fallback={<MissingPriorAdjustmentFallback />}>
-        <MissingPriorAdjustmentSection
-          actorUserId={actorUserId}
-          phases={phases}
-        />
-      </Suspense>
-      <Suspense fallback={<AccountingExceptionsFallback />}>
-        <AccountingExceptionsSection
-          actorUserId={actorUserId}
-          phases={phases}
-        />
-      </Suspense>
-    </div>
+    <ManageAccountingPanel
+      initialPhases={phases}
+      paidThisMonthTotal={paidThisMonthTotal}
+      missingPriorAdjustmentSection={
+        <Suspense fallback={<MissingPriorAdjustmentFallback />}>
+          <MissingPriorAdjustmentSection
+            actorUserId={actorUserId}
+            phases={phases}
+          />
+        </Suspense>
+      }
+      exceptionsSection={
+        <Suspense fallback={<AccountingExceptionsFallback />}>
+          <AccountingExceptionsSection
+            actorUserId={actorUserId}
+            phases={phases}
+          />
+        </Suspense>
+      }
+    />
   );
 }

@@ -47,10 +47,11 @@ export function PanelUserMenu({
     <>
       <div className="flex items-center gap-1 md:hidden">
         <Button
+          render={<Link href={ROUTES.HOME} />}
+          nativeButton={false}
           variant="ghost"
           size="icon"
-          nativeButton={false}
-          render={<Link href={ROUTES.HOME} aria-label="Go to home" />}
+          aria-label="Go to home"
         >
           <Home />
         </Button>

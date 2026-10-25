@@ -113,119 +113,106 @@ export function MissingPriorAdjustmentClient({
         }}
       />
 
-      <section className="min-w-0 overflow-hidden rounded-xl ring-1 ring-foreground/10">
-        <div className="border-b bg-muted/40 px-3 py-3 sm:px-4">
-          <h3 className="text-sm font-semibold">Missing prior adjustments</h3>
-          <p className="text-xs text-muted-foreground">
-            Students on an opened phase with no adjustment here, but at least
-            one adjustment on a prior SPP.
-          </p>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left">
-                <th className="px-4 py-3 font-medium">Student</th>
-                <th className="px-4 py-3 font-medium">Phase</th>
-                <th className="px-4 py-3 font-medium">Semester</th>
-                <th className="px-4 py-3 font-medium">SPP status</th>
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
+      <div className="overflow-x-auto overflow-hidden rounded-xl border">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40 text-left">
+              <th className="px-4 py-3 font-medium">Student</th>
+              <th className="px-4 py-3 font-medium">Phase</th>
+              <th className="px-4 py-3 font-medium">Semester</th>
+              <th className="px-4 py-3 font-medium">SPP status</th>
+              <th className="px-4 py-3 font-medium text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="px-4 py-10 text-center text-muted-foreground"
+                >
+                  No students need a prior adjustment imported.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-10 text-center text-muted-foreground"
-                  >
-                    No students need a prior adjustment imported.
+            ) : (
+              rows.map((row) => (
+                <tr key={row.spp_id} className="border-b last:border-b-0">
+                  <td className="max-w-[12rem] px-4 py-3 font-medium">
+                    <TruncatedCell value={row.student_label} maxLength={28} />
                   </td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr key={row.spp_id} className="border-b last:border-b-0">
-                    <td className="max-w-[12rem] px-4 py-3 font-medium">
-                      <TruncatedCell value={row.student_label} maxLength={28} />
-                    </td>
-                    <td className="max-w-[12rem] px-4 py-3">
-                      <TruncatedCell
-                        value={row.payment_phase_name}
-                        maxLength={28}
-                      />
-                    </td>
-                    <td className="max-w-[10rem] px-4 py-3 text-muted-foreground">
-                      <TruncatedCell
-                        value={row.semester_name}
-                        maxLength={24}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <SppStatusBadge
-                        status={row.spp_status as SppDisplayStatus}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <Can
-                          permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}
+                  <td className="max-w-[12rem] px-4 py-3">
+                    <TruncatedCell
+                      value={row.payment_phase_name}
+                      maxLength={28}
+                    />
+                  </td>
+                  <td className="max-w-[10rem] px-4 py-3 text-muted-foreground">
+                    <TruncatedCell value={row.semester_name} maxLength={24} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <SppStatusBadge
+                      status={row.spp_status as SppDisplayStatus}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <Can
+                        permission={PERMISSIONS.ACCOUNTING_ADJUSTMENTS_CREATE}
+                      >
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleImportClick(row)}
                         >
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleImportClick(row)}
-                          >
-                            <ImportIcon data-icon="inline-start" />
-                            Import
-                          </Button>
-                        </Can>
-                        {row.student_profile_id ? (
-                          <Button
-                            render={
-                              <Link
-                                href={getManagerStudentDetailRoute(
-                                  row.student_profile_id
-                                )}
-                                prefetch={false}
-                              />
-                            }
-                            nativeButton={false}
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`View ${row.student_label}`}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            <EyeIcon />
-                          </Button>
-                        ) : null}
+                          <ImportIcon data-icon="inline-start" />
+                          Import
+                        </Button>
+                      </Can>
+                      {row.student_profile_id ? (
                         <Button
                           render={
                             <Link
-                              href={getManagerAccountingSppDetailRoute(
-                                row.payment_phase_id,
-                                row.spp_id
+                              href={getManagerStudentDetailRoute(
+                                row.student_profile_id
                               )}
                               prefetch={false}
                             />
                           }
                           nativeButton={false}
                           variant="ghost"
-                          size="sm"
+                          size="icon-sm"
+                          aria-label={`View ${row.student_label}`}
                           className="text-muted-foreground hover:text-foreground"
                         >
-                          View
+                          <EyeIcon />
                         </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                      ) : null}
+                      <Button
+                        render={
+                          <Link
+                            href={getManagerAccountingSppDetailRoute(
+                              row.payment_phase_id,
+                              row.spp_id
+                            )}
+                            prefetch={false}
+                          />
+                        }
+                        nativeButton={false}
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        View
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }
