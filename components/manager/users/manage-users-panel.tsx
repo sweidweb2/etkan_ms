@@ -10,12 +10,10 @@ import {
   EyeIcon,
   PencilIcon,
   PlusIcon,
-  PowerIcon,
   SearchIcon,
   XIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
-import { ActivateInactivateStudentDialog } from "@/components/manager/students/activate-inactivate-student-dialog";
 import { AddUserDialog } from "@/components/manager/users/add-user-dialog";
 import { EditUserDialog } from "@/components/manager/users/edit-user-dialog";
 import { UserRoleBadge } from "@/components/manager/users/user-role-badge";
@@ -38,13 +36,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MANAGER_USER_ROLE_LABELS } from "@/lib/constants/manager-user-display";
-import { STUDENT_STATUSES } from "@/lib/constants/manager-student-status";
-import type { StudentStatusValue } from "@/lib/constants/manager-student-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import {
-  getManagerStudentDetailRoute,
-  getManagerUserDetailRoute,
-} from "@/lib/constants/routes";
+import { getManagerUserDetailRoute } from "@/lib/constants/routes";
 import { ROLE_VALUES, ROLES } from "@/lib/constants/roles";
 import { cn } from "@/lib/utils";
 import { prependUniqueById } from "@/lib/utils/prepend-unique-by-id";
@@ -58,6 +51,7 @@ const COLUMN_LIMITS = {
 } as const;
 
 const ROLE_FILTER_ALL = "all";
+const STAFF_ROLE_VALUES = ROLE_VALUES.filter((role) => role !== ROLES.STUDENT);
 
 const USER_ROW_CLASS =
   "cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:bg-primary/10 hover:shadow-[inset_4px_0_0_0_var(--primary)] active:bg-primary/15 focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
@@ -144,20 +138,12 @@ function CurrentUserBadge() {
   );
 }
 
-function getUserDetailsHref(user: ManagerUserRow) {
-  if (user.role === ROLES.STUDENT && user.student_profile_id) {
-    return getManagerStudentDetailRoute(user.student_profile_id);
-  }
-
-  return getManagerUserDetailRoute(user.id);
-}
-
 function UserDetailsLink({ user }: { user: ManagerUserRow }) {
   const label = user.username ?? user.email;
 
   return (
     <Link
-      href={getUserDetailsHref(user)}
+      href={getManagerUserDetailRoute(user.id)}
       aria-label={`View ${label}`}
       onClick={(event) => event.stopPropagation()}
       className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
@@ -177,7 +163,6 @@ export function ManageUsersPanel({
   const router = useRouter();
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ManagerUserRow | null>(null);
-  const [statusTarget, setStatusTarget] = useState<ManagerUserRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(
@@ -196,7 +181,6 @@ export function ManageUsersPanel({
   const stats = useMemo(
     () => ({
       total: users.length,
-      students: users.filter((user) => user.role === ROLES.STUDENT).length,
       teachers: users.filter((user) => user.role === ROLES.TEACHER).length,
       staff: users.filter(
         (user) =>
@@ -257,14 +241,17 @@ export function ManageUsersPanel({
   };
 
   const handleUserUpdated = (user: ManagerUserRow) => {
-    setUsers((current) =>
-      current.map((row) => (row.id === user.id ? user : row))
-    );
+    setUsers((current) => {
+      if (user.role === ROLES.STUDENT) {
+        return current.filter((row) => row.id !== user.id);
+      }
+      return current.map((row) => (row.id === user.id ? user : row));
+    });
     setEditingUser(null);
   };
 
   const openUserDetails = (user: ManagerUserRow) => {
-    router.push(getUserDetailsHref(user));
+    router.push(getManagerUserDetailRoute(user.id));
   };
 
   const handleUserRowKeyDown = (
@@ -287,16 +274,11 @@ export function ManageUsersPanel({
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           <UserStatCard
             label="Total users"
             value={stats.total}
             accentClassName="border-l-sky-500"
-          />
-          <UserStatCard
-            label="Students"
-            value={stats.students}
-            accentClassName="border-l-emerald-500"
           />
           <UserStatCard
             label="Teachers"
@@ -326,41 +308,6 @@ export function ManageUsersPanel({
             }}
             user={editingUser}
             onUserUpdated={handleUserUpdated}
-          />
-        ) : null}
-
-        {statusTarget &&
-        statusTarget.role === ROLES.STUDENT &&
-        statusTarget.student_profile_id ? (
-          <ActivateInactivateStudentDialog
-            open
-            onOpenChange={(open) => {
-              if (!open) {
-                setStatusTarget(null);
-              }
-            }}
-            userId={statusTarget.id}
-            displayName={
-              statusTarget.student_full_name ??
-              statusTarget.username ??
-              statusTarget.email
-            }
-            currentStatus={
-              (statusTarget.student_status ??
-                STUDENT_STATUSES.ACTIVE) as StudentStatusValue
-            }
-            onCompleted={(status) => {
-              setStatusTarget(null);
-              if (statusTarget?.student_profile_id) {
-                setUsers((current) =>
-                  current.map((user) =>
-                    user.id === statusTarget.id
-                      ? { ...user, student_status: status }
-                      : user
-                  )
-                );
-              }
-            }}
           />
         ) : null}
 
@@ -404,7 +351,7 @@ export function ManageUsersPanel({
                 </SelectTrigger>
                 <SelectContent align="end">
                   <SelectItem value={ROLE_FILTER_ALL}>All roles</SelectItem>
-                  {ROLE_VALUES.map((role) => (
+                  {STAFF_ROLE_VALUES.map((role) => (
                     <SelectItem key={role} value={role}>
                       {ROLE_LABELS[role]}
                     </SelectItem>
@@ -498,29 +445,6 @@ export function ManageUsersPanel({
                                 <PencilIcon className="size-4" />
                               </Button>
                             </Can>
-                            {user.role === ROLES.STUDENT &&
-                            user.student_profile_id ? (
-                              <Can
-                                permission={PERMISSIONS.STUDENTS_CHANGE_STATUS}
-                              >
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
-                                  aria-label={
-                                    (user.student_status ??
-                                      STUDENT_STATUSES.ACTIVE) ===
-                                    STUDENT_STATUSES.ACTIVE
-                                      ? `Inactivate ${user.username ?? user.email}`
-                                      : `Activate ${user.username ?? user.email}`
-                                  }
-                                  onClick={() => setStatusTarget(user)}
-                                >
-                                  <PowerIcon className="size-4" />
-                                </Button>
-                              </Can>
-                            ) : null}
                             <UserDetailsLink user={user} />
                           </div>
                         </td>
