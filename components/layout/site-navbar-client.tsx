@@ -2,23 +2,73 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { MenuIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  BriefcaseIcon,
+  FolderKanbanIcon,
+  HomeIcon,
+  ImagesIcon,
+  InfoIcon,
+  NewspaperIcon,
+} from "lucide-react";
 import { AppLogo } from "@/components/brand/app-logo";
 import { LanguageToggle } from "@/components/layout/language-toggle";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { buttonVariants } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants/routes";
+import type { MessageKey } from "@/lib/i18n/messages/en";
 import { cn } from "@/lib/utils";
+
+const PRIMARY_NAV_ITEMS: readonly {
+  href: string;
+  labelKey: MessageKey;
+  shortLabelKey: MessageKey;
+  icon: LucideIcon;
+}[] = [
+  {
+    href: ROUTES.HOME,
+    labelKey: "nav.home",
+    shortLabelKey: "nav.home",
+    icon: HomeIcon,
+  },
+  {
+    href: ROUTES.ABOUT,
+    labelKey: "nav.about",
+    shortLabelKey: "nav.aboutShort",
+    icon: InfoIcon,
+  },
+  {
+    href: ROUTES.CAREERS,
+    labelKey: "nav.careers",
+    shortLabelKey: "nav.careersShort",
+    icon: BriefcaseIcon,
+  },
+  {
+    href: ROUTES.PROJECTS,
+    labelKey: "nav.projects",
+    shortLabelKey: "nav.projects",
+    icon: FolderKanbanIcon,
+  },
+  {
+    href: ROUTES.GALLERY,
+    labelKey: "nav.gallery",
+    shortLabelKey: "nav.gallery",
+    icon: ImagesIcon,
+  },
+  {
+    href: ROUTES.BLOGS,
+    labelKey: "nav.blogs",
+    shortLabelKey: "nav.blogs",
+    icon: NewspaperIcon,
+  },
+];
+
+function isNavActive(pathname: string, href: string): boolean {
+  return (
+    pathname === href ||
+    (href !== ROUTES.HOME && pathname.startsWith(`${href}/`))
+  );
+}
 
 function BrandNavLink({
   href,
@@ -28,18 +78,16 @@ function BrandNavLink({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isActive =
-    pathname === href ||
-    (href !== ROUTES.HOME && pathname.startsWith(`${href}/`));
+  const active = isNavActive(pathname, href);
 
   return (
     <Link
       href={href}
       suppressHydrationWarning
-      aria-current={isActive ? "page" : undefined}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
-        isActive
+        active
           ? "bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
@@ -49,13 +97,7 @@ function BrandNavLink({
   );
 }
 
-function LoginNavLink({
-  className,
-  onNavigate,
-}: {
-  className?: string;
-  onNavigate?: () => void;
-}) {
+function LoginNavLink({ className }: { className?: string }) {
   const { t } = usePublicI18n();
   const pathname = usePathname();
   const isActive = pathname === ROUTES.LOGIN;
@@ -64,7 +106,6 @@ function LoginNavLink({
     <Link
       href={ROUTES.LOGIN}
       suppressHydrationWarning
-      onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
       className={cn(
         buttonVariants({ variant: "outline", size: "default" }),
@@ -76,13 +117,7 @@ function LoginNavLink({
   );
 }
 
-function RegisterNavLink({
-  className,
-  onNavigate,
-}: {
-  className?: string;
-  onNavigate?: () => void;
-}) {
+function RegisterNavLink({ className }: { className?: string }) {
   const { t } = usePublicI18n();
   const pathname = usePathname();
   const isActive = pathname === ROUTES.REGISTER;
@@ -91,7 +126,6 @@ function RegisterNavLink({
     <Link
       href={ROUTES.REGISTER}
       suppressHydrationWarning
-      onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
       className={cn(buttonVariants({ variant: "default", size: "default" }), className)}
     >
@@ -103,47 +137,15 @@ function RegisterNavLink({
 function AuthNavActions({
   className,
   linkClassName,
-  onNavigate,
 }: {
   className?: string;
   linkClassName?: string;
-  onNavigate?: () => void;
 }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <LoginNavLink className={linkClassName} onNavigate={onNavigate} />
-      <RegisterNavLink className={linkClassName} onNavigate={onNavigate} />
+      <LoginNavLink className={linkClassName} />
+      <RegisterNavLink className={linkClassName} />
     </div>
-  );
-}
-
-function MobileNavLink({
-  href,
-  children,
-  onNavigate,
-}: {
-  href: string;
-  children: React.ReactNode;
-  onNavigate: () => void;
-}) {
-  const pathname = usePathname();
-  const isActive = pathname === href;
-
-  return (
-    <Link
-      href={href}
-      suppressHydrationWarning
-      onClick={onNavigate}
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        "rounded-lg px-3 py-3 text-base font-medium transition-colors",
-        isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-      )}
-    >
-      {children}
-    </Link>
   );
 }
 
@@ -152,182 +154,130 @@ function PrimaryNavLinks({ className }: { className?: string }) {
 
   return (
     <nav className={cn("flex items-center gap-1", className)} aria-label="Main">
-      <BrandNavLink href={ROUTES.HOME}>{t("nav.home")}</BrandNavLink>
-      <BrandNavLink href={ROUTES.ABOUT}>{t("nav.about")}</BrandNavLink>
-      <BrandNavLink href={ROUTES.CAREERS}>{t("nav.careers")}</BrandNavLink>
-      <BrandNavLink href={ROUTES.PROJECTS}>{t("nav.projects")}</BrandNavLink>
-      <BrandNavLink href={ROUTES.GALLERY}>{t("nav.gallery")}</BrandNavLink>
-      <BrandNavLink href={ROUTES.BLOGS}>{t("nav.blogs")}</BrandNavLink>
+      {PRIMARY_NAV_ITEMS.map((item) => (
+        <BrandNavLink key={item.href} href={item.href}>
+          {t(item.labelKey)}
+        </BrandNavLink>
+      ))}
     </nav>
   );
 }
 
-function NavbarShell({
-  desktopActions,
-  mobileMenu,
+function MobileBottomNavLink({
+  href,
+  label,
+  icon: Icon,
 }: {
-  desktopActions?: React.ReactNode;
-  mobileMenu?: React.ReactNode;
+  href: string;
+  label: string;
+  icon: LucideIcon;
 }) {
+  const pathname = usePathname();
+  const active = isNavActive(pathname, href);
+
+  return (
+    <Link
+      href={href}
+      suppressHydrationWarning
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium leading-tight transition-colors",
+        "outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+      )}
+    >
+      <Icon className="size-5 shrink-0" aria-hidden />
+      <span className="max-w-full truncate">{label}</span>
+    </Link>
+  );
+}
+
+function MobileBottomNav() {
   const { t } = usePublicI18n();
 
   return (
-    <header
-      className="pointer-events-none fixed inset-x-0 top-0 z-50"
+    <nav
+      aria-label={t("nav.navigate")}
+      className={cn(
+        "pointer-events-auto fixed inset-x-0 bottom-0 z-50 sm:hidden",
+        "border-t border-border bg-white/95 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur-md",
+        "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      )}
       style={{ zIndex: 100 }}
     >
-      {/* Desktop / tablet bar */}
-      <div className="flex justify-center max-sm:hidden">
-        <div
-          className={cn(
-            "pointer-events-auto grid h-14 w-[min(70vw,64rem)] min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:gap-3",
-            "rounded-bl-[1.75rem] rounded-br-[1.75rem] border border-t-0 border-border bg-white shadow-md",
-            "text-foreground"
-          )}
-        >
-          <Link
-            href={ROUTES.HOME}
-            suppressHydrationWarning
-            aria-label={t("brand.name")}
-            className="min-w-0 justify-self-start rounded-md transition-opacity hover:opacity-80"
-          >
-            <AppLogo height={26} priority />
-          </Link>
-          <PrimaryNavLinks className="min-w-0 justify-self-center" />
-          <div className="justify-self-end">{desktopActions}</div>
-        </div>
+      <div className="mx-auto flex h-16 max-w-lg items-stretch gap-0.5 px-1.5 pt-1">
+        {PRIMARY_NAV_ITEMS.map((item) => (
+          <MobileBottomNavLink
+            key={item.href}
+            href={item.href}
+            label={t(item.shortLabelKey)}
+            icon={item.icon}
+          />
+        ))}
       </div>
-
-      {/* Mobile: brand mark + menu icon */}
-      <div className="pointer-events-auto flex items-center justify-between px-3 pt-3 sm:hidden">
-        <Link
-          href={ROUTES.HOME}
-          suppressHydrationWarning
-          aria-label={t("brand.name")}
-          className="flex size-10 items-center justify-center rounded-xl border border-border bg-white shadow-sm"
-        >
-          <AppLogo shape="mark" height={22} priority />
-        </Link>
-        {mobileMenu}
-      </div>
-    </header>
+    </nav>
   );
 }
 
 export function SiteNavbarClient() {
-  const pathname = usePathname();
-  const mounted = useHydrated();
-  const { t, dir } = usePublicI18n();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [menuPathname, setMenuPathname] = useState(pathname);
-
-  if (pathname !== menuPathname) {
-    setMenuPathname(pathname);
-    if (isMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
-  }
-
-  const sheetSide = dir === "rtl" ? "left" : "right";
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
-
-  const mobileMenu = (
-    <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-      <SheetTrigger
-        render={
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label={t("nav.openMenu")}
-            className="size-10 rounded-xl border-border bg-white shadow-sm dark:bg-white"
-          />
-        }
-      >
-        <MenuIcon />
-      </SheetTrigger>
-      <SheetContent
-        side={sheetSide}
-        className={cn(
-          "w-[min(100%,18rem)] gap-0 p-0",
-          "duration-500 data-open:duration-500 data-closed:duration-500",
-          "ease-[cubic-bezier(0.22,1,0.36,1)]"
-        )}
-      >
-        <SheetHeader className="border-b border-border px-4 py-4 text-start">
-          <SheetTitle>
-            <AppLogo height={24} />
-          </SheetTitle>
-          <SheetDescription>{t("nav.navigate")}</SheetDescription>
-        </SheetHeader>
-        <div className="border-b border-border px-4 py-3">
-          <LanguageToggle />
-        </div>
-        <nav className="flex flex-col gap-1 p-3" aria-label="Mobile">
-          <MobileNavLink href={ROUTES.HOME} onNavigate={closeMobileMenu}>
-            {t("nav.home")}
-          </MobileNavLink>
-          <MobileNavLink href={ROUTES.ABOUT} onNavigate={closeMobileMenu}>
-            {t("nav.about")}
-          </MobileNavLink>
-          <MobileNavLink href={ROUTES.CAREERS} onNavigate={closeMobileMenu}>
-            {t("nav.careers")}
-          </MobileNavLink>
-          <MobileNavLink href={ROUTES.PROJECTS} onNavigate={closeMobileMenu}>
-            {t("nav.projects")}
-          </MobileNavLink>
-          <MobileNavLink href={ROUTES.GALLERY} onNavigate={closeMobileMenu}>
-            {t("nav.gallery")}
-          </MobileNavLink>
-          <MobileNavLink href={ROUTES.BLOGS} onNavigate={closeMobileMenu}>
-            {t("nav.blogs")}
-          </MobileNavLink>
-          <div className="mt-2 px-1">
-            <AuthNavActions
-              className="flex-col"
-              linkClassName="w-full justify-center"
-              onNavigate={closeMobileMenu}
-            />
-          </div>
-        </nav>
-      </SheetContent>
-    </Sheet>
-  );
-
-  if (!mounted) {
-    return (
-      <NavbarShell
-        desktopActions={
-          <div className="flex items-center gap-4" aria-hidden="true">
-            <LanguageToggle />
-            <AuthNavActions />
-          </div>
-        }
-        mobileMenu={
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label={t("nav.openMenu")}
-            className="size-10 rounded-xl border-border bg-white shadow-sm dark:bg-white"
-            disabled
-          >
-            <MenuIcon />
-          </Button>
-        }
-      />
-    );
-  }
+  const { t } = usePublicI18n();
 
   return (
-    <NavbarShell
-      desktopActions={
-        <div className="flex items-center gap-4">
-          <LanguageToggle />
-          <AuthNavActions />
+    <>
+      <header
+        className="pointer-events-none fixed inset-x-0 top-0 z-50"
+        style={{ zIndex: 100 }}
+      >
+        {/* Desktop / tablet bar */}
+        <div className="flex justify-center max-sm:hidden">
+          <div
+            className={cn(
+              "pointer-events-auto grid h-14 w-[min(70vw,64rem)] min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:gap-3",
+              "rounded-bl-[1.75rem] rounded-br-[1.75rem] border border-t-0 border-border bg-white shadow-md",
+              "text-foreground"
+            )}
+          >
+            <Link
+              href={ROUTES.HOME}
+              suppressHydrationWarning
+              aria-label={t("brand.name")}
+              className="min-w-0 justify-self-start rounded-md transition-opacity hover:opacity-80"
+            >
+              <AppLogo height={26} priority />
+            </Link>
+            <PrimaryNavLinks className="min-w-0 justify-self-center" />
+            <div className="justify-self-end">
+              <div className="flex items-center gap-4">
+                <LanguageToggle />
+                <AuthNavActions />
+              </div>
+            </div>
+          </div>
         </div>
-      }
-      mobileMenu={mobileMenu}
-    />
+
+        {/* Mobile: brand + language + auth */}
+        <div className="pointer-events-auto flex items-center justify-between gap-2 px-3 pt-3 sm:hidden">
+          <Link
+            href={ROUTES.HOME}
+            suppressHydrationWarning
+            aria-label={t("brand.name")}
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-white shadow-sm"
+          >
+            <AppLogo shape="mark" height={22} priority />
+          </Link>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <LanguageToggle className="bg-white shadow-sm" />
+            <AuthNavActions
+              className="gap-1.5"
+              linkClassName="h-9 rounded-xl px-2.5 text-xs shadow-sm"
+            />
+          </div>
+        </div>
+      </header>
+
+      <MobileBottomNav />
+    </>
   );
 }

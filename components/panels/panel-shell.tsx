@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { PERMISSIONS, type PermissionKey } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { flattenPanelNavItems } from "@/lib/panels/flatten-nav";
+import { cn } from "@/lib/utils";
 import type { PanelNavigation, PanelVariant } from "@/types/panel";
 
 type PanelShellProps = {
@@ -43,6 +44,7 @@ export function PanelShell({
 
   if (variant === "student" || variant === "teacher") {
     const isTeacher = variant === "teacher";
+    const isStudent = variant === "student";
 
     return (
       <PermissionsProvider permissions={permissions}>
@@ -58,8 +60,15 @@ export function PanelShell({
             menuId={isTeacher ? "teacher-panel-menu" : "student-panel-menu"}
             settingsHref={isTeacher ? ROUTES.TEACHER_SETTINGS : undefined}
             showTeacherSearch={isTeacher}
+            mobileNavMode={isStudent ? "bottom" : "hamburger"}
           />
-          <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+          <div
+            className={cn(
+              "flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto",
+              isStudent &&
+                "max-md:pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom)))]"
+            )}
+          >
             <div className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-4 p-4 md:p-6">
               {children}
             </div>

@@ -362,7 +362,7 @@ export const PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
   {
     key: PERMISSIONS.STUDENTS_UPDATE_OWN,
     feature: "students",
-    label: "Edit own username, name, birth date, phone, and password",
+    label: "Change own password",
     access: PERMISSION_ACCESS.WRITE,
   },
   {
