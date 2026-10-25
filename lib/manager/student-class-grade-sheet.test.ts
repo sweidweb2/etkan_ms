@@ -20,6 +20,7 @@ const classRow: ManagerClassRow = {
   enrollment_count: 10,
   teacher_count: 1,
   image_url: null,
+  card_gradient: "violet-aurora",
   created_at: "2026-01-01T00:00:00.000Z",
 };
 

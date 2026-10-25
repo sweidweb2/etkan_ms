@@ -436,7 +436,7 @@ export function ManageClassesPanel({
           ) : (
             <div
               className={cn(
-                "grid gap-4 sm:grid-cols-2 xl:grid-cols-3",
+                "grid w-full justify-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,16.5rem),16.5rem))]",
                 isLoading && "opacity-60"
               )}
             >

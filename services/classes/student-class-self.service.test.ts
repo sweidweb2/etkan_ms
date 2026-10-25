@@ -67,6 +67,7 @@ const classRow = {
   subject_name: "Mathematics",
   class_status: "in_progress" as const,
   image_url: null,
+  card_gradient: "violet-aurora",
   joined_at: "2026-09-01T00:00:00.000Z",
 };
 

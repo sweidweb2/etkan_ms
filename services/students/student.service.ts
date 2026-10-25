@@ -738,6 +738,7 @@ export async function listJoinedClassesForStudentManager(
         subject_name: classRow.subjects?.name ?? "—",
         class_status: mapClassStatus(classRow.status),
         image_url: classRow.image_url,
+        card_gradient: classRow.card_gradient,
         joined_at: enrollment.joined_at ?? "",
       },
     ];
@@ -792,6 +793,7 @@ export async function listJoinedClassesForStudentSelf(
         subject_name: classRow.subjects?.name ?? "—",
         class_status: mapClassStatus(classRow.status),
         image_url: classRow.image_url,
+        card_gradient: classRow.card_gradient,
         joined_at: enrollment.joined_at ?? "",
       },
     ];
@@ -845,6 +847,7 @@ export async function getJoinedClassForStudentSelf(
     subject_name: classRow.subjects?.name ?? "—",
     class_status: mapClassStatus(classRow.status),
     image_url: classRow.image_url,
+    card_gradient: classRow.card_gradient,
     joined_at: enrollment.joined_at ?? "",
   };
 }
