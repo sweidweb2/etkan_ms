@@ -5,7 +5,9 @@ export const en = {
 
   "nav.home": "Home",
   "nav.about": "About us",
+  "nav.aboutShort": "About",
   "nav.careers": "Careers",
+  "nav.careersShort": "Careers",
   "nav.projects": "Projects",
   "nav.gallery": "Gallery",
   "nav.blogs": "Blogs",

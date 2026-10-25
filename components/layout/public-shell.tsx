@@ -7,6 +7,7 @@ import { SiteNavbarClient } from "@/components/layout/site-navbar-client";
 import { PublicSplashCursor } from "@/components/public/public-splash-cursor";
 import { hidesPublicSiteChrome } from "@/lib/constants/routes";
 import { usePublicI18n } from "@/lib/i18n/public-i18n-provider";
+import { cn } from "@/lib/utils";
 
 type PublicShellProps = {
   children: ReactNode;
@@ -22,7 +23,16 @@ export function PublicShell({ children }: PublicShellProps) {
   const hideSiteChrome = hidesPublicSiteChrome(pathname);
 
   return (
-    <div dir={dir} lang={locale} className="relative flex min-h-dvh flex-col">
+    <div
+      dir={dir}
+      lang={locale}
+      className={cn(
+        "relative flex min-h-dvh flex-col",
+        hideSiteChrome
+          ? null
+          : "max-sm:pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom)))]"
+      )}
+    >
       {hideSiteChrome ? null : <SiteNavbarClient />}
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       {hideSiteChrome ? null : <SiteFooter />}

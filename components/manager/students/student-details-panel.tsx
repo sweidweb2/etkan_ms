@@ -4,11 +4,15 @@ import { DetailField } from "@/components/manager/shared/detail-field";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { FileTextIcon, KeyRoundIcon, PencilIcon } from "lucide-react";
+import {
+  FileTextIcon,
+  KeyRoundIcon,
+  LockIcon,
+  PencilIcon,
+} from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { EditStudentDialog } from "@/components/manager/students/edit-student-dialog";
 import { ChangeOwnPasswordDialog } from "@/components/student/change-own-password-dialog";
-import { EditOwnProfileDialog } from "@/components/student/edit-own-profile-dialog";
 import { StudentDetailsSectionNav } from "@/components/manager/students/student-details-section-nav";
 import { StudentJoinedClassesSection } from "@/components/manager/students/student-joined-classes-section";
 import { StudentDetailStatCard } from "@/components/manager/students/student-detail-stat-card";
@@ -22,7 +26,14 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerRegistrationDetailRoute,
@@ -46,7 +57,7 @@ type StudentDetailsPanelProps = {
   /** Streamed secondary panels (manager only). */
   borrowingSection?: ReactNode;
   activitySection?: ReactNode;
-  /** Student panel: same layout, mutations hidden (read-only). */
+  /** Student panel: locked personal info + password change only. */
   variant?: "manager" | "self";
 };
 
@@ -130,7 +141,7 @@ export function StudentDetailsPanel({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My profile</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your student details.
+            View your personal information and change your password.
           </p>
         </div>
       ) : (
@@ -161,26 +172,80 @@ export function StudentDetailsPanel({
           }}
         />
       ) : (
-        <>
-          <EditOwnProfileDialog
-            open={isEditOpen}
-            onOpenChange={setIsEditOpen}
-            student={student}
-            onStudentUpdated={(updatedStudent) => {
-              setStudent(updatedStudent);
-            }}
-          />
-          <ChangeOwnPasswordDialog
-            open={isPasswordOpen}
-            onOpenChange={setIsPasswordOpen}
-          />
-        </>
+        <ChangeOwnPasswordDialog
+          open={isPasswordOpen}
+          onOpenChange={setIsPasswordOpen}
+        />
       )}
 
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b bg-muted/40 py-3">
-          <CardTitle className="text-xl">{student.full_name}</CardTitle>
-          {!isSelf ? (
+      {isSelf ? (
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="gap-0 py-0">
+            <CardHeader className="border-b bg-muted/40 py-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <LockIcon className="size-4 shrink-0" aria-hidden />
+                Personal information
+              </CardTitle>
+              <CardDescription>
+                These details are managed by an administrator.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 pb-4 pt-3">
+              <div className="flex gap-2 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">
+                <LockIcon
+                  className="mt-0.5 size-3.5 shrink-0 opacity-80"
+                  aria-hidden
+                />
+                <p>
+                  To change your name or phone number, contact an administrator.
+                </p>
+              </div>
+              <dl className="grid gap-6 sm:grid-cols-2">
+                <DetailField label="Full name" value={student.full_name} />
+                <DetailField label="Phone" value={student.phone ?? "—"} />
+              </dl>
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 py-0">
+            <CardHeader className="border-b bg-muted/40 py-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <KeyRoundIcon className="size-4 shrink-0" aria-hidden />
+                Password
+              </CardTitle>
+              <CardDescription>
+                You can update your account password at any time.
+              </CardDescription>
+              <CardAction className="self-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsPasswordOpen(true)}
+                >
+                  <KeyRoundIcon data-icon="inline-start" />
+                  Change password
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="pb-4 pt-3">
+              <p className="text-sm text-muted-foreground">
+                Use a strong password you do not reuse elsewhere. If you forgot
+                your current password, contact{" "}
+                <a
+                  href="mailto:info@etkan.org"
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  info@etkan.org
+                </a>
+                .
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <Card className="gap-0 py-0">
+          <CardHeader className="border-b bg-muted/40 py-3">
+            <CardTitle className="text-xl">{student.full_name}</CardTitle>
             <CardAction className="flex flex-wrap items-center justify-end gap-2 self-center">
               {registrationApplicationId ? (
                 <Can permission={PERMISSIONS.REGISTRATIONS_VIEW}>
@@ -209,58 +274,36 @@ export function StudentDetailsPanel({
                 </Button>
               </Can>
             </CardAction>
-          ) : (
-            <CardAction className="flex items-center gap-2 self-center">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label="Edit profile"
-                onClick={() => setIsEditOpen(true)}
-              >
-                <PencilIcon />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label="Change password"
-                onClick={() => setIsPasswordOpen(true)}
-              >
-                <KeyRoundIcon />
-              </Button>
-            </CardAction>
-          )}
-        </CardHeader>
-        <CardContent className="pb-4 pt-2">
-          <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailField label="Full name" value={student.full_name} />
-            <DetailField label="Username" value={student.username ?? "—"} />
-            <DetailField label="Email" value={student.email} />
-            <DetailField label="Phone" value={student.phone ?? "—"} />
-            <DetailField
-              label="Birth date"
-              value={formatBirthDate(student.birth_date)}
-            />
-            <DetailField label="Status">
-              <StudentStatusBadge status={student.status} />
-            </DetailField>
-            <DetailField
-              label="Joined"
-              value={format(new Date(student.created_at), "MMM d, yyyy 'at' h:mm a")}
-            />
-            {!isSelf ? (
-              <>
-                <DetailField label="User ID" value={student.user_id} />
-                <DetailField
-                  label="Student profile ID"
-                  value={student.student_profile_id}
-                />
-              </>
-            ) : null}
-          </dl>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="pb-4 pt-2">
+            <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailField label="Full name" value={student.full_name} />
+              <DetailField label="Username" value={student.username ?? "—"} />
+              <DetailField label="Email" value={student.email} />
+              <DetailField label="Phone" value={student.phone ?? "—"} />
+              <DetailField
+                label="Birth date"
+                value={formatBirthDate(student.birth_date)}
+              />
+              <DetailField label="Status">
+                <StudentStatusBadge status={student.status} />
+              </DetailField>
+              <DetailField
+                label="Joined"
+                value={format(
+                  new Date(student.created_at),
+                  "MMM d, yyyy 'at' h:mm a"
+                )}
+              />
+              <DetailField label="User ID" value={student.user_id} />
+              <DetailField
+                label="Student profile ID"
+                value={student.student_profile_id}
+              />
+            </dl>
+          </CardContent>
+        </Card>
+      )}
 
       {!isSelf && stats ? <StudentAnalyticsCards stats={stats} /> : null}
 
