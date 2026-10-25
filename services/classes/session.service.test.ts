@@ -1423,29 +1423,6 @@ describe("deleteClassSessionForManager", () => {
     expect(sessionRepository.deleteSessionById).not.toHaveBeenCalled();
   });
 
-  it("blocks delete when session difficulty is set", async () => {
-    vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
-      data: {
-        ...sessionRecord,
-        group_grade_level: SESSION_GROUP_GRADE_LEVELS.MEDIUM,
-      },
-      error: null,
-    } as never);
-
-    const result = await deleteClassSessionForManager(
-      adminClient,
-      actor.userId,
-      actor,
-      sessionId
-    );
-
-    expect(result).toEqual({
-      success: false,
-      error: "Clear the session difficulty before deleting.",
-    });
-    expect(sessionRepository.deleteSessionById).not.toHaveBeenCalled();
-  });
-
   it("deletes the session, renumbers remaining sessions, and audits", async () => {
     vi.mocked(sessionRepository.findSessionById).mockResolvedValue({
       data: { ...sessionRecord, nb_order: 2 },

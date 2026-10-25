@@ -390,13 +390,6 @@ export async function deleteClassSessionForManager(
     return { success: false, error: structureGuard.error };
   }
 
-  if (session.group_grade_level) {
-    return {
-      success: false,
-      error: "Clear the session difficulty before deleting.",
-    };
-  }
-
   const { error: deleteError } = await sessionRepository.deleteSessionById(
     adminClient,
     sessionId
