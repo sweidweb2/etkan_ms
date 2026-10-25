@@ -198,25 +198,17 @@ export function SessionAttendanceBoard({
       setDrag(null);
       setHoverStatus(null);
 
-      if (!session || cancelled) {
-        return;
-      }
-
-      const attendee = attendees.find((row) => row.id === session.attendeeId);
-      if (!attendee) {
-        return;
-      }
-
-      // Click (no drag): present → absent shortcut
-      if (!session.started) {
-        if (session.fromStatus === "present") {
-          commitStatusChange(attendee, "absent");
-        }
+      if (!session || cancelled || !session.started) {
         return;
       }
 
       const nextStatus = findLaneStatusAtPoint(clientX, clientY);
       if (!nextStatus || nextStatus === session.fromStatus) {
+        return;
+      }
+
+      const attendee = attendees.find((row) => row.id === session.attendeeId);
+      if (!attendee) {
         return;
       }
 
@@ -403,6 +395,11 @@ export function SessionAttendanceBoard({
                         canDrag={canDrag}
                         isDragging={isSource}
                         onPointerDown={handleChipPointerDown}
+                        onMarkAbsent={
+                          canDrag && status === "present"
+                            ? () => commitStatusChange(attendee, "absent")
+                            : undefined
+                        }
                       />
                     );
                   })
@@ -444,6 +441,7 @@ function AttendanceNameChip({
   canDrag,
   isDragging,
   onPointerDown,
+  onMarkAbsent,
 }: {
   attendee: ManagerSessionAttendeeRow;
   status: AttendeeStatusValue;
@@ -454,16 +452,14 @@ function AttendanceNameChip({
     event: ReactPointerEvent<HTMLButtonElement>,
     attendee: ManagerSessionAttendeeRow
   ) => void;
+  onMarkAbsent?: () => void;
 }) {
   const label = SESSION_ATTENDEE_STATUS_LABELS[status];
-  const clickMarksAbsent = canDrag && status === "present";
   const title = locked
     ? STUDENT_COMPUTED_GRADE_RECORD_LOCKED_ERROR
-    : clickMarksAbsent
-      ? `Click to mark absent · drag to change status · ${attendee.full_name}`
-      : canDrag
-        ? `Drag to change status · ${attendee.full_name}`
-        : `${attendee.full_name} · ${label}`;
+    : canDrag
+      ? `Drag to change status · ${attendee.full_name}`
+      : `${attendee.full_name} · ${label}`;
 
   if (!canDrag) {
     return (
@@ -487,25 +483,48 @@ function AttendanceNameChip({
   }
 
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={
-        clickMarksAbsent
-          ? `Attendance for ${attendee.full_name}: ${label}. Click to mark absent, or drag to another status.`
-          : `Attendance for ${attendee.full_name}: ${label}. Drag to another status.`
-      }
-      aria-grabbed={isDragging}
-      onPointerDown={(event) => onPointerDown(event, attendee)}
+    <div
       className={cn(
-        "inline-flex w-full touch-none select-none items-center truncate rounded-md px-2.5 py-1.5 text-left text-sm font-medium",
-        "cursor-grab active:cursor-grabbing",
-        "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "inline-flex w-full items-center gap-0.5 rounded-md",
         SESSION_ATTENDEE_STATUS_ACTIVE_CLASSES[status],
         isDragging && "opacity-35"
       )}
     >
-      <span className="truncate">{attendee.full_name}</span>
-    </button>
+      <button
+        type="button"
+        title={title}
+        aria-label={`Attendance for ${attendee.full_name}: ${label}. Drag to another status.`}
+        aria-grabbed={isDragging}
+        onPointerDown={(event) => onPointerDown(event, attendee)}
+        className={cn(
+          "min-w-0 flex-1 touch-none select-none truncate rounded-md px-2.5 py-1.5 text-left text-sm font-medium",
+          "cursor-grab active:cursor-grabbing",
+          "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        )}
+      >
+        <span className="truncate">{attendee.full_name}</span>
+      </button>
+      {onMarkAbsent ? (
+        <button
+          type="button"
+          title={`Mark ${attendee.full_name} absent`}
+          aria-label={`Mark ${attendee.full_name} absent`}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onMarkAbsent();
+          }}
+          className={cn(
+            "mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-md",
+            "text-current/80 hover:bg-foreground/10 hover:text-current",
+            "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          )}
+        >
+          <XIcon className="size-3.5" aria-hidden />
+        </button>
+      ) : null}
+    </div>
   );
 }

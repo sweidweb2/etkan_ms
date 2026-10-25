@@ -256,8 +256,8 @@ export function SessionDetailsActions({
           <div>
             <h3 className="text-sm font-medium">Attendance</h3>
             <p className="text-xs text-muted-foreground">
-              Drag students between lanes, or click a present name to mark
-              absent.
+              Drag students between status lanes to update attendance. Use the
+              × on a present student to mark them absent.
             </p>
           </div>
         </div>

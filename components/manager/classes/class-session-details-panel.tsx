@@ -39,7 +39,6 @@ import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
   DeleteClassSessionActionState,
   ManagerSessionAttendeeRow,
-  ManagerSessionTaskRow,
 } from "@/types/manager-class-session-detail";
 import type { ManagerSessionPhaseLink } from "@/types/manager-session-phase-link";
 
@@ -53,7 +52,6 @@ type ClassSessionDetailsPanelProps = {
   };
   linkedPhase?: ManagerSessionPhaseLink | null;
   phaseOptions?: ManagerSessionPhaseLink[];
-  initialTasks?: ManagerSessionTaskRow[];
   initialAttendees: ManagerSessionAttendeeRow[];
   hasComputedGrades?: boolean;
   lockedUserIds?: string[];
@@ -75,10 +73,6 @@ const initialDeleteState: DeleteClassSessionActionState = {};
 
 const DELETE_SESSION_FLOW_STEPS = [
   {
-    id: "group-grade",
-    label: "Checking group grade for this session…",
-  },
-  {
     id: "attendees",
     label: "Deleting attendees related to this session…",
   },
@@ -92,25 +86,11 @@ const DELETE_SESSION_FLOW_STEPS = [
   },
 ] as const;
 
-function getDeleteBlockedReason({
-  hasComputedGrades,
-  hasGroupGrade,
-  hasTasks,
-}: {
-  hasComputedGrades: boolean;
-  hasGroupGrade: boolean;
-  hasTasks: boolean;
-}): string | undefined {
+function getDeleteBlockedReason(
+  hasComputedGrades: boolean
+): string | undefined {
   if (hasComputedGrades) {
     return CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR;
-  }
-
-  if (hasGroupGrade) {
-    return "Clear the session difficulty before deleting.";
-  }
-
-  if (hasTasks) {
-    return "Delete or reassign session tasks before deleting the session.";
   }
 
   return undefined;
@@ -121,7 +101,6 @@ export function ClassSessionDetailsPanel({
   classRow,
   linkedPhase: initialLinkedPhase = null,
   phaseOptions = [],
-  initialTasks = [],
   initialAttendees,
   hasComputedGrades = false,
   lockedUserIds = [],
@@ -167,13 +146,7 @@ export function ClassSessionDetailsPanel({
     classDetailHref: getManagerClassDetailRoute(classRow.id),
   };
 
-  const groupGradeLevel = session.group_grade_level;
-  const hasTasks = initialTasks.length > 0;
-  const deleteBlockedReason = getDeleteBlockedReason({
-    hasComputedGrades,
-    hasGroupGrade: groupGradeLevel != null,
-    hasTasks,
-  });
+  const deleteBlockedReason = getDeleteBlockedReason(hasComputedGrades);
   const isDeleteDisabled = deleteBlockedReason != null;
   const actionSize = embedded ? "sm" : "default";
   const actionVariant = embedded ? "outline" : "default";
@@ -346,7 +319,7 @@ export function ClassSessionDetailsPanel({
         linkedPhase={hidePhase ? null : linkedPhase}
         phaseOptions={hidePhase ? [] : phaseOptions}
         defaultPhaseId={classRow.semester_id}
-        groupGradeLevel={groupGradeLevel}
+        groupGradeLevel={session.group_grade_level}
         sessionReport={session.session_report}
         hasComputedGrades={hasComputedGrades}
         attendees={attendees}
