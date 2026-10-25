@@ -50,3 +50,20 @@ export function sortClassSessionsNewestFirst(
     );
   });
 }
+
+/** S1, S2, S3… — ascending by `nb_order`, then by start time. */
+export function sortClassSessionsOldestFirst(
+  sessions: ManagerClassSessionRow[]
+): ManagerClassSessionRow[] {
+  return [...sessions].sort((left, right) => {
+    const orderCompare = left.nb_order - right.nb_order;
+
+    if (orderCompare !== 0) {
+      return orderCompare;
+    }
+
+    return (
+      new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime()
+    );
+  });
+}

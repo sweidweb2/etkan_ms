@@ -1,16 +1,11 @@
 "use client";
 
-import { DetailField } from "@/components/manager/shared/detail-field";
-import Link from "next/link";
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { format, formatDistanceStrict } from "date-fns";
 import { PencilIcon, Trash2Icon, XIcon } from "lucide-react";
 import { deleteClassSessionAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
 import { EditClassSessionDialog } from "@/components/manager/classes/edit-class-session-dialog";
 import { SessionDetailsActions } from "@/components/manager/classes/session-details-actions";
-import { SessionDetailsTabsSection } from "@/components/manager/classes/session-details-tabs-section";
-import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { PendingFlowChecklist } from "@/components/loaders/pending-flow-checklist";
 import {
@@ -30,27 +25,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { COLLAPSIBLE_SECTION_STORAGE_KEYS } from "@/lib/constants/collapsible-section-storage";
-import {
-  SESSION_TIMING_BADGE_CLASSES,
-  SESSION_TIMING_LABELS,
-} from "@/lib/constants/manager-class-session-display";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { SESSION_GROUP_GRADE_LEVEL_LABELS } from "@/lib/constants/manager-session-group-grade-display";
 import { CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR } from "@/lib/manager/class-grades-access";
 import {
   getManagerClassDetailRoute,
-  getManagerSemesterDetailRoute,
   ROUTES,
 } from "@/lib/constants/routes";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
 import { useStagedPendingProgress } from "@/hooks/use-staged-pending-progress";
 import { cn } from "@/lib/utils";
-import {
-  getSessionTimingLabel,
-  type ManagerClassSessionRow,
-} from "@/types/manager-class-session";
+import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import type {
   DeleteClassSessionActionState,
   ManagerSessionAttendeeRow,
@@ -84,8 +69,6 @@ type ClassSessionDetailsPanelProps = {
   onSessionUpdated?: (session: ManagerClassSessionRow) => void;
   /** Hide phase linking UI (teacher embedded). */
   hidePhase?: boolean;
-  /** Tabs mode — attendance-only for teacher embedded. */
-  tabsMode?: "full" | "attendance";
 };
 
 const initialDeleteState: DeleteClassSessionActionState = {};
@@ -147,7 +130,6 @@ export function ClassSessionDetailsPanel({
   onClose,
   onSessionUpdated,
   hidePhase = false,
-  tabsMode = "full",
 }: ClassSessionDetailsPanelProps) {
   const [session, setSession] = useState(initialSession);
   const [attendees, setAttendees] = useState(initialAttendees);
@@ -185,26 +167,6 @@ export function ClassSessionDetailsPanel({
     classDetailHref: getManagerClassDetailRoute(classRow.id),
   };
 
-  const timingLabel = getSessionTimingLabel(session);
-  const timingText = SESSION_TIMING_LABELS[timingLabel];
-  const timingClassName =
-    SESSION_TIMING_BADGE_CLASSES[timingLabel] ??
-    "bg-muted text-muted-foreground";
-  const startsAt = new Date(session.starts_at);
-  const endsAt = new Date(session.ends_at);
-  const startsText = format(
-    startsAt,
-    embedded ? "MMM d, yyyy · h:mm a" : "MMM d, yyyy 'at' h:mm a"
-  );
-  const endsText = format(
-    endsAt,
-    embedded ? "MMM d, yyyy · h:mm a" : "MMM d, yyyy 'at' h:mm a"
-  );
-  const createdText = format(
-    new Date(session.created_at),
-    embedded ? "MMM d, yyyy" : "MMM d, yyyy 'at' h:mm a"
-  );
-  const durationText = formatDistanceStrict(startsAt, endsAt);
   const groupGradeLevel = session.group_grade_level;
   const hasTasks = initialTasks.length > 0;
   const deleteBlockedReason = getDeleteBlockedReason({
@@ -215,6 +177,7 @@ export function ClassSessionDetailsPanel({
   const isDeleteDisabled = deleteBlockedReason != null;
   const actionSize = embedded ? "sm" : "default";
   const actionVariant = embedded ? "outline" : "default";
+  const sessionLabel = `S${session.nb_order} · ${session.topic}`;
 
   function handleSessionUpdated(next: ManagerClassSessionRow) {
     setSession(next);
@@ -230,74 +193,54 @@ export function ClassSessionDetailsPanel({
     });
   }
 
+  const sessionMutationActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      <Can permission={PERMISSIONS.SESSIONS_UPDATE}>
+        <Button
+          type="button"
+          variant={actionVariant}
+          size={actionSize}
+          disabled={hasComputedGrades}
+          title={
+            hasComputedGrades
+              ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
+              : undefined
+          }
+          onClick={() => setIsEditOpen(true)}
+        >
+          <PencilIcon data-icon="inline-start" />
+          {embedded ? "Edit" : "Edit session"}
+        </Button>
+      </Can>
+      <Can permission={PERMISSIONS.SESSIONS_DELETE}>
+        <Button
+          type="button"
+          variant="destructive"
+          size={actionSize}
+          disabled={isDeleteDisabled || isDeleteActionPending}
+          title={deleteBlockedReason}
+          onClick={() => setIsDeleteOpen(true)}
+        >
+          <Trash2Icon data-icon="inline-start" />
+          {embedded ? "Delete" : "Delete session"}
+        </Button>
+      </Can>
+    </div>
+  );
+
   return (
     <div className={cn("flex flex-col", embedded ? "gap-4" : "gap-6")}>
-      {embedded ? null : (
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={nav.classesListHref} prefetch={false}>
-                {nav.classesListLabel}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href={nav.classDetailHref} prefetch={false}>
-                {classRow.name}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>
-                S{session.nb_order} · {session.topic}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      )}
-
-      <ClassTabCollapsibleSection
-        title={`S${session.nb_order} · ${session.topic}`}
-        description={
-          hidePhase
-            ? "Session overview, timing, report, and group grade."
-            : "Session overview, timing, phase link, and group grade."
-        }
-        storageKey={COLLAPSIBLE_SECTION_STORAGE_KEYS.SESSION_DETAILS_INFO}
-        defaultOpen
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Can permission={PERMISSIONS.SESSIONS_UPDATE}>
-              <Button
-                type="button"
-                variant={actionVariant}
-                size={actionSize}
-                disabled={hasComputedGrades}
-                title={
-                  hasComputedGrades
-                    ? CLASS_COMPUTED_GRADES_STRUCTURE_LOCKED_ERROR
-                    : undefined
-                }
-                onClick={() => setIsEditOpen(true)}
-              >
-                <PencilIcon data-icon="inline-start" />
-                {embedded ? "Edit" : "Edit session"}
-              </Button>
-            </Can>
-            <Can permission={PERMISSIONS.SESSIONS_DELETE}>
-              <Button
-                type="button"
-                variant="destructive"
-                size={actionSize}
-                disabled={isDeleteDisabled || isDeleteActionPending}
-                title={deleteBlockedReason}
-                onClick={() => setIsDeleteOpen(true)}
-              >
-                <Trash2Icon data-icon="inline-start" />
-                {embedded ? "Delete" : "Delete session"}
-              </Button>
-            </Can>
-            {embedded && onClose ? (
+      {embedded ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-semibold">{sessionLabel}</h2>
+            <p className="truncate text-xs text-muted-foreground">
+              {classRow.name}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {sessionMutationActions}
+            {onClose ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -310,94 +253,31 @@ export function ClassSessionDetailsPanel({
               </Button>
             ) : null}
           </div>
-        }
-      >
-        <div className="px-4 pt-2 pb-4">
-          <dl
-            className={cn(
-              "grid sm:grid-cols-2 lg:grid-cols-3",
-              embedded ? "gap-x-6 gap-y-5" : "gap-6"
-            )}
-          >
-            <DetailField label="Topic" value={session.topic} />
-            {embedded ? null : (
-              <DetailField
-                label="Session report"
-                className="sm:col-span-2 lg:col-span-3 whitespace-pre-wrap"
-                value={
-                  session.session_report?.trim() ? session.session_report : "—"
-                }
-              />
-            )}
-            <DetailField label="Order" value={`S${session.nb_order}`} />
-            <DetailField label="Timing">
-              <span
-                className={cn(
-                  "inline-flex w-fit rounded-md px-2 py-0.5 text-xs font-medium capitalize",
-                  timingClassName
-                )}
-              >
-                {timingText}
-              </span>
-            </DetailField>
-            <DetailField label="Starts at" value={startsText} />
-            <DetailField label="Ends at" value={endsText} />
-            <DetailField label="Duration" value={durationText} />
-            <DetailField label="Class">
-              {embedded ? (
-                classRow.name
-              ) : (
-                <Link
-                  href={nav.classDetailHref}
-                  prefetch={false}
-                  className="text-primary underline-offset-4 hover:underline"
-                >
-                  {classRow.name}
-                </Link>
-              )}
-            </DetailField>
-            {embedded ? null : (
-              <DetailField
-                label="Session ID"
-                value={session.id}
-                className="font-mono text-xs"
-              />
-            )}
-            <DetailField label="Created" value={createdText} />
-            {hidePhase ? null : (
-              <DetailField label="Phase">
-                {linkedPhase ? (
-                  <Link
-                    href={getManagerSemesterDetailRoute(linkedPhase.phase_id)}
-                    className="text-primary underline-offset-4 hover:underline"
-                  >
-                    {linkedPhase.phase_name}
-                  </Link>
-                ) : (
-                  "Not linked"
-                )}
-              </DetailField>
-            )}
-            <DetailField
-              label="Group grade"
-              value={
-                groupGradeLevel
-                  ? SESSION_GROUP_GRADE_LEVEL_LABELS[groupGradeLevel]
-                  : "Not set"
-              }
-            />
-            {embedded ? (
-              <DetailField
-                label="Session report"
-                className="sm:col-span-2 lg:col-span-3 whitespace-pre-wrap"
-                value={
-                  session.session_report?.trim() ? session.session_report : "—"
-                }
-              />
-            ) : null}
-          </dl>
         </div>
-      </ClassTabCollapsibleSection>
+      ) : (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href={nav.classesListHref} prefetch={false}>
+                  {nav.classesListLabel}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink href={nav.classDetailHref} prefetch={false}>
+                  {classRow.name}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{sessionLabel}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          {sessionMutationActions}
+        </div>
+      )}
 
       <EditClassSessionDialog
         open={isEditOpen}
@@ -418,7 +298,7 @@ export function ClassSessionDetailsPanel({
             <DialogDescription>
               {isDeleteActionPending
                 ? "Please wait while this session is removed."
-                : `This will permanently delete S${session.nb_order} · ${session.topic} and its attendance records. Remaining sessions will be renumbered.${
+                : `This will permanently delete ${sessionLabel} and its attendance records. Remaining sessions will be renumbered.${
                     embedded ? "" : " This action cannot be undone."
                   }`}
             </DialogDescription>
@@ -449,8 +329,10 @@ export function ClassSessionDetailsPanel({
                   <InlineSpinner />
                   Deleting{embedded ? "" : " session"}
                 </>
+              ) : embedded ? (
+                "Delete"
               ) : (
-                embedded ? "Delete" : "Delete session"
+                "Delete session"
               )}
             </Button>
           </DialogFooter>
@@ -458,6 +340,7 @@ export function ClassSessionDetailsPanel({
       </Dialog>
 
       <SessionDetailsActions
+        key={session.id}
         classId={classRow.id}
         sessionId={session.id}
         linkedPhase={hidePhase ? null : linkedPhase}
@@ -466,6 +349,13 @@ export function ClassSessionDetailsPanel({
         groupGradeLevel={groupGradeLevel}
         sessionReport={session.session_report}
         hasComputedGrades={hasComputedGrades}
+        attendees={attendees}
+        lockedUserIds={lockedUserIds}
+        onAttendeeUpdated={(attendee) => {
+          setAttendees((current) =>
+            current.map((row) => (row.id === attendee.id ? attendee : row))
+          );
+        }}
         hidePhase={hidePhase}
         onSettingsUpdated={(nextSession, nextLinkedPhase) => {
           handleSessionUpdated(nextSession);
@@ -473,17 +363,6 @@ export function ClassSessionDetailsPanel({
             setLinkedPhase(nextLinkedPhase);
           }
         }}
-      />
-
-      <SessionDetailsTabsSection
-        key={session.id}
-        classId={classRow.id}
-        sessionId={session.id}
-        sessionLabel={`S${session.nb_order} · ${session.topic}`}
-        initialTasks={initialTasks}
-        initialAttendees={attendees}
-        lockedUserIds={lockedUserIds}
-        mode={tabsMode}
       />
     </div>
   );

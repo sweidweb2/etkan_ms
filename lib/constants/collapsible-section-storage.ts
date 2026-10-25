@@ -11,10 +11,6 @@ export const COLLAPSIBLE_SECTION_STORAGE_KEYS = {
   CLASS_DETAILS_SESSION_PROGRESS:
     "etkan:collapsible:class-details:session-progress",
   CLASS_DETAILS_ANALYTICS: "etkan:collapsible:class-details:analytics",
-  SESSION_DETAILS_INFO: "etkan:collapsible:session-details:info",
-  SESSION_DETAILS_SETTINGS: "etkan:collapsible:session-details:settings",
-  SESSION_DETAILS_TASKS_ATTENDEE:
-    "etkan:collapsible:session-details:tasks-attendee",
   ACCOUNTING_OVERVIEW: "etkan:collapsible:accounting:overview",
   ACCOUNTING_OPEN_PHASES_TIMELINE:
     "etkan:collapsible:accounting:open-phases-timeline",

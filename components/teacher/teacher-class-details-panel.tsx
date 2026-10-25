@@ -10,7 +10,14 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { RefreshCwIcon } from "lucide-react";
+import {
+  CalendarDaysIcon,
+  ChartColumnIcon,
+  ClipboardListIcon,
+  LayoutDashboardIcon,
+  MousePointerClickIcon,
+  RefreshCwIcon,
+} from "lucide-react";
 import {
   loadTeacherClassSessionDetailAction,
   type TeacherClassSessionInlineDetail,
@@ -93,14 +100,14 @@ type TeacherClassDetailsPanelProps = {
 const TABS = TEACHER_CLASS_DETAIL_TABS;
 
 const CLASS_TABS = [
-  { value: TABS.MAIN, label: "Main" },
-  { value: TABS.SESSIONS, label: "Sessions" },
-  { value: TABS.TASKS, label: "Tasks" },
-  { value: TABS.ANALYTICS, label: "Analytics" },
+  { value: TABS.MAIN, label: "Main", icon: LayoutDashboardIcon },
+  { value: TABS.SESSIONS, label: "Sessions", icon: CalendarDaysIcon },
+  { value: TABS.TASKS, label: "Tasks", icon: ClipboardListIcon },
+  { value: TABS.ANALYTICS, label: "Analytics", icon: ChartColumnIcon },
 ] as const;
 
 const TAB_TRIGGER_CLASS =
-  "rounded-md px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 hover:bg-primary/6 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-primary/20 data-[state=active]:hover:bg-primary/12 data-[state=active]:hover:text-primary";
+  "inline-flex items-center justify-center gap-1.5 rounded-md border border-transparent px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 hover:bg-primary/6 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:border-primary/20 data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary/12 data-[state=active]:hover:text-primary";
 
 export function TeacherClassDetailsPanel({
   classRow: initialClassRow,
@@ -308,15 +315,19 @@ export function TeacherClassDetailsPanel({
 
       <Tabs value={tab} onValueChange={handleTabChange} className="gap-4">
         <TabsListPrimitive className="grid w-full grid-cols-4 gap-1 self-start rounded-lg border border-border/70 bg-secondary/80 p-1 sm:w-fit sm:min-w-[24rem]">
-          {CLASS_TABS.map((item) => (
-            <TabsTriggerPrimitive
-              key={item.value}
-              value={item.value}
-              className={TAB_TRIGGER_CLASS}
-            >
-              {item.label}
-            </TabsTriggerPrimitive>
-          ))}
+          {CLASS_TABS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <TabsTriggerPrimitive
+                key={item.value}
+                value={item.value}
+                className={TAB_TRIGGER_CLASS}
+              >
+                <Icon data-icon="inline-start" />
+                {item.label}
+              </TabsTriggerPrimitive>
+            );
+          })}
         </TabsListPrimitive>
 
         <TabsContents>
@@ -325,10 +336,10 @@ export function TeacherClassDetailsPanel({
               <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
+                <CardHeader className="border-b border-border/50 bg-muted/25 px-5 py-4">
                   <CardTitle className="text-base">Class</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 py-4 text-sm">
+                <CardContent className="space-y-2 px-5 py-5 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Subject</span>
                     <span className="text-right">{classRow.subject_name}</span>
@@ -349,10 +360,10 @@ export function TeacherClassDetailsPanel({
               </Card>
 
               <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
+                <CardHeader className="border-b border-border/50 bg-muted/25 px-5 py-4">
                   <CardTitle className="text-base">Semester</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 py-4 text-sm">
+                <CardContent className="space-y-2 px-5 py-5 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Linked semester</span>
                     <span className="text-right font-medium">
@@ -366,10 +377,10 @@ export function TeacherClassDetailsPanel({
               </Card>
 
               <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.18)]">
-                <CardHeader className="border-b border-border/50 bg-muted/25 py-3">
+                <CardHeader className="border-b border-border/50 bg-muted/25 px-5 py-4">
                   <CardTitle className="text-base">Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 py-4 text-sm">
+                <CardContent className="space-y-2 px-5 py-5 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Sessions</span>
                     <span className="tabular-nums">{sessions.length}</span>
@@ -412,6 +423,7 @@ export function TeacherClassDetailsPanel({
                   hasComputedGrades={hasComputedGrades}
                   selectedSessionId={selectedSessionId}
                   onSessionSelect={handleSessionSelect}
+                  collapsible={false}
                 />
 
                 {selectedSessionId ? (
@@ -435,7 +447,6 @@ export function TeacherClassDetailsPanel({
                         }}
                         embedded
                         hidePhase
-                        tabsMode="attendance"
                         onClose={handleCloseSessionDetail}
                         onSessionUpdated={handleInlineSessionUpdated}
                       />
@@ -445,6 +456,25 @@ export function TeacherClassDetailsPanel({
                         Loading session…
                       </div>
                     )}
+                  </div>
+                ) : sessions.length > 0 ? (
+                  <div
+                    role="status"
+                    className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-border/80 bg-card/70 px-6 py-16 text-center"
+                  >
+                    <div
+                      className="relative flex size-[4.5rem] items-center justify-center"
+                      aria-hidden
+                    >
+                      <div className="absolute inset-1 rounded-xl border border-border/70 bg-muted/50 shadow-sm" />
+                      <div className="absolute inset-x-3.5 top-3.5 h-1.5 rounded-full bg-muted-foreground/20" />
+                      <div className="absolute inset-x-3.5 top-6.5 h-1.5 w-[45%] rounded-full bg-muted-foreground/12" />
+                      <span className="absolute right-0.5 bottom-0.5 size-9 animate-ping rounded-full bg-primary/15" />
+                      <MousePointerClickIcon className="relative z-10 mt-5 ml-7 size-8 text-primary drop-shadow-sm" />
+                    </div>
+                    <p className="max-w-[18rem] text-sm text-muted-foreground">
+                      Click on a session to see details!
+                    </p>
                   </div>
                 ) : null}
               </>

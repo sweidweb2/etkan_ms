@@ -41,7 +41,7 @@ export function GradientGlassCard({
       id={id}
       className={cn(
         "group/gradient-glass relative flex flex-col overflow-hidden rounded-2xl",
-        "bg-card text-card-foreground ring-1 ring-foreground/10",
+        "border border-foreground/10 bg-card text-card-foreground",
         "shadow-[0_16px_36px_-24px_rgb(42_42_82/0.45)]",
         "transition-[transform,box-shadow] duration-300 ease-out",
         "hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-20px_rgb(42_42_82/0.4)]",

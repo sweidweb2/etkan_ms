@@ -447,7 +447,7 @@ describe("addStudentToClassForManager final exam grade", () => {
     }
   });
 
-  it("seeds absent attendee rows with late-join note for existing sessions", async () => {
+  it("seeds absent attendee rows for existing sessions on late join", async () => {
     const result = await addStudentToClassForManager(
       adminClient,
       actor.userId,

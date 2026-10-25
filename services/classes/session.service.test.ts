@@ -180,7 +180,6 @@ describe("getSessionDetailForManager", () => {
           session_id: sessionId,
           student_id: studentA,
           status: ATTENDEE_STATUSES.PRESENT,
-          note: null,
           created_at: "2026-07-10T00:00:00.000Z",
         },
         {
@@ -188,7 +187,6 @@ describe("getSessionDetailForManager", () => {
           session_id: sessionId,
           student_id: studentB,
           status: ATTENDEE_STATUSES.PRESENT,
-          note: null,
           created_at: "2026-07-10T00:00:01.000Z",
         },
       ],
@@ -679,14 +677,13 @@ describe("updateAttendeeForManager", () => {
     mockUnlockedComputedGrades();
   });
 
-  it("updates attendance status and preserves note when omitted", async () => {
+  it("updates attendance status", async () => {
     vi.mocked(attendeeRepository.findAttendeeById).mockResolvedValue({
       data: {
         id: attendeeId,
         session_id: sessionId,
         student_id: studentA,
         status: ATTENDEE_STATUSES.PRESENT,
-        note: "Arrived early",
         created_at: "2026-07-10T00:00:00.000Z",
       },
       error: null,
@@ -701,7 +698,6 @@ describe("updateAttendeeForManager", () => {
         session_id: sessionId,
         student_id: studentA,
         status: ATTENDEE_STATUSES.ABSENT,
-        note: "Arrived early",
         created_at: "2026-07-10T00:00:00.000Z",
       },
       error: null,
@@ -729,7 +725,7 @@ describe("updateAttendeeForManager", () => {
     expect(attendeeRepository.updateAttendee).toHaveBeenCalledWith(
       adminClient,
       attendeeId,
-      { status: ATTENDEE_STATUSES.ABSENT, note: "Arrived early" }
+      { status: ATTENDEE_STATUSES.ABSENT }
     );
     expect(result.success).toBe(true);
   });
@@ -741,7 +737,6 @@ describe("updateAttendeeForManager", () => {
         session_id: sessionId,
         student_id: studentA,
         status: ATTENDEE_STATUSES.PRESENT,
-        note: null,
         created_at: "2026-07-10T00:00:00.000Z",
       },
       error: null,

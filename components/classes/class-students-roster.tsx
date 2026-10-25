@@ -78,7 +78,7 @@ export function ClassStudentsRoster({
         className={cn(
           "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
           variant === "card"
-            ? "border-b border-border/50 bg-muted/25 px-4 py-3"
+            ? "border-b border-border/50 bg-muted/25 px-5 py-4"
             : "mb-3"
         )}
       >

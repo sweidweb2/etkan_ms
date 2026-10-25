@@ -7,14 +7,13 @@ import type { Database } from "@/types/supabase";
 type Supabase = SupabaseClient<Database>;
 
 const ATTENDEE_COLUMNS =
-  "id, session_id, student_id, status, note, created_at";
+  "id, session_id, student_id, status, created_at";
 
 export type AttendeeRecord = {
   id: string;
   session_id: string;
   student_id: string;
   status: AttendeeStatusValue;
-  note: string | null;
   created_at: string;
 };
 
@@ -22,12 +21,10 @@ export type CreateAttendeeInput = {
   session_id: string;
   student_id: string;
   status?: AttendeeStatusValue;
-  note?: string | null;
 };
 
 export type UpdateAttendeeInput = {
   status: AttendeeStatusValue;
-  note?: string | null;
 };
 
 export async function listAttendeesBySessionIds(
@@ -138,7 +135,6 @@ export async function createAttendees(
         session_id: row.session_id,
         student_id: row.student_id,
         status: row.status ?? "present",
-        note: row.note ?? null,
       }))
     )
     .select(ATTENDEE_COLUMNS);
@@ -153,7 +149,6 @@ export async function updateAttendee(
     .from("attendee")
     .update({
       status: input.status,
-      note: input.note ?? null,
     })
     .eq("id", id)
     .select(ATTENDEE_COLUMNS)

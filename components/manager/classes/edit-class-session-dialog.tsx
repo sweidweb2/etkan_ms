@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -62,6 +63,8 @@ export function EditClassSessionDialog({
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useZodForm({
     schema: updateClassSessionSchema,
@@ -73,6 +76,9 @@ export function EditClassSessionDialog({
       ends_at: toSchoolDateTimeLocalValue(session.ends_at),
     },
   });
+
+  const startsAt = watch("starts_at");
+  const endsAt = watch("ends_at");
 
   useEffect(() => {
     if (!open) {
@@ -182,12 +188,17 @@ export function EditClassSessionDialog({
               label="Starts at"
               hint="Required"
             />
-            <Input
+            <DateTimePicker
               id="edit-class-session-starts-at"
-              type="datetime-local"
+              value={startsAt}
+              onChange={(next) =>
+                setValue("starts_at", next, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
               aria-invalid={!!startsError}
               disabled={isPending}
-              {...register("starts_at")}
             />
             {startsError ? (
               <p className="text-sm text-destructive">{startsError}</p>
@@ -200,12 +211,17 @@ export function EditClassSessionDialog({
               label="Ends at"
               hint="Required"
             />
-            <Input
+            <DateTimePicker
               id="edit-class-session-ends-at"
-              type="datetime-local"
+              value={endsAt}
+              onChange={(next) =>
+                setValue("ends_at", next, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
               aria-invalid={!!endsError}
               disabled={isPending}
-              {...register("ends_at")}
             />
             {endsError ? (
               <p className="text-sm text-destructive">{endsError}</p>

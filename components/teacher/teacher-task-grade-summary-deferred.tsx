@@ -13,7 +13,7 @@ type TeacherTaskGradeSummaryDeferredProps = {
 function TeacherTaskGradeSummaryFallback() {
   return (
     <div
-      className="min-h-[10rem] max-w-sm animate-pulse rounded-xl bg-muted/40 ring-1 ring-foreground/10"
+      className="min-h-[10rem] max-w-sm animate-pulse rounded-xl border border-foreground/10 bg-muted/40"
       aria-hidden
     />
   );

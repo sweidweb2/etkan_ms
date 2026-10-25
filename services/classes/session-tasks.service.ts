@@ -17,7 +17,6 @@ import {
 import {
   buildStudentDisplayByUserId,
   mapAttendeeStatus,
-  normalizeOptionalString,
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/session-shared";
@@ -132,7 +131,6 @@ export async function updateAttendeeForManager(
     class_id: string;
     session_id: string;
     status: AttendeeStatusValue;
-    note?: string;
   }
 ): Promise<UpdateAttendeeResult> {
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.ATTENDANCE_UPDATE);
@@ -142,7 +140,6 @@ export async function updateAttendeeForManager(
 
   const parsed = updateAttendeeSchema.safeParse({
     status: input.status,
-    note: input.note,
   });
 
   if (!parsed.success) {
@@ -189,10 +186,6 @@ export async function updateAttendeeForManager(
     input.id,
     {
       status: parsed.data.status,
-      note:
-        parsed.data.note !== undefined
-          ? normalizeOptionalString(parsed.data.note)
-          : existing.data.note,
     }
   );
 
@@ -214,7 +207,6 @@ export async function updateAttendeeForManager(
     student_id: data.student_id,
     full_name: display?.full_name ?? "Unknown student",
     email: display?.email ?? "",
-    note: data.note,
     status: mapAttendeeStatus(data.status),
     created_at: data.created_at,
   };
@@ -226,11 +218,9 @@ export async function updateAttendeeForManager(
     record_id: attendee.id,
     old_data: {
       status: existing.data.status,
-      note: existing.data.note,
     },
     new_data: {
       status: attendee.status,
-      note: attendee.note,
     },
   });
 

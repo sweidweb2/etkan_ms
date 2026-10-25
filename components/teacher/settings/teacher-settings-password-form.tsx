@@ -65,14 +65,14 @@ export function TeacherSettingsPasswordForm() {
   }
 
   return (
-    <Card className="h-full border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.22)]">
-      <CardHeader className="border-b border-border/50 bg-muted/25 pb-3">
+    <Card className="h-full gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.22)]">
+      <CardHeader className="border-b border-border/50 bg-muted/25 px-5 py-4">
         <CardTitle className="text-base">Password</CardTitle>
         <CardDescription>
           Confirm your current password, then choose a new one.
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent className="px-5 py-5">
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col gap-4"

@@ -166,7 +166,6 @@ export async function getSessionDetailForManager(
         student_id: row.student_id,
         full_name: display?.full_name ?? "Unknown student",
         email: display?.email ?? "",
-        note: row.note,
         status: mapAttendeeStatus(row.status),
         created_at: row.created_at,
       };

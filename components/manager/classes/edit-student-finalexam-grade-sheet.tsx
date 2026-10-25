@@ -7,6 +7,7 @@ import { updateStudentFinalExamGradeAction } from "@/app/manager/classes/actions
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -324,11 +325,17 @@ export function EditStudentFinalExamGradeSheet({
               label="Submitted at"
               hint="Optional"
             />
-            <Input
+            <DateTimePicker
               id="edit-student-finalexam-submitted-at"
-              type="datetime-local"
+              value={watch("submitted_at") ?? ""}
+              onChange={(next) =>
+                setValue("submitted_at", next, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              allowClear
               disabled={isFormDisabled}
-              {...register("submitted_at")}
             />
           </div>
 

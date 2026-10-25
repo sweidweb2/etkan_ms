@@ -18,14 +18,14 @@ export function TeacherSettingsLayoutPanel() {
   const taskDetailAnalytics = useTeacherTaskDetailAnalytics();
 
   return (
-    <Card className="border-border/70 bg-card shadow-[0_10px_28px_-24px_rgba(62,62,117,0.22)]">
-      <CardHeader className="border-b border-border/50 bg-muted/25 pb-3">
+    <Card className="gap-0 border-border/70 bg-card py-0 shadow-[0_10px_28px_-24px_rgba(62,62,117,0.22)]">
+      <CardHeader className="border-b border-border/50 bg-muted/25 px-5 py-4">
         <CardTitle className="text-base">Layout</CardTitle>
         <CardDescription>
           Control what appears on your class pages. Saved in this browser only.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3 pt-4">
+      <CardContent className="space-y-3 px-5 py-5">
         <div className="flex items-start justify-between gap-4 rounded-xl border border-primary/15 bg-primary/[0.04] px-4 py-3">
           <div className="min-w-0 space-y-1">
             <Label

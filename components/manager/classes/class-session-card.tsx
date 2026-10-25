@@ -93,9 +93,8 @@ export function ClassSessionCard({
     <TooltipProvider>
       <Card
         className={cn(
-          "group relative w-[17rem] shrink-0 gap-0 py-0 transition-shadow hover:border-emerald-400/45 hover:shadow-[0_12px_32px_rgba(16,185,129,0.18)]",
-          selected &&
-            "border-emerald-500/70 ring-2 ring-emerald-500/25 shadow-[0_12px_32px_rgba(16,185,129,0.2)]",
+          "group relative w-[17rem] shrink-0 gap-0 py-0 shadow-none transition-colors hover:border-emerald-400/55",
+          selected && "border-emerald-500/80",
           className
         )}
       >

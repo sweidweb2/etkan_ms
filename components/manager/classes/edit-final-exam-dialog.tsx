@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Input } from "@/components/ui/input";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -60,6 +61,8 @@ export function EditFinalExamDialog({
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useZodForm({
     schema: updateFinalExamSchema,
@@ -71,6 +74,8 @@ export function EditFinalExamDialog({
       max_grade: finalExam.max_grade ?? "",
     },
   });
+
+  const dueDate = watch("due_date");
 
   useEffect(() => {
     if (!open) {
@@ -178,11 +183,17 @@ export function EditFinalExamDialog({
                 label="Due date"
                 hint="Optional"
               />
-              <Input
+              <DateTimePicker
                 id="edit-final-exam-due-date"
-                type="datetime-local"
+                value={dueDate ?? ""}
+                onChange={(next) =>
+                  setValue("due_date", next, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                allowClear
                 disabled={isPending}
-                {...register("due_date")}
               />
             </div>
 
