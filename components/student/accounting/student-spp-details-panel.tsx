@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { CalendarIcon, InboxIcon, WalletIcon } from "lucide-react";
 import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment-phase-status-badge";
 import { PaymentScheduleStatusBadge } from "@/components/manager/accounting/payment-schedule-status-badge";
 import { SppCurrentBadge } from "@/components/manager/accounting/spp-current-badge";
@@ -21,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
 import { ROUTES } from "@/lib/constants/routes";
 import {
@@ -179,31 +181,29 @@ export function StudentSppDetailsPanel({
         <CardHeader className="border-b py-3">
           <CardTitle>Payments</CardTitle>
         </CardHeader>
-        <CardContent className="px-0 pb-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium text-right">Amount</th>
-                  <th className="px-4 py-3 font-medium">Method</th>
-                  <th className="px-4 py-3 font-medium">Received by</th>
-                  <th className="px-4 py-3 font-medium">Management</th>
-                  <th className="px-4 py-3 font-medium">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No payments recorded yet.
-                    </td>
+        <CardContent className={payments.length === 0 ? "p-4" : "px-0 pb-0"}>
+          {payments.length === 0 ? (
+            <EmptyState
+              size="sm"
+              icon={WalletIcon}
+              title="No payments yet"
+              description="No payments recorded yet."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium text-right">Amount</th>
+                    <th className="px-4 py-3 font-medium">Method</th>
+                    <th className="px-4 py-3 font-medium">Received by</th>
+                    <th className="px-4 py-3 font-medium">Management</th>
+                    <th className="px-4 py-3 font-medium">Notes</th>
                   </tr>
-                ) : (
-                  payments.map((payment) => (
+                </thead>
+                <tbody>
+                  {payments.map((payment) => (
                     <tr
                       key={payment.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
@@ -231,11 +231,11 @@ export function StudentSppDetailsPanel({
                         {truncateText(payment.notes ?? "—", 24).display}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -252,30 +252,28 @@ export function StudentSppDetailsPanel({
             </p>
           </div>
         </CardHeader>
-        <CardContent className="px-0 pb-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Due date</th>
-                  <th className="px-4 py-3 font-medium">Label</th>
-                  <th className="px-4 py-3 font-medium text-right">Amount</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {schedules.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No schedule rows yet.
-                    </td>
+        <CardContent className={schedules.length === 0 ? "p-4" : "px-0 pb-0"}>
+          {schedules.length === 0 ? (
+            <EmptyState
+              size="sm"
+              icon={CalendarIcon}
+              title="No schedule yet"
+              description="No schedule rows yet."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Due date</th>
+                    <th className="px-4 py-3 font-medium">Label</th>
+                    <th className="px-4 py-3 font-medium text-right">Amount</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Notes</th>
                   </tr>
-                ) : (
-                  schedules.map((schedule) => (
+                </thead>
+                <tbody>
+                  {schedules.map((schedule) => (
                     <tr
                       key={schedule.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
@@ -299,11 +297,11 @@ export function StudentSppDetailsPanel({
                         {truncateText(schedule.notes ?? "—", 28).display}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -313,9 +311,12 @@ export function StudentSppDetailsPanel({
         </CardHeader>
         <CardContent>
           {!adjustment ? (
-            <p className="text-sm text-muted-foreground">
-              No financial adjustment on this student payment phase.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={InboxIcon}
+              title="No adjustment"
+              description="No financial adjustment on this student payment phase."
+            />
           ) : (
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>

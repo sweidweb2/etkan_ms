@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { PlusIcon } from "lucide-react";
+import { CalendarIcon, PlusIcon } from "lucide-react";
 import { loadWorkshopScheduleSlotsAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { getManagerWorkshopScheduleCreateRoute } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
@@ -92,9 +93,12 @@ export function WorkshopSchedulesDialog({
               Loading schedules…
             </div>
           ) : slots.length === 0 ? (
-            <p className="py-6 text-sm text-muted-foreground">
-              No schedule slots for this workshop yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={CalendarIcon}
+              title="No schedule slots for this workshop yet"
+              description="Create a weekly schedule slot for this workshop."
+            />
           ) : (
             <table className="w-full border-collapse text-sm">
               <thead>

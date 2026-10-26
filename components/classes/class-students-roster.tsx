@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { SearchIcon } from "lucide-react";
+import { GraduationCapIcon, SearchIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { CLASS_STUDENT_TABLE_LIMITS } from "@/lib/constants/manager-class-student-display";
 import { cn } from "@/lib/utils";
@@ -100,30 +101,36 @@ export function ClassStudentsRoster({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] text-sm">
-          <thead>
-            <tr className="border-b bg-muted/40 text-left">
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Phone</th>
-              <th className="px-4 py-3 font-medium">Joined</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={4}
-                  className="px-4 py-10 text-center text-muted-foreground"
-                >
-                  {students.length === 0
-                    ? "No students enrolled in this class yet."
-                    : "No students match your search."}
-                </td>
+      {filtered.length === 0 ? (
+        <div className={variant === "card" ? "p-4" : undefined}>
+          <EmptyState
+            size="sm"
+            icon={students.length === 0 ? GraduationCapIcon : SearchIcon}
+            title={
+              students.length === 0
+                ? "No students enrolled"
+                : "No matching students"
+            }
+            description={
+              students.length === 0
+                ? "No students enrolled in this class yet."
+                : "No students match your search."
+            }
+          />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[40rem] text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40 text-left">
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Phone</th>
+                <th className="px-4 py-3 font-medium">Joined</th>
               </tr>
-            ) : (
-              filtered.map((student) => (
+            </thead>
+            <tbody>
+              {filtered.map((student) => (
                 <tr
                   key={student.id}
                   className="border-b last:border-b-0 hover:bg-muted/30"
@@ -148,11 +155,11 @@ export function ClassStudentsRoster({
                     {format(new Date(student.joined_at), "MMM d, yyyy")}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 

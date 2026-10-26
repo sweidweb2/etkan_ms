@@ -6,6 +6,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MessageSquareTextIcon,
+  ScrollTextIcon,
   SearchIcon,
 } from "lucide-react";
 import { AuditLogActionBadge } from "@/components/manager/logs/audit-log-action-badge";
@@ -20,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -626,32 +628,37 @@ export function ManageLogsPanel({
               ) : null}
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">When</th>
-                    <th className="px-4 py-3 font-medium">Actor</th>
-                    <th className="px-4 py-3 font-medium">Action</th>
-                    <th className="px-4 py-3 font-medium">Table</th>
-                    <th className="px-4 py-3 font-medium">Summary</th>
-                    <th className="px-4 py-3 text-center font-medium">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedLogs.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        {logs.length === 0
-                          ? "No audit logs yet."
-                          : "No logs match your filters."}
-                      </td>
+            {paginatedLogs.length === 0 ? (
+              <EmptyState
+                size="sm"
+                className="m-4"
+                icon={logs.length === 0 ? ScrollTextIcon : SearchIcon}
+                title={
+                  logs.length === 0
+                    ? "No audit logs yet"
+                    : "No logs match your filters"
+                }
+                description={
+                  logs.length === 0
+                    ? "Audit events will appear here as actions are recorded."
+                    : "Try adjusting search or filters."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">When</th>
+                      <th className="px-4 py-3 font-medium">Actor</th>
+                      <th className="px-4 py-3 font-medium">Action</th>
+                      <th className="px-4 py-3 font-medium">Table</th>
+                      <th className="px-4 py-3 font-medium">Summary</th>
+                      <th className="px-4 py-3 text-center font-medium">Details</th>
                     </tr>
-                  ) : (
-                    paginatedLogs.map((log) => {
+                  </thead>
+                  <tbody>
+                    {paginatedLogs.map((log) => {
                       const changeSummary = getChangeSummary(log);
 
                       return (
@@ -660,7 +667,10 @@ export function ManageLogsPanel({
                           className="border-b last:border-b-0 hover:bg-muted/30"
                         >
                           <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                            {format(new Date(log.created_at), "MMM d, yyyy h:mm a")}
+                            {format(
+                              new Date(log.created_at),
+                              "MMM d, yyyy h:mm a"
+                            )}
                           </td>
                           <td className="max-w-[9rem] px-4 py-3">
                             <TruncatedCell
@@ -704,11 +714,11 @@ export function ManageLogsPanel({
                           </td>
                         </tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

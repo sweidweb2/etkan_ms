@@ -1,7 +1,9 @@
 "use client";
 
 import { format } from "date-fns";
+import { UsersIcon } from "lucide-react";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
+import { EmptyState } from "@/components/ui/empty-state";
 import { HorizontalScrollCarousel } from "@/components/ui/horizontal-scroll-carousel";
 import { SESSION_GROUP_GRADE_LEVEL_DOT_CLASSES } from "@/lib/constants/manager-session-group-grade-display";
 import { cn } from "@/lib/utils";
@@ -21,9 +23,12 @@ export function ClassGroupGradesSection({
     >
       <div className="p-5">
         {groupGradeSlots.length === 0 ? (
-          <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            No group grades recorded for this class yet.
-          </p>
+          <EmptyState
+            size="sm"
+            icon={UsersIcon}
+            title="No group grades"
+            description="No group grades recorded for this class yet."
+          />
         ) : (
           <div className="min-w-0 overflow-hidden rounded-xl bg-muted/25 p-2 ring-1 ring-foreground/8">
             <HorizontalScrollCarousel

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import {
   CalendarDaysIcon,
+  CalendarIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -29,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { usePendingAwareOpenChange } from "@/hooks/use-pending-aware-open-change";
@@ -366,10 +368,12 @@ export function WorkshopScheduleSlotsSection({
       >
         <div className="px-3 py-4 sm:px-4">
           {slots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No schedule slots for this workshop yet. Add a weekly slot here or
-              from the instructor schedules calendar.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={CalendarIcon}
+              title="No schedule slots for this workshop yet"
+              description="Add a weekly slot here or from the instructor schedules calendar."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[40rem] border-collapse text-sm">

@@ -1,6 +1,12 @@
 "use client";
 
 import { format } from "date-fns";
+import {
+  CalendarIcon,
+  ClipboardListIcon,
+  FileIcon,
+  GraduationCapIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
@@ -34,6 +40,7 @@ import {
   TabsTrigger as TabsTriggerPrimitive,
 } from "@/components/animate-ui/primitives/animate/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -62,13 +69,11 @@ import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
 } from "@/types/manager-class-final-exam";
-import type { StudentClassmateRow } from "@/types/student-class";
 
 type StudentClassDetailsPanelProps = {
   classRow: ManagerStudentClassRow;
   sessions: ManagerClassSessionRow[];
   detail: ManagerStudentClassTabDetail;
-  classmates: StudentClassmateRow[];
   finalExam: ManagerClassFinalExamRow | null;
   studentFinalExamGrade: ManagerStudentFinalExamGradeRow | null;
 };
@@ -92,7 +97,6 @@ export function StudentClassDetailsPanel({
   classRow,
   sessions,
   detail,
-  classmates,
   finalExam,
   studentFinalExamGrade,
 }: StudentClassDetailsPanelProps) {
@@ -124,7 +128,6 @@ export function StudentClassDetailsPanel({
     { value: "details", label: "Details" },
     { value: "grades", label: "Grades & final exam" },
     { value: "tasks", label: "Tasks" },
-    { value: "classmates", label: "Classmates" },
   ] as const;
 
   return (
@@ -181,7 +184,7 @@ export function StudentClassDetailsPanel({
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="gap-4">
-        <TabsListPrimitive className="grid w-full grid-cols-2 gap-1 self-start rounded-lg bg-muted p-1 sm:grid-cols-4 md:w-1/2">
+        <TabsListPrimitive className="grid w-full grid-cols-2 gap-1 self-start rounded-lg bg-muted p-1 sm:grid-cols-3 md:w-1/2">
           {classTabs.map((item) => (
             <TabsTriggerPrimitive
               key={item.value}
@@ -198,9 +201,12 @@ export function StudentClassDetailsPanel({
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-semibold">Sessions</h3>
               {sessions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No sessions scheduled for this class yet.
-                </p>
+                <EmptyState
+                  size="sm"
+                  icon={CalendarIcon}
+                  title="No sessions yet"
+                  description="No sessions scheduled for this class yet."
+                />
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {sessions.map((session) => {
@@ -244,9 +250,12 @@ export function StudentClassDetailsPanel({
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-semibold">Attendance</h3>
               {detail.attendanceSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No attendance recorded for this class yet.
-                </p>
+                <EmptyState
+                  size="sm"
+                  icon={ClipboardListIcon}
+                  title="No attendance yet"
+                  description="No attendance recorded for this class yet."
+                />
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-2">
@@ -318,9 +327,12 @@ export function StudentClassDetailsPanel({
                 Task grades
               </p>
               {detail.tasks.length === 0 ? (
-                <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                  No tasks found for this class yet.
-                </p>
+                <EmptyState
+                  size="sm"
+                  icon={ClipboardListIcon}
+                  title="No tasks yet"
+                  description="No tasks found for this class yet."
+                />
               ) : (
                 <div className="min-h-0 flex-1 overflow-auto rounded-xl border">
                   <table className="w-full min-w-[28rem] text-left text-sm">
@@ -364,9 +376,13 @@ export function StudentClassDetailsPanel({
                 Grade trend
               </p>
               {gradeChartData.length === 0 ? (
-                <p className="flex min-h-[18rem] flex-1 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-                  No graded tasks yet.
-                </p>
+                <EmptyState
+                  size="sm"
+                  className="min-h-[18rem] flex-1 justify-center"
+                  icon={ClipboardListIcon}
+                  title="No graded tasks yet"
+                  description="Grades will appear here once tasks are graded."
+                />
               ) : (
                 <ClassLineChart
                   className="min-h-[18rem] flex-1"
@@ -398,9 +414,12 @@ export function StudentClassDetailsPanel({
         </CardHeader>
         <CardContent className="p-5">
           {!finalExam ? (
-            <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-              No final exam created for this class yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={FileIcon}
+              title="No final exam yet"
+              description="No final exam created for this class yet."
+            />
           ) : (
             <div className="rounded-xl border bg-background">
               <div className="border-b bg-muted/40 px-4 py-3">
@@ -462,70 +481,27 @@ export function StudentClassDetailsPanel({
       </Card>
           </TabsContent>
 
-          <TabsContent value="classmates">
-      <Card className="gap-0 py-0">
-        <CardHeader className="border-b py-3">
-          <CardTitle>Classmates</CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-4">Name</TableHead>
-                <TableHead className="px-4">Username</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {classmates.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={2}
-                    className="h-20 px-4 text-center text-muted-foreground"
-                  >
-                    No other students in this class yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                classmates.map((mate) => (
-                  <TableRow key={`${mate.full_name}-${mate.username ?? ""}`}>
-                    <TableCell className="px-4 font-medium">
-                      {mate.full_name}
-                    </TableCell>
-                    <TableCell className="px-4 text-muted-foreground">
-                      {mate.username ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-          </TabsContent>
-
           <TabsContent value="tasks">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-8 px-2">Task</TableHead>
-                  <TableHead className="h-8 px-2">Session</TableHead>
-                  <TableHead className="h-8 px-2">Status</TableHead>
-                  <TableHead className="h-8 px-2">Grade</TableHead>
-                  <TableHead className="h-8 px-2">Due</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {detail.tasks.length === 0 ? (
+            {detail.tasks.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={GraduationCapIcon}
+                title="No tasks yet"
+                description="No tasks assigned in this class yet."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableCell
-                      colSpan={5}
-                      className="px-2 py-6 text-center text-muted-foreground"
-                    >
-                      No tasks assigned in this class yet.
-                    </TableCell>
+                    <TableHead className="h-8 px-2">Task</TableHead>
+                    <TableHead className="h-8 px-2">Session</TableHead>
+                    <TableHead className="h-8 px-2">Status</TableHead>
+                    <TableHead className="h-8 px-2">Grade</TableHead>
+                    <TableHead className="h-8 px-2">Due</TableHead>
                   </TableRow>
-                ) : (
-                  detail.tasks.map((task) => (
+                </TableHeader>
+                <TableBody>
+                  {detail.tasks.map((task) => (
                     <TableRow key={task.task_id} className={TASK_ROW_CLASS}>
                       <TableCell className="px-2 py-2 font-medium whitespace-normal">
                         <Link
@@ -556,10 +532,10 @@ export function StudentClassDetailsPanel({
                           : "—"}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </TabsContent>
         </TabsContents>
       </Tabs>

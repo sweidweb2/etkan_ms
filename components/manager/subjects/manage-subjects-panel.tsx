@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  BookOpenIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
@@ -13,6 +14,7 @@ import { AddSubjectDialog } from "@/components/manager/subjects/add-subject-dial
 import { SubjectCard } from "@/components/manager/subjects/subject-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -342,9 +344,23 @@ export function ManageSubjectsPanel({
           </div>
 
           {paginatedSubjects.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              No subjects match your search.
-            </p>
+            <EmptyState
+              icon={
+                subjects.length === 0 || !searchQuery.trim()
+                  ? BookOpenIcon
+                  : SearchIcon
+              }
+              title={
+                subjects.length === 0
+                  ? "No subjects yet"
+                  : "No matching subjects"
+              }
+              description={
+                subjects.length === 0
+                  ? "Create a subject to get started."
+                  : "No subjects match your search."
+              }
+            />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {paginatedSubjects.map((subject) => (

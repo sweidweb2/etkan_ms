@@ -2,8 +2,10 @@
 
 import { DetailField } from "@/components/manager/shared/detail-field";
 import { format } from "date-fns";
+import { ListTodoIcon } from "lucide-react";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type {
   ManagerClassFinalExamRow,
   ManagerStudentFinalExamGradeRow,
@@ -30,9 +32,12 @@ export function ClassFinalExamStudentSection({
     >
       <div className="p-5">
         {!finalExam ? (
-          <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            No final exam created for this class yet.
-          </p>
+          <EmptyState
+            size="sm"
+            icon={ListTodoIcon}
+            title="No final exam"
+            description="No final exam created for this class yet."
+          />
         ) : (
           <div className="rounded-xl border bg-background">
             <div className="border-b bg-muted/40 px-4 py-3">

@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
+import {
+  BookOpenIcon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  Trash2Icon,
+} from "lucide-react";
 import {
   deleteCategoryAction,
   deleteExerciseAction,
@@ -25,6 +31,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -267,7 +274,24 @@ export function SubjectsCatalogPanel({
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {filteredCategories.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No categories yet.</p>
+              <EmptyState
+                size="sm"
+                icon={
+                  categories.length === 0 || !search.trim()
+                    ? BookOpenIcon
+                    : SearchIcon
+                }
+                title={
+                  categories.length === 0
+                    ? "No categories yet"
+                    : "No matching categories"
+                }
+                description={
+                  categories.length === 0
+                    ? "Add a category to start the catalog."
+                    : "No categories match your search."
+                }
+              />
             ) : (
               filteredCategories.map((category) => (
                 <div
@@ -322,7 +346,25 @@ export function SubjectsCatalogPanel({
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {filteredExercises.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No exercises yet.</p>
+            <EmptyState
+              size="sm"
+              className="md:col-span-2"
+              icon={
+                exercises.length === 0 || !search.trim()
+                  ? BookOpenIcon
+                  : SearchIcon
+              }
+              title={
+                exercises.length === 0
+                  ? "No exercises yet"
+                  : "No matching exercises"
+              }
+              description={
+                exercises.length === 0
+                  ? "Add an exercise to start the catalog."
+                  : "No exercises match your search."
+              }
+            />
           ) : (
             filteredExercises.map((exercise) => (
               <Card key={exercise.id}>

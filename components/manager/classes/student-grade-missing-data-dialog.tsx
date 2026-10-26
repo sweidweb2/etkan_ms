@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ClipboardListIcon } from "lucide-react";
 import { EditStudentFinalExamGradeSheet } from "@/components/manager/classes/edit-student-finalexam-grade-sheet";
 import { EditStudentTaskSheet } from "@/components/manager/classes/edit-student-task-sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { MANAGER_STUDENT_TASK_STATUS_LABELS } from "@/lib/constants/manager-student-task-display";
 import {
   getManagerClassDetailRoute,
@@ -192,9 +194,12 @@ export function StudentGradeMissingDataDialog({
           </DialogHeader>
 
           {!student || missingItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No missing grade data for this student.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={ClipboardListIcon}
+              title="No missing data"
+              description="No missing grade data for this student."
+            />
           ) : (
             <div className="space-y-6">
               {taskItems.length > 0 ? (

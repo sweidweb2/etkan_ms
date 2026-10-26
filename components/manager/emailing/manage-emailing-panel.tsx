@@ -16,6 +16,7 @@ import {
   SendIcon,
   SparklesIcon,
   UserPlusIcon,
+  UsersIcon,
 } from "lucide-react";
 import {
   ComposeEmailDialog,
@@ -33,6 +34,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -642,40 +644,45 @@ export function ManageEmailingPanel({
               </Select>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead className="border-b bg-muted/40 text-left text-muted-foreground">
-                  <tr>
-                    <th className="w-12 px-4 py-3 font-medium">
-                      <SelectionCheckbox
-                        checked={allPageSelected}
-                        onCheckedChange={handleToggleAllOnPage}
-                        ariaLabel="Select all users on this page"
-                      />
-                    </th>
-                    <th className="px-4 py-3 font-medium">Username</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Created</th>
-                    <th className="w-16 px-4 py-3 text-center font-medium">
-                      Message
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedUsers.length === 0 ? (
+            {paginatedUsers.length === 0 ? (
+              <EmptyState
+                size="sm"
+                className="m-4"
+                icon={initialUsers.length === 0 ? UsersIcon : SearchIcon}
+                title={
+                  initialUsers.length === 0
+                    ? "No users available"
+                    : "No users match your filters"
+                }
+                description={
+                  initialUsers.length === 0
+                    ? "There are no users to email yet."
+                    : "Try a different search or filter."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead className="border-b bg-muted/40 text-left text-muted-foreground">
                     <tr>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        {initialUsers.length === 0
-                          ? "No users available."
-                          : "No users match your filters."}
-                      </td>
+                      <th className="w-12 px-4 py-3 font-medium">
+                        <SelectionCheckbox
+                          checked={allPageSelected}
+                          onCheckedChange={handleToggleAllOnPage}
+                          ariaLabel="Select all users on this page"
+                        />
+                      </th>
+                      <th className="px-4 py-3 font-medium">Username</th>
+                      <th className="px-4 py-3 font-medium">Email</th>
+                      <th className="px-4 py-3 font-medium">Role</th>
+                      <th className="px-4 py-3 font-medium">Created</th>
+                      <th className="w-16 px-4 py-3 text-center font-medium">
+                        Message
+                      </th>
                     </tr>
-                  ) : (
-                    paginatedUsers.map((user) => {
+                  </thead>
+                  <tbody>
+                    {paginatedUsers.map((user) => {
                       const isSelected = selectedUserIds.has(user.id);
                       const displayName = getUserDisplayName(user);
                       const hasEmail = Boolean(user.email);
@@ -760,11 +767,11 @@ export function ManageEmailingPanel({
                           </td>
                         </tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">

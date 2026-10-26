@@ -10,7 +10,16 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  MinusIcon,
+  PackageIcon,
+  PlusIcon,
+  SearchIcon,
+  UsersIcon,
+} from "lucide-react";
 import {
   createBorrowsAction,
   loadBorrowClassStudentProfileIdsAction,
@@ -34,6 +43,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -790,43 +800,45 @@ export function BorrowEquipmentPanel({
             </Button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="w-12 px-4 py-3">
-                    <SelectionCheckbox
-                      checked={allFilteredStudentsSelected}
-                      onCheckedChange={handleToggleAllStudents}
-                      ariaLabel="Select all matching students"
-                    />
-                  </th>
-                  <th className="px-4 py-3 font-medium">Full name</th>
-                  <th className="px-4 py-3 font-medium">Username</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isCreateOptionsLoading ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      Loading students…
-                    </td>
+          {isCreateOptionsLoading ? (
+            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+              Loading students…
+            </p>
+          ) : filteredStudents.length === 0 ? (
+            <EmptyState
+              className="m-4"
+              size="sm"
+              icon={students.length === 0 ? UsersIcon : SearchIcon}
+              title={
+                students.length === 0
+                  ? "No students yet"
+                  : "No matching students"
+              }
+              description={
+                students.length === 0
+                  ? "There are no students available to borrow equipment."
+                  : "No students match your search."
+              }
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="w-12 px-4 py-3">
+                      <SelectionCheckbox
+                        checked={allFilteredStudentsSelected}
+                        onCheckedChange={handleToggleAllStudents}
+                        ariaLabel="Select all matching students"
+                      />
+                    </th>
+                    <th className="px-4 py-3 font-medium">Full name</th>
+                    <th className="px-4 py-3 font-medium">Username</th>
+                    <th className="px-4 py-3 font-medium">Email</th>
                   </tr>
-                ) : filteredStudents.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No students match your search.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedStudents.map((student) => {
+                </thead>
+                <tbody>
+                  {paginatedStudents.map((student) => {
                     const isSelected = selectedStudentIds.has(
                       student.student_profile_id
                     );
@@ -878,11 +890,11 @@ export function BorrowEquipmentPanel({
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <TablePaginationFooter
             currentPage={safeStudentCurrentPage}
@@ -932,50 +944,52 @@ export function BorrowEquipmentPanel({
             </Button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="w-12 px-4 py-3">
-                    <SelectionCheckbox
-                      checked={allFilteredEquipmentsSelected}
-                      onCheckedChange={handleToggleAllEquipments}
-                      ariaLabel="Select all matching equipment"
-                    />
-                  </th>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium text-right">Quantity</th>
-                  <th className="px-4 py-3 font-medium text-right">Borrowed</th>
-                  <th className="px-4 py-3 font-medium text-right">Remaining</th>
-                  <th className="px-4 py-3 font-medium text-right">
-                    Unit price
-                  </th>
-                  <th className="px-4 py-3 font-medium text-right">
-                    Borrow qty
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {isCreateOptionsLoading ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      Loading equipment…
-                    </td>
+          {isCreateOptionsLoading ? (
+            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+              Loading equipment…
+            </p>
+          ) : filteredEquipments.length === 0 ? (
+            <EmptyState
+              className="m-4"
+              size="sm"
+              icon={equipments.length === 0 ? PackageIcon : SearchIcon}
+              title={
+                equipments.length === 0
+                  ? "No equipment yet"
+                  : "No matching equipment"
+              }
+              description={
+                equipments.length === 0
+                  ? "Add equipment before creating a borrow."
+                  : "No equipment matches your search."
+              }
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="w-12 px-4 py-3">
+                      <SelectionCheckbox
+                        checked={allFilteredEquipmentsSelected}
+                        onCheckedChange={handleToggleAllEquipments}
+                        ariaLabel="Select all matching equipment"
+                      />
+                    </th>
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium text-right">Quantity</th>
+                    <th className="px-4 py-3 font-medium text-right">Borrowed</th>
+                    <th className="px-4 py-3 font-medium text-right">Remaining</th>
+                    <th className="px-4 py-3 font-medium text-right">
+                      Unit price
+                    </th>
+                    <th className="px-4 py-3 font-medium text-right">
+                      Borrow qty
+                    </th>
                   </tr>
-                ) : filteredEquipments.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No equipment matches your search.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedEquipments.map((equipment) => {
+                </thead>
+                <tbody>
+                  {paginatedEquipments.map((equipment) => {
                     const isSelected = selectedEquipmentIds.has(equipment.id);
                     const remaining = getEquipmentRemainingQuantity(equipment);
                     const maxQuantity = getMaxQuantityPerStudent(equipment);
@@ -1065,11 +1079,11 @@ export function BorrowEquipmentPanel({
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <TablePaginationFooter
             currentPage={safeEquipmentCurrentPage}

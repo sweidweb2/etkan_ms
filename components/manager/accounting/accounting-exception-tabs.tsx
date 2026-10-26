@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, UsersIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import {
   Tabs as TabsPrimitive,
@@ -15,6 +15,7 @@ import { PaymentPhaseStatusBadge } from "@/components/manager/accounting/payment
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { StudentStatusBadge } from "@/components/manager/students/student-status-badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingPhaseDetailRoute,
@@ -133,29 +134,27 @@ export function AccountingExceptionTabs({
 
       <TabsContentsPrimitive>
           <TabsContentPrimitive value="billed-no-class" className="px-0 py-0">
-            <div className="overflow-x-auto overflow-hidden rounded-xl border">
-              <table className="w-full min-w-[800px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Phase / semester</th>
-                    <th className="px-4 py-3 font-medium">SPP</th>
-                    <th className="px-4 py-3 font-medium text-right">Links</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {billedWithoutClass.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No billed students without an in-progress class.
-                      </td>
+            {billedWithoutClass.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={UsersIcon}
+                title="No billed students without an in-progress class"
+                description="Everyone currently billed is also in an in-progress class."
+              />
+            ) : (
+              <div className="overflow-x-auto overflow-hidden rounded-xl border">
+                <table className="w-full min-w-[800px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Student</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Phase / semester</th>
+                      <th className="px-4 py-3 font-medium">SPP</th>
+                      <th className="px-4 py-3 font-medium text-right">Links</th>
                     </tr>
-                  ) : (
-                    billedWithoutClass.map((row) => (
+                  </thead>
+                  <tbody>
+                    {billedWithoutClass.map((row) => (
                       <tr
                         key={row.spp_id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -244,36 +243,36 @@ export function AccountingExceptionTabs({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="no-class-no-phase" className="px-0 py-0">
-            <div className="overflow-x-auto overflow-hidden rounded-xl border">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Phone</th>
-                    <th className="px-4 py-3 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {withoutClassOrPhase.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No students are outside both classes and billing.
-                      </td>
+            {withoutClassOrPhase.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={UsersIcon}
+                title="No students are outside both classes and billing"
+                description="Every student is in a class or on a payment phase."
+              />
+            ) : (
+              <div className="overflow-x-auto overflow-hidden rounded-xl border">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Student</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Phone</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Action
+                      </th>
                     </tr>
-                  ) : (
-                    withoutClassOrPhase.map((row) => (
+                  </thead>
+                  <tbody>
+                    {withoutClassOrPhase.map((row) => (
                       <tr
                         key={row.user_id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -311,39 +310,38 @@ export function AccountingExceptionTabs({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="semester-mismatch" className="px-0 py-0">
-            <div className="overflow-x-auto overflow-hidden rounded-xl border">
-              <table className="w-full min-w-[800px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">SPP phase / semester</th>
-                    <th className="px-4 py-3 font-medium">
-                      Current class / semester
-                    </th>
-                    <th className="px-4 py-3 font-medium text-right">Links</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {semesterMismatches.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No semester mismatches between active SPPs and current
-                        classes.
-                      </td>
+            {semesterMismatches.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={UsersIcon}
+                title="No semester mismatches"
+                description="Active SPPs and current classes share the same semester."
+              />
+            ) : (
+              <div className="overflow-x-auto overflow-hidden rounded-xl border">
+                <table className="w-full min-w-[800px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Student</th>
+                      <th className="px-4 py-3 font-medium">
+                        SPP phase / semester
+                      </th>
+                      <th className="px-4 py-3 font-medium">
+                        Current class / semester
+                      </th>
+                      <th className="px-4 py-3 font-medium text-right">Links</th>
                     </tr>
-                  ) : (
-                    semesterMismatches.map((row) => (
+                  </thead>
+                  <tbody>
+                    {semesterMismatches.map((row) => (
                       <tr
                         key={row.spp_id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -445,38 +443,37 @@ export function AccountingExceptionTabs({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </TabsContentPrimitive>
 
           <TabsContentPrimitive value="in-class-no-phase" className="px-0 py-0">
-            <div className="overflow-x-auto overflow-hidden rounded-xl border">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Semester</th>
-                    <th className="px-4 py-3 font-medium">Billing class</th>
-                    <th className="px-4 py-3 font-medium">Phase</th>
-                    <th className="px-4 py-3 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {missingSpp.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        All members of billing classes on opened phases have an
-                        assignment.
-                      </td>
+            {missingSpp.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={UsersIcon}
+                title="No missing assignments"
+                description="All members of billing classes on opened phases have an assignment."
+              />
+            ) : (
+              <div className="overflow-x-auto overflow-hidden rounded-xl border">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Student</th>
+                      <th className="px-4 py-3 font-medium">Semester</th>
+                      <th className="px-4 py-3 font-medium">Billing class</th>
+                      <th className="px-4 py-3 font-medium">Phase</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Action
+                      </th>
                     </tr>
-                  ) : (
-                    missingSpp.map((row) => (
+                  </thead>
+                  <tbody>
+                    {missingSpp.map((row) => (
                       <tr
                         key={`${row.payment_phase_id}:${row.student_id}`}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -524,11 +521,11 @@ export function AccountingExceptionTabs({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </TabsContentPrimitive>
       </TabsContentsPrimitive>
     </TabsPrimitive>

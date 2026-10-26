@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import {
+  CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   MessageSquareIcon,
@@ -26,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -374,11 +376,20 @@ export function WorkshopSessionsSection({
           </div>
 
           {pageItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-              {sessions.length === 0
-                ? "No sessions recorded yet."
-                : "No sessions match your filters."}
-            </div>
+            <EmptyState
+              size="sm"
+              icon={sessions.length === 0 ? CalendarIcon : SearchIcon}
+              title={
+                sessions.length === 0
+                  ? "No sessions recorded yet"
+                  : "No sessions match your filters"
+              }
+              description={
+                sessions.length === 0
+                  ? "Add a session to track workshop meetings."
+                  : "Try a different search or status."
+              }
+            />
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-[44rem] text-left text-sm">

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { format } from "date-fns";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
 import { loadAssignableClassesForStudentAction } from "@/app/manager/students/actions";
 import { Can } from "@/components/auth/can";
@@ -21,6 +21,7 @@ import { ClassTasksSection } from "@/components/manager/students/class-tasks-sec
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -332,9 +333,12 @@ export function StudentJoinedClassesSection({
         <CardContent className="min-w-0 max-w-full overflow-hidden px-0 pb-0">
           {classes.length === 0 ? (
             <div className="min-w-0 max-w-full border-b bg-muted/25 px-4 py-3">
-              <p className="rounded-xl bg-muted/60 px-4 py-8 text-center text-sm text-muted-foreground ring-1 ring-foreground/8">
-                No classes assigned yet. Use Assign class to add this student.
-              </p>
+              <EmptyState
+                size="sm"
+                icon={UsersIcon}
+                title="No classes assigned"
+                description="Use Assign class to add this student to a class."
+              />
             </div>
           ) : (
             <TabsPrimitive

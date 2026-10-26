@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as profileRepository from "@/repositories/profile.repository";
 import * as sessionRepository from "@/repositories/session.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
-import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
 import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
 import * as classTaskRepository from "@/repositories/class-task.repository";
@@ -20,10 +18,8 @@ import {
 import * as studentCourseGradeService from "@/services/classes/student-course-grade.service";
 import * as studentService from "@/services/students/student.service";
 
-vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
-vi.mock("@/repositories/student-profile.repository");
 vi.mock("@/repositories/student-task.repository");
 vi.mock("@/repositories/student-task-upload.repository");
 vi.mock("@/repositories/class-task.repository");
@@ -32,6 +28,7 @@ vi.mock("@/services/classes/student-course-grade.service", () => ({
 }));
 vi.mock("@/services/students/student.service", () => ({
   listJoinedClassesForStudentSelf: vi.fn(),
+  getJoinedClassForStudentSelf: vi.fn(),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: vi.fn(),
@@ -142,8 +139,8 @@ describe("getStudentClassDetailForSelf", () => {
   });
 
   it("returns null when not a class member", async () => {
-    vi.mocked(studentService.listJoinedClassesForStudentSelf).mockResolvedValue(
-      []
+    vi.mocked(studentService.getJoinedClassForStudentSelf).mockResolvedValue(
+      null
     );
 
     const detail = await getStudentClassDetailForSelf(
@@ -155,9 +152,9 @@ describe("getStudentClassDetailForSelf", () => {
     expect(detail).toBeNull();
   });
 
-  it("returns class detail with classmates excluding self", async () => {
-    vi.mocked(studentService.listJoinedClassesForStudentSelf).mockResolvedValue(
-      [classRow]
+  it("returns class detail with sessions and academics", async () => {
+    vi.mocked(studentService.getJoinedClassForStudentSelf).mockResolvedValue(
+      classRow
     );
     vi.mocked(
       studentCourseGradeService.listStudentClassAcademicBundlesForSelf
@@ -213,25 +210,6 @@ describe("getStudentClassDetailForSelf", () => {
       error: null,
     } as never);
     vi.mocked(
-      studentClassRepository.listStudentClassesByClassId
-    ).mockResolvedValue({
-      data: [
-        { id: "e1", user_id: studentUserId, class_id: classId },
-        { id: "e2", user_id: "student-2", class_id: classId },
-      ],
-      error: null,
-    } as never);
-    vi.mocked(profileRepository.listProfilesByIds).mockResolvedValue({
-      data: [{ id: "student-2", username: "peer" }],
-      error: null,
-    } as never);
-    vi.mocked(
-      studentProfileRepository.listStudentProfileDetailsByUserIds
-    ).mockResolvedValue({
-      data: [{ user_id: "student-2", full_name: "Peer Student", id: "sp2" }],
-      error: null,
-    } as never);
-    vi.mocked(
       studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds
     ).mockResolvedValue({
       data: [],
@@ -246,9 +224,6 @@ describe("getStudentClassDetailForSelf", () => {
 
     expect(detail).not.toBeNull();
     expect(detail?.sessions).toHaveLength(1);
-    expect(detail?.classmates).toEqual([
-      { full_name: "Peer Student", username: "peer" },
-    ]);
     expect(detail?.finalExam?.title).toBe("Final");
     expect(detail?.studentFinalExamGrade?.grade).toBe(90);
     expect(detail?.uploads).toEqual([]);
@@ -268,14 +243,8 @@ describe("getStudentClassTaskForSelf", () => {
   });
 
   it("returns null when task session belongs to another class", async () => {
-    vi.mocked(
-      studentClassRepository.findStudentClassByUserAndClass
-    ).mockResolvedValue({
-      data: { id: "e1", user_id: studentUserId, class_id: classId },
-      error: null,
-    } as never);
-    vi.mocked(studentService.listJoinedClassesForStudentSelf).mockResolvedValue(
-      [classRow]
+    vi.mocked(studentService.getJoinedClassForStudentSelf).mockResolvedValue(
+      classRow
     );
     vi.mocked(classTaskRepository.findClassTaskById).mockResolvedValue({
       data: {
@@ -302,14 +271,8 @@ describe("getStudentClassTaskForSelf", () => {
   });
 
   it("returns task with own grade only", async () => {
-    vi.mocked(
-      studentClassRepository.findStudentClassByUserAndClass
-    ).mockResolvedValue({
-      data: { id: "e1", user_id: studentUserId, class_id: classId },
-      error: null,
-    } as never);
-    vi.mocked(studentService.listJoinedClassesForStudentSelf).mockResolvedValue(
-      [classRow]
+    vi.mocked(studentService.getJoinedClassForStudentSelf).mockResolvedValue(
+      classRow
     );
     vi.mocked(classTaskRepository.findClassTaskById).mockResolvedValue({
       data: {

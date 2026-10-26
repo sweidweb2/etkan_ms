@@ -4,7 +4,7 @@ import { DetailField } from "@/components/manager/shared/detail-field";
 import Link from "next/link";
 import { useState } from "react";
 import { format } from "date-fns";
-import { CheckIcon, CopyIcon, SparklesIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, SparklesIcon, UsersIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import {
   Breadcrumb,
@@ -22,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { ROUTES } from "@/lib/constants/routes";
 import { showErrorToast, showSuccessToast } from "@/lib/toast";
@@ -192,33 +193,29 @@ export function SentEmailDetailsPanel({
           <CardTitle>Recipients (email_users)</CardTitle>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="border-b bg-muted/40 text-left text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Sent at</th>
-                  <th className="px-4 py-3 font-medium">User id</th>
-                  <th className="px-4 py-3 font-medium">Mailtrap id</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recipients.length === 0 ? (
+          {recipients.length === 0 ? (
+            <EmptyState
+              size="sm"
+              className="m-4"
+              icon={UsersIcon}
+              title="No recipients logged"
+              description="No recipients logged for this circular."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead className="border-b bg-muted/40 text-left text-muted-foreground">
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No recipients logged for this circular.
-                    </td>
+                    <th className="px-4 py-3 font-medium">Email</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Sent at</th>
+                    <th className="px-4 py-3 font-medium">User id</th>
+                    <th className="px-4 py-3 font-medium">Mailtrap id</th>
                   </tr>
-                ) : (
-                  recipients.map((recipient) => (
-                    <tr
-                      key={recipient.id}
-                      className="border-b last:border-b-0"
-                    >
+                </thead>
+                <tbody>
+                  {recipients.map((recipient) => (
+                    <tr key={recipient.id} className="border-b last:border-b-0">
                       <td className="px-4 py-3 font-medium">
                         {recipient.email_address}
                       </td>
@@ -242,11 +239,11 @@ export function SentEmailDetailsPanel({
                         {recipient.mailtrap_message_id ?? "—"}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

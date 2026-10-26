@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  ImageIcon,
   LayoutGridIcon,
   ListIcon,
   PencilIcon,
@@ -24,6 +25,7 @@ import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -301,10 +303,7 @@ export function ManageGalleryPanel({
   );
   const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
 
-  const emptyMessage =
-    list.catalogCount === 0
-      ? "No gallery images yet. Add one to get started."
-      : "No images match your search.";
+  const isCatalogEmpty = list.catalogCount === 0;
 
   function handleSearchChange(value: string) {
     setSearchInput(value);
@@ -475,7 +474,23 @@ export function ManageGalleryPanel({
               </div>
             </div>
 
-            {viewMode === "table" ? (
+            {images.length === 0 ? (
+              <EmptyState
+                size="sm"
+                className="m-4"
+                icon={isCatalogEmpty ? ImageIcon : SearchIcon}
+                title={
+                  isCatalogEmpty
+                    ? "No gallery images yet"
+                    : "No images match your search"
+                }
+                description={
+                  isCatalogEmpty
+                    ? "Add one to get started."
+                    : "Try a different search term."
+                }
+              />
+            ) : viewMode === "table" ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[720px] text-sm">
                   <thead>
@@ -490,61 +505,46 @@ export function ManageGalleryPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {images.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-4 py-10 text-center text-muted-foreground"
-                        >
-                          {emptyMessage}
+                    {images.map((image) => (
+                      <tr
+                        key={image.id}
+                        className="border-b last:border-b-0 hover:bg-muted/30"
+                      >
+                        <td className="px-4 py-3">
+                          <GalleryThumb
+                            name={image.name}
+                            url={image.url}
+                            className="size-12 rounded-md"
+                          />
+                        </td>
+                        <td className="max-w-[14rem] px-4 py-3 font-medium">
+                          <TruncatedCell
+                            value={image.name}
+                            maxLength={COLUMN_LIMITS.name}
+                          />
+                        </td>
+                        <td className="max-w-[20rem] px-4 py-3 text-muted-foreground">
+                          <TruncatedCell
+                            value={image.url}
+                            maxLength={COLUMN_LIMITS.url}
+                            className="min-w-0"
+                          />
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                          {format(new Date(image.created_at), "MMM d, yyyy")}
+                        </td>
+                        <td className="px-4 py-3">
+                          <ImageActions
+                            image={image}
+                            onEdit={setEditingImage}
+                            onDelete={setDeleteTarget}
+                          />
                         </td>
                       </tr>
-                    ) : (
-                      images.map((image) => (
-                        <tr
-                          key={image.id}
-                          className="border-b last:border-b-0 hover:bg-muted/30"
-                        >
-                          <td className="px-4 py-3">
-                            <GalleryThumb
-                              name={image.name}
-                              url={image.url}
-                              className="size-12 rounded-md"
-                            />
-                          </td>
-                          <td className="max-w-[14rem] px-4 py-3 font-medium">
-                            <TruncatedCell
-                              value={image.name}
-                              maxLength={COLUMN_LIMITS.name}
-                            />
-                          </td>
-                          <td className="max-w-[20rem] px-4 py-3 text-muted-foreground">
-                            <TruncatedCell
-                              value={image.url}
-                              maxLength={COLUMN_LIMITS.url}
-                              className="min-w-0"
-                            />
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                            {format(new Date(image.created_at), "MMM d, yyyy")}
-                          </td>
-                          <td className="px-4 py-3">
-                            <ImageActions
-                              image={image}
-                              onEdit={setEditingImage}
-                              onDelete={setDeleteTarget}
-                            />
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                    ))}
                   </tbody>
                 </table>
               </div>
-            ) : images.length === 0 ? (
-              <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                {emptyMessage}
-              </p>
             ) : (
               <ul className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {images.map((image) => (

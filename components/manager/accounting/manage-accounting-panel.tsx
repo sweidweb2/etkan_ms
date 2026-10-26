@@ -16,6 +16,7 @@ import {
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  WalletIcon,
 } from "lucide-react";
 import {
   Tabs as TabsPrimitive,
@@ -33,6 +34,7 @@ import { UpfrontWindowChip } from "@/components/manager/accounting/upfront-windo
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -469,45 +471,48 @@ export function ManageAccountingPanel({
                   </div>
                 </div>
 
-                <div className="overflow-x-auto overflow-hidden rounded-xl border">
-                  <table className="w-full min-w-[900px] text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/40 text-left">
-                        <th className="px-4 py-3 font-medium">Name</th>
-                        <th className="px-4 py-3 font-medium">Semester</th>
-                        <th className="px-4 py-3 font-medium">Status</th>
-                        <th className="px-4 py-3 font-medium text-right">
-                          Amount
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                          Upfront
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                          Duration
-                        </th>
-                        <th className="px-4 py-3 font-medium">Dates</th>
-                        <th className="px-4 py-3 font-medium text-right">
-                          SPP paid / active
-                        </th>
-                        <th className="px-4 py-3 font-medium text-right">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedPhases.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={9}
-                            className="px-4 py-10 text-center text-muted-foreground"
-                          >
-                            {phases.length === 0
-                              ? "No payment phases yet."
-                              : "No payment phases match your filters."}
-                          </td>
+                {paginatedPhases.length === 0 ? (
+                  <EmptyState
+                    icon={phases.length === 0 ? WalletIcon : SearchIcon}
+                    title={
+                      phases.length === 0
+                        ? "No payment phases yet"
+                        : "No payment phases match your filters"
+                    }
+                    description={
+                      phases.length === 0
+                        ? "Create a payment phase to get started."
+                        : "Try a different search or status."
+                    }
+                  />
+                ) : (
+                  <div className="overflow-x-auto overflow-hidden rounded-xl border">
+                    <table className="w-full min-w-[900px] text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="px-4 py-3 font-medium">Name</th>
+                          <th className="px-4 py-3 font-medium">Semester</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            Amount
+                          </th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            Upfront
+                          </th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            Duration
+                          </th>
+                          <th className="px-4 py-3 font-medium">Dates</th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            SPP paid / active
+                          </th>
+                          <th className="px-4 py-3 font-medium text-right">
+                            Actions
+                          </th>
                         </tr>
-                      ) : (
-                        paginatedPhases.map((phase) => (
+                      </thead>
+                      <tbody>
+                        {paginatedPhases.map((phase) => (
                           <tr
                             key={phase.id}
                             className={PHASE_ROW_CLASS}
@@ -618,11 +623,11 @@ export function ManageAccountingPanel({
                               </div>
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  ClockIcon,
   MessageSquareTextIcon,
   SearchIcon,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -315,31 +317,38 @@ export function ManageCronJobsPanel({ initialJobs }: ManageCronJobsPanelProps) {
               </Select>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[52rem] text-left text-sm">
-                <thead className="border-b bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Job name</th>
-                    <th className="px-4 py-3 font-medium">Schedule</th>
-                    <th className="px-4 py-3 font-medium">Summary</th>
-                    <th className="px-4 py-3 font-medium">Tables</th>
-                    <th className="px-4 py-3 font-medium">Frequency</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 text-right font-medium">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedJobs.length === 0 ? (
+            {paginatedJobs.length === 0 ? (
+              <EmptyState
+                size="sm"
+                className="m-4"
+                icon={jobs.length === 0 ? ClockIcon : SearchIcon}
+                title={
+                  jobs.length === 0
+                    ? "No cron jobs yet"
+                    : "No cron jobs match the current filters"
+                }
+                description={
+                  jobs.length === 0
+                    ? "Scheduled jobs will appear here."
+                    : "Try a different search or frequency filter."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[52rem] text-left text-sm">
+                  <thead className="border-b bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No cron jobs match the current filters.
-                      </td>
+                      <th className="px-4 py-3 font-medium">Job name</th>
+                      <th className="px-4 py-3 font-medium">Schedule</th>
+                      <th className="px-4 py-3 font-medium">Summary</th>
+                      <th className="px-4 py-3 font-medium">Tables</th>
+                      <th className="px-4 py-3 font-medium">Frequency</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 text-right font-medium">Details</th>
                     </tr>
-                  ) : (
-                    paginatedJobs.map((job) => (
+                  </thead>
+                  <tbody>
+                    {paginatedJobs.map((job) => (
                       <tr
                         key={job.id}
                         className="border-b last:border-b-0 hover:bg-muted/20"
@@ -393,11 +402,11 @@ export function ManageCronJobsPanel({ initialJobs }: ManageCronJobsPanelProps) {
                           </Button>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {filteredJobs.length > 0 ? (
               <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
