@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormActionState as useActionState } from "@/hooks/use-form-action-state";
 import {
   copyStudentsFromClassAction,
@@ -96,6 +96,7 @@ export function CopyStudentsFromClassDialog({
   const [isLoadingDiff, setIsLoadingDiff] = useState(false);
   const [optionalFollowUp, setOptionalFollowUp] =
     useState<OptionalEnrollFollowUp | null>(null);
+  const diffRequestIdRef = useRef(0);
 
   const isLoadingOptions = open && classOptions === null;
   const selectedCount = selectedIds.length;
@@ -117,6 +118,7 @@ export function CopyStudentsFromClassDialog({
 
   const handleOpenChange = usePendingAwareOpenChange(isPending, (nextOpen) => {
     if (!nextOpen) {
+      diffRequestIdRef.current += 1;
       setClassOptions(null);
       setSourceClassId("");
       setDiffStudents(null);
@@ -143,37 +145,6 @@ export function CopyStudentsFromClassDialog({
       cancelled = true;
     };
   }, [open, classId]);
-
-  useEffect(() => {
-    if (!open || !sourceClassId) {
-      setDiffStudents(null);
-      setSelectedIds([]);
-      setValue("studentProfileIds", [], { shouldValidate: false });
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingDiff(true);
-    setDiffStudents(null);
-    setSelectedIds([]);
-
-    void loadActiveStudentDiffFromClassAction(classId, sourceClassId).then(
-      (rows) => {
-        if (cancelled) {
-          return;
-        }
-        setDiffStudents(rows);
-        const ids = rows.map((row) => row.student_profile_id);
-        setSelectedIds(ids);
-        setValue("studentProfileIds", ids, { shouldValidate: true });
-        setIsLoadingDiff(false);
-      }
-    );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, classId, sourceClassId, setValue]);
 
   useActionStateToast(state, isPending);
 
@@ -222,8 +193,25 @@ export function CopyStudentsFromClassDialog({
     if (!nextId) {
       return;
     }
+
     setSourceClassId(nextId);
     setValue("source_class_id", nextId, { shouldValidate: true });
+    setDiffStudents(null);
+    setSelectedIds([]);
+    setValue("studentProfileIds", [], { shouldValidate: false });
+    setIsLoadingDiff(true);
+
+    const requestId = ++diffRequestIdRef.current;
+    void loadActiveStudentDiffFromClassAction(classId, nextId).then((rows) => {
+      if (requestId !== diffRequestIdRef.current) {
+        return;
+      }
+      setDiffStudents(rows);
+      const ids = rows.map((row) => row.student_profile_id);
+      setSelectedIds(ids);
+      setValue("studentProfileIds", ids, { shouldValidate: true });
+      setIsLoadingDiff(false);
+    });
   }
 
   function toggleStudent(studentProfileId: string, checked: boolean) {

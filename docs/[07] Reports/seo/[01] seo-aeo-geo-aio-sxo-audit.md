@@ -422,8 +422,8 @@ Keep panel brand (`Etkan MS`) out of public meta. Public brand remains **Etkan**
 - [x] ✅ **P0.4** `lib/seo/metadata.ts` + page-level metadata for all indexable routes
 - [x] ✅ **P0.5** Fix blog metadata (canonical, article, dates, no double title suffix)
 - [x] ✅ **P0.6** Rewrite public `SITE` / home description for Etkan brand (not only “School management system”)
-- [x] ✅ **P0.7** noindex `/life` (footer link left as-is; metadata + robots disallow)
-- [ ] ⏭️ **P0.8** Verify `NEXT_PUBLIC_SITE_URL` in prod; submit sitemap to GSC/Bing — ops / skipped in code
+- [x] ✅ **P0.7** noindex `/life` + removed from public footer
+- [ ] ⏭️ **P0.8** Google Search Console / Bing submit — skipped (no console access). Local `/robots.txt` + `/sitemap.xml` verified; prod `NEXT_PUBLIC_SITE_URL` already documented in env/deploy docs
 
 ### P1 — Answers, entities, AI readiness
 
@@ -431,19 +431,19 @@ Keep panel brand (`Etkan MS`) out of public meta. Public brand remains **Etkan**
 - [ ] ⏭️ **P1.2** FAQ sections + FAQPage schema on about, careers, register — skipped (new public FAQ content)
 - [x] ✅ **P1.3** `public/llms.txt`
 - [ ] ⏭️ **P1.4** Register HowTo summary + schema — skipped (new public HowTo content)
-- [ ] **P1.5** Blog TL;DR pattern + publish SEO checklist for managers
+- [x] ✅ **P1.5** Blog TL;DR / key-takeaway + manager publish SEO checklist
 - [x] ✅ **P1.6** Explicit AI crawler allow/deny policy in robots (allowed with same private disallow)
-- [ ] **P1.7** Align CTAs with register vs disabled public signup
+- [x] ✅ **P1.7** Align CTAs with `/register` (not disabled public signup)
 
 ### P2 — Depth & multilingual
 
-- [ ] **P2.1** Locale architecture decision (cookie vs path) + optional hreflang
-- [ ] **P2.2** Server-driven `html lang` / `dir`
-- [ ] **P2.3** Per-page OG images for home/about/careers
+- [x] ✅ **P2.1** Locale decision: cookie-only (no path/hreflang) — see `[02] locale-seo-decision.md`
+- [x] ✅ **P2.2** Client sync of `html lang` / `dir` via `PublicI18nProvider` (ISR keeps server default `en`)
+- [x] ✅ **P2.3** Per-page OG: home uses root `opengraph-image.png`; about/careers use `opengraph-image.tsx`
 - [ ] ⏭️ **P2.4** Optional Course/EducationalOrganization schema — skipped (no new Course pages / claims)
 - [x] ✅ **P2.5** Web manifest (`app/manifest.ts`)
-- [ ] **P2.6** Off-site entity consistency (social sameAs, business profiles)
-- [ ] **P2.7** CWV pass on home/blog/register (fonts, LCP images)
+- [x] ✅ **P2.6** Organization contactPoint + `SITE.sameAs` hook (fill when social profiles exist)
+- [x] ✅ **P2.7** CWV: Tajawal via `next/font`; removed render-blocking Google Fonts CSS; hero LCP priority already on first card
 
 ---
 
@@ -464,8 +464,8 @@ Keep panel brand (`Etkan MS`) out of public meta. Public brand remains **Etkan**
 
 1. **Brand positioning in meta:** Public Etkan (education/community) vs Etkan MS (ops product). Recommendation: public meta = Etkan education brand; never advertise panel software on marketing SERPs unless you intentionally sell MS.
 2. **AI training crawlers:** Allow (more GEO exposure, less control) vs block (more control). Record the choice in `robots.ts` comments and this doc when decided.
-3. **Arabic SEO:** Without separate URLs, Arabic will not get proper bilingual SEO. Decide if AR is a ranking target or UI-only.
-4. **`/life`:** Publish for real or remove from public IA — do not leave half-gated.
+3. **Arabic SEO:** Decided UI-only via cookie (see `[02] locale-seo-decision.md`). Revisit if AR becomes a ranking market.
+4. **`/life`:** Removed from public footer; remains admin-gated + noindex.
 5. **Claims accuracy:** Schema and GEO copy must match legal/marketing truth (accreditation, outcomes, locations).
 
 ---
@@ -507,3 +507,4 @@ You can consider the five pillars “covered” when all of the following are tr
 |------|--------|
 | 2026-10-24 | Initial full SEO / AEO / GEO / AIO / SXO audit for Etkan public surface |
 | 2026-10-24 | Implemented §3.2 crawl/metadata/JSON-LD/manifest/llms (skipped FAQ/HowTo/Course pages + GSC/analytics ops); marked ✅ in §3.2 + backlog |
+| 2026-10-25 | P1.5–P1.7 + P2.1–P2.3/P2.6–P2.7; GSC skipped; locale decision doc; CTA/footer/TL;DR/OG/fonts |

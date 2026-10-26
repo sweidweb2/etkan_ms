@@ -81,18 +81,20 @@ Native panel: `/crm` (redirects to guests). Day-to-day UI uses shared `/manager/
 
 ## Teacher
 
-Full **class tree** writes/reads (`TEACHER_SEED_PERMISSIONS` = `CLASS_TREE_SEED_PERMISSIONS`):
+Narrow **teaching** seed (`TEACHER_SEED_PERMISSIONS` — not the full `CLASS_TREE_SEED_PERMISSIONS`):
 
 ```
-classes.*
+classes.view
+classes.change_status
 sessions.*
 attendance.*
-tasks.*
-final_exams.*
-grades.*
+tasks.view / create / update / update_student / delete / export_uploads
+grades.view
 ```
 
-Same action surface as manager **inside** a class (sessions → tasks, attendance, grades, final exams, …). **My classes** (`/teacher/classes`) lists only classes assigned in `class_teacher`. **Row scope** is those assigned classes — enforced in services, not by fewer keys.  
+**Not seeded** (manager/supervisor only unless granted in RBAC UI): `classes.create` / `classes.update` / enroll / assign-teacher, `final_exams.*`, `grades.compute*` / `grades.delete` / certificate exports.
+
+**My classes** (`/teacher/classes`) lists only classes assigned in `class_teacher`. **Row scope** for reads and writes is those assigned classes — enforced in services (`assertTeachingAssignment` / `assertAssignedTeacherForClassMutation`), not by omitting keys alone.  
 No workshop seed package (grant workshop keys on the role matrix when an instructor needs Manage workshops).
 
 ---

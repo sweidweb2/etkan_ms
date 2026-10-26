@@ -2368,7 +2368,7 @@ async function seedDemoData(): Promise<void> {
   console.log("  demo.ceo / demo.supervisor / demo.crm / demo.comanager");
   console.log("  demo.teacher.math (instructor+mentor), demo.teacher.physics");
   console.log(
-    `  Teacher role permissions: ${TEACHER_SEED_PERMISSIONS.length} class-tree keys`
+    `  Teacher role permissions: ${TEACHER_SEED_PERMISSIONS.length} teaching keys`
   );
   console.log("");
   console.log("Academic:");

@@ -13,5 +13,12 @@ export function TeacherClassStudentsSection({
   className,
   students,
 }: TeacherClassStudentsSectionProps) {
-  return <ClassStudentsRoster className={className} students={students} />;
+  return (
+    <ClassStudentsRoster
+      className={className}
+      students={students}
+      showPhone={false}
+      showEmail={false}
+    />
+  );
 }

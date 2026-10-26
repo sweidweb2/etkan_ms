@@ -33,6 +33,10 @@ import { backfillSppsForClassBecomeInProgress } from "@/services/accounting/acco
 import { assertClassStructureUnlockedForComputedGrades } from "@/services/classes/class-computed-grade-lock.service";
 import { ensureSessionAttendeesForMembers } from "@/services/classes/session.service";
 import { removeStorageForStudentTaskUploads } from "@/services/classes/student-task-upload.service";
+import {
+  assertAssignedTeacherForClassMutation,
+  assertTeacherMayCreateClass,
+} from "@/services/classes/teacher-class-scope.service";
 import type { ManagerClassRow } from "@/types/manager-class-list";
 import type { ManagerClassSessionRow } from "@/types/manager-class-session";
 import {
@@ -132,6 +136,11 @@ export async function createClassForManager(
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_CREATE);
   if (unauthorized) {
     return { success: false, error: unauthorized };
+  }
+
+  const createScope = assertTeacherMayCreateClass(actor);
+  if (!createScope.ok) {
+    return { success: false, error: createScope.error };
   }
 
   const parsed = createClassSchema.safeParse({
@@ -376,6 +385,15 @@ export async function updateClassForManager(
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.CLASSES_UPDATE);
   if (unauthorized) {
     return { success: false, error: unauthorized };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const parsed = updateClassSchema.safeParse({
@@ -644,6 +662,15 @@ export async function updateClassStatusForManager(
     return { success: false, error: unauthorized };
   }
 
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
+  }
+
   const parsed = updateClassSchema
     .pick({ status: true })
     .safeParse({ status: input.status });
@@ -783,6 +810,15 @@ export async function createClassSessionForManager(
   const unauthorized = await getUnauthorizedError(adminClient, actorUserId, PERMISSIONS.SESSIONS_CREATE);
   if (unauthorized) {
     return { success: false, error: unauthorized };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const parsed = createClassSessionSchema.safeParse({

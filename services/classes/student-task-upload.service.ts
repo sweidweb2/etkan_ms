@@ -43,7 +43,6 @@ function mapStudentTaskUploadRecord(
   return {
     id: row.id,
     student_task_id: row.student_task_id,
-    storage_path: row.storage_path,
     file_name: row.file_name,
     mime_type: row.mime_type,
     file_size: row.file_size,
@@ -412,6 +411,7 @@ export type StudentTaskUploadSignedUrlResult =
 export async function getStudentTaskUploadSignedUrlForManager(
   adminClient: Supabase,
   actorUserId: string | null,
+  actor: AuditActor,
   input: unknown
 ): Promise<StudentTaskUploadSignedUrlResult> {
   const unauthorized = await getUnauthorizedError(
@@ -447,6 +447,42 @@ export async function getStudentTaskUploadSignedUrlForManager(
 
   if (!existing.data) {
     return { success: false, error: "Upload not found." };
+  }
+
+  const studentTaskResult = await studentTaskRepository.findStudentTaskById(
+    adminClient,
+    existing.data.student_task_id
+  );
+
+  if (studentTaskResult.error) {
+    return {
+      success: false,
+      error: studentTaskResult.error.message || "Unable to open file.",
+    };
+  }
+
+  if (!studentTaskResult.data) {
+    return { success: false, error: "Upload not found." };
+  }
+
+  const context = await resolveClassIdForStudentTask(
+    adminClient,
+    studentTaskResult.data.task_id
+  );
+
+  if (!context.ok) {
+    return { success: false, error: context.error };
+  }
+
+  if (context.classId) {
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      context.classId
+    );
+    if (!scope.ok) {
+      return { success: false, error: scope.error };
+    }
   }
 
   const signed = await studentTaskStorageRepository.createStudentTaskUploadSignedUrl(

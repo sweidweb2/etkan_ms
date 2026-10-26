@@ -24,7 +24,10 @@ type Supabase = SupabaseClient<Database>;
 export type AuditActor = {
   userId: string | null;
   userLabel: string;
-  /** Present for session-backed actors; omitted in tests / system callers. */
+  /**
+   * Required for class-scoped teacher mutation gates (fail closed when omitted).
+   * Session-backed actors always set this; tests should set a concrete role.
+   */
   role?: RoleValue | null;
 };
 

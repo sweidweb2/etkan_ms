@@ -15,6 +15,13 @@ type ClassStudentsRosterProps = {
   students: ClassStudentRow[];
   /** Visual shell: bordered card (teacher) vs bare (embed in manager). */
   variant?: "card" | "plain";
+  /** Teachers omit phone (not loaded in teaching RSC payload). */
+  showPhone?: boolean;
+  /**
+   * Teachers skip Auth Admin emails; show username instead.
+   * @default true
+   */
+  showEmail?: boolean;
 };
 
 function TruncatedCell({
@@ -38,7 +45,12 @@ function TruncatedCell({
   );
 }
 
-function matchesSearch(student: ClassStudentRow, query: string) {
+function matchesSearch(
+  student: ClassStudentRow,
+  query: string,
+  includePhone: boolean,
+  includeEmail: boolean
+) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
     return true;
@@ -46,9 +58,9 @@ function matchesSearch(student: ClassStudentRow, query: string) {
 
   const haystack = [
     student.full_name,
-    student.email,
     student.username ?? "",
-    student.phone ?? "",
+    ...(includeEmail ? [student.email] : []),
+    ...(includePhone ? [student.phone ?? ""] : []),
   ]
     .join(" ")
     .toLowerCase();
@@ -65,13 +77,20 @@ export function ClassStudentsRoster({
   className,
   students,
   variant = "card",
+  showPhone = true,
+  showEmail = true,
 }: ClassStudentsRosterProps) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(
-    () => students.filter((student) => matchesSearch(student, query)),
-    [query, students]
+    () =>
+      students.filter((student) =>
+        matchesSearch(student, query, showPhone, showEmail)
+      ),
+    [query, showEmail, showPhone, students]
   );
+
+  const identityLabel = showEmail ? "Email" : "Username";
 
   const table = (
     <>
@@ -124,8 +143,10 @@ export function ClassStudentsRoster({
             <thead>
               <tr className="border-b bg-muted/40 text-left">
                 <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Phone</th>
+                <th className="px-4 py-3 font-medium">{identityLabel}</th>
+                {showPhone ? (
+                  <th className="px-4 py-3 font-medium">Phone</th>
+                ) : null}
                 <th className="px-4 py-3 font-medium">Joined</th>
               </tr>
             </thead>
@@ -144,13 +165,23 @@ export function ClassStudentsRoster({
                   </td>
                   <td className="max-w-[14rem] px-4 py-3 text-muted-foreground">
                     <TruncatedCell
-                      value={student.email}
-                      maxLength={CLASS_STUDENT_TABLE_LIMITS.email}
+                      value={
+                        showEmail
+                          ? student.email
+                          : (student.username ?? "—")
+                      }
+                      maxLength={
+                        showEmail
+                          ? CLASS_STUDENT_TABLE_LIMITS.email
+                          : CLASS_STUDENT_TABLE_LIMITS.username
+                      }
                     />
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                    {student.phone ?? "—"}
-                  </td>
+                  {showPhone ? (
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                      {student.phone ?? "—"}
+                    </td>
+                  ) : null}
                   <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                     {format(new Date(student.joined_at), "MMM d, yyyy")}
                   </td>

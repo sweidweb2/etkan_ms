@@ -14,6 +14,7 @@ import {
   updateStudentTaskForManager as updateClassStudentTaskForManager,
   type UpdateStudentTaskResult as UpdateClassStudentTaskResult,
 } from "@/services/classes/class-tasks.service";
+import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 import {
   buildStudentDisplayByUserId,
   mapAttendeeStatus,
@@ -169,6 +170,15 @@ export async function updateAttendeeForManager(
 
   if (!sessionResult.data || sessionResult.data.class_id !== input.class_id) {
     return { success: false, error: "Session not found." };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    input.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const studentGuard = await assertStudentGradeInputsUnlockedForComputedGrade(

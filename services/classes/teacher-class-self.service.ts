@@ -1,42 +1,55 @@
 import "server-only";
 
+import { cache } from "react";
 import { CLASS_STATUSES, type ClassStatusValue } from "@/lib/constants/manager-class-status";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   computeClassTaskGradeSummary,
   type ClassTaskGradeSummary,
 } from "@/lib/manager/class-task-grade-summary";
+import {
+  getCachedTeachingClassesList,
+  setCachedTeachingClassesList,
+} from "@/lib/teacher/teaching-classes-list-cache";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import * as attendeeRepository from "@/repositories/attendee.repository";
+import type { AttendeeRecord } from "@/repositories/attendee.repository";
 import * as classRepository from "@/repositories/class.repository";
+import type { ClassDetailRecord } from "@/repositories/class.repository";
 import * as classTaskRepository from "@/repositories/class-task.repository";
+import type { ClassTaskRecord } from "@/repositories/class-task.repository";
 import * as classTeacherRepository from "@/repositories/class-teacher.repository";
 import * as sessionRepository from "@/repositories/session.repository";
+import type { SessionRecord } from "@/repositories/session.repository";
+import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as studentTaskRepository from "@/repositories/student-task.repository";
+import type { StudentTaskRecord } from "@/repositories/student-task.repository";
+import * as studentTaskUploadRepository from "@/repositories/student-task-upload.repository";
+import type { StudentTaskUploadRecord } from "@/repositories/student-task-upload.repository";
 import {
   assertPermission,
   assertPermissions,
 } from "@/services/auth/authorization.service";
 import { getClassComputedGradeLockState } from "@/services/classes/class-computed-grade-lock.service";
 import { loadClassStudentRows } from "@/services/classes/class.service";
-import { mapClassDetailRecordToRow } from "@/services/classes/class-shared";
-import type { ClassDetailRecord } from "@/repositories/class.repository";
+import { ensureSessionAttendeesForMembers } from "@/services/classes/session-seed.service";
 import {
+  buildStudentDisplayByUserId,
+  isUuid,
+  mapAttendeeStatus,
   mapSessionRecord,
+  mapStudentTaskRow,
   mapTaskRecord,
 } from "@/services/classes/session-shared";
-import {
-  getClassTaskDetailForManager,
-  getSessionDetailForManager,
-} from "@/services/classes/session-queries.service";
-import {
-  assertTeachingAssignment,
-} from "@/services/classes/teacher-class-scope.service";
+import { assertTeachingAssignment } from "@/services/classes/teacher-class-scope.service";
 import type {
-  TeacherClassDetail,
+  TeacherClassDetailRow,
   TeacherClassRow,
   TeachingClassPageBundle,
   TeachingClassSessionInlineDetail,
   TeachingClassTaskPageBundle,
 } from "@/types/class-teaching";
+import type { ManagerStudentTaskUploadRow } from "@/types/manager-class-session-detail";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -61,105 +74,71 @@ function mapClassStatus(status: string | null): ClassStatusValue {
   return CLASS_STATUSES.SCHEDULED;
 }
 
+/**
+ * Request-deduped + short process TTL so list page RSC and navbar search
+ * action share one teaching-class catalog within ~30s.
+ */
+const loadTeachingClassesForUser = cache(
+  async (actorUserId: string): Promise<TeacherClassRow[]> => {
+    const cached = getCachedTeachingClassesList<TeacherClassRow>(actorUserId);
+    if (cached) {
+      return cached;
+    }
+
+    const adminClient = createSupabaseAdminClient();
+    await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
+
+    const assignments =
+      await classTeacherRepository.listClassTeachersByTeacherId(
+        adminClient,
+        actorUserId
+      );
+
+    if (assignments.error) {
+      throw new Error(assignments.error.message);
+    }
+
+    const assignedAtByClassId = new Map<string, string | null>();
+    for (const row of assignments.data ?? []) {
+      if (!assignedAtByClassId.has(row.class_id)) {
+        assignedAtByClassId.set(row.class_id, row.assigned_at);
+      }
+    }
+
+    const classes = await classRepository.listClassesWithSubjectByIds(
+      adminClient,
+      [...assignedAtByClassId.keys()]
+    );
+
+    if (classes.error) {
+      throw new Error(classes.error.message);
+    }
+
+    const rows = (classes.data ?? [])
+      .map((classRow) => ({
+        id: classRow.id,
+        name: classRow.name,
+        subject_name: classRow.subjects?.name ?? "Subject",
+        class_status: mapClassStatus(classRow.status),
+        image_url: classRow.image_url,
+        card_gradient: classRow.card_gradient,
+        assigned_at: assignedAtByClassId.get(classRow.id) ?? null,
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    setCachedTeachingClassesList(actorUserId, rows);
+    return rows;
+  }
+);
+
 export async function listTeachingClassesForSelf(
-  adminClient: Supabase,
+  _adminClient: Supabase,
   actorUserId: string | null
 ): Promise<TeacherClassRow[]> {
-  await assertPermission(adminClient, actorUserId, PERMISSIONS.CLASSES_VIEW);
-
-  const assignments = await classTeacherRepository.listClassTeachersByTeacherId(
-    adminClient,
-    actorUserId!
-  );
-
-  if (assignments.error) {
-    throw new Error(assignments.error.message);
+  if (!actorUserId) {
+    return [];
   }
-
-  const assignedAtByClassId = new Map<string, string | null>();
-  for (const row of assignments.data ?? []) {
-    if (!assignedAtByClassId.has(row.class_id)) {
-      assignedAtByClassId.set(row.class_id, row.assigned_at);
-    }
-  }
-
-  const classes = await classRepository.listClassesWithSubjectByIds(
-    adminClient,
-    [...assignedAtByClassId.keys()]
-  );
-
-  if (classes.error) {
-    throw new Error(classes.error.message);
-  }
-
-  return (classes.data ?? [])
-    .map((classRow) => ({
-      id: classRow.id,
-      name: classRow.name,
-      subject_name: classRow.subjects?.name ?? "Subject",
-      class_status: mapClassStatus(classRow.status),
-      image_url: classRow.image_url,
-      card_gradient: classRow.card_gradient,
-      assigned_at: assignedAtByClassId.get(classRow.id) ?? null,
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-export async function getTeachingClassDetailForSelf(
-  adminClient: Supabase,
-  actorUserId: string | null,
-  classId: string
-): Promise<TeacherClassDetail | null> {
-  await assertPermissions(adminClient, actorUserId, [
-    PERMISSIONS.CLASSES_VIEW,
-    PERMISSIONS.SESSIONS_VIEW,
-    PERMISSIONS.TASKS_VIEW,
-  ]);
-
-  const assignment = await assertTeachingAssignment(
-    adminClient,
-    actorUserId,
-    classId
-  );
-
-  if (!assignment.ok) {
-    return null;
-  }
-
-  const [classes, sessionsResult, tasksResult] = await Promise.all([
-    classRepository.listClassesWithSubjectByIds(adminClient, [classId]),
-    sessionRepository.listSessionsByClassId(adminClient, classId),
-    classTaskRepository.listClassTasksByClassId(adminClient, classId),
-  ]);
-
-  if (classes.error) {
-    throw new Error(classes.error.message);
-  }
-  if (sessionsResult.error) {
-    throw new Error(sessionsResult.error.message);
-  }
-  if (tasksResult.error) {
-    throw new Error(tasksResult.error.message);
-  }
-
-  const classRow = classes.data?.[0];
-  if (!classRow) {
-    return null;
-  }
-
-  return {
-    classRow: {
-      id: classRow.id,
-      name: classRow.name,
-      subject_name: classRow.subjects?.name ?? "Subject",
-      class_status: mapClassStatus(classRow.status),
-      image_url: classRow.image_url,
-      card_gradient: classRow.card_gradient,
-      assigned_at: assignment.assignedAt,
-    },
-    sessions: (sessionsResult.data ?? []).map(mapSessionRecord),
-    tasks: (tasksResult.data ?? []).map(mapTaskRecord),
-  };
+  return loadTeachingClassesForUser(actorUserId);
 }
 
 async function buildTaskGradeSummaryForTasks(
@@ -191,7 +170,9 @@ async function buildTaskGradeSummaryForTasks(
 export async function getTeachingClassTaskGradeSummaryForSelf(
   adminClient: Supabase,
   actorUserId: string | null,
-  classId: string
+  classId: string,
+  /** When provided by the class page, skips re-listing class tasks. */
+  tasks?: Array<{ id: string; max_grade: number | null }>
 ): Promise<ClassTaskGradeSummary | null> {
   await assertPermissions(adminClient, actorUserId, [
     PERMISSIONS.CLASSES_VIEW,
@@ -209,22 +190,22 @@ export async function getTeachingClassTaskGradeSummaryForSelf(
     return null;
   }
 
-  const tasksResult = await classTaskRepository.listClassTasksByClassId(
-    adminClient,
-    classId
-  );
-
-  if (tasksResult.error) {
-    throw new Error(tasksResult.error.message);
-  }
-
-  return buildTaskGradeSummaryForTasks(
-    adminClient,
-    (tasksResult.data ?? []).map((task) => ({
+  let taskRows = tasks;
+  if (!taskRows) {
+    const tasksResult = await classTaskRepository.listClassTasksByClassId(
+      adminClient,
+      classId
+    );
+    if (tasksResult.error) {
+      throw new Error(tasksResult.error.message);
+    }
+    taskRows = (tasksResult.data ?? []).map((task) => ({
       id: task.id,
       max_grade: task.max_grade,
-    }))
-  );
+    }));
+  }
+
+  return buildTaskGradeSummaryForTasks(adminClient, taskRows);
 }
 
 /**
@@ -253,23 +234,18 @@ export async function getTeachingClassPageBundleForSelf(
   }
 
   // Permissions + teaching assignment are already proven above, so skip the
-  // manager-path re-asserts and the extra count queries in `getClassForManager`
-  // (enrollment / session counts are derived from rows we already load).
-  const [
-    classDetailResult,
-    teacherCountResult,
-    sessionsResult,
-    tasksResult,
-    students,
-    gradeLock,
-  ] = await Promise.all([
-    classRepository.findClassDetailById(adminClient, classId),
-    classTeacherRepository.countClassTeachersByClassId(adminClient, classId),
-    sessionRepository.listSessionsByClassId(adminClient, classId),
-    classTaskRepository.listClassTasksByClassId(adminClient, classId),
-    loadClassStudentRows(adminClient, classId),
-    getClassComputedGradeLockState(adminClient, classId),
-  ]);
+  // manager-path re-asserts and unused teacher-count query.
+  const [classDetailResult, sessionsResult, tasksResult, students, gradeLock] =
+    await Promise.all([
+      classRepository.findClassDetailById(adminClient, classId),
+      sessionRepository.listSessionsByClassId(adminClient, classId),
+      classTaskRepository.listClassTasksByClassId(adminClient, classId),
+      // Skip Auth Admin email fan-out; teacher roster uses name/username.
+      loadClassStudentRows(adminClient, classId, {
+        includeAuthEmails: false,
+      }),
+      getClassComputedGradeLockState(adminClient, classId),
+    ]);
 
   if (classDetailResult.error) {
     throw new Error(classDetailResult.error.message);
@@ -277,10 +253,6 @@ export async function getTeachingClassPageBundleForSelf(
 
   if (!classDetailResult.data) {
     return null;
-  }
-
-  if (teacherCountResult.error) {
-    throw new Error(teacherCountResult.error.message);
   }
 
   if (sessionsResult.error) {
@@ -291,22 +263,33 @@ export async function getTeachingClassPageBundleForSelf(
     throw new Error(tasksResult.error.message);
   }
 
-  const classRow = mapClassDetailRecordToRow(
-    classDetailResult.data as ClassDetailRecord,
-    {
-      enrollment_count: students.length,
-      teacher_count: teacherCountResult.count ?? 0,
-      completed_sessions: sessionsResult.data?.length ?? 0,
-    }
-  );
+  const detail = classDetailResult.data as ClassDetailRecord;
+  const classRow: TeacherClassDetailRow = {
+    id: detail.id,
+    name: detail.name,
+    subject_name: detail.subjects?.name ?? "—",
+    has_subject: Boolean(detail.subject_id),
+    status: mapClassStatus(detail.status),
+    semester_name: detail.semesters?.name ?? null,
+    enrollment_count: students.length,
+    image_url: detail.image_url,
+    card_gradient: detail.card_gradient,
+  };
 
   const tasks = (tasksResult.data ?? []).map(mapTaskRecord);
+
+  // Teachers get username (not Auth email); omit phone from RSC payload.
+  const teacherStudents = students.map((student) => ({
+    ...student,
+    email: "",
+    phone: null,
+  }));
 
   return {
     classRow,
     sessions: (sessionsResult.data ?? []).map(mapSessionRecord),
     tasks,
-    students,
+    students: teacherStudents,
     assignedAt: assignment.assignedAt,
     hasComputedGrades: gradeLock.hasComputedGrades,
     lockedUserIds: gradeLock.lockedUserIds,
@@ -314,7 +297,7 @@ export async function getTeachingClassPageBundleForSelf(
 }
 
 /**
- * Lightweight assignment + task detail for the teacher task page.
+ * Teacher task detail: profiles only (no Auth email fan-out), plus grade lock.
  */
 export async function getTeachingClassTaskPageBundleForSelf(
   adminClient: Supabase,
@@ -327,6 +310,10 @@ export async function getTeachingClassTaskPageBundleForSelf(
     PERMISSIONS.GRADES_VIEW,
   ]);
 
+  if (!isUuid(classId) || !isUuid(taskId)) {
+    return null;
+  }
+
   const assignment = await assertTeachingAssignment(
     adminClient,
     actorUserId,
@@ -337,27 +324,85 @@ export async function getTeachingClassTaskPageBundleForSelf(
     return null;
   }
 
-  const [detail, gradeLock] = await Promise.all([
-    getClassTaskDetailForManager(adminClient, actorUserId, classId, taskId),
+  const [taskResult, classResult, gradeLock] = await Promise.all([
+    classTaskRepository.findClassTaskById(adminClient, taskId),
+    classRepository.findClassById(adminClient, classId),
     getClassComputedGradeLockState(adminClient, classId),
   ]);
 
-  if (!detail) {
+  if (taskResult.error) {
+    throw new Error(taskResult.error.message);
+  }
+  if (classResult.error) {
+    throw new Error(classResult.error.message);
+  }
+
+  if (
+    !taskResult.data ||
+    !classResult.data ||
+    taskResult.data.class_id !== classId
+  ) {
     return null;
   }
 
+  const studentTasksResult =
+    await studentTaskRepository.listStudentTasksByTaskId(adminClient, taskId);
+
+  if (studentTasksResult.error) {
+    throw new Error(studentTasksResult.error.message);
+  }
+
+  const studentTaskRecords = (studentTasksResult.data ??
+    []) as StudentTaskRecord[];
+  const studentTaskIds = studentTaskRecords.map((row) => row.id);
+
+  const [displayByUserId, uploadsResult] = await Promise.all([
+    buildStudentDisplayByUserId(
+      adminClient,
+      studentTaskRecords.map((row) => row.student_id),
+      { includeAuthEmails: false }
+    ),
+    studentTaskUploadRepository.listStudentTaskUploadsByStudentTaskIds(
+      adminClient,
+      studentTaskIds
+    ),
+  ]);
+
+  if (uploadsResult.error) {
+    throw new Error(uploadsResult.error.message);
+  }
+
+  const uploads: ManagerStudentTaskUploadRow[] = (
+    (uploadsResult.data ?? []) as StudentTaskUploadRecord[]
+  ).map((row) => ({
+    id: row.id,
+    student_task_id: row.student_task_id,
+    file_name: row.file_name,
+    mime_type: row.mime_type,
+    file_size: row.file_size,
+    uploaded_by: row.uploaded_by,
+    created_at: row.created_at,
+  }));
+
   return {
-    task: detail.task,
-    classRow: detail.classRow,
-    studentTasks: detail.studentTasks,
-    uploads: detail.uploads,
+    task: mapTaskRecord(taskResult.data as ClassTaskRecord),
+    classRow: {
+      id: classResult.data.id,
+      name: classResult.data.name,
+    },
+    studentTasks: studentTaskRecords.map((row) =>
+      mapStudentTaskRow(row, displayByUserId)
+    ),
+    uploads,
     hasComputedGrades: gradeLock.hasComputedGrades,
     lockedUserIds: gradeLock.lockedUserIds,
   };
 }
 
 /**
- * Lightweight assignment + session detail for the teacher Sessions tab.
+ * Lean session open for the teacher Sessions tab: attendees only.
+ * Skips manager path (class row, all semesters, Auth emails, grade lock).
+ * Locks come from the page bundle.
  */
 export async function getTeachingClassSessionInlineDetailForSelf(
   adminClient: Supabase,
@@ -365,10 +410,11 @@ export async function getTeachingClassSessionInlineDetailForSelf(
   classId: string,
   sessionId: string
 ): Promise<TeachingClassSessionInlineDetail | null> {
-  await assertPermissions(adminClient, actorUserId, [
-    PERMISSIONS.SESSIONS_VIEW,
-    PERMISSIONS.GRADES_VIEW,
-  ]);
+  await assertPermission(adminClient, actorUserId, PERMISSIONS.SESSIONS_VIEW);
+
+  if (!isUuid(classId) || !isUuid(sessionId)) {
+    return null;
+  }
 
   const assignment = await assertTeachingAssignment(
     adminClient,
@@ -380,19 +426,57 @@ export async function getTeachingClassSessionInlineDetailForSelf(
     return null;
   }
 
-  const [detail, gradeLock] = await Promise.all([
-    getSessionDetailForManager(adminClient, actorUserId, classId, sessionId),
-    getClassComputedGradeLockState(adminClient, classId),
-  ]);
+  const sessionResult = await sessionRepository.findSessionById(
+    adminClient,
+    sessionId
+  );
 
-  if (!detail) {
+  if (sessionResult.error) {
+    throw new Error(sessionResult.error.message);
+  }
+
+  if (!sessionResult.data || sessionResult.data.class_id !== classId) {
     return null;
   }
 
+  await ensureSessionAttendeesForMembers(adminClient, sessionId, classId);
+
+  const attendeesResult = await attendeeRepository.listAttendeesBySessionId(
+    adminClient,
+    sessionId
+  );
+
+  if (attendeesResult.error) {
+    throw new Error(attendeesResult.error.message);
+  }
+
+  const attendeeRecords = (attendeesResult.data ?? []) as AttendeeRecord[];
+  const studentIds = attendeeRecords.map((row) => row.student_id);
+  const profilesResult =
+    await studentProfileRepository.listStudentProfilesByUserIds(
+      adminClient,
+      studentIds
+    );
+
+  if (profilesResult.error) {
+    throw new Error(profilesResult.error.message);
+  }
+
+  const nameByUserId = new Map(
+    (profilesResult.data ?? []).map((row) => [row.user_id, row.full_name])
+  );
+
   return {
-    session: detail.session,
-    attendees: detail.attendees,
-    lockedUserIds: gradeLock.lockedUserIds,
-    hasComputedGrades: gradeLock.hasComputedGrades,
+    session: mapSessionRecord(sessionResult.data as SessionRecord),
+    attendees: attendeeRecords.map((row) => ({
+      id: row.id,
+      session_id: row.session_id,
+      student_id: row.student_id,
+      full_name: nameByUserId.get(row.student_id) ?? "Unknown student",
+      // Attendance UI does not display email; skip Auth Admin fan-out.
+      email: "",
+      status: mapAttendeeStatus(row.status),
+      created_at: row.created_at,
+    })),
   };
 }

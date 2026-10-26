@@ -9,6 +9,9 @@ import type { Database } from "@/types/supabase";
 
 type Supabase = SupabaseClient<Database>;
 
+export const TEACHER_CLASS_ASSIGNMENT_REQUIRED_MESSAGE =
+  "You can only change classes you are assigned to teach.";
+
 /**
  * Lightweight assignment gate — does not load sessions/tasks.
  * Returns assigned_at when the actor teaches this class.
@@ -43,7 +46,7 @@ export async function assertTeachingAssignment(
 /**
  * Teachers may only mutate classes they are assigned to.
  * Other roles rely on permission checks already performed by the caller.
- * When `actor.role` is omitted (tests / legacy callers), assignment is skipped.
+ * Missing `actor.role` fails closed (do not skip assignment for teachers).
  */
 export async function assertAssignedTeacherForClassMutation(
   adminClient: Supabase,
@@ -51,6 +54,10 @@ export async function assertAssignedTeacherForClassMutation(
   classId: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!actor.userId) {
+    return { ok: false, error: UNAUTHORIZED_MESSAGE };
+  }
+
+  if (actor.role == null) {
     return { ok: false, error: UNAUTHORIZED_MESSAGE };
   }
 
@@ -67,9 +74,50 @@ export async function assertAssignedTeacherForClassMutation(
   if (!assignment.ok) {
     return {
       ok: false,
-      error: "You can only change classes you are assigned to teach.",
+      error: TEACHER_CLASS_ASSIGNMENT_REQUIRED_MESSAGE,
     };
   }
 
+  return { ok: true };
+}
+
+/**
+ * Same assignment gate across multiple class ids (e.g. transfer / copy).
+ */
+export async function assertAssignedTeacherForClassIds(
+  adminClient: Supabase,
+  actor: AuditActor,
+  classIds: readonly string[]
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const uniqueIds = [...new Set(classIds.filter(Boolean))];
+  for (const classId of uniqueIds) {
+    const scope = await assertAssignedTeacherForClassMutation(
+      adminClient,
+      actor,
+      classId
+    );
+    if (!scope.ok) {
+      return scope;
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Teachers must not create unscoped classes (no class_id to assign against).
+ * Missing `actor.role` fails closed.
+ */
+export function assertTeacherMayCreateClass(
+  actor: AuditActor
+): { ok: true } | { ok: false; error: string } {
+  if (!actor.userId) {
+    return { ok: false, error: UNAUTHORIZED_MESSAGE };
+  }
+  if (actor.role == null) {
+    return { ok: false, error: UNAUTHORIZED_MESSAGE };
+  }
+  if (actor.role === ROLES.TEACHER) {
+    return { ok: false, error: TEACHER_CLASS_ASSIGNMENT_REQUIRED_MESSAGE };
+  }
   return { ok: true };
 }

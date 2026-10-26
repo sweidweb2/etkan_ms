@@ -14,6 +14,11 @@ export const SITE = {
   seoDescription:
     "Etkan is a hands-on educational learning path—workshops, projects, and career tracks that build real technology skills.",
   tagline: "Administration and student management.",
+  /**
+   * Official public profiles for Organization `sameAs` (JSON-LD).
+   * Only add live, owned profiles — empty until profiles exist.
+   */
+  sameAs: [] as readonly string[],
 } as const;
 
 function trimTrailingSlash(url: string): string {

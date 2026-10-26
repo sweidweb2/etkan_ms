@@ -19,6 +19,7 @@ import {
   type MutationFailure,
   type Supabase,
 } from "@/services/classes/class-shared";
+import { assertAssignedTeacherForClassMutation } from "@/services/classes/teacher-class-scope.service";
 
 export type AssignClassTeacherResult =
   | {
@@ -48,6 +49,15 @@ export async function assignTeacherToClassForManager(
       error: "Please fix the errors below.",
       fieldErrors: parsed.error.flatten().fieldErrors,
     };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    parsed.data.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const [classResult, teacherResult, counts] = await Promise.all([
@@ -175,6 +185,15 @@ export async function unassignTeacherFromClassForManager(
       error: "Please fix the errors below.",
       fieldErrors: parsed.error.flatten().fieldErrors,
     };
+  }
+
+  const scope = await assertAssignedTeacherForClassMutation(
+    adminClient,
+    actor,
+    parsed.data.class_id
+  );
+  if (!scope.ok) {
+    return { success: false, error: scope.error };
   }
 
   const [classResult, counts, existing] = await Promise.all([

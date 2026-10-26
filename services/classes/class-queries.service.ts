@@ -490,6 +490,15 @@ export async function listClassStudentsForManager(
   return loadClassStudentRows(adminClient, classId);
 }
 
+export type LoadClassStudentRowsOptions = {
+  /**
+   * Resolve Auth Admin emails (N `getUserById` for ≤50 students).
+   * Teacher roster skips this — name/username are enough for search/display.
+   * @default true
+   */
+  includeAuthEmails?: boolean;
+};
+
 /**
  * Same rows as `listClassStudentsForManager` without the permission check.
  * Only for callers that already asserted `CLASSES_VIEW` (and class scope, e.g.
@@ -497,8 +506,10 @@ export async function listClassStudentsForManager(
  */
 export async function loadClassStudentRows(
   adminClient: Supabase,
-  classId: string
+  classId: string,
+  options?: LoadClassStudentRowsOptions
 ): Promise<ManagerClassStudentRow[]> {
+  const includeAuthEmails = options?.includeAuthEmails !== false;
   const timer = createNavStepTimer("class_students");
   try {
     const { data: enrollments, error } = await timer.step("enrollments", () =>
@@ -523,7 +534,12 @@ export async function loadClassStudentRows(
             adminClient,
             userIds
           ),
-          authRepository.listAuthEmailsByIds(adminClient, userIds),
+          includeAuthEmails
+            ? authRepository.listAuthEmailsByIds(adminClient, userIds)
+            : Promise.resolve({
+                data: new Map<string, string>(),
+                error: null as Error | null,
+              }),
         ])
       );
 

@@ -10,6 +10,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:smoke": "playwright test --grep @smoke",
+    "test:e2e:install": "playwright install chromium",
     "seed:admin": "tsx --conditions=react-server scripts/seed-admin.ts",
     "seed:manager": "tsx --conditions=react-server scripts/seed-manager.ts",
     "seed:demo": "tsx --conditions=react-server scripts/seed-demo-data.ts",
@@ -77,6 +82,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",

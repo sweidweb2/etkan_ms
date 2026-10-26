@@ -23,13 +23,14 @@ export const en = {
   "hero.subtitle":
     "Administration and student management in one place—built for your school’s daily work.",
   "hero.ctaLogin": "Log in",
-  "hero.ctaRegister": "Create account",
+  /** Points at `/register` (application), not disabled public signup. */
+  "hero.ctaRegister": "Register",
   "hero.ctaDashboard": "Go to dashboard",
   "hero.carouselLabel": "Home highlights",
   "hero.prev": "Previous slide",
   "hero.next": "Next slide",
   "hero.curvedInput.placeholder": "Enter your email",
-  "hero.curvedInput.button": "Get started",
+  "hero.curvedInput.button": "Register",
 
   "hero.topic": "Etkan is a productive educational learning path that works on",
 
@@ -398,6 +399,7 @@ export const en = {
   "blogs.fileUnder": "File under",
   "blogs.readMinutes": "{minutes} min read",
   "blogs.detail.back": "Back to blogs",
+  "blogs.detail.tldr": "Key takeaway",
   "blogs.detail.sources": "Sources",
   "blogs.detail.suggested": "More to read",
   "blogs.prevPage": "Previous page",

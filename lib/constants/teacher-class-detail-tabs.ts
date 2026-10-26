@@ -12,7 +12,7 @@ export type TeacherClassDetailTab =
 
 const TAB_VALUES = new Set<string>(Object.values(TEACHER_CLASS_DETAIL_TABS));
 
-/** Parse `?tab=` for the teacher class details page. */
+/** Parse a tab id (legacy `?tab=` bookmarks or localStorage). */
 export function parseTeacherClassDetailTab(
   value: string | null | undefined
 ): TeacherClassDetailTab | null {
@@ -49,7 +49,7 @@ export function readTeacherClassDetailTab(
   }
 }
 
-/** Remember the last opened tab so a clean class URL can reopen it. */
+/** Remember the last opened tab for client-only restore (no URL navigation). */
 export function writeTeacherClassDetailTab(
   classId: string,
   tab: TeacherClassDetailTab
