@@ -31,7 +31,6 @@ export default async function StudentClassDetailPage({
       classRow={detail.classRow}
       sessions={detail.sessions}
       detail={detail.detail}
-      classmates={detail.classmates}
       finalExam={detail.finalExam}
       studentFinalExamGrade={detail.studentFinalExamGrade}
     />

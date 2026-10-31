@@ -10,6 +10,7 @@ import {
   LineChartIcon,
   SlidersHorizontalIcon,
   UsersIcon,
+  WalletIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Can } from "@/components/auth/can";
@@ -23,6 +24,7 @@ import {
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useExternalTransactionDialogs } from "@/hooks/use-external-transaction-dialogs";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import { formatPaymentPhaseMoney } from "@/lib/constants/manager-payment-phase-display";
@@ -218,36 +220,36 @@ export function IncomeStatementPanel({
           )
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left">
-                <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Description</th>
-                <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium text-right">Amount</th>
-                <th className="px-4 py-3 font-medium">Method</th>
-                <th className="px-4 py-3 font-medium">Recorded by</th>
-                {showTransactionActions ? (
-                  <th className="px-4 py-3 font-medium text-right">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                ) : null}
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={showTransactionActions ? 8 : 7}
-                    className="px-4 py-10 text-center text-muted-foreground"
-                  >
-                    No external transactions recorded yet.
-                  </td>
+        {transactions.length === 0 ? (
+          <div className="px-3 py-4 sm:px-4">
+            <EmptyState
+              size="sm"
+              icon={WalletIcon}
+              title="No external transactions recorded yet"
+              description="Credits and debits outside student payment phases appear here."
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-left">
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Description</th>
+                  <th className="px-4 py-3 font-medium">Category</th>
+                  <th className="px-4 py-3 font-medium text-right">Amount</th>
+                  <th className="px-4 py-3 font-medium">Method</th>
+                  <th className="px-4 py-3 font-medium">Recorded by</th>
+                  {showTransactionActions ? (
+                    <th className="px-4 py-3 font-medium text-right">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  ) : null}
                 </tr>
-              ) : (
-                transactionsPager.pagedRows.map((row) => {
+              </thead>
+              <tbody>
+                {transactionsPager.pagedRows.map((row) => {
                   const isCredit = row.type === TRANSACTION_TYPES.CREDIT;
                   return (
                     <tr
@@ -314,11 +316,11 @@ export function IncomeStatementPanel({
                       ) : null}
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
         {transactions.length > 0 ? (
           <IncomeTablePagination
             totalCount={transactions.length}
@@ -402,30 +404,28 @@ export function IncomeStatementPanel({
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Student</th>
-                  <th className="px-4 py-3 font-medium">Phase</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium text-right">Value</th>
-                  <th className="px-4 py-3 font-medium">Effective</th>
-                  <th className="px-4 py-3 font-medium">Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adjustments.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No financial adjustments recorded yet.
-                    </td>
+          {adjustments.length === 0 ? (
+            <EmptyState
+              size="sm"
+              icon={FileTextIcon}
+              title="No financial adjustments recorded yet"
+              description="Discounts, scholarships, and manual adjustments appear here."
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-xl border">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">Phase</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
+                    <th className="px-4 py-3 font-medium text-right">Value</th>
+                    <th className="px-4 py-3 font-medium">Effective</th>
+                    <th className="px-4 py-3 font-medium">Reason</th>
                   </tr>
-                ) : (
-                  adjustmentsPager.pagedRows.map((row) => (
+                </thead>
+                <tbody>
+                  {adjustmentsPager.pagedRows.map((row) => (
                     <tr
                       key={row.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
@@ -460,11 +460,9 @@ export function IncomeStatementPanel({
                         )}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            {adjustments.length > 0 ? (
+                  ))}
+                </tbody>
+              </table>
               <IncomeTablePagination
                 totalCount={adjustments.length}
                 pageSize={adjustmentsPager.pageSize}
@@ -475,8 +473,8 @@ export function IncomeStatementPanel({
                   adjustmentsPager.setPage(1);
                 }}
               />
-            ) : null}
-          </div>
+            </div>
+          )}
         </div>
       </ClassTabCollapsibleSection>
 

@@ -17,10 +17,12 @@ import {
   ClockIcon,
   LockIcon,
   ShieldCheckIcon,
+  UsersIcon,
   XIcon,
 } from "lucide-react";
 import { updateAttendeeAction } from "@/app/manager/classes/actions";
 import { usePermissions } from "@/components/auth/permissions-provider";
+import { EmptyState } from "@/components/ui/empty-state";
 import { hasPermissionInSet } from "@/lib/auth/permission-checks";
 import {
   ATTENDEE_STATUS_VALUES,
@@ -330,9 +332,12 @@ export function SessionAttendanceBoard({
   return (
     <div className="flex flex-col gap-3">
       {attendees.length === 0 ? (
-        <p className="px-1 text-sm text-muted-foreground">
-          No attendees recorded for this session yet.
-        </p>
+        <EmptyState
+          size="sm"
+          icon={UsersIcon}
+          title="No attendees yet"
+          description="No attendees recorded for this session yet."
+        />
       ) : null}
 
       <div

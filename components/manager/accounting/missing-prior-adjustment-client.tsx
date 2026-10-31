@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { EyeIcon, ImportIcon } from "lucide-react";
+import { EyeIcon, FileTextIcon, ImportIcon } from "lucide-react";
 import { loadImportableAdjustmentsAction } from "@/app/manager/accounting/actions";
 import { Can } from "@/components/auth/can";
 import { ImportFinancialAdjustmentDialog } from "@/components/manager/accounting/import-financial-adjustment-dialog";
 import { SppStatusBadge } from "@/components/manager/accounting/spp-status-badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   getManagerAccountingSppDetailRoute,
@@ -113,29 +114,26 @@ export function MissingPriorAdjustmentClient({
         }}
       />
 
-      <div className="overflow-x-auto overflow-hidden rounded-xl border">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead>
-            <tr className="border-b bg-muted/40 text-left">
-              <th className="px-4 py-3 font-medium">Student</th>
-              <th className="px-4 py-3 font-medium">Phase</th>
-              <th className="px-4 py-3 font-medium">Semester</th>
-              <th className="px-4 py-3 font-medium">SPP status</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-4 py-10 text-center text-muted-foreground"
-                >
-                  No students need a prior adjustment imported.
-                </td>
+      {rows.length === 0 ? (
+        <EmptyState
+          icon={FileTextIcon}
+          title="No students need a prior adjustment imported"
+          description="All eligible assignments already have prior adjustments."
+        />
+      ) : (
+        <div className="overflow-x-auto overflow-hidden rounded-xl border">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40 text-left">
+                <th className="px-4 py-3 font-medium">Student</th>
+                <th className="px-4 py-3 font-medium">Phase</th>
+                <th className="px-4 py-3 font-medium">Semester</th>
+                <th className="px-4 py-3 font-medium">SPP status</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
-            ) : (
-              rows.map((row) => (
+            </thead>
+            <tbody>
+              {rows.map((row) => (
                 <tr key={row.spp_id} className="border-b last:border-b-0">
                   <td className="max-w-[12rem] px-4 py-3 font-medium">
                     <TruncatedCell value={row.student_label} maxLength={28} />
@@ -208,11 +206,11 @@ export function MissingPriorAdjustmentClient({
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { CalendarIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -39,9 +41,12 @@ export function IncomeStatementHistoryMonthSelect({
 
   if (months.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-        No past months with data yet.
-      </p>
+      <EmptyState
+        size="sm"
+        icon={CalendarIcon}
+        title="No past months with data yet"
+        description="History months appear once income statement data exists."
+      />
     );
   }
 

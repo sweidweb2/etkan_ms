@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { format } from "date-fns";
-import { ExternalLinkIcon, FileTextIcon, Trash2Icon } from "lucide-react";
+import {
+  ExternalLinkIcon,
+  FileIcon,
+  FileTextIcon,
+  Trash2Icon,
+} from "lucide-react";
 import {
   deleteStudentTaskUploadForSelfAction,
   getStudentTaskUploadSignedUrlForSelfAction,
@@ -10,6 +15,7 @@ import {
 } from "@/app/(panels)/student/classes/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -313,7 +319,12 @@ export function StudentTaskFiles({
         </div>
         <div className="px-3 py-3">
           {uploads.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No files yet.</p>
+            <EmptyState
+              size="sm"
+              icon={FileIcon}
+              title="No files yet"
+              description="Upload a file to attach it to this task."
+            />
           ) : (
             <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {uploads.map((upload) => (

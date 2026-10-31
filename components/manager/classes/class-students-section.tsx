@@ -13,6 +13,7 @@ import {
   PlusIcon,
   SearchIcon,
   Trash2Icon,
+  UsersIcon,
 } from "lucide-react";
 import { removeStudentFromClassAction } from "@/app/manager/classes/actions";
 import { Can } from "@/components/auth/can";
@@ -25,6 +26,7 @@ import {
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -396,32 +398,38 @@ export function ClassStudentsSection({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Full name</th>
-                  <th className="px-4 py-3 font-medium">Username</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 font-medium">Joined</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedStudents.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      {students.length === 0
-                        ? "No students in this class yet."
-                        : "No students match your search."}
-                    </td>
+          {paginatedStudents.length === 0 ? (
+            <div className="px-4 py-3">
+              <EmptyState
+                size="sm"
+                icon={students.length === 0 ? UsersIcon : SearchIcon}
+                title={
+                  students.length === 0
+                    ? "No students yet"
+                    : "No matching students"
+                }
+                description={
+                  students.length === 0
+                    ? "No students in this class yet."
+                    : "No students match your search."
+                }
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Full name</th>
+                    <th className="px-4 py-3 font-medium">Username</th>
+                    <th className="px-4 py-3 font-medium">Email</th>
+                    <th className="px-4 py-3 font-medium">Phone</th>
+                    <th className="px-4 py-3 font-medium">Joined</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
-                ) : (
-                  paginatedStudents.map((student) => (
+                </thead>
+                <tbody>
+                  {paginatedStudents.map((student) => (
                     <tr
                       key={student.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
@@ -489,11 +497,11 @@ export function ClassStudentsSection({
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {filteredStudents.length > 0 ? (
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">

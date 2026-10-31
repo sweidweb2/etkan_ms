@@ -9,6 +9,7 @@ import {
 import {
   DownloadIcon,
   ExternalLinkIcon,
+  FileIcon,
   PlusIcon,
   Trash2Icon,
   UploadIcon,
@@ -22,6 +23,7 @@ import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { FileTypeLogo } from "@/components/ui/file-type-logo";
 import {
   Dialog,
@@ -515,9 +517,12 @@ export function StudentUploadsPanel({
         </ul>
 
         {uploads.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No uploads yet. Use Add to attach a file.
-          </p>
+          <EmptyState
+            size="sm"
+            icon={FileIcon}
+            title="No uploads yet"
+            description="Use Add to attach a file."
+          />
         ) : null}
       </div>
     </>

@@ -9,6 +9,7 @@ import {
   ChevronRightIcon,
   PlusIcon,
   Trash2Icon,
+  UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { removeInstructorAction } from "@/app/manager/instructors/actions";
@@ -41,6 +42,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -330,31 +332,30 @@ export function ManageInstructorsPanel({
               </div>
 
               <div className="overflow-hidden rounded-xl border">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/40 text-left">
-                        <th className="px-4 py-3 font-medium">Username</th>
-                        <th className="px-4 py-3 font-medium">Email</th>
-                        <th className="px-4 py-3 font-medium">Role</th>
-                        <th className="px-4 py-3 font-medium">Added</th>
-                        <th className="px-4 py-3 font-medium">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedInstructors.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={5}
-                            className="px-4 py-10 text-center text-muted-foreground"
-                          >
-                            No instructors yet. Add users to get started.
-                          </td>
+                {paginatedInstructors.length === 0 ? (
+                  <EmptyState
+                    size="sm"
+                    className="m-4"
+                    icon={UsersIcon}
+                    title="No instructors yet"
+                    description="Add users to get started."
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="px-4 py-3 font-medium">Username</th>
+                          <th className="px-4 py-3 font-medium">Email</th>
+                          <th className="px-4 py-3 font-medium">Role</th>
+                          <th className="px-4 py-3 font-medium">Added</th>
+                          <th className="px-4 py-3 font-medium">
+                            <span className="sr-only">Actions</span>
+                          </th>
                         </tr>
-                      ) : (
-                        paginatedInstructors.map((row) => (
+                      </thead>
+                      <tbody>
+                        {paginatedInstructors.map((row) => (
                           <tr
                             key={row.id}
                             className="border-b last:border-b-0 hover:bg-muted/20"
@@ -386,11 +387,11 @@ export function ManageInstructorsPanel({
                               </Can>
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">

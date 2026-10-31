@@ -11,6 +11,7 @@ import {
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  UsersIcon,
   XIcon,
 } from "lucide-react";
 import { Can } from "@/components/auth/can";
@@ -21,6 +22,7 @@ import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTextButton } from "@/components/ui/copy-text-button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -360,101 +362,111 @@ export function ManageUsersPanel({
               </Select>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Username</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Created</th>
-                    <th className="px-4 py-3 text-center font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedUsers.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No users match your filters.
-                      </td>
+            {paginatedUsers.length === 0 ? (
+              <EmptyState
+                size="sm"
+                className="m-4"
+                icon={users.length === 0 ? UsersIcon : SearchIcon}
+                title={
+                  users.length === 0
+                    ? "No users yet"
+                    : "No users match your filters"
+                }
+                description={
+                  users.length === 0
+                    ? "Add a user to get started."
+                    : "Try a different search or role filter."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Username</th>
+                      <th className="px-4 py-3 font-medium">Email</th>
+                      <th className="px-4 py-3 font-medium">Role</th>
+                      <th className="px-4 py-3 font-medium">Created</th>
+                      <th className="px-4 py-3 text-center font-medium">Actions</th>
                     </tr>
-                  ) : (
-                    paginatedUsers.map((user) => {
-                      const isCurrentUser = currentUserId !== null && user.id === currentUserId;
+                  </thead>
+                  <tbody>
+                    {paginatedUsers.map((user) => {
+                      const isCurrentUser =
+                        currentUserId !== null && user.id === currentUserId;
 
                       return (
-                      <tr
-                        key={user.id}
-                        className={cn(
-                          USER_ROW_CLASS,
-                          isCurrentUser && "bg-primary/5"
-                        )}
-                        tabIndex={0}
-                        role="link"
-                        aria-label={`View details for ${user.username ?? user.email}`}
-                        onClick={() => openUserDetails(user)}
-                        onKeyDown={(event) => handleUserRowKeyDown(event, user)}
-                      >
-                        <td className="max-w-[10rem] px-4 py-3">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <TruncatedCell
-                              value={user.username ?? "—"}
-                              maxLength={COLUMN_LIMITS.username}
-                            />
-                            {isCurrentUser ? <CurrentUserBadge /> : null}
-                          </div>
-                        </td>
-                        <td className="max-w-[14rem] px-4 py-3">
-                          <div className="flex min-w-0 items-center gap-1">
-                            <TruncatedCell
-                              value={user.email}
-                              maxLength={COLUMN_LIMITS.email}
-                              className="min-w-0"
-                            />
-                            <CopyTextButton
-                              value={user.email}
-                              label={`Copy email for ${user.username ?? user.email}`}
-                              successMessage="Email copied to clipboard."
-                              errorMessage="Unable to copy email."
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <UserRoleBadge role={user.role} />
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                          {format(new Date(user.created_at), "MMM d, yyyy")}
-                        </td>
-                        <td
-                          className="px-4 py-3 text-center"
-                          onClick={(event) => event.stopPropagation()}
+                        <tr
+                          key={user.id}
+                          className={cn(
+                            USER_ROW_CLASS,
+                            isCurrentUser && "bg-primary/5"
+                          )}
+                          tabIndex={0}
+                          role="link"
+                          aria-label={`View details for ${user.username ?? user.email}`}
+                          onClick={() => openUserDetails(user)}
+                          onKeyDown={(event) =>
+                            handleUserRowKeyDown(event, user)
+                          }
                         >
-                          <div className="inline-flex items-center justify-center gap-1">
-                            <Can permission={PERMISSIONS.USERS_UPDATE}>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
-                                aria-label={`Edit ${user.username ?? user.email}`}
-                                onClick={() => setEditingUser(user)}
-                              >
-                                <PencilIcon className="size-4" />
-                              </Button>
-                            </Can>
-                            <UserDetailsLink user={user} />
-                          </div>
-                        </td>
-                      </tr>
+                          <td className="max-w-[10rem] px-4 py-3">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <TruncatedCell
+                                value={user.username ?? "—"}
+                                maxLength={COLUMN_LIMITS.username}
+                              />
+                              {isCurrentUser ? <CurrentUserBadge /> : null}
+                            </div>
+                          </td>
+                          <td className="max-w-[14rem] px-4 py-3">
+                            <div className="flex min-w-0 items-center gap-1">
+                              <TruncatedCell
+                                value={user.email}
+                                maxLength={COLUMN_LIMITS.email}
+                                className="min-w-0"
+                              />
+                              <CopyTextButton
+                                value={user.email}
+                                label={`Copy email for ${user.username ?? user.email}`}
+                                successMessage="Email copied to clipboard."
+                                errorMessage="Unable to copy email."
+                              />
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <UserRoleBadge role={user.role} />
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                            {format(new Date(user.created_at), "MMM d, yyyy")}
+                          </td>
+                          <td
+                            className="px-4 py-3 text-center"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div className="inline-flex items-center justify-center gap-1">
+                              <Can permission={PERMISSIONS.USERS_UPDATE}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="size-7 text-muted-foreground hover:bg-primary/15 hover:text-primary"
+                                  aria-label={`Edit ${user.username ?? user.email}`}
+                                  onClick={() => setEditingUser(user)}
+                                >
+                                  <PencilIcon className="size-4" />
+                                </Button>
+                              </Can>
+                              <UserDetailsLink user={user} />
+                            </div>
+                          </td>
+                        </tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

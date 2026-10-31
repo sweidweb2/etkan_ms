@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { PencilIcon, PlusIcon } from "lucide-react";
+import { ClipboardListIcon, PencilIcon, PlusIcon, UsersIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { CreateFinalExamDialog } from "@/components/manager/classes/create-final-exam-dialog";
 import { EditFinalExamDialog } from "@/components/manager/classes/edit-final-exam-dialog";
@@ -10,6 +10,7 @@ import { EditStudentFinalExamGradeSheet } from "@/components/manager/classes/edi
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Tooltip,
   TooltipContent,
@@ -209,9 +210,14 @@ export function ClassFinalExamSection({
         }
       >
         {!finalExam ? (
-          <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-            No final exam has been created for {className} yet.
-          </p>
+          <div className="px-4 py-3">
+            <EmptyState
+              size="sm"
+              icon={ClipboardListIcon}
+              title="No final exam yet"
+              description={`No final exam has been created for ${className} yet.`}
+            />
+          </div>
         ) : (
           <>
             <div className="border-b bg-muted/20 px-4 pt-2 pb-3">
@@ -254,6 +260,16 @@ export function ClassFinalExamSection({
               ) : null}
             </div>
 
+            {sortedStudentGrades.length === 0 ? (
+              <div className="px-4 py-3">
+                <EmptyState
+                  size="sm"
+                  icon={UsersIcon}
+                  title="No students yet"
+                  description="No students enrolled in this class yet."
+                />
+              </div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-sm">
                 <thead>
@@ -270,17 +286,7 @@ export function ClassFinalExamSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedStudentGrades.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No students enrolled in this class yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedStudentGrades.map((row) => (
+                    {sortedStudentGrades.map((row) => (
                       <tr
                         key={row.id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -326,11 +332,11 @@ export function ClassFinalExamSection({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ))}
                 </tbody>
               </table>
             </div>
+            )}
           </>
         )}
       </ClassTabCollapsibleSection>

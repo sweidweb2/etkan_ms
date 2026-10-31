@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
 import {
   ExternalLinkIcon,
+  FileTextIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -23,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { useActionStateSuccess } from "@/hooks/use-action-state-success";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
@@ -201,9 +203,12 @@ export function WorkshopDocumentsSection({
       >
         <div className="px-3 py-4 sm:px-4">
           {documents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No documents uploaded yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={FileTextIcon}
+              title="No documents uploaded yet"
+              description="Upload files related to this workshop."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[36rem] border-collapse text-sm">

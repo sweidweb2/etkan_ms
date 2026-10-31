@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PlusIcon } from "lucide-react";
+import { CalendarIcon, PlusIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { AddClassSessionDialog } from "@/components/manager/classes/add-class-session-dialog";
 import { ClassSessionCard } from "@/components/manager/classes/class-session-card";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Tooltip,
   TooltipContent,
@@ -128,9 +129,12 @@ export function ClassSessionsSection({
       >
         <div className="px-5 py-4">
           {sortedSessions.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No sessions are planned for this class yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={CalendarIcon}
+              title="No sessions yet"
+              description="No sessions are planned for this class yet."
+            />
           ) : (
             <div className="min-w-0 overflow-hidden rounded-xl border border-foreground/8 bg-muted/25 p-2">
               <HorizontalScrollCarousel
@@ -142,7 +146,7 @@ export function ClassSessionsSection({
                   .map((session) => session.id)
                   .join("|")}
               >
-                <div className="flex w-max flex-row gap-3 p-1">
+                <div className="flex w-max flex-row items-stretch gap-3 p-1">
                   {sortedSessions.map((session) => (
                     <ClassSessionCard
                       key={session.id}

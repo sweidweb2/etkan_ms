@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, PlusIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import { removeWorkshopInstructorAction } from "@/app/manager/workshops/actions";
 import { Can } from "@/components/auth/can";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   WORKSHOP_INSTRUCTOR_ROLE_LABELS,
   WORKSHOP_WAGE_TYPE_LABELS,
@@ -199,9 +200,12 @@ export function WorkshopInstructorsSection({
       >
         <div className="px-3 pt-4 pb-0 sm:px-4">
           {instructors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No instructors assigned yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={UsersIcon}
+              title="No instructors assigned yet"
+              description="Add an instructor to assign roles and wages."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[40rem] border-collapse text-sm">

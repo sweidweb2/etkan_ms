@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CalendarDaysIcon,
+  CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   MoreHorizontalIcon,
@@ -28,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -315,20 +317,28 @@ export function ManageWorkshopsPanel({
       </div>
 
       {workshops.length === 0 ? (
-        <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
+        <EmptyState
+          icon={typeCounts[typeTab] === 0 ? CalendarIcon : SearchIcon}
+          title={
+            typeCounts[typeTab] === 0
+              ? `No ${typeLabelPlural} yet`
+              : `No ${typeLabelPlural} match your filters`
+          }
+          description={
+            typeCounts[typeTab] === 0
+              ? `Create a ${typeLabel.toLowerCase()} to get started.`
+              : "Try a different search or status."
+          }
+        >
           {typeCounts[typeTab] === 0 ? (
-            <>
-              <p>No {typeLabelPlural} yet.</p>
-              <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
-                <p className="mt-1">
-                  Create a {typeLabel.toLowerCase()} to get started.
-                </p>
-              </Can>
-            </>
-          ) : (
-            <p>No {typeLabelPlural} match your filters.</p>
-          )}
-        </div>
+            <Can permission={PERMISSIONS.WORKSHOPS_CREATE}>
+              <Button type="button" onClick={() => setIsCreateOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                Add {typeLabel.toLowerCase()}
+              </Button>
+            </Can>
+          ) : null}
+        </EmptyState>
       ) : (
         <div
           className={cn(

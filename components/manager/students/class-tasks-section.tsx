@@ -1,9 +1,11 @@
 "use client";
 
 import { format } from "date-fns";
+import { ListTodoIcon } from "lucide-react";
 import { ClassLineChart } from "@/components/manager/students/class-line-chart";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { MANAGER_STUDENT_TASK_SLOTS_MAX_HEIGHT_CLASS } from "@/lib/constants/manager-student-class-slots";
 import { cn } from "@/lib/utils";
 import type { ManagerStudentClassTabDetail } from "@/types/manager-student-class-detail";
@@ -30,9 +32,12 @@ export function ClassTasksSection({ detail }: ClassTasksSectionProps) {
             Task grades
           </p>
           {detail.tasks.length === 0 ? (
-            <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-              No tasks found for this class yet.
-            </p>
+            <EmptyState
+              size="sm"
+              icon={ListTodoIcon}
+              title="No tasks yet"
+              description="No tasks found for this class yet."
+            />
           ) : (
             <div
               className={cn(
@@ -82,35 +87,30 @@ export function ClassTasksSection({ detail }: ClassTasksSectionProps) {
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Grade trend
           </p>
-          {gradeChartData.length === 0 ? (
-            <p className="flex min-h-[18rem] flex-1 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-              No graded tasks yet.
+          <ClassLineChart
+            className="min-h-[18rem] flex-1"
+            data={gradeChartData}
+            xKey="task_label"
+            yLabel="Grade"
+            emptyMessage="No graded tasks yet."
+            series={[
+              {
+                key: "grade",
+                label: "Student grade",
+                color: "#8b5cf6",
+              },
+              {
+                key: "max_grade",
+                label: "Max grade",
+                color: "#94a3b8",
+              },
+            ]}
+          />
+          {gradeChartData.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Line chart of graded tasks only (grade vs max grade).
             </p>
-          ) : (
-            <>
-              <ClassLineChart
-                className="min-h-[18rem] flex-1"
-                data={gradeChartData}
-                xKey="task_label"
-                yLabel="Grade"
-                series={[
-                  {
-                    key: "grade",
-                    label: "Student grade",
-                    color: "#8b5cf6",
-                  },
-                  {
-                    key: "max_grade",
-                    label: "Max grade",
-                    color: "#94a3b8",
-                  },
-                ]}
-              />
-              <p className="text-xs text-muted-foreground">
-                Line chart of graded tasks only (grade vs max grade).
-              </p>
-            </>
-          )}
+          ) : null}
         </div>
       </div>
     </ClassTabCollapsibleSection>

@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  GraduationCapIcon,
   SearchIcon,
 } from "lucide-react";
 import { SubjectClassCard } from "@/components/manager/subjects/subject-class-card";
 import { UserStatCard } from "@/components/manager/users/user-stat-card";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -190,11 +192,18 @@ export function SubjectClassesSection({
         </div>
 
         {paginatedClasses.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            {classes.length === 0
-              ? "No classes created for this subject yet."
-              : "No classes match your filters."}
-          </p>
+          <EmptyState
+            size="sm"
+            icon={classes.length === 0 ? GraduationCapIcon : SearchIcon}
+            title={
+              classes.length === 0 ? "No classes yet" : "No matching classes"
+            }
+            description={
+              classes.length === 0
+                ? "No classes created for this subject yet."
+                : "No classes match your filters."
+            }
+          />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {paginatedClasses.map((classRow) => (

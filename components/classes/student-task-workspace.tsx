@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ClipboardListIcon } from "lucide-react";
 import { ExportStudentTaskUploadsButton } from "@/components/classes/student-task/export-student-task-uploads-button";
 import { InlineStudentTaskForm } from "@/components/classes/student-task/inline-student-task-form";
 import { StudentTaskList } from "@/components/classes/student-task/student-task-list";
 import { StudentUploadsPanel } from "@/components/classes/student-task/student-uploads-panel";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import type {
   ManagerClassTaskRow,
   ManagerStudentTaskRow,
@@ -81,9 +83,14 @@ export function StudentTaskWorkspace({
       </header>
 
       {sortedStudentTasks.length === 0 ? (
-        <p className="px-4 py-10 text-sm text-muted-foreground">
-          No student task rows yet for this assignment.
-        </p>
+        <div className="p-4">
+          <EmptyState
+            size="sm"
+            icon={ClipboardListIcon}
+            title="No student tasks yet"
+            description="No student task rows yet for this assignment."
+          />
+        </div>
       ) : (
         <div className="flex min-h-[28rem] flex-col lg:flex-row">
           <StudentTaskList

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { BookOpenIcon } from "lucide-react";
 import { syncSubjectCatalogLinksAction } from "@/app/manager/subjects/catalog/actions";
 import { Can } from "@/components/auth/can";
 import { FieldLabel } from "@/components/auth/field-label";
@@ -8,6 +9,7 @@ import { SubjectCollapsibleSection } from "@/components/manager/subjects/subject
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useActionStateToast } from "@/hooks/use-action-state-toast";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import type { ManagerCategoryRow } from "@/types/manager-category";
@@ -92,9 +94,12 @@ export function SubjectCatalogLinksSection({
               className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3"
             >
               {categories.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No categories in the catalog yet.
-                </p>
+                <EmptyState
+                  size="sm"
+                  icon={BookOpenIcon}
+                  title="No categories yet"
+                  description="No categories in the catalog yet."
+                />
               ) : (
                 categories.map((category) => {
                   const id = `subject-category-${category.id}`;
@@ -131,9 +136,12 @@ export function SubjectCatalogLinksSection({
               className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3"
             >
               {exercises.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No exercises in the catalog yet.
-                </p>
+                <EmptyState
+                  size="sm"
+                  icon={BookOpenIcon}
+                  title="No exercises yet"
+                  description="No exercises in the catalog yet."
+                />
               ) : (
                 exercises.map((exercise) => {
                   const id = `subject-exercise-${exercise.id}`;

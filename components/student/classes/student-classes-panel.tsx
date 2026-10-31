@@ -1,7 +1,9 @@
 "use client";
 
 import { format } from "date-fns";
+import { GraduationCapIcon } from "lucide-react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
 import { GradientGlassCard } from "@/components/ui/gradient-glass-card";
 import {
   MANAGER_CLASS_STATUS_BADGE_CLASSES,
@@ -27,9 +29,11 @@ export function StudentClassesPanel({ rows }: StudentClassesPanelProps) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-4 py-12 text-center text-sm text-muted-foreground">
-          You are not enrolled in any classes yet.
-        </div>
+        <EmptyState
+          icon={GraduationCapIcon}
+          title="No classes yet"
+          description="You are not enrolled in any classes yet."
+        />
       ) : (
         <div className="grid w-full justify-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,16.5rem),16.5rem))]">
           {rows.map((row) => (
@@ -38,7 +42,7 @@ export function StudentClassesPanel({ rows }: StudentClassesPanelProps) {
               href={getStudentClassDetailRoute(row.class_id)}
               prefetch={false}
               aria-label={`View details for ${row.name}`}
-              className="block rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="block h-full rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <GradientGlassCard
                 id={row.id}

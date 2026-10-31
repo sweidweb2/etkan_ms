@@ -38,6 +38,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -103,7 +104,16 @@ import type {
   ManagerStudentPaymentRow,
 } from "@/types/manager-student-payment";
 import type { ManagerStudentPaymentScheduleRow } from "@/types/manager-student-payment-schedule";
-import { CopyIcon, ImportIcon, LinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  CopyIcon,
+  CreditCardIcon,
+  FileTextIcon,
+  ImportIcon,
+  LinkIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { format } from "date-fns";
@@ -960,31 +970,35 @@ export function SppDetailsPanel({
             ) : null}
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium text-right">Amount</th>
-                    <th className="px-4 py-3 font-medium">Method</th>
-                    <th className="px-4 py-3 font-medium">Received by</th>
-                    <th className="px-4 py-3 font-medium">Management</th>
-                    <th className="px-4 py-3 font-medium">Notes</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-10 text-center text-muted-foreground"
-                      >
-                        No payments recorded yet.
-                      </td>
+            {payments.length === 0 ? (
+              <div className="px-4 py-4">
+                <EmptyState
+                  size="sm"
+                  icon={CreditCardIcon}
+                  title="No payments recorded yet"
+                  description="Record a payment to track progress on this assignment."
+                />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[920px] text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-left">
+                      <th className="px-4 py-3 font-medium">Date</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Amount
+                      </th>
+                      <th className="px-4 py-3 font-medium">Method</th>
+                      <th className="px-4 py-3 font-medium">Received by</th>
+                      <th className="px-4 py-3 font-medium">Management</th>
+                      <th className="px-4 py-3 font-medium">Notes</th>
+                      <th className="px-4 py-3 font-medium text-right">
+                        Actions
+                      </th>
                     </tr>
-                  ) : (
-                    payments.map((payment) => (
+                  </thead>
+                  <tbody>
+                    {payments.map((payment) => (
                       <tr
                         key={payment.id}
                         className="border-b last:border-b-0 hover:bg-muted/30"
@@ -1059,11 +1073,11 @@ export function SppDetailsPanel({
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1235,9 +1249,12 @@ export function SppDetailsPanel({
               submission.
             </p>
             {invites.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No invite links yet.
-              </p>
+              <EmptyState
+                size="sm"
+                icon={FileTextIcon}
+                title="No invite links yet"
+                description="Generate a one-shot public link for financial form submission."
+              />
             ) : (
               <ul className="space-y-2">
                 {invites.map((invite) => (
@@ -1318,9 +1335,12 @@ export function SppDetailsPanel({
           </CardHeader>
           <CardContent>
             {forms.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No financial forms yet. Forms do not change amounts.
-              </p>
+              <EmptyState
+                size="sm"
+                icon={FileTextIcon}
+                title="No financial forms yet"
+                description="Forms do not change amounts."
+              />
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {forms.map((formRow) => (

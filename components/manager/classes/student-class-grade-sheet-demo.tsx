@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import {
   ChevronDownIcon,
+  ClipboardListIcon,
   FileTextIcon,
   LockIcon,
   PrinterIcon,
@@ -12,6 +13,7 @@ import { Can } from "@/components/auth/can";
 import { ClassTabCollapsibleSection } from "@/components/manager/students/class-tab-collapsible-section";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   DropdownMenu,
@@ -492,6 +494,18 @@ function TasksTable({
   const headCell = isVertical ? certHeadCellCompact : certHeadCell;
   const bodyCell = isVertical ? certCellCompact : certCell;
 
+  if (model.taskRows.length === 0) {
+    return (
+      <EmptyState
+        className="mt-3"
+        size="sm"
+        icon={ClipboardListIcon}
+        title="No tasks recorded"
+        description="No tasks recorded for this class."
+      />
+    );
+  }
+
   return (
     <CertTable className="mt-3">
       <thead>
@@ -505,34 +519,26 @@ function TasksTable({
         </tr>
       </thead>
       <tbody>
-        {model.taskRows.length === 0 ? (
-          <tr>
-            <td className={cn(bodyCell, "text-center text-slate-500")} colSpan={6}>
-              No tasks recorded for this class.
+        {model.taskRows.map((task, index) => (
+          <tr key={`${task.title}-${index}`}>
+            <td className={cn(bodyCell, "text-center tabular-nums")}>
+              {index + 1}
+            </td>
+            <td className={bodyCell}>{task.title}</td>
+            <td className={cn(bodyCell, "text-center")}>
+              {task.sessionLabel ?? "—"}
+            </td>
+            <td className={cn(bodyCell, "text-center font-medium tabular-nums")}>
+              {task.grade == null ? "—" : task.grade}
+            </td>
+            <td className={cn(bodyCell, "text-center tabular-nums")}>
+              {task.maxGrade}
+            </td>
+            <td className={cn(bodyCell, "text-center capitalize")}>
+              {task.status.replaceAll("_", " ")}
             </td>
           </tr>
-        ) : (
-          model.taskRows.map((task, index) => (
-            <tr key={`${task.title}-${index}`}>
-              <td className={cn(bodyCell, "text-center tabular-nums")}>
-                {index + 1}
-              </td>
-              <td className={bodyCell}>{task.title}</td>
-              <td className={cn(bodyCell, "text-center")}>
-                {task.sessionLabel ?? "—"}
-              </td>
-              <td className={cn(bodyCell, "text-center font-medium tabular-nums")}>
-                {task.grade == null ? "—" : task.grade}
-              </td>
-              <td className={cn(bodyCell, "text-center tabular-nums")}>
-                {task.maxGrade}
-              </td>
-              <td className={cn(bodyCell, "text-center capitalize")}>
-                {task.status.replaceAll("_", " ")}
-              </td>
-            </tr>
-          ))
-        )}
+        ))}
       </tbody>
     </CertTable>
   );

@@ -6,6 +6,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MessageSquareTextIcon,
+  PackageIcon,
   PencilIcon,
   SearchIcon,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { BorrowEquipmentStatusBadge } from "@/components/manager/students/borrow
 import { EditBorrowEquipmentDialog } from "@/components/manager/students/edit-borrow-equipment-dialog";
 import { ViewBorrowEquipmentDialog } from "@/components/manager/students/view-borrow-equipment-dialog";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -357,33 +359,38 @@ export function StudentBorrowedEquipmentSection({
             </Select>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Equipment</th>
-                  <th className="px-4 py-3 font-medium">Qty</th>
-                  <th className="px-4 py-3 font-medium">Borrowed</th>
-                  <th className="px-4 py-3 font-medium">Returned</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Toggle</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedBorrows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      {borrows.length === 0
-                        ? "No borrowed equipment for this student."
-                        : "No borrowed equipment matches your filters."}
-                    </td>
+          {paginatedBorrows.length === 0 ? (
+            <EmptyState
+              className="m-4"
+              size="sm"
+              icon={borrows.length === 0 ? PackageIcon : SearchIcon}
+              title={
+                borrows.length === 0
+                  ? "No borrowed equipment"
+                  : "No matching records"
+              }
+              description={
+                borrows.length === 0
+                  ? "This student has no borrowed equipment records yet."
+                  : "No borrowed equipment matches your filters."
+              }
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Equipment</th>
+                    <th className="px-4 py-3 font-medium">Qty</th>
+                    <th className="px-4 py-3 font-medium">Borrowed</th>
+                    <th className="px-4 py-3 font-medium">Returned</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Toggle</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
-                ) : (
-                  paginatedBorrows.map((row) => {
+                </thead>
+                <tbody>
+                  {paginatedBorrows.map((row) => {
                     const isBorrowed = getRowIsBorrowed(row);
 
                     return (
@@ -466,11 +473,11 @@ export function StudentBorrowedEquipmentSection({
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

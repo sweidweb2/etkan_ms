@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { EyeIcon, PencilIcon } from "lucide-react";
+import { ClipboardListIcon, EyeIcon, PencilIcon } from "lucide-react";
 import { Can } from "@/components/auth/can";
 import { EditStudentTaskSheet } from "@/components/manager/classes/edit-student-task-sheet";
 import { StudentTaskStatusBadge } from "@/components/manager/students/student-task-status-badge";
@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Tooltip,
   TooltipContent,
@@ -141,32 +142,32 @@ export function SessionTaskStudentTasksSection({
           </p>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Student</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Grade</th>
-                  <th className="px-4 py-3 font-medium">Submitted</th>
-                  <th className="px-4 py-3 font-medium">Graded</th>
-                  <th className="px-4 py-3 font-medium">Notes</th>
-                  <th className="px-4 py-3 font-medium">Report</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedStudentTasks.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No student task records for this assignment yet.
-                    </td>
+          {sortedStudentTasks.length === 0 ? (
+            <div className="px-4 py-3">
+              <EmptyState
+                size="sm"
+                icon={ClipboardListIcon}
+                title="No student tasks yet"
+                description="No student task records for this assignment yet."
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[960px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Grade</th>
+                    <th className="px-4 py-3 font-medium">Submitted</th>
+                    <th className="px-4 py-3 font-medium">Graded</th>
+                    <th className="px-4 py-3 font-medium">Notes</th>
+                    <th className="px-4 py-3 font-medium">Report</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
-                ) : (
-                  sortedStudentTasks.map((studentTask) => (
+                </thead>
+                <tbody>
+                  {sortedStudentTasks.map((studentTask) => (
                     <tr
                       key={studentTask.id}
                       className="border-b last:border-b-0 hover:bg-muted/30"
@@ -231,11 +232,11 @@ export function SessionTaskStudentTasksSection({
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </TooltipProvider>

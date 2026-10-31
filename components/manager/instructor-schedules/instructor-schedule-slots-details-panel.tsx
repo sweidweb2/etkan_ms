@@ -28,6 +28,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -314,31 +315,30 @@ export function InstructorScheduleSlotsDetailsPanel({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Instructor</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Weekday</th>
-                  <th className="px-4 py-3 font-medium">Time</th>
-                  <th className="px-4 py-3 font-medium">Color</th>
-                  <th className="px-4 py-3 font-medium">Anchor date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No schedule slots match your filters.
-                    </td>
+          {rows.length === 0 ? (
+            <EmptyState
+              size="sm"
+              className="m-4"
+              icon={SearchIcon}
+              title="No schedule slots match your filters"
+              description="Try a different search or slot type."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium">Instructor</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
+                    <th className="px-4 py-3 font-medium">Weekday</th>
+                    <th className="px-4 py-3 font-medium">Time</th>
+                    <th className="px-4 py-3 font-medium">Color</th>
+                    <th className="px-4 py-3 font-medium">Anchor date</th>
                   </tr>
-                ) : (
-                  rows.map((row) => (
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
                     <tr
                       key={row.id}
                       className="border-b last:border-b-0 transition-colors hover:bg-muted/30"
@@ -374,11 +374,11 @@ export function InstructorScheduleSlotsDetailsPanel({
                         {formatAnchorDate(row.slotDate)}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 border-t px-4 pt-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
