@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as classRepository from "@/repositories/class.repository";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentPaymentPhaseRepository from "@/repositories/student-payment-phase.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
@@ -22,6 +23,7 @@ vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/payment-phase.repository");
 vi.mock("@/repositories/profile.repository");
 vi.mock("@/repositories/semester.repository");
+vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-profile.repository");
@@ -306,6 +308,12 @@ function mockSnapshotClasses(
 describe("listMissingSppForOpenedPhases", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(
+      semesterDropRequestRepository.listNeedRefundDropRequests
+    ).mockResolvedValue({
+      data: [],
+      error: null,
+    } as never);
   });
 
   it("returns enrolled students without any SPP row on the billing class", async () => {

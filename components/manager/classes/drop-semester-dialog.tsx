@@ -55,8 +55,7 @@ export function DropSemesterDialog({
 }: DropSemesterDialogProps) {
   const router = useRouter();
   const percentInputRef = useRef<HTMLInputElement>(null);
-  const studentRef = useRef(student);
-  studentRef.current = student;
+  const submittedMembershipIdRef = useRef<string | null>(null);
 
   const { formAction, isPending, handleOpenChange, state } =
     useMutationDialogForm({
@@ -65,11 +64,11 @@ export function DropSemesterDialog({
       open,
       onOpenChange,
       onSuccess: (next) => {
-        const current = studentRef.current;
         const membershipId =
           next.membershipId ??
           next.removedStudentMembershipId ??
-          current?.id;
+          submittedMembershipIdRef.current ??
+          undefined;
         if (membershipId) {
           onCompleted({
             membershipId,
@@ -91,14 +90,14 @@ export function DropSemesterDialog({
   }, [open, student?.id]);
 
   function handleSubmit() {
-    const current = studentRef.current;
-    if (!current || isPending) {
+    if (!student || isPending) {
       return;
     }
+    submittedMembershipIdRef.current = student.id;
     const formData = new FormData();
-    formData.set("student_id", current.user_id);
+    formData.set("student_id", student.user_id);
     formData.set("class_id", classId);
-    formData.set("membership_id", current.id);
+    formData.set("membership_id", student.id);
     formData.set(
       "required_percent",
       percentInputRef.current?.value?.trim() ||

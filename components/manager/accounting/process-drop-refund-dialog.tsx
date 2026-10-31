@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { processDropRefundAction } from "@/app/manager/accounting/actions";
 import { InlineSpinner } from "@/components/loaders/inline-spinner";
@@ -53,8 +53,6 @@ export function ProcessDropRefundDialog({
   onProcessed,
 }: ProcessDropRefundDialogProps) {
   const router = useRouter();
-  const rowRef = useRef(row);
-  rowRef.current = row;
 
   const remaining = row?.remaining_refund ?? 0;
   const resetToken = open && row ? `${row.id}:${remaining}` : null;
@@ -94,12 +92,11 @@ export function ProcessDropRefundDialog({
     });
 
   function handleSubmit() {
-    const current = rowRef.current;
-    if (!current || isPending) {
+    if (!row || isPending) {
       return;
     }
     const formData = new FormData();
-    formData.set("request_id", current.id);
+    formData.set("request_id", row.id);
     formData.set("amount", amount.trim());
     formData.set("payment_date", paymentDate);
     formData.set("payment_method", paymentMethod);

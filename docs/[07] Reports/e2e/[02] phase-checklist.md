@@ -19,7 +19,7 @@ Also mark matching rows in the plan’s **§8 inventory** tables.
 | 4 | Manager people CRUD | [x] Done | Users/students create+edit; guests create; registrations list smoke (skip if empty) |
 | 5 | Manager academics | [x] Done | Subject/team/class create + enroll |
 | 6 | Manager class deep path | [x] Done | Categories/grades/session(+attendance)/task |
-| 7 | Equipment / instructors / schedules / workshops | [ ] Not started | |
+| 7 | Equipment / instructors / schedules / workshops | [x] Done | Create + smoke; borrow optional |
 | 8 | Finance & analysis | [ ] Not started | `@money` gated |
 | 9 | Email / content / notifications | [ ] Not started | Gate real email send |
 | 10 | Manager system surfaces | [ ] Not started | Prefer read-only |
@@ -87,10 +87,10 @@ Also mark matching rows in the plan’s **§8 inventory** tables.
 
 ### Phase 7
 
-- [ ] Equipment create + borrow/return (or create + borrow page)  
-- [ ] Instructors list (+ mutation if stable)  
-- [ ] Instructor schedule one slot mutation  
-- [ ] Workshops list/detail + payments page  
+- [x] Equipment create + borrow/return (or create + borrow page)  
+- [x] Instructors list (+ mutation if stable)  
+- [x] Instructor schedule one slot mutation  
+- [x] Workshops list/detail + payments page  
 
 ### Phase 8
 

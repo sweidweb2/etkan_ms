@@ -5,6 +5,7 @@ import {
 } from "@/lib/validators/manager/create-financial-adjustment";
 import { checkPublicFinancialFormSubmitRateLimit } from "@/lib/rate-limit/public-financial-form-rate-limit";
 import * as paymentPhaseRepository from "@/repositories/payment-phase.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentFinancialAdjustmentRepository from "@/repositories/student-financial-adjustment.repository";
 import * as studentFinancialFormInviteRepository from "@/repositories/student-financial-form-invite.repository";
 import * as studentFinancialFormRepository from "@/repositories/student-financial-form.repository";
@@ -32,6 +33,7 @@ import {
 } from "@/services/auth/authorization.service";
 
 vi.mock("@/repositories/payment-phase.repository");
+vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/repositories/student-payment-phase.repository");
 vi.mock("@/repositories/student-financial-adjustment.repository");
 vi.mock("@/repositories/student-financial-form.repository");
@@ -173,7 +175,17 @@ const inviteRecord = {
   form_id: null,
 };
 
+function mockNoCompletedDrop() {
+  vi.mocked(
+    semesterDropRequestRepository.findCompletedDropBySppId
+  ).mockResolvedValue({
+    data: null,
+    error: null,
+  } as never);
+}
+
 function mockOkLoad() {
+  mockNoCompletedDrop();
   vi.mocked(studentPaymentPhaseRepository.findSppWithPhaseById).mockResolvedValue({
     data: { ...sppRecord, payment_phases: phaseRecord },
     error: null,
@@ -395,6 +407,7 @@ describe("createFinancialFormForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockNoCompletedDrop();
   });
 
   it("rejects form create when student payment phase is missing", async () => {
@@ -599,6 +612,7 @@ describe("submitFinancialFormByToken", () => {
     vi.mocked(checkPublicFinancialFormSubmitRateLimit).mockResolvedValue({
       allowed: true,
     });
+    mockNoCompletedDrop();
   });
 
   it("creates a form and marks the invite used", async () => {
@@ -890,6 +904,7 @@ describe("importAdjustmentForManager", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    mockNoCompletedDrop();
   });
 
   it("copies type/value/reason onto the target SPP with today's effective date", async () => {

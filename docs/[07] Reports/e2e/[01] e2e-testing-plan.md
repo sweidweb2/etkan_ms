@@ -43,7 +43,7 @@ Do **not** E2E every validator edge case — Vitest already covers most of that.
 | Layer | Status |
 |-------|--------|
 | Vitest unit/service tests | Strong (keep growing) |
-| Playwright / Cypress | ✅ Phases **0–6** done (through class deep path); Phases 7–15 not started |
+| Playwright / Cypress | ✅ Phases **0–7** done (through equipment/workshops); Phases 8–15 not started |
 | CI for E2E | None yet |
 | Seed scripts | `seed`, `seed:admin`, `seed:manager`, `seed:demo`, `seed:rbac`, etc. |
 | Auth | Supabase email/password + cookies |
@@ -282,12 +282,12 @@ Coverage columns: leave blank until implemented. Use `S` = smoke (loads), `M` = 
 | `/manager/subjects/catalog` | Academics | ✅ S (Phase 3–5) |
 | `/manager/classes` | Academics | ✅ S (Phase 3) + M create/enroll (Phase 5) |
 | `/manager/semesters` | Academics (“Manage semesters”) | ✅ S (Phase 3) + M create (Phase 5) |
-| `/manager/equipments` | Resources | ✅ S (Phase 3) |
-| `/manager/instructors` | Instructors & workshops | ✅ S (Phase 3) |
-| `/manager/instructor-schedules` | Instructors & workshops | ✅ S (Phase 3) |
-| `/manager/instructor-schedules/details` | Instructors & workshops | ✅ S (Phase 3) |
-| `/manager/workshops` | Instructors & workshops | ✅ S (Phase 3) |
-| `/manager/workshops/payments` | Workshops | ✅ S (Phase 3) |
+| `/manager/equipments` | Resources | ✅ S (Phase 3) + M create (Phase 7) |
+| `/manager/instructors` | Instructors & workshops | ✅ S (Phase 3) + M subject (Phase 7) |
+| `/manager/instructor-schedules` | Instructors & workshops | ✅ S (Phase 3) + M slot (Phase 7) |
+| `/manager/instructor-schedules/details` | Instructors & workshops | ✅ S (Phase 3–7) |
+| `/manager/workshops` | Instructors & workshops | ✅ S (Phase 3) + M create (Phase 7) |
+| `/manager/workshops/payments` | Workshops | ✅ S (Phase 3–7) |
 | `/manager/cloudflare-ai-usage` | Instructors & workshops | ✅ S (Phase 3) |
 | `/manager/accounting` | Operations | ✅ S (Phase 3) |
 | `/manager/income-statement` | Operations | ✅ S (Phase 3) |
@@ -324,9 +324,9 @@ Coverage columns: leave blank until implemented. Use `S` = smoke (loads), `M` = 
 | `/manager/classes/[id]/sessions/[sessionId]` | ✅ S + attendance M (Phase 6) |
 | `/manager/classes/[id]/tasks/[taskId]` | ✅ S (Phase 6) |
 | `/manager/classes/[id]/sessions/[sessionId]/tasks/[taskId]` | deprecated alias — smoke optional |
-| `/manager/equipments/[id]` | |
-| `/manager/equipments/borrow` | |
-| `/manager/workshops/[id]` | |
+| `/manager/equipments/[id]` | ✅ S (Phase 7) |
+| `/manager/equipments/borrow` | ✅ S (Phase 7) |
+| `/manager/workshops/[id]` | ✅ S/M (Phase 7) |
 | `/manager/projects/[id]` | |
 | `/manager/accounting/phases/[id]` | |
 | `/manager/accounting/phases/[id]/students/[sppId]` | |
@@ -383,9 +383,9 @@ These are the **happy paths** that must eventually exist (beyond “page loads�
 | J5 | Create semester/team → open detail | 5 ✅ |
 | J6 | Create class → enroll student | 5 ✅ |
 | J7 | Session attendance or task grade write (one) | 6 ✅ (attendance) |
-| J8 | Equipment create + borrow/return | 7 |
-| J9 | Instructor schedule slot create/edit | 7 |
-| J10 | Workshop create/open + payments page | 7 |
+| J8 | Equipment create + borrow/return | 7 ✅ (create + borrow page; return when UI selectable) |
+| J9 | Instructor schedule slot create/edit | 7 ✅ create |
+| J10 | Workshop create/open + payments page | 7 ✅ |
 | J11 | Accounting phase → SPP → record payment (`@money`) | 8 |
 | J12 | Income statement / analytics load (+ light write if safe) | 8 |
 | J13 | Email compose load; send only if `E2E_ALLOW_EMAIL=1` | 9 |
@@ -516,16 +516,16 @@ These are the **happy paths** that must eventually exist (beyond “page loads�
 
 ---
 
-### Phase 7 — Equipment, instructors, schedules, workshops
+### Phase 7 — Equipment, instructors, schedules, workshops ✅ Done
 
 | Area | Focus |
 |------|-------|
-| Equipment | List → detail; create; borrow page + borrow/return |
-| Instructors | List + one mutation if UI stable |
-| Instructor schedules | List + details; create/edit one slot (J9) |
-| Workshops | List → detail; payments page; create (J10) |
+| Equipment | ✅ Create → detail; borrow page smoke (borrow/return when selectable) |
+| Instructors | ✅ List + create instructor subject |
+| Instructor schedules | ✅ List + details; create slot (J9) |
+| Workshops | ✅ Create → detail; payments page |
 
-**Exit:** J8–J10 green (or smoke + one mutation each).
+**Exit:** ✅ J8–J10 green (smoke + mutations).
 
 **Risk:** Medium.
 
@@ -737,7 +737,7 @@ Debug order: env/seed → selector → toast/action state → service error → 
 
 ## 14. Definition of “integrate it now”
 
-**Now = Phase 7 (equipment / instructors / workshops).** Phases 0–6 are ✅ done.
+**Now = Phase 8 (finance / analysis).** Phases 0–7 are ✅ done.
 
 1. [x] Install Playwright  
 2. [x] Config + `npm run test:e2e`  
@@ -751,8 +751,9 @@ Debug order: env/seed → selector → toast/action state → service error → 
 10. [x] Phase 4 manager people CRUD  
 11. [x] Phase 5 academics create/enroll  
 12. [x] Phase 6 class deep path  
+13. [x] Phase 7 equipment / instructors / workshops  
 
-Next: Phase 7 → continue through §9 until §8 tables are complete.
+Next: Phase 8 → continue through §9 until §8 tables are complete.
 
 ---
 

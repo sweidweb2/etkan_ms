@@ -41,8 +41,7 @@ export function CancelSemesterDropDialog({
   onCancelled,
 }: CancelSemesterDropDialogProps) {
   const router = useRouter();
-  const studentRef = useRef(student);
-  studentRef.current = student;
+  const submittedMembershipIdRef = useRef<string | null>(null);
 
   const { formAction, isPending, handleOpenChange, state } =
     useMutationDialogForm({
@@ -51,7 +50,7 @@ export function CancelSemesterDropDialog({
       open,
       onOpenChange,
       onSuccess: () => {
-        const membershipId = studentRef.current?.id;
+        const membershipId = submittedMembershipIdRef.current;
         if (membershipId) {
           onCancelled(membershipId);
         }
@@ -61,12 +60,12 @@ export function CancelSemesterDropDialog({
     });
 
   function handleConfirm() {
-    const current = studentRef.current;
-    if (!current?.pending_drop_request_id || isPending) {
+    if (!student?.pending_drop_request_id || isPending) {
       return;
     }
+    submittedMembershipIdRef.current = student.id;
     const formData = new FormData();
-    formData.set("request_id", current.pending_drop_request_id);
+    formData.set("request_id", student.pending_drop_request_id);
     formData.set("class_id", classId);
     formAction(formData);
   }

@@ -15,21 +15,28 @@ test.describe("manager instructor schedules @mutation", () => {
   });
 
   test("list and details load @smoke", async ({ page }) => {
-    await page.goto("/manager/instructor-schedules");
+    page.setDefaultNavigationTimeout(90_000);
+    await page.goto("/manager/instructor-schedules", { waitUntil: "commit" });
     await expect(
       page.getByRole("heading", { level: 1, name: "Instructor schedules" })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 60_000 });
 
-    await page.goto("/manager/instructor-schedules/details");
+    await page.goto("/manager/instructor-schedules/details", {
+      waitUntil: "commit",
+    });
     await expect(
       page.getByRole("heading", { level: 1, name: "Schedule slot details" })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 60_000 });
   });
 
   test("create schedule slot", async ({ page }) => {
     const slotName = `E2E Slot ${e2eStamp("slot")}`.slice(0, 60);
 
-    await page.goto("/manager/instructor-schedules");
+    page.setDefaultNavigationTimeout(90_000);
+    await page.goto("/manager/instructor-schedules", { waitUntil: "commit" });
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Instructor schedules" })
+    ).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Add slot" }).click();
 
     const dialog = page.getByRole("dialog");

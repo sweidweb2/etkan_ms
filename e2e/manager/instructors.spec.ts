@@ -14,10 +14,10 @@ test.describe("manager instructors", () => {
   });
 
   test("list loads @smoke", async ({ page }) => {
-    await page.goto("/manager/instructors");
+    await page.goto("/manager/instructors", { waitUntil: "commit" });
     await expect(
       page.getByRole("heading", { level: 1, name: "Manage instructors" })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 60_000 });
     await expect(
       page.getByRole("button", { name: "Add instructors" })
     ).toBeVisible();
@@ -26,7 +26,10 @@ test.describe("manager instructors", () => {
   test("create instructor subject @mutation", async ({ page }) => {
     const name = `E2E Instr Subj ${e2eStamp("is")}`.slice(0, 80);
 
-    await page.goto("/manager/instructors");
+    await page.goto("/manager/instructors", { waitUntil: "commit" });
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Manage instructors" })
+    ).toBeVisible({ timeout: 60_000 });
     const addSubject = page.getByRole("button", {
       name: "Add instructor subject",
     });

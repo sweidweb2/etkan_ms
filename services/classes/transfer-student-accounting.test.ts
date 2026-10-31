@@ -4,6 +4,7 @@ import * as authRepository from "@/repositories/auth.repository";
 import * as classRepository from "@/repositories/class.repository";
 import * as finalExamRepository from "@/repositories/final-exam.repository";
 import * as profileRepository from "@/repositories/profile.repository";
+import * as semesterDropRequestRepository from "@/repositories/semester-drop-request.repository";
 import * as studentClassRepository from "@/repositories/student-class.repository";
 import * as studentProfileRepository from "@/repositories/student-profile.repository";
 import * as accountingSync from "@/services/accounting/accounting-sync.service";
@@ -17,6 +18,7 @@ vi.mock("@/repositories/class.repository");
 vi.mock("@/repositories/class-teacher.repository");
 vi.mock("@/repositories/final-exam.repository");
 vi.mock("@/repositories/profile.repository");
+vi.mock("@/repositories/semester-drop-request.repository");
 vi.mock("@/repositories/session.repository");
 vi.mock("@/repositories/student-class.repository");
 vi.mock("@/repositories/student-profile.repository");
@@ -81,6 +83,12 @@ describe("transferStudentBetweenClassesForManager accounting (E7)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(auditLogService.recordManagerAuditLog).mockResolvedValue(null);
+    vi.mocked(
+      semesterDropRequestRepository.findPendingDropByStudentAndSemester
+    ).mockResolvedValue({
+      data: null,
+      error: null,
+    } as never);
     vi.mocked(accountingSync.onStudentLeftClass).mockResolvedValue({
       phase: null,
       spp: null,
